@@ -13,14 +13,19 @@
 //!   `from_values_payload`);
 //! - the order: the position of each field in the facade's `*_pack` and
 //!   `*_unpack` and in Rust's `from_flat`, `to_flat` and `*_field_names`.
-//!   **Nothing checks the order.** A field in the wrong position is not an
-//!   error: the right number lands in the wrong variable.
+//!   Length/schema checks and default round trips do not prove this order.
+//!   A misplaced field can deliver the right number to the wrong variable;
+//!   use distinct-value, kernel-facing wiring checks for affected mappings.
 //!
-//! Defaults come from Fortran, not from Rust: `<prefix>_default_from_fortran`
+//! Legacy construction uses Fortran defaults: `<prefix>_default_from_fortran`
 //! asks the facade to pack a freshly initialised *shadow* type, so the
 //! shadow's initialisers (mostly `0.0`) are the values any field keeps when
 //! nothing overwrites it. The YAML reader (`yaml_config.rs`) starts from those
 //! defaults and overwrites only the keys it finds.
+//! This describes current fallback behaviour, not the required ownership rule:
+//! model defaults belong in the Python data model. Representation initialisers
+//! must not supply missing model inputs; see the BR rules in
+//! `.claude/rules/rust/bridge-contract.md` and `dev-ref/RUST_BRIDGE_DESIGN.md`.
 //!
 //! Step-by-step instructions for adding a field: `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`.
 

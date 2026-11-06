@@ -7,6 +7,11 @@ paths:
 
 # Rust Bridge Conventions
 
+Apply [bridge-contract.md](bridge-contract.md) for responsibility boundaries
+and the BR-01 through BR-10 audit requirements. The
+[design](../../../dev-ref/RUST_BRIDGE_DESIGN.md) maps the implementation;
+the [baseline audit](../../../dev-ref/RUST_BRIDGE_AUDIT.md) records known gaps.
+
 The Rust bridge (`src/suews_bridge/`) replaced f90wrap as the Fortran-Python interface. It is a three-layer system:
 
 - **Python layer** (PyO3) -- `#[pyclass]` types exposed to supy via maturin wheels
@@ -32,8 +37,9 @@ The Rust bridge (`src/suews_bridge/`) replaced f90wrap as the Fortran-Python int
 ## Building
 
 ```bash
-# Rust CLI binary (standalone, no Python)
-make bridge
+# Rust CLI binary with simulation (standalone, no Python)
+make -C src/suews all
+cargo build --manifest-path src/suews_bridge/Cargo.toml --release --features physics
 # Output: src/suews_bridge/target/release/suews-engine
 
 # Python module (for development)
@@ -52,8 +58,8 @@ No `rust-toolchain.toml` -- uses system Rust. CI installs via rustup.
 ## Feature Flags (Cargo.toml)
 
 - `physics` -- enables Fortran physics compilation and FFI bindings (required for simulation)
-- `python-extension` -- enables PyO3 with stable ABI for Python 3.9+ wheels
-- `python` -- enables PyO3 without stable ABI (for development)
+- `python-extension` -- enables `python` and PyO3's extension-module linking
+- `python` -- enables PyO3; the dependency selects the Python 3.12+ stable ABI
 - `arrow-output` -- enables Apache Arrow IPC output format
 
 The maturin build uses `python-extension` + `physics`.
@@ -92,7 +98,8 @@ The bridge marshals data between Fortran flat arrays and typed Rust structs:
 - Fortran stores state as contiguous `real(8)` arrays
 - Rust `StateCodec::from_flat()` reads the array into named struct fields
 - Rust `StateCodec::to_flat()` writes struct fields back to a flat array
-- Schema versioning (`schema_version`) ensures forward compatibility
+- Schema versioning (`schema_version`) identifies compatible payloads; it does
+  not automatically migrate an incompatible layout
 - `ValuesPayload` wraps `(schema_version, Vec<f64>)` for JSON serialisation
 
 ---
@@ -149,8 +156,12 @@ The bridge marshals data between Fortran flat arrays and typed Rust structs:
 
 ## Key Rules
 
-- **Never bypass the codec** -- all Fortran data access goes through `StateCodec` traits, not raw pointer arithmetic
-- **Feature-gate physics** -- all FFI calls must be behind `#[cfg(feature = "physics")]`
+- **Keep representation explicit** -- parameter/state fields use the codecs;
+  forcing and direct-output buffers have separate checked layouts. Raw pointer
+  access stays inside documented FFI boundaries (BR-04/05).
+- **Feature-gate simulation** -- simulation driver bindings and calls require
+  `#[cfg(feature = "physics")]`. Shared schema/default facades also serve the
+  non-physics mode and need their own complete native source closure (BR-09).
 - **build.rs source list** -- when adding Fortran C API files to `c_api/`, also add them to the compilation list in `build.rs`
 - **Test via CLI** -- the `main.rs` CLI with JSON I/O is the fastest way to test bridge changes without Python: `cargo run -- qs --help`
 - **Standard Rust style** -- `cargo fmt` applies. `cargo clippy` is gated in CI

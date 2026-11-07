@@ -161,7 +161,14 @@ class WaterDistribution(BaseModel):
                     setattr(self, key, value)
 
     def validate_distribution(self, surface_type: SurfaceType) -> None:
-        """Validate water distribution based on surface type"""
+        """Validate routing and resolve an absent self-transfer to zero.
+
+        Cross-surface destinations and the runoff/soil-store outlet remain
+        required by the surface-specific contract. The self-transfer is not
+        part of that sum; when omitted or null it has always reached the
+        kernel as zero. Resolve that value here so the bridge need not supply
+        it. Preserve an explicitly supplied number and its reference.
+        """
         if surface_type == SurfaceType.WATER:
             raise ValueError("Water surface should not have water distribution")
 
@@ -184,6 +191,13 @@ class WaterDistribution(BaseModel):
         # if not np.isclose(total, 1.0, rtol=1e-5):
         if not math.isclose(total, 1.0, rel_tol=1e-5):
             raise ValueError(f"Water distribution sum must be 1.0, got {total}")
+
+        self_field = f"to_{surface_type.value}"
+        self_transfer = getattr(self, self_field)
+        if self_transfer is None:
+            setattr(self, self_field, RefValue(0.0))
+        elif self_transfer.value is None:
+            setattr(self, self_field, self_transfer.model_copy(update={"value": 0.0}))
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert water distribution parameters to DataFrame state format.

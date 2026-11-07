@@ -41,7 +41,7 @@ are recorded in the validation section below.
 | Forcing reader/interpolation, BR-01/07 | **Checked, statically, as adjacent I/O.** `read_forcing_block` performs pressure conversion; `interpolate_forcing` selects behaviour by `InterpKind`. | Full parity with Python for every variable/timestep is **not verified**. Preserve owning registry semantics; #1547 is a unit-policy discussion, not permission to alter units here. |
 | Output representation, BR-04/07 | **Checked, statically, for dimensions.** `OutputBlockMatrix::new` uses checked multiplication; nested payloads carry dimensions; `build.rs` generates group widths. **Not verified** for full metadata parity. | `output_io::SUEWS_OUTPUT_NAMES` is manual; other Arrow groups use index-based names. Width generation does not establish canonical names/units (#1657). |
 | Diagnostics, BR-08 | **Checked, statically.** `run_simulation_into` checks the C-API status, kernel error message and warning buffers before returning state/results. | Warning storage is bounded by `KERNEL_WARNING_MAX`; inspect total versus stored counts when changing this path. Not an audit of every Fortran error site. |
-| Build modes, BR-09 | **Violation, reproduced.** Non-physics `build.rs` selects a limited kernel source set while compiling facades that require additional modules (#1990). The Rust test workflow selects `physics`; Clippy is lint-only. | Repair the non-physics dependency closure separately. Do not present Clippy as a native link test. |
+| Build modes, BR-09 | **Violation, reproduced.** Non-physics `build.rs` selects a limited kernel source set while compiling facades that require additional modules (#1990). The Rust test workflow selects `physics`; Clippy is lint-only. | Establish the supported feature/API contract, then repair and test any retained mode or explicitly retire it. Do not present Clippy as a native link test. |
 | Change governance, BR-10 | **Checked for this change.** Contract, design, source comments and this audit share one rule set and explicit follow-ups. | Future changes need their own revision-specific evidence; this document is not a permanent approval. |
 
 ## Confirmed findings and disposition
@@ -63,7 +63,7 @@ acceptance condition for its follow-up.
 | `yaml_config.rs / apply_state_overrides / cold-start fallback` BR-01/03/06 | **Major:** state construction still mixes transport with fallback initialisation, including deep-soil and hot-water values. | #2003. Resolve active initial state upstream and check option branches; checkpoint decoding must remain strict. |
 | `suews_ctrl_driver.f95 / modState_tstepstart / snow disabled` BR-03/06 | **Major:** initial snow values can be captured before the snow-off reset. This is a kernel/state-ordering issue as well as a bridge-input issue. | #2010. Compare snow-off runs with contrasting initial snow and obtain scientific evidence for any behaviour change. Do not guess new initial values in Rust. |
 | `suews_phys_snow.f95 / SnowCalc / FlowChange timestep scaling` BR-01/07 | **Major:** forwarding a previously dropped non-zero hourly rate exposes the snow path adding the full hourly value at every timestep. | #2012 overlaps #1927 item 1; draft PR #1929 contains a kernel fix. Integrate with #2000 using the current nested path and test multiple timesteps. |
-| `build.rs / non-physics Fortran source selection / missing type modules` BR-09 | **Major, Fortran build configuration:** the selected sources do not provide all modules required by the facades' `USE` statements. This is not a Rust language or hydrology-model defect. | #1990. Build the required Fortran type-module dependency closure in order, using the existing dependency graph; `cargo test` without `physics` must compile/link on a clean build. Retain the separate physics lane. |
+| `build.rs / non-physics Fortran source selection / missing type modules` BR-09 | **Major within the advertised reduced build, Fortran build configuration:** the selected sources do not provide all modules required by the facades' `USE` statements. This is not a Rust language or hydrology-model defect. | #1990. Establish which feature modes and scalar APIs remain supported. If the reduced mode is retained, build its full ordered type-module dependency closure and test clean compilation/linking. If retired, update the advertised contract and provide a clear transition. Normal packaging and Rust CI use the separate physics mode. |
 
 This change adds comments, design and audit rules. Runtime findings with
 existing issues stay there; the additional OHM ownership finding is a proposed
@@ -77,7 +77,7 @@ when compiling `c_api/hydro_state.f95`, which has `USE module_type_hydro`.
 The non-physics branch of `build.rs` compiles only `suews_ctrl_const.f95` and
 `suews_type_surface.f95` before the facades, omitting the hydrology type and
 other prerequisites. The physics branch instead searches the prebuilt
-`src/suews/mod` directory. The repair belongs in native build orchestration;
+`src/suews/mod` directory. Any retained reduced-mode repair belongs in native build orchestration;
 `src/suews/Makefile.deps` already records the kernel's Fortran dependencies.
 
 ## Remaining evidence and related work
@@ -105,7 +105,7 @@ does not create or rewrite another contributor's issue.
 
 ## Validation of this documentation change
 
-Ran on Banbury in an isolated source snapshot of the baseline plus this
+Ran in an isolated Linux source snapshot of the baseline plus this
 documentation/comment change, with a fresh environment: Python 3.12.12,
 Rust 1.95.0 and GNU Fortran 11.5.0. The archive build used generated version
 metadata (`2026.11.6.dev4`) and `SUEWS_KNOWLEDGE_GIT_SHA` set to the baseline
@@ -120,7 +120,7 @@ from this snapshot, not an existing checkout.
 | `cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics` | 384 library tests and 137 CLI tests passed; zero doc tests. |
 | `SUEWS_BRIDGE_LINT_ONLY=1 RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path src/suews_bridge/Cargo.toml --all-features --document-private-items --no-deps` | Passed, including private-item documentation. This does not test native linkage. |
 | `cargo test --manifest-path src/suews_bridge/Cargo.toml --no-default-features` | Reproduced #1990: `c_api/hydro_state.f95` cannot find `module_type_hydro.mod`; exit 101. Kept as an unresolved implementation finding. |
-| Local Markdown target and ASCII inspection on Banbury | 21 relative links resolved; new documents contain ASCII text. |
+| Markdown target and ASCII inspection | 21 relative links resolved; new documents contain ASCII text. |
 | `python scripts/lint/check_rust_yaml_aliases.py` | Passed: 194 alias pairs, 139 canonical Rust field identifiers and 3 physics-family entries. |
 | Rust source diff inspection | All 69 added/removed source lines are comments or whitespace; no executable Rust change. |
 

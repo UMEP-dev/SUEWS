@@ -249,6 +249,18 @@ CONTAINS
             IF (PRESENT(debugState)) THEN
                CALL debugState%init(nlayer, ndepth)
             END IF
+            ! Clear inactive snow before either iteration snapshot is saved.
+            ! Otherwise check_and_reset_states restores the supplied initial
+            ! snow on later iterations, even when SnowUse is off (gh#2010).
+            IF (config%snowuse == 0) THEN
+               snowState%snow_density = 0.
+               snowState%snow_fraction = 0.
+               snowState%snow_water = 0.
+               snowState%snow_albedo = 0.
+               snowState%ice_frac = 0.
+               snowState%snow_pack = 0.
+            END IF
+
             ! save initial values of model states
             modState_tstepstart = modState
             modState_best_ehc_iter = modState
@@ -270,16 +282,6 @@ CONTAINS
             qe0_surf = 0 ! QE from PM: only meaningful when snowuse=0
             ev0_surf = 0 ! ev from PM: only meaningful when snowuse=0
             ev_surf = 0 ! ev from water balance: only meaningful when snowuse=0
-
-            ! force several snow related state variables to zero if snow module is off
-            IF (config%snowuse == 0) THEN
-               snowState%snow_density = 0.
-               snowState%snow_fraction = 0.
-               snowState%snow_water = 0.
-               snowState%snow_albedo = 0.
-               snowState%ice_frac = 0.
-               snowState%snow_pack = 0.
-            END IF
 
             ! ########################################################################################
             ! save initial values of inout variables

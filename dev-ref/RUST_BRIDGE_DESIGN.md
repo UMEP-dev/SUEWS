@@ -78,6 +78,49 @@ mapping sites. `bridge-manifest.json` inventories types during the bridge
 transition; it does not prove field-level coverage. `build.rs` generates output
 widths, not parameter pack/unpack mappings.
 
+## Direction: generated interfaces behind the project build
+
+Contributors should be able to change model behaviour in Fortran or the public
+configuration in Python without routinely editing Rust transport code.
+The proposed next step is a build-time generator and contract check, reached
+through the normal project build and test commands.
+This is a design direction, not a generator already provided by this change.
+
+Keep the authoritative declarations in their owning layers.
+Fortran owns kernel types and procedures; Python owns public configuration,
+defaults and conditional requirements.
+A small binding description can connect those declarations by recording the
+source path, destination member, direction, dimensions and active-option rule.
+Reference existing unit and field metadata rather than copying their policy
+into another registry.
+The generator must reject conflicting declarations or an unsupported construct
+with a useful diagnostic instead of inferring a mapping or supplying a value.
+
+For a supported type family, generate the mechanical transport together:
+Fortran pack/unpack code, Rust representations and codecs, field names, lengths
+and nested offsets.
+Keep kernel calculations, configuration resolution and defaults outside the
+generated transport.
+The existing public-type manifest is useful coverage input, but marking a type
+as bridged cannot substitute for checking every transported field.
+
+The build should check that generated files match their inputs before compiling
+the Fortran and Rust layers with the agreed features and dependency order.
+CI should repeat generation deterministically and fail on unexplained drift.
+Independent field-delivery tests must still use distinct values at the public
+input and verify the actual kernel destination; tests derived solely from the
+same binding description could repeat its mistakes.
+Layout or checkpoint changes also require the existing version and restart
+compatibility checks.
+
+Introduce this one type family at a time, initially preserving its existing
+layout and behaviour and comparing generated output with the current mapping.
+A calculation-only Fortran change or a Python-only workflow change needs no
+new binding when its interface is unchanged.
+A new cross-boundary input needs an explicit declaration of its meaning and
+destination; a compiler cannot decide its scientific default or units.
+This keeps automation general while the bridge's responsibility remains narrow.
+
 ## State, forcing and outputs
 
 ```text

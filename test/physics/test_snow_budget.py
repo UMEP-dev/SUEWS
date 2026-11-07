@@ -355,6 +355,27 @@ def test_water_body_overflow_leaves_as_runoff(run: SnowRun, near_limit_run: Snow
 
 
 @pytest.mark.core
+def test_water_flow_rate_during_freezing_and_melt(run: SnowRun):
+    """An imposed flow adds its timestep depth throughout the snow event."""
+
+    def set_flow(cfg: SUEWSConfig) -> None:
+        cfg.sites[0].properties.land_cover.water.flowchange.value = 1.0
+
+    flow_run = SnowRun(configure=set_flow)
+    extra_store = (flow_run.suews["StWater"] - run.suews["StWater"]) * run.sfr["Water"]
+    extra_runoff = flow_run.suews["RO"] - run.suews["RO"]
+    store_increment = extra_store.diff().fillna(extra_store.iloc[0])
+    expected = TSTEP_H * run.sfr["Water"]
+
+    # Grid-average millimetres per step. The paired runs cancel the common
+    # fluxes; this checks the imposed input, not absolute evaporation closure
+    # (which is the separate second finding in gh#1927).
+    np.testing.assert_allclose(
+        store_increment + extra_runoff, expected, rtol=0, atol=1e-6
+    )
+
+
+@pytest.mark.core
 def test_state_columns_aggregate_the_surface_states(run: SnowRun):
     """``State`` and ``NWtrState`` must be the area-weighted surface states.
 

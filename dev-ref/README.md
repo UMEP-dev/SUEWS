@@ -41,6 +41,9 @@ This directory contains internal documentation for SUEWS core developers.
   - Module-specific reviewer suggestions
   - When and how to request scientific review
 
+- **[Rust Bridge Design](RUST_BRIDGE_DESIGN.md)** - Responsibilities, data flow and shared audit rules
+- **[Rust Bridge Baseline Audit](RUST_BRIDGE_AUDIT.md)** - Checked boundaries, known deviations and follow-up evidence
+
 - **[Adding a Parameter at the Rust Level](RUST_BRIDGE_ADD_PARAMETER.md)** - Bringing a new parameter through the Rust bridge
   - The eight hand-maintained steps, from the Fortran type to the YAML reader and data model
   - Where a mistake fails silently, and a checklist
@@ -78,4 +81,5 @@ This directory contains internal documentation for SUEWS core developers.
 - [GitHub Discussions](https://github.com/UMEP-dev/SUEWS/discussions)
 
 ## Note for AI Assistants
-AI-specific instructions and workflows are maintained separately in `.claude/`. See `.claude/CLAUDE.md` for AI assistant guidance.
+Shared coding-agent instructions start in [AGENTS.md](../AGENTS.md), with rules
+and workflows maintained under `.claude/`.

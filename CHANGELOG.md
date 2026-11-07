@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 6 Nov 2026
 
+- [maintenance] Define shared Rust bridge responsibility and audit rules, connect them to agent instructions and PR review, and record the current boundary audit with existing follow-ups (#1989, #1991)
+- [doc] Add the Rust bridge design and data-flow guide, refresh the crate overview, and clarify source comments and the distinction between model defaults and representation initialisers (#1989)
 - [doc] Correct the bridge parameter guide to enumerate actual nested land-cover parents before updating layouts and schema versions (#1996)
 
 ### 5 Nov 2026

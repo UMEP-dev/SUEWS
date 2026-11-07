@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Nov 2026
+
+- [bugfix] Integrate the hourly water-body flow rate over each timestep when snow is enabled, matching the snow-free path and the reported flow depth (#2012; #1927 item 1).
+
 ### 6 Nov 2026
 
 - [bugfix] Reject non-finite water flow changes at the required scalar reader, including bare and wrapped YAML values; optional scalar NaN and infinity values pass through unchanged (#1991, #1995)

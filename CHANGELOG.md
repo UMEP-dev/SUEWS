@@ -89,6 +89,10 @@ EXAMPLES:
 
 - [doc] Describe the Hourly Profile format in the configuration reference: the working-day and holiday sets, hour keys "1" to "24" from 00:00 with all 24 required, the uniform 1/24 default, and the fields that use it; give `wuprofa_24hr` and `wuprofm_24hr` the descriptions they lacked (#1950, #2017)
 
+### 7 Nov 2026
+
+- [bugfix] Clear inactive snow state before saving the timestep's iteration snapshots, so initial snow no longer affects fluxes or diagnostics when the snow module is disabled (#2010).
+
 ### 6 Nov 2026
 
 - [change][experimental] `suews validate --science-fixes apply` no longer writes `initial_states.snowalb: null` for a site whose run starts in summer or in the tropics: it removes the key, so the documented default (0.5) applies, and `snowalb` now rejects `{value: null}` with an error naming the field, like `flowchange` and `sdd_id`. A null used to reach the Rust bridge as its own 0.0. Schema bumped to `2026.6.dev8`: its migration drops a null `snowalb`, so a YAML written by an earlier `--science-fixes apply` run loads again after `suews convert` and takes 0.5; without the upgrade it stops with an error naming the field. With no initial snowpack, the model resets snow albedo to zero and the sample output is unchanged. With non-zero initial snowpack, the new 0.5 initial albedo changes snow-albedo output even with snow disabled, and can change radiation and energy fluxes with snow enabled; the separate snow-off leak remains tracked in #2010. The same dev8 migration writes the former effective 0.0 explicitly for null vegetation `sdd_id` and water `flowchange`, including files from the old vegetation-free converter (#2001)

@@ -22,16 +22,12 @@ The stored YAMLs live under ``benchmark/inputs/legacy/``; the test itself sits
 in the main suite so CI runs it. It exercises the config validator and the
 ``df_state`` round-trip, so it carries the ``api`` nature marker.
 """
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-# supy is the heavy dependency; skip cleanly if the editable build is absent so
-# the pure-Python benchmark units still run in a minimal environment.
-pytest.importorskip("supy")
-from supy.data_model.core.config import SUEWSConfig  # noqa: E402
+from supy.data_model.core.config import SUEWSConfig
 
 pytestmark = pytest.mark.api
 

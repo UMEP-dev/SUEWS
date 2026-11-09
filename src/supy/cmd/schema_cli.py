@@ -112,7 +112,7 @@ def validate_file_against_schema(
 
         if validation_errors:
             for error in validation_errors:
-                path = " → ".join(str(p) for p in error.path) if error.path else "root"
+                path = " -> ".join(str(p) for p in error.path) if error.path else "root"
                 errors.append(f"{path}: {error.message}")
 
         # Default file-backed validation should mirror ``from_yaml()`` so
@@ -277,11 +277,11 @@ def version(ctx, files, update, target_version, backup):
 
             # Check compatibility
             if current_version == "not specified":
-                status = "[yellow]⚠ Missing[/yellow]"
+                status = "[yellow]WARNING: Missing[/yellow]"
             elif is_schema_compatible(current_version):
-                status = "[green]✓ Compatible[/green]"
+                status = "[green][OK] Compatible[/green]"
             else:
-                status = "[red]✗ Incompatible[/red]"
+                status = "[red][X] Incompatible[/red]"
 
             # Handle update if requested
             action = ""
@@ -296,7 +296,7 @@ def version(ctx, files, update, target_version, backup):
                     config["schema_version"] = new_version
                     with open(path, "w", encoding="utf-8") as f:
                         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-                    action = f"Updated → {new_version}"
+                    action = f"Updated -> {new_version}"
                 else:
                     action = "No change needed"
 
@@ -307,9 +307,9 @@ def version(ctx, files, update, target_version, backup):
 
         except Exception as e:
             if update:
-                table.add_row(path.name, "Error", f"[red]✗ {str(e)}[/red]", "Skipped")
+                table.add_row(path.name, "Error", f"[red][X] {str(e)}[/red]", "Skipped")
             else:
-                table.add_row(path.name, "Error", f"[red]✗ {str(e)}[/red]")
+                table.add_row(path.name, "Error", f"[red][X] {str(e)}[/red]")
 
     if not quiet:
         console.print(table)
@@ -411,7 +411,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                 ))
 
         except Exception as e:
-            results.append((path.name, "Error", f"[red]✗ {str(e)}[/red]"))
+            results.append((path.name, "Error", f"[red][X] {str(e)}[/red]"))
 
     # Display results
     if not quiet:
@@ -510,7 +510,7 @@ def info(ctx):
 
     console.print("\n[bold]Available Versions:[/bold]")
     for version, description in SCHEMA_VERSIONS.items():
-        marker = "→" if version == CURRENT_SCHEMA_VERSION else " "
+        marker = "->" if version == CURRENT_SCHEMA_VERSION else " "
         console.print(f"  {marker} v{version}: {description}")
 
     console.print("\n[bold]CLI Commands:[/bold]")

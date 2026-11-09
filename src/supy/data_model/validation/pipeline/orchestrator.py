@@ -1366,7 +1366,7 @@ Phase C validation could not be executed due to import issues.
 1. Check if supy package is properly installed
 2. Ensure you're running from the correct directory
 3. Use Phase A + B validation as alternative:
-   python suews_yaml_processor.py user.yml --phase AB
+   python -m supy.data_model.validation.pipeline.orchestrator user.yml --phase AB
 
 ## Error Details:
 {str(import_error)}
@@ -1398,7 +1398,7 @@ Phase C validation could not be executed due to system errors.
 
 ## Recommended Actions:
 1. Use Phase A + B validation instead:
-   python suews_yaml_processor.py user.yml --phase AB
+   python -m supy.data_model.validation.pipeline.orchestrator user.yml --phase AB
 
 2. Check system configuration and try again
 

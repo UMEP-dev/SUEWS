@@ -95,9 +95,7 @@ jobs:
         run: python -m pip install --no-input pandas packaging pyyaml pytest
 
       - name: Harness validation (unit tests)
-        # test_legacy_yaml_roundtrip.py imports supy and is covered by the main
-        # test suite's build; everything else under benchmark/tests is pure.
-        run: python -m pytest benchmark/tests --ignore=benchmark/tests/test_legacy_yaml_roundtrip.py -q
+        run: python -m pytest benchmark/tests -q
 
       - name: Historical diagnostic sweep (recorded releases vs proposed tolerances; not the current commit)
         working-directory: benchmark

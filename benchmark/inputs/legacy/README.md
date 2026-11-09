@@ -30,7 +30,7 @@ for the KCL benchmark lineage.
 
 ## Acceptance gate (both halves must hold)
 
-For each stored YAML, `tests/test_legacy_yaml_roundtrip.py` asserts:
+For each stored YAML, `test/data_model/test_legacy_yaml_roundtrip.py` asserts:
 
 1. **Loads** under the current validator
    (`SUEWSConfig(**yaml.safe_load(...))`); and

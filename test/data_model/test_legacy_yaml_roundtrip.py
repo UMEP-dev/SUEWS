@@ -18,8 +18,9 @@ validator rejects (e.g. an out-of-bounds initial albedo carried forward
 faithfully from the source tables) are Phase-C candidates and are documented in
 ``benchmark/inputs/legacy/README.md`` rather than committed as fixtures.
 
-This test lives under ``benchmark/tests/`` (outside the repo ``test/`` tree),
-so it needs no ``pytest.mark`` registration.
+The stored YAMLs live under ``benchmark/inputs/legacy/``; the test itself sits
+in the main suite so CI runs it. It exercises the config validator and the
+``df_state`` round-trip, so it carries the ``api`` nature marker.
 """
 import sys
 from pathlib import Path
@@ -32,7 +33,10 @@ import yaml
 pytest.importorskip("supy")
 from supy.data_model.core.config import SUEWSConfig  # noqa: E402
 
-LEGACY_DIR = Path(__file__).resolve().parents[1] / "inputs" / "legacy"
+pytestmark = pytest.mark.api
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+LEGACY_DIR = PROJECT_ROOT / "benchmark" / "inputs" / "legacy"
 
 
 def _legacy_yaml_files():

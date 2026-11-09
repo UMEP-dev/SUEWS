@@ -42,6 +42,11 @@ DEFAULT_ALLOWED_EXECUTABLE_PTH_RULES = (
         "import os; var = 'SETUPTOOLS_USE_DISTUTILS'",
     ),
     AllowedExecutablePthRule("a1_coverage.pth", "import sys; exec('import os"),
+    # SuPy's own editable install (`make dev`): meson-python's loader hook.
+    AllowedExecutablePthRule(
+        "supy-editable.pth",
+        "import _supy_editable_loader; _supy_editable_loader.init()",
+    ),
 )
 
 DEFAULT_ALLOWED_EXECUTABLE_PTH_PREFIX_RULES = (

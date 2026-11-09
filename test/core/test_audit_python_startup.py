@@ -39,6 +39,17 @@ def test_scan_pth_file_allows_setuptools_namespace_bootstrap(tmp_path):
     assert audit_python_startup.scan_pth_file(pth_file) == []
 
 
+def test_scan_pth_file_allows_supy_editable_loader(tmp_path):
+    """SuPy's own meson-python editable hook should not fail the audit."""
+    pth_file = tmp_path / "supy-editable.pth"
+    pth_file.write_text(
+        "import _supy_editable_loader; _supy_editable_loader.init()\n",
+        encoding="utf-8",
+    )
+
+    assert audit_python_startup.scan_pth_file(pth_file) == []
+
+
 def test_scan_pth_file_flags_unexpected_executable_line(tmp_path):
     """Unknown executable .pth hooks should still be reported."""
     pth_file = tmp_path / "litellm_init.pth"

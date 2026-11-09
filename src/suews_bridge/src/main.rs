@@ -123,8 +123,22 @@ use suews_bridge::{
     interpolate_forcing, load_run_config, read_forcing_block, run_from_config_str_and_forcing,
 };
 
+/// What `suews-engine run` accepts, and where users should go instead.
+///
+/// The engine reads YAML that the SUEWS data model has already validated and
+/// filled with defaults; it does not resolve user configs itself (gh#2004).
+const RESOLVED_YAML_HINT: &str = "suews-engine is a developer and test binary: `suews-engine run` expects \
+resolved YAML, as `suews run` hands it to the engine. To run a hand-written \
+config, use `suews run <config>`, which validates and resolves it through the \
+SUEWS data model first.";
+
 #[derive(Debug, Parser)]
-#[command(name = "suews-engine", version = env!("SUEWS_VERSION"), about = "SUEWS engine — Rust runtime and schema introspection for the SUEWS Fortran physics core")]
+#[command(
+    name = "suews-engine",
+    version = env!("SUEWS_VERSION"),
+    about = "SUEWS engine — Rust runtime and schema introspection for the SUEWS Fortran physics core",
+    after_help = RESOLVED_YAML_HINT
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -133,9 +147,13 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[cfg(all(feature = "physics", feature = "arrow-output"))]
-    /// Run SUEWS batch simulation from YAML config.
+    /// Run SUEWS batch simulation from resolved YAML config.
+    ///
+    /// The config must be resolved YAML, as `suews run` hands it to the
+    /// engine. Hand-written configs go through `suews run <config>`.
+    #[command(after_help = RESOLVED_YAML_HINT)]
     Run {
-        /// Path to config YAML.
+        /// Path to resolved config YAML (as written by `suews run`).
         config: String,
     },
     /// Inspect bridge type schemas and samples.
@@ -739,7 +757,7 @@ enum FlatCommand {
 fn main() {
     // No subcommand: show prominent error + banner + help, then exit
     if std::env::args().len() == 1 {
-        eprintln!("\x1b[1;31merror:\x1b[0m no subcommand provided. Run \x1b[1msuews-engine run <config>\x1b[0m or \x1b[1msuews-engine --help\x1b[0m\n");
+        eprintln!("\x1b[1;31merror:\x1b[0m no subcommand provided. Run \x1b[1msuews-engine --help\x1b[0m; to run a config, use \x1b[1msuews run <config>\x1b[0m\n");
         print_banner();
         Cli::parse_from(["suews-engine", "--help"]);
     }
@@ -757,18 +775,24 @@ fn main() {
     std::process::exit(code);
 }
 
+/// Append the resolved-YAML pointer to a config error from `run`.
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
+fn with_resolved_yaml_hint(err: String) -> String {
+    format!("{err}\nhint: {RESOLVED_YAML_HINT}")
+}
+
 #[cfg(all(feature = "physics", feature = "arrow-output"))]
 fn run_physics_command(config_path: &str) -> Result<(), String> {
     let config_path = std::path::PathBuf::from(config_path);
     let config_yaml = fs::read_to_string(&config_path)
         .map_err(|e| format!("failed to read config {}: {e}", config_path.display()))?;
-    let run_cfg = load_run_config(&config_path)?;
+    let run_cfg = load_run_config(&config_path).map_err(with_resolved_yaml_hint)?;
     let raw_forcing = read_forcing_block(&run_cfg.forcing_path)?;
     let forcing = interpolate_forcing(&raw_forcing, run_cfg.timer.tstep)?;
 
     let (output_block, _state, _timer, len_sim, warnings) =
         run_from_config_str_and_forcing(&config_yaml, forcing.block, forcing.len_sim)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| with_resolved_yaml_hint(e.to_string()))?;
 
     for warning in &warnings.entries {
         eprintln!(

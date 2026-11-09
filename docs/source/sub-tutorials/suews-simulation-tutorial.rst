@@ -51,8 +51,8 @@ Run with the provided benchmark data:
     from supy import SUEWSSimulation
     
     # Use benchmark configuration and forcing
-    config_path = Path('test/benchmark1/benchmark1.yml')
-    forcing_path = Path('test/benchmark1/forcing/Kc1_2011_data_5.txt')
+    config_path = Path('test/fixtures/benchmark1/benchmark1.yml')
+    forcing_path = Path('test/fixtures/benchmark1/forcing/Kc1_2011_data_5.txt')
     
     # Create and run simulation
     sim = SUEWSSimulation(config_path)

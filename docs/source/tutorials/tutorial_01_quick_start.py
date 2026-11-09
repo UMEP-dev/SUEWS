@@ -338,4 +338,4 @@ plt.tight_layout()
 # **Next steps:**
 #
 # - :doc:`tutorial_02_setup_own_site` - Configure SUEWS for your own site
-# - :doc:`tutorial_03_impact_studies` - Sensitivity analysis and scenario modelling
+# - :doc:`tutorial_04_impact_studies` - Sensitivity analysis and scenario modelling

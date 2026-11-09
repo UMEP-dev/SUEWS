@@ -250,11 +250,11 @@ Using in CI/CD
        hooks:
          - id: validate-suews-config
            name: Validate SUEWS configs
-          entry: suews validate
-          language: system
-          files: '\.yml$'
-          pass_filenames: true
-          args: ['-p', 'C', '--dry-run']
+           entry: suews validate
+           language: system
+           files: '\.yml$'
+           pass_filenames: true
+           args: ['-p', 'C', '--dry-run']
 
 Future Integration with suews-wizard
 ------------------------------------

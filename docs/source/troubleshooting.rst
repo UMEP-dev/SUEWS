@@ -123,7 +123,7 @@ Please check if your environment meets the following requirements:
           import struct
           struct.calcsize('P')*8
 
-   2. is your Python version above 3.5?
+   2. is your Python version 3.12 or newer?
 
       Check version info with the following code:
 

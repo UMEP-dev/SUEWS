@@ -59,6 +59,11 @@ EXAMPLES:
 - [doc] Distinguish the resolved-input caller contract from pending engine-boundary enforcement and legacy fallbacks (#1991, #2009)
 - [doc] State where YAML is resolved: `suews run` validates a configuration through the data model and hands the engine a resolved configuration, while the bundled `suews-engine` binary is a developer and test tool that expects resolved YAML; the engine's help and its config errors now point to `suews run` (#2004)
 - [maintenance] `make bridge` now builds the engine with its `run` command, and the sample-output check feeds the engine the resolved configuration `suews run` would send, through a shared `config_to_engine_yaml` helper (#2004)
+- [doc] Correct the bridge parameter guide to enumerate actual nested land-cover parents before updating layouts and schema versions (#1996)
+
+### 5 Nov 2026
+
+- [maintenance] Document the Rust bridge for developers adding parameters: module and item doc comments in `codec.rs`, `yaml_config.rs`, `stebbs_prm.rs`, `lc_evetr_prm.rs` and `sim.rs`, annotations in the `stebbs_prm` and driver C-API facades, and a new developer guide, `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`, walking the eight steps, the places a mistake fails silently, and a checklist. The docs state the bridge's pass-through rule: a value the kernel needs and the YAML does not give is an error naming its YAML path, and defaults live only in the supy data model, never in Rust or the C-API shadow types. No behaviour change (#1991).
 
 ### 3 Nov 2026
 

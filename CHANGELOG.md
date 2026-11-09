@@ -60,6 +60,7 @@ EXAMPLES:
 
 ### 6 Nov 2026
 
+- [bugfix] Reject non-finite required CO2 point sources and carry unused absence as NaN; verify unchanged outputs for emissions methods 0-6 and the active point-source mass-to-flux conversion; optional scalar NaN and infinity values pass through unchanged (#1991, #1993)
 - [bugfix] Reject non-finite numeric-list entries and incomplete thermal and initial-temperature arrays required by the selected storage scheme, with YAML paths and lengths; retain DyOHM outermost-layer requirements; optional scalar NaN and infinity values pass through unchanged (#1991, #1992)
 - [doc] Distinguish the resolved-input caller contract from pending engine-boundary enforcement and legacy fallbacks (#1991, #2009)
 - [doc] State where YAML is resolved: `suews run` validates a configuration through the data model and hands the engine a resolved configuration, while the bundled `suews-engine` binary is a developer and test tool that expects resolved YAML; the engine's help and its config errors now point to `suews run` (#2004)
@@ -68,6 +69,7 @@ EXAMPLES:
 
 ### 5 Nov 2026
 
+- [bugfix] Rust bridge: the CO2 point source is now read from `properties.anthropogenic_emissions.co2.emission_co2_point_source`, where supy writes it. The bridge read a flat `properties.CO2PointSource` key that no schema writes, so any non-zero point source reached the kernel as zero and was missing from the anthropogenic CO2 flux; the flat key is no longer read. When `emissionsmethod` is a CO2 method whose flux includes the point source (11-16, 21-26, 31-36, 41-46; the kernel zeroes every CO2 flux for 0-6) and the key is missing or null, the run now stops with an error naming it instead of using zero (#1998)
 - [bugfix] Rust bridge: a numeric YAML list with an element that is not a number (a `null`, which the data model allows in the thermal-layer `dz`, `k` and `rho_cp` lists and which supy writes for a NaN, or a string) is now an error naming the list's YAML path and the element's index, for example `sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.dz: element [1] is null` (the site is named by its `gridiv`). Previously the whole list was silently ignored, so every slot it should have filled kept a zero default (#1991)
 - [maintenance] Document the Rust bridge for developers adding parameters: module and item doc comments in `codec.rs`, `yaml_config.rs`, `stebbs_prm.rs`, `lc_evetr_prm.rs` and `sim.rs`, annotations in the `stebbs_prm` and driver C-API facades, and a new developer guide, `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`, walking the eight steps, the places a mistake fails silently, and a checklist. The docs state the bridge's pass-through rule: a value the kernel needs and the YAML does not give is an error naming its YAML path, and defaults live only in the supy data model, never in Rust or the C-API shadow types. No behaviour change (#1991).
 

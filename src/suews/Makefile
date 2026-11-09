@@ -13,6 +13,9 @@ DIR_LIB_SUEWS = ./lib/
 # where intermediate `.mod` are stored
 DIR_MOD_SUEWS = ./mod/
 
+# legacy executable output, still removed by `make clean`
+DIR_BIN_SUEWS = ./bin/
+
 # Build profile (Makefile.gfortran reads DEBUG to pick the flag set).
 # run_make.py maps SUEWS_BUILD_PROFILE=checked|release to DEBUG=1|DEBUG= on
 # the make command line; a command-line value overrides the default below.
@@ -284,7 +287,7 @@ include Makefile.deps
 	@echo $<
 	$(FC) $(FCFLAGS) -c $< -o $@
 
-clean: clean-obj clean-mods clean-lib clean-ext
+clean: clean-obj clean-mods clean-lib clean-bin clean-ext
 
 # dist-clean: clean-tests clean-toplevel clean-utilities clean-mods dist-clean-doc
 
@@ -297,6 +300,9 @@ clean-lib:
 
 clean-mods:
 	find . -name "*.mod" -type f -delete
+
+clean-bin:
+	rm -rf $(DIR_BIN_SUEWS)/SUEWS_*
 
 clean-ext:
 	$(MAKE) -C $(DIR_SPTCS) clean
@@ -311,4 +317,4 @@ clean-ext:
 
 
 
-.PHONY: all help libspartacus libutil libphys libdriver clean clean-obj clean-mods clean-lib clean-ext force
+.PHONY: all help libspartacus libutil libphys libdriver clean clean-obj clean-mods clean-lib clean-bin clean-ext force

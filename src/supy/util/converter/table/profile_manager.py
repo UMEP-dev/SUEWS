@@ -235,3 +235,50 @@ class ProfileManager:
                     pass
 
         return rules_df
+
+
+def validate_and_fix_profiles(
+    conversion_dir: Path, rules_path: Path, debug: bool = False
+) -> ProfileManager:
+    """Validate and fix profile references during conversion.
+
+    Args:
+        conversion_dir: Directory containing conversion files
+        rules_path: Path to rules.csv file
+        debug: Enable debug logging
+
+    Returns:
+        ProfileManager instance with validation results
+    """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+
+    # Initialize profile manager
+    profiles_path = conversion_dir / "SUEWS_Profiles.txt"
+    manager = ProfileManager(profiles_path)
+
+    # Load and process conversion rules
+    if rules_path.exists():
+        rules_df = pd.read_csv(rules_path)
+        rules_df = manager.process_conversion_rules(rules_df)
+
+        # Save updated rules if changes were made
+        if manager.missing_profiles:
+            backup_path = rules_path.with_suffix(".csv.bak")
+            rules_path.rename(backup_path)
+            rules_df.to_csv(rules_path, index=False)
+            logger.info(f"Updated rules saved to {rules_path}")
+            logger.info(f"Original rules backed up to {backup_path}")
+
+    # Ensure all required profiles exist
+    manager.ensure_required_profiles(conversion_dir)
+
+    # Report summary
+    summary = manager.get_profile_summary()
+    if summary["missing_profiles"] > 0:
+        logger.warning(
+            f"Found {summary['missing_profiles']} missing profiles: "
+            f"{summary['missing_codes']}"
+        )
+
+    return manager

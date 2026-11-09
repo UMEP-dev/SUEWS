@@ -82,6 +82,7 @@ py.install_sources(
             'util/_state_io.py',
             'util/_tmy.py',
             'util/_waterdist.py',
+            'util/code_manager.py',
             'util/converter/__init__.py',
             'util/converter/df_state.py',
             'util/converter/table/__init__.py',

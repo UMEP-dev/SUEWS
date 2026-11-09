@@ -1,2 +1,4 @@
+option('fast_build', type: 'boolean', value: false,
+       description: 'Deprecated, has no effect: Fortran flags come from SUEWS_BUILD_PROFILE (src/suews/Makefile.gfortran)')
 option('with_rust_bridge', type: 'boolean', value: true,
        description: 'Build and install Rust bridge Python extension and CLI binary')

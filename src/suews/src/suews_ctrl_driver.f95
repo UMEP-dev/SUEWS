@@ -1500,7 +1500,7 @@ CONTAINS
             sfr_surf => siteInfo%sfr_surf, &
             conductancePrm => siteInfo%conductance, &
             theta_r => siteInfo%theta_r, &
-            porosity => siteInfo%porosity, &
+            soil_porosity => siteInfo%soil_porosity, &
             avkdn => forcing%kdown, &
             xsmd => forcing%xsmd, &
             Temp_C => forcing%Temp_C, &
@@ -3377,7 +3377,7 @@ CONTAINS
             EvapMethod => config%EvapMethod, &
             Diagnose => config%Diagnose, &
             theta_r => siteInfo%theta_r, &
-            porosity => siteInfo%porosity &
+            soil_porosity => siteInfo%soil_porosity &
             )
 
             ASSOCIATE ( &
@@ -3548,7 +3548,7 @@ CONTAINS
                   runoffSoil_surf, & !Soil runoff from each soil sub-surface [mm]
                   runoffSoil_per_tstep, & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
                   theta_r, & ! Residual volumetric soil moisture [m3 m-3]
-                  porosity & ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
+                  soil_porosity & ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
                   )
 
                !========== Calculate soil moisture of a whole grid ============

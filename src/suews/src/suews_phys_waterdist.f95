@@ -990,7 +990,7 @@ CONTAINS
       runoffSoil_surf, & !Soil runoff from each soil sub-surface [mm]
       runoffSoil_per_tstep, & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
       theta_r, & ! Residual volumetric soil moisture [m3 m-3]
-      porosity & ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
+      soil_porosity & ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
       )
       !Transfers water in soil stores of land surfaces LJ (2010)
       !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
@@ -1016,7 +1016,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: NonWaterFraction ! sum of surface cover fractions for all except water surfaces
       REAL(KIND(1D0)), INTENT(in) :: tstep_real !tstep cast as a real for use in calculations
       REAL(KIND(1D0)), INTENT(in) :: theta_r ! Residual volumetric soil moisture [m3 m-3]
-      REAL(KIND(1D0)), INTENT(in) :: porosity ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
+      REAL(KIND(1D0)), INTENT(in) :: soil_porosity ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: soilstore_surf !Soil moisture of each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: runoffSoil_surf !Soil runoff from each soil sub-surface [mm]
@@ -1054,11 +1054,12 @@ CONTAINS
       runoffSoil_surf = 0
       runoffSoil_per_tstep = 0
       
-      B_r1 = porosity - theta_r
+      !FA TODO: come back to check these
+      B_r1 = soil_porosity - theta_r
       B_r2 = B_r1
 
-      SoilMoistCap_vol1 = porosity
-      SoilMoistCap_Vol2 = porosity
+      SoilMoistCap_vol1 = soil_porosity
+      SoilMoistCap_Vol2 = soil_porosity
 
       DO is = 1, nsurf - 1 !nsurf-1,1,-1  !Loop through each surface, excluding water surface (runs backwards as of 13/08/2014, HCW)
 

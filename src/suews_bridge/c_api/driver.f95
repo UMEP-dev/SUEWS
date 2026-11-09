@@ -1162,7 +1162,7 @@ subroutine unpack_site_scalars(flat, n_flat, site, err)
    site%h_std = flat(15)
    site%lambda_c = flat(16)
    site%theta_r = flat(17)
-   site%porosity = flat(18)
+   site%soil_porosity = flat(18)
    site%sfr_surf(1:7) = flat(19:25)
    site%gridiv = int(nint(flat(26)))
 

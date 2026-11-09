@@ -141,7 +141,7 @@ pub struct SiteScalars {
     pub h_std: f64,
     pub lambda_c: f64,
     pub theta_r: f64,
-    pub porosity: f64,
+    pub soil_porosity: f64,
     pub sfr_surf: [f64; 7],
     pub gridiv: i32,
 }
@@ -166,7 +166,7 @@ impl Default for SiteScalars {
             h_std: 0.0,
             lambda_c: 0.0,
             theta_r: 0.1, // 0.1 taken from HW as prev hard coded value
-            porosity: 0.451,
+            soil_porosity: 0.451,
             sfr_surf: [0.0; 7],
             gridiv: 1,
         }
@@ -488,7 +488,7 @@ fn encode_site_scalars(site_scalars: &SiteScalars) -> [f64; SUEWS_CAPI_SITE_SCAL
     out[14] = site_scalars.h_std;
     out[15] = site_scalars.lambda_c;
     out[16] = site_scalars.theta_r;
-    out[17] = site_scalars.porosity;
+    out[17] = site_scalars.soil_porosity;
     out[18..25].copy_from_slice(&site_scalars.sfr_surf);
     out[25] = f64::from(site_scalars.gridiv);
     out

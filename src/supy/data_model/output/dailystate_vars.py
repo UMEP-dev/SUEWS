@@ -176,6 +176,7 @@ DAILYSTATE_VARIABLES = [
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
     ),
+    #FA TODO: should probably change naming of tree posrosity to clearly distinguish from soil
     OutputVariable(
         name="Porosity",
         unit="-",

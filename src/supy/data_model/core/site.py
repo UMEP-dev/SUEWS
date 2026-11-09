@@ -3285,10 +3285,10 @@ class SiteProperties(BaseModel):
         json_schema_extra={"unit": "m^3 m^-3", "display_name": "theta_r"},
     )
 
-    porosity: FlexibleRefValue(float) = Field(
+    soil_porosity: FlexibleRefValue(float) = Field(
         default=0.451,
         description="Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)",
-        json_schema_extra={"unit": "m^3 m^-3", "display_name": "porosity"},
+        json_schema_extra={"unit": "m^3 m^-3", "display_name": "soil_porosity"},
     )
 
     ref: Optional[Reference] = None

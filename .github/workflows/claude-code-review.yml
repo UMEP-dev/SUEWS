@@ -107,7 +107,7 @@ jobs:
             DOCUMENTATION REQUIREMENTS:
             - Check if code changes have corresponding documentation updates in docs/
             - Verify data model changes are reflected in docs/generate_datamodel_rst.py
-            - Ensure configuration schema changes update docs/gen_schema.py
+            - Ensure configuration schema changes regenerate the schema with 'suews schema export -o docs/source/inputs/tables/schema.json'
             - Check that examples and tutorials are updated for API changes
             - Flag missing documentation updates as action items
             - Verify CHANGELOG.md is updated for remarkable changes with appropriate category:
@@ -173,7 +173,7 @@ jobs:
 
             - Check if code changes have corresponding docs/ updates
             - Verify data model changes update generate_datamodel_rst.py
-            - Ensure configuration changes update gen_schema.py
+            - Ensure configuration changes regenerate the schema with 'suews schema export -o docs/source/inputs/tables/schema.json'
             - Review if examples/tutorials reflect API changes
             - Verify CHANGELOG.md updated for remarkable changes
             - List any missing documentation updates

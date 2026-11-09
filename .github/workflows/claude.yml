@@ -130,7 +130,7 @@ jobs:
             DOCUMENTATION UPDATES:
             - When making code changes, ALWAYS update documentation in docs/ directory
             - Run 'python docs/generate_datamodel_rst.py' after data model changes
-            - Run 'python docs/gen_schema.py' after configuration schema changes
+            - Run 'suews schema export -o docs/source/inputs/tables/schema.json' after configuration schema changes
             - Update parameter tables and examples to reflect code changes
             - Ensure tutorials and API documentation stay current with changes
             - Update CHANGELOG.md PROMPTLY for remarkable changes using categories:

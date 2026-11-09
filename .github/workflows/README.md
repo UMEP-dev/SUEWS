@@ -46,7 +46,7 @@ Post-merge formatting workflow that:
 ### 3. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
-- Supports Python 3.12-3.14
+- Supports Python 3.12-3.15
 - Runs tests on each platform
 - Publishes to TestPyPI on nightly/dev tag builds
 - Publishes to PyPI on tagged releases
@@ -57,8 +57,8 @@ Automated build and publish workflow that:
 When triggering via Actions tab → "Run workflow", you can configure:
 - **matrix_config**: Choose build matrix
   - `full` - All platforms, all Python versions (default)
-  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.12 + 3.14
-  - `minimal` - Linux only, Python 3.12 + 3.14
+  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.12 + 3.15
+  - `minimal` - Linux only, Python 3.12 + 3.15
   - `custom` - Use individual platform/Python toggles
 - **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
 - **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`

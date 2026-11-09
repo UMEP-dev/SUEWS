@@ -22,7 +22,7 @@ on:
         required: true
         type: string
       api_python_json:
-        description: 'JSON array of test-time CPython tags (e.g. ["cp312","cp314"])'
+        description: 'JSON array of test-time CPython tags (e.g. ["cp312","cp315"])'
         required: true
         type: string
       test_tier:

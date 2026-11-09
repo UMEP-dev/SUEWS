@@ -97,10 +97,11 @@ dev:
 			$(PYTHON) -m pip uninstall supy -y 2>/dev/null || true; \
 		fi \
 	fi
-	@# Install build dependencies first (required for --no-build-isolation)
+	@# Install build dependencies first (required for --no-build-isolation).
+	@# setuptools builds sdist-only dependencies, e.g. numexpr (via atmosp) on CPython 3.15.
 	@if command -v uv >/dev/null 2>&1; then \
 		echo "Using uv for fast installation..."; \
-		uv pip install wheel pytest "numpy>=2.0" "meson-python>=0.12.0"; \
+		uv pip install wheel setuptools pytest "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
 			bash -c 'PATH="$$HOME/.cargo/bin:$$PATH" FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
@@ -108,7 +109,7 @@ dev:
 			uv pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	else \
-		$(PYTHON) -m pip install wheel pytest "numpy>=2.0" "meson-python>=0.12.0"; \
+		$(PYTHON) -m pip install wheel setuptools pytest "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		else \

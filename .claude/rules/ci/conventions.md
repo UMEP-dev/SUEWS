@@ -333,8 +333,8 @@ both Python bookends; the queue repeats the combined tree on the floor only.
 
 ### Nightly schedule / tag push
 
-Always: FULL_PLATFORMS (4), ALL_PYTHON (3, clamped to the `>=3.12` floor --
-cp312/cp313/cp314), test tier **all**.
+Always: FULL_PLATFORMS (4), ALL_PYTHON (4, clamped to the `>=3.12` floor --
+cp312/cp313/cp314/cp315), test tier **all**.
 
 **Nightly-only api-test platform trim (run 28990965739, 9 Jul 2026):** the
 nightly `api cross-CPython` lane uses a separate platform matrix output,
@@ -367,10 +367,10 @@ Tier is user-selectable via the `test_tier` input. Matrix depends on `matrix_con
 
 ### Python version presets
 
-- **PYTHON_CANDIDATES** (candidate window): cp39, cp310, cp311, cp312, cp313, cp314
+- **PYTHON_CANDIDATES** (candidate window): cp39, cp310, cp311, cp312, cp313, cp314, cp315
 - **ALL_PYTHON** / **BOOKEND_PYTHON** are this window clamped to `requires-python`.
   With the current `>=3.12` floor the effective sets are `ALL_PYTHON` = cp312,
-  cp313, cp314 and `BOOKEND_PYTHON` = cp312, cp314 (floor + newest); the abi3
+  cp313, cp314, cp315 and `BOOKEND_PYTHON` = cp312, cp315 (floor + newest); the abi3
   build matrix is the floor alone (cp312).
 
 `determine-matrix.sh` clamps the candidate window's lower edge to
@@ -403,10 +403,10 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 **What merge queue omits:**
 
 - macOS Intel x86_64 (legacy platform, declining user base)
-- Python 3.13 and 3.14 (covered by ready-PR bookends and nightly/release CI)
+- Python 3.13, 3.14 and 3.15 (3.15 is covered by the ready-PR bookends; 3.13 and 3.14 by nightly/release CI)
 - non-core `slow` tests -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576)
 
-**Rationale:** Full matrix (4 platforms x 3 Python = 12 jobs), or even
+**Rationale:** Full matrix (4 platforms x 4 Python = 16 jobs), or even
 repeating both bookends on all three queue platforms, duplicates work already
 performed on the ready PR and multiplies the memory-heavy API suite. The queue
 keeps all three major OS families and revalidates the combined tree on the

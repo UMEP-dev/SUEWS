@@ -60,10 +60,10 @@ Accessing Results
 
     # Run simulation
     sim = SUEWSSimulation("config.yml")
-    sim.run()
+    output = sim.run()
 
     # Access simulation results
-    results = sim.results  # DataFrame with simulation output
+    results = output.df  # DataFrame with (group, variable) columns
 
     # Access configuration
     config = sim.config
@@ -72,8 +72,8 @@ Accessing Results
     forcing = sim.forcing
 
     # Perform custom analysis
-    print(f"Mean QH: {results[('SUEWS', 'QH')].mean():.2f} W/m²")
-    print(f"Max QE: {results[('SUEWS', 'QE')].max():.2f} W/m²")
+    print(f"Mean QH: {results[('SUEWS', 'QH')].mean():.2f} W/m^2")
+    print(f"Max QE: {results[('SUEWS', 'QE')].max():.2f} W/m^2")
 
 Updating Configuration
 ~~~~~~~~~~~~~~~~~~~~~~

@@ -7,7 +7,7 @@ name: GitHub Pages Deploy
 # - Pull request: Assemble the site only; no docs build, no preview deployment
 # - Manual dispatch: Force redeploy
 #
-# Previews are ephemeral - each deployment includes full site from repo.
+# Each deployment includes the full site from the repo.
 # No wget required; repo content is the single source of truth.
 #
 # NOTE: Schema hosting removed - validation handled by Pydantic at runtime

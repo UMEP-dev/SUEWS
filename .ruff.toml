@@ -144,7 +144,6 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "scripts/lint/audit_docstrings.py" = ["D103"]
 "scripts/suews/check_bridge_manifest.py" = ["D103"]
 "scripts/suews/check_naming_conventions.py" = ["D102", "D103", "D400"]
-"scripts/suews/demo_deprecation_warning.py" = ["D103"]
 "scripts/suews/gen_sample_output.py" = ["D100"]
 "scripts/suews/run_ci_tests.py" = ["D103"]
 "src/suews_bridge/examples/ohm_state_python_demo.py" = ["D103"]

@@ -309,7 +309,7 @@ A diagnostic RSL scheme for calculating the wind, temperature and humidity profi
 A recent application of this RSL scheme can be found in :cite:t:`T21`.
 
 The diagnostic profiles are output at 30 levels between the surface and the forcing height.
-Where the levels sit depends on the scheme selected by :ref:`roughness_sublayer <roughness_sublayer>`:
+Where the levels sit depends on the scheme selected by :input:option:`roughness_sublayer`:
 
 - With RST, levels 1 to 19 lie within the canopy, level 20 at its top and the other 10 above it, whatever the mean height of roughness elements (buildings and trees, weighted by their plan area with trees counted by their non-porous fraction).
   The levels are placed on an effective canopy height :math:`z_H = \max(\text{mean height}, 2\ \text{m})`, so over a canopy lower than 2 m they do not follow the actual height.

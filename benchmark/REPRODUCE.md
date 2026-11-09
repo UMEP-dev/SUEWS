@@ -1,6 +1,6 @@
 # SUEWS multi-version benchmark -- reproducibility across releases
 
-Reproducible energy-balance benchmark statistics for the KCL / London site (Ward et al. 2016) across SUEWS `supy` releases, holding forcing, config, observations, evaluation period and statistic definitions constant and varying only the `supy` version. This document recreates every number from scratch.
+Reproducible energy-balance benchmark statistics for the KCL / London site (Ward et al. 2016) across SUEWS `supy` releases, holding forcing, observations, evaluation period and statistic definitions constant, using one canonical configuration round-tripped into each release's schema, and varying only the `supy` version. This document recreates every number from scratch.
 
 ## What this proves
 
@@ -16,7 +16,7 @@ The machine-readable per-release statistics, fingerprints and provenance are in 
 
 ## Inputs and provenance
 
-- **Config** (committable): canonical `inputs/UK-LO-KCL_Ward.yaml`, plus a per-release config `inputs/config_<release>.yml` valid in that release's own schema. `suews-convert` is NOT a YAML schema migrator (it converts old table inputs -- RunControl.nml / df_state -- to YAML), so per-release configs are produced by a load-then-dump round-trip in each release's own venv: `SUEWSSimulation(canonical).config.model_dump()` to YAML. Each release thus records its own schema (2025.10.15 / 2025.11.20 use `0.1`; 2026.1.28 / 2026.4.3 use `2025.12`; 2025.7.6 predates schema versioning). Because the run uses the release's parsed config either way, the round-trip changes no numbers -- it just makes each release's schema-valid config explicit and archivable. The per-release `config_hash` and `config_schema` are recorded in `index.json` and each `provenance.json`.
+- **Config** (committable): canonical `inputs/UK-LO-KCL_Ward.yaml`, plus a per-release config `inputs/config_<release>.yml` valid in that release's own schema. `suews-convert` is NOT a YAML schema migrator (it converts old table inputs -- RunControl.nml / df_state -- to YAML), so per-release configs are produced by a load-then-dump round-trip in each release's own venv: `SUEWSSimulation(canonical).config.model_dump()` to YAML. Each release thus records its own schema (2025.10.15 / 2025.11.20 use `0.1`; 2026.1.28 / 2026.4.3 use `2025.12`; 2026.6.5 uses `2026.5`; 2025.7.6 predates schema versioning). Because the run uses the release's parsed config either way, the round-trip changes no numbers -- it just makes each release's schema-valid config explicit and archivable. The per-release `config_hash` and `config_schema` are recorded in `index.json` and each `provenance.json`.
 - **Forcing** (sensitive, gitignored): the original `inputs/Kc1_data_ldown.txt` (27-column) is converted once to the 24-column canonical SUEWS forcing `inputs/Kc1_forcing_canonical.txt` (collapse the three `-999` per-vegetation LAI columns to one; drop the trailing `isec`).
 - **Obs** (sensitive, gitignored): `Kc1_Obs.csv`, fetched at run time from the restricted Zenodo record.
 - **Restricted archive**: a single restricted record carries the observations, the RSL profile and the canonical forcing, so a run can source both obs and forcing from it. Anonymous file fetch returns 403; a from-Zenodo run reproduces the local fingerprint exactly.

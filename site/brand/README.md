@@ -11,7 +11,6 @@ brand/
   README.md           # This file
   assets/             # Downloadable/exportable files
     banner/           # Horizontal logos with text (200px height)
-    icon/             # Square icons (512x512)
     icon-disk/        # Icons with circular background (multiple sizes)
     stacked/          # Logo with text stacked below (512x512)
   fonts/              # Bundled fonts for consistent export

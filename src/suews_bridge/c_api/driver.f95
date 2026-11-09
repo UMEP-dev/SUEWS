@@ -504,35 +504,6 @@ subroutine member_span_from_toc( &
 
 end subroutine member_span_from_toc
 
-subroutine copy_state_input_to_output(state_in, state_in_len, state_out, state_out_len, err)
-   implicit none
-
-   real(c_double), intent(in) :: state_in(*)
-   integer(c_int), intent(in) :: state_in_len
-   real(c_double), intent(out) :: state_out(*)
-   integer(c_int), intent(in) :: state_out_len
-   integer(c_int), intent(out) :: err
-
-   integer(c_int) :: i
-
-   if (state_in_len<0_c_int .or. state_out_len<0_c_int) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   if (state_out_len<state_in_len) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   do i = 1_c_int, state_in_len
-      state_out(int(i)) = state_in(int(i))
-   end do
-
-   err = SUEWS_CAPI_OK
-
-end subroutine copy_state_input_to_output
-
 subroutine initialise_site_state( &
    site, state, nlayer, ndepth, config, &
    site_scalars_flat, site_scalars_len, &

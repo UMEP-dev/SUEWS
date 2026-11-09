@@ -2412,8 +2412,6 @@ SUBROUTINE tstep( &
 #endif
    END IF
 END SUBROUTINE tstep
-SUBROUTINE reinitialiseTemperatures
-END SUBROUTINE reinitialiseTemperatures
 
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer, errorState)
 

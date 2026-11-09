@@ -152,7 +152,22 @@ class WeeklyProfile(BaseModel):
 
 
 class HourlyProfile(BaseModel):
-    """24-hour profile for diurnal variations."""
+    """24-hour profile for diurnal variations.
+
+    Holds two sets of 24 hourly values, one for working days
+    (``working_day``) and one for holidays (``holiday``). Each set is a
+    mapping keyed by the hour, ``"1"`` to ``"24"``, where ``"1"`` is the
+    first hour of the day, starting at 00:00; all 24 keys must be present.
+    The two sets are given together. A profile left out of the
+    configuration takes a uniform 1/24 in both sets.
+
+    Used by the snow, irrigation, anthropogenic-heat, population, traffic
+    and human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,
+    ``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,
+    ``profile_traffic_24hr`` and ``profile_human_activity_24hr``.
+    The 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint
+    subclasses instead.
+    """
 
     model_config = ConfigDict(title="Hourly Profile")
 

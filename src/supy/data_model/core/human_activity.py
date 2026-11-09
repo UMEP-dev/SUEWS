@@ -66,6 +66,7 @@ class IrrigationParams(
     )
     wuprofa_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile,
+        description="24-hour profile of automatic irrigation water use",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Water Use Profile Automatic (24hr)",
@@ -73,6 +74,7 @@ class IrrigationParams(
     )
     wuprofm_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile,
+        description="24-hour profile of manual irrigation water use",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Water Use Profile Manual (24hr)",

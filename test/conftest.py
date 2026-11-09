@@ -522,15 +522,6 @@ def completed_sample_sim(sample_yaml_path):
 
 
 @pytest.fixture(scope="session")
-def sample_run_output(completed_sample_sim):
-    """Convenience accessor for ``completed_sample_sim``'s ``SUEWSOutput``.
-
-    Same READ-ONLY contract as ``completed_sample_sim``.
-    """
-    return completed_sample_sim.output
-
-
-@pytest.fixture(scope="session")
 def sample_dailystate_full_year(sample_data_loaded):
     """The DailyState group of one full-year sample run, kept without the rest.
 

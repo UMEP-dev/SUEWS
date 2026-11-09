@@ -337,7 +337,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
 
     Examples:
         suews schema migrate old_config.yml
-        suews schema migrate configs/*.yml --target-version 2.0 --output-dir migrated/
+        suews schema migrate configs/*.yml --output-dir migrated/
     """
     quiet = ctx.obj.get("quiet", False)
 
@@ -517,7 +517,7 @@ def info(ctx):
     console.print("  - Check version: [cyan]suews schema version config.yml[/cyan]")
     console.print("  - Validate configs: [cyan]suews validate config.yml[/cyan]")
     console.print(
-        "  - Migrate: [cyan]suews schema migrate old.yml --target-version 2.0[/cyan]"
+        "  - Migrate: [cyan]suews schema migrate old.yml[/cyan]"
     )
     console.print("  - Export schema: [cyan]suews schema export -o schema.json[/cyan]")
 

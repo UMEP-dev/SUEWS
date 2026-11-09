@@ -311,8 +311,7 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
             f"{n_bad} of {len(year)} output rows contain sentinel datetime "
             f"values (year={year[~valid][0]}, doy={day_of_year[~valid][0]}). "
             "This usually means the Fortran simulation errored on an early "
-            "timestep. Check the kernel warnings and stderr for SPARTACUS "
-            "diagnostics."
+            "timestep. Check stderr for OHM_DEBUG or SPARTACUS diagnostics."
         )
 
     # Midnight of each row's date from (year, day of year) by numpy date

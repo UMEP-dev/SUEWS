@@ -955,35 +955,6 @@ def run_suews_rust(
     return df_output, state_json, kernel_warnings
 
 
-def _run_single_grid_worker(args: tuple) -> tuple[int, list, str | None, int, Any]:
-    """Worker function for parallel multi-grid execution.
-
-    Runs a single grid cell in a child process.  Accepts and returns only
-    serialisable types (no Pydantic models or DataFrames) so it works with
-    multiprocessing.
-
-    Parameters
-    ----------
-    args : tuple
-        (config_json, forcing_flat, len_forcing, grid_id)
-
-    Returns
-    -------
-    tuple
-        (grid_id, output_flat, state_json, len_sim, raw_warnings)
-    """
-    config_json, forcing_flat, len_forcing, grid_id = args
-    rust_module = _check_rust_available()
-    output_flat, state_json, len_sim, raw_warnings = _unpack_run_result(
-        rust_module.run_suews(
-            config_json,
-            forcing_flat,
-            len_forcing,
-        )
-    )
-    return grid_id, output_flat, state_json, len_sim, raw_warnings
-
-
 def run_suews_rust_multi(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,

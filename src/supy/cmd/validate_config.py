@@ -436,7 +436,7 @@ def cli(
         # Only support C and ABC for now
         if pipeline not in ("C", "ABC"):
             console.print(
-                "[red]✗ --dry-run is supported for pipeline C or ABC only[/red]"
+                "[red][X] --dry-run is supported for pipeline C or ABC only[/red]"
             )
             ctx.exit(2)
 
@@ -447,7 +447,7 @@ def cli(
         if pipeline == "C":
             if not files:
                 console.print(
-                    "[red]✗ Provide one or more YAML files for -p C --dry-run[/red]"
+                    "[red][X] Provide one or more YAML files for -p C --dry-run[/red]"
                 )
                 ctx.exit(2)
             results = []
@@ -493,9 +493,9 @@ def cli(
                 table.add_column("Issues", style="yellow")
                 for r in results:
                     status = (
-                        "[green]✓ Valid[/green]"
+                        "[green][OK] Valid[/green]"
                         if r["valid"]
-                        else "[red]✗ Invalid[/red]"
+                        else "[red][X] Invalid[/red]"
                     )
                     issues = (
                         ""
@@ -515,7 +515,7 @@ def cli(
         # pipeline == ABC dry-run
         if len(files) != 1:
             console.print(
-                "[red]✗ Provide exactly one YAML file for -p ABC --dry-run[/red]"
+                "[red][X] Provide exactly one YAML file for -p ABC --dry-run[/red]"
             )
             ctx.exit(2)
         path = Path(files[0])
@@ -552,7 +552,7 @@ def cli(
             table.add_column("Status", justify="center")
             table.add_column("Issues", style="yellow")
             status = (
-                "[green]✓ Valid[/green]" if is_valid else "[red]✗ Invalid[/red]"
+                "[green][OK] Valid[/green]" if is_valid else "[red][X] Invalid[/red]"
             )
             issues = "" if is_valid else ("\n".join(errors[:3]) if errors else "")
             if not is_valid and len(errors) > 3:
@@ -567,7 +567,7 @@ def cli(
     # Non-dry-run: execute pipeline with file writes
     if len(files) != 1:
         console.print(
-            "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
+            "[red][X] Provide exactly one YAML FILE for pipeline execution[/red]"
         )
         ctx.exit(2)
     code = _execute_pipeline(
@@ -633,50 +633,14 @@ def _experimental_features_restriction(user_yaml_file, mode):
 def _print_experimental_features_restriction(restrictions_violated):
     """Print the legacy table-mode experimental-feature restriction message."""
     console.print(
-        "[red]✗ Configuration contains experimental features restricted in public mode:[/red]"
+        "[red][X] Configuration contains experimental features restricted in public mode:[/red]"
     )
     for restriction in restrictions_violated:
-        console.print(f"  • {restriction}")
+        console.print(f"  - {restriction}")
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")
     console.print("     Example: Set [cyan]stebbs.enabled: {value: false}[/cyan]")
-
-
-def _check_experimental_features_restriction(user_yaml_file, mode):
-    """Check for experimental features that are restricted in public mode.
-
-    Returns:
-        bool: True if validation passes (can proceed), False if should halt
-    """
-    ok, restrictions_violated, read_error = _experimental_features_restriction(
-        user_yaml_file, mode
-    )
-    if ok:
-        return True
-    if read_error:
-        console.print(f"[red]✗ {read_error}[/red]")
-    else:
-        _print_experimental_features_restriction(restrictions_violated)
-    return False
-
-
-def _format_phase_output(
-    phase, success, input_file, output_file=None, report_file=None, errors=None
-):
-    """Format phase execution output based on format preference."""
-    if JSONOutput:
-        json_formatter = JSONOutput(command="suews-validate")
-        output = json_formatter.phase_result(
-            phase=phase,
-            success=success,
-            input_file=str(input_file),
-            output_file=str(output_file) if output_file else None,
-            report_file=str(report_file) if report_file else None,
-            errors=errors if errors else None,
-        )
-        return output
-    return None
 
 
 def _write_consolidated_sidecar(phases: list, report_path) -> None:
@@ -849,9 +813,9 @@ def _emit_pipeline_result(
 
     # Default: legacy text output, preserved verbatim.
     console.print(
-        "[green]✓ Validation completed[/green]"
+        "[green][OK] Validation completed[/green]"
         if ok
-        else "[red]✗ Validation failed[/red]"
+        else "[red][X] Validation failed[/red]"
     )
     if Path(report_path).exists():
         console.print(f"Report: {report_path}")
@@ -878,7 +842,7 @@ def _emit_pipeline_startup_error(
             started_at=started_at,
         ).emit()
     else:
-        console.print(f"[red]✗ {message}[/red]")
+        console.print(f"[red][X] {message}[/red]")
     return 1
 
 

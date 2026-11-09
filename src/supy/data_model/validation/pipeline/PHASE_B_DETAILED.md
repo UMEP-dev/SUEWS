@@ -660,23 +660,23 @@ else:
 
 ```bash
 # Public mode (default) - standard scientific validation
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B --mode public
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase B --mode public
 
 # Developer mode - identical validation with different report header
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B --mode dev
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase B --mode dev
 ```
 
 ### Integration Examples
 
 ```bash
 # Phase B after Phase A (AB workflow)
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AB
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase AB
 
 # Phase B before Phase C (BC workflow)
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase BC
 
 # Complete pipeline including Phase B (ABC workflow)
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase ABC
 ```
 
 ## Related Documentation

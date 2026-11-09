@@ -667,27 +667,6 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
         logger_supy.info("All checks for `df_state` passed!")
 
 
-# flatten columns from MultiIndex to Index with compound notation
-def flatten_col(df_state: pd.DataFrame):
-    # original MultiIndex columsn
-    col_mi = df_state.columns
-    # flattened columns
-    col_flat = col_mi.map(
-        lambda s: (
-            "_"
-            .join(s)
-            .replace("_0", "")
-            .replace("(", "")
-            .replace(", ", "_")
-            .replace(",)", "")
-            .replace(")", "")
-        )
-    )
-    # replace columns with flattened ones
-    df_state_flat = df_state.set_axis(col_flat)
-    return df_state_flat
-
-
 # upgrade df_state from earlier versions of SuPy
 def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
     """

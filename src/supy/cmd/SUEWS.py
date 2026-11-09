@@ -149,7 +149,7 @@ def _run_with_yaml(config_path):
 
         # Run simulation
         click.echo("\nRunning simulation ...")
-        results = sim.run()
+        sim.run()
 
         # Save results
         click.echo("\nSaving results ...")

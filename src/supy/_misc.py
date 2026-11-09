@@ -99,23 +99,3 @@ def _path_insensitive(path):
         return os.path.join(dirname, basefinal) + suffix
     else:
         return
-
-
-##############################################################################
-# an auxiliary function to test URL connectivity
-# credit: https://stackoverflow.com/a/8462613/920789
-# https://gist.github.com/dehowell/884204#gistcomment-1771089
-def url_is_alive(url):
-    """
-    Checks that a given URL is reachable.
-    :param url: A URL
-    :rtype: bool
-    """
-    request = urllib.request.Request(url)
-    request.get_method = lambda: "HEAD"
-
-    try:
-        urllib.request.urlopen(request)
-        return True
-    except urllib.request.HTTPError:
-        return False

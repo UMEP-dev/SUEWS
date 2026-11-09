@@ -2589,7 +2589,7 @@ def validate_standard_file(standard_file: str) -> bool:
 
     # Check if file exists
     if not os.path.exists(standard_file):
-        print(f"❌ ERROR: Standard file not found: {standard_file}")
+        print(f"[X] ERROR: Standard file not found: {standard_file}")
         print(f"   Make sure you're running from the SUEWS root directory")
         return False
 
@@ -2597,7 +2597,7 @@ def validate_standard_file(standard_file: str) -> bool:
 
     if current_branch == "unknown":
         print(
-            "⚠️  WARNING: Not in a git repository - cannot verify standard file is up to date"
+            "WARNING: Not in a git repository - cannot verify standard file is up to date"
         )
         return True
 
@@ -2606,7 +2606,7 @@ def validate_standard_file(standard_file: str) -> bool:
 
         if file_differs:
             print(
-                f"⚠️  WARNING: You are on branch '{current_branch}' and {os.path.basename(standard_file)} differs from master"
+                f"WARNING: You are on branch '{current_branch}' and {os.path.basename(standard_file)} differs from master"
             )
             print(f"   This may cause inconsistent parameter detection.")
             print(f"   RECOMMENDED:")
@@ -2643,7 +2643,7 @@ def main():
 
     # If validation failed, we can still proceed but user should be aware
     if not validation_passed:
-        print("⚠️  Proceeding with potentially outdated standard file...")
+        print("WARNING: Proceeding with potentially outdated standard file...")
         print()
 
     basename = os.path.basename(user_file)

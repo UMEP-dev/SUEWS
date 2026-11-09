@@ -1,10 +1,4 @@
-try:
-    from importlib.resources import files
-except ImportError:
-    # backport for python < 3.9
-    from importlib_resources import files
-
-
+from importlib.resources import files
 import inspect
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -213,12 +207,6 @@ def disable_file_logging():
 _env_logfile = _resolve_env_logfile()
 if _env_logfile is not None:
     enable_file_logging(_env_logfile)
-
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata
-else:
-    from importlib_metadata import metadata
 
 
 def _user_warning_stacklevel() -> int:

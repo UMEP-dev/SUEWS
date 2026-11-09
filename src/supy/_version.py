@@ -1,14 +1,7 @@
 # version info for supy
 
-try:
-    from importlib.resources import files
-except ImportError:
-    # backport for python < 3.9
-    from importlib_resources import files
-from ._env import trv_supy_module
 import json
-import sys
-from ._version_scm import __version__, __version_tuple__
+from ._version_scm import __version__
 
 
 import pandas as pd

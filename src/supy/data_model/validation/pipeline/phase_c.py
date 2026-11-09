@@ -658,7 +658,6 @@ def generate_fallback_report(
         else ""
     )
 
-    phase_str = "".join(phases_run) if phases_run else "C"
     title = REPORT_TITLE
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 

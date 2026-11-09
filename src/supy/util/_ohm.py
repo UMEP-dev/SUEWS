@@ -172,25 +172,3 @@ def sim_ohm(ser_qn: pd.Series, a1: float, a2: float, a3: float) -> pd.Series:
     ser_qs = a1 * ser_qn + a2 * ser_qn_dt + a3
 
     return ser_qs
-
-
-def compare_heat_storage(ser_qn_obs, ser_qs_obs, a1, a2, a3):
-    """This function compares the storage heat flux calculated with AMF
-    QN and linear regression coefficients with  that output by SUEWS.
-    Input params: QN_Ser_Obs: A series of OBS net all-wave radiation.
-                  QS_Ser_SUEWS: A series of SUEWS storage heat flux values.
-                  a1, a2, a3: Linear regression coefficients from ohm_linregress_clean.
-    Returns: MPL plot of diurnal comparison, MPL plot with 1:1 line and fitted line.
-    """
-
-    # calculate qs using OHM
-    ser_qs_sim = sim_ohm(ser_qn_obs, a1, a2, a3).rename("Sim")
-
-    # re-organise obs and sim info one dataframe
-    ser_qs_obs = ser_qs_obs.rename("Obs")
-    df_qs = pd.concat([ser_qs_sim, ser_qs_obs.rename("Obs")], axis=1)
-    # Plotting
-    plot1 = plot_day_clm(df_qs)
-    plot2 = plot_comp(df_qs)
-
-    return plot1, plot2

@@ -54,7 +54,7 @@ def generate_json_schema(
 
     # Add metadata
     schema["$comment"] = {
-        "generator": "supy.util.schema_publisher",
+        "generator": "supy.data_model.configuration.publisher",
         "suews_version": _get_suews_version(),
         "schema_version": version or CURRENT_SCHEMA_VERSION,
     }
@@ -116,7 +116,7 @@ def _filter_internal_fields(schema: Dict[str, Any]) -> Dict[str, Any]:
 def _get_suews_version() -> str:
     """Get current SUEWS version."""
     try:
-        from .._version import __version__
+        from ..._version import __version__
 
         return __version__
     except ImportError:

@@ -9,14 +9,18 @@ This package implements the three-phase validation system used by
 validation/
 ├── core/
 │   ├── controller.py          # Deprecated compatibility controller
-│   ├── result.py              # Shared result helpers
-│   └── utils.py               # Utility functions
+│   ├── feedback.py            # User-facing validation feedback
+│   ├── utils.py               # Utility functions
+│   └── yaml_helpers.py        # YAML value helpers and seasonal checks
 └── pipeline/
     ├── orchestrator.py        # Phase orchestration and report consolidation
     ├── phase_a.py             # Structural completeness and rename checks
     ├── phase_b.py             # Scientific validation and optional fixes
     ├── phase_b_rules/         # Ordered Phase B validation rules
-    └── report_writer.py       # Report file I/O
+    ├── phase_c.py             # Phase C consistency-error reports
+    ├── report_schema.py       # Machine-readable phase report schema
+    ├── report_writer.py       # Report file I/O
+    └── yaml_annotator.py      # Annotated YAML output
 ```
 
 ## Three-Phase Validation System

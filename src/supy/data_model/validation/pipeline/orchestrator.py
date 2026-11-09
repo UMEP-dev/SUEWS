@@ -442,8 +442,6 @@ def create_consolidated_report(
         print(f"[DEBUG]   phases_run: {phases_run}", file=sys.stderr)
         print(f"[DEBUG]   no_action_messages count: {len(no_action_messages)}", file=sys.stderr)
 
-    phase_str = "".join(phases_run) if phases_run else "Combined"
-
     # Use unified report title for all validation phases
     title = "SUEWS Validation Report"
 
@@ -1038,14 +1036,6 @@ def _run_phase_c_legacy(
                 # Pydantic validation passed - create updatedC YAML with standardized header
                 copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
 
-                # Build passed phases header based on which phases ran successfully
-                if phases_run:
-                    passed_phases = [f"PHASE {phase} - PASSED" for phase in phases_run]
-                else:
-                    passed_phases = ["PHASE C - PASSED"]  # Default for Phase C only
-
-                phases_header = ", ".join(passed_phases)
-
                 # Build consolidation info for previous phases
                 phase_a_info = ""
                 if phase_a_report_file and os.path.exists(phase_a_report_file):
@@ -1461,13 +1451,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python suews_yaml_processor.py user.yml                        # Run complete A→B→C workflow (default, public mode)
-  python suews_yaml_processor.py user.yml --phase A              # Run Phase A only
-  python suews_yaml_processor.py user.yml --phase AB             # Run A→B workflow
-  python suews_yaml_processor.py user.yml --phase C              # Run Phase C only (consistency checks)
-  python suews_yaml_processor.py user.yml --phase BC             # Run complete B→C workflow
-  python suews_yaml_processor.py user.yml --mode dev             # Run full validation in dev mode (available)
-  python suews_yaml_processor.py user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
+  python -m supy.data_model.validation.pipeline.orchestrator user.yml                        # Run complete A->B->C workflow (default, public mode)
+  python -m supy.data_model.validation.pipeline.orchestrator user.yml --phase A              # Run Phase A only
+  python -m supy.data_model.validation.pipeline.orchestrator user.yml --phase AB             # Run A->B workflow
+  python -m supy.data_model.validation.pipeline.orchestrator user.yml --phase C              # Run Phase C only (consistency checks)
+  python -m supy.data_model.validation.pipeline.orchestrator user.yml --phase BC             # Run complete B->C workflow
+  python -m supy.data_model.validation.pipeline.orchestrator user.yml --mode dev             # Run full validation in dev mode (available)
+  python -m supy.data_model.validation.pipeline.orchestrator user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
 
 Phases:
   Phase A: Configuration structure checks and parameter updates
@@ -1643,7 +1633,6 @@ Modes:
         ) = setup_output_paths(user_yaml_file, phase)
 
         # Phase-specific execution
-        print(f"DEBUG: Executing phase '{phase}'")
         if phase == "A":
             # Phase A only
             phase_a_report = run_phase_a(
@@ -2133,7 +2122,6 @@ Modes:
         elif phase == "ABC":
             # Complete A→B→C workflow with proper halt logic
             # Step 1: Run Phase A
-            print("DEBUG: Starting ABC workflow")
             print("Configuration structure check...")
             phase_a_report = run_phase_a(
                 user_yaml_file,
@@ -2149,29 +2137,18 @@ Modes:
 
             if not phase_a_success:
                 # Phase A failed in ABC workflow - preserve Phase A outputs as ABC outputs (when Phase A passes, we have updated from A)
-                print("DEBUG: Phase A failed, moving files to final names")
-                print(f"DEBUG: uptodate_file: {uptodate_file}")
-                print(f"DEBUG: report_file: {report_file}")
-                print(f"DEBUG: pydantic_yaml_file: {pydantic_yaml_file}")
-                print(f"DEBUG: pydantic_report_file: {pydantic_report_file}")
                 try:
                     if os.path.exists(report_file):
-                        print(f"DEBUG: Moving {report_file} to {pydantic_report_file}")
                         shutil.move(
                             report_file, pydantic_report_file
                         )  # reportA → report
-                    else:
-                        print(f"DEBUG: {report_file} does not exist")
 
                     if os.path.exists(uptodate_file):
-                        print(f"DEBUG: Moving {uptodate_file} to {pydantic_yaml_file}")
                         shutil.move(
                             uptodate_file, pydantic_yaml_file
                         )  # updatedA → updated (preserve Phase A updated YAML)
-                    else:
-                        print(f"DEBUG: {uptodate_file} does not exist")
-                except Exception as e:
-                    print(f"DEBUG: Exception during file move: {e}")
+                except Exception:
+                    pass  # Don't fail if the move doesn't work
 
                 print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
@@ -2277,9 +2254,9 @@ Modes:
                 all_messages = []
 
                 # Extract messages from Phase A report
-                if phase_a_report_file and os.path.exists(phase_a_report_file):
+                if report_file and os.path.exists(report_file):
                     all_messages.extend(
-                        extract_no_action_messages_from_report(phase_a_report_file)
+                        extract_no_action_messages_from_report(report_file)
                     )
 
                 # Extract messages from Phase B report
@@ -2296,15 +2273,15 @@ Modes:
 
                 # Create consolidated final report
                 create_consolidated_report(
-                    phases_run=["A", "B", "C"] if phases_run is None else phases_run,
+                    phases_run=["A", "B", "C"],
                     no_action_messages=all_messages,
                     final_report_file=pydantic_report_file,
                     mode=internal_mode,
                 )
 
                 # Clean up intermediate files
-                if phase_a_report_file and Path(phase_a_report_file).exists():
-                    Path(phase_a_report_file).unlink()  # Remove Phase A report
+                if report_file and Path(report_file).exists():
+                    Path(report_file).unlink()  # Remove Phase A report
                 if science_report_file and Path(science_report_file).exists():
                     Path(science_report_file).unlink()  # Remove Phase B report
                 if temp_report_c and Path(temp_report_c).exists():

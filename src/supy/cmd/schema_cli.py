@@ -250,7 +250,6 @@ def version(ctx, files, update, target_version, backup):
         suews schema version config.yml
         suews schema version *.yml --update --target-version 1.0
     """
-    verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
 
     if not quiet:
@@ -340,7 +339,6 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
         suews schema migrate old_config.yml
         suews schema migrate configs/*.yml --target-version 2.0 --output-dir migrated/
     """
-    verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
 
     target = target_version or CURRENT_SCHEMA_VERSION
@@ -396,19 +394,19 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                 if is_valid:
                     results.append((
                         path.name,
-                        f"{current_version} → {target}",
-                        "[green]✓ Success[/green]",
+                        f"{current_version} -> {target}",
+                        "[green][OK] Success[/green]",
                     ))
                 else:
                     results.append((
                         path.name,
-                        f"{current_version} → {target}",
-                        "[yellow]⚠ Needs review[/yellow]",
+                        f"{current_version} -> {target}",
+                        "[yellow]WARNING: Needs review[/yellow]",
                     ))
             else:
                 results.append((
                     path.name,
-                    f"{current_version} → {target}",
+                    f"{current_version} -> {target}",
                     "[dim]Would migrate[/dim]",
                 ))
 
@@ -446,7 +444,6 @@ def export(ctx, output, version, format):
         suews schema export -o schema.json
         suews schema export --version 1.0 --format yaml
     """
-    verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
 
     schema_version = version or CURRENT_SCHEMA_VERSION
@@ -473,7 +470,7 @@ def export(ctx, output, version, format):
             output_path = Path(output)
             output_path.write_text(output_content, encoding="utf-8")
             if not quiet:
-                console.print(f"[green]✓[/green] Schema exported to {output_path}")
+                console.print(f"[green][OK][/green] Schema exported to {output_path}")
         else:
             if quiet:
                 print(output_content)
@@ -487,7 +484,7 @@ def export(ctx, output, version, format):
                 )
 
     except Exception as e:
-        console.print(f"[red]✗ Export failed: {e}[/red]")
+        console.print(f"[red][X] Export failed: {e}[/red]")
         sys.exit(1)
 
 
@@ -517,21 +514,21 @@ def info(ctx):
         console.print(f"  {marker} v{version}: {description}")
 
     console.print("\n[bold]CLI Commands:[/bold]")
-    console.print("  • Check version: [cyan]suews schema version config.yml[/cyan]")
-    console.print("  • Validate configs: [cyan]suews validate config.yml[/cyan]")
+    console.print("  - Check version: [cyan]suews schema version config.yml[/cyan]")
+    console.print("  - Validate configs: [cyan]suews validate config.yml[/cyan]")
     console.print(
-        "  • Migrate: [cyan]suews schema migrate old.yml --target-version 2.0[/cyan]"
+        "  - Migrate: [cyan]suews schema migrate old.yml --target-version 2.0[/cyan]"
     )
-    console.print("  • Export schema: [cyan]suews schema export -o schema.json[/cyan]")
+    console.print("  - Export schema: [cyan]suews schema export -o schema.json[/cyan]")
 
     console.print("\n[bold]Integration:[/bold]")
     console.print(
-        "  • Use with CI/CD: [cyan]suews validate *.yml --dry-run --format json[/cyan]"
+        "  - Use with CI/CD: [cyan]suews validate *.yml --dry-run --format json[/cyan]"
     )
     console.print(
-        "  • Batch operations: [cyan]suews schema version configs/*.yml --update[/cyan]"
+        "  - Batch operations: [cyan]suews schema version configs/*.yml --update[/cyan]"
     )
-    console.print("  • Future wizard: Will use these utilities for validation")
+    console.print("  - Future wizard: Will use these utilities for validation")
 
 
 def main():

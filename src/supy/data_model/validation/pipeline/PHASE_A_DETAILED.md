@@ -775,10 +775,10 @@ else:
 
 ```bash
 # Public mode (default) - preserves extra parameters but reports as ACTION NEEDED
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode public
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase A --mode public
 
 # Developer mode - preserves extra parameters
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode dev
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase A --mode dev
 ```
 
 ## Related Documentation

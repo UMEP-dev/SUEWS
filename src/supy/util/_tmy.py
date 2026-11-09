@@ -29,11 +29,6 @@ class Const:
         self.__dict__[name] = value
 
 
-def gen_score_list(length):
-    list_score = (np.arange(length) + 0.5) / length
-    return list_score
-
-
 def gen_score_ser(ser_test):
     ser_score = ser_test.sort_values(ascending=True)
     length = ser_score.size

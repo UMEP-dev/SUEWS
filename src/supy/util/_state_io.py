@@ -344,23 +344,3 @@ def _apply_user_state(
     # Apply other user-configurable fields
     if "tair_av" in user_config:
         initial_state.tair_av = user_config["tair_av"]
-
-
-# Convenience function for integration with SuPy
-def save_state_after_run(
-    sim_result, output_dir: Union[str, Path], run_id: Optional[str] = None
-):
-    """Save state after a SuPy simulation run.
-
-    Args:
-        sim_result: DataFrame from ``SUEWSOutput.df``
-        output_dir: Directory to save state files
-        run_id: Optional run identifier
-
-    Returns:
-        tuple: (pickle_path, yaml_path) - Paths to saved files
-    """
-    # Extract final state from simulation results
-    df_state_final = sim_result.df_state.iloc[-1:].copy()
-
-    return save_final_state(df_state_final, output_dir, run_id)

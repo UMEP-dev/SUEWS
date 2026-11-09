@@ -117,14 +117,10 @@ python -c "from supy.data_model.configuration import update_yaml_schema_version;
 
 ## CI/CD Integration
 
-### GitHub Actions Workflow
-The `.github/workflows/publish-schema.yml` workflow:
-1. **Builds** schema on every push/PR
-2. **Validates** schema generation
-3. **Deploys** to GitHub Pages for:
-   - Production releases (tags without 'dev')
-   - Development releases (nightly builds, dev tags)
-4. **Attaches** schema files to GitHub releases
+### Schema export
+No workflow publishes the schema. The tracked copy at
+`docs/source/inputs/tables/schema.json` is regenerated explicitly with
+`suews schema export -o docs/source/inputs/tables/schema.json`.
 
 ### Deployment URLs
 - **Production**: `https://umep-dev.github.io/SUEWS/schema/suews-config/{version}.json`

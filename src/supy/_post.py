@@ -35,49 +35,6 @@ dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.s
 dict_var_aggm = OUTPUT_REGISTRY.get_aggregation_rules()
 
 
-# generate index for variables in different model groups
-def gen_group_cols(group_x):
-    # get correct group name by cleaning and swapping case
-    group = group_x.replace("dataoutline", "").replace("line", "")
-    # print group
-    group = dict_var_lower[group]
-    list_header_group = np.apply_along_axis(
-        list, 0, df_var.loc[["datetime", group]].index.values
-    )[:, 1]
-
-    # generate MultiIndex if not `datetimeline`
-    if not group_x == "datetimeline":
-        idx_group = pd.MultiIndex.from_product(
-            [[group], list_header_group], names=["group", "var"], sortorder=None
-        )
-    else:
-        idx_group = list_header_group
-
-    return idx_group
-
-
-# merge_grid: useful for both `dict_output` and `dict_state`
-def pack_df_grid(dict_output):
-    # pack all grid and times into index/columns
-    df_xx = pd.DataFrame.from_dict(dict_output, orient="index")
-    # pack
-    df_xx0 = df_xx.map(pd.Series)
-    df_xx1 = df_xx0.map(pd.DataFrame.from_dict)
-    df_xx2 = pd.concat({
-        grid: pd.concat(df_xx1[grid].to_dict()).unstack().dropna(axis=1)
-        for grid in df_xx1.columns
-    })
-    # drop redundant levels
-    df_xx2.columns = df_xx2.columns.droplevel(0)
-    # regroup by `grid`
-    df_xx2.index.names = ["grid", "time"]
-    gb_xx2 = df_xx2.groupby(level="grid")
-    # merge results of each grid
-    ar_xx3 = gb_xx2.agg(lambda x: tuple(x.values)).map(np.array)
-
-    return ar_xx3
-
-
 # generate MultiIndex for variable groups
 def gen_index(varline_x):
     var_x = varline_x.replace("dataout", "").replace("block", "").replace("line", "")
@@ -85,85 +42,6 @@ def gen_index(varline_x):
     list_var = df_var.loc[group].index.tolist()
     idx_multi = pd.MultiIndex.from_product([[group], list_var], names=["group", "var"])
     return idx_multi
-
-
-# generate one MultiIndex from a whole dict
-def gen_MultiIndex(dict_x):
-    list_keys = dict_x.keys()
-    idx_multi = pd.concat([gen_index(k).to_frame() for k in list_keys]).index
-    return idx_multi
-
-
-# generate one Series from a dict entry
-def gen_Series(dict_x, varline_x):
-    idx_multi = gen_index(varline_x)
-    ser_result = pd.Series(dict_x[varline_x], index=idx_multi)
-    return ser_result
-
-
-# merge a whole dict into one Series
-def comb_gen_Series(dict_x):
-    list_keys = dict_x.keys()
-    ser_result = pd.concat([gen_Series(dict_x, k) for k in list_keys])
-    return ser_result
-
-
-# pack up output of `run_suews`
-def pack_df_output_line(dict_output):
-    import logging
-    import pickle
-
-    if logger_supy.isEnabledFor(logging.DEBUG):
-        pickle.dump(dict_output, open("dict_output.pkl", "wb"))
-        logger_supy.debug("dict_output saved to dict_output.pkl")
-    # TODO: add output levels as in the Fortran version
-    df_output = pd.DataFrame(dict_output).T
-    # df_output = pd.concat(dict_output).to_frame().unstack()
-    # set index level names
-    idx_output = df_output.index.set_names(["datetime", "grid"])
-    # clean columns
-    cols_output = gen_MultiIndex(df_output.iloc[0])
-    ar_values = np.apply_along_axis(np.hstack, 1, df_output.values)
-    df_output = pd.DataFrame(ar_values, index=idx_output, columns=cols_output)
-    return df_output
-
-
-def pack_df_state(dict_state):
-    df_state = pd.DataFrame(dict_state).T
-    # df_state = pd.concat(dict_state).to_frame().unstack()
-    # set index level names
-    df_state.index = df_state.index.set_names(["datetime", "grid"])
-
-    return df_state
-
-
-def pack_df_output_array(dict_output_array, df_forcing):
-    list_grid = list(dict_output_array.keys())
-    grid_start = list_grid[0]
-    cols_df = gen_MultiIndex(dict_output_array[grid_start])
-    dict_df = {}
-    for grid in list_grid:
-        ar_grid = np.hstack([v[:, 5:] for v in dict_output_array[grid].values()])
-        df_grid = pd.DataFrame(ar_grid, columns=cols_df, index=df_forcing.index)
-
-        dict_df.update({grid: df_grid})
-
-    # join results of all grids
-    df_grid_res = pd.concat(dict_df, keys=dict_df.keys())
-
-    # set index level names
-    df_grid_res.index.set_names(["grid", "datetime"], inplace=True)
-
-    return df_grid_res
-
-
-def pack_df_output_block(dict_output_block, df_forcing_block):
-    cols_df = gen_MultiIndex(dict_output_block)
-    ar_val_df = np.hstack([ar[:, 5:] for ar in dict_output_block.values()])
-    idx_df = df_forcing_block.index.rename("datetime")
-    df_out = pd.DataFrame(ar_val_df, columns=cols_df, index=idx_df)
-
-    return df_out
 
 
 # resample supy output
@@ -530,28 +408,3 @@ def proc_df_rsl(df_output, debug=False):
         return df_rsl_proc, df_rsl_debug
     else:
         return df_rsl_proc
-
-
-def is_numeric(obj):
-    """
-    Check if an object is numeric (integer, float, complex, or numeric numpy array).
-
-    Parameters
-    ----------
-    obj : object
-        The object to be checked.
-
-    Returns
-    -------
-    bool
-        True if the object is numeric, False otherwise.
-
-    Notes
-    -----
-    Used by the debug data processing functions to determine how to handle values.
-    """
-    if isinstance(obj, (int, float, complex)):
-        return True
-    if isinstance(obj, np.ndarray):
-        return np.issubdtype(obj.dtype, np.number)
-    return False

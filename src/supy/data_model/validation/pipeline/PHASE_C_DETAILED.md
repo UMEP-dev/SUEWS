@@ -31,10 +31,10 @@ Phase C implements the same comprehensive Pydantic validation system used by `SU
 
 ### Core Files and Structure
 
-- `core.py`: Main SUEWSConfig class with all model validators
+- `data_model/core/config.py`: Main SUEWSConfig class with all model validators
 - `phase_c_reports.py`: Specialised report generation for Pydantic validation errors
 - `model.py`, `site.py`, `surface.py`, `state.py`, `profile.py`: Individual field validators for specific data types
-- Integration with `suews_yaml_processor.py` for Phase C execution
+- Integration with `orchestrator.py` for Phase C execution
 
 ### Key Pydantic Components
 
@@ -756,23 +756,23 @@ model_config = ConfigDict(
 
 ```bash
 # Public mode (default) - standard Pydantic validation
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase C --mode public
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase C --mode public
 
 # Developer mode - identical validation with different report header
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase C --mode dev
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase C --mode dev
 ```
 
 ### Integration Examples
 
 ```bash
 # Phase C after Phase A (AC workflow)
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AC
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase AC
 
 # Phase C after Phase B (BC workflow)
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase BC
 
 # Complete pipeline including Phase C (ABC workflow)
-python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
+python -m supy.data_model.validation.pipeline.orchestrator user_config.yml --phase ABC
 ```
 
 ## Related Documentation

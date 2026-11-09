@@ -150,7 +150,9 @@ archetype = ArchetypeProperties(
 
 ## File Organization
 
-- **`core.py`**: Base classes and core functionality
+The model modules live in `core/`:
+
+- **`config.py`**: `SUEWSConfig`, the top-level configuration model
 - **`type.py`**: RefValue system and fundamental types
 - **`site.py`**: Site-level properties and complex building energy parameters
 - **`surface.py`**: Individual surface type properties

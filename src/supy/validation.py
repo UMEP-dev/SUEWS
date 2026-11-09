@@ -440,7 +440,7 @@ def validate_suews_config_conditional(
         )
         if errors:
             for error in errors:
-                print(f"  • {error}")
+                print(f"  - {error}")
         if skipped:
             print(f"Skipped: {', '.join(skipped)}")
 

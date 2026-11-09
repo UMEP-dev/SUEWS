@@ -720,18 +720,6 @@ def clean_legacy_table(file_path, output_path=None):
     return output_path
 
 
-# Helper function to read SUEWS files robustly
-# (kept for backward compatibility but simplified).
-def read_suews_table(toFile):
-    """Read a SUEWS table file using the strict legacy parser."""
-    try:
-        table = read_legacy_table(toFile)
-        return pd.DataFrame(table.rows, columns=table.headers)
-    except Exception as e:
-        logger_supy.error(f"Failed to read {toFile}: {e!s}")
-        raise
-
-
 # add:
 # add variable(s) to a file
 def add_var(toFile, toVar, toCol, toVal):

@@ -2,7 +2,6 @@
 
 import logging
 import os
-import shutil
 import time
 import warnings
 import contextlib

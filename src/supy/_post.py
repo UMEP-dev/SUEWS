@@ -1,7 +1,5 @@
-import numpy as np
 import pandas as pd
 
-from ._env import logger_supy
 from ._misc import infer_freq_offset
 from .data_model.output import OUTPUT_REGISTRY
 

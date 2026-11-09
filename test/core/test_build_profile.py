@@ -55,7 +55,7 @@ def test_checked_profile_forces_debug_on(run_make):
 
 def test_release_profile_forces_debug_off(run_make):
     # An empty command-line DEBUG reaches the Makefile's ``ifndef DEBUG`` as
-    # undefined and overrides its ``DEBUG ?= 1`` default.
+    # undefined, matching the Makefile's empty ``DEBUG ?=`` (release) default.
     assert run_make.make_args_for_profile("release") == ["DEBUG="]
 
 

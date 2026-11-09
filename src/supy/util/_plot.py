@@ -235,22 +235,6 @@ def plot_comp(
 # import matplotlib.pyplot as plt
 
 
-def RGB_list_to_Hex(RGB):
-    color = "#"
-    for i in RGB:
-        num = int(i)
-        color += str(hex(num))[-2:].replace("x", "0").upper()
-    return color
-
-
-def Hex_to_RGB(hex):
-    r = int(hex[1:3], 16)
-    g = int(hex[3:5], 16)
-    b = int(hex[5:7], 16)
-    rgb = str(r) + "," + str(g) + "," + str(b)
-    return rgb, [r, g, b]
-
-
 # plotting RSL profiles
 def plot_rsl(
     df_output,

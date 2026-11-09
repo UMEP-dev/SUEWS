@@ -1,10 +1,8 @@
 import contextlib
-import urllib
 import os
 
 import pandas as pd
 
-from ._env import logger_supy
 
 
 def infer_freq_offset(index):

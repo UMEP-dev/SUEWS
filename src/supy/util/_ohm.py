@@ -10,7 +10,6 @@ Ting Sun
 import numpy as np
 import pandas as pd
 
-from ._plot import plot_comp, plot_day_clm
 from .._env import logger_supy
 
 

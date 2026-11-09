@@ -4,7 +4,6 @@ This module provides functionality to save and load simulation states,
 separating internal runtime values from user-configurable parameters.
 """
 
-from datetime import datetime
 from pathlib import Path
 import pickle
 from typing import Any, Dict, Optional, Union
@@ -14,74 +13,6 @@ import pandas as pd
 import yaml
 
 from ..data_model import InitialStates, SUEWSConfig
-
-
-def save_final_state(
-    df_state_final: pd.DataFrame,
-    output_dir: Union[str, Path],
-    run_id: Optional[str] = None,
-    config: Optional[SUEWSConfig] = None,
-) -> tuple[Path, Path]:
-    """Save final simulation state in two formats.
-
-    Args:
-        df_state_final: Final state DataFrame from SUEWS simulation
-        output_dir: Directory to save state files
-        run_id: Optional run identifier for file naming
-        config: Optional SUEWSConfig for extracting user-facing values
-
-    Returns:
-        tuple: (pickle_path, yaml_path) - Paths to saved files
-    """
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Generate file names with timestamp if no run_id provided
-    if run_id is None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id = f"run_{timestamp}"
-
-    # Save complete state as pickle (includes all internal values)
-    pickle_path = output_dir / f"{run_id}_final_state.pkl"
-    with open(pickle_path, "wb") as f:
-        pickle.dump(
-            {
-                "df_state": df_state_final,
-                "version": "2025.6",  # SUEWS version for compatibility check
-                "timestamp": datetime.now().isoformat(),
-            },
-            f,
-        )
-
-    # Extract and save user-facing state as YAML
-    yaml_path = output_dir / f"{run_id}_next_initial.yml"
-    user_state = extract_user_facing_state(df_state_final, config)
-
-    with open(yaml_path, "w", encoding="utf-8") as f:
-        yaml.dump(user_state, f, default_flow_style=False, sort_keys=False)
-
-    # Add informative header to YAML file
-    with open(yaml_path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    header = f"""# SUEWS Initial State Configuration
-# Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-# From run: {run_id}
-# 
-# This file contains user-configurable initial conditions.
-# Internal state values are preserved in: {pickle_path.name}
-#
-# To use for next simulation:
-# 1. Modify values in this file as needed
-# 2. Keep the pickle file in the same directory
-# 3. Load with: supy.load_initial_state('{yaml_path.name}', '{pickle_path.name}')
-
-"""
-
-    with open(yaml_path, "w", encoding="utf-8") as f:
-        f.write(header + content)
-
-    return pickle_path, yaml_path
 
 
 def extract_user_facing_state(

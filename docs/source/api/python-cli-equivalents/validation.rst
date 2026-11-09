@@ -64,36 +64,36 @@ Complete validation including all phases (A→B→C) for thorough checking:
     (uptodate_file, report_file,
      science_yaml_file, science_report_file,
      pydantic_yaml_file, pydantic_report_file,
-     dirname) = setup_output_paths(user_yaml_file, pipeline="ABC")
+     dirname) = setup_output_paths(user_yaml_file, phase="ABC")
 
     # Run phases A → B → C
-    a_ok = run_phase_a(
+    a_report = run_phase_a(
         user_yaml_file, standard_yaml_file, uptodate_file,
         report_file, mode="public", phase="ABC", silent=False, forcing="on"
     )
 
-    if not a_ok:
+    if a_report.has_errors:
         print(f"✗ Phase A failed")
         print(f"  Report: {report_file}")
         print(f"  Updated YAML: {uptodate_file}")
     else:
-        b_ok = run_phase_b(
+        b_report = run_phase_b(
             user_yaml_file, uptodate_file, standard_yaml_file,
             science_yaml_file, science_report_file, report_file,
             phase_a_performed=True, mode="public", phase="ABC", silent=False
         )
 
-        if not b_ok:
+        if b_report.has_errors:
             print(f"✗ Phase B failed")
             print(f"  Report: {science_report_file}")
             print(f"  Updated YAML: {uptodate_file}")
         else:
-            c_ok = run_phase_c(
+            c_report = run_phase_c(
                 science_yaml_file, pydantic_yaml_file, pydantic_report_file,
                 mode="public", phases_run=["A", "B", "C"], silent=False
             )
 
-            if not c_ok:
+            if c_report.has_errors:
                 print(f"✗ Phase C failed")
                 print(f"  Report: {pydantic_report_file}")
                 print(f"  Updated YAML: {science_yaml_file}")

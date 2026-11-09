@@ -72,8 +72,8 @@ Accessing Results
     forcing = sim.forcing
 
     # Perform custom analysis
-    print(f"Mean QH: {results['QH'].mean():.2f} W/m²")
-    print(f"Max QE: {results['QE'].max():.2f} W/m²")
+    print(f"Mean QH: {results[('SUEWS', 'QH')].mean():.2f} W/m²")
+    print(f"Max QE: {results[('SUEWS', 'QE')].max():.2f} W/m²")
 
 Updating Configuration
 ~~~~~~~~~~~~~~~~~~~~~~

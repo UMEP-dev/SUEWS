@@ -29,7 +29,7 @@ Python Equivalent (Schema Export)
         json.dump(schema, f, indent=2)
 
     # Or use the built-in save function
-    save_schema(schema, Path("suews_schema.json"))
+    save_schema(Path("suews_schema.json"))
 
     print("Schema exported successfully!")
 

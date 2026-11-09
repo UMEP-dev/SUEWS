@@ -10,7 +10,7 @@ CLI Commands
 
     suews schema export -o schema.json
     suews validate config.yml
-    suews schema migrate old_config.yml --target-version 2.0
+    suews schema migrate old_config.yml
 
 Python Equivalent (Schema Export)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,7 +29,7 @@ Python Equivalent (Schema Export)
         json.dump(schema, f, indent=2)
 
     # Or use the built-in save function
-    save_schema(schema, Path("suews_schema.json"))
+    save_schema(Path("suews_schema.json"))
 
     print("Schema exported successfully!")
 

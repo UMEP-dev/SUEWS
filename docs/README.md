@@ -25,13 +25,11 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 - **`troubleshooting.rst`**: Common issues and solutions
 
 #### Input/Output Reference
-- **`input_files/`**: Complete input file specifications
-  - Site information tables (`SUEWS_SiteInfo/`)
-  - Meteorological data format (`met_input.rst`)
-  - Control files (`RunControl/`, `Initial_Conditions/`)
-  - Physics modules (`ESTM_input/`, `CBL_input/`, `SOLWEIG_input/`, `SS_input/`)
-  - Input converter documentation (`input_converter.rst`)
-  - File converter utilities (`SUEWS_TableConverter.py`)
+- **`inputs/`**: Input specifications
+  - YAML configuration (`yaml/`) and forcing data (`forcing-data.rst`)
+  - Input converter (`converter.rst`) and transition guide (`transition_guide.rst`)
+  - Legacy table inputs (`tables/`): site information (`SUEWS_SiteInfo/`), meteorological data (`met_input.rst`), control files (`RunControl/`, `Initial_Conditions/`), physics modules (`ESTM_input/`, `CBL_input/`, `SOLWEIG_input/`, `SS_input/`) and the table converter (`SUEWS_TableConverter.py`)
+  - Exported JSON Schema (`tables/schema.json`)
 
 - **`outputs/`**: Output file format specifications
   - Format documentation (`text_format.rst`, `parquet_format.rst`)
@@ -50,9 +48,8 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 #### Guides and Tutorials
 - **`contributing/`**: Development and contribution guides
   - `contributing.rst`: General contribution guidelines
-  - `dev_guide.rst`: Developer setup and workflow
-  - `doc_guide.rst`: Documentation writing guidelines
-  - `report_guide.rst`: Bug reporting guidelines
+  - `json-output-integration.rst`: JSON output format
+  - `schema/`: Schema development and versioning
 
 - **`sub-tutorials/`**: User tutorials and examples
 - **`benchmark/`**: Performance benchmarking reports
@@ -61,7 +58,6 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 - **`related-softwares/`**: Integration with other tools
   - `umep.rst`: UMEP (Urban Multi-scale Environmental Predictor) integration
   - `lumps-fraise.rst`: LUMPS and FRAISE model information
-  - `supy/`: SuPy Python interface documentation
 
 ### Assets and Resources
 
@@ -70,11 +66,9 @@ This directory contains the complete documentation build system for SUEWS (Surfa
   - Workflow diagrams
   - GUI screenshots
   - Result visualizations
-  - Logo variants in `logo/` subdirectory
 
 - **`assets/`**: Supporting files
   - `csv/`: Comparison tables and data files
-  - `doc/`: PDF manuals for older versions
   - `html/`: Benchmark reports and web content
   - `img/`: Core documentation images
   - `refs/`: BibTeX bibliography files
@@ -104,6 +98,8 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 ## Build Commands
 
 ### Essential Commands
+Run these from `docs/`:
+
 ```bash
 # Build HTML documentation
 make html
@@ -111,24 +107,17 @@ make html
 # Build with live reload during development
 make livehtml
 
-# Build all formats
-make
+# Regenerate the data-model and output-variable RST only
+make generate-rst
 
-# Install supy in development mode
-make pip
+# Remove build output
+make clean
 
-# Process CSV tables
-make proc-csv
-
-# Generate configuration schema from Pydantic models
-make schema
-
-# Start local server for configuration UI testing
-make config-ui
-
-# Get help
+# List Sphinx builders (the default target)
 make help
 ```
+
+Install SuPy in development mode with `make dev` from the repository root.
 
 ### Advanced Building
 The build system automatically:
@@ -136,7 +125,6 @@ The build system automatically:
 - Updates bibliography formatting
 - Handles multi-language content
 - Manages cross-references and links
-- Generates JSON Schema for configuration UI
 
 ### Dependencies
 Python dependencies specified in `pyproject.toml`.
@@ -168,13 +156,11 @@ Python packages:
 
 ### Schema Updates
 1. Modify Pydantic models in `src/supy/data_model/`
-2. Run `make schema` to regenerate schema
-3. Configuration UI automatically uses updated schema
+2. From the repository root, run `suews schema export -o docs/source/inputs/tables/schema.json` to regenerate the schema (`make generate-rst` does not refresh it)
 
 ### Local Development
-1. Run `make config-ui` to start local server
-2. Access configuration UI at `http://localhost:8080/index.html`
-3. Test configuration builder at `http://localhost:8080/config-builder.html`
+1. Run `make livehtml` from `docs/` to start a live-reloading server
+2. Open `http://localhost:8000` (override the port with `make livehtml LIVEHTML_PORT=8001`)
 
 ### Custom Features
 - Dynamic table generation from CSV + RST descriptions

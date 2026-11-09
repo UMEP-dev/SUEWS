@@ -982,13 +982,16 @@ fn apply_vertical_layers_overrides(
         // A short roof or wall list is reported as such, before naming the
         // first layer it leaves without an emissivity.
         for facet in ["roofs", "walls"] {
-            if let Some(items) = read_sequence(site_root, &["properties", "vertical_layers", facet])
-            {
-                require_list_length(
-                    items.len(),
-                    nlayer,
-                    &format!("{site_at}.properties.vertical_layers.{facet}"),
-                )?;
+            let facet_at = format!("{site_at}.properties.vertical_layers.{facet}");
+            match read_sequence(site_root, &["properties", "vertical_layers", facet]) {
+                Some(items) => require_list_length(items.len(), nlayer, &facet_at)?,
+                None if nlayer > 0 => {
+                    return Err(format!(
+                        "`{facet_at}` is missing; SPARTACUS (net_radiation > 1000) needs \
+                         nlayer = {nlayer} {facet}, each with an emissivity"
+                    ));
+                }
+                None => {}
             }
         }
         for (facet, values) in [
@@ -2191,9 +2194,12 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
 /// - `properties.building_archetype` and `properties.stebbs` ->
 ///   `site.building_archtype` and `site.stebbs` (name matching)
 ///
-/// Order matters: `resize_site_variable_arrays` pads per-layer arrays with
-/// fallbacks taken from other members, and `apply_vertical_layers_overrides`
-/// and `apply_ehc_overrides` index the resized arrays. Any key not present
+/// Order matters: `resize_site_variable_arrays` sizes the per-layer arrays
+/// to `nlayer`, filling new slots with constants (NaN for the building
+/// fraction and the roof and wall emissivities, which
+/// `apply_vertical_layers_overrides` must then fill or reject), and
+/// `apply_vertical_layers_overrides` and `apply_ehc_overrides` index the
+/// resized arrays. Any key not present
 /// keeps the Fortran default (see the module docs). Scalars that the driver
 /// passes separately (`lat`, `z`, `z0m_in`, ...) are read by
 /// `apply_site_scalar_overrides` into `SiteScalars`, not here.
@@ -4143,6 +4149,56 @@ mod tests {
                     "{err}"
                 );
             }
+        }
+    }
+
+    fn spartacus_fixture_with_storage_heat(
+        storage_heat: i32,
+        edit: impl FnOnce(&mut Value),
+    ) -> Result<RunConfig, String> {
+        // SPARTACUS on (net_radiation 1003), nlayer 3.
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+            serde_yaml::from_str(&format!("{{value: {storage_heat}}}")).unwrap();
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        edit(get_path_mut(site, &["properties", "vertical_layers"]).unwrap());
+        load_run_config_from_value(&mut root)
+    }
+
+    #[test]
+    fn short_facet_list_is_a_length_error_under_spartacus_without_ehc() {
+        for facet in ["roofs", "walls"] {
+            let err = spartacus_fixture_with_storage_heat(1, |layers| {
+                get_path_mut(layers, &[facet])
+                    .unwrap()
+                    .as_sequence_mut()
+                    .unwrap()
+                    .truncate(1);
+            })
+            .expect_err(facet);
+            assert!(
+                err.contains(&format!(
+                    "sites[gridiv=1].properties.vertical_layers.{facet}` has 1 values; \
+                     requires at least 3"
+                )),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn missing_facet_list_is_named_under_spartacus() {
+        for facet in ["roofs", "walls"] {
+            let err = spartacus_fixture_with_storage_heat(1, |layers| remove_key(layers, facet))
+                .expect_err(facet);
+            assert!(
+                err.contains(&format!(
+                    "sites[gridiv=1].properties.vertical_layers.{facet}` is missing"
+                )),
+                "{err}"
+            );
         }
     }
 }

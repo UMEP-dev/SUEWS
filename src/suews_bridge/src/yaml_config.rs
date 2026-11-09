@@ -1646,7 +1646,6 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) {
             e.humactivity_24hr_holiday[hour - 1] = v;
         }
     }
-    Ok(())
 }
 
 fn apply_config_overrides(config: &mut SuewsConfig, root: &Value, site_root: &Value) {

@@ -49,7 +49,7 @@ fi
 
 # Content checks read files, so they use only staged paths that still exist;
 # deleted Python/Fortran files still count towards running the smoke tests.
-EXISTING=$(while IFS= read -r f; do [[ -e "$f" ]] && echo "$f"; done <<< "$STAGED")
+EXISTING=$(while IFS= read -r f; do if [[ -e "$f" ]]; then echo "$f"; fi; done <<< "$STAGED")
 CODE_CHANGED=$(echo "$STAGED" | grep -E '\.(py|f95|f90)$' || true)
 
 # Classify staged files

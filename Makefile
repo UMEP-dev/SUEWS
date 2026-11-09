@@ -101,7 +101,7 @@ dev:
 	@# setuptools builds sdist-only dependencies, e.g. numexpr (via atmosp) on CPython 3.15.
 	@if command -v uv >/dev/null 2>&1; then \
 		echo "Using uv for fast installation..."; \
-		uv pip install wheel setuptools pytest "numpy>=2.0" "meson-python>=0.12.0"; \
+		uv pip install wheel setuptools pytest "numpy>=2.0" "meson-python>=0.18" "meson>=1.3.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
 			bash -c 'PATH="$$HOME/.cargo/bin:$$PATH" FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
@@ -109,7 +109,7 @@ dev:
 			uv pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	else \
-		$(PYTHON) -m pip install wheel setuptools pytest "numpy>=2.0" "meson-python>=0.12.0"; \
+		$(PYTHON) -m pip install wheel setuptools pytest "numpy>=2.0" "meson-python>=0.18" "meson>=1.3.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		else \
@@ -136,7 +136,7 @@ docs-setup:
 		echo "ERROR: SUEWS requires Python 3.12 or newer (requires-python in pyproject.toml)."; \
 		exit 1; \
 	}
-	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-docs.XXXXXX" 2>/dev/null || mktemp -t suews-docs); \
+	@set -e; TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-docs.XXXXXX" 2>/dev/null || mktemp -t suews-docs); \
 	trap 'rm -f "$$TMP_REQ"' EXIT; \
 	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra docs > "$$TMP_REQ"; \
 	if command -v uv >/dev/null 2>&1; then \
@@ -247,7 +247,7 @@ test-qgis:
 
 # Audit installed dependency hooks and declared dependency advisories
 audit-deps:
-	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-audit.XXXXXX" 2>/dev/null || mktemp -t suews-audit); \
+	@set -e; TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-audit.XXXXXX" 2>/dev/null || mktemp -t suews-audit); \
 	TMP_AUDIT_ENV=$$(mktemp -d "$${TMPDIR:-/tmp}/suews-audit-env.XXXXXX" 2>/dev/null || mktemp -d -t suews-audit-env); \
 	trap 'rm -f "$$TMP_REQ"; rm -rf "$$TMP_AUDIT_ENV"' EXIT; \
 	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra dev --extra docs > "$$TMP_REQ"; \

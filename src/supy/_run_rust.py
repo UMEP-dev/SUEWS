@@ -922,6 +922,22 @@ class _KeptOutputStore:
         )
 
 
+def config_to_engine_yaml(config: SUEWSConfig) -> str:
+    """Return the resolved YAML the Rust engine receives for *config*.
+
+    This is the hand-off between the data model and the bridge: the validated
+    configuration, with every data-model default filled in, dumped exactly as
+    ``suews run`` and the library backend pass it to the engine. The
+    standalone ``suews-engine run`` binary expects input in this form (gh#2004).
+    """
+    return yaml.dump(
+        config.model_dump(exclude_none=True, mode="json"),
+        default_flow_style=False,
+        sort_keys=False,
+        Dumper=_yaml_Dumper,
+    )
+
+
 def run_suews_rust(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
@@ -939,12 +955,7 @@ def run_suews_rust(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
-        default_flow_style=False,
-        sort_keys=False,
-        Dumper=_yaml_Dumper,
-    )
+    config_yaml = config_to_engine_yaml(config)
     forcing_block = _prepare_forcing_block(df_forcing)
 
     df_output, state_json, raw_warnings = _run_grid_into(
@@ -1182,12 +1193,7 @@ def run_suews_rust_with_state(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
-        default_flow_style=False,
-        sort_keys=False,
-        Dumper=_yaml_Dumper,
-    )
+    config_yaml = config_to_engine_yaml(config)
     forcing_block = _prepare_forcing_block(df_forcing)
 
     df_output, new_state_json, raw_warnings = _run_grid_into(

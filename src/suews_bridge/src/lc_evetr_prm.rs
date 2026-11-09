@@ -1,3 +1,30 @@
+//! `LC_EVETR_PRM`: evergreen-tree land-cover parameters, a *composite* type.
+//!
+//! The flat buffer (57 values) is the scalars of this type interleaved with
+//! whole nested types, in the order of the Fortran facade
+//! `c_api/lc_evetr_prm.f95` (`lc_evetr_prm_pack` / `lc_evetr_prm_unpack`):
+//!
+//! | flat index | field | length |
+//! |---|---|---|
+//! | 0..6 | `sfr` .. `alb_max` | 6 |
+//! | 6..23 | `ohm` (`OhmPrm`) | 17 |
+//! | 23..26 | `soil` (`SoilPrm`) | 3 |
+//! | 26..29 | `state_limit`, `irrfracevetr`, `wet_threshold` | 3 |
+//! | 29..37 | `bioco2` (`BioCo2Prm`) | 8 |
+//! | 37 | `max_conductance` | 1 |
+//! | 38..49 | `lai` (`LaiPrm`) | 11 |
+//! | 49..57 | `waterdist` (`WaterDistPrm`) | 8 |
+//!
+//! The slice bounds in `from_flat` are hard-coded. Adding a field to a nested
+//! type (say `OhmPrm`) changes its length, so in **every** parent that embeds
+//! it (all seven `lc_*_prm.rs` modules for `OhmPrm`) you must: raise
+//! `*_FLAT_LEN`, shift every later slice bound in `from_flat`, and add the
+//! field to the parent facade's inlined pack and unpack (the facades copy
+//! nested components field by field, see `lc_evetr_prm_pack`). The length
+//! checks catch a wrong total; they do not catch a slice that starts in the
+//! wrong place if the total is right. See
+//! `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`.
+
 use crate::bioco2::{bioco2_prm_field_names, BioCo2Prm};
 use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;

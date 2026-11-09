@@ -140,7 +140,7 @@ def _locate_engine() -> Path:
     except (ImportError, FileNotFoundError):
         pytest.skip(
             "Rust CLI binary not found; "
-            "build with: cd src/suews_bridge && cargo build --release"
+            "build with: make bridge"
         )
 
 
@@ -182,7 +182,15 @@ def _write_run_inputs(
     The config is redirected to write its output into run_dir. The forcing file is
     truncated to the rows the requested window needs, because the engine runs the
     whole forcing file it is given.
+
+    The engine expects resolved YAML, so the config written here is the one
+    ``suews run`` hands the bridge: validated through the data model, with every
+    default filled in (gh#2004). The forcing copy sits beside it, so the relative
+    ``forcing.file`` still resolves against the config's own directory.
     """
+    from supy._run_rust import config_to_engine_yaml
+    from supy.data_model import SUEWSConfig
+
     # sample_config is a Traversable, so use its own open() rather than the
     # builtin, which requires os.PathLike and fails for zip-backed resources.
     with sample_config.open(encoding="utf-8") as handle:
@@ -193,8 +201,9 @@ def _write_run_inputs(
     control["output"]["dir"] = str(run_dir)
 
     config_path = run_dir / "sample_config.yml"
-    with open(config_path, "w", encoding="utf-8") as handle:
-        yaml.dump(cfg, handle, default_flow_style=False, sort_keys=False)
+    config_path.write_text(
+        config_to_engine_yaml(SUEWSConfig.from_dict(cfg)), encoding="utf-8"
+    )
 
     forcing_name = _forcing_filename(control)
     forcing_rows = _forcing_rows_for(validation_steps, tstep, truncated)

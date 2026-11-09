@@ -27,8 +27,8 @@ if [[ -f ".venv/bin/activate" ]]; then
     source .venv/bin/activate
 fi
 
-# Get staged files (deletions excluded: every check below reads file contents)
-STAGED=$(git diff --cached --name-only --diff-filter=ACMRT 2>/dev/null || true)
+# Get staged files (deletions included; they still trigger the smoke tests)
+STAGED=$(git diff --cached --name-only 2>/dev/null || true)
 
 # During a merge, check only files whose staged content also differs from the
 # merged-in branch. Files that arrive unchanged from that side (e.g. master
@@ -47,12 +47,17 @@ if [[ -z "$STAGED" ]]; then
     exit 0
 fi
 
+# Content checks read files, so they use only staged paths that still exist;
+# deleted Python/Fortran files still count towards running the smoke tests.
+EXISTING=$(while IFS= read -r f; do [[ -e "$f" ]] && echo "$f"; done <<< "$STAGED")
+CODE_CHANGED=$(echo "$STAGED" | grep -E '\.(py|f95|f90)$' || true)
+
 # Classify staged files
-PY_FILES=$(echo "$STAGED" | grep -E '\.py$' || true)
-F90_FILES=$(echo "$STAGED" | grep -E '\.(f95|f90)$' || true)
-RST_FILES=$(echo "$STAGED" | grep -E '\.rst$' || true)
-CHANGELOG=$(echo "$STAGED" | grep -E '^CHANGELOG\.md$' || true)
-MESON=$(echo "$STAGED" | grep -E 'meson\.build$' || true)
+PY_FILES=$(echo "$EXISTING" | grep -E '\.py$' || true)
+F90_FILES=$(echo "$EXISTING" | grep -E '\.(f95|f90)$' || true)
+RST_FILES=$(echo "$EXISTING" | grep -E '\.rst$' || true)
+CHANGELOG=$(echo "$EXISTING" | grep -E '^CHANGELOG\.md$' || true)
+MESON=$(echo "$EXISTING" | grep -E 'meson\.build$' || true)
 
 ERRORS=""
 PASS_COUNT=0
@@ -183,7 +188,7 @@ if [[ -n "$MESON" ]]; then
 fi
 
 # --- Smoke tests (only for Python/Fortran changes) ---
-if [[ -n "$PY_FILES" ]] || [[ -n "$F90_FILES" ]]; then
+if [[ -n "$CODE_CHANGED" ]]; then
     echo ""
     echo "-- Running smoke tests --"
     SMOKE_LOG=$(mktemp)

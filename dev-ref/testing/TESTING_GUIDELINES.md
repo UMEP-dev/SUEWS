@@ -116,30 +116,24 @@ class SUEWSError(Exception):
 ## 4. Test Organisation Standards
 
 ### Python Test Structure
-```
+
+All tests live under `test/`, in one subdirectory chosen by what the test exercises. The canonical layout and the rules behind it are in [`.claude/rules/tests/patterns.md`](../../.claude/rules/tests/patterns.md) (Test File Locations):
+
+```text
 test/
-├── unit/                    # Fast, focused tests
-│   ├── test_data_model/    # Configuration validation
-│   ├── test_fortran_interface/  # Type conversions
-│   └── test_utilities/     # Helper functions
-├── integration/            # Component interaction tests
-│   ├── test_temporal/      # Time-series tests
-│   └── test_weather/       # Weather scenarios
-├── physics/                # Scientific validation
-│   ├── test_energy_balance/
-│   ├── test_water_balance/
-│   └── test_atmospheric_stability/
-└── performance/            # Performance benchmarks
+├── core/           # API, CLI, utilities
+├── data_model/     # Pydantic config and converters
+├── physics/        # Scientific validation (flat test_*.py files)
+├── io_tests/       # Input/output handling
+├── cmd/            # CLI entry points
+├── docs/           # Documentation checks
+├── mcp/            # MCP server
+├── umep/           # UMEP/QGIS integration
+├── knowledge/      # Knowledge pack
+└── fixtures/       # Test data
 ```
 
-### Fortran Test Organisation (by Physics)
-```
-test/physics/
-├── test_atmospheric_stability/
-├── test_evaporation/
-├── test_energy_balance/
-└── test_radiation/
-```
+`make test` skips `cmd/`, `docs/`, `mcp/`, `umep/` and `knowledge/`; run those directories directly or use `make test-all`.
 
 ## 5. pytest Markers and Configuration
 
@@ -347,15 +341,6 @@ with as_file(files("supy") / "sample_data" / "sample_config.yml") as config_path
 - **Future-proof**: Standard Python way to access package data
 - **Type-safe**: Modern typing support
 - **Portable**: No assumptions about installation method
-
-#### Acceptable Alternative (with limitations)
-```python
-from pathlib import Path
-import supy as sp
-
-# This works but is less portable
-config_path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-```
 
 #### Use supy's API When Available
 ```python

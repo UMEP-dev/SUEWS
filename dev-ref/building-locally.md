@@ -9,6 +9,7 @@ If you want to build SUEWS from source for local use, this guide covers prerequi
   - macOS: `brew install gcc`
   - Ubuntu/Debian: `sudo apt-get install gfortran`
   - Windows (MSYS2 UCRT64): `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`
+- Rust toolchain with `cargo` (install via [rustup](https://rustup.rs/)); the default build compiles the Rust bridge (`with_rust_bridge=true` in `meson_options.txt`) and Meson fails without `cargo`
 - [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`
 
 ## Quick Start
@@ -88,7 +89,7 @@ SUEWS/
 ├── src/
 │   ├── suews/          # Fortran physics engine
 │   ├── supy/           # Python interface
-│   └── supy_driver/    # Python-Fortran bridge
+│   └── suews_bridge/   # Rust bridge (Python extension and CLI)
 ├── test/               # Test suite
 ├── docs/               # User documentation (Sphinx)
 └── dev-ref/            # Developer documentation (Markdown)

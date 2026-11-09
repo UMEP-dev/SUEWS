@@ -4,14 +4,14 @@ name: GitHub Pages Deploy
 # =================================
 # Deploys static content from site/ and Sphinx docs to GitHub Pages.
 # - Push to master: Deploy production site
-# - Pull request: Add preview to /preview/pr-{NUMBER}/ (site + docs)
+# - Pull request: Assemble the site only; no docs build, no preview deployment
 # - Manual dispatch: Force redeploy
 #
 # Previews are ephemeral - each deployment includes full site from repo.
 # No wget required; repo content is the single source of truth.
 #
 # NOTE: Schema hosting removed - validation handled by Pydantic at runtime
-# NOTE: Fork PRs cannot deploy (no OIDC tokens) but still build docs for validation
+# NOTE: PRs (fork or not) build no docs and deploy nothing; fork PRs also lack OIDC tokens
 
 on:
   push:
@@ -178,11 +178,11 @@ jobs:
         with:
           script: |
             const prNumber = context.issue.number;
-            const body = `## Docs Build Validated ✓
+            const body = `## Site Assembled (No Docs Build or Preview)
 
-            Documentation built successfully. Preview deployment is not available for fork PRs (GitHub security restriction).
+            The site was assembled from \`site/\`. This workflow does not build the documentation or deploy a preview for pull requests.
 
-            A maintainer can test the preview locally with \`make docs\`.`;
+            Check documentation changes locally with \`make docs\`.`;
 
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -191,7 +191,7 @@ jobs:
             });
 
             const botComment = comments.data.find(c =>
-              c.user.type === 'Bot' && c.body.includes('Docs Build Validated')
+              c.user.type === 'Bot' && c.body.includes('Site Assembled (No Docs Build or Preview)')
             );
 
             if (!botComment) {

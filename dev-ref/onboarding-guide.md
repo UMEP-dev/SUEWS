@@ -12,6 +12,7 @@ Before starting development, ensure you have:
    - Git installed and configured
    - GitHub account with repository access
    - `gfortran` compiler installed (platform-specific installation)
+   - Rust toolchain with `cargo` (the default build compiles the Rust bridge)
    - Python 3.12 or newer installed
    - Text editor or IDE of choice
 
@@ -106,7 +107,7 @@ All development follows an issue-first approach:
      - Input/output handling
      - API for users
    
-   - **`supy_driver/`**: Python-Fortran bridge
+   - **`suews_bridge/`**: Rust bridge between Python and the Fortran engine
      - Rarely needs modification
      - Consult core team if structural changes needed
 

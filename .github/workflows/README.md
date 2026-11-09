@@ -35,22 +35,13 @@ AI-powered workflow automation using Claude. Mention `@claude` to:
 - Code review capabilities integrated
 - Post-processing with reactions and PR linking
 
-### 2. Format Master (`format-master.yml`)
-Post-merge formatting workflow that:
-- Runs when Python/Fortran code is pushed to master
-- Formats Python code using ruff v0.8.6
-- Formats Fortran code using fprettify v0.3.7
-- Commits formatting changes directly to master
-- Simpler than PR-based formatting (no double-build overhead)
-
-### 3. Build and Publish (`build-publish_to_pypi.yml`)
+### 2. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
 - Supports Python 3.12-3.15
 - Runs tests on each platform
 - Publishes to TestPyPI on nightly/dev tag builds
 - Publishes to PyPI on tagged releases
-- Skips builds for auto-format commits (via `[skip ci]`)
 
 **Manual Dispatch Options:**
 
@@ -85,10 +76,10 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   run only when `all` reaches the Windows + Python 3.12 compatibility cell or
   when selected explicitly.
 
-### 4. GitHub Pages Deploy (`pages-deploy.yml`)
+### 3. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:
 - Deploys `site/` directory content on push to master
-- Creates ephemeral PR previews at `/preview/pr-{number}/`
+- On pull requests, assembles the site only: no docs build, no preview deployment
 - Manual dispatch for force redeploys
 - Simple, reliable design with no wget dependencies
 
@@ -97,10 +88,10 @@ Deploys static site content to GitHub Pages at suews.io:
 - Brand assets (`site/brand/`)
 - CNAME configuration for suews.io
 
-**PR Previews:**
-Previews are ephemeral - they exist only until the next deployment. Each deployment includes full production content from the repository (single source of truth).
+**Pull requests:**
+The documentation build, Pages upload and deployment steps are all skipped for `pull_request` events, so a PR gets neither a docs build nor a preview. Check documentation changes locally with `make docs`.
 
-### 5. Debug cibuildwheel (`cibuildwheel-debug.yml`)
+### 4. Debug cibuildwheel (`cibuildwheel-debug.yml`)
 Interactive debugging environment for cibuildwheel build issues with SSH access, Claude Code CLI integration, and comprehensive error capture.
 
 **Key Features:**
@@ -114,15 +105,9 @@ Actions tab → "Debug cibuildwheel with SSH" → Run workflow → Select platfo
 
 > 📋 **Full documentation and usage examples** are available in the workflow file comments at the top of `cibuildwheel-debug.yml`
 
-## Disabled Workflows
+## Code Formatting
 
-The following workflows have been disabled to prevent conflicts:
-- `auto-format.yml.disabled` - Previously formatted master branch and created PRs
-- `fprettify.yml.disabled` - Previously ran on all branches except master
-- `ruff-format.yml.disabled` - Previously ran on PRs and non-master branches
-- `check-master-files.yml.disabled` - Legacy workflow
-
-These have been replaced by the unified `auto-format.yml` workflow that runs only on master.
+No workflow formats code. The post-merge `format-master.yml` was removed because it was incompatible with the merge queue. Run `make format` (ruff for Python, fprettify for Fortran) before committing.
 
 ## Configuration
 
@@ -188,4 +173,4 @@ Without this configuration, all Claude requests will be denied.
 
 - If Claude doesn't respond, check if you're in the authorised users list
 - For build failures, check the tmate debugging session (15 min timeout)
-- For auto-formatting issues, check the format-master workflow logs
+- For formatting issues, run `make format` locally

@@ -191,9 +191,6 @@ py.install_sources(
             'data_model/validation/pipeline/phase_b_rules/physics_rules.py',
             'data_model/validation/pipeline/phase_b_rules/other_rules.py',
         ],
-        [
-            'ext_data/CRU_TS4.06_1991_2020.parquet',
-        ],
     ],
     subdir: 'supy',
     preserve_path: true,
@@ -245,7 +242,21 @@ dir_src_suews = dir_suews / 'src'
 
 src_f95_all = [
   'suews_ctrl_const.f95',
+  'suews_ctrl_error.f95',
   'suews_ctrl_type.f95',
+  'suews_type_anthro.f95',
+  'suews_type_atmosphere.f95',
+  'suews_type_ehc.f95',
+  'suews_type_heat.f95',
+  'suews_type_hydro.f95',
+  'suews_type_landcover.f95',
+  'suews_type_snow.f95',
+  'suews_type_soil.f95',
+  'suews_type_spartacus.f95',
+  'suews_type_stebbs.f95',
+  'suews_type_surface.f95',
+  'suews_type_vegetation.f95',
+  'suews_type_waterdist.f95',
   'suews_util_profile.f95',
   'suews_util_time.f95',
   'suews_util_meteo.f95',
@@ -253,17 +264,21 @@ src_f95_all = [
   'suews_phys_waterdist.f95',
   'suews_phys_narp.f95',
   'suews_phys_beers.f95',
+  'suews_phys_bluews.f95',
   'suews_phys_atmmoiststab.f95',
   'suews_phys_resist.f95',
   'suews_phys_evap.f95',
   'suews_phys_snow.f95',
   'suews_phys_lai.f95',
   'suews_phys_dailystate.f95',
+  'suews_phys_ehc.f95',
   'suews_phys_lumps.f95',
   'suews_phys_anthro.f95',
   'suews_phys_rslprof.f95',
   'suews_phys_biogenco2.f95',
   'suews_phys_ohm.f95',
+  'suews_phys_anohm.f95',
+  'suews_phys_solweig.f95',
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
   'suews_ctrl_driver.f95',
@@ -300,10 +315,10 @@ if rust_bridge_enabled
         '../suews_bridge/build.rs',
         '../suews_bridge/src/field_renames.rs',
     )
-    # abi3 filename: one wheel covers cp39..cp3xx. The PyO3 feature
-    # abi3-py39 makes the cargo artefact itself ABI-stable; the filename
+    # abi3 filename: one wheel covers cp312..cp3xx. The PyO3 feature
+    # abi3-py312 makes the cargo artefact itself ABI-stable; the filename
     # just needs to be Python-version-agnostic so meson-python tags the
-    # wheel cp39-abi3-<plat> rather than cp313-cp313-<plat>.
+    # wheel cp312-abi3-<plat> rather than cp313-cp313-<plat>.
     if host_machine.system() == 'windows'
         rust_bridge_ext_name = 'suews_bridge.pyd'
         rust_bridge_cli_name = 'suews-engine.exe'

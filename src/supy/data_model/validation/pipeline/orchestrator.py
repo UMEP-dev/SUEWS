@@ -2145,8 +2145,11 @@ Modes:
                         shutil.move(
                             uptodate_file, pydantic_yaml_file
                         )  # updatedA → updated (preserve Phase A updated YAML)
-                except Exception:
-                    pass  # Don't fail if the move doesn't work
+                except Exception as e:
+                    print(
+                        f"WARNING: could not move the Phase A files to their final names: {e}",
+                        file=sys.stderr,
+                    )
 
                 print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")

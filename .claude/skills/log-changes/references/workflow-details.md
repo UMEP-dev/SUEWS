@@ -37,7 +37,7 @@ Guidelines:
 ## Step 5: Check Documentation Needs
 
 - If data model changed: Run `python docs/generate_datamodel_rst.py`
-- If config schema changed: Run `python docs/gen_schema.py`
+- If config schema changed: Run `suews schema export -o docs/source/inputs/tables/schema.json`
 - Update relevant docs/ files for API changes
 
 ## Step 6: Show Summary

@@ -324,29 +324,27 @@ git push origin --delete release/$VERSION
 
 ## Step 8: Update UMEP Requirements
 
-After the `rc1` build is published to PyPI, update the [umep-reqs](https://github.com/UMEP-dev/umep-reqs) package so QGIS/UMEP users get the new version.
+After the release is published to PyPI, update the [umep-reqs](https://github.com/UMEP-dev/umep-reqs) package so QGIS/UMEP users get the new version.
 
 ```bash
 # Clone and create branch
 cd /tmp && rm -rf umep-reqs
 gh repo clone UMEP-dev/umep-reqs && cd umep-reqs
-git checkout -b update-supy-${VERSION}rc1
+git checkout -b update-supy-${VERSION}
 
 # Update pyproject.toml: change supy version
 # From: "supy==OLD_VERSION",
-# To:   "supy==${VERSION}rc1",
+# To:   "supy==${VERSION}",
 
 # Commit and PR
 git add pyproject.toml
-git commit -m "chore(deps): update supy to ${VERSION}rc1"
-git push -u origin update-supy-${VERSION}rc1
-gh pr create --title "chore(deps): update supy to ${VERSION}rc1" \
-  --body "Updates supy to ${VERSION}rc1 for QGIS/UMEP compatibility.
+git commit -m "chore(deps): update supy to ${VERSION}"
+git push -u origin update-supy-${VERSION}
+gh pr create --title "chore(deps): update supy to ${VERSION}" \
+  --body "Updates supy to ${VERSION} for QGIS/UMEP compatibility.
 
 See: https://community.suews.io/t/suews-v${VERSION}-TOPIC_SLUG/TOPIC_ID"
 ```
-
-**Why rc1?** The `rc1` variant is built with `numpy<2.0` constraint, compatible with QGIS's OSGeo environment which pins numpy to 1.26.x. Standard releases require numpy≥2.0.
 
 ---
 
@@ -359,7 +357,7 @@ git push origin :refs/tags/$VERSION
 
 ## RC Release (Testing Only)
 
-RC tags are for pre-release testing. Standard releases use the base tag, and the UMEP build automatically publishes a `rc1` variant from that tag.
+RC tags are for pre-release testing. Standard releases use the base tag.
 
 ```bash
 git tag -a "${VERSION}rc1" -m "Release candidate 1 for $VERSION"

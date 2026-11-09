@@ -153,13 +153,14 @@ if ! git worktree add --detach "$merge_tree" "$base" >/dev/null 2>"$merge_log"; 
     exit 2
 fi
 
-git -C "$merge_tree" config user.name "SUEWS Merge Queue Preflight" >/dev/null
-git -C "$merge_tree" config user.email "preflight@example.invalid" >/dev/null
-
+# Pass the merge identity per invocation: `git config` here would write the
+# repository config shared by every linked worktree and outlive this script.
 merge_failed=0
 for branch in "${branches[@]}"; do
     printf -- '- merging %s: ' "$branch"
-    if git -C "$merge_tree" merge --no-ff --no-edit "$branch" >"$merge_log" 2>&1; then
+    if git -C "$merge_tree" -c user.name="SUEWS Merge Queue Preflight" \
+        -c user.email="preflight@example.invalid" \
+        merge --no-ff --no-edit "$branch" >"$merge_log" 2>&1; then
         printf 'ok\n'
     else
         printf 'conflict or merge failure\n'

@@ -43,12 +43,6 @@ Details: `references/checks-detail.md`
 Summary: N critical, M warnings
 ```
 
-## Dual-Build
-
-Each release creates:
-- `YYYY.M.D` (NumPy ≥2.0)
-- `YYYY.M.Drc1` (UMEP, NumPy 1.x)
-
 ## References
 
 - `references/checks-detail.md` - Full check descriptions

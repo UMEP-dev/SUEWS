@@ -1,5 +1,5 @@
 #!/bin/bash
-# Git pre-commit hook to validate CLAUDE.md integrity
+# Git pre-commit hook to validate AGENTS.md (and its CLAUDE.md loader) integrity
 # 
 # Installation:
 #   cp .claude/scripts/pre-commit-hook.sh .git/hooks/pre-commit
@@ -8,9 +8,9 @@
 # Get the repository root (works for both regular repos and worktrees)
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Check if CLAUDE.md is being committed
-if git diff --cached --name-only | grep -q "CLAUDE.md"; then
-    echo "Validating CLAUDE.md integrity..."
+# Check if AGENTS.md or CLAUDE.md is being committed
+if git diff --cached --name-only | grep -qE '^(AGENTS|CLAUDE)\.md$'; then
+    echo "Validating AGENTS.md / CLAUDE.md integrity..."
     
     # Change to repo root and run validation script
     cd "$REPO_ROOT"
@@ -18,7 +18,7 @@ if git diff --cached --name-only | grep -q "CLAUDE.md"; then
     
     if [ $? -ne 0 ]; then
         echo ""
-        echo "❌ CLAUDE.md validation failed!"
+        echo "[X] AGENTS.md / CLAUDE.md validation failed!"
         echo ""
         echo "The file appears to have placeholder text or missing content."
         echo "Please review the warnings above and fix the issues."
@@ -27,12 +27,12 @@ if git diff --cached --name-only | grep -q "CLAUDE.md"; then
         echo "  git commit --no-verify"
         echo ""
         echo "To restore from backup:"
-        echo "  cp CLAUDE.md.backup CLAUDE.md"
+        echo "  cp AGENTS.md.backup AGENTS.md"
         echo ""
         exit 1
     fi
     
-    echo "✅ CLAUDE.md validation passed"
+    echo "[OK] AGENTS.md / CLAUDE.md validation passed"
 fi
 
 # Continue with commit

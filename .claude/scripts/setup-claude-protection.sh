@@ -9,10 +9,10 @@ echo "🛡️ Setting up CLAUDE.md protection system..."
 # Get the Git common directory (works for both regular repos and worktrees)
 GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || echo ".git")
 
-# 1. Create initial backup
-if [ ! -f "CLAUDE.md.backup" ]; then
-    cp CLAUDE.md CLAUDE.md.backup
-    echo "✅ Created initial backup: CLAUDE.md.backup"
+# 1. Create initial backup of the canonical instructions (CLAUDE.md is only a loader)
+if [ ! -f "AGENTS.md.backup" ]; then
+    cp AGENTS.md AGENTS.md.backup
+    echo "[OK] Created initial backup: AGENTS.md.backup"
 else
     echo "ℹ️  Backup already exists"
 fi
@@ -61,10 +61,10 @@ fi
 
 # 5. Add to .gitignore if needed
 if [ -f ".gitignore" ]; then
-    if ! grep -q "CLAUDE.md.backup" .gitignore; then
+    if ! grep -q "AGENTS.md.backup" .gitignore; then
         echo "" >> .gitignore
         echo "# CLAUDE.md protection" >> .gitignore
-        echo "CLAUDE.md.backup" >> .gitignore
+        echo "AGENTS.md.backup" >> .gitignore
         echo ".claude/snapshots/" >> .gitignore
         echo "✅ Added protection files to .gitignore"
     fi
@@ -75,7 +75,7 @@ echo "🎉 CLAUDE.md protection system setup complete!"
 echo ""
 echo "Protection features now active:"
 echo "  • Git pre-commit validation"
-echo "  • Automatic backup (CLAUDE.md.backup)"
+echo "  - Automatic backup (AGENTS.md.backup)"
 echo "  • Snapshot on validation failures"
 echo "  • GitHub Actions validation (on push/PR)"
 echo ""

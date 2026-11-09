@@ -15,7 +15,7 @@ ISSUE: src/suews/src/suews_phys_new.f95 not in meson.build
 ### 2. Version Management and Rust Bridge
 
 - `get_ver_git.py` syntax valid
-- Rust bridge (`src/suews_bridge/`) builds via maturin/PyO3
+- Rust bridge (`src/suews_bridge/`, PyO3) builds via Meson: `src/supy/meson.build` runs `build_rust_bridge.py`, which invokes `cargo`
 - `Cargo.toml` and `pyproject.toml` versions consistent
 
 ### 3. Schema Version Sync
@@ -35,7 +35,7 @@ YAML_VER=$(python -c "import yaml; print(yaml.safe_load(open('src/supy/sample_da
 ### 3. Python Version Matrix
 
 - pyproject.toml classifiers match CI build matrix
-- `.github/workflows/build_wheels.yml` matrix alignment
+- `.github/workflows/build-publish_to_pypi.yml` (matrix orchestration) and `build-wheels-reusable.yml` (wheel builds) alignment
 
 ### 4. Makefile Consistency
 

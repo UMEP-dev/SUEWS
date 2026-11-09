@@ -43,9 +43,11 @@ find_free_port() {
 # to the legacy fixed bases when running outside Conductor. The dashboard
 # takes CONDUCTOR_PORT itself so Conductor's "Open" button lands on it.
 if [ -n "$CONDUCTOR_PORT" ]; then
+    # Search each port above the previous pick: no listener is bound yet, so
+    # independent searches could otherwise return the same free port twice.
     PORT_DASH=$(find_free_port "$CONDUCTOR_PORT")
-    PORT_SITE=$(find_free_port $((CONDUCTOR_PORT + 1)))
-    PORT_DOCS=$(find_free_port $((CONDUCTOR_PORT + 2)))
+    PORT_SITE=$(find_free_port $((PORT_DASH + 1)))
+    PORT_DOCS=$(find_free_port $((PORT_SITE + 1)))
 else
     PORT_SITE=$(find_free_port 3000)
     PORT_DOCS=$(find_free_port 8000)

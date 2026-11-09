@@ -27,8 +27,8 @@ if [[ -f ".venv/bin/activate" ]]; then
     source .venv/bin/activate
 fi
 
-# Get staged files
-STAGED=$(git diff --cached --name-only 2>/dev/null || true)
+# Get staged files (deletions excluded: every check below reads file contents)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMRT 2>/dev/null || true)
 
 # During a merge, check only files whose staged content also differs from the
 # merged-in branch. Files that arrive unchanged from that side (e.g. master
@@ -143,16 +143,17 @@ fi
 if [[ -n "$CHANGELOG" ]]; then
     echo "-- CHANGELOG.md detected --"
 
-    # Check date format: DD Mon YYYY (e.g., 28 Jan 2026)
-    BAD_DATES=$(grep -nE '^## ' CHANGELOG.md | grep -vE '## [0-9]{1,2} [A-Z][a-z]{2} [0-9]{4}' | head -3 || true)
+    # Check date format: DD Mon YYYY (e.g., 28 Jan 2026). Date headings are
+    # level 3; level-2 headings are the TOC, statistics and year sections.
+    BAD_DATES=$(grep -nE '^### ' CHANGELOG.md | grep -vE '### [0-9]{1,2} [A-Z][a-z]{2} [0-9]{4}' | head -3 || true)
     if [[ -n "$BAD_DATES" ]]; then
         report_fail "CHANGELOG dates" "Non-standard date format found. Expected: DD Mon YYYY"
     else
         report_pass "CHANGELOG dates"
     fi
 
-    # Check category tags
-    BAD_CATS=$(grep -nE '^\- \[' CHANGELOG.md | grep -vE '\[(feature|bugfix|change|maintenance|doc)\]' | head -3 || true)
+    # Check category tags (skip table-of-contents year links such as "- [2026](#2026)")
+    BAD_CATS=$(grep -nE '^\- \[' CHANGELOG.md | grep -vE '^[0-9]+:- \[[0-9]{4}\]\(#' | grep -vE '\[(feature|bugfix|change|maintenance|doc)\]' | head -3 || true)
     if [[ -n "$BAD_CATS" ]]; then
         report_fail "CHANGELOG categories" "Unknown category tag. Use: [feature], [bugfix], [change], [maintenance], [doc]"
     else

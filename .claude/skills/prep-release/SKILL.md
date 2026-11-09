@@ -47,7 +47,7 @@ When preparing a release:
    - Submit PR and merge to master (closed by the PR itself)
    - Tag merge commit on master (manual)
    - Verify PyPI, GitHub Release, Zenodo (manual)
-   - Update umep-reqs with rc1 version (manual, separate repo)
+   - Update umep-reqs with the released version (manual, separate repo)
 3. **Link sub-issues** to the parent release issue using GitHub sub-issues
 
 The parent release issue stays open until all sub-issues are closed. The PR should only close the "Submit PR" sub-issue, not the parent.

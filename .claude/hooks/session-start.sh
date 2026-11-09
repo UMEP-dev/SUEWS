@@ -39,6 +39,8 @@ git fetch --depth=1 origin 'refs/tags/*:refs/tags/*'
 # Initialise submodules and install in editable mode
 echo "Installing SUEWS in editable mode..."
 git submodule update --init --recursive
+# --no-build-isolation needs the build backend in the venv first (mirrors make dev)
+uv pip install wheel setuptools "numpy>=2.0" "meson-python>=0.18" "meson>=1.3.0"
 uv pip install --no-build-isolation -e ".[dev]"
 
 echo "Session setup complete."

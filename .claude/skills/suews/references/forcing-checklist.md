@@ -94,6 +94,6 @@ Why this bites a fresh user:
   forcing data represents -- record that in the assumption ledger.
 
 > The authoritative rule is the sfr-dependent one in
-> `data_model/validation/pipeline/phase_b_rules/physics_rules.py`. Two other
-> places state it differently and are stale: a `checker_rules_joint.json` remark
-> ("3x canopy height") and `PHASE_B_DETAILED.md` ("fixed 2x"). Trust the code.
+> `data_model/validation/pipeline/phase_b_rules/physics_rules.py`. One other
+> place states it differently and is stale: `PHASE_B_DETAILED.md` ("fixed 2x").
+> Trust the code.

@@ -13,30 +13,6 @@ DIR_LIB_SUEWS = ./lib/
 # where intermediate `.mod` are stored
 DIR_MOD_SUEWS = ./mod/
 
-# where to test built version
-DIR_BIN_SUEWS = ./bin/
-
-# where to store built binaries for release
-DIR_RELEASE_BASE_SUEWS = ../Release/bin/
-
-# system specific settings
-ifeq ($(OS),Windows_NT)
-	DIR_RELEASE_SUEWS = $(addprefix $(DIR_RELEASE_BASE_SUEWS), win64)
-else
-	UNAME_S := $(shell uname -s)
-	ifeq ($(UNAME_S),Linux) # Linux
-		DIR_RELEASE_SUEWS = $(addprefix $(DIR_RELEASE_BASE_SUEWS), Linux)
-	endif
-	ifeq ($(UNAME_S),Darwin) # macOS
-		UNAME_m := $(shell uname -m)
-		ifeq ($(UNAME_m),arm64) # arm64
-			DIR_RELEASE_SUEWS = $(addprefix $(DIR_RELEASE_BASE_SUEWS), macOS_arm64)
-		else # x64
-			DIR_RELEASE_SUEWS = $(addprefix $(DIR_RELEASE_BASE_SUEWS), macOS_x64)
-		endif
-	endif
-endif
-
 # Build profile (Makefile.gfortran reads DEBUG to pick the flag set).
 # run_make.py maps SUEWS_BUILD_PROFILE=checked|release to DEBUG=1|DEBUG= on
 # the make command line; a command-line value overrides the default below.
@@ -57,38 +33,13 @@ LIBDRIVER = $(addprefix $(DIR_LIB_SUEWS),libsuewsdriver.a)
 
 
 
-# version specific target name:
-# NOTE: progname variable removed from source code (20251014)
-# Version is now managed via get_ver_git.py (see meson.build)
-# Legacy Makefile uses placeholder for standalone builds
-TARGET     := SUEWS
-VERSION    := $(shell python3 ../../get_ver_git.py 2>/dev/null || echo "dev")
+# Commit recorded in the generated version module (src/suews_ctrl_ver.f95)
 GIT_COMMIT := $(shell git describe --always --dirty=-dirty || echo unknown:non-git)
-
-timestamp := $(shell date +"%Y%m%dT%H%M")
-EXECUTABLE := $(strip $(TARGET))_$(strip $(timestamp))
-
-# where to test built version
-SUEWS_DIR_TEST := ../Test/BaseRun/$(VERSION)
 
 
 #############################
 ### --- CONFIGURATION --- ###
 #############################
-
-# Use the nf-config utility, if available, to set the NETCDF_INCLUDE
-# and NETCDF_LIB flags
-HAVE_NFCONFIG := $(shell nf-config --version)
-ifdef HAVE_NFCONFIG
-$(info *** Using nf-config to obtain NetCDF flags)
-NETCDF_INCLUDE=-I$(shell nf-config --fflags)
-NETCDF_LIB=$(shell nf-config --flibs) -lnetcdff
-ifeq ($(shell nf-config --has-nc4),yes)
-NETCDF4        = 1
-endif
-else
-$(info *** nf-config not found)
-endif
 
 ifdef DEBUG
 $(info *** DEBUG mode is ON)
@@ -107,25 +58,10 @@ endif
 # LIBS
 include	Makefile.$(PROFILE)
 
-# Check for presence of the NETCDF_INCLUDE and NETCDF_LIB flags
-ifndef NETCDF_INCLUDE
-$(info *** You may need to set NETCDF_INCLUDE manually)
-endif
-ifndef NETCDF_LIB
-$(info *** You may need to set NETCDF_LIB manually)
-endif
-
 # Add single-precision flag if SINGLE_PRECISION=1 was given on the
 # "make" command line
 ifdef SINGLE_PRECISION
 CPPFLAGS += -DSINGLE_PRECISION
-endif
-
-# Allow the capability to write NetCDF4/HDF5 files, provided the code
-# is compiled against the NetCDF4 library
-ifdef NETCDF4
-$(info *** Building with NetCDF4/HDF5 support)
-CPPFLAGS += -DNC_NETCDF4
 endif
 
 # Consolidate flags
@@ -146,15 +82,6 @@ export LIBS    = $(DEBUGFLAGS) $(LDFLAGS) \
 
 
 
-
-
-####################################
-###  -- OTHER CONFIGURATIONS --  ###
-####################################
-
-# options for `clean`
-clean: suffix :=
-clean: TARGET := $(strip $(TARGET))$(strip $(suffix))
 
 
 ###################################
@@ -215,15 +142,6 @@ PHYS =	\
 
 # SUEWS driver module (wrapper of all main calculations)
 DRIVER = suews_ctrl_driver.o
-
-# Rest of the files including modules and functions which are independent
-# OTHERS =  suews_ctrl_translate.o \
-# 	suews_ctrl_error.o \
-# 	suews_ctrl_init.o \
-# 	suews_ctrl_calculations.o
-
-# modules under rapid development
-TEST =
 
 #############################
 ### --- EXTERNAL LIBS --- ###
@@ -288,7 +206,6 @@ LIBSPTCS = libspartacus.a
 all: libutil libphys libdriver
 
 help:
-	@echo ${HAVE_NFCONFIG} ${NETCDF_INCLUDE} ${NETCDF_LIB}
 	@echo "Usage:"
 	@echo "  make PROFILE=<prof>"
 	@echo "where <prof> can be either 'gfortran' or 'ifort'."
@@ -327,8 +244,6 @@ libdriver: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS) $(DRIVER))
 	@echo "================================================"
 
 
-# suews: libspartacus libdriver exe
-
 # special rule for generating version info file
 # Written to a temporary file and moved into place only when the content
 # differs, so the file (and everything that USEs module_ctrl_version) is only
@@ -350,16 +265,6 @@ src/suews_ctrl_ver.f95: force
 	@if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
 
 
-exe: $(addprefix $(DIR_SRC_SUEWS), $(OTHERS) suews_program$(suffix_code))
-	@echo  $(LIBUTILS) $(LIBPHYS) $(LIBDRIVER)
-	@echo $(TARGET) $(EXECUTABLE) $(OTHERS)
-	@echo Building SUEWS ...
-	$(FC) $(FCFLAGS) $^ -o $(DIR_BIN_SUEWS)/$(EXECUTABLE) $(LIBS)
-	@echo SUEWS built.
-	@echo $(TARGET) has been saved in $(DIR_BIN_SUEWS)
-	cd $(DIR_BIN_SUEWS) && ln -sf $(EXECUTABLE) $(TARGET)
-	mkdir -p $(DIR_RELEASE_SUEWS) && cp -f $(DIR_BIN_SUEWS)/$(EXECUTABLE) $(DIR_RELEASE_SUEWS)/$(TARGET)
-
 # special rule for the spartacus wrapper
 # libspartacus is order-only: it is not a file, so as a normal prerequisite it
 # would rebuild this object (and the driver that USEs it) on every make. The
@@ -379,7 +284,7 @@ include Makefile.deps
 	@echo $<
 	$(FC) $(FCFLAGS) -c $< -o $@
 
-clean: clean-obj clean-mods clean-lib clean-bin clean-ext
+clean: clean-obj clean-mods clean-lib clean-ext
 
 # dist-clean: clean-tests clean-toplevel clean-utilities clean-mods dist-clean-doc
 
@@ -392,9 +297,6 @@ clean-lib:
 
 clean-mods:
 	find . -name "*.mod" -type f -delete
-
-clean-bin:
-	rm -rf $(DIR_BIN_SUEWS)/SUEWS_*
 
 clean-ext:
 	$(MAKE) -C $(DIR_SPTCS) clean
@@ -409,11 +311,4 @@ clean-ext:
 
 
 
-# If OTHERS have changed, compile them again
-$(OTHERS): $(UTILS) $(PHYS) $(subst .o,$(suffix_code), $(OTHERS))
-
-# If TEST have changed, compile them again
-$(TEST): $(subst .o,$(suffix_code), $(TEST))
-
-
-.PHONY: libutil libphys libdriver exe clean-toplevel test force
+.PHONY: all help libspartacus libutil libphys libdriver clean clean-obj clean-mods clean-lib clean-ext force

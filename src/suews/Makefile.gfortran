@@ -14,9 +14,6 @@ CPPFLAGS = -cpp
 # thread-safe execution for Rayon-based multi-grid parallelism.
 BASICFLAGS = -J./mod -fconvert=big-endian -ffree-line-length-none -frecursive
 
-# OpenMP flag
-OMPFLAG = -fopenmp
-
 ifndef DEBUG
 # --RELEASE CONFIGURATION-- (SUEWS_BUILD_PROFILE=release, the default; see ../supy/run_make.py)
 
@@ -64,24 +61,20 @@ ifeq ($(OS),Windows_NT)
 	C_MODULE = suews_ctrl_error_tls.o strptime.o
 	STATIC = -static -mcmodel=medium# mingw
 	STATICLIB =
-	SUEWS_build_dir = $(addprefix $(SUEWS_build_base), win64)
 else
 	C_MODULE = suews_ctrl_error_tls.o
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux) # Linux
 		STATIC = -fPIC -static
 		STATICLIB =
-		SUEWS_build_dir = $(addprefix $(SUEWS_build_base), Linux)
 	endif
 	ifeq ($(UNAME_S),Darwin) # macOS
 		UNAME_m := $(shell uname -m)
 		STATIC = -static-libgfortran -static-libgcc # single -static won't work on macOS
 		ifeq ($(UNAME_m),arm64)
 			STATICLIB =
-			SUEWS_build_dir = $(addprefix $(SUEWS_build_base), macOS_arm64)
 		else
 			STATICLIB = $(shell $(FC) -print-file-name=libquadmath.dylib | xargs -t rm -rf; $(FC) -print-file-name=libquadmath.a) # force-ship this static lib
-			SUEWS_build_dir = $(addprefix $(SUEWS_build_base), macOS_x64)
 		endif
 	endif
 endif

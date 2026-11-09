@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 build = "build.rs"
 license = "MPL-2.0"
-description = "Rust bridge MVP for SUEWS OHM Fortran C API"
+description = "Rust bridge between SuPy and the SUEWS Fortran physics"
 
 [lib]
 name = "suews_bridge"

@@ -221,7 +221,6 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "src/supy/util/_roughness.py" = ["D202", "D205", "D400", "D401"]
 "src/supy/util/_state_io.py" = ["D406", "D407"]
 "src/supy/util/_tmy.py" = ["D202", "D301", "D403"]
-"src/supy/util/conversion_engine.py" = ["D406", "D407"]
 "src/supy/util/converter/__init__.py" = ["D406", "D407"]
 "src/supy/util/converter/table/profile_manager.py" = ["D406", "D407"]
 "src/supy/util/converter/table/table.py" = ["D100", "D103"]

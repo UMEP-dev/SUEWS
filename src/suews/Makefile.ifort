@@ -12,7 +12,6 @@ endif
 WARNFLAGS = -warn all
 BASICFLAGS = -module ./mod -convert big_endian
 DEBUGFLAGS = -g
-OMPFLAG = -qopenmp
 
 
 # source code suffix: ifort only works with f90 files
@@ -28,19 +27,16 @@ ifeq ($(OS),Windows_NT)
 	C_MODULE = $(SUEWS_DIR_SRC)suews_ctrl_error_tls.o $(SUEWS_DIR_SRC)strptime.o
 	STATIC = -static -mcmodel=medium# mingw
 	STATICLIB =
-	SUEWS_build_dir = $(addprefix $(SUEWS_build_base), Win10x64)
 else
 	C_MODULE = $(SUEWS_DIR_SRC)suews_ctrl_error_tls.o
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux) # Linux
 		STATIC = -static
 		STATICLIB =
-		SUEWS_build_dir = $(addprefix $(SUEWS_build_base), Linux)
 	endif
 	ifeq ($(UNAME_S),Darwin) # macOS
 		STATIC = -static-intel
 		STATICLIB = #libquadmath.a # force-ship this static lib
-		SUEWS_build_dir = $(addprefix $(SUEWS_build_base), macOS)
 	endif
 endif
 

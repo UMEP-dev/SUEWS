@@ -45,8 +45,9 @@ def make_args_for_profile(profile: str) -> list[str]:
 
     A command-line ``DEBUG=`` (empty) reaches the Makefile's ``ifndef DEBUG``
     as undefined, because ``ifdef`` tests for a non-empty value, and a
-    command-line variable overrides the ``DEBUG ?= 1`` default inside the
-    Makefile. So the profile is decided here, never by the Makefile default.
+    command-line variable overrides the ``DEBUG ?=`` (empty, i.e. release)
+    default inside the Makefile. The profile is still passed explicitly so the
+    Makefile default never decides it.
     """
     if profile == "checked":
         return ["DEBUG=1"]

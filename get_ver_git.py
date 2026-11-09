@@ -98,7 +98,7 @@ def get_version_from_git(ref=None):
 
         return version
 
-    except subprocess.CalledProcessError as err:
+    except (subprocess.CalledProcessError, FileNotFoundError) as err:
         # Git not available (e.g., inside cibuildwheel container)
         # Try to read version from previously generated file
         for version_file in VERSION_FILES:

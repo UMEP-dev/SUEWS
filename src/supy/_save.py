@@ -1362,7 +1362,7 @@ def _parquet_engine() -> str:
     except ImportError as e:
         raise ImportError(
             "Parquet output requires 'pyarrow'. "
-            "Install with: pip install 'supy[parquet]' or pip install pyarrow"
+            "Install with: pip install pyarrow"
         ) from e
     return "pyarrow"
 

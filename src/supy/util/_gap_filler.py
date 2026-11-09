@@ -228,10 +228,6 @@ def fill_gap_all(
         while ser_test_filled.isna().any():
             # i += 1
             ser_test_filled = fill_gap_all_x(ser_test_filled, freq, limit_fill)
-            ser_gap = ser_test_filled.groupby(ser_test_filled.index.year).apply(
-                lambda x: x.isna().sum()
-            )
-            # print(i, ser_gap)
         ser_test_filled = ser_test_filled.loc[ser_to_fill.index]
         return ser_test_filled
 
@@ -253,7 +249,6 @@ def norm_ser_dt(ser_dt):
     freq = ser_dt.index.freq
     dt_start, dt_end = ser_dt.index.normalize()[[0, -1]]
     dt_end = dt_end + pd.Timedelta("1d")
-    dt_end
     idx_norm = pd.date_range(dt_start, dt_end, freq=freq)[:-1]
     ser_norm = ser_dt.reindex(idx_norm)
     return ser_norm

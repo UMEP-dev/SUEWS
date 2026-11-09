@@ -16,7 +16,7 @@ help:
 	@echo "  audit-deps - Audit Python dependencies and startup hooks"
 	@echo "  docs       - Build documentation"
 	@echo "  clean      - Smart clean (keeps .venv if active)"
-	@echo "  bridge     - Build the Rust bridge CLI (suews_bridge)"
+	@echo "  bridge     - Build the Rust engine CLI with its run command (needs the physics library: make dev)"
 	@echo "  format     - Format Python and Fortran code"
 	@echo ""
 	@echo "Quick start:"
@@ -301,7 +301,7 @@ bridge:
 		exit 1; \
 	fi
 	@echo "Building Rust bridge CLI..."
-	cd src/suews_bridge && cargo build --release
+	cd src/suews_bridge && cargo build --release --features physics,arrow-output
 	@echo "Binary at: src/suews_bridge/target/release/suews-engine"
 	@echo "Run: src/suews_bridge/target/release/suews-engine --help"
 

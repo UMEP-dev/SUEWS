@@ -1755,7 +1755,6 @@ Modes:
                 mode=internal_mode,
                 phase="AB",
                 silent=True,
-                science_fixes=science_fixes,
             )
             phase_a_success = not phase_a_report.has_errors
 
@@ -2131,7 +2130,6 @@ Modes:
                 mode=internal_mode,
                 phase="ABC",
                 silent=True,
-                science_fixes=science_fixes,
             )
             phase_a_success = not phase_a_report.has_errors
 

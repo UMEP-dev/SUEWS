@@ -525,13 +525,19 @@ fprettify --diff src/suews/src/suews_phys_snow.f95
 
 **Recommended fprettify settings:**
 ```bash
+# --indent 3         3 spaces for indentation
+# --line-length 132  Allow longer lines for scientific code
+# --whitespace 2     Adjust whitespace around operators
+# --strict-indent    Strict indentation rules
+# --enable-decl      Format declarations
+# --case 1 1 1 1     Keywords lowercase, intrinsics lowercase
 fprettify \
-    --indent 3 \                    # 3 spaces for indentation
-    --line-length 132 \             # Allow longer lines for scientific code
-    --whitespace 2 \                # Adjust whitespace around operators
-    --strict-indent \               # Strict indentation rules
-    --enable-decl \                 # Format declarations
-    --case 1 1 1 1 \               # Keywords lowercase, intrinsics lowercase
+    --indent 3 \
+    --line-length 132 \
+    --whitespace 2 \
+    --strict-indent \
+    --enable-decl \
+    --case 1 1 1 1 \
     src/suews/src/*.f95
 ```
 

@@ -31,8 +31,6 @@ brand/
 
 | File | Mode | Description |
 |------|------|-------------|
-| `assets/icon/suews-icon-light.svg` | Light mode | Icon with dark background fill |
-| `assets/icon/suews-icon-dark.svg` | Dark mode | Icon with light/transparent styling |
 | `assets/icon-disk/suews-icon-light-disk.svg` | Light mode | Icon with circular background |
 | `assets/icon-disk/suews-icon-dark-disk.svg` | Dark mode | Icon with circular background |
 

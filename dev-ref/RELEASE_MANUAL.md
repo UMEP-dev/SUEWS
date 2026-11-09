@@ -685,7 +685,7 @@ git push origin --delete $VERSION
 #### Build Issues
 
 **Q: What if one platform build fails?**
-A: Deployment proceeds with the wheels that did succeed (`fail-fast: false`). Platforms are independent.
+A: `fail-fast: false` lets the other platform builds finish, but a failed wheel job blocks publication: both deploy jobs require every wheel build to succeed.
 
 **Q: How to test before production release?**
 A: Use a dev tag (e.g., `2025.10.8.dev`) to trigger a build and publish to TestPyPI.

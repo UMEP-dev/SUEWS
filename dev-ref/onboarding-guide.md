@@ -106,7 +106,7 @@ All development follows an issue-first approach:
      - Input/output handling
      - API for users
    
-   - **`supy_driver/`**: Python-Fortran bridge
+   - **`suews_bridge/`**: Rust bridge between SuPy and the Fortran core
      - Rarely needs modification
      - Consult core team if structural changes needed
 

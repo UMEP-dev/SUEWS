@@ -4,7 +4,7 @@ Reproducible energy-balance benchmark statistics for the KCL / London site (Ward
 
 ## What this proves
 
-For each release, re-running it in its pinned environment yields a **byte-identical stats fingerprint** (SHA-256 of the rounded-to-2dp stats table). All releases consume the **same** obs hash, forcing hash, config hash and stats module, over the **same** period -- only `supy` (and the pandas it is compatible with) differs.
+For each release, re-running it in its pinned environment yields a **byte-identical stats fingerprint** (SHA-256 of the rounded-to-2dp stats table). All releases consume the **same** obs hash, forcing hash and stats module hash, over the **same** period. The config is per release (a schema-specific round-trip of the canonical config, so its hash differs between releases); otherwise only `supy` (and the pandas it is compatible with) differs.
 
 ## Results
 
@@ -47,7 +47,7 @@ done
 ## 2. Per-version pinned environments
 
 ```bash
-for V in 2025.7.6 2025.10.15 2025.11.20 2026.1.28 2026.4.3; do
+for V in 2025.7.6 2025.10.15 2025.11.20 2026.1.28 2026.4.3 2026.6.5; do
   uv venv --python 3.12 .venv-$V
   uv pip install --python .venv-$V/bin/python "supy==$V"
   case $V in 2025.*) uv pip install --python .venv-$V/bin/python "pandas<3" ;; esac
@@ -61,7 +61,7 @@ The 2025.x releases ship a forcing reader using `...diff()[-1]`, which raises `K
 ## 3. Run the benchmark (each release, full period, twice)
 
 ```bash
-for V in 2025.7.6 2025.10.15 2025.11.20 2026.1.28 2026.4.3; do
+for V in 2025.7.6 2025.10.15 2025.11.20 2026.1.28 2026.4.3 2026.6.5; do
   mkdir -p results/$V
   .venv-$V/bin/python run_benchmark.py \
     --version $V \

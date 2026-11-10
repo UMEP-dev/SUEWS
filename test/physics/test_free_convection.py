@@ -378,3 +378,43 @@ def test_sample_year_converges_with_free_convection(sample_run_cached):
     # ASSERT
     assert (df_output["debug", "iter"] < MAX_OUTER_PASSES).all()
     assert (df_output["SUEWS", "QH"] * df_output["SUEWS", "zL"] <= 0).all()
+
+
+def _alternating_runs(values, rel_threshold, min_alternations=4):
+    """Count maximal runs of at least ``min_alternations`` consecutive sign
+    changes in the step-to-step increment, each increment above
+    ``rel_threshold`` of the smaller neighbouring value."""
+    values = np.asarray(values, dtype=float)
+    step = np.diff(values)
+    size = np.abs(step) / np.minimum(np.abs(values[1:]), np.abs(values[:-1]))
+    flips = (step[1:] * step[:-1] < 0) & (size[1:] > rel_threshold) & (
+        size[:-1] > rel_threshold
+    )
+    runs, length = 0, 0
+    for flip in flips:
+        length = length + 1 if flip else 0
+        if length == min_alternations:
+            runs += 1
+    return runs
+
+
+def test_alternating_run_counter_detects_a_sawtooth():
+    # ARRANGE: a 10% sawtooth and a smooth ramp
+    sawtooth = 100.0 + 5.0 * (-1.0) ** np.arange(40)
+    ramp = np.linspace(50.0, 120.0, 40)
+
+    # ACT / ASSERT
+    assert _alternating_runs(sawtooth, 0.02) == 1
+    assert _alternating_runs(ramp, 0.02) == 0
+
+
+def test_sample_year_resistance_does_not_alternate(sample_run_cached):
+    """The outer loop stops only once (z-d)/L and w_f have settled. On the
+    surface-temperature test alone, neighbouring timesteps stopped at
+    different distances from the solution and r_a alternated between them
+    (about 200 such runs in the sample year)."""
+    # ARRANGE / ACT
+    df_output, _ = sample_run_cached(None)
+
+    # ASSERT: no run of four or more alternations of 2% or more in r_a
+    assert _alternating_runs(df_output["SUEWS", "RA"].to_numpy(), 0.02) == 0

@@ -1449,9 +1449,6 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_water.irrfracwater = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["flowchange"]) {
-            site.lc_water.flowchange = v;
-        }
         apply_ohm_overrides(&mut site.lc_water.ohm, lc_root);
         apply_soil_overrides(&mut site.lc_water.soil, lc_root);
     }
@@ -2630,9 +2627,26 @@ fn apply_site_scalar_overrides(
     } else {
         read_numeric(site_root, point_source_path).unwrap_or(f64::NAN)
     };
-    if let Some(v) = read_numeric(site_root, &["properties", "flowchange"]) {
-        site_scalars.flowchange = v;
-    }
+    // supy writes the water-body flow change in the water land cover, at
+    // `land_cover.water.flowchange`; the kernel's water balance reads it as
+    // the site-level `siteInfo%flow_change`, packed from this field. No
+    // schema has written a flat `properties.flowchange`, so that spelling is
+    // not read. The kernel reports the term every timestep, with or without
+    // a water surface, so the bridge does not stand in a value: a missing
+    // or null value (or a missing water block) stops the run naming the key.
+    let flowchange_error = |reason| {
+        format!(
+            "`{}.properties.land_cover.water.flowchange` is {reason}; \
+         give the water-body flow change in mm h-1 (0 for none)",
+            site_yaml_at(site_root)
+        )
+    };
+    site_scalars.flowchange = read_finite_numeric(
+        site_root,
+        &["properties", "land_cover", "water", "flowchange"],
+    )
+    .map_err(flowchange_error)?
+    .ok_or_else(|| flowchange_error("missing, null or non-numeric"))?;
     if let Some(v) = read_numeric(site_root, &["properties", "n_buildings"]) {
         site_scalars.n_buildings = v;
     }
@@ -2745,6 +2759,9 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
         config.net_radiation_method > 1000,
     )?;
     apply_site_scalar_overrides(&mut site_scalars, site_root, config.emissions_method)?;
+    // One read, one source: the water land cover carries the same flow
+    // change the kernel reads at site level (`siteInfo%flow_change`).
+    site.lc_water.flowchange = site_scalars.flowchange;
 
     if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
         timer.tstep = tstep;
@@ -3604,6 +3621,125 @@ mod tests {
         assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
 
+    fn stebbs_fixture_root() -> Value {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        serde_yaml::from_str(yaml_str).expect("fixture YAML should parse")
+    }
+
+    fn water_block_mut(root: &mut Value) -> &mut serde_yaml::Mapping {
+        let site = first_site_mut(root).expect("fixture should contain a first site");
+        let water = get_path_mut(site, &["properties", "land_cover", "water"])
+            .expect("fixture should define land_cover.water");
+        let Value::Mapping(water_map) = water else {
+            panic!("land_cover.water should be a mapping");
+        };
+        water_map
+    }
+
+    #[test]
+    fn water_flowchange_reaches_the_site_scalars() {
+        // supy writes the water-body flow change at
+        // properties.land_cover.water.flowchange; the kernel's water balance
+        // reads it as the site-level flow_change (site_scalars.flowchange).
+        let mut root = stebbs_fixture_root();
+        water_block_mut(&mut root).insert(
+            Value::String("flowchange".to_string()),
+            serde_yaml::from_str("{value: -0.2}").unwrap(),
+        );
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+        assert!(
+            (run_cfg.site_scalars.flowchange + 0.2).abs() < 1.0e-12,
+            "site_scalars.flowchange = {}",
+            run_cfg.site_scalars.flowchange
+        );
+        assert!(
+            (run_cfg.site.lc_water.flowchange + 0.2).abs() < 1.0e-12,
+            "lc_water.flowchange = {}",
+            run_cfg.site.lc_water.flowchange
+        );
+    }
+
+    #[test]
+    fn missing_or_null_water_flowchange_is_an_error() {
+        for (case, value) in [
+            ("absent", None),
+            ("null", Some("null")),
+            ("value null", Some("{value: null}")),
+            ("NaN", Some(".nan")),
+            ("infinity", Some(".inf")),
+            ("negative infinity", Some("-.inf")),
+            ("wrapped NaN", Some("{value: .nan}")),
+            ("wrapped infinity", Some("{value: .inf}")),
+            ("wrapped negative infinity", Some("{value: -.inf}")),
+        ] {
+            let mut root = stebbs_fixture_root();
+            let water = water_block_mut(&mut root);
+            water.remove(Value::String("flowchange".to_string()));
+            if let Some(v) = value {
+                water.insert(
+                    Value::String("flowchange".to_string()),
+                    serde_yaml::from_str(v).unwrap(),
+                );
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("a missing water flowchange must be rejected");
+            if value.is_some_and(|v| v.contains(".nan") || v.contains(".inf")) {
+                assert!(err.contains("is non-finite"), "{case}: {err}");
+            } else {
+                assert!(!err.contains("non-finite"), "{case}: {err}");
+            }
+            assert!(
+                err.contains("sites[gridiv=1].properties.land_cover.water.flowchange"),
+                "{case}: error should name the key: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn missing_water_block_is_an_error() {
+        let mut root = stebbs_fixture_root();
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let land_cover = get_path_mut(site, &["properties", "land_cover"])
+            .expect("fixture should define land_cover");
+        let Value::Mapping(lc_map) = land_cover else {
+            panic!("land_cover should be a mapping");
+        };
+        lc_map.remove(Value::String("water".to_string()));
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("a config without a water block must be rejected");
+        assert!(
+            err.contains("sites[gridiv=1].properties.land_cover.water.flowchange"),
+            "error should name the key: {err}"
+        );
+    }
+
+    #[test]
+    fn optional_non_finite_scalar_reaches_the_struct() {
+        for (number, expected) in [
+            (".nan", f64::NAN),
+            (".inf", f64::INFINITY),
+            ("-.inf", f64::NEG_INFINITY),
+        ] {
+            for value in [number.to_string(), format!("{{value: {number}}}")] {
+                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "z"]).unwrap() =
+                    serde_yaml::from_str(&value).unwrap();
+                let run = load_run_config_from_value(&mut root).expect(&value);
+                if expected.is_nan() {
+                    assert!(
+                        run.site_scalars.z.is_nan(),
+                        "{value}: {}",
+                        run.site_scalars.z
+                    );
+                } else {
+                    assert_eq!(run.site_scalars.z, expected, "{value}");
+                }
+            }
+        }
+    }
+
     fn run_config_with_co2_point_source(key: &str, value: f64) -> RunConfig {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
@@ -3735,32 +3871,6 @@ mod tests {
                     } else {
                         assert_eq!(actual, expected, "{method}, {value}");
                     }
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn optional_non_finite_scalar_reaches_the_struct() {
-        for (number, expected) in [
-            (".nan", f64::NAN),
-            (".inf", f64::INFINITY),
-            ("-.inf", f64::NEG_INFINITY),
-        ] {
-            for value in [number.to_string(), format!("{{value: {number}}}")] {
-                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
-                let site = first_site_mut(&mut root).unwrap();
-                *get_path_mut(site, &["properties", "z"]).unwrap() =
-                    serde_yaml::from_str(&value).unwrap();
-                let run = load_run_config_from_value(&mut root).expect(&value);
-                if expected.is_nan() {
-                    assert!(
-                        run.site_scalars.z.is_nan(),
-                        "{value}: {}",
-                        run.site_scalars.z
-                    );
-                } else {
-                    assert_eq!(run.site_scalars.z, expected, "{value}");
                 }
             }
         }

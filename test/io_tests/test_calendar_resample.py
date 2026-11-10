@@ -175,3 +175,28 @@ def test_held_interval_reads_an_unnamed_datetime_level():
     columns = pd.MultiIndex.from_tuples([("SUEWS", "QH")], names=["group", "var"])
     frame = pd.DataFrame(1.0, index=index, columns=columns)
     assert resolve_held_interval(frame).seconds == 300
+
+
+@pytest.mark.parametrize("unit", ["s", "us", "ns"])
+@pytest.mark.parametrize("freq", ["h", "D", "W", "ME"])
+def test_resampling_keeps_the_timestamp_resolution(output, unit, freq):
+    """Resampled rows keep the resolution pandas gives the input timestamps.
+
+    pandas 3 builds ``datetime64[us]`` indexes by default; shifting DailyState
+    or calendar rows by a fixed nanosecond upcast the result to nanoseconds,
+    so resampled output no longer matched output streamed at that frequency.
+    """
+    df = output.df.copy()
+    stamps = df.index.levels[1].as_unit(unit)
+    df.index = df.index.set_levels(stamps, level=1)
+    expected = (
+        pd.Series(1.0, index=stamps)
+        .resample(freq, closed="right", label="right")
+        .sum()
+        .index.dtype
+    )
+
+    resampled = _resample_output(df, freq, freq_source=pd.Timedelta("5min"))
+
+    assert resampled.index.get_level_values("datetime").dtype == expected
+    assert not resampled["DailyState"].dropna(how="all").empty

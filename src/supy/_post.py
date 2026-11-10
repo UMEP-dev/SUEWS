@@ -245,13 +245,28 @@ def _is_calendar_frequency(freq) -> bool:
     return False
 
 
+def _shift_keeping_resolution(index, forward=None):
+    """Return ``index`` moved forward by *forward*, then back by one tick.
+
+    One tick is the smallest step the resolution of ``index`` can hold, and
+    the result keeps that resolution. A fixed nanosecond would upcast a
+    coarser index (pandas 3 builds ``datetime64[us]`` by default) to
+    nanoseconds, and the resampled rows would no longer share the dtype of
+    the rows they came from, nor of output streamed at that frequency.
+    """
+    unit = index.unit
+    moved = index if forward is None else index + forward
+    return (moved - pd.Timedelta(1, unit)).as_unit(unit)
+
+
 def _calendar_binning(obj, freq):
     """Return ``obj`` with timestamps placed for right-closed calendar bins.
 
     For end-anchored offsets (``W``, ``ME``, ``QE``, ``YE``) pandas widens
     each right-closed bin to the whole of its last day, so the row stamped
     at midnight that closes the period (``2012-02-01 00:00`` closes January)
-    falls into the next bin. Moving every timestamp back by one nanosecond
+    falls into the next bin. Moving every timestamp back by one tick of the
+    index's resolution (one nanosecond for a nanosecond index)
     before binning puts that row in the period it ends and leaves the other
     rows, and every bin label, unchanged. Start-anchored (``MS``) and fixed
     frequencies already bin ``(t - freq, t]`` and are unaffected by the shift.
@@ -259,7 +274,7 @@ def _calendar_binning(obj, freq):
     if not _is_calendar_frequency(freq):
         return obj
     shifted = obj.copy(deep=False)
-    shifted.index = shifted.index - pd.Timedelta(1, "ns")
+    shifted.index = _shift_keeping_resolution(shifted.index)
     return shifted
 
 
@@ -277,8 +292,8 @@ def _dailystate_period_end(obj, source_s):
       each day at ``"D"``, the start of the day's last bin at ``"h"``.
 
     A row holding one day (native, or resampled below a day) moves to
-    ``23:59:59.999999999`` of its day; a row holding ``source_s`` of a day or
-    more moves forward by ``source_s`` and back by one nanosecond. Binning the
+    the last tick of its day; a row holding ``source_s`` of a day or
+    more moves forward by ``source_s`` and back by one tick. Binning the
     moved rows again (for example ``"D"`` then ``"ME"``) then assigns each as
     binning the native rows would. Rows at a calendar or unknown interval
     (``source_s`` is ``None``) are returned unchanged; calendar rows already
@@ -292,10 +307,10 @@ def _dailystate_period_end(obj, source_s):
     on_grid = ((index - index.min().normalize()) % step == pd.Timedelta(0)).all()
     shifted = obj.copy(deep=False)
     if step >= day and on_grid:
-        shifted.index = index + step - pd.Timedelta(1, "ns")
+        shifted.index = _shift_keeping_resolution(index, step)
     else:
         # Native last-step stamps are off the grid of any coarser interval.
-        shifted.index = index.normalize() + day - pd.Timedelta(1, "ns")
+        shifted.index = _shift_keeping_resolution(index.normalize(), day)
     return shifted
 
 

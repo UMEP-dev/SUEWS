@@ -22,6 +22,7 @@ CASES = [
     (("initial_states", "evetr"), "sdd_id", 0),
     (("initial_states", "dectr"), "sdd_id", 0),
     (("initial_states", "grass"), "sdd_id", 0),
+    (("initial_states",), "snowalb", 0.5),
 ]
 
 
@@ -58,3 +59,26 @@ def test_omitted_emits_default(sample_dict, path, field, default):
     del _block(data, path)[field]
     dump = SUEWSConfig.from_dict(data).model_dump(exclude_none=True, mode="json")
     assert _unwrap(_block(dump, path)[field]) == default
+
+
+def test_snow_free_season_adjustment_output_loads(sample_dict):
+    """Phase B drops ``snowalb`` for a snow-free start, so its output loads.
+
+    It used to write ``snowalb: null``; with null rejected that would make
+    ``suews validate`` fail on the YAML it had just written (gh#2001).
+    """
+    from supy.data_model.validation.pipeline.phase_b import (
+        adjust_seasonal_parameters,
+    )
+
+    data = copy.deepcopy(sample_dict)
+    data["sites"][0]["initial_states"]["snowalb"] = {"value": None}
+    # Northern-hemisphere site starting in July: a summer start.
+    assert _unwrap(data["sites"][0]["properties"]["lat"]) > 23.5
+    updated, adjustments = adjust_seasonal_parameters(
+        data, start_date="2012-07-01", model_year=2012
+    )
+    assert "snowalb" not in updated["sites"][0]["initial_states"]
+    assert any(a.parameter == "snowalb" for a in adjustments)
+    config = SUEWSConfig.from_dict(updated)
+    assert _unwrap(config.sites[0].initial_states.snowalb) == 0.5

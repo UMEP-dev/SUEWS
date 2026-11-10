@@ -1353,6 +1353,7 @@ def test_default_export_survives_disabled_stebbs_science_fixes(tmp_path):
 _NULL_REJECTING_OMISSIONS = [
     (("properties", "land_cover", "water"), "flowchange"),
     (("initial_states", "evetr"), "sdd_id"),
+    (("initial_states",), "snowalb"),
 ]
 
 
@@ -1429,3 +1430,33 @@ def test_default_export_survives_annual_mean_science_fix(tmp_path, monkeypatch):
     reloaded = SUEWSConfig.from_yaml(str(tmp_path / "updated_export.yml"))
     stebbs = reloaded.sites[0].properties.stebbs
     assert stebbs.deep_soil_temperature == 13.0
+
+
+def test_snowalb_drop_survives_revalidation(tmp_path: Path) -> None:
+    """An ``apply`` run that drops ``snowalb`` validates again (gh#2001).
+
+    A summer start makes Phase B remove ``snowalb``; validating that output
+    a second time must not put a null placeholder back.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    data = _load_sample_dict()
+    data["model"]["control"]["start_time"] = "2012-07-01"
+    data["model"]["control"]["end_time"] = "2012-07-31"
+    config_path = tmp_path / "myconfig.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    first = runner.invoke(validate_cli, [
+        str(config_path), "--science-fixes", "apply", "--forcing", "off",
+    ])
+    assert first.exit_code == 0, first.output
+    updated = yaml.safe_load(
+        (tmp_path / "updated_myconfig.yml").read_text(encoding="utf-8")
+    )
+    assert "snowalb" not in updated["sites"][0]["initial_states"]
+
+    again = tmp_path / "again.yml"
+    _write_yaml(again, updated)
+    second = runner.invoke(validate_cli, [str(again), "--forcing", "off"])
+    assert second.exit_code == 0, second.output

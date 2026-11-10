@@ -897,6 +897,9 @@ class InitialStates(BaseModel):
         ge=0,
         le=1,
     )
+
+    _snowalb_not_null = null_rejecting_validator("snowalb")
+
     paved: InitialStatePaved = Field(
         default_factory=InitialStatePaved,
         description="Initial states for paved surfaces",

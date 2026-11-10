@@ -1326,7 +1326,7 @@ def precheck_site_season_adjustments(
 
     This step:
     - Determines the season (summer, winter, spring, fall, tropical, equatorial) for each site based on latitude and start_date.
-    - Nullifies 'snowalb' in initial states for summer/tropical/equatorial sites.
+    - Removes 'snowalb' from initial states for summer/tropical/equatorial sites, so its default applies.
     - Sets 'lai_id' for deciduous trees based on the detected season and LAI min/max values.
     - Runs DLSCheck to calculate daylight saving time start/end days and timezone offset for each site, overwriting any existing values.
 
@@ -1361,14 +1361,14 @@ def precheck_site_season_adjustments(
                 season = SeasonCheck(start_date=start_date, lat=lat).get_season()
                 logger_supy.debug(f"[site #{i}] Season detected: {season}")
 
-                # If equatorial / tropical / summer → nullify snowalb
+                # If equatorial / tropical / summer -> drop snowalb so the
+                # default applies (null is rejected, gh#2001)
                 if (
                     season in ("summer", "tropical", "equatorial")
                     and "snowalb" in initial_states
                 ):
-                    if isinstance(initial_states["snowalb"], dict):
-                        initial_states["snowalb"]["value"] = None
-                        logger_supy.info(f"[site #{i}] Set snowalb to None")
+                    initial_states.pop("snowalb")
+                    logger_supy.info(f"[site #{i}] Removed snowalb (default applies)")
         except Exception as e:
             raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
 

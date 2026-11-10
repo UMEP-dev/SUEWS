@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev7"
+CURRENT_SCHEMA_VERSION = "2026.6.dev8"
 
 # Schema version history and descriptions.
 #
@@ -171,6 +171,15 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "(2026.6.dev6 -> 2026.6.dev7) migration writes that 0.0 explicitly "
         "wherever the point source is absent or null, so upgraded YAMLs run "
         "unchanged."
+    ),
+    "2026.6.dev8": (
+        "Development schema rejecting a null initial_states.snowalb (#2001). "
+        "suews validate --science-fixes apply used to write snowalb: null for "
+        "a snow-free start, which reached the model as 0; the field now needs "
+        "a number. The (2026.6.dev7 -> 2026.6.dev8) migration drops a null "
+        "snowalb, so an upgraded YAML takes the default 0.5; a value the user "
+        "gave is kept. Null vegetation sdd_id and water flowchange receive "
+        "their former effective 0.0 explicitly."
     ),
 }
 

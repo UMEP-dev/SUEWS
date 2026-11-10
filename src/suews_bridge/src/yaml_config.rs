@@ -2344,9 +2344,15 @@ fn apply_state_overrides(
         }
 
         // Read storedrainprm from land_cover for this surface.
-        // Row mapping matches Fortran storedrainprm(6, nsurf):
+        // Index i fills Fortran row i+1 of StoreDrainPrm(6, nsurf), in the
+        // same order supy uses (StorageDrainParams.to_df_state):
         //   [0] store_min, [1] drain_eq, [2] drain_coef_1,
-        //   [3] drain_coef_2, [4] store_cap, [5] store_max
+        //   [3] drain_coef_2, [4] store_max, [5] store_cap
+        // The kernel reads row 6 (store_cap) as the current storage
+        // capacity: the drainage threshold for drain_eq 1, the Rutter
+        // evaporation capacity, the AnOHM moisture term and the building
+        // soil-store scaling. Row 6 is reassigned daily only for deciduous
+        // trees.
         if let Some(sdp_root) = get_path(
             site_root,
             &["properties", "land_cover", surface_name, "storedrainprm"],
@@ -2363,10 +2369,10 @@ fn apply_state_overrides(
             if let Some(v) = read_numeric(sdp_root, &["drain_coef_2"]) {
                 state.phenology_state.store_drain_prm[surface_idx][3] = v;
             }
-            if let Some(v) = read_numeric(sdp_root, &["store_cap"]) {
+            if let Some(v) = read_numeric(sdp_root, &["store_max"]) {
                 state.phenology_state.store_drain_prm[surface_idx][4] = v;
             }
-            if let Some(v) = read_numeric(sdp_root, &["store_max"]) {
+            if let Some(v) = read_numeric(sdp_root, &["store_cap"]) {
                 state.phenology_state.store_drain_prm[surface_idx][5] = v;
             }
         }
@@ -3663,6 +3669,52 @@ mod tests {
             "lc_water.flowchange = {}",
             run_cfg.site.lc_water.flowchange
         );
+    }
+
+    #[test]
+    fn storage_drain_rows_follow_the_kernel_order() {
+        // supy writes store_min, store_max and store_cap under
+        // land_cover.<surface>.storage_drain_params; the kernel reads
+        // StoreDrainPrm row 1 as store_min, row 5 as store_max and row 6 as
+        // the current storage capacity (store_cap). Index i of
+        // store_drain_prm reaches Fortran row i+1. Distinct values, none
+        // equal to the fixture's 0.48, show each key lands in its own slot.
+        let (store_min, store_max, store_cap) = (0.11, 2.2, 0.77);
+        let mut root = stebbs_fixture_root();
+        {
+            let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "storage_drain_params"],
+            )
+            .expect("fixture should define paved storage_drain_params");
+            let Value::Mapping(sdp_map) = sdp else {
+                panic!("paved storage_drain_params should be a mapping");
+            };
+            for (key, value) in [
+                ("store_min", store_min),
+                ("store_max", store_max),
+                ("store_cap", store_cap),
+            ] {
+                sdp_map.insert(
+                    Value::String(key.to_string()),
+                    serde_yaml::from_str(&format!("{{value: {value}}}")).unwrap(),
+                );
+            }
+        }
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+        let paved = run_cfg.state.phenology_state.store_drain_prm[0];
+        for (slot, name, expected) in [
+            (0, "store_min", store_min),
+            (4, "store_max", store_max),
+            (5, "store_cap", store_cap),
+        ] {
+            assert!(
+                (paved[slot] - expected).abs() < 1.0e-12,
+                "store_drain_prm[paved][{slot}] should hold {name} = {expected}, got {}",
+                paved[slot]
+            );
+        }
     }
 
     #[test]

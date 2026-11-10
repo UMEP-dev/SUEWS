@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Nov 2026
+
+- [doc] Describe `g_max` (legacy `G1`) as what the surface conductance formula uses it for: a fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (`max_conductance`), not a conductance in mm s-1. The data-model description, unit and display name, the legacy input tables, the `df_state` page, the Fortran comments and the labels supy prints for a missing or annotated `g_max` now say so; no field, type, default or model behaviour changes (#2027)
+
 ### 9 Nov 2026
 
 - [doc] Describe the Hourly Profile format in the configuration reference: the working-day and holiday sets, hour keys "1" to "24" from 00:00 with all 24 required, the uniform 1/24 default, and the fields that use it; give `wuprofa_24hr` and `wuprofm_24hr` the descriptions they lacked (#1950, #2017)

@@ -167,7 +167,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: avkdn !Average downwelling shortwave radiation
       REAL(KIND(1D0)), INTENT(in) :: Tair !Air temperature
       REAL(KIND(1D0)), INTENT(in) :: Kmax !Annual maximum hourly solar radiation
-      REAL(KIND(1D0)), INTENT(in) :: G_max !Fitted parameters related to max surface resistance
+      REAL(KIND(1D0)), INTENT(in) :: G_max !Dimensionless fitted coefficient: scales LAI-weighted max conductance to surface conductance [-]
       REAL(KIND(1D0)), INTENT(in) :: G_k !Fitted parameters related to incoming solar radiation
       REAL(KIND(1D0)), INTENT(in) :: g_q_base !Fitted parameters related to humidity deficit, base value
       REAL(KIND(1D0)), INTENT(in) :: g_q_shape !Fitted parameters related to humidity deficit, shape parameter

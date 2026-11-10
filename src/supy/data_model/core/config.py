@@ -1372,7 +1372,7 @@ class SUEWSConfig(BaseModel):
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
-            "g_max": "Maximum surface conductance",
+            "g_max": "Surface conductance scaling coefficient",
             "g_k": "Conductance parameter for solar radiation",
             "g_sm": "Conductance parameter for soil moisture",
             "s1": "Lower soil moisture threshold",
@@ -3699,7 +3699,7 @@ class SUEWSConfig(BaseModel):
             from ..validation.core.utils import check_missing_params
 
             critical_params = {
-                "g_max": "Maximum surface conductance",
+                "g_max": "Surface conductance scaling coefficient",
                 "g_k": "Conductance parameter for solar radiation",
                 "g_sm": "Conductance parameter for soil moisture",
                 "s1": "Lower soil moisture threshold",

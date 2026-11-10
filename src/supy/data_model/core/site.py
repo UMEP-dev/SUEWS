@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import ConfigDict, BaseModel, Field, model_validator
+from pydantic import ConfigDict, BaseModel, Field, computed_field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 from .profile import (
     HourlyProfile,
@@ -1955,7 +1955,77 @@ class ArchetypeProperties(BaseModel):
         },
     )
 
+    # Occupancy descriptors carried by the kernel's building archetype type
+    # (suews_type_stebbs.f95) and the Rust bridge, which read them under these
+    # exact keys. No physics uses them yet; they are emitted with zero
+    # defaults so the bridge need not supply values of its own (gh#2001).
+    # Internal: not part of the YAML surface until a scheme consumes them.
+    hhs0: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description=(
+            "Household size (occupants per household). Not used by the model "
+            "yet: carried for the building archetype only."
+        ),
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        ge=0.0,
+    )
+    age_0_4: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description=(
+            "Fraction of occupants aged 0-4. Not used by the model yet: "
+            "carried for the building archetype only."
+        ),
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        ge=0.0,
+        le=1.0,
+    )
+    age_5_11: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description=(
+            "Fraction of occupants aged 5-11. Not used by the model yet: "
+            "carried for the building archetype only."
+        ),
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        ge=0.0,
+        le=1.0,
+    )
+    age_12_18: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description=(
+            "Fraction of occupants aged 12-18. Not used by the model yet: "
+            "carried for the building archetype only."
+        ),
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        ge=0.0,
+        le=1.0,
+    )
+    age_19_64: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description=(
+            "Fraction of occupants aged 19-64. Not used by the model yet: "
+            "carried for the building archetype only."
+        ),
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        ge=0.0,
+        le=1.0,
+    )
+    age_65plus: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description=(
+            "Fraction of occupants aged 65 and over. Not used by the model yet: "
+            "carried for the building archetype only."
+        ),
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        ge=0.0,
+        le=1.0,
+    )
+
     ref: Optional[Reference] = None
+
+    # Emitted to the Rust bridge only: no DataFrame state column carries them.
+    _BRIDGE_ONLY_FIELDS: ClassVar[frozenset] = frozenset(
+        {"hhs0", "age_0_4", "age_5_11", "age_12_18", "age_19_64", "age_65plus"}
+    )
 
     _ARCHETYPE_LEGACY_COL_NAMES: ClassVar[Dict[str, str]] = {
         # Fortran bridge (src/suews_bridge/src/building_archetype_prm.rs,
@@ -1976,7 +2046,12 @@ class ArchetypeProperties(BaseModel):
             "profile_setpoint_temperature_heating_air",
             "profile_setpoint_temperature_cooling_air",
         }
-        excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
+        excluded_fields = (
+            string_fields
+            | ten_minute_profile_fields
+            | {"ref"}
+            | self._BRIDGE_ONLY_FIELDS
+        )
 
         cols = {("gridiv", "0"): grid_id}
         for field_name in type(self).model_fields:
@@ -2028,7 +2103,7 @@ class ArchetypeProperties(BaseModel):
         params: Dict[str, object] = {}
 
         for field_name, field_info in cls.model_fields.items():
-            if field_name == "ref":
+            if field_name == "ref" or field_name in cls._BRIDGE_ONLY_FIELDS:
                 continue
 
             if field_name in string_fields:
@@ -2376,6 +2451,17 @@ class StebbsProperties(BaseModel):
             "display_name": "Annual Mean Air Temperature",
         },
     )
+    # Computed, not a user input: the deep soil boundary temperature is the
+    # annual mean air temperature (gh#1240 replaced the separate input). It is
+    # emitted so the Rust bridge, which reads it as the initial STEBBS deep
+    # soil state, need not fall back to the annual mean itself (gh#2001).
+    @computed_field(json_schema_extra={"unit": "degC", "internal_only": True})
+    @property
+    def deep_soil_temperature(self) -> Optional[float]:
+        """Return the annual mean as the initial deep soil temperature."""
+        annual = self.temperature_air_annual_mean
+        return annual.value if isinstance(annual, RefValue) else annual
+
     temperature_air_month_mean_diffmax: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Maximum difference in monthly outdoor air temperature [degC]",
@@ -2624,6 +2710,26 @@ class StebbsProperties(BaseModel):
     )
     ref: Optional[Reference] = None
 
+    @model_validator(mode="wrap")
+    @classmethod
+    def _check_deep_soil_temperature(cls, data, handler):
+        """Accept a matching emitted value, but never store it as input."""
+        given = None
+        if isinstance(data, dict):
+            data = dict(data)
+            given = data.pop("deep_soil_temperature", None)
+            if isinstance(given, dict):
+                given = given.get("value")
+            elif isinstance(given, RefValue):
+                given = given.value
+        result = handler(data)
+        if given is not None and given != result.deep_soil_temperature:
+            raise ValueError(
+                "deep_soil_temperature is not an input: it is set to "
+                "temperature_air_annual_mean"
+            )
+        return result
+
     @model_validator(mode="after")
     def _validate_internal_shading_parameters(self) -> "StebbsProperties":
         """Require explicit active parameters whenever shading is enabled."""
@@ -2640,7 +2746,8 @@ class StebbsProperties(BaseModel):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert StebbsProperties to DataFrame state format."""
         tenmin_profile_fields = {"profile_appliance", "profile_flow_hot_water"}
-        excluded_fields = tenmin_profile_fields | {"ref"}
+        # deep_soil_temperature is computed and emitted to the bridge only.
+        excluded_fields = tenmin_profile_fields | {"ref", "deep_soil_temperature"}
 
         # scalar fields -- legacy DF column is the lowercased PascalCase form
         # via `_STEBBS_LEGACY_COL_NAMES` (e.g. `volume_hot_water` ->
@@ -2676,7 +2783,7 @@ class StebbsProperties(BaseModel):
         params: Dict[str, object] = {}
 
         for field_name, field_info in cls.model_fields.items():
-            if field_name == "ref":
+            if field_name in ("ref", "deep_soil_temperature"):
                 continue
 
             if field_name in tenmin_profile_fields:

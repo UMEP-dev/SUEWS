@@ -37,8 +37,10 @@ The first pass takes the solved value unchanged; passes 2 to 10 use :math:`\alph
 After ten passes the factor decays by 0.7 per pass, whether or not a stable fold has been diagnosed.
 The decay leaves earlier passes unchanged relative to fixed-factor relaxation.
 Near the stable fold the solved value can jump from a small :math:`(z-d)/L` to the stable clip as downward sensible heat flux grows.
-The decaying factor can then end the iteration on the successive-temperature 0.05 K test without reaching a fixed point (decay-assisted termination).
-Passing that test does not establish a vanishing unrelaxed stability residual or bound differences from the unrelaxed model.
+The outer iteration stops when the surface temperature changes by no more than 0.05 K between passes and, over the same pass, :math:`(z-d)/L` has changed by less than 0.005 and the free-convection velocity (below) by less than 0.005 m s\ :sup:`-1`.
+The temperature test alone can pass while the relaxed stability is still moving, which leaves :math:`r_a` alternating from one timestep to the next.
+The decaying factor can still end the iteration on these tests without reaching a fixed point (decay-assisted termination).
+Passing these tests does not establish a vanishing unrelaxed stability residual or bound differences from the unrelaxed model.
 After the loop, any required flux-sign reconciliation uses the unrelaxed solve and recomputes its dependent scales.
 
 On the unstable branch, :math:`r_a` includes a free-convection velocity scale.

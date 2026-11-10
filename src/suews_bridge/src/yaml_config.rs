@@ -59,7 +59,7 @@ use crate::building_archetype_prm::{
 };
 use crate::config::{suews_config_default_from_fortran, SuewsConfig};
 use crate::core::NSURF;
-use crate::field_renames::normalize_field_names;
+use crate::field_renames::{normalize_field_names, FIELD_RENAMES};
 use crate::sim::SiteScalars;
 use crate::stebbs_prm::{stebbs_prm_from_map, stebbs_prm_to_map};
 use crate::suews_site::{suews_site_default_from_fortran, SuewsSite};
@@ -314,6 +314,183 @@ fn site_yaml_at(site_root: &Value) -> String {
         Some(Value::String(s)) => format!("sites[gridiv={s}]"),
         _ => "sites[0]".to_string(),
     }
+}
+
+// Required readers. Each is the required form of an optional reader above:
+// where the selected options make the kernel read a value, a missing, null,
+// malformed or non-finite value is an error naming its YAML path (and list
+// index), never a kept default. No read site uses them yet; the read sites
+// move to them block by block (#1991), so outside tests they are unused
+// until then.
+
+/// The YAML path of `path` below `at`, for an error message. Each key is
+/// shown in its current data-model spelling where `normalize_field_names`
+/// renamed it from one (e.g. `soilstorecap` -> `soil_store_capacity`), so the
+/// message names the key as the user's file has it. A fused spelling that
+/// several current names fold to is shown as it is.
+#[cfg_attr(not(test), allow(dead_code))]
+fn yaml_path_display(at: &str, path: &[&str]) -> String {
+    let keys = path.iter().map(|key| {
+        let mut current = FIELD_RENAMES
+            .iter()
+            .filter(|(_, old)| old == key)
+            .map(|(new, _)| *new);
+        match current.next() {
+            Some(new) if current.all(|other| other == new) => new,
+            _ => *key,
+        }
+    });
+    std::iter::once(at)
+        .filter(|at| !at.is_empty())
+        .chain(keys)
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+/// The value at `path` below `root` (`at` is the YAML path of `root`),
+/// unwrapping the RefValue form (`{value: x}`), or an error naming the YAML
+/// path when it is not given. A RefValue that kept only its `ref` (its value
+/// was None) is not given. A given `null` is returned as such, so the caller
+/// can say it is null.
+#[cfg_attr(not(test), allow(dead_code))]
+fn require_value<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a Value, String> {
+    let missing = || {
+        format!(
+            "`{}` is missing; the bridge does not fill in a value, give it in the YAML",
+            yaml_path_display(at, path)
+        )
+    };
+    let value = get_path(root, path).ok_or_else(missing)?;
+    match value {
+        Value::Mapping(_) => get_path(value, &["value"]).ok_or_else(missing),
+        other => Ok(other),
+    }
+}
+
+/// The required form of `read_finite_numeric`: a finite number at `path`.
+/// Missing, null, non-numeric, NaN and infinite values are errors naming the
+/// YAML path.
+#[cfg_attr(not(test), allow(dead_code))]
+fn require_numeric(root: &Value, path: &[&str], at: &str) -> Result<f64, String> {
+    let value = require_value(root, path, at)?;
+    match read_finite_numeric(value, &[]) {
+        Ok(Some(v)) => Ok(v),
+        Err(reason) => Err(format!(
+            "`{}` is {reason}; it must be a finite number",
+            yaml_path_display(at, path)
+        )),
+        Ok(None) => Err(format!(
+            "`{}` is {}; it must be a number",
+            yaml_path_display(at, path),
+            yaml_kind(value)
+        )),
+    }
+}
+
+/// The required form of `read_i32`: an integer at `path`. Any value that is
+/// not exactly an integer (`1.0` is; `1.0000000005` is not) or is out of
+/// range is an error, not a dropped value. Unlike `read_i32` there is no
+/// rounding tolerance: rounding a value that is not an integer would stand
+/// in a value the YAML did not give. If a read site moved to this reader
+/// turns out to receive round-tripped floats, revisit it there.
+#[cfg_attr(not(test), allow(dead_code))]
+fn require_i32(root: &Value, path: &[&str], at: &str) -> Result<i32, String> {
+    let v = require_numeric(root, path, at)?;
+    if v.fract() == 0.0 && v >= i32::MIN as f64 && v <= i32::MAX as f64 {
+        Ok(v as i32)
+    } else {
+        Err(format!(
+            "`{}` is {v}; it must be an integer",
+            yaml_path_display(at, path)
+        ))
+    }
+}
+
+/// The required form of `read_string`.
+#[cfg_attr(not(test), allow(dead_code))]
+fn require_string(root: &Value, path: &[&str], at: &str) -> Result<String, String> {
+    match require_value(root, path, at)? {
+        Value::String(s) => Ok(s.clone()),
+        other => Err(format!(
+            "`{}` is {}; it must be a string",
+            yaml_path_display(at, path),
+            yaml_kind(other)
+        )),
+    }
+}
+
+/// The required form of `read_sized_numeric_sequence`: the first of `paths`
+/// that is given, with at least `required` entries, each of them a finite
+/// number (entries beyond `required` follow `parse_numeric_sequence`). It
+/// makes the same reads, but every error, for a null or non-finite entry and
+/// for a short list as well as for a missing one, names the YAML path in its
+/// data-model spelling (`yaml_path_display`). When none is given, the error
+/// names the first path.
+#[cfg_attr(not(test), allow(dead_code))]
+fn require_sized_numeric_sequence(
+    root: &Value,
+    paths: &[&[&str]],
+    at: &str,
+    required: usize,
+) -> Result<Vec<f64>, String> {
+    for path in paths {
+        let Some(value) = get_path(root, path) else {
+            continue;
+        };
+        let shown = yaml_path_display(at, path);
+        if let Some(values) =
+            parse_numeric_sequence(value, required).map_err(|e| format!("`{shown}`: {e}"))?
+        {
+            require_list_length(values.len(), required, &shown)?;
+            return Ok(values);
+        }
+    }
+    let first = paths.first().copied().unwrap_or(&[]);
+    Err(match get_path(root, first) {
+        Some(value) if !matches!(value, Value::Mapping(_)) => format!(
+            "`{}` is {}; it must be a list of {required} numbers",
+            yaml_path_display(at, first),
+            yaml_kind(value)
+        ),
+        _ => format!(
+            "`{}` is missing; it must be a list of {required} numbers",
+            yaml_path_display(at, first)
+        ),
+    })
+}
+
+/// The required form of `read_sequence` (a list of mappings such as
+/// `vertical_layers.roofs`), with at least `required` items, each of which
+/// must be a mapping; an item that is not (`null`, a number) is an error
+/// naming the path and index. Items beyond `required` are not checked.
+/// Callers name an item as `{at}.<path>[i]` when reading inside it.
+#[cfg_attr(not(test), allow(dead_code))]
+fn require_sequence<'a>(
+    root: &'a Value,
+    path: &[&str],
+    at: &str,
+    required: usize,
+) -> Result<&'a [Value], String> {
+    let items = read_sequence(root, path).ok_or_else(|| {
+        let shown = yaml_path_display(at, path);
+        match get_path(root, path) {
+            Some(value) if !matches!(value, Value::Mapping(_)) => {
+                format!("`{shown}` is {}; it must be a list", yaml_kind(value))
+            }
+            _ => format!("`{shown}` is missing; it must be a list of {required} items"),
+        }
+    })?;
+    let shown = yaml_path_display(at, path);
+    require_list_length(items.len(), required, &shown)?;
+    for (i, item) in items.iter().take(required).enumerate() {
+        if !matches!(item, Value::Mapping(_)) {
+            return Err(format!(
+                "`{shown}[{i}]` is {}; it must be a mapping",
+                yaml_kind(item)
+            ));
+        }
+    }
+    Ok(items)
 }
 
 fn read_sequence<'a>(root: &'a Value, path: &[&str]) -> Option<&'a [Value]> {
@@ -608,7 +785,7 @@ fn set_ohm_coef_for_season(target: &mut crate::ohm_coef_lc::OhmCoefLc, season: &
     }
 }
 
-fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) {
+fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) -> Result<(), String> {
     if let Some(v) =
         read_numeric(lc_root, &["chanohm"]).or_else(|| read_numeric(lc_root, &["ch_anohm"]))
     {
@@ -638,9 +815,10 @@ fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) {
             }
         }
     }
+    Ok(())
 }
 
-fn apply_soil_overrides(soil: &mut crate::soil::SoilPrm, lc_root: &Value) {
+fn apply_soil_overrides(soil: &mut crate::soil::SoilPrm, lc_root: &Value) -> Result<(), String> {
     if let Some(v) = read_numeric(lc_root, &["soildepth"]) {
         soil.soil_depth = v;
     }
@@ -650,9 +828,13 @@ fn apply_soil_overrides(soil: &mut crate::soil::SoilPrm, lc_root: &Value) {
     if let Some(v) = read_numeric(lc_root, &["sathydraulicconduct"]) {
         soil.saturated_hydraulic_conductivity = v;
     }
+    Ok(())
 }
 
-fn apply_waterdist_overrides(waterdist: &mut crate::water_dist::WaterDistPrm, lc_root: &Value) {
+fn apply_waterdist_overrides(
+    waterdist: &mut crate::water_dist::WaterDistPrm,
+    lc_root: &Value,
+) -> Result<(), String> {
     if let Some(v) = read_numeric(lc_root, &["waterdist", "to_paved"]) {
         waterdist.to_paved = v;
     }
@@ -681,9 +863,10 @@ fn apply_waterdist_overrides(waterdist: &mut crate::water_dist::WaterDistPrm, lc
     {
         waterdist.to_soilstore = v;
     }
+    Ok(())
 }
 
-fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) {
+fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) -> Result<(), String> {
     if let Some(v) = read_numeric(lc_root, &["lai", "baset"]) {
         lai.base_temperature = v;
     }
@@ -717,9 +900,13 @@ fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) {
     if let Some(v) = read_i32(lc_root, &["lai", "laitype"]) {
         lai.lai_type = v;
     }
+    Ok(())
 }
 
-fn apply_bioco2_overrides(bioco2: &mut crate::bioco2::BioCo2Prm, lc_root: &Value) {
+fn apply_bioco2_overrides(
+    bioco2: &mut crate::bioco2::BioCo2Prm,
+    lc_root: &Value,
+) -> Result<(), String> {
     if let Some(v) = read_numeric(lc_root, &["beta_bioco2"]) {
         bioco2.beta_bio_co2 = v;
     }
@@ -744,9 +931,10 @@ fn apply_bioco2_overrides(bioco2: &mut crate::bioco2::BioCo2Prm, lc_root: &Value
     if let Some(v) = read_numeric(lc_root, &["min_res_bioco2"]) {
         bioco2.min_res_bioco2 = v;
     }
+    Ok(())
 }
 
-fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "air_ext_lw"]) {
         site.spartacus.air_ext_lw = v;
     }
@@ -820,6 +1008,7 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "veg_ssa_sw"]) {
         site.spartacus.veg_ssa_sw = v;
     }
+    Ok(())
 }
 
 // Which options make the kernel read which layer inputs. Each gate is
@@ -1107,7 +1296,7 @@ fn apply_vertical_layers_overrides(
     Ok(())
 }
 
-fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     if let Some(v) = read_numeric(site_root, &["properties", "lumps", "raincover"]) {
         site.lumps.raincover = v;
     }
@@ -1120,9 +1309,10 @@ fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(v) = read_i32(site_root, &["properties", "lumps", "veg_type"]) {
         site.lumps.veg_type = v;
     }
+    Ok(())
 }
 
-fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "crwmax"]) {
         site.snow.water_holding_capacity_max = v;
     }
@@ -1208,9 +1398,10 @@ fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.snow.snowpack_limit[surface_idx] = v;
         }
     }
+    Ok(())
 }
 
-fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     // Top-level irrigation scalars: h_maintain, faut, ie_start, ie_end,
     // internalwateruse_h
     if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "h_maintain"]) {
@@ -1338,9 +1529,10 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) {
             }
         }
     }
+    Ok(())
 }
 
-fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "paved"]) {
         if let Some(v) = read_numeric(lc_root, &["sfr"]) {
             site.lc_paved.sfr = v;
@@ -1357,9 +1549,9 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_paved.irrfracpaved = v;
         }
-        apply_ohm_overrides(&mut site.lc_paved.ohm, lc_root);
-        apply_soil_overrides(&mut site.lc_paved.soil, lc_root);
-        apply_waterdist_overrides(&mut site.lc_paved.waterdist, lc_root);
+        apply_ohm_overrides(&mut site.lc_paved.ohm, lc_root)?;
+        apply_soil_overrides(&mut site.lc_paved.soil, lc_root)?;
+        apply_waterdist_overrides(&mut site.lc_paved.waterdist, lc_root)?;
     }
 
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "bldgs"]) {
@@ -1384,9 +1576,9 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_bldg.irrfracbldgs = v;
         }
-        apply_ohm_overrides(&mut site.lc_bldg.ohm, lc_root);
-        apply_soil_overrides(&mut site.lc_bldg.soil, lc_root);
-        apply_waterdist_overrides(&mut site.lc_bldg.waterdist, lc_root);
+        apply_ohm_overrides(&mut site.lc_bldg.ohm, lc_root)?;
+        apply_soil_overrides(&mut site.lc_bldg.soil, lc_root)?;
+        apply_waterdist_overrides(&mut site.lc_bldg.waterdist, lc_root)?;
     }
 
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "evetr"]) {
@@ -1420,11 +1612,11 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
             site.lc_evetr.max_conductance = v;
         }
-        apply_ohm_overrides(&mut site.lc_evetr.ohm, lc_root);
-        apply_soil_overrides(&mut site.lc_evetr.soil, lc_root);
-        apply_bioco2_overrides(&mut site.lc_evetr.bioco2, lc_root);
-        apply_lai_overrides(&mut site.lc_evetr.lai, lc_root);
-        apply_waterdist_overrides(&mut site.lc_evetr.waterdist, lc_root);
+        apply_ohm_overrides(&mut site.lc_evetr.ohm, lc_root)?;
+        apply_soil_overrides(&mut site.lc_evetr.soil, lc_root)?;
+        apply_bioco2_overrides(&mut site.lc_evetr.bioco2, lc_root)?;
+        apply_lai_overrides(&mut site.lc_evetr.lai, lc_root)?;
+        apply_waterdist_overrides(&mut site.lc_evetr.waterdist, lc_root)?;
     }
 
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "dectr"]) {
@@ -1470,11 +1662,11 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
             site.lc_dectr.max_conductance = v;
         }
-        apply_ohm_overrides(&mut site.lc_dectr.ohm, lc_root);
-        apply_soil_overrides(&mut site.lc_dectr.soil, lc_root);
-        apply_bioco2_overrides(&mut site.lc_dectr.bioco2, lc_root);
-        apply_lai_overrides(&mut site.lc_dectr.lai, lc_root);
-        apply_waterdist_overrides(&mut site.lc_dectr.waterdist, lc_root);
+        apply_ohm_overrides(&mut site.lc_dectr.ohm, lc_root)?;
+        apply_soil_overrides(&mut site.lc_dectr.soil, lc_root)?;
+        apply_bioco2_overrides(&mut site.lc_dectr.bioco2, lc_root)?;
+        apply_lai_overrides(&mut site.lc_dectr.lai, lc_root)?;
+        apply_waterdist_overrides(&mut site.lc_dectr.waterdist, lc_root)?;
     }
 
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "grass"]) {
@@ -1502,11 +1694,11 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
             site.lc_grass.max_conductance = v;
         }
-        apply_ohm_overrides(&mut site.lc_grass.ohm, lc_root);
-        apply_soil_overrides(&mut site.lc_grass.soil, lc_root);
-        apply_bioco2_overrides(&mut site.lc_grass.bioco2, lc_root);
-        apply_lai_overrides(&mut site.lc_grass.lai, lc_root);
-        apply_waterdist_overrides(&mut site.lc_grass.waterdist, lc_root);
+        apply_ohm_overrides(&mut site.lc_grass.ohm, lc_root)?;
+        apply_soil_overrides(&mut site.lc_grass.soil, lc_root)?;
+        apply_bioco2_overrides(&mut site.lc_grass.bioco2, lc_root)?;
+        apply_lai_overrides(&mut site.lc_grass.lai, lc_root)?;
+        apply_waterdist_overrides(&mut site.lc_grass.waterdist, lc_root)?;
     }
 
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "bsoil"]) {
@@ -1525,9 +1717,9 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_bsoil.irrfracbsoil = v;
         }
-        apply_ohm_overrides(&mut site.lc_bsoil.ohm, lc_root);
-        apply_soil_overrides(&mut site.lc_bsoil.soil, lc_root);
-        apply_waterdist_overrides(&mut site.lc_bsoil.waterdist, lc_root);
+        apply_ohm_overrides(&mut site.lc_bsoil.ohm, lc_root)?;
+        apply_soil_overrides(&mut site.lc_bsoil.soil, lc_root)?;
+        apply_waterdist_overrides(&mut site.lc_bsoil.waterdist, lc_root)?;
     }
 
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "water"]) {
@@ -1546,12 +1738,17 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_water.irrfracwater = v;
         }
-        apply_ohm_overrides(&mut site.lc_water.ohm, lc_root);
-        apply_soil_overrides(&mut site.lc_water.soil, lc_root);
+        apply_ohm_overrides(&mut site.lc_water.ohm, lc_root)?;
+        apply_soil_overrides(&mut site.lc_water.soil, lc_root)?;
     }
+    Ok(())
 }
 
-fn apply_conductance_overrides(site: &mut SuewsSite, root: &Value, site_root: &Value) {
+fn apply_conductance_overrides(
+    site: &mut SuewsSite,
+    root: &Value,
+    site_root: &Value,
+) -> Result<(), String> {
     if let Some(v) = read_i32(root, &["model", "physics", "gsmodel"]) {
         site.conductance.gs_model = v;
     } else if let Some(v) = read_i32(site_root, &["properties", "conductance", "gsmodel"]) {
@@ -1591,9 +1788,10 @@ fn apply_conductance_overrides(site: &mut SuewsSite, root: &Value, site_root: &V
     if let Some(v) = read_numeric(site_root, &["properties", "conductance", "tl"]) {
         site.conductance.tl = v;
     }
+    Ok(())
 }
 
-fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     let base = ["properties", "anthropogenic_emissions"];
 
     // --- top-level scalars ---
@@ -1827,9 +2025,14 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) {
             e.humactivity_24hr_holiday[hour - 1] = v;
         }
     }
+    Ok(())
 }
 
-fn apply_config_overrides(config: &mut SuewsConfig, root: &Value, site_root: &Value) {
+fn apply_config_overrides(
+    config: &mut SuewsConfig,
+    root: &Value,
+    site_root: &Value,
+) -> Result<(), String> {
     if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
         config.rsl_method = v;
     }
@@ -1904,6 +2107,7 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value, site_root: &Va
     ) {
         config.use_sw_direct_albedo = v >= 0.5;
     }
+    Ok(())
 }
 
 fn apply_ehc_overrides(
@@ -2327,9 +2531,9 @@ fn apply_site_overrides(
     storage_heat_method: i32,
     spartacus_on: bool,
 ) -> Result<(), String> {
-    apply_conductance_overrides(site, root, site_root);
-    apply_lumps_overrides(site, site_root);
-    apply_spartacus_overrides(site, site_root);
+    apply_conductance_overrides(site, root, site_root)?;
+    apply_lumps_overrides(site, site_root)?;
+    apply_spartacus_overrides(site, site_root)?;
     if let Some(v) = read_numeric(root, &["model", "physics", "sw_dn_direct_frac"]) {
         site.spartacus.sw_dn_direct_frac = v;
     }
@@ -2340,11 +2544,11 @@ fn apply_site_overrides(
         site.spartacus.sw_dn_direct_frac = v;
     }
     resize_site_variable_arrays(site, nlayer);
-    apply_land_cover_overrides(site, site_root);
-    apply_snow_overrides(site, site_root);
-    apply_irrigation_overrides(site, site_root);
+    apply_land_cover_overrides(site, site_root)?;
+    apply_snow_overrides(site, site_root)?;
+    apply_irrigation_overrides(site, site_root)?;
     apply_vertical_layers_overrides(site, site_root, storage_heat_method, spartacus_on)?;
-    apply_anthro_emis_overrides(site, site_root);
+    apply_anthro_emis_overrides(site, site_root)?;
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
     apply_ehc_overrides(
@@ -2879,7 +3083,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let site_root = read_sites_indexed(root, 0)
         .ok_or_else(|| "config must contain at least one site under `sites`".to_string())?;
 
-    apply_config_overrides(&mut config, root, site_root);
+    apply_config_overrides(&mut config, root, site_root)?;
 
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
@@ -4830,5 +5034,192 @@ mod tests {
             assert!(err.contains(index), "{err}");
             assert!(err.contains("null"), "{err}");
         }
+    }
+    #[test]
+    fn yaml_path_display_uses_the_data_model_spelling() {
+        assert_eq!(
+            yaml_path_display(
+                "sites[0]",
+                &["properties", "land_cover", "paved", "soilstorecap"]
+            ),
+            "sites[0].properties.land_cover.paved.soil_store_capacity"
+        );
+        assert_eq!(
+            yaml_path_display("", &["model", "physics", "netradiationmethod"]),
+            "model.physics.net_radiation"
+        );
+    }
+
+    #[test]
+    fn require_numeric_accepts_bare_and_wrapped_finite_numbers() {
+        let root: Value = serde_yaml::from_str("{a: 1.5, b: {value: -2}, c: {value: 0}}").unwrap();
+        assert_eq!(require_numeric(&root, &["a"], "x"), Ok(1.5));
+        assert_eq!(require_numeric(&root, &["b"], "x"), Ok(-2.0));
+        assert_eq!(require_numeric(&root, &["c"], "x"), Ok(0.0));
+    }
+
+    #[test]
+    fn require_numeric_rejects_missing_null_text_and_non_finite() {
+        let root: Value = serde_yaml::from_str(
+            "{n: null, w: {value: null}, r: {ref: {desc: x}}, t: abc, l: [1.0], \
+             nan: .nan, inf: {value: .inf}, ninf: -.inf}",
+        )
+        .unwrap();
+        let at = "sites[gridiv=1].properties";
+        for (key, expected) in [
+            ("absent", "is missing"),
+            ("r", "is missing"),
+            ("n", "is null"),
+            ("w", "is null"),
+            ("t", "is a string"),
+            ("l", "is a list"),
+            ("nan", "is non-finite"),
+            ("inf", "is non-finite"),
+            ("ninf", "is non-finite"),
+        ] {
+            let err = require_numeric(&root, &[key], at).expect_err(key);
+            assert!(err.contains(&format!("`{at}.{key}`")), "{err}");
+            assert!(err.contains(expected), "{key}: {err}");
+        }
+        let nested: Value = serde_yaml::from_str("{lc: {paved: {}}}").unwrap();
+        let err =
+            require_numeric(&nested, &["lc", "paved", "soilstorecap"], "sites[0]").unwrap_err();
+        assert!(
+            err.contains("`sites[0].lc.paved.soil_store_capacity` is missing"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn require_i32_rejects_fractional_and_out_of_range_values() {
+        let root: Value = serde_yaml::from_str(
+            "{a: 300, b: {value: 2.0}, c: 300.5, d: 1.0e12, e: .nan, f: 1.0000000005}",
+        )
+        .unwrap();
+        assert_eq!(require_i32(&root, &["a"], ""), Ok(300));
+        assert_eq!(require_i32(&root, &["b"], ""), Ok(2));
+        // No rounding tolerance: `f` is within `read_i32`'s 1e-9 but not an
+        // integer.
+        for key in ["c", "d", "f"] {
+            let err = require_i32(&root, &[key], "").expect_err(key);
+            assert!(err.contains(&format!("`{key}` is")), "{err}");
+            assert!(err.contains("must be an integer"), "{err}");
+        }
+        let err = require_i32(&root, &["e"], "").unwrap_err();
+        assert!(err.contains("non-finite"), "{err}");
+        assert!(require_i32(&root, &["absent"], "")
+            .unwrap_err()
+            .contains("is missing"));
+    }
+
+    #[test]
+    fn require_string_rejects_missing_and_non_string() {
+        let root: Value = serde_yaml::from_str("{a: x, b: {value: y}, c: 1, d: null}").unwrap();
+        assert_eq!(require_string(&root, &["a"], "m"), Ok("x".to_string()));
+        assert_eq!(require_string(&root, &["b"], "m"), Ok("y".to_string()));
+        assert!(require_string(&root, &["c"], "m")
+            .unwrap_err()
+            .contains("`m.c` is a number"));
+        assert!(require_string(&root, &["d"], "m")
+            .unwrap_err()
+            .contains("`m.d` is null"));
+        assert!(require_string(&root, &["e"], "m")
+            .unwrap_err()
+            .contains("`m.e` is missing"));
+    }
+
+    #[test]
+    fn require_sized_numeric_sequence_names_path_index_and_length() {
+        let root: Value = serde_yaml::from_str(
+            "{ok: {value: [1.0, 2.0, null]}, short: [1.0], bad: [1.0, null], \
+             inf: [1.0, .inf], text: abc, alt: [3.0, 4.0]}",
+        )
+        .unwrap();
+        let at = "sites[gridiv=1]";
+        let ok = require_sized_numeric_sequence(&root, &[&["ok"]], at, 2).unwrap();
+        assert_eq!(&ok[..2], &[1.0, 2.0]);
+        assert!(
+            ok[2].is_nan(),
+            "an entry beyond `required` is not read: {ok:?}"
+        );
+        // The second spelling is read when the first is not given.
+        assert_eq!(
+            require_sized_numeric_sequence(&root, &[&["absent"], &["alt"]], at, 2),
+            Ok(vec![3.0, 4.0])
+        );
+        let err = require_sized_numeric_sequence(&root, &[&["short"]], at, 2).unwrap_err();
+        assert!(
+            err.contains("`sites[gridiv=1].short` has 1 values"),
+            "{err}"
+        );
+        let err = require_sized_numeric_sequence(&root, &[&["bad"]], at, 2).unwrap_err();
+        assert!(
+            err.contains("sites[gridiv=1].bad") && err.contains("[1]"),
+            "{err}"
+        );
+        assert!(err.contains("null"), "{err}");
+        let err = require_sized_numeric_sequence(&root, &[&["inf"]], at, 2).unwrap_err();
+        assert!(err.contains("[1]") && err.contains("non-finite"), "{err}");
+        let err = require_sized_numeric_sequence(&root, &[&["text"]], at, 2).unwrap_err();
+        assert!(err.contains("`sites[gridiv=1].text` is a string"), "{err}");
+        let err =
+            require_sized_numeric_sequence(&root, &[&["absent"], &["gone"]], at, 2).unwrap_err();
+        assert!(err.contains("`sites[gridiv=1].absent` is missing"), "{err}");
+    }
+
+    #[test]
+    fn require_sized_numeric_sequence_names_a_renamed_key_in_data_model_spelling() {
+        // After `normalize_field_names` the key is `laipower`; the user's file
+        // has `lai_power`, and every error must say so.
+        let root: Value =
+            serde_yaml::from_str("{bad: {laipower: [1.0, null]}, short: {laipower: [1.0]}}")
+                .unwrap();
+        let at = "sites[gridiv=1].properties";
+        for (key, expected) in [("bad", "[1]"), ("short", "has 1 values")] {
+            let err =
+                require_sized_numeric_sequence(&root, &[&[key, "laipower"]], at, 2).expect_err(key);
+            assert!(
+                err.contains(&format!("`sites[gridiv=1].properties.{key}.lai_power`")),
+                "{err}"
+            );
+            assert!(!err.contains("laipower"), "{err}");
+            assert!(err.contains(expected), "{err}");
+        }
+    }
+
+    #[test]
+    fn require_sequence_names_path_and_length() {
+        let root: Value =
+            serde_yaml::from_str("{roofs: [{emis: 0.9}, {emis: 0.9}], walls: {value: [{}]}, x: 1}")
+                .unwrap();
+        let at = "sites[gridiv=1].properties.vertical_layers";
+        assert_eq!(require_sequence(&root, &["roofs"], at, 2).unwrap().len(), 2);
+        assert_eq!(require_sequence(&root, &["walls"], at, 1).unwrap().len(), 1);
+        let err = require_sequence(&root, &["walls"], at, 3).unwrap_err();
+        assert!(
+            err.contains("`sites[gridiv=1].properties.vertical_layers.walls` has 1 values"),
+            "{err}"
+        );
+        let err = require_sequence(&root, &["x"], at, 1).unwrap_err();
+        assert!(err.contains("is a number"), "{err}");
+        let err = require_sequence(&root, &["absent"], at, 1).unwrap_err();
+        assert!(err.contains("is missing"), "{err}");
+    }
+
+    #[test]
+    fn require_sequence_rejects_required_items_that_are_not_mappings() {
+        let root: Value =
+            serde_yaml::from_str("{roofs: [null, .nan, .inf], walls: [{}, null]}").unwrap();
+        let at = "sites[gridiv=1].properties.vertical_layers";
+        let err = require_sequence(&root, &["roofs"], at, 3).unwrap_err();
+        assert!(
+            err.contains("`sites[gridiv=1].properties.vertical_layers.roofs[0]` is null"),
+            "{err}"
+        );
+        assert!(err.contains("must be a mapping"), "{err}");
+        let err = require_sequence(&root, &["walls"], at, 2).unwrap_err();
+        assert!(err.contains("walls[1]` is null"), "{err}");
+        // An item beyond `required` is not read, so it is not checked.
+        assert_eq!(require_sequence(&root, &["walls"], at, 1).unwrap().len(), 2);
     }
 }

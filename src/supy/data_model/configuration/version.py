@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev6"
+CURRENT_SCHEMA_VERSION = "2026.6.dev7"
 
 # Schema version history and descriptions.
 #
@@ -161,6 +161,16 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "through a no-op content migration; a YAML naming a provisional "
         "group still loads, with a warning, and needs the new setting to "
         "save that group."
+    ),
+    "2026.6.dev7": (
+        "Development schema requiring "
+        "anthropogenic_emissions.co2.emission_co2_point_source in a YAML "
+        "whose model.physics.emissions is a biogenic CO2 method (11-16, "
+        "21-26, 31-36, 41-46), the methods whose CO2 flux includes it "
+        "(#2001). A missing value used to reach the model as 0. The "
+        "(2026.6.dev6 -> 2026.6.dev7) migration writes that 0.0 explicitly "
+        "wherever the point source is absent or null, so upgraded YAMLs run "
+        "unchanged."
     ),
 }
 

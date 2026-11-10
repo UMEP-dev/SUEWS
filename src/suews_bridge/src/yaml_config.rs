@@ -36,6 +36,11 @@
 //!
 //! New code must follow the rule; do not add a reader that keeps a default
 //! for a missing key.
+//! The shared BR-01/02/03 requirements and the known implementation gaps are
+//! recorded in `.claude/rules/rust/bridge-contract.md` and
+//! `dev-ref/RUST_BRIDGE_AUDIT.md`. Storage initialisation is not permission to
+//! supply an absent model input; optional file paths are separate from model
+//! values when a caller provides an in-memory forcing buffer.
 //!
 //! Two reading styles are used:
 //!

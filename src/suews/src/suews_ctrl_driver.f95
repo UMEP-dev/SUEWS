@@ -565,6 +565,13 @@ CONTAINS
                CALL suews_update_tsurf( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               ! The surface-temperature test alone can pass while the relaxed (z-d)/L
+               ! and free-convection velocity are still moving, which leaves RA
+               ! alternating from one timestep to the next. Also require both to have
+               ! changed little over this pass.
+               flag_converge = flag_converge .AND. &
+                  ABS(modState%atmState%z_l - zl_pass_start) < 0.005D0 .AND. &
+                  ABS(w_f_pass_prev - w_f_pass_start) < 0.005D0
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_12_tsurf = modState
                END IF

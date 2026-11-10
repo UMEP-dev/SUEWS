@@ -1,3 +1,4 @@
+import math
 from collections.abc import Iterable, Mapping
 from typing import (
     Dict,
@@ -193,6 +194,172 @@ def _legacy_yaml_key_suggestion(key: object) -> Optional[str]:
         if legacy.casefold() == str(key).casefold()
     }
     return matches.pop() if len(matches) == 1 else None
+
+
+_LEGACY_SOIL_SELECTORS = ("soil_moisture_deficit", "smdmethod", "smd_method")
+_LEGACY_SOIL_OBSERVATION_KEYS = ("depth", "smcap", "obs_sm_depth", "obs_sm_smcap")
+
+
+_SOIL_SELECTOR_NAMES = {
+    "modelled": 0,
+    "observed": 1,
+    "observed_volumetric": 1,
+    "observed_gravimetric": 2,
+}
+
+
+def _soil_selector_code(value) -> Optional[int]:
+    """Resolve a raw soil-moisture selector to 0, 1 or 2; ``None`` if unknown.
+
+    Numbers (``1``, ``1.0``, ``"2.0"``) are compared by value; only textual
+    enum names have a qualified prefix (``SMDMethod.OBSERVED``) stripped.
+    """
+    while isinstance(value, Mapping) and "value" in value:
+        value = value["value"]
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        text = value.strip().lower()
+        try:
+            value = float(text)
+        except ValueError:
+            return _SOIL_SELECTOR_NAMES.get(text.rsplit(".", 1)[-1])
+    if isinstance(value, (int, float)) and value in (0, 1, 2):
+        return int(value)
+    return None
+
+
+_CANONICAL_SOIL_OBSERVATION_KEYS = ("layer_top", "layer_depth")
+# First schema with explicit observed-soil layer bounds and canonical sm forcing.
+_OBSERVED_SOIL_LAYER_SCHEMA = "2026.6.dev6"
+
+
+def _predates_observed_soil_layers(schema_version) -> bool:
+    """Whether a declared schema version predates canonical observed soil."""
+    from packaging.version import InvalidVersion, Version
+
+    try:
+        return Version(str(schema_version)) < Version(_OBSERVED_SOIL_LAYER_SCHEMA)
+    except InvalidVersion:
+        return True
+
+
+def _observed_soil_selectors(config_data) -> dict:
+    """Map each raw soil-moisture selector key that selects observed soil to its code."""
+    if not isinstance(config_data, Mapping):
+        return {}
+    model = config_data.get("model")
+    physics = model.get("physics") if isinstance(model, Mapping) else None
+    if not isinstance(physics, Mapping):
+        return {}
+    codes = {
+        key: _soil_selector_code(physics[key])
+        for key in (*_LEGACY_SOIL_SELECTORS, "soil_moisture")
+        if key in physics
+    }
+    return {key: code for key, code in codes.items() if code in (1, 2)}
+
+
+def _soil_observation_blocks(config_data) -> list:
+    """``(site index, raw soil_observation mapping)`` for every site that has one."""
+    blocks = []
+    sites = config_data.get("sites") if isinstance(config_data, Mapping) else None
+    if isinstance(sites, Iterable) and not isinstance(sites, (str, bytes, Mapping)):
+        for index, site in enumerate(sites):
+            props = site.get("properties") if isinstance(site, Mapping) else None
+            obs = props.get("soil_observation") if isinstance(props, Mapping) else None
+            if isinstance(obs, Mapping):
+                blocks.append((index, obs))
+    return blocks
+
+
+def _uses_legacy_observed_soil(config_data) -> bool:
+    """Whether a raw YAML mapping selects observed soil moisture the legacy way.
+
+    Such a YAML cannot be upgraded on its own: its xsmd forcing must be
+    converted with it (``suews convert --forcing``). A modelled YAML with a
+    stale legacy sensor block is not one; the plain upgrade drops that block.
+
+    The selector spelling alone does not decide it, because the legacy names
+    are also accepted aliases of ``soil_moisture``. With an observed selector
+    (any spelling), in order:
+
+    1. legacy evidence anywhere -- a site ``soil_observation`` with legacy
+       keys (``depth``, ``smcap``) or the legacy-only method 2
+       (gravimetric) -> legacy, even when another site (or the same block)
+       also has canonical keys; see :func:`_soil_contract_conflicts`;
+    2. canonical layer bounds (``layer_top``/``layer_depth``) at a site
+       -> current, not legacy;
+    3. otherwise a declared ``schema_version`` decides (older than the
+       first schema with layer bounds -> legacy); without one, a legacy
+       selector spelling -> legacy.
+    """
+    observed = _observed_soil_selectors(config_data)
+    if not observed:
+        return False
+    blocks = [obs for _, obs in _soil_observation_blocks(config_data)]
+    if 2 in observed.values():
+        return True
+    if any(k in obs for obs in blocks for k in _LEGACY_SOIL_OBSERVATION_KEYS):
+        return True
+    if any(k in obs for obs in blocks for k in _CANONICAL_SOIL_OBSERVATION_KEYS):
+        return False
+    if "schema_version" in config_data:
+        return _predates_observed_soil_layers(config_data["schema_version"])
+    return any(key in _LEGACY_SOIL_SELECTORS for key in observed)
+
+
+def _soil_contract_conflicts(config_data) -> list[str]:
+    """Name where an observed-soil YAML mixes the legacy and canonical contracts.
+
+    A conflict is an observed selector with canonical layer bounds at some
+    site together with legacy evidence (legacy ``soil_observation`` keys at
+    any site, or method 2). Neither the loader nor the coordinated converter
+    accepts such a YAML. Returns one entry per offending place; empty when
+    the contracts are not mixed.
+    """
+    observed = _observed_soil_selectors(config_data)
+    if not observed:
+        return []
+    found = []
+    for index, obs in _soil_observation_blocks(config_data):
+        legacy = [k for k in _LEGACY_SOIL_OBSERVATION_KEYS if k in obs]
+        canonical = [k for k in _CANONICAL_SOIL_OBSERVATION_KEYS if k in obs]
+        parts = [
+            f"{label} {', '.join(keys)}"
+            for label, keys in (("legacy", legacy), ("canonical", canonical))
+            if keys
+        ]
+        if parts:
+            found.append(
+                (
+                    bool(legacy),
+                    bool(canonical),
+                    f"sites[{index}].properties.soil_observation: " + "; ".join(parts),
+                )
+            )
+    method2 = [key for key, code in observed.items() if code == 2]
+    has_legacy = bool(method2) or any(legacy for legacy, _, _ in found)
+    has_canonical = any(canonical for _, canonical, _ in found)
+    if not (has_legacy and has_canonical):
+        return []
+    entries = [
+        f"model.physics.{key}: legacy method 2 (gravimetric)" for key in method2
+    ]
+    return entries + [text for _, _, text in found]
+
+
+def _soil_contract_conflict_message(conflicts) -> str:
+    """User message for a YAML that mixes the legacy and canonical soil contracts."""
+    from ...util._forcing import SOIL_CONTRACT_CONFLICT, SOIL_CONVERT_HINT
+
+    return (
+        f"{SOIL_CONTRACT_CONFLICT} Found: {' | '.join(conflicts)}. "
+        "For legacy xsmd forcing, remove layer_top/layer_depth from every site "
+        f"and then: {SOIL_CONVERT_HINT}. For canonical sm forcing, remove the "
+        "legacy depth/smcap keys from every site and select soil_moisture: "
+        "observed (method 1)."
+    )
 
 
 def _prefixed_line_errors(error: ValidationError, prefix: tuple) -> list[dict]:
@@ -428,6 +595,7 @@ class SUEWSConfig(BaseModel):
             if abs(top) > 1e-6:
                 raise ValueError("Observed soil moisture requires a whole-store layer with layer_top zero")
             area = capacity = field_content = 0.0
+            fc_problems = []
             for name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
                 surface = getattr(site.properties.land_cover, name)
                 fraction = float(_unwrap_value(surface.sfr))
@@ -439,14 +607,35 @@ class SUEWSConfig(BaseModel):
                 if d is None or not np.isfinite(d) or d <= 0:
                     raise ValueError(f"{name}: observed soil moisture requires finite positive soil_depth")
                 if abs(depth - d / 1000.0) > 1e-6:
-                    raise ValueError("Observed soil moisture layer_depth must match every positive-area non-water soil_depth")
+                    raise ValueError(
+                        f"Observed soil moisture layer_depth {depth:g} m must match the "
+                        "soil_depth of every non-water surface with positive fraction: "
+                        f"{name}.soil_depth is {d:g} mm ({d / 1000.0:g} m). Set "
+                        f"soil_observation.layer_depth (suews convert --layer-depth) to "
+                        f"{d / 1000.0:g}, or correct soil_depth."
+                    )
                 if c is None or not np.isfinite(c) or c <= 0:
                     raise ValueError(f"{name}: observed soil moisture requires finite positive soil_store_capacity")
                 if fc is None or not np.isfinite(fc) or not 0 < fc <= 1 or fc * d < c:
-                    raise ValueError(f"{name}: soil_field_capacity must be finite in (0, 1] with rho_w theta_fc d >= soil_store_capacity")
+                    # rho_w theta_fc d >= C with d in mm and C in kg m-2 is fc * d >= C.
+                    minimum = math.ceil(c / d * 1e4) / 1e4
+                    state = "missing" if fc is None else f"{fc:g}"
+                    fc_problems.append(
+                        f"{name} ({state}; soil_depth {d:g} mm, soil_store_capacity "
+                        f"{c:g} kg m-2, needs at least {minimum:g})"
+                    )
+                    continue
                 area += fraction
                 capacity += fraction * c
                 field_content += fraction * fc * d
+            if fc_problems:
+                raise ValueError(
+                    "Observed soil moisture requires land_cover.<surface>.soil_field_capacity "
+                    "(volumetric liquid-water content at field capacity, m3 m-3) in (0, 1] on "
+                    "every non-water surface with positive fraction, such that 1000 kg m-3 x "
+                    "soil_field_capacity x soil_depth >= soil_store_capacity. Add or correct it "
+                    "for: " + "; ".join(fc_problems)
+                )
             if area <= 0:
                 raise ValueError("Observed soil moisture requires positive non-water area")
             signatures.append((top, depth, capacity / area, field_content / area))
@@ -4665,7 +4854,9 @@ class SUEWSConfig(BaseModel):
         if has_extra_forbidden:
             error_lines.append("")
             error_lines.append(
-                cls._drift_hint(config_data, had_signature=had_signature)
+                cls._drift_hint(
+                    config_data, had_signature=had_signature, unknown_fields=True
+                )
             )
 
         error_msg = "\n".join(error_lines)
@@ -4696,7 +4887,11 @@ class SUEWSConfig(BaseModel):
 
     @classmethod
     def _drift_hint(
-        cls, config_data: dict, *, had_signature: bool = True
+        cls,
+        config_data: dict,
+        *,
+        had_signature: bool = True,
+        unknown_fields: bool = False,
     ) -> str:
         """Build the actionable hint shown when YAML schema drift is suspected.
 
@@ -4715,11 +4910,29 @@ class SUEWSConfig(BaseModel):
         from ..configuration import CURRENT_SCHEMA_VERSION
         from ..configuration.migration import SchemaMigrator
 
+        # Validation replaces subtrees in place; read the user's raw mapping.
+        raw = config_data.get("_yaml_raw", config_data)
+        soil_conflicts = _soil_contract_conflicts(raw)
+
         if had_signature:
             try:
                 detected = SchemaMigrator().auto_detect_version(config_data)
             except Exception:  # noqa: BLE001 - detection is best-effort
                 detected = "unspecified"
+            if (
+                unknown_fields
+                and not soil_conflicts
+                and str(detected) == CURRENT_SCHEMA_VERSION
+            ):
+                # Converting a current-schema YAML changes nothing; the named
+                # fields are simply not accepted at that location.
+                return (
+                    f"The YAML already declares the current schema version "
+                    f"({CURRENT_SCHEMA_VERSION}), so this is not schema drift: the "
+                    "field(s) named above are not accepted at that location. Remove "
+                    "or move them; see the configuration reference at "
+                    "https://docs.suews.io/stable/inputs/yaml/index.html"
+                )
             detected_line = f"  Detected schema version: {detected}\n"
             upgrade_cmd = "suews-convert -i <old.yml> -o <new.yml>"
         else:
@@ -4729,6 +4942,22 @@ class SUEWSConfig(BaseModel):
             )
             upgrade_cmd = (
                 "suews-convert -i <old.yml> -o <new.yml> -f <release-tag>"
+            )
+
+        if soil_conflicts:
+            # The coordinated converter refuses a mix too; name what to remove.
+            upgrade_cmd = _soil_contract_conflict_message(soil_conflicts) + (
+                " (add -f <release-tag> to the conversion)" if not had_signature else ""
+            )
+        elif _uses_legacy_observed_soil(raw):
+            # A YAML-only upgrade refuses observed soil moisture; the YAML and
+            # its xsmd forcing must be converted together.
+            from ...util._forcing import SOIL_CONVERT_HINT
+
+            upgrade_cmd = (
+                "this YAML uses legacy observed soil moisture. "
+                + SOIL_CONVERT_HINT
+                + (" (add -f <release-tag>)" if not had_signature else "")
             )
 
         return (
@@ -4796,28 +5025,20 @@ class SUEWSConfig(BaseModel):
         )
 
     @classmethod
-    def from_dict(
+    def _prepare_raw_input(
         cls,
         config_data: dict,
-        use_conditional_validation: bool = True,
-        strict: bool = True,
-        auto_generate_annotated: bool = False,
+        *,
         yaml_path: Optional[str] = None,
-    ) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from a configuration dict with validation.
+        auto_generate_annotated: bool = False,
+    ) -> tuple:
+        """Copy a raw YAML mapping and add the loader's bookkeeping keys.
 
-        This is the single validated construction path for dict input
-        (gh#1530); ``from_yaml`` delegates here after reading the file.
-
-        Args:
-            config_data (dict): Configuration data, YAML-shaped.
-            use_conditional_validation (bool): Whether to use conditional validation
-            strict (bool): If True, raise errors on validation failure
-            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
-            yaml_path (str, optional): Source YAML path, when loaded from a file.
-
-        Returns:
-            SUEWSConfig: Validated instance of SUEWSConfig
+        Shared by ``from_dict`` and any caller that must validate exactly as
+        the loader does (the soil-observation converter): the ``_yaml_raw``
+        snapshot gates the site-completeness checks, so validating a mapping
+        without it silently skips them. Returns the prepared copy and whether
+        the input declared ``schema_version``.
         """
         # Work on a copy so the caller's dict is never mutated (validators
         # such as the legacy output_file coercion pop keys in place).
@@ -4857,6 +5078,38 @@ class SUEWSConfig(BaseModel):
             )
             # Set default schema version
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
+
+        return config_data, had_signature
+
+    @classmethod
+    def from_dict(
+        cls,
+        config_data: dict,
+        use_conditional_validation: bool = True,
+        strict: bool = True,
+        auto_generate_annotated: bool = False,
+        yaml_path: Optional[str] = None,
+    ) -> "SUEWSConfig":
+        """Initialize SUEWSConfig from a configuration dict with validation.
+
+        This is the single validated construction path for dict input
+        (gh#1530); ``from_yaml`` delegates here after reading the file.
+
+        Args:
+            config_data (dict): Configuration data, YAML-shaped.
+            use_conditional_validation (bool): Whether to use conditional validation
+            strict (bool): If True, raise errors on validation failure
+            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+            yaml_path (str, optional): Source YAML path, when loaded from a file.
+
+        Returns:
+            SUEWSConfig: Validated instance of SUEWSConfig
+        """
+        config_data, had_signature = cls._prepare_raw_input(
+            config_data,
+            yaml_path=yaml_path,
+            auto_generate_annotated=auto_generate_annotated,
+        )
 
         if use_conditional_validation:
             logger_supy.debug(

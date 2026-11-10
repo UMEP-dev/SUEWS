@@ -111,8 +111,17 @@ except ImportError:
 @click.option("--forcing", type=click.Path(exists=True, dir_okay=False), help="Legacy forcing table for coordinated soil conversion.")
 @click.option("--forcing-output", type=click.Path(dir_okay=False), help="New canonical forcing table.")
 @click.option("--manifest", type=click.Path(dir_okay=False), help="New JSON conversion manifest.")
-@click.option("--source-contract", help="Explicit contract for positional forcing (1.x or 2.0.0).")
-@click.option("--source-unit", type=click.Choice(["m3 m-3", "kg kg-1", "mm", "kg m-2"]), help="Confirmed legacy source unit when method provenance is ambiguous.")
+@click.option("--source-contract", type=click.Choice(["1.0.0", "1.1.0", "1.2.0", "2.0.0"]), help="Forcing contract of a positional (headerless) forcing file; 1.0.0-1.2.0 carry legacy xsmd, 2.0.0 carries sm.")
+@click.option(
+    "--source-unit",
+    type=click.Choice(["m3 m-3", "kg kg-1", "mm", "kg m-2"]),
+    help=(
+        "Confirmed unit of the forcing soil column. Legacy xsmd with the ambiguous "
+        "'observed' selector: 'm3 m-3' (volumetric) or 'kg kg-1' (gravimetric). "
+        "Legacy xsmd with modelled soil moisture: 'm3 m-3', 'kg kg-1' or 'mm'. "
+        "Canonical sm: 'kg m-2' only."
+    ),
+)
 @click.option("--layer-top", type=float, help="Confirmed represented layer top in m (explicit 0 for the whole store).")
 @click.option("--layer-depth", type=float, help="Confirmed represented layer thickness in m.")
 @click.option("--legacy-depth-is-thickness", is_flag=True, help="Confirm old depth describes layer thickness.")
@@ -168,6 +177,29 @@ def convert_table_cmd(  # noqa: PLR0912, PLR0915
                 started_at=started_at,
                 data={"input": input_file, "output": output_file},
                 exit_code=2,
+            )
+        soil_options = (
+            forcing, forcing_output, manifest, source_contract, source_unit,
+            layer_top, layer_depth,
+        )
+        if (
+            any(x is not None for x in soil_options)
+            or legacy_depth_is_thickness
+            or drop_legacy
+            or dry_run
+        ):
+            # A partial coordinated command is a usage error, not a help request.
+            missing = " and ".join(
+                flag
+                for flag, value in (("-i/--input", input_file), ("-o/--output", output_file))
+                if value is None
+            )
+            raise click.UsageError(
+                f"Missing {missing}: coordinated soil conversion converts the YAML "
+                "configuration together with its forcing, e.g. 'suews convert -i "
+                "config.yml -o new/config.yml --forcing forcing.txt --forcing-output "
+                "new/forcing.txt --manifest new/conversion.json --layer-top 0 "
+                "--layer-depth <metres>'."
             )
         click.echo(ctx.get_help())
         sys.exit(0 if (input_file is None and output_file is None) else 2)

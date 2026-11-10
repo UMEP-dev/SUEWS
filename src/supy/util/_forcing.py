@@ -18,9 +18,14 @@ SOIL_CONVERT_HINT = (
     "--manifest new/conversion.json --layer-top 0 --layer-depth <metres> "
     f"--dry-run'; see {UNITS_MIGRATION_GUIDE}"
 )
+SOIL_CONTRACT_CONFLICT = (
+    "Both legacy and canonical soil-moisture inputs were supplied; select one "
+    "contract before conversion."
+)
 LEGACY_SOIL_MESSAGE = (
-    "Legacy soil-moisture input requires explicit migration; xsmd and "
-    f"SMDMethod=2 are not canonical sm inputs. {SOIL_CONVERT_HINT}"
+    "Legacy soil-moisture input requires explicit migration; legacy xsmd "
+    "forcing and the legacy observed soil-moisture methods are not canonical "
+    f"sm inputs. {SOIL_CONVERT_HINT}"
 )
 
 

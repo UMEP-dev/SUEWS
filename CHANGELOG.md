@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Nov 2026
+
+- [doc] Describe `snowpack_limit` as the snow depletion threshold: the snow water equivalent at and above which a surface is fully snow covered, below which the snow-covered fraction follows the depletion curve; it does not cap the snowpack and is not used for the water surface. No behaviour, default or schema field changes (#2020)
+
 ### 9 Nov 2026
 
 - [doc] Describe the Hourly Profile format in the configuration reference: the working-day and holiday sets, hour keys "1" to "24" from 00:00 with all 24 required, the uniform 1/24 default, and the fields that use it; give `wuprofa_24hr` and `wuprofm_24hr` the descriptions they lacked (#1950, #2017)

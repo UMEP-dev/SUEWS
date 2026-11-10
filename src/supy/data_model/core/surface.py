@@ -302,8 +302,12 @@ class SurfaceProperties(BaseModel):
     )
     snowpack_limit: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
-        description="Limit of snow that can be held on surface",
-        json_schema_extra={"unit": "mm", "display_name": "Snow Pack Limit"},
+        description=(
+            "Snow water equivalent at and above which the surface is fully snow "
+            "covered; below it the snow-covered fraction follows the snow depletion "
+            "curve. It does not cap the snowpack. Not used for the water surface."
+        ),
+        json_schema_extra={"unit": "mm", "display_name": "Snow Depletion Threshold"},
     )
     thermal_layers: ThermalLayers = Field(
         default_factory=ThermalLayers,

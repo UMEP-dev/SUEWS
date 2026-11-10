@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 10 Nov 2026
 
-- [doc] Describe `g_max` (legacy `G1`) as what the surface conductance formula uses it for: a fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (`max_conductance`), not a conductance in mm s-1. The data-model description, unit and display name, the legacy input tables, the `df_state` page, the Fortran comments and the labels supy prints for a missing or annotated `g_max` now say so; no field, type, default or model behaviour changes
+- [doc] Describe `g_max` (legacy `G1`) as what the surface conductance formula uses it for: a fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (`max_conductance`), not a conductance in mm s-1. The data-model description, unit and display name, the legacy input tables, the `df_state` page, the Fortran comments and the labels supy prints for a missing or annotated `g_max` now say so; no field, type, default or model behaviour changes (#2027)
 
 ### 9 Nov 2026
 

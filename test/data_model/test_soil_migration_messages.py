@@ -290,3 +290,48 @@ def test_drift_hint_for_mixed_soil_contracts_names_the_conflict(case):
         assert entry in message
     assert "suews-convert -i <old.yml> -o <new.yml>" not in message
     assert "this YAML uses legacy observed soil moisture" not in message
+
+
+def _phase_a_with_forcing(tmp_path, yaml_name):
+    """Run Phase A with forcing checks on a fixture YAML and the legacy xsmd file."""
+    import re
+    import shutil
+
+    for item in FIXTURES.iterdir():
+        shutil.copy(item, tmp_path / item.name)
+    shutil.copy(tmp_path / "legacy_method1.txt", tmp_path / "forcing.txt")
+    user = tmp_path / yaml_name
+    user.write_text(
+        re.sub(r"value: \S+\.txt", "value: forcing.txt", user.read_text(encoding="utf-8"), count=1),
+        encoding="utf-8",
+    )
+    report = tmp_path / "report.txt"
+    with as_file(SAMPLE) as standard, warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        annotate_missing_parameters(
+            user_file=str(user),
+            standard_file=str(standard),
+            uptodate_file=str(tmp_path / "updated.yml"),
+            report_file=str(report),
+            mode="public",
+            forcing="on",
+        )
+    return report.read_text(encoding="utf-8")
+
+
+def test_legacy_yaml_and_xsmd_forcing_report_the_convert_hint_once(tmp_path):
+    from supy.util._forcing import SOIL_CONVERT_HINT, UNITS_MIGRATION_GUIDE
+
+    report = _phase_a_with_forcing(tmp_path, "legacy_method1.yml")
+    assert "Legacy observed soil moisture" in report
+    assert "legacy xsmd forcing and the legacy observed soil-moisture methods" in report
+    assert report.count(SOIL_CONVERT_HINT) == 1
+    assert report.count(UNITS_MIGRATION_GUIDE) == 1
+
+
+def test_xsmd_forcing_alone_keeps_its_convert_hint(tmp_path):
+    from supy.util._forcing import SOIL_CONVERT_HINT
+
+    report = _phase_a_with_forcing(tmp_path, "canonical.yml")
+    assert "Legacy observed soil moisture" not in report
+    assert report.count(SOIL_CONVERT_HINT) == 1

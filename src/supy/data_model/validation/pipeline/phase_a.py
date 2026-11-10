@@ -1740,6 +1740,23 @@ def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> li
     ]
 
 
+def _drop_repeated_convert_hint(migration_errors: list, forcing_errors: list) -> list:
+    """Keep the soil convert hint once per report.
+
+    A legacy observed-soil YAML is reported with the coordinated convert
+    command, and reading its xsmd forcing fails with a message that ends with
+    the same command; the forcing line keeps its cause and drops the repeat.
+    """
+    from ....util._forcing import SOIL_CONVERT_HINT
+
+    if not any(SOIL_CONVERT_HINT in message for message in migration_errors):
+        return forcing_errors
+    return [
+        message.replace(f" {SOIL_CONVERT_HINT}", "").replace(SOIL_CONVERT_HINT, "")
+        for message in forcing_errors
+    ]
+
+
 def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
     """
     Validate forcing data file(s) referenced in the user YAML configuration.
@@ -2378,6 +2395,7 @@ def annotate_missing_parameters(
             migration_errors.append(_soil_contract_conflict_message(soil_conflicts))
         else:
             migration_errors.append(f"{LEGACY_OBSERVED_SOIL_MESSAGE} {SOIL_CONVERT_HINT}")
+    forcing_errors = _drop_repeated_convert_hint(migration_errors, forcing_errors)
 
     # Generate content for both files
     if (

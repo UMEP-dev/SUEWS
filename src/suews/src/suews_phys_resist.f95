@@ -80,8 +80,6 @@ CONTAINS
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
       REAL(KIND(1D0)) :: wind_eff ! wind speed with the free-convection velocity added [m s-1]
-      REAL(KIND(1D0)) :: ustar_eff ! UStar scaled by wind_eff/AVU1_use [m s-1]
-      REAL(KIND(1D0)) :: ustar_int ! interfacial velocity scale [m s-1]
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
@@ -111,18 +109,14 @@ CONTAINS
             ! RA = AVU1/UStar**2
             IF (ZZD/L_mod < 0 .AND. w_f > 0) THEN
                ! Free convection (unstable only). Light mean wind understates the
-               ! exchange that convective eddies keep up, so the momentum and
-               ! stability parts of RA use wind_eff = SQRT(U**2 + w_f**2), and the
-               ! interfacial part ln(z0m/z0V)/(k u*) uses
-               ! ustar_int = SQRT(ustar_eff**2 + w_f**2) with ustar_eff = u* wind_eff/U.
-               ! z0V (Kawai kB-1) keeps the original UStar, and UStar itself is
-               ! unchanged for the rest of the model.
+               ! exchange that convective eddies keep up, so RA uses the effective
+               ! wind wind_eff = SQRT(U**2 + w_f**2) in place of U. Every part of
+               ! RA scales alike: the interfacial part ln(z0m/z0V)/(k u*) takes
+               ! u* wind_eff/U, with no further w_f added to u*. z0V (Kawai kB-1)
+               ! keeps the original UStar, and UStar itself is unchanged for the
+               ! rest of the model.
                wind_eff = SQRT(AVU1_use**2 + w_f**2)
-               ustar_eff = UStar*wind_eff/AVU1_use
-               ustar_int = SQRT(ustar_eff**2 + w_f**2)
-               RA_h = RA_h*AVU1_use/wind_eff - &
-                      LOG(z0m/z0V)*(LOG(ZZD/z0m) - psim)/(K2*AVU1_use)* &
-                      (AVU1_use/wind_eff - UStar/ustar_int)
+               RA_h = RA_h*AVU1_use/wind_eff
             END IF
          END IF
 

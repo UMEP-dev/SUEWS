@@ -1,10 +1,9 @@
 """Free-convection velocity in the aerodynamic resistance.
 
 On the unstable branch, r_a uses a free-convection velocity
-w_f = (g/T H zzd)**(1/3) from the pass heat flux: the momentum and stability
-parts use the effective wind U_e = sqrt(U**2 + w_f**2), and the interfacial
-part ln(z0m/z0v)/(k u*) uses u*_I = sqrt(u*_e**2 + w_f**2) with
-u*_e = u* U_e/U. Stable and neutral steps are unchanged, and u* passed to the
+w_f = (g/T H zzd)**(1/3) from the pass heat flux: the effective wind
+U_e = sqrt(U**2 + w_f**2) replaces U, so every part of r_a, the interfacial
+part ln(z0m/z0v)/(k u*) included, scales by U/U_e. Stable and neutral steps are unchanged, and u* passed to the
 rest of the model is unchanged. Between outer passes w_f is under-relaxed with
 the (z-d)/L schedule. The previous pass's value is a local of the timestep
 call that owns the outer loop, reset to zero at the start of every timestep:
@@ -197,18 +196,12 @@ def test_free_convection_term_follows_its_equation(probe, method):
     # ACT
     out = probe(3, rows)
 
-    # ASSERT: momentum and stability parts scale by U/U_e, the interfacial
-    # part by u*/u*_I, and z0v keeps the original u*
+    # ASSERT: the whole resistance scales by U/U_e, and z0v keeps the
+    # original u*
     wind = rows[:, 2].astype(float)
-    ustar = rows[:, 4].astype(float)
     w_f = rows[:, 5].astype(float)
-    z0v, psim = out[:, 1], out[:, 2]
     wind_eff = np.sqrt(wind**2 + w_f**2)
-    ustar_int = np.sqrt((ustar * wind_eff / wind) ** 2 + w_f**2)
-    interfacial = np.log(Z0M / z0v) * (np.log(ZZD / Z0M) - psim) / (K2 * wind)
-    expected = _pr_resistance(rows, out) * wind / wind_eff - interfacial * (
-        wind / wind_eff - ustar / ustar_int
-    )
+    expected = _pr_resistance(rows, out) * wind / wind_eff
     np.testing.assert_allclose(
         out[:, 0], np.maximum(expected, RA_FLOOR), rtol=ROUNDOFF_RTOL, atol=0
     )

@@ -50,8 +50,8 @@ The velocity scale is
    w_f = \left(\frac{g}{T_a}\,H\,(z-d)\right)^{1/3}, \qquad H = \frac{Q_H}{\rho c_p},
 
 with :math:`Q_H` the sensible heat flux of the current pass and :math:`w_f = 0` when :math:`Q_H \leq 0`.
-The momentum and stability parts of :math:`r_a` use the effective wind :math:`U_e = \sqrt{U^2 + w_f^2}` in place of :math:`U`.
-The interfacial part, :math:`\ln(z_{0m}/z_{0v})/(k u_*)`, uses :math:`u_{*I} = \sqrt{u_{*e}^2 + w_f^2}` in place of :math:`u_*`, with :math:`u_{*e} = u_* U_e/U`.
+The resistance uses the effective wind :math:`U_e = \sqrt{U^2 + w_f^2}` in place of :math:`U`, so :math:`r_a` is the expression above multiplied by :math:`U/U_e`.
+The interfacial part, :math:`\ln(z_{0m}/z_{0v})/(k u_*)`, scales the same way, through :math:`u_* U_e/U`; no further convective velocity is added to :math:`u_*`.
 The roughness length for heat, :math:`z_{0v}`, keeps the original :math:`u_*`, and the friction velocity used elsewhere in the model is unchanged.
 Stable and neutral steps are unchanged, and with :math:`w_f = 0` the resistance is the expression above.
 Because :math:`w_f` responds to :math:`Q_H^{1/3}`, whose slope is unbounded as :math:`Q_H` approaches zero from above, feeding it straight back can make the outer iteration alternate across :math:`Q_H = 0`.

@@ -1320,3 +1320,46 @@ def test_validate_sample_period_is_covered(tmp_path: Path) -> None:
     report = _validate_sample_with_bounds(tmp_path, "2012-01-01", "2012-12-31")
     messages = _issue_messages(report)
     assert not any("does not cover" in message for message in messages), messages
+
+
+# Fields whose model rejects ``{value: null}`` (gh#2001). Omitting one gives
+# its default, so the default pipeline must accept the omission and must not
+# write a null placeholder for it into the updated YAML. The last case drops
+# the whole parent block, which Phase A fills in field by field.
+_NULL_REJECTING_OMISSIONS = [
+    (("properties", "land_cover", "water"), "flowchange"),
+    (("initial_states", "evetr"), "sdd_id"),
+    (("initial_states",), "evetr"),
+]
+
+
+@pytest.mark.parametrize(("path", "key"), _NULL_REJECTING_OMISSIONS)
+def test_validate_accepts_omitted_null_rejecting_field(
+    tmp_path: Path, path: tuple, key: str
+) -> None:
+    """Omitting a null-rejecting field passes ``suews validate`` (gh#2001)."""
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.core import SUEWSConfig
+
+    data = _load_sample_dict()
+    block = data["sites"][0]
+    for part in path:
+        block = block[part]
+    del block[key]
+    config_path = tmp_path / "myconfig.yml"
+    _write_yaml(config_path, data)
+
+    result = CliRunner().invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    updated = tmp_path / "updated_myconfig.yml"
+    assert updated.exists(), result.output
+    text = updated.read_text(encoding="utf-8")
+    SUEWSConfig.from_yaml(str(updated))
+    reloaded = yaml.safe_load(text)["sites"][0]
+    for part in path:
+        reloaded = reloaded[part]
+    if key == "evetr":
+        assert "sdd_id" not in reloaded["evetr"], reloaded["evetr"]
+    else:
+        assert key not in reloaded, reloaded

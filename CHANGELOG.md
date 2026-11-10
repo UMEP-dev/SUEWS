@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 10 Nov 2026
 
-- [bugfix] The Rust YAML loader now puts `store_max` and `store_cap` from `storage_drain_params` in the rows the kernel expects (row 5 and row 6), so the kernel takes a surface's current storage capacity from `store_cap` instead of `store_max`; results change only where `store_max` differs from `store_cap` on a surface that uses `drain_eq` 1, or under storage heat method 3, method 5 with building facets (buildings surface), or `evapmethod` 1 (#2018)
+- [bugfix] The Rust YAML loader now puts `store_max` and `store_cap` from `storage_drain_params` in the rows the kernel expects (row 5 and row 6), so the kernel takes a surface's current storage capacity from `store_cap` instead of `store_max`; results change only where `store_max` differs from `store_cap` on a surface that uses `drain_eq` 1, or under storage heat method 3, method 5 with building facets (buildings surface), or `evapmethod` 1. `store_cap` now defaults to `store_max` in the data model when a configuration does not give it, so such configurations keep the capacity they ran with before; the `store_min`, `store_max` and `store_cap` descriptions say which of them the model reads (#2018)
 
 ### 9 Nov 2026
 

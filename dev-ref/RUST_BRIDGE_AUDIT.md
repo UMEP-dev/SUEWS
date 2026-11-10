@@ -10,6 +10,11 @@ to the current implementation. Issue and PR references below describe the
 reviewed snapshot, not their future merge status. A proposed fix is not evidence
 that this revision is fixed.
 
+Since this baseline, #1997, #1998, #1999 and #2000 have been closed by #1992 to #1995,
+and #2004 by #2009; the findings below describe the baseline, not current master.
+If the documentation branch is deleted, the baseline is recoverable from its base
+commit `1726870a66662abdf444463130d1dcd79d66381f` on master.
+
 ## Method and limits
 
 Inspected the module families in the [design map](RUST_BRIDGE_DESIGN.md), the

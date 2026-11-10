@@ -1,3 +1,9 @@
+//! Dimension-bearing output block codec. Field order, dimensions and element
+//! order must match the corresponding C-API facade; matching total lengths is
+//! insufficient. This payload codec is separate from the direct-output matrix
+//! view in `sim`, which additionally carries a leading dimension and lifetime.
+//! Neither representation owns physical variable names or unit policy.
+
 use crate::codec::{
     dims_element_count, require_field_dims, validate_flat_len, PayloadDims, ValuesPayloadWithDims,
 };

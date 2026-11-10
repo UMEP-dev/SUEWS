@@ -267,12 +267,7 @@ def _strip_internal_fields(data, model_cls):
     if not isinstance(data, dict) or not hasattr(model_cls, "model_fields"):
         return
 
-    keys_to_remove = [
-        name
-        for name, info in model_cls.model_computed_fields.items()
-        if isinstance(info.json_schema_extra, dict)
-        and info.json_schema_extra.get("internal_only")
-    ]
+    keys_to_remove = []
 
     for field_name, field_info in model_cls.model_fields.items():
         extra = field_info.json_schema_extra
@@ -5126,8 +5121,11 @@ class SUEWSConfig(BaseModel):
             If True, preserve internal-only fields for lossless round-tripping.
             Set to False to produce a clean user-facing YAML export.
         """
-        # Use mode='json' to serialize enums as their values
-        config_dict = self.model_dump(exclude_none=True, mode="json")
+        # Use mode='json' to serialize enums as their values. round_trip
+        # leaves out computed fields (stebbs.deep_soil_temperature): they are
+        # derived, so a stale copy in the YAML would fail the next load once
+        # its source changed (gh#2001).
+        config_dict = self.model_dump(exclude_none=True, mode="json", round_trip=True)
 
         # An explicit null forcing file means "forcing supplied at runtime"
         # (gh#1722). exclude_none would drop it, and reloading would then

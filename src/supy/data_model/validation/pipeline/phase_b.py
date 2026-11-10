@@ -1441,6 +1441,9 @@ def adjust_model_dependent_nullification(
                     return False
 
                 nullified_params: List[str] = []
+                from ...core.site import ArchetypeProperties
+
+                bridge_only = ArchetypeProperties._BRIDGE_ONLY_FIELDS
 
                 def _recursive_nullify(node: Any, path: str):
                     if isinstance(node, dict):
@@ -1458,10 +1461,7 @@ def adjust_model_dependent_nullification(
                             for key, val in node.items():
                                 # These internal bridge descriptors remain wired
                                 # through even when STEBBS is disabled (#2001).
-                                if path == "building_archetype" and key in {
-                                    "hhs0", "age_0_4", "age_5_11", "age_12_18",
-                                    "age_19_64", "age_65plus",
-                                }:
+                                if path == "building_archetype" and key in bridge_only:
                                     continue
                                 child_path = f"{path}.{key}" if path else key
                                 if isinstance(val, (dict, list)):

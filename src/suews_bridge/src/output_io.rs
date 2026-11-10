@@ -1,3 +1,9 @@
+//! Optional Arrow file output for the standalone engine, adjacent to the bridge
+//! transport core. Group widths come from generated metadata; the SUEWS names
+//! below are still hand-maintained and other groups use indexed names. Width
+//! agreement alone does not establish parity with Python's output registry.
+//! This writer serialises existing results and must not reinterpret the science.
+
 use crate::sim::{OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT, OUTPUT_SUEWS_COLS};
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -53,7 +59,7 @@ const SUEWS_OUTPUT_NAMES: [&str; 118] = [
     "QS_Paved", "QS_Bldgs", "QS_EveTr", "QS_DecTr", "QS_Grass", "QS_BSoil", "QS_Water",
 ];
 
-/// Build column names for the full 1134-column flat buffer.
+/// Build column names for the full combined output buffer.
 ///
 /// The SUEWS group uses proper variable names from [`SUEWS_OUTPUT_NAMES`].
 /// Other groups use `{group}_{idx}` where `idx` is zero-based.

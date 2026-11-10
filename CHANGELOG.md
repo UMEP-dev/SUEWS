@@ -66,6 +66,8 @@ EXAMPLES:
 - [doc] Distinguish the resolved-input caller contract from pending engine-boundary enforcement and legacy fallbacks (#1991, #2009)
 - [doc] State where YAML is resolved: `suews run` validates a configuration through the data model and hands the engine a resolved configuration, while the bundled `suews-engine` binary is a developer and test tool that expects resolved YAML; the engine's help and its config errors now point to `suews run` (#2004)
 - [maintenance] `make bridge` now builds the engine with its `run` command, and the sample-output check feeds the engine the resolved configuration `suews run` would send, through a shared `config_to_engine_yaml` helper (#2004)
+- [maintenance] Define shared Rust bridge responsibility and audit rules, connect them to agent instructions and PR review, and record the current boundary audit with existing follow-ups (#1989, #1991)
+- [doc] Add the Rust bridge design and data-flow guide, refresh the crate overview, and clarify source comments and the distinction between model defaults and representation initialisers (#1989)
 - [doc] Correct the bridge parameter guide to enumerate actual nested land-cover parents before updating layouts and schema versions (#1996)
 
 ### 5 Nov 2026

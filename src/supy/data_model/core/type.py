@@ -269,6 +269,29 @@ def reject_null_value(value, field_name: str):
     return value
 
 
+# Names of the fields whose validators reject ``{value: null}``, filled in by
+# ``null_rejecting_validator`` as the models are defined. The validation
+# pipeline reads it so that it never writes a null placeholder for one of
+# them: omitting such a field already gives its default (gh#2001).
+NULL_REJECTED_FIELDS: set = set()
+
+
+def null_rejecting_validator(field_name: str):
+    """Return a validator that rejects ``{value: null}`` on ``field_name``.
+
+    Assign the result in the model body, e.g.
+    ``_sdd_id_not_null = null_rejecting_validator("sdd_id")``. The field is
+    recorded in ``NULL_REJECTED_FIELDS``.
+    """
+    NULL_REJECTED_FIELDS.add(field_name)
+
+    def _reject(cls, v):
+        return reject_null_value(v, field_name)
+
+    _reject.__name__ = f"_{field_name}_not_null"
+    return field_validator(field_name, mode="after")(_reject)
+
+
 def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(

@@ -15,7 +15,7 @@ from .type import (
     Reference,
     FlexibleRefValue,
     df_from_cols,
-    reject_null_value,
+    null_rejecting_validator,
 )
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
 from ..._env import logger_supy
@@ -1067,10 +1067,7 @@ class WaterProperties(NonVegetatedSurfaceProperties):
         json_schema_extra={"unit": "mm h^-1", "display_name": "Flow Change"},
     )
 
-    @field_validator("flowchange", mode="after")
-    @classmethod
-    def _flowchange_not_null(cls, v):
-        return reject_null_value(v, "flowchange")
+    _flowchange_not_null = null_rejecting_validator("flowchange")
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert water surface properties to DataFrame state format."""

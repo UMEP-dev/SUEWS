@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Nov 2026
+
+- [doc] Correct the `AnthropogenicHeat` field descriptions and units to match the code: `ah_min` is the daily-mean base (temperature-independent) QF of the L11 and L11_UPDATED heat bases, scaled by the normalised `ahprof_24hr`, and not a lower bound; `qf0_beu` is the dimensionless building fraction of the base QF; `qf_a`, `qf_b` and `qf_c` are per unit population density, with `qf_b` the cooling and `qf_c` the heating coefficient; `ah_slope_heating`, `ah_slope_cooling` and the two base temperatures say which method codes read them and that L11_UPDATED acts on a running mean of daily mean air temperature over about five days, as does the L11_UPDATED entry of the emissions method list. The legacy table text, `df_state` reference and Fortran comments are aligned. No behaviour, default or schema field changes (#2019)
+
 ### 9 Nov 2026
 
 - [doc] Describe the Hourly Profile format in the configuration reference: the working-day and holiday sets, hour keys "1" to "24" from 00:00 with all 24 required, the uniform 1/24 default, and the fields that use it; give `wuprofa_24hr` and `wuprofm_24hr` the descriptions they lacked (#1950, #2017)

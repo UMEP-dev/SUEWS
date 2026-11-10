@@ -82,7 +82,7 @@ Input Options
 .. option:: AHMin_WD
 
 	:Description:
-		Minimum QF on weekdays [W |m^-2|]
+		Base (temperature-independent) QF on weekdays as a daily mean scaled by the normalised AH profile; not a lower bound [W |m^-2|]
 
 	:Configuration:
 		.. csv-table::
@@ -95,7 +95,7 @@ Input Options
 .. option:: AHMin_WE
 
 	:Description:
-		Minimum QF on weekends [W |m^-2|]
+		Base (temperature-independent) QF on weekends as a daily mean scaled by the normalised AH profile; not a lower bound [W |m^-2|]
 
 	:Configuration:
 		.. csv-table::

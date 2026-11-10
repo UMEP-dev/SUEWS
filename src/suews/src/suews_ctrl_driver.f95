@@ -1288,9 +1288,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(2) :: PopDensDaytime ! Daytime population density [people ha-1] (i.e. workers)
 
       REAL(KIND(1D0)), DIMENSION(2) :: QF0_BEU ! Fraction of base value coming from buildings [-]
-      REAL(KIND(1D0)), DIMENSION(2) :: Qf_A ! Base value for QF [W m-2]
-      REAL(KIND(1D0)), DIMENSION(2) :: Qf_B ! Parameter related to heating degree days [W m-2 K-1 (Cap ha-1 )-1]
-      REAL(KIND(1D0)), DIMENSION(2) :: Qf_C ! Parameter related to cooling degree days [W m-2 K-1 (Cap ha-1 )-1]
+      REAL(KIND(1D0)), DIMENSION(2) :: Qf_A ! Base value for QF per unit population density [W m-2 (Cap ha-1)-1]
+      REAL(KIND(1D0)), DIMENSION(2) :: Qf_B ! Parameter related to cooling degree days [W m-2 K-1 (Cap ha-1 )-1]
+      REAL(KIND(1D0)), DIMENSION(2) :: Qf_C ! Parameter related to heating degree days [W m-2 K-1 (Cap ha-1 )-1]
 
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating ! base temperatrue for heating degree day [degC]
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Cooling ! base temperature for cooling degree day [degC]
@@ -4895,15 +4895,15 @@ CONTAINS
       INTEGER, INTENT(IN) :: startDLS !start of daylight saving  [DOY]
       INTEGER, INTENT(IN) :: endDLS !end of daylight saving [DOY]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: QF0_BEU ! Fraction of base value coming from buildings [-]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: Qf_A ! Base value for QF [W m-2]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: Qf_B ! Parameter related to heating degree days [W m-2 K-1 (Cap ha-1 )-1]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: Qf_C ! Parameter related to cooling degree days [W m-2 K-1 (Cap ha-1 )-1]
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: Qf_A ! Base value for QF per unit population density [W m-2 (Cap ha-1)-1]
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: Qf_B ! Parameter related to cooling degree days [W m-2 K-1 (Cap ha-1 )-1]
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: Qf_C ! Parameter related to heating degree days [W m-2 K-1 (Cap ha-1 )-1]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Cooling ! base temperature for cooling degree day [degC]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Heating ! base temperatrue for heating degree day [degC]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: PopDensDaytime ! Daytime population density [people ha-1] (i.e. workers)
       REAL(KIND(1D0)), INTENT(IN) :: PopDensNighttime ! nighttime population density (i.e. residents) [ha-1]
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(IN) :: PopProf_24hr !Hourly profile values used in dynamic population estimation[-]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: AH_MIN ! [x] minimum QF values [W m-2]
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: AH_MIN ! [x] base (temperature-independent) QF, daily mean, L11 methods [W m-2]
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(IN) :: AHProf_24hr ! [x] Hourly profile values used in energy use calculation [-]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: AH_SLOPE_Cooling ! [x] cooling slope for the anthropogenic heat flux calculation [W m-2 K-1]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: AH_SLOPE_Heating ! [x] heating slope for the anthropogenic heat flux calculation [W m-2 K-1]

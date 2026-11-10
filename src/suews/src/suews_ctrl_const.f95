@@ -1285,7 +1285,7 @@ MODULE module_ctrl_const_datain
                       zenith_deg !Sun zenith angle in degrees
 
    REAL(KIND(1D0)), DIMENSION(2) :: Qf_A, Qf_B, Qf_C, & !Qf coefficients
-                                    AH_MIN, & !Minimum anthropogenic heat flux (AnthropHeatMethod = 1)
+                                    AH_MIN, & !Base (temperature-independent) anthropogenic heat flux, daily mean, L11 methods
                                     AH_SLOPE_Heating, & !Slope of the antrhropogenic heat flux calculation (AnthropHeatMethod = 1)
                                     AH_SLOPE_Cooling, &
                                     FcEF_v_kgkm, &

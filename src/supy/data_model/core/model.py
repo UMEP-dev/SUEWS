@@ -99,7 +99,7 @@ class EmissionsMethod(Enum):
     0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)
     1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density
     2: J11 - Järvi et al. (2011) SAHP_2 method with heating/cooling degree days
-    3: L11_UPDATED - Modified Loridan method using daily mean air temperature
+    3: L11_UPDATED - Modified Loridan method using a running mean of daily mean air temperature (about five days)
     4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes
     5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes
     6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes

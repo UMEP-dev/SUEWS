@@ -203,39 +203,64 @@ class AnthropogenicHeat(
     # - test/fixtures/benchmark1/benchmark1.yml (Ward et al. 2016 benchmark setup)
     # - docs/source/inputs/tables/SUEWS_SiteInfo/sample-table/SUEWS_AnthropogenicEmission.txt
     qf0_beu: DayProfile = Field(
-        description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
-        default_factory=DayProfile,
-        json_schema_extra={"unit": "W m^-2", "display_name": "Base Energy Use QF"},
-    )
-    qf_a: DayProfile = Field(
-        description="Coefficient a for anthropogenic heat flux calculation",
+        description=(
+            "Fraction of the temperature-independent (base) anthropogenic heat flux "
+            "that comes from building energy use. Used to separate the building "
+            "share of heat and CO2 emissions. In the methods with codes ending in "
+            "1, 2 or 3 the rest of the base flux, less human metabolism, is "
+            "attributed to traffic."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "dimensionless",
+            "display_name": "Building Fraction of Base QF",
+        },
+    )
+    qf_a: DayProfile = Field(
+        description=(
+            "Temperature-independent (base) anthropogenic heat flux per unit "
+            "population density in the J11 heat basis (method codes ending in 2 or 5)."
+        ),
+        default_factory=DayProfile,
+        json_schema_extra={
+            "unit": "W m^-2 ha cap^-1",
             "display_name": "QF Coefficient A",
             "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
         },
     )
     qf_b: DayProfile = Field(
-        description="Coefficient b for anthropogenic heat flux calculation",
+        description=(
+            "Cooling coefficient in the J11 heat basis (method codes ending in 2 "
+            "or 5): anthropogenic heat flux per cooling degree day and per unit "
+            "population density."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "W m^-2 K^-1 ha cap^-1",
             "display_name": "QF Coefficient B",
             "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
         },
     )
     qf_c: DayProfile = Field(
-        description="Coefficient c for anthropogenic heat flux calculation",
+        description=(
+            "Heating coefficient in the J11 heat basis (method codes ending in 2 "
+            "or 5): anthropogenic heat flux per heating degree day and per unit "
+            "population density."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "W m^-2 K^-1 ha cap^-1",
             "display_name": "QF Coefficient C",
             "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
         },
     )
     baset_cooling: DayProfile = Field(
-        description="Base temperature for cooling degree days",
+        description=(
+            "Base temperature for cooling degree days. In the L11_UPDATED heat "
+            "basis (method codes ending in 3 or 6) it is also the critical "
+            "temperature above which the cooling term applies, compared with a "
+            "running mean of daily mean air temperature over about five days."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "degC",
@@ -244,7 +269,11 @@ class AnthropogenicHeat(
         },
     )
     baset_heating: DayProfile = Field(
-        description="Base temperature for heating degree days",
+        description=(
+            "Base temperature for heating degree days. In the L11 and L11_UPDATED "
+            "heat bases (method codes ending in 1, 3, 4 or 6) it is also the "
+            "critical air temperature below which the heating term applies."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "degC",
@@ -253,16 +282,30 @@ class AnthropogenicHeat(
         },
     )
     ah_min: DayProfile = Field(
-        description="Minimum anthropogenic heat flux",
+        description=(
+            "Temperature-independent (base) anthropogenic heat flux in the L11 and "
+            "L11_UPDATED heat bases (method codes ending in 1, 3, 4 or 6), as a "
+            "daily mean and not a lower bound: at each timestep it is multiplied by "
+            "ahprof_24hr normalised to a mean of 1, so the modelled base term is "
+            "above this value at some hours and below it at others. In the detailed "
+            "methods (codes ending in 4 or 6) the building heat flux is rescaled by "
+            "the population profile instead. Not used by the J11 heat basis (codes "
+            "ending in 2 or 5)."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "W m^-2",
-            "display_name": "Minimum Anthropogenic Heat",
+            "display_name": "Base Anthropogenic Heat (L11)",
             "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     ah_slope_cooling: DayProfile = Field(
-        description="Slope of anthropogenic heat vs cooling degree days",
+        description=(
+            "Increase in anthropogenic heat flux per degree by which a running mean "
+            "of daily mean air temperature (about five days) exceeds baset_cooling. "
+            "Used only by the L11_UPDATED heat basis (method codes ending in 3 or "
+            "6); scaled by the normalised ahprof_24hr."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "W m^-2 K^-1",
@@ -271,7 +314,13 @@ class AnthropogenicHeat(
         },
     )
     ah_slope_heating: DayProfile = Field(
-        description="Slope of anthropogenic heat vs heating degree days",
+        description=(
+            "Increase in anthropogenic heat flux per degree of air temperature below "
+            "baset_heating: instantaneous air temperature in the L11 heat basis "
+            "(method codes ending in 1 or 4), a running mean of daily mean air "
+            "temperature over about five days in L11_UPDATED (codes ending in 3 or "
+            "6). Scaled by the normalised ahprof_24hr."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "W m^-2 K^-1",

@@ -3738,7 +3738,7 @@ class SUEWSConfig(BaseModel):
             from ..validation.core.utils import check_missing_params
 
             critical_params = {
-                    "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+                "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
                 "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
                 "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
             }

@@ -2133,14 +2133,19 @@ def add_veg_init_df(df_init):
     # get gdd_0 and sdd_0
     veg_sfr = df_init["sfr_surf"].iloc[:, 2:5].T
     veg_sfr = veg_sfr.reset_index(drop=True).T
+    # A site with no vegetation has nothing to grow or senesce: start both
+    # degree-day counters at 0 rather than the NaN of the 0/0 weighted mean,
+    # which reached the YAML as `sdd_id: null` (gh#2001).
+    veg_sfr_sum = veg_sfr.sum(axis=1)
+    has_veg = veg_sfr_sum > 0
     # gdd_0:
     x_gddfull = df_init["gddfull"].T.reset_index(drop=True).T
-    df_init[("gdd_0", "0")] = (veg_sfr * x_gddfull).sum(axis=1)
-    df_init[("gdd_0", "0")] /= veg_sfr.sum(axis=1)
+    gdd_0 = (veg_sfr * x_gddfull).sum(axis=1) / veg_sfr_sum
+    df_init[("gdd_0", "0")] = gdd_0.where(has_veg, 0.0)
     # sdd_0:
     x_sddfull = df_init["sddfull"].T.reset_index(drop=True).T
-    df_init[("sdd_0", "0")] = (veg_sfr * x_sddfull).sum(axis=1)
-    df_init[("sdd_0", "0")] /= veg_sfr.sum(axis=1)
+    sdd_0 = (veg_sfr * x_sddfull).sum(axis=1) / veg_sfr_sum
+    df_init[("sdd_0", "0")] = sdd_0.where(has_veg, 0.0)
     # const
     df_init[("const", "0")] = 0
 

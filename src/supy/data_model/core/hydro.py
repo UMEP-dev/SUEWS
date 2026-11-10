@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, BaseModel, Field, PrivateAttr
+from pydantic import ConfigDict, BaseModel, Field, PrivateAttr, model_validator
 from typing import Optional
 import pandas as pd
 from .type import RefValue, Reference, SurfaceType, FlexibleRefValue
@@ -319,29 +319,42 @@ class StorageDrainParams(BaseModel):
     store_min: FlexibleRefValue(float) = Field(
         ge=0,
         default=0.0,
-        description="Minimum water storage capacity",
+        description=(
+            "Minimum storage capacity, kept for compatibility with the legacy "
+            "tables. The model does not read it."
+        ),
         json_schema_extra={"unit": "mm", "display_name": "Minimum Storage"},
     )
     store_max: Optional[FlexibleRefValue(float)] = Field(
         ge=0,
         default=None,
-        description="Maximum water storage capacity",
+        description=(
+            "Interception storage capacity of the surface: the depth of water "
+            "the surface can hold. It is the default for store_cap. The model "
+            "does not read this value directly."
+        ),
         json_schema_extra={"unit": "mm", "display_name": "Maximum Storage"},
     )
     store_cap: Optional[FlexibleRefValue(float)] = Field(
         ge=0,
         default=None,
         description=(
-            "Current surface/interception water storage capacity - the actual "
-            "storage capacity available for surface water retention. This represents "
-            "the depth of water that can be stored on or in the surface before "
-            "drainage begins. For paved surfaces, this might represent depression "
+            "Storage capacity the model uses as the surface's current capacity: "
+            "the drainage threshold when drain_eq is 1, and the capacity used "
+            "by the Rutter evaporation option and the moisture terms that read "
+            "it. Defaults to store_max when not given. For deciduous trees the "
+            "model updates it daily with leaf state. "
+            "For paved surfaces, this might represent depression "
             "storage; for vegetated surfaces, it includes canopy interception "
             "storage. See the SUEWS SiteInfo typical values page for examples of "
             "storage-capacity values: "
             "https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html."
         ),
-        json_schema_extra={"unit": "mm", "display_name": "Storage Capacity"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Storage Capacity",
+            "default_description": "store_max",
+        },
     )
     drain_eq: FlexibleRefValue(int) = Field(
         default=0,
@@ -377,6 +390,19 @@ class StorageDrainParams(BaseModel):
     )
 
     ref: Optional[Reference] = None
+
+    @model_validator(mode="after")
+    def resolve_store_cap(self) -> "StorageDrainParams":
+        """Use the interception capacity when no current capacity is given."""
+        store_cap = (
+            self.store_cap.value if isinstance(self.store_cap, RefValue) else self.store_cap
+        )
+        store_max = (
+            self.store_max.value if isinstance(self.store_max, RefValue) else self.store_max
+        )
+        if store_cap is None and store_max is not None:
+            self.store_cap = RefValue(store_max)
+        return self
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert storage and drain parameters to DataFrame state format.

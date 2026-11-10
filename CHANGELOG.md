@@ -84,6 +84,7 @@ EXAMPLES:
 - [bugfix] An explicit `freq_s` on save now overrides `model.control.output.freq` (it was ignored when the configuration set a frequency) and must be a positive whole multiple of the interval the rows hold, as the configuration already requires of `output.freq`: `freq_s=420` on five-minute output is refused instead of writing rows of alternately five and ten minutes
 - [bugfix] `SUEWSOutput.save(groups=[...])` now writes the requested text-output groups instead of ignoring the argument in favour of the configured groups; an unknown group is refused
 - [doc] Units migration guide, output sections: `save_tstep` is not part of the save methods (the paragraph now describes calendar saves); the save methods return the checkpoint and provenance JSON as well as the data files; a run ending part-way through a day writes no DailyState row for that day; why `to_units({"Rain": "mm"})` is refused although `output.units` reports `mm`
+- [doc] Describe `snowpack_limit` as the snow depletion threshold: the snow water equivalent at and above which a surface is fully snow covered, below which the snow-covered fraction follows the depletion curve; it does not cap the snowpack and is not used for the water surface. No behaviour, default or schema field changes (#2020)
 
 ### 9 Nov 2026
 

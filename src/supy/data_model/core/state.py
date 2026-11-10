@@ -898,10 +898,7 @@ class InitialStates(BaseModel):
         le=1,
     )
 
-    @field_validator("snowalb", mode="after")
-    @classmethod
-    def _snowalb_not_null(cls, v):
-        return reject_null_value(v, "snowalb")
+    _snowalb_not_null = null_rejecting_validator("snowalb")
 
     paved: InitialStatePaved = Field(
         default_factory=InitialStatePaved,

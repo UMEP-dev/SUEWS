@@ -48,7 +48,7 @@ class ValidationIssue:
             "conductance": {
                 "g_max": {
                     "value": 3.5,
-                    "_comment": "maximum surface conductance (mm/s)",
+                    "_comment": "surface conductance scaling coefficient (dimensionless)",
                 },
                 "g_k": {"value": 200.0, "_comment": "solar radiation coefficient"},
                 "g_q_base": {"value": 0.13, "_comment": "VPD coefficient base"},
@@ -92,7 +92,7 @@ class ValidationIssue:
                     "_comment": "senescence degree days for leaf-off (degC d)",
                 },
             },
-            "g_max": {"value": 3.5, "_comment": "maximum surface conductance (mm/s)"},
+            "g_max": {"value": 3.5, "_comment": "surface conductance scaling coefficient (dimensionless)"},
             "g_k": {"value": 200.0, "_comment": "solar radiation coefficient"},
             "g_q_base": {"value": 0.13, "_comment": "VPD coefficient base"},
             "g_q_shape": {"value": 0.7, "_comment": "VPD coefficient shape"},

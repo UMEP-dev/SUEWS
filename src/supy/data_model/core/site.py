@@ -122,10 +122,15 @@ class Conductance(BaseModel):
 
     g_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum surface conductance for photosynthesis",
+        description=(
+            "Fitted scaling coefficient for surface conductance: it multiplies "
+            "the product of the environmental response functions and the "
+            "LAI-weighted sum of the per-surface maximum conductances "
+            "(max_conductance). It is not itself a conductance."
+        ),
         json_schema_extra={
-            "unit": "mm s^-1",
-            "display_name": "Maximum Surface Conductance",
+            "unit": "dimensionless",
+            "display_name": "Surface Conductance Scaling Coefficient",
         },
     )
     g_k: Optional[FlexibleRefValue(float)] = Field(

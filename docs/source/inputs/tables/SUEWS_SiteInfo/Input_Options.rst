@@ -1478,7 +1478,7 @@ Input Options
 .. option:: G1
 
 	:Description:
-		Related to maximum surface conductance [mm |s^-1|]
+		Fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (:option:`MaxConductance`) to the surface conductance; it is not itself a conductance [-]
 
 	:Configuration:
 		.. csv-table::

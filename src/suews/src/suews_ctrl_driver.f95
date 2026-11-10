@@ -4958,7 +4958,7 @@ CONTAINS
 
       ! ---conductance-related variables
       TYPE(CONDUCTANCE_PRM) :: conductancePrm
-      REAL(KIND(1D0)), INTENT(IN) :: g_max !Fitted parameters related to surface res. calculations
+      REAL(KIND(1D0)), INTENT(IN) :: g_max !Dimensionless fitted coefficient: scales LAI-weighted max conductance to surface conductance [-]
       REAL(KIND(1D0)), INTENT(IN) :: g_k !Fitted parameters related to surface res. calculations
       REAL(KIND(1D0)), INTENT(IN) :: g_q_base !Fitted parameters related to surface res. calculations
       REAL(KIND(1D0)), INTENT(IN) :: g_q_shape !Fitted parameters related to surface res. calculations

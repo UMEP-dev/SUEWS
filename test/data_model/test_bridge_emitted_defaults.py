@@ -11,10 +11,12 @@ so the kernel input is unchanged.
 from importlib.resources import files
 
 from pydantic import ValidationError
+import pandas as pd
 import pytest
 import yaml
 
 from supy.data_model.core import SUEWSConfig
+from supy.data_model.core.hydro import StorageDrainParams
 from supy.data_model.core.model import ModelControl, ModelPhysics
 from supy.data_model.core.surface import VerticalLayers
 
@@ -33,6 +35,60 @@ def _sample_dump():
 
 def _unwrap(value):
     return value["value"] if isinstance(value, dict) else value
+
+
+@pytest.mark.parametrize(
+    "store_max", [0.0, 2.0, {"value": 2.0, "ref": {"desc": "Maximum source"}}]
+)
+@pytest.mark.parametrize(
+    "absent_cap", [{}, {"store_cap": None}, {"store_cap": {"value": None}}]
+)
+def test_storage_capacity_default_and_state_roundtrip(store_max, absent_cap):
+    """Resolve absent capacities without borrowing the maximum's reference."""
+    params = StorageDrainParams(store_max=store_max, **absent_cap)
+    expected = _unwrap(store_max)
+    assert params.store_cap.value == pytest.approx(expected)
+    assert params.store_cap.ref is None
+    df_state = params.to_df_state(grid_id=1, surf_idx=0)
+    assert df_state.loc[1, ("storedrainprm", "(5, 0)")] == pytest.approx(expected)
+    restored = StorageDrainParams.from_df_state(df_state, grid_id=1, surf_idx=0)
+    pd.testing.assert_frame_equal(restored.to_df_state(1, 0), df_state)
+
+
+@pytest.mark.parametrize("capacity", [0.0, 0.7])
+def test_explicit_storage_capacity_keeps_its_reference(capacity):
+    params = StorageDrainParams(
+        store_max=2.0,
+        store_cap={"value": capacity, "ref": {"desc": "Capacity source"}},
+    )
+    assert params.store_cap.value == pytest.approx(capacity)
+    assert params.store_cap.ref.desc == "Capacity source"
+    df_state = params.to_df_state(1, 0)
+    restored = StorageDrainParams.from_df_state(df_state, 1, 0)
+    assert restored.store_cap.value == pytest.approx(capacity)
+    pd.testing.assert_frame_equal(restored.to_df_state(1, 0), df_state)
+
+
+@pytest.mark.parametrize(
+    "absent_max", [{}, {"store_max": None}, {"store_max": {"value": None}}]
+)
+def test_storage_capacity_stays_absent_without_maximum(absent_max):
+    assert StorageDrainParams(**absent_max).store_cap is None
+    params = StorageDrainParams(store_cap={"value": None}, **absent_max)
+    assert params.store_cap.value is None
+
+
+def test_bridge_yaml_contains_resolved_storage_capacity():
+    data = _sample_dump()
+    storage = data["sites"][0]["properties"]["land_cover"]["paved"]["storage_drain_params"]
+    storage.pop("store_cap", None)
+    storage["store_max"] = 2.0
+    config = SUEWSConfig(**data)
+    emitted = yaml.safe_load(
+        yaml.safe_dump(config.model_dump(exclude_none=True, mode="json"))
+    )
+    storage = emitted["sites"][0]["properties"]["land_cover"]["paved"]["storage_drain_params"]
+    assert _unwrap(storage["store_cap"]) == pytest.approx(2.0)
 
 
 @pytest.mark.parametrize(

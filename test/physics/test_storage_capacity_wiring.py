@@ -23,8 +23,10 @@ Both assertions fail when the two rows are swapped.
 import numpy as np
 import pandas as pd
 import pytest
+from typing import Optional
 
 from supy import SUEWSSimulation
+from supy.data_model.core.hydro import StorageDrainParams
 
 from conftest import TIMESTEPS_PER_DAY
 
@@ -40,7 +42,7 @@ MIN_STATE_RESPONSE_MM = 0.05
 N_DAYS = 10
 
 
-def _run_paved_threshold_drainage(store_max: float, store_cap: float):
+def _run_paved_threshold_drainage(store_max: float, store_cap: Optional[float]):
     """Run ``N_DAYS`` of the sample case with threshold drainage on paved.
 
     Returns the SUEWS output group for grid 1 and the forcing used.
@@ -53,7 +55,13 @@ def _run_paved_threshold_drainage(store_max: float, store_cap: float):
     sdp.drain_coef_2.value = 3.0
     sdp.store_min.value = STORE_LOW_MM
     sdp.store_max.value = store_max
-    sdp.store_cap.value = store_cap
+    if store_cap is None:
+        data = sdp.model_dump(exclude={"store_cap"})
+        cfg.sites[0].properties.land_cover.paved.storage_drain_params = (
+            StorageDrainParams(**data)
+        )
+    else:
+        sdp.store_cap.value = store_cap
     sim._df_state_init = cfg.to_df_state()
 
     df_forcing = sim.forcing.df.copy().iloc[: TIMESTEPS_PER_DAY * N_DAYS]
@@ -75,12 +83,24 @@ def runs() -> dict[str, pd.DataFrame]:
     df_max, _ = _run_paved_threshold_drainage(
         store_max=STORE_HIGH_MM, store_cap=STORE_LOW_MM
     )
+    df_default, _ = _run_paved_threshold_drainage(
+        store_max=STORE_HIGH_MM, store_cap=None
+    )
     return {
         "base": df_base,
         "cap": df_cap,
         "max": df_max,
+        "default": df_default,
         "forcing": df_forcing,
     }
+
+
+@pytest.mark.core
+def test_absent_store_cap_uses_store_max(runs):
+    """An omitted capacity gives the same outputs as the explicit capacity."""
+    pd.testing.assert_frame_equal(
+        runs["default"], runs["cap"], check_exact=False, rtol=0.0, atol=1e-12
+    )
 
 
 @pytest.mark.core

@@ -1324,12 +1324,10 @@ def test_validate_sample_period_is_covered(tmp_path: Path) -> None:
 
 # Fields whose model rejects ``{value: null}`` (gh#2001). Omitting one gives
 # its default, so the default pipeline must accept the omission and must not
-# write a null placeholder for it into the updated YAML. The last case drops
-# the whole parent block, which Phase A fills in field by field.
+# write a null placeholder for it into the updated YAML.
 _NULL_REJECTING_OMISSIONS = [
     (("properties", "land_cover", "water"), "flowchange"),
     (("initial_states", "evetr"), "sdd_id"),
-    (("initial_states",), "evetr"),
 ]
 
 
@@ -1359,7 +1357,17 @@ def test_validate_accepts_omitted_null_rejecting_field(
     reloaded = yaml.safe_load(text)["sites"][0]
     for part in path:
         reloaded = reloaded[part]
-    if key == "evetr":
-        assert "sdd_id" not in reloaded["evetr"], reloaded["evetr"]
-    else:
-        assert key not in reloaded, reloaded
+    assert key not in reloaded, reloaded
+
+
+def test_missing_block_gets_no_null_for_null_rejecting_field() -> None:
+    """A block Phase A fills in skips the null-rejecting fields (gh#2001)."""
+    from supy.data_model.validation.pipeline.phase_a import (
+        create_clean_missing_param_annotation,
+    )
+
+    lines = create_clean_missing_param_annotation(
+        "evetr", {"state": {"value": 0.0}, "sdd_id": {"value": 0}}
+    )
+    assert lines[:2] == ["evetr:", "  state:"], lines
+    assert not any("sdd_id" in line for line in lines), lines

@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Nov 2026
+
+- [bugfix] The Rust YAML loader now puts `store_max` and `store_cap` from `storage_drain_params` in the rows the kernel expects (row 5 and row 6), so the kernel takes a surface's current storage capacity from `store_cap` instead of `store_max`; results change only where `store_max` differs from `store_cap` on a surface that uses `drain_eq` 1, or under storage heat method 3, method 5 with building facets (buildings surface), or `evapmethod` 1 (#2018)
+
 ### 9 Nov 2026
 
 - [doc] Describe the Hourly Profile format in the configuration reference: the working-day and holiday sets, hour keys "1" to "24" from 00:00 with all 24 required, the uniform 1/24 default, and the fields that use it; give `wuprofa_24hr` and `wuprofm_24hr` the descriptions they lacked (#1950, #2017)

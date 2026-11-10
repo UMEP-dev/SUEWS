@@ -41,6 +41,10 @@ This directory contains internal documentation for SUEWS core developers.
   - Module-specific reviewer suggestions
   - When and how to request scientific review
 
+- **[Adding a Parameter at the Rust Level](RUST_BRIDGE_ADD_PARAMETER.md)** - Bringing a new parameter through the Rust bridge
+  - The eight hand-maintained steps, from the Fortran type to the YAML reader and data model
+  - Where a mistake fails silently, and a checklist
+
 - **[ESTM Reactivation](ESTM_REACTIVATION.md)** - Bringing back the disabled ESTM storage-heat scheme
   - What gh#1802 took out of the build and where it lives in git history
   - The blockers to fix first, then the mechanical restore

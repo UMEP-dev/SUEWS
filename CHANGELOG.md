@@ -54,9 +54,27 @@ EXAMPLES:
 
 ## 2026
 
+### 9 Nov 2026
+
+- [doc] Describe the Hourly Profile format in the configuration reference: the working-day and holiday sets, hour keys "1" to "24" from 00:00 with all 24 required, the uniform 1/24 default, and the fields that use it; give `wuprofa_24hr` and `wuprofm_24hr` the descriptions they lacked (#1950, #2017)
+
+### 6 Nov 2026
+
+- [bugfix] Reject non-finite water flow changes at the required scalar reader, including bare and wrapped YAML values; optional scalar NaN and infinity values pass through unchanged (#1991, #1995)
+- [bugfix] Reject non-finite required CO2 point sources and carry unused absence as NaN; verify unchanged outputs for emissions methods 0-6 and the active point-source mass-to-flux conversion; optional scalar NaN and infinity values pass through unchanged (#1991, #1993)
+- [bugfix] Reject non-finite numeric-list entries and incomplete thermal and initial-temperature arrays required by the selected storage scheme, with YAML paths and lengths; retain DyOHM outermost-layer requirements; optional scalar NaN and infinity values pass through unchanged (#1991, #1992)
+- [doc] Distinguish the resolved-input caller contract from pending engine-boundary enforcement and legacy fallbacks (#1991, #2009)
+- [doc] State where YAML is resolved: `suews run` validates a configuration through the data model and hands the engine a resolved configuration, while the bundled `suews-engine` binary is a developer and test tool that expects resolved YAML; the engine's help and its config errors now point to `suews run` (#2004)
+- [maintenance] `make bridge` now builds the engine with its `run` command, and the sample-output check feeds the engine the resolved configuration `suews run` would send, through a shared `config_to_engine_yaml` helper (#2004)
+- [doc] Correct the bridge parameter guide to enumerate actual nested land-cover parents before updating layouts and schema versions (#1996)
+
 ### 5 Nov 2026
 
 - [maintenance] The data model now emits the run switches the Rust bridge used to fill in itself: `model.control.diag_qs` and `flag_test` (0), `model.physics.evapmethod` (2, Shuttleworth) and `vertical_layers.ndepth` (5, the kernel's fixed number of material layers per facet). All four are internal fields with documented defaults equal to what the bridge substituted, hidden from exported YAML, so no run output changes; the bridge's own fallbacks for them can now be removed (#1991)
+- [bugfix] Rust bridge: the water-body flow change is now read from `properties.land_cover.water.flowchange`, where supy writes it, into the site-level flow change that the kernel's water balance uses. The bridge filled that term from a flat `properties.flowchange` key that no schema writes, so any non-zero flow change reached the water balance as zero; the flat key is no longer read. When the water block or its `flowchange` is missing or null, the run now stops with an error naming it instead of using zero (#1991)
+- [bugfix] Rust bridge: the CO2 point source is now read from `properties.anthropogenic_emissions.co2.emission_co2_point_source`, where supy writes it. The bridge read a flat `properties.CO2PointSource` key that no schema writes, so any non-zero point source reached the kernel as zero and was missing from the anthropogenic CO2 flux; the flat key is no longer read. When `emissionsmethod` is a CO2 method whose flux includes the point source (11-16, 21-26, 31-36, 41-46; the kernel zeroes every CO2 flux for 0-6) and the key is missing or null, the run now stops with an error naming it instead of using zero (#1998)
+- [bugfix] Rust bridge: a numeric YAML list with an element that is not a number (a `null`, which the data model allows in the thermal-layer `dz`, `k` and `rho_cp` lists and which supy writes for a NaN, or a string) is now an error naming the list's YAML path and the element's index, for example `sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.dz: element [1] is null` (the site is named by its `gridiv`). Previously the whole list was silently ignored, so every slot it should have filled kept a zero default (#1991)
+- [maintenance] Document the Rust bridge for developers adding parameters: module and item doc comments in `codec.rs`, `yaml_config.rs`, `stebbs_prm.rs`, `lc_evetr_prm.rs` and `sim.rs`, annotations in the `stebbs_prm` and driver C-API facades, and a new developer guide, `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`, walking the eight steps, the places a mistake fails silently, and a checklist. The docs state the bridge's pass-through rule: a value the kernel needs and the YAML does not give is an error naming its YAML path, and defaults live only in the supy data model, never in Rust or the C-API shadow types. No behaviour change (#1991).
 
 ### 3 Nov 2026
 

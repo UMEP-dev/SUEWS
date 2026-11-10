@@ -40,6 +40,11 @@ recommendation instead of spending the review on an unreviewable diff:
 - **Code Style**: lint-code
 - **Scientific**: Physics validation (if applicable)
 - **Testing**: Coverage, FIRST principles
+- **Rust bridge contract**: For bridge changes or changes to either side of its
+  input/output boundary, apply `.claude/rules/rust/bridge-contract.md`. Record
+  applicable BR rule IDs, source revision, evidence and unresolved gaps using
+  its audit format. Check ownership as well as numerical correctness; do not
+  treat a default round trip as field-to-kernel wiring evidence.
 - **Docs**: CHANGELOG, PR description; if the diff touches the user-facing
   surface (`src/supy/data_model/`, physics options, output or forcing
   registries, `src/supy/util/converter/`, the public API or CLI), dispatch the

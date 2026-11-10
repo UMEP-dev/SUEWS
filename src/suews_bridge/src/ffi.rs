@@ -1,3 +1,12 @@
+//! Raw declarations of the Fortran C ABI, not a safe invocation interface.
+//!
+//! Callers own pointer lifetime, allocation reach, layout and non-aliasing, and
+//! must check sizes before converting them to ABI integers. The declarations
+//! cannot enforce those conditions. Parameter/state facades use flat codecs;
+//! the simulation driver additionally takes forcing and output matrices with
+//! their own layout and leading-dimension contracts (`sim::run_simulation_into`).
+//! Always inspect returned status and kernel diagnostics before decoding results.
+
 use std::os::raw::{c_char, c_double, c_int};
 
 pub const SUEWS_CAPI_OK: c_int = 0;

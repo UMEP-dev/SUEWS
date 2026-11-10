@@ -553,7 +553,9 @@ def test_monthly_rates_use_each_months_coverage(frames, convert_first):
     frame = frame.iloc[:1].copy()
     frame = pd.concat([frame] * 60, ignore_index=True)
     frame.index = pd.MultiIndex.from_product(
-        [[1], pd.date_range("2012-01-01", periods=60, freq="D")],
+        # Each row closes the day before its stamp: 2012-01-02 00:00 closes
+        # 1 January, so the rows cover 1 January to 29 February.
+        [[1], pd.date_range("2012-01-02", periods=60, freq="D")],
         names=["grid", "datetime"],
     )
     state[("tstep", "0")] = 86400

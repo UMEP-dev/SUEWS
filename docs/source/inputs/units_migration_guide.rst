@@ -127,8 +127,8 @@ Every error names the column it concerns. The causes and fixes are:
   ``"mm h-1"``.
 - ``cannot convert ... the dimensions differ``: the declared unit measures a
   different quantity from the column (for example ``"K"`` for pressure).
-- ``no unconditional registry unit``: the column has no single unit to convert
-  to; do not declare it.
+- ``time coordinates (iy, id, it, imin) take no units declaration``: the
+  timestamp columns are integers, not physical quantities; remove the key.
 - ``water flux requires a time unit``: see the section above.
 
 Forcing contract versions
@@ -225,6 +225,14 @@ files. Convert in memory with :meth:`~supy.SUEWSOutput.to_units`:
    hourly = output.resample("h")                    # mm per hour, summed
    rates = hourly.to_units({"Rain": "mm h-1"})      # mm h-1, interval mean
 
+``to_units`` accepts only rate units for water fluxes, so
+``output.to_units({"Rain": "mm"})`` is refused even though ``output.units``
+reports ``mm``: ``mm`` there names the amount in each held row, whose
+interval changes with resampling, while a requested unit must be a quantity
+that stays the same whatever the rows' interval. Use ``resample`` to change the
+interval of the amounts, and ``to_units`` with ``mm h-1`` or ``mm d-1`` for
+rates.
+
 When resampled, accumulated water now sums: ``MeltWater``, the ``frMelt_*``
 refreezing amounts and the debug ``wu_*``, ``ev0_*``, ``ev_*`` and ``drain_*``
 columns were previously averaged, so their resampled values change.
@@ -254,8 +262,10 @@ DailyState water totals
 
 DailyState ``P_day`` and the daily water-use totals ``WU_EveTr1-3``,
 ``WU_DecTr1-3`` and ``WU_Grass1-3`` stay daily totals in mm, written with the
-same values as before; on the first and last day of a run they are the totals
-of the model steps that day actually covers. They are not converted to rates:
+same values as before; on the first day of a run that starts part-way through
+a day they are the totals of the model steps that day actually covers. A day's
+row is written at its last model step, so a run that ends part-way through a
+day writes no DailyState row for that day. They are not converted to rates:
 they accept amount units (``mm``, ``m``, ``kg m-2``) and refuse rate units with
 ``daily water totals require amount units``. Their metadata now says
 ``time: sum`` with the interval ``covered day``, and the number of seconds each
@@ -279,9 +289,23 @@ partial or calendar bin is divided by the seconds covered, not by the nominal
 length of the bin. Resampling a rate again weights each source bin by its
 coverage, and a sum over a bin with no data is missing rather than zero.
 
-Calendar-resampled output cannot be saved with ``save_tstep=True``; save the
-native output before resampling it to calendar periods. The error reads
-``save_tstep=True conflicts with calendar-resampled output (for example ME)``.
+Every group of a calendar-resampled output is binned and labelled in the same
+way, so one row holds one period: ``output.resample("ME")`` puts January's
+``Rain`` and January's DailyState ``P_day`` in the row labelled ``2012-01-31``,
+and the step stamped ``2012-02-01 00:00``, which closes January, counts towards
+January. At fixed frequencies DailyState keeps its own label, the start of each
+day (see :ref:`timestamp_convention`).
+
+Output resampled to a fixed frequency (for example ``output.resample("D")``)
+is saved at that interval, and its files and metadata say so, with one
+exception: DailyState rows resampled to more than one day (for example
+``output.resample("2D")``) cannot be saved, because the files describe each
+DailyState row as one day; save ``groups=["SUEWS"]``, or the native or daily
+output, instead. Calendar-resampled
+output cannot be saved to files, because a calendar period has no fixed interval
+to name the files and describe the rows; the error begins
+``Calendar-resampled output (for example ME or W) cannot be saved to files``.
+Save the native output, or write ``monthly.df`` with pandas.
 
 Units and cell methods beside saved output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -293,8 +317,10 @@ intervals:
   ``output_contract_version`` and, for every column, ``units``,
   ``cell_methods``, ``description``, ``interval`` and, where it applies,
   ``units_metadata``; DailyState sidecars also hold ``daily_coverage_s``. Text
-  file contents are otherwise unchanged, and the save methods still return
-  only the primary files;
+  file contents are otherwise unchanged. The save methods return the data files
+  and the run's checkpoint JSON (and, from
+  :meth:`~supy.SUEWSSimulation.save`, ``provenance.json``), but not the
+  ``.units.json`` sidecars, which sit beside the files they describe;
 - Parquet output carries the same per-column fields as Arrow field metadata
   and ``output_contract_version`` in the schema metadata, and keeps the written
   units and coverage when read back with ``pandas.read_parquet``;

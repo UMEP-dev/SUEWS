@@ -1075,6 +1075,20 @@ class ModelPhysics(BaseModel):
             "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
         },
     )
+    # Emitted under the fused key the Rust bridge reads
+    # (``model.physics.evapmethod``) so the bridge needs no fallback of its
+    # own (gh#1991). The option left the user surface in v2023; the field is
+    # internal and keeps the value every run has used since.
+    evapmethod: FlexibleRefValue(int) = Field(
+        default=2,
+        description=(
+            "Evaporation scheme for wet surfaces: 1 = Rutter, 2 = Shuttleworth "
+            "(1978). Fixed at 2 for normal use; not a user option since v2023."
+        ),
+        ge=1,
+        le=2,
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+    )
     roughness_sublayer: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
         description=_enum_description(RSLMethod),
@@ -1724,6 +1738,31 @@ class ModelControl(BaseModel):
     diagnose: FlexibleRefValue(int) = Field(
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
+        json_schema_extra={"internal_only": True},
+    )
+    # Run-only debugging switches the Rust bridge reads from
+    # ``model.control`` (gh#1991). They are emitted so the bridge never has
+    # to supply a value of its own; the defaults are what the kernel has
+    # always received. Integers rather than booleans because the bridge
+    # reads both keys as integers.
+    diag_qs: FlexibleRefValue(int) = Field(
+        default=0,
+        description=(
+            "Debugging switch for diagnostic printing in the storage heat "
+            "(QS) module: 0 = off, 1 = on. Not used by the current kernel."
+        ),
+        ge=0,
+        le=1,
+        json_schema_extra={"internal_only": True},
+    )
+    flag_test: FlexibleRefValue(int) = Field(
+        default=0,
+        description=(
+            "Debugging switch that enables kernel test code paths: 0 = off "
+            "(normal runs), 1 = on. For developers only."
+        ),
+        ge=0,
+        le=1,
         json_schema_extra={"internal_only": True},
     )
     start_time: Optional[str] = Field(

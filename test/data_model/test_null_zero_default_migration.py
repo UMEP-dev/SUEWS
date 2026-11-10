@@ -14,7 +14,7 @@ pytestmark = [pytest.mark.api, pytest.mark.cfg]
     "dev6-vegetation-free-null.yml", "dev7-water-flowchange-null.yml",
 ])
 def test_outgoing_null_zero_defaults_load_after_upgrade(tmp_path, fixture):
-    source = Path(__file__).parents[1] / "fixtures" / "release_configs" / "dev" / fixture
+    source = Path(__file__).parents[1] / "fixtures" / "release_configs" / "schema_deltas" / fixture
     output = tmp_path / "upgraded.yml"
 
     upgrade_yaml(input_path=source, output_path=output)

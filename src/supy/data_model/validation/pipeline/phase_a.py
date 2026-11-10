@@ -11,6 +11,7 @@ from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
 )
+from ...core.type import NULL_REJECTED_FIELDS
 from ...core.physics_families import (
     STEBBS_PUBLIC_KEY_ALIASES,
     coerce_nested_to_flat,
@@ -684,6 +685,10 @@ def find_missing_parameters(user_data, standard_data, current_path=""):
             full_path = f"{current_path}.{key}" if current_path else key
             if _is_default_backed_control_path(full_path):
                 continue
+            # Omitting a null-rejecting field gives its default, so it is not
+            # missing, and a null placeholder would fail Phase C (gh#2001).
+            if key in NULL_REJECTED_FIELDS:
+                continue
             if key not in user_dict:
                 is_physics = is_physics_option(full_path)
                 missing_params.append((full_path, standard_value, is_physics))
@@ -777,6 +782,8 @@ def flatten_missing_dict(data, current_path=""):
     missing_params = []
     if isinstance(data, dict):
         for key, value in data.items():
+            if key in NULL_REJECTED_FIELDS:
+                continue
             full_path = f"{current_path}.{key}" if current_path else key
             if isinstance(value, dict):
                 nested_missing = flatten_missing_dict(value, full_path)
@@ -1057,10 +1064,16 @@ def create_clean_missing_param_annotation(param_name, standard_value):
     if isinstance(standard_value, dict):
         lines.append(f"{param_name}:")
         for key, value in standard_value.items():
+            # A missing parent block gets no null placeholder for a field
+            # that rejects null; its default applies instead (gh#2001).
+            if key in NULL_REJECTED_FIELDS:
+                continue
             formatted_key = format_yaml_key(key)
             if isinstance(value, dict):
                 lines.append(f"  {formatted_key}:")
                 for subkey, subvalue in value.items():
+                    if subkey in NULL_REJECTED_FIELDS:
+                        continue
                     formatted_subkey = format_yaml_key(subkey)
                     default_value = get_null_placeholder()
                     lines.append(f"    {formatted_subkey}: {default_value}")

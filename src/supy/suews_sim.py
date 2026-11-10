@@ -276,11 +276,15 @@ class SUEWSSimulation:
         # user had declared them, so conditional validators gated on
         # model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,
         # site completeness) would fire false errors on sparse configs.
+        # round_trip omits computed outputs: they must be re-derived after
+        # a patch, rather than carried back as stale user input.
         # Internal bookkeeping keys are re-stamped by from_dict; carrying
         # them through the merge would nest snapshots inside snapshots.
         base = {
             k: v
-            for k, v in config.model_dump(exclude_unset=True, mode="json").items()
+            for k, v in config.model_dump(
+                exclude_unset=True, round_trip=True, mode="json"
+            ).items()
             if not k.startswith("_")
         }
 
@@ -320,6 +324,7 @@ class SUEWSSimulation:
                     isinstance(node_obj, BaseModel)
                     and not isinstance(node_obj, RefValue)
                     and key not in type(node_obj).model_fields
+                    and key not in type(node_obj).model_computed_fields
                 ):
                     raise ValueError(f"Unknown configuration key: '{key_path}'")
                 attr = getattr(node_obj, key, None) if node_obj is not None else None

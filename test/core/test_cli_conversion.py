@@ -157,6 +157,14 @@ class TestCLIConversion:
             nlayer = sim.config.sites[0].properties.vertical_layers.nlayer.value
             assert nlayer == 1
 
+            # gh#2001: AVL_1_LDN1 has no vegetation, so the converter starts
+            # the senescence degree days at 0 instead of the NaN of a 0/0
+            # weighted mean (which reached the YAML as null).
+            init = sim.config.sites[0].initial_states
+            for surf in ("evetr", "dectr", "grass"):
+                sdd = getattr(init, surf).sdd_id
+                assert getattr(sdd, "value", sdd) == 0.0
+
             # Verify roofs/walls (core bug fix)
             roofs = sim.config.sites[0].initial_states.roofs
             walls = sim.config.sites[0].initial_states.walls

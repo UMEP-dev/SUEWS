@@ -10,7 +10,13 @@ from pydantic import (
 from typing import Optional, Literal, List, Union
 import pandas as pd
 import warnings
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from .type import (
+    RefValue,
+    Reference,
+    FlexibleRefValue,
+    df_from_cols,
+    null_rejecting_validator,
+)
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
 from ..._env import logger_supy
 
@@ -1060,6 +1066,8 @@ class WaterProperties(NonVegetatedSurfaceProperties):
         description="Change in water flow for water bodies",
         json_schema_extra={"unit": "mm h^-1", "display_name": "Flow Change"},
     )
+
+    _flowchange_not_null = null_rejecting_validator("flowchange")
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert water surface properties to DataFrame state format."""

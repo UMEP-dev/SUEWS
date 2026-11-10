@@ -235,6 +235,63 @@ def FlexibleRefValue(type_param):
     return Union[RefValue[type_param], type_param]
 
 
+def reject_null_value(value, field_name: str):
+    """Reject ``{value: null}`` on a field the model always needs a number for.
+
+    ``RefValue.value`` is ``Optional`` so that genuinely optional fields can
+    carry ``null``. On a required numeric field a ``null`` would reach the
+    Rust bridge as a missing key and be replaced by the bridge's own fallback,
+    so it is rejected here instead (gh#2001).
+
+    Parameters
+    ----------
+    value : RefValue or scalar
+        The validated field value.
+    field_name : str
+        Name used in the error message.
+
+    Returns
+    -------
+    RefValue or scalar
+        ``value`` unchanged when it carries a value.
+
+    Raises
+    ------
+    ValueError
+        If the wrapped value is ``None``.
+    """
+    inner = value.value if isinstance(value, RefValue) else value
+    if inner is None:
+        raise ValueError(
+            f"{field_name} needs a number; null is not accepted "
+            "(omit the field to use its default)"
+        )
+    return value
+
+
+# Names of the fields whose validators reject ``{value: null}``, filled in by
+# ``null_rejecting_validator`` as the models are defined. The validation
+# pipeline reads it so that it never writes a null placeholder for one of
+# them: omitting such a field already gives its default (gh#2001).
+NULL_REJECTED_FIELDS: set = set()
+
+
+def null_rejecting_validator(field_name: str):
+    """Return a validator that rejects ``{value: null}`` on ``field_name``.
+
+    Assign the result in the model body, e.g.
+    ``_sdd_id_not_null = null_rejecting_validator("sdd_id")``. The field is
+    recorded in ``NULL_REJECTED_FIELDS``.
+    """
+    NULL_REJECTED_FIELDS.add(field_name)
+
+    def _reject(cls, v):
+        return reject_null_value(v, field_name)
+
+    _reject.__name__ = f"_{field_name}_not_null"
+    return field_validator(field_name, mode="after")(_reject)
+
+
 def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(

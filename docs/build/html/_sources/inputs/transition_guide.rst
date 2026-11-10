@@ -215,6 +215,34 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev7_co2_point_source:
+
+Upgrading to Schema 2026.6.dev7
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev7`` requires the CO2 point source whenever the emissions
+method adds it to the CO2 flux: a biogenic CO2 method, ``11``-``16``,
+``21``-``26``, ``31``-``36`` or ``41``-``46`` under
+``model.physics.emissions``. Give ``0`` for a site without a point source:
+
+.. code-block:: yaml
+
+   sites:
+     - properties:
+         anthropogenic_emissions:
+           co2:
+             emission_co2_point_source:
+               value: 0.0
+
+A configuration loaded from YAML that leaves it out now stops with an error
+naming the site. Methods ``0`` to ``6`` do not use the point source, because
+the model discards the CO2 flux they compute, so it stays optional there.
+
+Before this schema a missing point source reached the model as 0. The
+migration from ``2026.6.dev6`` writes that ``0.0`` explicitly wherever the
+point source is absent or null and keeps any value you gave, so an upgraded
+configuration produces the same output. Upgrade with ``suews convert``.
+
 .. _schema_dev6_provisional_output:
 
 Upgrading to Schema 2026.6.dev6

@@ -178,20 +178,33 @@ fn yaml_kind(value: &Value) -> &'static str {
     }
 }
 
+/// Pass to the list readers when the kernel reads every entry of the list.
+const ALL_ENTRIES: usize = usize::MAX;
+
 /// Parse a numeric list: bare (`[1.0, 2.0]`), wrapped in the RefValue form
 /// (`{value: [...]}`), a single number, or a mapping of named numbers (e.g.
 /// `hdd_id`).
 ///
-/// `Ok(None)` means the value is not a list or number at all (the caller
-/// treats it as not given). An element that is not a number, `null`
-/// included, or a non-finite number is an error naming its index (or key): the bridge passes values
-/// through and never stands in for a missing one. supy can send such nulls
-/// (the thermal-layer lists are `List[Optional[float]]`, and
-/// `model_dump(mode="json")` writes a NaN element as `null`), so this must
-/// not be silently dropped.
-fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
-    fn element(item: &Value, at: &str) -> Result<f64, String> {
+/// `read` is how many leading entries the kernel reads under the selected
+/// options (`ALL_ENTRIES` for every entry). `Ok(None)` means the value is not
+/// a list or number at all (the caller treats it as not given). A read entry
+/// that is not a number, `null` included, or a non-finite number is an error
+/// naming its index (or key): the bridge passes values through and never
+/// stands in for a missing one. supy can send such nulls (the thermal-layer
+/// lists are `List[Optional[float]]`, and `model_dump(mode="json")` writes a
+/// NaN element as `null`), so this must not be silently dropped. An entry the
+/// kernel does not read may be `null` or non-finite: a `null` is carried as
+/// `LAYER_VALUE_ABSENT` (NaN) and a non-finite number as given. This covers
+/// explicit entries only; how a missing or short list is filled is the
+/// caller's business. Any other kind (a string, a boolean) is malformed
+/// wherever it sits.
+fn parse_numeric_sequence(value: &Value, read: usize) -> Result<Option<Vec<f64>>, String> {
+    fn element(item: &Value, at: &str, is_read: bool) -> Result<f64, String> {
         match item {
+            Value::Number(n) if !is_read => n
+                .as_f64()
+                .ok_or_else(|| format!("element {at} must be a number")),
+            Value::Null if !is_read => Ok(LAYER_VALUE_ABSENT),
             Value::Number(_) => read_finite_numeric(item, &[])
                 .map_err(|reason| {
                     format!("element {at} is {reason}; every element must be a finite number")
@@ -205,17 +218,17 @@ fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
     }
 
     match value {
-        Value::Number(_) => element(value, "[0]").map(|v| Some(vec![v])),
+        Value::Number(_) => element(value, "[0]", read > 0).map(|v| Some(vec![v])),
         Value::Sequence(items) => items
             .iter()
             .enumerate()
-            .map(|(i, item)| element(item, &format!("[{i}]")))
+            .map(|(i, item)| element(item, &format!("[{i}]"), i < read))
             .collect::<Result<Vec<_>, _>>()
             .map(Some),
         Value::Mapping(map) => {
             // First try the standard RefValue wrapper: {value: [1.0, 2.0, ...]}
             if let Some(inner) = get_path(value, &["value"]) {
-                return parse_numeric_sequence(inner);
+                return parse_numeric_sequence(inner, read);
             }
             // A RefValue whose value was None keeps only its `ref` after
             // `exclude_none`: the list was not given.
@@ -226,12 +239,13 @@ fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
             // dict serialisation of hdd_id: {hdd_accum: 13.5, cdd_accum: 13.5, ...}).
             let out = map
                 .iter()
-                .map(|(key, val)| {
+                .enumerate()
+                .map(|(i, (key, val))| {
                     let key = match key {
                         Value::String(k) => k.clone(),
                         other => format!("{other:?}"),
                     };
-                    element(val, &format!("`{key}`"))
+                    element(val, &format!("`{key}`"), i < read)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(if out.is_empty() { None } else { Some(out) })
@@ -240,17 +254,19 @@ fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
     }
 }
 
-/// Read a numeric list at `path` below `root`; see `parse_numeric_sequence`.
-/// `at` is the YAML path of `root`, used to name the list in an error.
+/// Read a numeric list at `path` below `root`; see `parse_numeric_sequence`
+/// for `read`. `at` is the YAML path of `root`, used to name the list in an
+/// error.
 fn read_numeric_sequence(
     root: &Value,
     path: &[&str],
     at: &str,
+    read: usize,
 ) -> Result<Option<Vec<f64>>, String> {
     let Some(value) = get_path(root, path) else {
         return Ok(None);
     };
-    parse_numeric_sequence(value).map_err(|e| format!("`{at}.{}`: {e}", path.join(".")))
+    parse_numeric_sequence(value, read).map_err(|e| format!("`{at}.{}`: {e}", path.join(".")))
 }
 
 /// Check a supplied list without turning whole-list absence into a requirement.
@@ -269,8 +285,10 @@ fn read_sized_numeric_sequence(
     at: &str,
     required: usize,
 ) -> Result<Option<Vec<f64>>, String> {
+    // The kernel reads exactly the `required` leading entries, so the same
+    // count sets the length check and the finiteness check.
     for path in paths {
-        if let Some(values) = read_numeric_sequence(root, path, at)? {
+        if let Some(values) = read_numeric_sequence(root, path, at, required)? {
             require_list_length(values.len(), required, &format!("{at}.{}", path.join(".")))?;
             return Ok(Some(values));
         }
@@ -490,9 +508,12 @@ fn ensure_len_with_default(values: &mut Vec<f64>, len: usize, default_value: f64
     }
 }
 
-/// Marks a per-layer value the YAML did not give and the kernel does not
-/// read under the selected options (roof and wall emissivity without
-/// SPARTACUS). It is "absent", not a substitute: any use would show as NaN.
+/// Marks a value the kernel does not read under the selected options: the
+/// per-layer building fraction when not given outside SPARTACUS and storage
+/// heat method 5, roof and wall emissivity when not given without SPARTACUS,
+/// and any list entry given as `null` that the kernel does not read. Other
+/// missing or short lists still keep their allocated values. It is "absent",
+/// not a substitute: any use would show as NaN.
 const LAYER_VALUE_ABSENT: f64 = f64::NAN;
 
 fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
@@ -509,8 +530,9 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     site.spartacus_layer.nlayer = nlayer;
     site.spartacus_layer.nspec = nspec;
     // building_frac, emis_roof and emis_wall are not padded with any value:
-    // `apply_vertical_layers_overrides` fills them from the YAML and fails
-    // when the kernel needs one the YAML does not give.
+    // `apply_vertical_layers_overrides` fills them from the YAML, fails when
+    // the kernel reads one the YAML does not give, and otherwise leaves them
+    // absent.
     ensure_len_with_default(
         &mut site.spartacus_layer.building_frac,
         nlayer,
@@ -795,24 +817,81 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
-/// Read `properties.vertical_layers`. The cumulative building fraction per
-/// layer is required whenever there are layers (the kernel derives roof and
-/// wall fractions from it), and each roof and wall layer's `emis` is
-/// required when SPARTACUS is on; a missing or short value is an error naming
-/// the YAML path, never padded.
+// Which options make the kernel read which layer inputs. Each gate is
+// encoded once here; `spartacus_on` is `NetRadiationMethod > 1000`.
+
+/// Whether the kernel reads the building layer geometry (`height`,
+/// `building_frac`, `building_scale`): under storage heat method 5 (EHC) or
+/// SPARTACUS. `SUEWS_cal_surf` (`suews_ctrl_driver.f95`) derives the roof and
+/// wall fractions from them only under
+/// `StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000`, and `SPARTACUS`
+/// reads them directly.
+fn vertical_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
+    ehc_is_on(storage_heat_method) || spartacus_on
+}
+
+/// Whether the kernel reads the vegetation layer lists (`veg_frac`,
+/// `veg_scale`, `veg_ext`): under SPARTACUS only. Their one reader is the
+/// `SPARTACUS` call in `SUEWS_cal_Qn` (`suews_ctrl_driver.f95`), made only
+/// when `NetRadiationMethod > 1000`; EHC does not read them.
+fn vegetation_layers_are_read(spartacus_on: bool) -> bool {
+    spartacus_on
+}
+
+/// Whether EHC runs (storage heat method 5). `EHC` (`suews_phys_ehc.f95`)
+/// then reads the surface thermal layers, the initial temperatures of the
+/// surfaces and of the nlayer roofs and walls (copied to its output arrays in
+/// both of its branches), and the surface inner boundary temperatures.
+fn ehc_is_on(storage_heat_method: i32) -> bool {
+    storage_heat_method == 5
+}
+
+/// Whether EHC resolves the roof and wall facets: storage heat method 5 with
+/// SPARTACUS. `SUEWS_cal_Qs` (`suews_ctrl_driver.f95`) passes
+/// `NetRadiationMethod <= 1000` to `EHC` as `use_lumped_slab`; the lumped
+/// branch returns before the roof and wall materials (`k`, `rho_cp`, `dz`)
+/// and inner boundary temperatures (`tin_roof`, `tin_wall`) are read, so
+/// only the facet-resolved branch reads them.
+fn facet_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
+    ehc_is_on(storage_heat_method) && spartacus_on
+}
+
+/// Read `properties.vertical_layers`. Where the kernel reads the building
+/// layer geometry (`vertical_layers_are_read`), the cumulative building
+/// fraction per layer is required as a whole list, and the entries the
+/// kernel reads in `height`, `building_frac` and `building_scale` must be
+/// finite; the vegetation lists are checked the same way only under
+/// SPARTACUS (`vegetation_layers_are_read`). A null in an entry the kernel
+/// does not read is carried as absent (`LAYER_VALUE_ABSENT`). A missing or
+/// short `height`, `building_scale` or vegetation list still leaves the
+/// allocated values in place; requiring those is left to the block-by-block
+/// conversion. Each roof and wall layer's `emis` is required when SPARTACUS
+/// is on.
 fn apply_vertical_layers_overrides(
     site: &mut SuewsSite,
     site_root: &Value,
+    storage_heat_method: i32,
     spartacus_on: bool,
 ) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
     let nlayer = site.spartacus_layer.nlayer;
     let nspec = site.spartacus_layer.nspec;
+    let layers_read = vertical_layers_are_read(storage_heat_method, spartacus_on);
+    // Entries the kernel reads per layer list; `height` gives the layer
+    // boundaries, one more than the layers.
+    let layer_entries_read = if layers_read { nlayer } else { 0 };
+    let height_entries_read = if layers_read { nlayer + 1 } else { 0 };
+    let veg_entries_read = if vegetation_layers_are_read(spartacus_on) {
+        nlayer
+    } else {
+        0
+    };
 
     if let Some(height_values) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "height"],
         &site_at,
+        height_entries_read,
     )? {
         // Both former branches (lengths match, or height non-empty) did the
         // same prefix-assign, so they collapse to one condition. Behaviour is
@@ -830,8 +909,9 @@ fn apply_vertical_layers_overrides(
         site_root,
         &["properties", "vertical_layers", "building_frac"],
         &site_at,
+        layer_entries_read,
     )? {
-        Some(building_frac) if building_frac.len() >= nlayer => {
+        Some(building_frac) if building_frac.len() >= nlayer || !layers_read => {
             assign_prefix(
                 site.spartacus_layer.building_frac.as_mut_slice(),
                 building_frac.as_slice(),
@@ -844,18 +924,21 @@ fn apply_vertical_layers_overrides(
                 building_frac.len()
             ));
         }
-        None if nlayer > 0 => {
+        None if layers_read && nlayer > 0 => {
             return Err(format!(
                 "`{building_frac_at}` is missing or not a list of numbers, but nlayer = {nlayer} \
-                 needs {nlayer} values (cumulative building fraction per layer)"
+                 needs {nlayer} values (cumulative building fraction per layer, read under \
+                 storage heat method 5 or SPARTACUS)"
             ));
         }
+        // Not read under these options: left absent (`LAYER_VALUE_ABSENT`).
         None => {}
     }
     if let Some(veg_frac) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "veg_frac"],
         &site_at,
+        veg_entries_read,
     )? {
         assign_prefix(
             site.spartacus_layer.veg_frac.as_mut_slice(),
@@ -866,6 +949,7 @@ fn apply_vertical_layers_overrides(
         site_root,
         &["properties", "vertical_layers", "building_scale"],
         &site_at,
+        layer_entries_read,
     )? {
         assign_prefix(
             site.spartacus_layer.building_scale.as_mut_slice(),
@@ -876,6 +960,7 @@ fn apply_vertical_layers_overrides(
         site_root,
         &["properties", "vertical_layers", "veg_scale"],
         &site_at,
+        veg_entries_read,
     )? {
         assign_prefix(
             site.spartacus_layer.veg_scale.as_mut_slice(),
@@ -886,6 +971,7 @@ fn apply_vertical_layers_overrides(
         site_root,
         &["properties", "vertical_layers", "veg_ext"],
         &site_at,
+        veg_entries_read,
     )? {
         assign_prefix(
             site.spartacus_layer.veg_ext.as_mut_slice(),
@@ -1820,6 +1906,7 @@ fn apply_ehc_overrides(
     nlayer: usize,
     ndepth: usize,
     storage_heat_method: i32,
+    spartacus_on: bool,
 ) -> Result<(), String> {
     let layer_mat_len = nlayer * ndepth;
     let surf_len = if nlayer == 0 { 0 } else { NSURF };
@@ -1828,8 +1915,22 @@ fn apply_ehc_overrides(
     site.ehc.nlayer = nlayer;
     site.ehc.ndepth = ndepth;
     let site_at = site_yaml_at(site_root);
-    // EHC consumes each depth. DyOHM uses only the outermost material layer.
-    let facet_depth = if storage_heat_method == 5 { ndepth } else { 0 };
+    // Facet-resolved EHC reads every depth of the roof and wall materials;
+    // the lumped EHC branch and DyOHM read none of them.
+    let facet_depth = if facet_layers_are_read(storage_heat_method, spartacus_on) {
+        ndepth
+    } else {
+        0
+    };
+    // The inner boundary temperatures (`tin_*`) are read by EHC only, the
+    // roof and wall ones only when it resolves the facets; their fallback,
+    // the first initial temperature, is read only then.
+    let surface_tin_entries_read = if ehc_is_on(storage_heat_method) { 1 } else { 0 };
+    let facet_tin_entries_read = if facet_layers_are_read(storage_heat_method, spartacus_on) {
+        1
+    } else {
+        0
+    };
 
     // Roof and wall arrays follow SPARTACUS vertical layers; standard
     // surface arrays follow SUEWS surface classes.
@@ -1911,6 +2012,7 @@ fn apply_ehc_overrides(
                     site_root,
                     &["initial_states", surface_name, "temperature"],
                     &site_at,
+                    surface_tin_entries_read,
                 )?
                 .and_then(|vals| vals.first().copied()),
             };
@@ -1921,7 +2023,7 @@ fn apply_ehc_overrides(
     }
 
     if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
-        if storage_heat_method == 5 {
+        if ehc_is_on(storage_heat_method) {
             require_list_length(
                 roofs.len(),
                 nlayer,
@@ -1974,7 +2076,7 @@ fn apply_ehc_overrides(
     }
 
     if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
-        if storage_heat_method == 5 {
+        if ehc_is_on(storage_heat_method) {
             require_list_length(
                 walls.len(),
                 nlayer,
@@ -2031,8 +2133,10 @@ fn apply_ehc_overrides(
             let at = format!("{site_at}.initial_states.roofs[{layer_idx}]");
             let tin = match read_numeric(roof_root, &["tin"]) {
                 Some(v) => Some(v),
-                None => read_numeric_sequence(roof_root, &["temperature"], &at)?
-                    .and_then(|vals| vals.first().copied()),
+                None => {
+                    read_numeric_sequence(roof_root, &["temperature"], &at, facet_tin_entries_read)?
+                        .and_then(|vals| vals.first().copied())
+                }
             };
             if let Some(v) = tin {
                 site.ehc.tin_roof[layer_idx] = v;
@@ -2045,8 +2149,10 @@ fn apply_ehc_overrides(
             let at = format!("{site_at}.initial_states.walls[{layer_idx}]");
             let tin = match read_numeric(wall_root, &["tin"]) {
                 Some(v) => Some(v),
-                None => read_numeric_sequence(wall_root, &["temperature"], &at)?
-                    .and_then(|vals| vals.first().copied()),
+                None => {
+                    read_numeric_sequence(wall_root, &["temperature"], &at, facet_tin_entries_read)?
+                        .and_then(|vals| vals.first().copied())
+                }
             };
             if let Some(v) = tin {
                 site.ehc.tin_wall[layer_idx] = v;
@@ -2199,7 +2305,8 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
 /// Order matters: `resize_site_variable_arrays` sizes the per-layer arrays
 /// to `nlayer`, filling new slots with constants (NaN for the building
 /// fraction and the roof and wall emissivities, which
-/// `apply_vertical_layers_overrides` must then fill or reject), and
+/// `apply_vertical_layers_overrides` fills from the YAML, rejects when the
+/// kernel reads one that is missing, or leaves absent), and
 /// `apply_vertical_layers_overrides` and `apply_ehc_overrides` index the
 /// resized arrays. Any key not present
 /// keeps the Fortran default (see the module docs). Scalars that the driver
@@ -2230,11 +2337,18 @@ fn apply_site_overrides(
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
     apply_irrigation_overrides(site, site_root);
-    apply_vertical_layers_overrides(site, site_root, spartacus_on)?;
+    apply_vertical_layers_overrides(site, site_root, storage_heat_method, spartacus_on)?;
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
-    apply_ehc_overrides(site, site_root, nlayer, ndepth, storage_heat_method)?;
+    apply_ehc_overrides(
+        site,
+        site_root,
+        nlayer,
+        ndepth,
+        storage_heat_method,
+        spartacus_on,
+    )?;
     Ok(())
 }
 
@@ -2386,7 +2500,11 @@ fn apply_state_overrides(
                 initial_states_root,
                 &[&[surface_name, "temperature"]],
                 &initial_at,
-                if storage_heat_method == 5 { ndepth } else { 0 },
+                if ehc_is_on(storage_heat_method) {
+                    ndepth
+                } else {
+                    0
+                },
             )? {
                 let start = surface_idx * ndepth;
                 if start + ndepth <= state.heat_state.temp_surf.len() {
@@ -2447,7 +2565,9 @@ fn apply_state_overrides(
         state.phenology_state.len_day_id = v;
     }
 
-    if let Some(values) = read_numeric_sequence(initial_states_root, &["hdd_id"], &initial_at)? {
+    if let Some(values) =
+        read_numeric_sequence(initial_states_root, &["hdd_id"], &initial_at, ALL_ENTRIES)?
+    {
         assign_prefix(&mut state.anthroemis_state.hdd_id, values.as_slice());
     }
     if let Some(v) = read_numeric(initial_states_root, &["qn_av"]) {
@@ -2465,7 +2585,7 @@ fn apply_state_overrides(
 
     if let Some(roofs) = read_sequence(initial_states_root, &["roofs"]) {
         let ndepth = state.heat_state.ndepth;
-        if storage_heat_method == 5 {
+        if ehc_is_on(storage_heat_method) {
             require_list_length(
                 roofs.len(),
                 state.heat_state.nlayer,
@@ -2490,11 +2610,13 @@ fn apply_state_overrides(
             }
             if ndepth > 0 {
                 let at = format!("{initial_at}.roofs[{layer_idx}]");
+                // EHC reads the initial temperatures of the nlayer roofs only.
+                let read = ehc_is_on(storage_heat_method) && layer_idx < state.heat_state.nlayer;
                 if let Some(temps) = read_sized_numeric_sequence(
                     roof_root,
                     &[&["temperature"]],
                     &at,
-                    if storage_heat_method == 5 { ndepth } else { 0 },
+                    if read { ndepth } else { 0 },
                 )? {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_roof.len() {
@@ -2509,7 +2631,7 @@ fn apply_state_overrides(
 
     if let Some(walls) = read_sequence(initial_states_root, &["walls"]) {
         let ndepth = state.heat_state.ndepth;
-        if storage_heat_method == 5 {
+        if ehc_is_on(storage_heat_method) {
             require_list_length(
                 walls.len(),
                 state.heat_state.nlayer,
@@ -2534,11 +2656,13 @@ fn apply_state_overrides(
             }
             if ndepth > 0 {
                 let at = format!("{initial_at}.walls[{layer_idx}]");
+                // EHC reads the initial temperatures of the nlayer walls only.
+                let read = ehc_is_on(storage_heat_method) && layer_idx < state.heat_state.nlayer;
                 if let Some(temps) = read_sized_numeric_sequence(
                     wall_root,
                     &[&["temperature"]],
                     &at,
-                    if storage_heat_method == 5 { ndepth } else { 0 },
+                    if read { ndepth } else { 0 },
                 )? {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_wall.len() {
@@ -2558,7 +2682,7 @@ fn apply_state_overrides(
 /// `suews_phys_anthro.f95` computes `Fc_point` for methods 1-6 as well, but
 /// `SUEWS_cal_AnthropogenicEmission` (`suews_ctrl_driver.f95`) then zeroes
 /// every CO2 flux for methods 0-6, so the value has no effect there. The data
-/// model's CO2 point-source rule (#2001) requires the key for the same set.
+/// model's CO2 point-source rule (#2007) requires the key for the same set.
 fn emissions_method_uses_co2_point_source(emissions_method: i32) -> bool {
     (11..=46).contains(&emissions_method) && (1..=6).contains(&(emissions_method % 10))
 }
@@ -3944,11 +4068,15 @@ mod tests {
         // The data model allows a null inside a thermal-layer list
         // (`List[Optional[float]]`, and a NaN element is dumped as null), and
         // `exclude_none` does not remove list elements, so a null reaches the
-        // bridge. The bridge must refuse it, naming the list and the index,
-        // rather than stand in a value for it.
+        // bridge. Where the kernel reads the entry (EHC resolving the facets,
+        // storage heat method 5 with SPARTACUS as in this fixture, reads every
+        // facet layer) the bridge must refuse it, naming the list and the
+        // index, rather than stand in a value for it.
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+            serde_yaml::from_str("{value: 5}").unwrap();
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
         let dz = get_path_mut(site, &["properties", "vertical_layers", "roofs"])
             .and_then(|roofs| match roofs {
@@ -3978,19 +4106,52 @@ mod tests {
     #[test]
     fn parse_numeric_sequence_rejects_non_numeric_elements() {
         let ok: Value = serde_yaml::from_str("{value: [1.0, 2.0]}").unwrap();
-        assert_eq!(parse_numeric_sequence(&ok), Ok(Some(vec![1.0, 2.0])));
+        assert_eq!(
+            parse_numeric_sequence(&ok, ALL_ENTRIES),
+            Ok(Some(vec![1.0, 2.0]))
+        );
         let null: Value = serde_yaml::from_str("[1.0, null, 3.0]").unwrap();
-        let err = parse_numeric_sequence(&null).unwrap_err();
+        let err = parse_numeric_sequence(&null, ALL_ENTRIES).unwrap_err();
         assert!(err.contains("[1]") && err.contains("null"), "{err}");
         let text: Value = serde_yaml::from_str("[1.0, abc]").unwrap();
-        let err = parse_numeric_sequence(&text).unwrap_err();
+        let err = parse_numeric_sequence(&text, ALL_ENTRIES).unwrap_err();
         assert!(err.contains("[1]") && err.contains("string"), "{err}");
         let named: Value = serde_yaml::from_str("{hdd_accum: 1.0, cdd_accum: null}").unwrap();
-        let err = parse_numeric_sequence(&named).unwrap_err();
+        let err = parse_numeric_sequence(&named, ALL_ENTRIES).unwrap_err();
         assert!(err.contains("`cdd_accum`"), "{err}");
         // A value that is not a list at all is treated as not given.
         let absent: Value = serde_yaml::from_str("null").unwrap();
-        assert_eq!(parse_numeric_sequence(&absent), Ok(None));
+        assert_eq!(parse_numeric_sequence(&absent, ALL_ENTRIES), Ok(None));
+    }
+
+    #[test]
+    fn parse_numeric_sequence_checks_only_the_entries_read() {
+        let list: Value = serde_yaml::from_str("[1.0, 2.0, null, .inf]").unwrap();
+        let values = parse_numeric_sequence(&list, 2).unwrap().unwrap();
+        assert_eq!(&values[..2], &[1.0, 2.0]);
+        assert!(values[2].is_nan(), "an unread null is absent: {values:?}");
+        assert_eq!(
+            values[3],
+            f64::INFINITY,
+            "an unread number is carried as given"
+        );
+        let err = parse_numeric_sequence(&list, 3).unwrap_err();
+        assert!(err.contains("[2]") && err.contains("null"), "{err}");
+        let inf_last: Value = serde_yaml::from_str("[1.0, 2.0, 3.0, .inf]").unwrap();
+        let err = parse_numeric_sequence(&inf_last, 4).unwrap_err();
+        assert!(err.contains("[3]") && err.contains("non-finite"), "{err}");
+        // Nothing read: nulls are absent, but a string is still malformed.
+        let unread = parse_numeric_sequence(&list, 0).unwrap().unwrap();
+        assert!(unread[2].is_nan());
+        let text: Value = serde_yaml::from_str("[1.0, abc]").unwrap();
+        let err = parse_numeric_sequence(&text, 0).unwrap_err();
+        assert!(err.contains("[1]") && err.contains("string"), "{err}");
+        let single_null_unread: Value = serde_yaml::from_str("{value: .nan}").unwrap();
+        assert!(parse_numeric_sequence(&single_null_unread, 0)
+            .unwrap()
+            .unwrap()[0]
+            .is_nan());
+        assert!(parse_numeric_sequence(&single_null_unread, 1).is_err());
     }
 
     #[test]
@@ -4006,26 +4167,55 @@ mod tests {
     #[test]
     fn ref_only_mapping_is_a_list_not_given() {
         let ref_only: Value = serde_yaml::from_str("{ref: {desc: from a paper}}").unwrap();
-        assert_eq!(parse_numeric_sequence(&ref_only), Ok(None));
+        assert_eq!(parse_numeric_sequence(&ref_only, ALL_ENTRIES), Ok(None));
     }
     fn fixture_with_list(path: &str, value: &str, method: i32) -> Result<RunConfig, String> {
+        // The fixture runs SPARTACUS (net_radiation 1003).
+        fixture_with_options(1003, method, |site| set_site_path(site, path, value))
+    }
+
+    /// The stebbs fixture (nlayer 3, ndepth 5) with the given net radiation
+    /// and storage heat methods and `edit` applied to its first site.
+    fn fixture_with_options(
+        net_radiation: i32,
+        storage_heat: i32,
+        edit: impl FnOnce(&mut Value),
+    ) -> Result<RunConfig, String> {
         let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+        *get_path_mut(&mut root, &["model", "physics", "net_radiation"]).unwrap() =
+            serde_yaml::from_str(&format!("{{value: {net_radiation}}}")).unwrap();
         *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
-            serde_yaml::from_str(&format!("{{value: {method}}}")).unwrap();
-        let mut target = first_site_mut(&mut root).unwrap();
-        for key in path.split('.') {
+            serde_yaml::from_str(&format!("{{value: {storage_heat}}}")).unwrap();
+        edit(first_site_mut(&mut root).unwrap());
+        load_run_config_from_value(&mut root)
+    }
+
+    /// Set the dotted `path` (list indices as numbers) below a site.
+    /// The final key is added when the fixture lacks it.
+    fn set_site_path(site: &mut Value, path: &str, value: &str) {
+        let keys: Vec<&str> = path.split('.').collect();
+        let (last, parents) = keys.split_last().unwrap();
+        let mut target = site;
+        for key in parents {
             target = if let Ok(index) = key.parse::<usize>() {
                 &mut target.as_sequence_mut().unwrap()[index]
             } else {
                 target
                     .as_mapping_mut()
                     .unwrap()
-                    .get_mut(Value::String(key.into()))
+                    .get_mut(Value::String((*key).into()))
                     .unwrap()
             };
         }
-        *target = serde_yaml::from_str(value).unwrap();
-        load_run_config_from_value(&mut root)
+        let value: Value = serde_yaml::from_str(value).unwrap();
+        if let Ok(index) = last.parse::<usize>() {
+            target.as_sequence_mut().unwrap()[index] = value;
+        } else {
+            target
+                .as_mapping_mut()
+                .unwrap()
+                .insert(Value::String((*last).into()), value);
+        }
     }
 
     #[test]
@@ -4314,6 +4504,320 @@ mod tests {
                 )),
                 "{err}"
             );
+        }
+    }
+    #[test]
+    fn vertical_layers_are_read_under_ehc_or_spartacus() {
+        assert!(vertical_layers_are_read(5, false));
+        assert!(vertical_layers_are_read(1, true));
+        assert!(vertical_layers_are_read(5, true));
+        for method in [0, 1, 6, 7, 8] {
+            assert!(!vertical_layers_are_read(method, false), "{method}");
+        }
+    }
+
+    #[test]
+    fn vegetation_and_facet_layers_follow_their_readers() {
+        // Vegetation lists: SPARTACUS only, whatever the storage heat method.
+        assert!(vegetation_layers_are_read(true));
+        assert!(!vegetation_layers_are_read(false));
+        // Facet materials: EHC resolving the facets, i.e. method 5 with
+        // SPARTACUS; the lumped branch (method 5 alone) does not read them.
+        assert!(facet_layers_are_read(5, true));
+        assert!(!facet_layers_are_read(5, false));
+        for method in [0, 1, 6, 7, 8] {
+            assert!(!facet_layers_are_read(method, true), "{method}");
+            assert!(!ehc_is_on(method), "{method}");
+        }
+        assert!(ehc_is_on(5));
+    }
+
+    #[test]
+    fn null_in_vegetation_or_facet_lists_loads_under_lumped_ehc() {
+        // Storage heat method 5 without SPARTACUS (net radiation 3): EHC takes
+        // its lumped-slab branch, which reads neither the vegetation lists
+        // nor the roof and wall materials nor the facet `tin` fallback.
+        let paths = [
+            ("properties.vertical_layers.veg_frac", "[null, null, null]"),
+            ("properties.vertical_layers.veg_scale", "[null, null, null]"),
+            ("properties.vertical_layers.veg_ext", "[null, null, null]"),
+            (
+                "properties.vertical_layers.roofs.0.thermal_layers.k",
+                "[null, null, null, null, null]",
+            ),
+            (
+                "properties.vertical_layers.roofs.1.thermal_layers.dz",
+                "[null, null, null, null, null]",
+            ),
+            (
+                "properties.vertical_layers.walls.2.thermal_layers.rho_cp",
+                "[null, null, null, null, null]",
+            ),
+        ];
+        for (path, value) in paths {
+            let run_cfg = fixture_with_options(3, 5, |site| set_site_path(site, path, value))
+                .unwrap_or_else(|e| panic!("{path} = {value}: {e}"));
+            if path.ends_with("veg_ext") {
+                let veg_ext = &run_cfg.site.spartacus_layer.veg_ext;
+                assert!(veg_ext.iter().all(|v| v.is_nan()), "{veg_ext:?}");
+            }
+            if path.ends_with("roofs.0.thermal_layers.k") {
+                let k_roof = &run_cfg.site.ehc.k_roof;
+                assert!(k_roof[..5].iter().all(|v| v.is_nan()), "{k_roof:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn null_in_vegetation_or_facet_lists_names_path_and_index_when_read() {
+        // Vegetation lists under SPARTACUS, with or without EHC.
+        for storage_heat in [1, 5] {
+            let err = fixture_with_options(1003, storage_heat, |site| {
+                set_site_path(
+                    site,
+                    "properties.vertical_layers.veg_ext",
+                    "[0.1, null, 0.1]",
+                )
+            })
+            .expect_err("SPARTACUS reads veg_ext");
+            assert!(
+                err.contains("sites[gridiv=1].properties.vertical_layers.veg_ext"),
+                "{err}"
+            );
+            assert!(err.contains("[1]"), "{err}");
+        }
+        // Roof and wall materials under facet-resolved EHC.
+        let cases = [
+            (
+                "properties.vertical_layers.roofs.0.thermal_layers.k",
+                "[1.0, 1.0, null, 1.0, 1.0]",
+                "sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.k",
+                "[2]",
+            ),
+            (
+                "properties.vertical_layers.walls.2.thermal_layers.dz",
+                "[0.1, 0.1, 0.1, 0.1, null]",
+                "sites[gridiv=1].properties.vertical_layers.walls[2].thermal_layers.dz",
+                "[4]",
+            ),
+        ];
+        for (path, value, at, index) in cases {
+            let err = fixture_with_options(1003, 5, |site| set_site_path(site, path, value))
+                .expect_err(path);
+            assert!(err.contains(at), "{err}");
+            assert!(err.contains(index), "{err}");
+            assert!(err.contains("null"), "{err}");
+        }
+    }
+
+    #[test]
+    fn roof_and_wall_initial_temperatures_are_read_under_lumped_ehc() {
+        // EHC copies the roof and wall initial temperatures to its output
+        // arrays before choosing a branch, so they stay checked under method
+        // 5 without SPARTACUS.
+        let err = fixture_with_options(3, 5, |site| {
+            set_site_path(
+                site,
+                "initial_states.roofs.1.temperature",
+                "[20.0, null, 20.0, 20.0, 20.0]",
+            )
+        })
+        .expect_err("EHC copies roof initial temperatures in both branches");
+        assert!(
+            err.contains("sites[gridiv=1].initial_states.roofs[1].temperature"),
+            "{err}"
+        );
+        assert!(err.contains("[1]"), "{err}");
+    }
+
+    #[test]
+    fn building_frac_is_not_needed_without_spartacus_or_ehc() {
+        // nlayer 3, net radiation 3 (no SPARTACUS), storage heat method 1:
+        // the kernel does not read the building fraction, so a missing list
+        // loads and is carried as absent, never as a number.
+        let run_cfg = fixture_with_options(3, 1, |site| {
+            remove_key(
+                get_path_mut(site, &["properties", "vertical_layers"]).unwrap(),
+                "building_frac",
+            )
+        })
+        .expect("building_frac is not read under these options");
+        let building_frac = &run_cfg.site.spartacus_layer.building_frac;
+        assert_eq!(building_frac.len(), 3);
+        assert!(
+            building_frac.iter().all(|v| v.is_nan()),
+            "absent, not substituted: {building_frac:?}"
+        );
+    }
+
+    #[test]
+    fn building_frac_is_required_under_storage_heat_method_5() {
+        let err = fixture_with_options(3, 5, |site| {
+            remove_key(
+                get_path_mut(site, &["properties", "vertical_layers"]).unwrap(),
+                "building_frac",
+            )
+        })
+        .expect_err("EHC reads the building fraction");
+        assert!(
+            err.contains("`sites[gridiv=1].properties.vertical_layers.building_frac` is missing"),
+            "{err}"
+        );
+        assert!(err.contains("nlayer = 3"), "{err}");
+    }
+
+    #[test]
+    fn null_in_an_unread_list_entry_loads_as_absent() {
+        // (net radiation, storage heat, path, value): each null sits in an
+        // entry the kernel does not read under those options.
+        let cases = [
+            // Layer geometry without SPARTACUS or EHC.
+            (
+                3,
+                1,
+                "properties.vertical_layers.building_frac",
+                "[0.35, null, 0.1]",
+            ),
+            (
+                3,
+                1,
+                "properties.vertical_layers.height",
+                "[0.0, null, 20.0, 30.0]",
+            ),
+            (
+                3,
+                1,
+                "properties.vertical_layers.veg_frac",
+                "{value: [null, null, null]}",
+            ),
+            // Facet thermal layers outside method 5.
+            (
+                1003,
+                7,
+                "properties.vertical_layers.roofs.0.thermal_layers.dz",
+                "[0.03, null]",
+            ),
+            // Entries beyond ndepth = 5 under method 5.
+            (
+                1003,
+                5,
+                "properties.vertical_layers.roofs.0.thermal_layers.k",
+                "[1.0, 1.0, 1.0, 1.0, 1.0, null]",
+            ),
+            // Surface layers beyond the one the diagnostic DyOHM update reads;
+            // dz is not read at all outside methods 5-8.
+            (
+                1003,
+                1,
+                "properties.land_cover.paved.thermal_layers.k",
+                "[1.2, null]",
+            ),
+            (
+                1003,
+                1,
+                "properties.land_cover.paved.thermal_layers.dz",
+                "[null]",
+            ),
+            // Roof and wall initial temperatures outside method 5.
+            (
+                1003,
+                1,
+                "initial_states.roofs.0.temperature",
+                "[null, 20.0]",
+            ),
+            (1003, 1, "initial_states.walls.1.temperature", "[null]"),
+        ];
+        for (net_radiation, storage_heat, path, value) in cases {
+            fixture_with_options(net_radiation, storage_heat, |site| {
+                set_site_path(site, path, value)
+            })
+            .unwrap_or_else(|e| panic!("{path} = {value}: {e}"));
+        }
+
+        // The null reaches the struct as absent, not as a number.
+        let run_cfg = fixture_with_options(3, 1, |site| {
+            set_site_path(
+                site,
+                "properties.vertical_layers.building_frac",
+                "[0.35, null, 0.1]",
+            )
+        })
+        .unwrap();
+        let building_frac = &run_cfg.site.spartacus_layer.building_frac;
+        assert_eq!(building_frac[0], 0.35);
+        assert!(building_frac[1].is_nan(), "{building_frac:?}");
+        let run_cfg = fixture_with_options(1003, 7, |site| {
+            set_site_path(
+                site,
+                "properties.vertical_layers.roofs.0.thermal_layers.dz",
+                "[0.03, null]",
+            )
+        })
+        .unwrap();
+        assert!(
+            run_cfg.site.ehc.dz_roof[1].is_nan(),
+            "{:?}",
+            run_cfg.site.ehc.dz_roof
+        );
+
+        // A roof beyond nlayer is not read, even under method 5.
+        fixture_with_options(1003, 5, |site| {
+            let roofs = get_path_mut(site, &["initial_states", "roofs"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            let mut extra = roofs[0].clone();
+            *get_path_mut(&mut extra, &["temperature"]).unwrap() =
+                serde_yaml::from_str("[null, null, null, null, null]").unwrap();
+            roofs.push(extra);
+        })
+        .expect("a fourth roof is beyond nlayer = 3");
+    }
+
+    #[test]
+    fn null_in_a_read_list_entry_names_path_and_index() {
+        let cases = [
+            (
+                3,
+                5,
+                "properties.vertical_layers.building_frac",
+                "[0.35, null, 0.1]",
+                "sites[gridiv=1].properties.vertical_layers.building_frac",
+                "[1]",
+            ),
+            (
+                1003,
+                1,
+                "properties.vertical_layers.height",
+                "[0.0, 10.0, 20.0, null]",
+                "sites[gridiv=1].properties.vertical_layers.height",
+                "[3]",
+            ),
+            (
+                1003,
+                1,
+                "properties.land_cover.paved.thermal_layers.k",
+                "[null, 1.2]",
+                "sites[gridiv=1].properties.land_cover.paved.thermal_layers.k",
+                "[0]",
+            ),
+            (
+                1003,
+                5,
+                "initial_states.walls.2.temperature",
+                "[20.0, 20.0, 20.0, 20.0, null]",
+                "sites[gridiv=1].initial_states.walls[2].temperature",
+                "[4]",
+            ),
+        ];
+        for (net_radiation, storage_heat, path, value, at, index) in cases {
+            let err = fixture_with_options(net_radiation, storage_heat, |site| {
+                set_site_path(site, path, value)
+            })
+            .expect_err(path);
+            assert!(err.contains(at), "{err}");
+            assert!(err.contains(index), "{err}");
+            assert!(err.contains("null"), "{err}");
         }
     }
 }

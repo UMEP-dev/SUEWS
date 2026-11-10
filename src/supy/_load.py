@@ -1165,6 +1165,11 @@ def _convert_forcing_units(
         )
         if variable is None:
             raise ValueError(f"forcing column {column!r}: unknown column in units declaration")
+        if variable.role == "coordinate":
+            raise ValueError(
+                f"forcing column {column!r}: time coordinates (iy, id, it, imin) "
+                "take no units declaration; remove the key"
+            )
         if variable.name in declared:
             raise ValueError(f"forcing column {column!r}: duplicate units declaration")
         declared.add(variable.name)

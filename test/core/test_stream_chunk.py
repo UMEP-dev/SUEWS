@@ -1347,6 +1347,41 @@ def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, t
         assert rain.to_numpy() == pytest.approx(0.5 / TSTEP_S)
 
 
+@pytest.mark.parametrize("freq", ["MS", "ME", "YE"])
+def test_parquet_reload_resamples_dailystate_like_the_run(
+    short_sample_sim, tmp_path, freq
+):
+    """Streamed hourly Parquet reloaded and resampled keeps each day's period.
+
+    The folder declares one-hour rows while DailyState keeps its native
+    23:55 stamps, so treating those stamps as hourly start labels moved
+    31 December's P_day and daily coverage into the next year (and each
+    month's last day into the next month).
+    """
+    from supy._post import _resample_output
+    from supy.suews_output import SUEWSOutput
+
+    groups = ["SUEWS", "DailyState"]
+    output = _year_crossing_sim(
+        short_sample_sim, tmp_path / "whole", 3600, None, groups=groups
+    ).run()
+    _parquet_sim(short_sample_sim, tmp_path / "streamed", 3600, 7, groups=groups).run()
+    saved = pd.read_parquet(_output_path(tmp_path / "streamed"))
+    assert saved.attrs["supy_output_interval_s"] == 3600
+
+    expected = output.resample(freq).df
+    coverage = "supy_output_daily_coverage_s"
+    for reloaded in (
+        SUEWSOutput(saved, output.state_final).resample(freq).df,
+        _resample_output(saved, freq),
+    ):
+        p_day = reloaded["DailyState", "P_day"].dropna()
+        pd.testing.assert_series_equal(
+            p_day, expected["DailyState", "P_day"].dropna(), rtol=1e-9
+        )
+        assert reloaded.attrs[coverage] == pytest.approx(expected.attrs[coverage])
+
+
 def test_parquet_output_names_the_folder_and_save_returns_it(
     short_sample_sim, tmp_path
 ):

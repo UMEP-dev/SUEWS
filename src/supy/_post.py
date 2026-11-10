@@ -3,7 +3,12 @@ import pandas as pd
 
 from ._env import logger_supy
 from ._misc import infer_freq_offset
-from ._output_metadata import output_covered_seconds, water_flux_variables, with_daily_coverage
+from ._output_metadata import (
+    output_covered_seconds,
+    resolve_held_interval,
+    water_flux_variables,
+    with_daily_coverage,
+)
 from .data_model.output import OUTPUT_REGISTRY
 
 
@@ -227,6 +232,88 @@ def _index_freq_matches(df_output, freq):
         return inferred == target_offset
 
 
+def _is_calendar_frequency(freq) -> bool:
+    """Return True for a calendar frequency (``W``, ``MS``, ``ME``, ``YE``...).
+
+    Calendar offsets have no fixed length, so they cannot become a
+    :class:`pandas.Timedelta`; fixed frequencies (``5min``, ``h``, ``D``) can.
+    """
+    try:
+        pd.Timedelta(pd.tseries.frequencies.to_offset(freq))
+    except ValueError:
+        return True
+    return False
+
+
+def _shift_keeping_resolution(index, forward=None):
+    """Return ``index`` moved forward by *forward*, then back by one tick.
+
+    One tick is the smallest step the resolution of ``index`` can hold, and
+    the result keeps that resolution. A fixed nanosecond would upcast a
+    coarser index (pandas 3 builds ``datetime64[us]`` by default) to
+    nanoseconds, and the resampled rows would no longer share the dtype of
+    the rows they came from, nor of output streamed at that frequency.
+    """
+    unit = index.unit
+    moved = index if forward is None else index + forward
+    return (moved - pd.Timedelta(1, unit)).as_unit(unit)
+
+
+def _calendar_binning(obj, freq):
+    """Return ``obj`` with timestamps placed for right-closed calendar bins.
+
+    For end-anchored offsets (``W``, ``ME``, ``QE``, ``YE``) pandas widens
+    each right-closed bin to the whole of its last day, so the row stamped
+    at midnight that closes the period (``2012-02-01 00:00`` closes January)
+    falls into the next bin. Moving every timestamp back by one tick of the
+    index's resolution (one nanosecond for a nanosecond index)
+    before binning puts that row in the period it ends and leaves the other
+    rows, and every bin label, unchanged. Start-anchored (``MS``) and fixed
+    frequencies already bin ``(t - freq, t]`` and are unaffected by the shift.
+    """
+    if not _is_calendar_frequency(freq):
+        return obj
+    shifted = obj.copy(deep=False)
+    shifted.index = _shift_keeping_resolution(shifted.index)
+    return shifted
+
+
+def _dailystate_period_end(obj, source_s):
+    """Return DailyState rows stamped just before the end of the period they hold.
+
+    DailyState rows carry one of two stamps in a frame whose other groups
+    hold intervals of ``source_s`` seconds:
+
+    - native stamps, the last model step of each day (``23:55`` at a
+      five-minute step). Streamed output keeps these beside rows resampled
+      to the output frequency, and a native frame has them on its own grid;
+    - start labels from a fixed-frequency resample (``label="left"``), on the
+      ``source_s`` grid counted from the first row's midnight: ``00:00`` of
+      each day at ``"D"``, the start of the day's last bin at ``"h"``.
+
+    A row holding one day (native, or resampled below a day) moves to
+    the last tick of its day; a row holding ``source_s`` of a day or
+    more moves forward by ``source_s`` and back by one tick. Binning the
+    moved rows again (for example ``"D"`` then ``"ME"``) then assigns each as
+    binning the native rows would. Rows at a calendar or unknown interval
+    (``source_s`` is ``None``) are returned unchanged; calendar rows already
+    carry their period's end label, see :func:`_calendar_binning`.
+    """
+    if source_s is None or len(obj.index) == 0:
+        return obj
+    index = obj.index
+    step = pd.Timedelta(source_s, "s")
+    day = pd.Timedelta(1, "D")
+    on_grid = ((index - index.min().normalize()) % step == pd.Timedelta(0)).all()
+    shifted = obj.copy(deep=False)
+    if step >= day and on_grid:
+        shifted.index = _shift_keeping_resolution(index, step)
+    else:
+        # Native last-step stamps are off the grid of any coarser interval.
+        shifted.index = _shift_keeping_resolution(index.normalize(), day)
+    return shifted
+
+
 def _aggregate_bins(resampler, dict_aggm_group, columns):
     """Aggregate resampled bins, keeping all-missing sums as NaN.
 
@@ -297,11 +384,13 @@ def _resample_output(
         ``df_output`` is already at ``freq`` it is returned unchanged, with
         all its groups.
     freq_source : str or pandas.Timedelta, optional
-        The time step ``df_output`` is known to be at (the model timestep).
-        When given, ``df_output`` counts as already at ``freq`` exactly when
-        ``freq_source`` equals ``freq``, instead of the cadence being
-        inferred from its index, which needs at least three timestamps.
-        Default (None) infers it.
+        The interval the rows of ``df_output`` hold (the model timestep for
+        native output). Default (None) resolves it from the best evidence
+        available: a ``SUEWSOutput``'s run context, the frame's
+        ``supy_output_interval_s`` attribute, else the cadence of its index
+        (see :func:`supy._output_metadata.resolve_held_interval`).
+        ``df_output`` counts as already at ``freq`` exactly when that
+        interval equals ``freq``.
     drop_empty_rows : bool, optional
         Drop the resampled rows that hold no value in any group resampled
         (the default). ``False`` keeps a row for every interval the output
@@ -333,7 +422,10 @@ def _resample_output(
 
     Each resampled value covers the left-open, right-closed interval
     ``(t - freq, t]`` and is labelled by its end ``t`` (``closed='right',
-    label='right'``), except DailyState, which uses ``label='left'``; see the
+    label='right'``), except DailyState, which uses ``label='left'`` at fixed
+    frequencies. At calendar frequencies (``W``, ``MS``, ``ME``, ``YE``) every
+    group, DailyState included, takes the period's pandas label, and the step
+    that closes a period counts towards it; see the
     "Timestamp convention" page of the documentation
     (``timestamp_convention``).
 
@@ -356,32 +448,28 @@ def _resample_output(
     >>> output = sim.run()
     >>> resampled = output.resample(freq="h")  # Returns SUEWSOutput
     """
-    # Unwrap SUEWSOutput to raw DataFrame if needed
+    # The interval the rows hold, from the wrapper's run context or the
+    # frame's own evidence (attributes, then index cadence)
     if hasattr(df_output, "_df_output"):
-        if freq_source is None:
-            freq_source = df_output._output_frequency()
+        held = df_output._held_interval(freq_source)
         df_output = df_output._df_output
+    else:
+        held = resolve_held_interval(df_output, freq_source)
 
     # Skip resampling entirely when the data is already at the requested
     # frequency
-    if freq_source is not None:
-        to_offset = pd.tseries.frequencies.to_offset
+    if held.kind == "fixed":
         try:
-            same_freq = to_offset(freq_source).nanos == to_offset(freq).nanos
+            target_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
         except ValueError:
-            # A non-fixed frequency (e.g. month-end) never equals a time step.
-            same_freq = False
-        if same_freq:
+            target_s = None  # A calendar frequency never equals a fixed interval.
+        if target_s == held.seconds:
             return df_output
-    elif _index_freq_matches(df_output, freq):
+    elif held.kind == "unknown" and _index_freq_matches(df_output, freq):
         return df_output
 
-    source_s = None
-    if freq_source is not None:
-        try:
-            source_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
-        except ValueError:
-            source_s = None  # Calendar rows carry their individual coverage.
+    # Calendar rows carry their individual coverage.
+    source_s = held.seconds if held.kind == "fixed" else None
     df_output = with_daily_coverage(df_output, source_s)
     dict_daily_coverage = {}
     dict_units = df_output.attrs.get("supy_output_units", {})
@@ -421,13 +509,20 @@ def _resample_output(
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
             coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
-            daily_seconds = pd.Series(
+            ser_daily_seconds = pd.Series(
                 [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_to_resample.index],
                 index=df_to_resample.index,
-            ).resample(freq, closed="right", label=label).sum(min_count=1)
+            )
+            # Coverage is keyed by the held labels, so look it up before the
+            # rows are moved to the end of the period they cover.
+            ser_daily_seconds = _dailystate_period_end(ser_daily_seconds, source_s)
+            df_to_resample = _dailystate_period_end(df_to_resample, source_s)
+            daily_seconds = _calendar_binning(ser_daily_seconds, freq).resample(
+                freq, closed="right", label=label
+            ).sum(min_count=1)
             dict_daily_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in daily_seconds.dropna().items()})
             return _aggregate_bins(
-                df_to_resample.resample(freq, closed="right", label=label),
+                _calendar_binning(df_to_resample, freq).resample(freq, closed="right", label=label),
                 dict_aggm_group,
                 df_to_resample.columns,
             )
@@ -440,12 +535,12 @@ def _resample_output(
         covered = None
         if ser_coverage is not None:
             covered = ser_coverage.xs(grid, level="grid")
-            target = covered.resample(freq, closed="right", label=label).sum()
+            target = _calendar_binning(covered, freq).resample(freq, closed="right", label=label).sum()
             dict_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in target.items()})
         if columns_rate:
             df_to_resample = df_to_resample.copy(deep=False)
             df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(covered, axis=0)
-        bins = df_to_resample.resample(freq, closed="right", label=label)
+        bins = _calendar_binning(df_to_resample, freq).resample(freq, closed="right", label=label)
         result = _aggregate_bins(bins, dict_aggm_group, df_to_resample.columns)
         if columns_rate:
             result[columns_rate] = result[columns_rate].div(target.where(target > 0), axis=0)
@@ -455,6 +550,8 @@ def _resample_output(
         if len(occupied):
             result = result.loc[occupied[0]:occupied[-1]]
         return result
+
+    calendar = _is_calendar_frequency(freq)
 
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
@@ -475,9 +572,13 @@ def _resample_output(
                         # group's columns are sliced (gh#1849)
                         df_output[group].xs(grid, level="grid"),
                         freq,
-                        "right"
-                        if group != "DailyState"
-                        else "left",  # DailyState uses 'left' label
+                        # DailyState is labelled by the start of each day at
+                        # fixed frequencies; a calendar period has no such
+                        # start label, so its daily totals take the period's
+                        # label like every other group.
+                        "left"
+                        if group == "DailyState" and not calendar
+                        else "right",
                         dict_aggm[group],
                         group_name=group,
                         grid=grid,

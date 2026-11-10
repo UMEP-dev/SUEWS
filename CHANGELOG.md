@@ -54,6 +54,15 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Nov 2026
+
+- [bugfix] Forcing unit declarations: a unit of the wrong dimension for a water rate (for example `{"rain": "W m-2"}`) now reports that the dimensions differ instead of asking for a time unit, and the time coordinates `iy`, `id`, `it`, `imin` refuse a declaration when it is made instead of failing later as non-integer timestamps
+- [bugfix] Calendar resampling (`W`, `MS`, `ME`, `YE`) now puts every output group of one period in one row: DailyState totals were labelled one period early (with `ME`, January's `P_day` sat under 2011-12-31 while January's `Rain` sat under 2012-01-31), and with `W`, `ME` and `YE` the step stamped 00:00 that closes a period was counted in the next period. Resampling in two steps (for example `output.resample("D").resample("ME")`) now gives the same rows as resampling directly. Fixed-frequency resampling, including DailyState's start-of-day label at `D`, is unchanged
+- [bugfix] Saving resampled output: output resampled to a fixed frequency (for example `D`) is saved at that interval, with file names and `interval` metadata to match (daily rows were described as `1 hour`), also when the rows are wrapped again (`SUEWSOutput(output.resample("D").df, state)`) or reloaded from Parquet; calendar-resampled output is refused with a message naming the alternatives instead of crashing (`ME`, `MS`) or writing mislabelled files (`W`, `YE`); DailyState rows resampled to more than one day (for example `2D`, or Parquet output saved at a frequency longer than one day) are refused, because the files describe each DailyState row as one day
+- [bugfix] An explicit `freq_s` on save now overrides `model.control.output.freq` (it was ignored when the configuration set a frequency) and must be a positive whole multiple of the interval the rows hold, as the configuration already requires of `output.freq`: `freq_s=420` on five-minute output is refused instead of writing rows of alternately five and ten minutes
+- [bugfix] `SUEWSOutput.save(groups=[...])` now writes the requested text-output groups instead of ignoring the argument in favour of the configured groups; an unknown group is refused
+- [doc] Units migration guide, output sections: `save_tstep` is not part of the save methods (the paragraph now describes calendar saves); the save methods return the checkpoint and provenance JSON as well as the data files; a run ending part-way through a day writes no DailyState row for that day; why `to_units({"Rain": "mm"})` is refused although `output.units` reports `mm`
+
 ### 29 Oct 2026
 
 - [change][experimental] Breaking: units at the edges of SUEWS. Forcing contract 2.1.0 and output contract 2.0.0 declare, check and convert units where data enters and leaves SuPy, in the CF (UDUNITS-2) notation of a new unit vocabulary; the kernel still computes in its own units. Upgrade notes for forcing files and saved output are in the "Upgrading Across the Units Change" documentation page (#1903)

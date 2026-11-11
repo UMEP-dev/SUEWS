@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 // Load the deployment module without changing its module/package configuration.
-const source = await readFile(new URL("./worker.js", import.meta.url), "utf8");
+const source = await readFile(new URL("../../scripts/cloudflare-worker/worker.js", import.meta.url), "utf8");
 const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
 const env = { DISCOURSE_WEBHOOK_SECRET: "test-only", GITHUB_PAT: "test-only" };

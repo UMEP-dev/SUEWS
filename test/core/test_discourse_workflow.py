@@ -6,9 +6,18 @@ import subprocess
 import tempfile
 import unittest
 
+import pytest
 import yaml
 
-WORKFLOW = Path(__file__).parents[1] / "workflows/discourse-to-issue.yml"
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.skipif(
+        os.name == "nt",
+        reason="These Linux workflow regressions require POSIX shell executable fixtures",
+    ),
+]
+
+WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/discourse-to-issue.yml"
 STEPS = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["create-issue"]["steps"]
 
 
@@ -19,10 +28,10 @@ def outputs(text):
         if "<<" in line:
             name, delimiter = line.split("<<", 1)
             value = []
-            for line in lines:
-                if line == delimiter:
+            for value_line in lines:
+                if value_line == delimiter:
                     break
-                value.append(line)
+                value.append(value_line)
             else:
                 raise AssertionError("Unterminated output")
             result[name] = "\n".join(value)
@@ -33,14 +42,15 @@ def outputs(text):
 
 
 class DiscourseTests(unittest.TestCase):
-    def run_step(self, name, env, prefix=""):
+    @staticmethod
+    def run_step(name, env, prefix=""):
         script = next(step["run"] for step in STEPS if step["name"] == name)
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
             output.touch()
             result = subprocess.run(["bash", "-euo", "pipefail", "-c", prefix + script],
                                     env={**os.environ, **env, "GITHUB_OUTPUT": str(output)},
-                                    capture_output=True, text=True)
+                                    capture_output=True, text=True, check=False)
             return result, output.read_text(encoding="utf-8")
 
     def test_topic_id_guard_for_both_triggers(self):

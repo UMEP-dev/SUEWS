@@ -743,6 +743,33 @@ mod tests {
     }
 
     #[test]
+    fn interpolate_midnight_borrows_previous_year() {
+        for (year, previous_days) in [(2012, 365), (2013, 366), (2001, 366), (1901, 365)] {
+            let mut block = vec![0.0; 2 * FORCING_BLOCK_STRIDE];
+            for row in 0..2 {
+                let start = row * FORCING_BLOCK_STRIDE;
+                block[start..start + 4].copy_from_slice(&[year as f64, 1.0, row as f64, 0.0]);
+            }
+            let forcing = ForcingData {
+                block,
+                len_sim: 2,
+                extras: HashMap::new(),
+                stride: FORCING_BLOCK_STRIDE,
+            };
+            let result = interpolate_forcing(&forcing, 300).unwrap();
+            assert_eq!(
+                &result.block[..4],
+                &[(year - 1) as f64, previous_days as f64, 23.0, 5.0]
+            );
+            let midnight = 11 * FORCING_BLOCK_STRIDE;
+            assert_eq!(
+                &result.block[midnight..midnight + 4],
+                &[year as f64, 1.0, 0.0, 0.0]
+            );
+        }
+    }
+
+    #[test]
     fn missing_baseline_column_errors() {
         use std::io::Write;
         let dir = tempfile::tempdir().unwrap();

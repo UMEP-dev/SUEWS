@@ -80,7 +80,7 @@ else
 			STATICLIB =
 			SUEWS_build_dir = $(addprefix $(SUEWS_build_base), macOS_arm64)
 		else
-			STATICLIB = $(shell $(FC) -print-file-name=libquadmath.dylib | xargs -t rm -rf; $(FC) -print-file-name=libquadmath.a) # force-ship this static lib
+			STATICLIB = $(shell $(FC) -print-file-name=libquadmath.a) # link the archive without modifying the compiler installation
 			SUEWS_build_dir = $(addprefix $(SUEWS_build_base), macOS_x64)
 		endif
 	endif

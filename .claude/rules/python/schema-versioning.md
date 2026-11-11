@@ -3,7 +3,11 @@ paths:
   - src/supy/data_model/**/*
   - src/supy/util/converter/**/*
   - src/supy/sample_data/**/*
-  - docs/**/*
+  - test/fixtures/release_configs/**/*
+  - test/fixtures/sample_short/**/*
+  - docs/source/contributing/schema/schema_versioning.rst
+  - docs/source/inputs/transition_guide.rst
+  - docs/source/version-history/**/*
 ---
 
 # YAML Schema Versioning
@@ -79,7 +83,7 @@ the CI lint (which only checks that `CURRENT_SCHEMA_VERSION` moves
 
 - First structural PR after a formal release bumps to
   `<next-target>.dev1` (e.g. immediately after shipping `2026.4`, the
-  first breaking PR moves to `"2026.5.dev1"` — never directly to
+  first breaking PR moves to `"2026.5.dev1"` -- never directly to
   `"2026.5"`).
 - Each subsequent structural PR increments the dev counter:
   `.dev1` -> `.dev2` -> `.dev3` ...
@@ -118,25 +122,25 @@ the CI lint (which only checks that `CURRENT_SCHEMA_VERSION` moves
   `test/fixtures/release_configs/<release-tag>.yml` to the collapsed
   shape.
 - Add the release-tag mapping to
-  `yaml_upgrade.py::_PACKAGE_TO_SCHEMA` (e.g.
+  `src/supy/util/converter/yaml_upgrade.py::_PACKAGE_TO_SCHEMA` (e.g.
   `"2026.5.0": "2026.5"`).
 
 **Rationale:**
 
-- The version number stays semantically tied to the release it's
-  targeting; we don't chew through five CalVer labels for five PRs
+- The version number stays semantically tied to the release it is
+  targeting; we do not chew through five CalVer labels for five PRs
   that all land in the same release.
 - The CI's `check_schema_version_bump.py` gate is satisfied by the
   `.devN` increment (literal string moves).
 - Released packages never expose dev labels: the collapse happens
   atomically in the release PR.
 - Users who pull development branches see `2026.5.dev3` (or similar)
-  in their local samples — a clear signal that the schema is still
+  in their local samples -- a clear signal that the schema is still
   in flux.
 
 **Caveat about `get_schema_compatibility_message`:** the float-parse
-path in `version.py::get_schema_compatibility_message` raises
-`ValueError` on `"5.dev3"` and falls through to a generic message
+path in `src/supy/data_model/configuration/version.py::get_schema_compatibility_message`
+raises `ValueError` on `"5.dev3"` and falls through to a generic message
 via `except (ValueError, IndexError):`. This degrades the "older vs
 newer" judgement but does not crash. Fix is optional; if addressed,
 use `packaging.version.Version` for the comparison.
@@ -147,7 +151,7 @@ use `packaging.version.Version` for the comparison.
 
 1. Edit `src/supy/data_model/configuration/version.py`:
    - Set `CURRENT_SCHEMA_VERSION` per the dev-label convention above
-     — `"<target>.dev1"` for the first structural PR of a new cycle,
+     -- `"<target>.dev1"` for the first structural PR of a new cycle,
      `.devN+1` for subsequent PRs, plain CalVer (e.g. `"2026.5"`)
      only inside the release PR itself. Use the shortest form
      (`"2026.5"`, not `"2026.05"`).
@@ -155,7 +159,7 @@ use `packaging.version.Version` for the comparison.
      changed, with issue / PR references.
    - (There is no separate compatibility table to update.
      `is_schema_compatible` derives the answer from the migration
-     handler registry — step 3 is what makes older schemas compatible.)
+     handler registry -- step 3 is what makes older schemas compatible.)
 2. Update `src/supy/sample_data/sample_config.yml` so its
    `schema_version` field matches the new `CURRENT_SCHEMA_VERSION`.
    Then regenerate the one-month test sample carved from it,
@@ -168,14 +172,15 @@ use `packaging.version.Version` for the comparison.
    - Key the handler by `(old_schema, new_schema)` in `_HANDLERS`.
    - Express the delta through rename / drop tables plus any bespoke
      reshaping (see `_migrate_2026_1_to_current` for the pattern).
-   - Every drop must carry a human-readable `reason` — Pydantic's
+   - Every drop must carry a human-readable `reason` -- Pydantic's
      default `extra="ignore"` will otherwise silently swallow the
      user's value.
    - Adding this handler is what makes the previous schema
      compatible with the new one: `SchemaMigrator` pulls `_HANDLERS`
      into its registry at construction time, and
      `is_schema_compatible` consults that registry directly.
-4. Vendor a regression fixture under
+4. If the bump coincides with a formal release (never on `.devN` bumps),
+   vendor a regression fixture under
    `test/fixtures/release_configs/<release-tag>.yml` capturing the
    outgoing shape. `test_release_compat.py` picks these up
    automatically through `_PACKAGE_TO_SCHEMA`.
@@ -185,26 +190,27 @@ use `packaging.version.Version` for the comparison.
 6. **Sync the user-facing documentation.** A schema bump is a
    user-visible change, so the docs must move with the code. In the
    same PR, touch every file below that the change actually affects:
-   - `docs/source/contributing/schema/schema_versioning.rst` — keep
+   - `docs/source/contributing/schema/schema_versioning.rst` -- keep
      the "Version History" list and the illustrative schema tags in
      sync with `SCHEMA_VERSIONS`; the CalVer / compatibility-registry
      narrative on that page is the authoritative user explanation.
-   - `docs/source/inputs/transition_guide.rst` — add (or extend) the
+   - `docs/source/inputs/transition_guide.rst` -- add (or extend) the
      "YAML schema migrations" section with a per-release entry
      describing what users see change (renames, removals, profile
-     splits) and the exact `suews-convert` / `suews-schema migrate`
-     invocation that upgrades their YAML.
-   - `docs/source/version-history/v<release-tag>.rst` — when the bump
+     splits) and the exact `suews convert` / `suews schema migrate`
+     invocation that upgrades their YAML (never the deprecated
+     hyphenated `suews-convert` / `suews-schema` aliases).
+   - `docs/source/version-history/v<release-tag>.rst` -- when the bump
      ships in a formal release, list the migration chain under
      "Breaking Changes" and link to the transition guide anchor.
    - `docs/source/contributing/schema/schema-developer.rst` and
-     `schema_cli.rst` — only if the bump changes the developer
+     `schema_cli.rst` -- only if the bump changes the developer
      workflow (e.g. new flag, new CLI behaviour). Cosmetic bumps
-     don't need this.
+     do not need this.
 
    Cosmetic version-file edits (pure docstring/comment changes in
    `version.py`) that do not change the literal `CURRENT_SCHEMA_VERSION`
-   value are not bumps and don't trigger this step.
+   value are not bumps and do not trigger this step.
 
 ---
 
@@ -224,7 +230,7 @@ above), confirm that:
 - `SCHEMA_VERSIONS` has a corresponding entry for the new version,
 - `sample_config.yml` carries the current schema version,
 - `_HANDLERS` in `yaml_upgrade.py` has a handler from the previous
-  schema to the current one — this is the single source of truth for
+  schema to the current one -- this is the single source of truth for
   compatibility; `is_schema_compatible` reads it directly,
 - A vendored fixture for the previous release exists under
   `test/fixtures/release_configs/`.
@@ -273,10 +279,10 @@ The same script also enforces the docs sync from step 6: when
 `docs/source/contributing/schema/schema_versioning.rst` and
 `docs/source/inputs/transition_guide.rst` must be touched in the same
 PR. This closes the loop opened by gh#1304 (where the version number
-was the missing piece) — now the user-facing explanation of what
+was the missing piece) -- now the user-facing explanation of what
 changed has to move with it, or CI blocks the merge.
 
-Bypass (for genuinely cosmetic diffs — docstrings, comments,
+Bypass (for genuinely cosmetic diffs -- docstrings, comments,
 formatting, non-structural value tweaks): a maintainer adds the
 `0-ci:schema-audit-ok` label to the pull request. The workflow reads labels
 before running and short-circuits when that label is present. The

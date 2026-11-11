@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enrich SUEWS bib files with abstracts via WoS/Crossref/OpenAlex.
+r"""Enrich SUEWS bib files with abstracts via WoS/Crossref/OpenAlex.
 
 Cascade: WoS Expanded -> WoS Starter -> Crossref -> OpenAlex.
 WoS requires WOS_EXPANDED_API_KEY or WOS_API_KEY env var.
@@ -23,15 +23,16 @@ Exit codes:
     0   enrichment completed (even if some entries unresolved)
     1   fatal error (no DOIs parsed, all APIs failing)
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
+from pathlib import Path
 import re
 import sys
 import time
-from pathlib import Path
 
 import requests
 
@@ -44,6 +45,7 @@ OPENALEX_URL = "https://api.openalex.org/works/doi:{doi}"
 
 # --- Abstract fetchers ---
 
+
 def _clean_abstract(text: str) -> str:
     """Strip JATS/HTML tags and collapse whitespace."""
     if not text:
@@ -55,7 +57,36 @@ def _clean_abstract(text: str) -> str:
     return text
 
 
+def _extract_wos_expanded_abstract(data: dict) -> str | None:
+    """Extract and clean the abstract string from a WoS Expanded JSON payload."""
+    records = data.get("Data", {}).get("Records", {}).get("records", {}).get("REC")
+    if not records:
+        return None
+    if isinstance(records, dict):
+        records = [records]
+    blocks = (
+        records[0]
+        .get("static_data", {})
+        .get("fullrecord_metadata", {})
+        .get("abstracts", {})
+        .get("abstract")
+    )
+    if not blocks:
+        return None
+    if isinstance(blocks, dict):
+        blocks = [blocks]
+    paragraphs: list[str] = []
+    for block in blocks:
+        p = block.get("abstract_text", {}).get("p")
+        if isinstance(p, str):
+            paragraphs.append(p)
+        elif isinstance(p, list):
+            paragraphs.extend(str(x) for x in p)
+    return _clean_abstract(" ".join(paragraphs)) or None
+
+
 def fetch_wos_expanded(doi: str, api_key: str) -> str | None:
+    """Fetch an abstract for ``doi`` from the Web of Science Expanded API."""
     headers = {"X-ApiKey": api_key, "Accept": "application/json"}
     params = {
         "databaseId": "WOS",
@@ -68,85 +99,70 @@ def fetch_wos_expanded(doi: str, api_key: str) -> str | None:
         if r.status_code != 200:
             return None
         data = r.json()
-        records = data.get("Data", {}).get("Records", {}).get("records", {}).get("REC")
-        if not records:
-            return None
-        if isinstance(records, dict):
-            records = [records]
-        rec = records[0]
-        blocks = (
-            rec.get("static_data", {})
-            .get("fullrecord_metadata", {})
-            .get("abstracts", {})
-            .get("abstract")
-        )
-        if not blocks:
-            return None
-        if isinstance(blocks, dict):
-            blocks = [blocks]
-        paragraphs: list[str] = []
-        for block in blocks:
-            p = block.get("abstract_text", {}).get("p")
-            if p is None:
-                continue
-            if isinstance(p, str):
-                paragraphs.append(p)
-            elif isinstance(p, list):
-                paragraphs.extend(str(x) for x in p)
-        return _clean_abstract(" ".join(paragraphs)) or None
     except Exception:
         return None
+    return _extract_wos_expanded_abstract(data)
 
 
 def fetch_wos_starter(doi: str, api_key: str) -> str | None:
+    """Fetch an abstract for ``doi`` from the Web of Science Starter API."""
     headers = {"X-ApiKey": api_key}
     params = {"q": f'DO="{doi}"', "limit": 1, "db": "WOS", "detail": "full"}
     try:
         r = requests.get(WOS_STARTER_URL, headers=headers, params=params, timeout=20)
         if r.status_code != 200:
             return None
-        hits = r.json().get("hits", [])
-        if not hits:
-            return None
-        abs_text = hits[0].get("abstract") or hits[0].get("citation", {}).get("abstract")
-        return _clean_abstract(abs_text) if abs_text else None
+        payload = r.json()
     except Exception:
         return None
+    hits = payload.get("hits", [])
+    if not hits:
+        return None
+    abs_text = hits[0].get("abstract") or hits[0].get("citation", {}).get("abstract")
+    return _clean_abstract(abs_text) if abs_text else None
 
 
 def fetch_crossref(doi: str) -> str | None:
+    """Fetch an abstract for ``doi`` from the public Crossref REST API."""
     headers = {"User-Agent": USER_AGENT}
     try:
         r = requests.get(CROSSREF_URL.format(doi=doi), headers=headers, timeout=20)
         if r.status_code != 200:
             return None
-        abs_text = r.json().get("message", {}).get("abstract")
-        return _clean_abstract(abs_text) if abs_text else None
+        payload = r.json()
     except Exception:
         return None
+    abs_text = payload.get("message", {}).get("abstract")
+    return _clean_abstract(abs_text) if abs_text else None
 
 
 def fetch_openalex(doi: str) -> str | None:
+    """Fetch and reconstruct an abstract for ``doi`` from OpenAlex."""
     headers = {"User-Agent": USER_AGENT}
     try:
         r = requests.get(OPENALEX_URL.format(doi=doi), headers=headers, timeout=20)
         if r.status_code != 200:
             return None
-        idx = r.json().get("abstract_inverted_index")
-        if not idx:
-            return None
-        positions: list[tuple[int, str]] = []
-        for word, locs in idx.items():
-            for loc in locs:
-                positions.append((loc, word))
-        positions.sort()
-        return _clean_abstract(" ".join(w for _, w in positions)) or None
+        payload = r.json()
     except Exception:
         return None
+    idx = payload.get("abstract_inverted_index")
+    if not idx:
+        return None
+    positions: list[tuple[int, str]] = [
+        (loc, word) for word, locs in idx.items() for loc in locs
+    ]
+    positions.sort()
+    return _clean_abstract(" ".join(w for _, w in positions)) or None
 
 
-def fetch_abstract(doi: str, *, crossref_only: bool, wos_expanded_key: str | None,
-                   wos_starter_key: str | None) -> tuple[str | None, str | None]:
+def fetch_abstract(
+    doi: str,
+    *,
+    crossref_only: bool,
+    wos_expanded_key: str | None,
+    wos_starter_key: str | None,
+) -> tuple[str | None, str | None]:
     """Return (abstract, source_name). source_name is None on failure."""
     if not crossref_only:
         if wos_expanded_key:
@@ -216,6 +232,7 @@ def _match_field(body: str, name: str) -> tuple[int, int, str] | None:
 
 
 def extract_field(body: str, name: str) -> str | None:
+    """Return the raw value of BibTeX field ``name`` or ``None``."""
     found = _match_field(body, name)
     return found[2] if found else None
 
@@ -243,7 +260,7 @@ def set_abstract(body: str, abstract: str) -> str:
     # field line ends with a comma so the new field parses cleanly.
     close_match = re.search(r"\}\s*$", body)
     if not close_match:
-        return body  # malformed — skip
+        return body  # malformed -- skip
     close_pos = close_match.start()
     prefix = body[:close_pos]
     stripped = prefix.rstrip()
@@ -253,6 +270,7 @@ def set_abstract(body: str, abstract: str) -> str:
 
 
 def extract_doi(body: str) -> str | None:
+    """Extract and strip the ``doi`` field from a BibTeX entry body."""
     val = extract_field(body, "doi")
     if not val:
         return None
@@ -260,20 +278,36 @@ def extract_doi(body: str) -> str | None:
 
 
 def needs_abstract(body: str) -> bool:
+    """Return ``True`` when the BibTeX entry lacks a non-empty ``abstract``."""
     val = extract_field(body, "abstract")
     if val is None:
         return True
-    return val.strip() == ""
+    return not val.strip()
 
 
 # --- Driver ---
 
-def process_file(path: Path, *, crossref_only: bool, dry_run: bool, delay: float,
-                 wos_expanded_key: str | None, wos_starter_key: str | None) -> dict:
+
+def process_file(
+    path: Path,
+    *,
+    crossref_only: bool,
+    dry_run: bool,
+    delay: float,
+    wos_expanded_key: str | None,
+    wos_starter_key: str | None,
+) -> dict:
+    """Enrich missing abstracts in ``path`` and return per-file summary stats."""
     text = path.read_text(encoding="utf-8")
     entries = find_entries(text)
-    stats = {"total": len(entries), "already": 0, "enriched": 0,
-             "no_doi": 0, "unresolved": 0, "by_source": {}}
+    stats = {
+        "total": len(entries),
+        "already": 0,
+        "enriched": 0,
+        "no_doi": 0,
+        "unresolved": 0,
+        "by_source": {},
+    }
     # Process last-to-first so offsets stay valid for naive string operations
     # (not strictly necessary here since we rebuild the text each iteration)
     new_text = text
@@ -314,14 +348,20 @@ def process_file(path: Path, *, crossref_only: bool, dry_run: bool, delay: float
 
 
 def main() -> int:
+    """Run CLI abstract enrichment across one or more ``.bib`` files."""
     ap = argparse.ArgumentParser(description="Enrich SUEWS bib files with abstracts")
     ap.add_argument("paths", nargs="+", help="Bib files to enrich (in place)")
-    ap.add_argument("--crossref-only", action="store_true",
-                    help="Skip WoS entirely; useful for collaborators without a WoS key")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="Report without writing changes")
-    ap.add_argument("--delay", type=float, default=0.3,
-                    help="Seconds between API calls")
+    ap.add_argument(
+        "--crossref-only",
+        action="store_true",
+        help="Skip WoS entirely; useful for collaborators without a WoS key",
+    )
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Report without writing changes"
+    )
+    ap.add_argument(
+        "--delay", type=float, default=0.3, help="Seconds between API calls"
+    )
     args = ap.parse_args()
 
     wos_expanded_key = os.environ.get("WOS_EXPANDED_API_KEY")
@@ -331,12 +371,23 @@ def main() -> int:
         wos_starter_key = None
 
     if not args.crossref_only and not wos_expanded_key and not wos_starter_key:
-        print("[warn] No WoS key found (WOS_EXPANDED_API_KEY / WOS_API_KEY).", file=sys.stderr)
-        print("[warn] Falling back to Crossref + OpenAlex only. Pass --crossref-only to silence.",
-              file=sys.stderr)
+        print(
+            "[warn] No WoS key found (WOS_EXPANDED_API_KEY / WOS_API_KEY).",
+            file=sys.stderr,
+        )
+        print(
+            "[warn] Falling back to Crossref + OpenAlex only. Pass --crossref-only to silence.",
+            file=sys.stderr,
+        )
 
-    totals = {"total": 0, "already": 0, "enriched": 0, "no_doi": 0, "unresolved": 0,
-              "by_source": {}}
+    totals = {
+        "total": 0,
+        "already": 0,
+        "enriched": 0,
+        "no_doi": 0,
+        "unresolved": 0,
+        "by_source": {},
+    }
 
     for p in args.paths:
         path = Path(p)
@@ -358,8 +409,10 @@ def main() -> int:
             totals[key] += val
         for source, count in stats["by_source"].items():
             totals["by_source"][source] = totals["by_source"].get(source, 0) + count
-        print(f"  -> {stats['enriched']} enriched, {stats['already']} already populated, "
-              f"{stats['no_doi']} no DOI, {stats['unresolved']} unresolved")
+        print(
+            f"  -> {stats['enriched']} enriched, {stats['already']} already populated, "
+            f"{stats['no_doi']} no DOI, {stats['unresolved']} unresolved"
+        )
 
     print("\n=== totals ===")
     print(json.dumps(totals, indent=2))

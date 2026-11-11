@@ -1,6 +1,7 @@
 ---
 paths:
   - test/**/*.py
+  - benchmark/tests/**/*.py
 ---
 
 # Verification Methodology
@@ -9,7 +10,7 @@ Rules for numerical comparisons, test validation, and diagnostic investigations.
 
 ## Before comparing outputs
 
-1. **Read the existing test code first.** Find how the test loads, parses, and aligns data. Use the same method — do not guess file formats, index structures, or column mappings.
+1. **Read the existing test code first.** Find how the test loads, parses, and aligns data. Use the same method -- do not guess file formats, index structures, or column mappings.
    - the sample-output reference is twelve monthly CSV shards; read it through
      `sample_output_io.load_sample_output` (in tests, via the session-scoped
      `sample_reference` fixture in `test/conftest.py`) rather than rolling your
@@ -18,7 +19,7 @@ Rules for numerical comparisons, test validation, and diagnostic investigations.
      sorts by name, and reads each shard with `index_col=[0, 1]`,
      `parse_dates=[1]`, `float_precision="round_trip"`, then checks the
      concatenated frame for a unique index and the expected 105,408 rows
-   - Never assume CSV structure — check the test that uses it
+   - Never assume CSV structure -- check the test that uses it
 
 2. **Run the existing test before writing custom scripts.** If a test exists for the comparison you need, run it (`pytest path::Class::method -v`). Only write custom code if no test covers the question.
 
@@ -29,7 +30,7 @@ Rules for numerical comparisons, test validation, and diagnostic investigations.
 
 ## When results look unexpected
 
-4. **Question your script, not the production code.** Ad-hoc comparison scripts are the most likely source of error — misaligned indices, wrong column parsing, off-by-one rows. Verify your comparison is correct before drawing conclusions about the code.
+4. **Question your script, not the production code.** Ad-hoc comparison scripts are the most likely source of error -- misaligned indices, wrong column parsing, off-by-one rows. Verify your comparison is correct before drawing conclusions about the code.
 
 5. **Never fabricate explanations.** If you don't know why something differs, say "I don't know yet, let me verify." Do not construct plausible-sounding narratives from unverified data.
 

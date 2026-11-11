@@ -13,11 +13,12 @@ checking, or simulation logic in conversation.
 
 > **CLI naming note**: this Skill describes the unified `suews <subcommand>`
 > CLI (`suews validate`, `suews inspect`, `suews diagnose`, `suews convert`,
-> `suews compare`, `suews init`). On installations that ship the legacy
-> hyphenated entry points only (`suews-validate`, `suews-convert`,
-> `suews-schema`, `suews-run`), substitute the hyphenated form -- the
-> structured JSON envelope and exit semantics are the same. When in doubt,
-> run `suews --help` and pick whichever surface the wheel exposes.
+> `suews compare`, `suews summarise`, `suews schema`, `suews init`, `suews run`).
+> On installations that ship the legacy hyphenated entry points (`suews-validate`,
+> `suews-inspect`, `suews-convert`, `suews-schema`, `suews-run`), those shims
+> forward to the matching subcommands with the same structured JSON envelope and
+> exit semantics. When in doubt, run `suews --help` and pick whichever surface
+> the wheel exposes.
 
 > **Prerequisite -- the CLI and the MCP must be installed.** A bare
 > `pip install supy` gives the `suews` CLI but **not** the MCP (`suews-mcp` is
@@ -57,12 +58,18 @@ London setup believing it is their site. `validate_config` checks the config is
    reuse a sample from `suews://examples/{name}` or
    `src/supy/sample_data/sample_config.yml`.
 3. Always validate before editing. Call the `validate_config` MCP tool, or
-   run `suews validate --format json <config>` (the `--format` flag must come
-   *before* the file path -- after it, click parses it as a file). Read the structured output,
-   not the prose. Pretty-printed terminal output is for humans; you want the
-   JSON envelope (`{status, data, errors, warnings, meta}`).
-4. Use structured JSON outputs only. If a CLI lacks `--format json`, flag
-   it as a CLI gap rather than scrape prose.
+   run `suews validate --dry-run --format json <config>` (or `suews validate
+   --format json <config>`; `--format` is a subcommand option -- never put it
+   before `validate`, and place options before `<config>`). Read the structured
+   output, not the prose. Pretty-printed terminal output is for humans; you want
+   the JSON envelope (`{status, data, errors, warnings, meta}`).
+4. Use structured JSON outputs only. Pass `--format json` on subcommands that
+   support it (`validate`, `inspect`, `diagnose`, `convert`, `compare`,
+   `summarise`, `init`, and bare `suews schema --format json` for the
+   `{status, data}` envelope; for raw JSON Schema without Rich panel borders use
+   `suews schema -q export` or `suews schema export -o schema.json`). Note that
+   `suews run` has no `--format` flag. If another CLI lacks `--format json`,
+   flag it as a CLI gap rather than scrape prose.
 5. Failure-diagnosis order: schema/version -> file paths -> forcing time
    axis -> required forcing variables -> land-cover fractions sum to 1 ->
    temporal resolution -> output directory writable. Stop at the first
@@ -77,9 +84,11 @@ London setup believing it is their site. `validate_config` checks the config is
 9. After running, always read `provenance.json` and `diagnostics.json`
    before claiming success. The MCP resources `suews://runs/{id}/provenance`
    and `suews://runs/{id}/diagnostics` are the canonical way.
-10. For publication, route through the `review_config_before_publication`
-    MCP prompt. Do not invent a checklist -- see
-    `references/publication-review-checklist.md`.
+10. For publication review, walk `references/publication-review-checklist.md`
+    systematically (and use the `evaluate_results` MCP prompt when evaluating
+    against observations; the MCP server ships `fresh_site_setup`,
+    `parameter_importance`, and `evaluate_results` in
+    `mcp/src/suews_mcp/prompts.py`). Do not invent an ad-hoc checklist.
 11. Plain language for fresh users. In user-facing output, prefer plain
     language; when a technical term is unavoidable (YAML, schema, forcing,
     `init`), define it in a few words the first time you use it. Avoid inherited
@@ -106,8 +115,8 @@ not judge the MCP's value on them, and steer fresh users to a capable model.
 Do not present parameters as a flat list. Their importance is **derived from
 the model's nature**: SUEWS closes the surface energy balance every timestep --
 `QN + QF = QS + QE + QH` -- by iterating surface temperature to convergence and
-taking **QH as the residual** (`suews_ctrl_driver.f95:3201`). Two facts follow,
-and they set the whole logic:
+taking **QH as the residual** (`src/suews/src/suews_ctrl_driver.f95::SUEWS_cal_QH`).
+Two facts follow, and they set the whole logic:
 
 - The balance **always closes**, so "it ran and balanced" says nothing about
   whether the *partition* is right. **Closure is not a validation check.**
@@ -116,31 +125,36 @@ and they set the whole logic:
   So parameter importance is simply the order of the energy-balance terms:
 
 1. **Net radiation `QN` -- the dominant input.**
-   - **Albedo first.** Net shortwave is `(1 - albedo)*Kdown`
-     (`suews_phys_narp.f95:414`): albedo scales the largest input directly, so a
-     wrong albedo makes `QN` -- and the whole partition -- wrong. It varies
-     strongly by surface and region (arid surfaces are far brighter than London
-     brick), so it is the highest-leverage value and the first to check.
+   - **Albedo first.** Net shortwave is `(1 - albedo)*kdown`
+     (`src/suews/src/suews_phys_narp.f95::NARP`): albedo scales the largest input
+     directly, so a wrong albedo makes `QN` -- and the whole partition -- wrong.
+     It varies strongly by surface and region (arid surfaces are far brighter
+     than London brick), so it is the highest-leverage value and the first to
+     check.
    - **Emissivity second, but low effort.** Net longwave uses surface emissivity
-     and the *iterated* surface temperature (`suews_phys_narp.f95:402-407`). You
-     cannot set surface temperature -- the model solves it. You set
-     **emissivity**, but common materials sit ~0.90-0.97, so if you have no
-     better value the **sample default is acceptable** -- flag it, don't agonise.
+     and the *iterated* surface temperature
+     (`src/suews/src/suews_phys_narp.f95::NARP`). You cannot set surface
+     temperature -- the model solves it. You set **emissivity**, but common
+     materials sit ~0.90-0.97, so if you have no better value the **sample
+     default is acceptable** -- flag it, don't agonise.
 2. **Anthropogenic heat `QF` -- the other input.** Added straight into available
-   energy (`suews_ctrl_driver.f95:2618`). Matters where large (dense / cold-winter
-   / hot-summer cities); negligible rural. Set its drivers (population density,
-   energy-use profiles) to your context.
+   energy (`src/suews/src/suews_ctrl_driver.f95::SUEWS_cal_AnthropogenicEmission`).
+   Matters where large (dense / cold-winter / hot-summer cities); negligible
+   rural. Set its drivers (`model.physics.emissions.heat` and
+   `sites[*].properties.anthropogenic_emissions`: population density, energy-use
+   profiles) to your context.
 3. **Storage heat `QS` -- the first sink.** OHM: `QS = a1*QN + a2*dQN/dt + a3`
-   (`suews_phys_ohm.f95:653`), driven by the **material/thermal properties**
-   (thickness, heat capacity, conductivity) of walls/roofs/roads. After `QN` and
-   `QF`, this is the next term to get right.
+   (`src/suews/src/suews_phys_ohm.f95::OHM`), driven by the **material/thermal
+   properties** (thickness, heat capacity, conductivity) of walls/roofs/roads.
+   After `QN` and `QF`, this is the next term to get right.
 4. **Available energy `QN + QF - QS`, split into `QE` and `QH`.**
    - **`QE` (latent) -- the energy<->water hinge.** Penman-Monteith via surface
-     conductance (`gsModel`, Jarvi 2011 / Ward 2016), modulated by **LAI,
-     soil-moisture deficit and surface water state** (`suews_phys_evap.f95`,
-     `suews_phys_resist.f95:122`). This is where the **water balance** enters:
-     irrigation, soil store and runoff set how much water is available to
-     evaporate. Vegetation + water parameters live here.
+     conductance (`model.physics.surface_conductance`, Jarvi 2011 / Ward 2016),
+     modulated by **LAI, soil-moisture deficit and surface water state**
+     (`src/suews/src/suews_phys_evap.f95::cal_evap`,
+     `src/suews/src/suews_phys_resist.f95::SurfaceResistance`). This is where
+     the **water balance** enters: irrigation, soil store and runoff set how much
+     water is available to evaporate. Vegetation + water parameters live here.
    - **`QH` (sensible) -- the residual.** Whatever `QE` leaves. There is no `QH`
      parameter; get `QN`, `QS`, `QE` right and `QH` (and the 2 m temperature you
      evaluate) follows.
@@ -175,14 +189,16 @@ These are the standard moves; expand by reading the referenced files.
   confirm -> `validate_config` -> `suews run`. **Always surface the
   assumed-defaults list before any run** so the user is never silently running
   the sample's site.
-- **New case from scratch (CLI form)**: `suews init --template simple-urban -o demo`,
-  edit, then `suews validate --format json demo/config.yml`. See
+- **New case from scratch (CLI form)**: `suews init --template simple-urban demo`
+  (note positional `TARGET_DIR`, not `-o`), edit, then
+  `suews validate --dry-run --format json demo/config.yml`. See
   `references/forcing-checklist.md` before adding forcing.
-- **Failed run**: `suews validate` -> `suews inspect` -> `suews diagnose`.
+- **Failed run**: `suews validate --dry-run --format json <config>` ->
+  `suews inspect --format json <config>` -> `suews diagnose --format json <run_dir>`.
   Read `references/common-errors.md` for the most frequent diagnoses.
-- **Namelist -> YAML migration**: `suews convert -i RunControl.nml -o config.yml`,
+- **Namelist -> YAML migration**: `suews convert --format json -i RunControl.nml -o config.yml`,
   then validate. See `references/migration-namelist-to-yaml.md`.
 - **Output interpretation**: read `references/output-interpretation.md` for
   energy balance, storage heat, anthropogenic heat, Bowen ratio.
-- **Scenario comparison**: `suews compare <baseline> <scenario>` -- see
+- **Scenario comparison**: `suews compare --format json <baseline> <scenario>` -- see
   `references/output-interpretation.md` for which metrics to read first.

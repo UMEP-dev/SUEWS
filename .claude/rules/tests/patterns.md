@@ -1,7 +1,8 @@
 ---
 paths:
   - test/**/*.py
-  - tests/**/*.py
+  - benchmark/tests/**/*.py
+  - .claude/scripts/test_*.py
 ---
 
 # Test Patterns
@@ -89,30 +90,30 @@ Markers sit on two orthogonal axes (gh#1300). Every new test file **must**
 declare the nature axis at module level; tier markers compose on top as
 per-test decorators.
 
-### Nature axis — REQUIRED on every file
+### Nature axis -- REQUIRED on every file
 
 Pick exactly one (or both, rarely) and declare at module level:
 
 ```python
 import pytest
 
-pytestmark = pytest.mark.api        # Python wrapper surface
+pytestmark = pytest.mark.api  # Python wrapper surface
 # or:
-pytestmark = pytest.mark.physics    # numerical / binary correctness
+pytestmark = pytest.mark.physics  # numerical / binary correctness
 # or (file straddles both):
 pytestmark = [pytest.mark.physics, pytest.mark.api]
 ```
 
-- `physics` — outputs determined by the compiled artefact + CPU
+- `physics` -- outputs determined by the compiled artefact + CPU
   floating-point. CI runs these once per `(OS, arch)` on the build
   Python. Typical: mass/energy balance, DailyState accumulation, Fortran
   state persistence.
-- `api` — exercises the pandas / numpy / pydantic / click surface. CI
+- `api` -- exercises the pandas / numpy / pydantic / click surface. CI
   runs these across `(platform x Python)` because the dependency
   surface varies per interpreter. Typical: config validation, CLI, YAML
   round-trip, `SUEWSSimulation` methods.
 
-When unsure, pick `api` — it's the broader coverage axis and safer if
+When unsure, pick `api` -- it's the broader coverage axis and safer if
 the test is genuinely mixed.
 
 UMEP tests (`test/umep/*.py`) pick up `api` automatically via
@@ -123,10 +124,10 @@ contracts rather than model physics.
 **A static CI lint (`scripts/lint/check_test_markers.py`) and a
 `pytest_collection_finish` hook in `test/conftest.py` both fail any PR
 that introduces a test file without a nature marker.** If you see the
-lint fire, add a `pytestmark = pytest.mark.api` (or physics) line — do
+lint fire, add a `pytestmark = pytest.mark.api` (or physics) line -- do
 not bypass.
 
-### Importance and cost — independent per-test decorators
+### Importance and cost -- independent per-test decorators
 
 ```python
 @pytest.mark.smoke   # Critical, fast tests (~60s total)
@@ -183,96 +184,27 @@ slowest platform" maps onto the same tests.
 | `medium` | 10 to 30 |
 | `slow` | 30 or more, or `slow(reason="...")` for a non-CPU cause |
 
-Where the numbers come from. The metrics plugin
-(`scripts/suews/pytest_ci_metrics.py`) records wall and CPU seconds per test
-and phase in the `ci-metrics-api-cp312-manylinux-x86_64` and
-`ci-metrics-physics-cp312-manylinux-x86_64` artefacts of every nightly run. The
-reference measurement is dispatch run 34434996759 on PR #1779 (10 September
-2026, release wheel, the branch merged with master up to #1782; 183 physics
-and 2129 api tests ran their body, and the 37 skipped or xfailed nodes carry
-no measurement):
+`scripts/suews/pytest_ci_metrics.py` records per-test wall and CPU seconds in
+the `ci-metrics-api-cp312-manylinux-x86_64` and
+`ci-metrics-physics-cp312-manylinux-x86_64` nightly artefacts. Only the `call`
+phase (`DEFAULT_PHASE = "call"`) defines a test's cost because under xdist
+(`-n 4`) shared session-fixture `setup` is charged to whichever test reaches it
+first on each worker.
 
-| Test body CPU-s | physics tests | api tests |
-|---|---:|---:|
-| 0 - 0.1 | 84 | 1707 |
-| 0.1 - 0.3 | 4 | 67 |
-| 0.3 - 1 | 19 | 113 |
-| 1 - 3 | 15 | 145 |
-| 3 - 10 | 37 | 97 |
-| 10 - 30 | 24 | 0 |
-| 30 - 60 | 0 | 0 |
-| 60 or more | 0 | 0 |
+`scripts/lint/check_cost_markers.py` (`MEDIUM_CPU_SECONDS = 10.0`,
+`SLOW_CPU_SECONDS = 30.0`, `BAND = 2.0`) enforces a 2x hysteresis band to
+absorb hosted-runner CPU variance without flapping: unmarked tests are flagged
+at >=20 CPU-s (`medium`) or >=60 CPU-s (`slow`), `medium` tests under 5 or
+>=60 CPU-s, and bare `slow` tests under 15 CPU-s. A `slow` mark under 30 CPU-s
+must state its non-CPU rationale via `pytest.mark.slow(reason="...")`
+(network/credentials, run-count policy, spawned server, or slow-platform wall
+time). Skipped/xfailed nodes are excluded, and an unrecognised
+`METRICS_SCHEMA_VERSION` fails hard rather than silently passing.
 
-The markers were set from this run and from nothing else. `medium` is kept on
-the 22 tests that read 10.1 to 19.8 CPU-s there (fourteen EHC regressions,
-five AnOHM restart, chunking and engagement checks, the two DailyState
-senescence tests, laimethod seasonal integration) and dropped from the three
-that read under 10: `test_dailystate_lai_responds_to_phenology` (0.0, its
-full-year run moved into a session fixture by #1782), `test_benchmark_config`
-(1.4, after #1781) and `test_ehc_state_dependent_ra_heat_guard_includes_zero_kdown`
-(6.8). No unmarked test reads 10 or more: the heaviest are the OHM blending and
-DailyState southern-hemisphere tests at 7.8 and, on the api lane, a run
-provenance test at 7.7. The thresholds themselves were first read from run
-34415925967 (9 September, before #1776 and #1780 to #1782 landed), where the
-physics 10-30 band held 25 tests at 11.6 to 27.9 CPU-s and two tests exceeded
-30 (33.5 and 35.2); those PRs moved the sample-output and reference-loading
-cost out of the test bodies, and the same tests now read about 0.7 to 0.85x
-of that on the reference run.
-
-Ten seconds sits at the top of the short sample runs (a few model days: the
-OHM blending, irrigation, LAI-method and dyohm tests, 5 to 8 CPU-s on the
-reference run) and at the bottom of the long ones (ten or more model days or
-repeated runs: the EHC regressions, the AnOHM restart and chunking checks, the
-DailyState senescence tests, 10.1 CPU-s and up). That gap, 7.8 to 10.1, is
-narrow, and the band below is what keeps tests on either side of it from
-flapping. Thirty seconds separates nothing cleanly on the merged tree: the
-suite maximum was 26.2 CPU-s on the reference run and 30.1 on the dispatch
-after it (the two full-year sample-output comparisons read 24.8 and 26.2, then
-24.7 and 30.1; 17 to 36 and 21 to 34 across the seven dispatches of PR #1779),
-so the CPU limb of `slow` currently distinguishes at most one test from
-`medium`, and that one only on some readings; every `slow` mark in the suite
-stands on its stated `reason=`, not on its cost. The threshold stays as the
-class boundary, at 3x the medium threshold, for a test that grows past it.
-Nothing in the suite reaches 60 CPU-s.
-
-Why the `call` phase. Under xdist the physics lane runs four workers and each
-worker instantiates a session fixture once, so `setup` charges a shared fixture
-to whichever test reaches it first on each worker; that cost belongs to the
-fixture, not the test, and would make the flagged set differ between two runs
-of the same tree. Setup and teardown are recorded beside `call` in the artefact
-for anyone who needs them.
-
-How it is checked. `scripts/lint/check_cost_markers.py` reads those artefacts
-and names every test whose marker clearly disagrees with its measurement.
-"Clearly" is a hysteresis band of 2: per-test CPU seconds vary by up to about
-2x between dispatches, so the band is the observed spread, not a margin on it.
-Hosted runners are not one hardware generation (the serial api lane of PR
-#1779 totalled 742, 776, 913, 675, 586, 830 and 813 CPU-s over seven
-dispatches of the same tests, and individual tests moved by up to 1.97x
-between two consecutive dispatches), and on the four-worker physics lane a
-change elsewhere in the tree moves what the workers contend for and with it
-every test's CPU time (the same
-lane totalled 955 and 981 CPU-s before #1776 halved the sample-output
-reference, then 626, 542, 540, 644 and 647 after it; one EHC regression read
-14.6, 14.6, 9.3, 7.7, 7.6, 6.8 and 6.8 CPU-s). So a marker is questioned only
-when the reading is on the wrong side of a threshold by more than the band:
-unmarked from 20 CPU-s (`medium`) or 60 (`slow`), `medium` under 5 or from 60,
-bare `slow` under 15. Inside a band either marking is accepted, so a test near a
-threshold does not flap between two nights' readings, and the check is for
-tests that are clearly in the wrong class: a heavy test added without a
-marker, a `medium` that has grown into `slow`, a bare `slow` on a cheap test.
-A `slow` mark under 30 CPU-s must carry its reason
-(`pytest.mark.slow(reason="...")`: network or credentials, a run-count policy
-such as the non-anchor legacy-table versions, a spawned server with wall-clock
-assertions, a full-year run that is 148 s of wall on Windows); the plugin
-records the reason and the check accepts it. Skipped and xfailed nodes are
-excluded by outcome and not judged. An artefact whose per-test records carry a
-schema version this lint does not read stops the check with an error rather
-than being skipped, so a schema bump cannot read as no drift. The nightly
-`cost_markers` job in `build-publish_to_pypi.yml` runs the check after the two
-Linux cp312 lanes (also on `workflow_dispatch` with the `cost_markers` input)
-with `continue-on-error`, so drift is reported in the step summary and never
-reddens the run. Run it locally on downloaded artefacts:
+The nightly `cost_markers` job in `.github/workflows/build-publish_to_pypi.yml`
+(and `workflow_dispatch` with `cost_markers=true`) runs with
+`continue-on-error: true` to report drift in the step summary without reddening
+the run. Fix the marker rather than moving the threshold constants:
 
 ```bash
 gh run download <run-id> -n ci-metrics-api-cp312-manylinux-x86_64 -D ci-metrics/api
@@ -280,51 +212,58 @@ gh run download <run-id> -n ci-metrics-physics-cp312-manylinux-x86_64 -D ci-metr
 python scripts/lint/check_cost_markers.py ci-metrics --histogram
 ```
 
-Fix the marker, not the threshold. A threshold moves only with a new
-distribution table in this section and a matching change to the constants at
-the top of the lint.
-
 ---
 
 ## Test File Locations
 
-**All tests live under `test/`. Do not place `test_*.py` anywhere else in the
-repository** — not in `benchmark/tests/`, not beside the source they exercise,
-not in any tool subtree. Pick the subdirectory by what the test exercises:
+**All tests for shipped `src/supy/**`, `mcp/**`, and documentation contracts
+live under `test/`.** Do not place `test_*.py` beside the source they exercise
+or in ad-hoc subdirectories. Pick the `test/` subdirectory by what the test
+exercises:
 
 ```
 test/
-├── core/           # API, CLI, utilities
-├── data_model/     # Pydantic config + converters (yaml_upgrade, table converter)
-├── physics/        # Scientific validation
-├── io_tests/       # Input/output handling
-├── cmd/            # CLI entry points
-├── docs/           # Documentation checks
-└── fixtures/       # Test data
+|-- core/           # API, CLI, utilities
+|-- data_model/     # Pydantic config + converters (yaml_upgrade, table converter)
+|-- physics/        # Scientific validation
+|-- io_tests/       # Input/output handling
+|-- cmd/            # CLI entry points
+|-- docs/           # Documentation checks
+|-- knowledge/      # Knowledge-base schema and tooling checks
+|-- mcp/            # MCP server delegation and contract tests
+|-- umep/           # UMEP/QGIS plugin-facing API contracts
+`-- fixtures/       # Test data
 ```
+
+**Narrow standalone exceptions outside `test/`:**
+
+- `benchmark/tests/test_*.py` -- self-tests for the standalone `benchmark/`
+  evaluation harness only (never tests for shipped `src/supy/**` code).
+- `.claude/scripts/test_validate_agents_md.py` -- stdlib `unittest` checks for
+  the repository governance validator `.claude/scripts/validate-claude-md.py`.
 
 ### Why this is a hard rule, not a preference
 
-Only `test/` is wired into the project's test machinery:
+Only `test/` is wired into the package's wheel-test machinery:
 
-- **CI runs `pytest test`** (the cross-CPython matrix in
-  `test-api-cross-python-reusable.yml`). A `test_*.py` outside `test/` runs in
-  **no CI job** — it silently provides zero coverage, however green it looks
-  locally.
+- **Wheel CI runs `pytest test`** (the cross-CPython matrix in
+  `test-api-cross-python-reusable.yml` and physics wheel tests). A `test_*.py`
+  for `src/supy/**` placed outside `test/` runs in **no wheel CI job** -- it
+  silently provides zero package coverage, however green it looks locally.
 - **The nature-marker gate** (`scripts/lint/check_test_markers.py` +
   `test/conftest.py`) only walks `test/`. Tests placed elsewhere escape the
   `api` / `physics` marker discipline entirely.
-- Shared fixtures, conftest helpers, and tier markers (`smoke` / `slow` / …)
+- Shared fixtures, conftest helpers, and tier markers (`smoke` / `slow` / ...)
   are all rooted at `test/`.
 
 So a test's *location* determines whether it is actually run and disciplined.
 A test for shipped `src/supy/**` code that lives under `benchmark/` is the
-canonical mistake: it tests core code but is invisible to CI. Move it to the
-matching `test/` subdirectory and give it a nature marker.
+canonical mistake: it tests core code but is invisible to wheel CI. Move it to
+the matching `test/` subdirectory and give it a nature marker.
 
 If a fixture lives in a git tag or external source, **vendor a minimal,
 self-contained copy under `test/fixtures/`** rather than fetching at test time
-— the standard CI checkout is shallow and tag-less, so a tag-fetching test
+-- the standard CI checkout is shallow and tag-less, so a tag-fetching test
 skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 
 ---
@@ -343,7 +282,7 @@ skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 Before writing a test, decide what its FAILURE would mean. If it can fail
 while user-visible behaviour is unchanged (a private method renamed, a
 registry dict reorganised, an internal call signature changed, an error
-message reworded), it is pinned to the implementation, not to a contract —
+message reworded), it is pinned to the implementation, not to a contract --
 do not write it. "Add a function, add a test" is not the rule; "add a
 contract, add a test at the lowest level that can express it" is.
 
@@ -351,7 +290,7 @@ Levels, and what each one owns:
 
 - **Config/validator contracts** -> test through `SUEWSConfig.from_yaml` /
   `from_dict` (or the CLI). A validation rule's contract is "this YAML is
-  rejected with a message the user can act on" — not the return value of a
+  rejected with a message the user can act on" -- not the return value of a
   private `_validate_*` method on a stub.
 - **Pipeline behaviour** (Phase A/B/C processing) -> real user-shaped YAML
   through the pipeline entry points, asserting the surfaced report/error.
@@ -368,15 +307,15 @@ Levels, and what each one owns:
 Banned test constructions (each has produced real dead weight here):
 
 - `SimpleNamespace` / hand-rolled stubs passed to private methods of the
-  system under test — the stub drifts from the real object shape and the
+  system under test -- the stub drifts from the real object shape and the
   test keeps passing while production breaks (`RefValue` vs raw float).
 - `model_construct()` + `object.__setattr__` to defeat validation so a
-  fake config can be injected — the test then asserts against an object
+  fake config can be injected -- the test then asserts against an object
   the public API would refuse to build.
 - Monkeypatching the system under test (patching `SUEWSConfig.__init__`,
-  neutering a rules registry) — the test exercises the mock.
+  neutering a rules registry) -- the test exercises the mock.
 - Restating a source literal (registry dict contents, enum values, hand
-  copied column lists) — a change-detector that fails on legitimate change
+  copied column lists) -- a change-detector that fails on legitimate change
   and never on real breakage. Derived invariants (disjointness, parity
   across artefacts) are fine.
 - Asserting through private attributes (`sim._df_state_init`) when a
@@ -399,7 +338,7 @@ this taxonomy, move the touched tests to the right level in the same PR.
 - Magic numbers without named constants (e.g., `288` for timesteps/day)
 - Skipping without a documented reason (see "Skipping Tests" below)
 - `try/except Exception: pytest.skip(...)` to hide real failures
-- `try/except ImportError: pytest.skip(...)` — use `pytest.importorskip` instead
+- `try/except ImportError: pytest.skip(...)` -- use `pytest.importorskip` instead
 
 ---
 
@@ -438,8 +377,8 @@ The protocol guarantees exactly: `joinpath` (and so `/`), `name`, `is_dir`,
 ```python
 sample_config = trv_supy_module / "sample_data" / "sample_config.yml"
 
-assert sample_config.is_file()                  # NOT .exists(), not in the protocol
-with sample_config.open(encoding="utf-8") as f: # NOT builtin open(...)
+assert sample_config.is_file()  # NOT .exists(), not in the protocol
+with sample_config.open(encoding="utf-8") as f:  # NOT builtin open(...)
     cfg = yaml.safe_load(f)
 text = sample_config.read_text(encoding="utf-8")
 ```
@@ -447,7 +386,7 @@ text = sample_config.read_text(encoding="utf-8")
 Anything that requires `os.PathLike` needs a real filesystem path, which means
 `importlib.resources.as_file()`. That covers more than it first appears:
 builtin `open()`, `shutil.copy()`, subprocess arguments, `str(...)` used as a
-path, and **any library function that opens the file itself** — including
+path, and **any library function that opens the file itself** -- including
 `SUEWSConfig.from_yaml()`, `init_config_from_yaml()`, `sp.init_supy()` and
 `SUEWSSimulation(...)`.
 
@@ -467,8 +406,8 @@ obvious reach and is *not* in the protocol.
 **Materialise the directory whenever the resource has siblings it depends on.**
 `as_file()` on a single file extracts *only that file* under a non-filesystem
 loader. `sample_config.yml` names its forcing file as a bare sibling
-(`Kc_2012_data_60.txt`), so anything that loads forcing —
-`load_forcing_grid` or `SUEWSSimulation` — needs the directory, not the file.
+(`Kc_2012_data_60.txt`), so anything that loads forcing --
+`load_forcing_grid` or `SUEWSSimulation` -- needs the directory, not the file.
 `init_supy` only parses the config into initial state, so file materialisation
 is sufficient there:
 
@@ -520,9 +459,9 @@ def sample_yaml_path() -> Iterator[Path]:
 Two helpers in `test/cmd/test_validate_config.py` are the reference
 implementations. Copy those rather than reinventing:
 
-- `_sample_yaml_path()` — the `as_file` context-manager helper, for handing a
+- `_sample_yaml_path()` -- the `as_file` context-manager helper, for handing a
   real path to Click.
-- `_copy_sample_data()` — copies the whole `sample_data` directory using
+- `_copy_sample_data()` -- copies the whole `sample_data` directory using
   `iterdir()` / `is_file()` / `read_bytes()` / `write_bytes()`, all protocol
   methods, so it needs no `as_file()` at all. Note it guards with
   `.is_file()`, not `.exists()`.
@@ -553,7 +492,7 @@ than as "the Traversable happens to wrap a real path". Under the editable
 (meson-python) install the two levels differ:
 
 ```python
-trv_supy_module / "sample_data"                        # MesonpyTraversable — no .parent
+trv_supy_module / "sample_data"  # MesonpyTraversable -- no .parent
 trv_supy_module / "sample_data" / "sample_config.yml"  # plain pathlib.PosixPath
 ```
 
@@ -563,7 +502,7 @@ full green test run says nothing about whether the code is correct. Under a
 wheel, `files("supy")` returns a real `Path` throughout, so that mode passes
 too. Both of supy's real install modes hide the error.
 
-This means the non-filesystem branch cannot be exercised for supy at all —
+This means the non-filesystem branch cannot be exercised for supy at all --
 compiled extensions cannot zip-import. Verify a conversion by reading the
 protocol, not by running the suite. Green tests are necessary, never sufficient.
 
@@ -581,13 +520,13 @@ rather than inventing a `__file__` reach.
 test policy: the lint does not try to infer whether a particular reach is for
 packaged data or module provenance. Bare `__file__` stays legal, so
 fixture-relative `Path(__file__).parent` is unaffected. The lint runs as a step
-of the `check_test_markers` job — static AST, no build required.
+of the `check_test_markers` job -- static AST, no build required.
 
 It does **not** catch Traversable misuse: calling `.exists()`, passing the
 handle to builtin `open()`, or handing `str(...)` to something that opens the
 file. That class is not statically catchable at reasonable cost, and every
 instance of it passes locally. This section is what owns it. Do not read a
-green lint as "the problem is now mechanically prevented" — only the first half
+green lint as "the problem is now mechanically prevented" -- only the first half
 of it is.
 
 ## Skipping Tests
@@ -596,19 +535,19 @@ Every `pytest.skip`, `@pytest.mark.skip`, `@pytest.mark.skipif`, and `pytest.imp
 
 ### Required rationale
 
-- **Conditional skip** (`skipif`) — name the missing dependency, credential, platform, or fixture:
+- **Conditional skip** (`skipif`) -- name the missing dependency, credential, platform, or fixture:
   ```python
   @pytest.mark.skipif(
       not has_cds_credentials(),
       reason="Requires CDS API credentials (~/.cdsapirc)",
   )
   ```
-- **In-body skip** (`pytest.skip(...)`) — name the missing resource:
+- **In-body skip** (`pytest.skip(...)`) -- name the missing resource:
   ```python
   if not fixture_path.exists():
       pytest.skip(f"Fixture data not available at {fixture_path}")
   ```
-- **Unconditional skip** (`@pytest.mark.skip`) — only acceptable with a tracking issue reference and a real failure-mode description. "Pre-existing issue" is not a reason.
+- **Unconditional skip** (`@pytest.mark.skip`) -- only acceptable with a tracking issue reference and a real failure-mode description. "Pre-existing issue" is not a reason.
   ```python
   @pytest.mark.skip(
       reason="from_state(parquet) round-trip drops metadata; see #NNNN",
@@ -617,13 +556,13 @@ Every `pytest.skip`, `@pytest.mark.skip`, `@pytest.mark.skipif`, and `pytest.imp
 
 ### Choose the right primitive
 
-- **Optional import** → `pytest.importorskip("pvlib")` at module scope (or per-test). Never `try/except ImportError: pytest.skip(...)`.
-- **Required-but-optional resource** (data file, binary, credentials) → a fixture in `conftest.py` that probes the resource once and calls `pytest.skip` with a concrete reason. See `cru_data_available` in `test/conftest.py`.
+- **Optional import** -> `pytest.importorskip("pvlib")` at module scope (or per-test). Never `try/except ImportError: pytest.skip(...)`.
+- **Required-but-optional resource** (data file, binary, credentials) -> a fixture in `conftest.py` that probes the resource once and calls `pytest.skip` with a concrete reason. See `cru_data_available` in `test/conftest.py`.
 - **Never** wrap the test body in `try/except Exception: pytest.skip(...)`. This swallows real regressions silently. Let failures surface; use a targeted `skipif` guard if the test genuinely cannot run in some environments.
 
 ### When to delete rather than skip
 
-- If a test has been permanently skipped for more than one release cycle with no tracking issue, delete it. Zombie tests are worse than missing tests — they imply coverage that doesn't exist.
+- If a test has been permanently skipped for more than one release cycle with no tracking issue, delete it. Zombie tests are worse than missing tests -- they imply coverage that doesn't exist.
 - If a test's only job is to `print(...)` and `assert True`, it is documentation, not a test. Delete it; put the concern in lint config or a dedicated check.
 
 ---
@@ -653,10 +592,13 @@ Place shared decorators, fixtures, and utilities in `test/conftest.py`:
 try:
     from debug_utils import debug_on_ci, capture_test_artifacts
 except ImportError:
+
     def debug_on_ci(func):
         return func
+
     def capture_test_artifacts(name):
         return lambda func: func
+
 
 # Global warning suppression (replaces setUp boilerplate)
 @pytest.fixture(autouse=True)
@@ -664,6 +606,7 @@ def suppress_import_warnings():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ImportWarning)
         yield
+
 
 # Named constants
 TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
@@ -679,7 +622,9 @@ from conftest import debug_on_ci, capture_test_artifacts, TIMESTEPS_PER_DAY
 try:
     from .debug_utils import debug_on_ci  # Don't do this
 except ImportError:
-    def debug_on_ci(func): return func  # Duplicated everywhere
+
+    def debug_on_ci(func):
+        return func  # Duplicated everywhere
 ```
 
 ---
@@ -695,14 +640,14 @@ def test_energy_balance_closure():
 
     # ACT
     residual = df_output["QN"] - (
-        df_output["QH"] + df_output["QE"] +
-        df_output["QS"] + df_output["QF"]
+        df_output["QH"] + df_output["QE"] + df_output["QS"] + df_output["QF"]
     )
 
     # ASSERT - tolerance based on measurement uncertainty
     np.testing.assert_allclose(
-        residual, 0,
+        residual,
+        0,
         atol=5.0,  # W/m^2 - within measurement uncertainty
-        err_msg="Energy balance not closed"
+        err_msg="Energy balance not closed",
     )
 ```

@@ -1,8 +1,8 @@
-# Fresh-site setup — the end-to-end workflow
+# Fresh-site setup -- the end-to-end workflow
 
 The full procedure for taking a first-time SUEWS user from a place or site idea
 to a validated, diagnosed, clearly qualified run. This is **part of the `/suews`
-skill** — the SKILL.md rules (honesty about assumed defaults, parameter
+skill** -- the SKILL.md rules (honesty about assumed defaults, parameter
 importance, authorised data sources, plain language) all apply here; this file
 is the step-by-step orchestration and the user-facing readiness judgement.
 
@@ -11,7 +11,7 @@ address, coordinates, campus, or scenario, or says things like "simulate this
 place", "make me a SUEWS case for London", "I've never used SUEWS", or "can we
 get a reasonable result for this site?".
 
-The aim is not to make the agent sound confident — it is to make the workflow
+The aim is not to make the agent sound confident -- it is to make the workflow
 **auditable**: every value either comes from the user, a SUEWS template, a cited
 data source, or an explicitly marked assumption.
 
@@ -62,7 +62,7 @@ from scratch:
 ## Assumption Ledger
 
 The ledger is **seeded by `assess_readiness`** (Workflow step 5), not built from
-scratch — its `assumed_defaults` become the initial high-impact rows, with each
+scratch -- its `assumed_defaults` become the initial high-impact rows, with each
 item's `risk` copied into `notes`. Track every non-user-provided value or
 decision in this shape. Keep the ledger in the conversation. If the agent has file access and is creating a new case
 directory, also write it next to the config as `assumptions.yml` or
@@ -221,16 +221,16 @@ Call `mcp__suews__assess_readiness` on the starter YAML (it takes
 sandbox). This is the dedicated fresh-user tool: it compares the config against
 the bundled sample and returns, under `data`:
 
-- `assumed_defaults` — every site-defining value still carrying a sample
+- `assumed_defaults` -- every site-defining value still carrying a sample
   default, **each with a `risk` string** and its **energy-balance `role`**
   (e.g. land cover weights albedo->QN, materials->QS, conductance->QE).
-- `looks_customised` — values that already appear to be the user's.
-- `checklist_for_a_meaningful_run` — the ordered list of what to fix.
-- `parameter_importance` — the energy-balance importance ladder (albedo first;
+- `looks_customised` -- values that already appear to be the user's.
+- `checklist_for_a_meaningful_run` -- the ordered list of what to fix.
+- `parameter_importance` -- the energy-balance importance ladder (albedo first;
   QH and surface temperature are model outputs you never set).
-- `ready` — a boolean overall judgement.
+- `ready` -- a boolean overall judgement.
 
-**Seed the assumption ledger directly from `assumed_defaults`** — one ledger
+**Seed the assumption ledger directly from `assumed_defaults`** -- one ledger
 entry per item, copying its `risk` into `notes`, setting
 `source_type: suews_template` (or `sample_data` for forcing), and
 `confirmation_needed: true` for the high-impact ones. Do not hand-reconstruct
@@ -289,7 +289,7 @@ Current MCP surface note: this server exposes post-run tools, but the public
 MCP tool list does not expose a `run_config` tool. If a `run_config` MCP tool
 is added later, use it. If working in a local development agent with shell
 access, run the unified CLI. The `run` subcommand takes only the positional
-config file (no `--format` flag — that envelope option exists on
+config file (no `--format` flag -- that envelope option exists on
 `validate` / `inspect` / `diagnose`, not on `run`):
 
 ```bash

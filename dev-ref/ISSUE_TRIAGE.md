@@ -1,91 +1,90 @@
 # SUEWS Issue Triage Guide
 
-This guide provides a systematic approach for triaging issues in the SUEWS repository using a MECE (Mutually Exclusive, Collectively Exhaustive) label system.
+> **Canonical Rules Notice**
+>
+> Active standing rules and automated triage skills supersede this guide whenever an example drifts. Always read:
+> - Rules: [`.claude/rules/labels.md`](../.claude/rules/labels.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), and [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md)
+> - Skills: `/triage-issue` ([`.claude/skills/triage-issue/SKILL.md`](../.claude/skills/triage-issue/SKILL.md) and [`.claude/skills/triage-issue/references/label-hierarchy.md`](../.claude/skills/triage-issue/references/label-hierarchy.md)) and `/triage-pr` ([`.claude/skills/triage-pr/SKILL.md`](../.claude/skills/triage-pr/SKILL.md))
+
+This guide describes how issues in `UMEP-dev/SUEWS` are triaged, scoped, and labelled under the repository's tiered label hierarchy.
 
 ## Quick Reference
 
-### Label System Overview
-Every issue gets labels from these dimensions:
-- **1-** prefix = Type (what is it?)
-- **2-** prefix = Area (what part of system?)
-- **3-** prefix = Priority (how urgent?)
-- **4-** prefix = Status (current state)
+### Four-Tier Label System (`1-*`..`4-*`) + `0-*` Automation Metadata
+Every open issue carries labels from the four tiers below, using **only** existing labels in the tiered hierarchy (`gh label list` -- never invent or create untiered labels):
 
-Numbers enable quick filtering in GitHub web interface - type "2-" to see all areas, "3-" for priorities, etc.
+- **`1-*` Type (exactly one)**: `1-bug`, `1-feature`, `1-maintenance` (never `1-enhancement`), `1-question`
+- **`2-*` Area (one or more)**: `2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`
+- **`3-*` Priority (exactly one on an open issue)**: `3-P0`, `3-P1`, `3-P2`
+- **`4-*` Status (exactly one on an open issue)**: `4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-needs-obs`, `4-deferred`
 
-### Required Labels
-1. **Type**: `1-bug`, `1-feature`, `1-question`
-2. **Area**: `2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`
-3. **Priority**: `3-P0`, `3-P1`, `3-P2`
-4. **Status**: `4-ready`, `4-in-progress`, `4-needs-science`, `4-needs-deps`
+**`0-*` Automation and CI metadata labels** do not count towards the four tiers and are applied only where a rule or skill calls for them:
+- Issue automation / provenance: `0-auto:audited` (applied by `/triage-issue` after auditing an issue), `0-source:discourse` (imported from SUEWS Discourse)
+- PR classification / disposition / CI gates: `0-physics:change`, `0-auto:pr-audited`, `0-pr:advance`, `0-pr:continue`, `0-pr:deferred`, `0-pr:close-proposed`, `0-pr:escalate`, `0-ci:schema-audit-ok`, `0-ci:knowledge-pack-audit-ok`, `0-ci:encoding-audit-ok`, `0-ci:clippy-ok`
 
-### Optional Labels
-- **Special**: `good-first-issue`, `help-wanted`
+**Pull Request Labels vs Issue Labels**:
+- A PR carries **one `1-*` type** and **one or more `2-*` areas**, plus any `0-*` label required by its rules (such as `0-physics:change`).
+- Priority (`3-*`) and status (`4-*`) labels belong on the **issue**, not on the PR.
 
 ## Triage Decision Tree
 
-### Step 1: Issue Type (PICK ONE)
-```
-Is it reporting a problem?
-  └─> 1-bug
+### Step 1: Issue Type (Pick ONE `1-*` Label)
+```text
+Is it reporting incorrect behaviour, a crash, wrong docs, or a regression?
+  `-> 1-bug
 
-Is it requesting new functionality?
-  └─> 1-feature
+Is it requesting a new capability, rule, or expanded behaviour?
+  `-> 1-feature
 
-Is it asking a question, seeking support, or a dev query?
-  └─> 1-question
-```
+Is it cleanup, refactoring, dependency updates, or tooling/docs maintenance without behaviour change?
+  `-> 1-maintenance
 
-### Step 2: Area (PICK ONE)
-```
-What part of the system?
-├─ Project meta? → 2-meta:xxx
-│   └─> 2-meta:governance, 2-meta:release
-├─ Physics module? → 2-module:xxx
-│   └─> 2-module:ohm, 2-module:snow, etc.
-├─ Infrastructure? → 2-infra:xxx
-│   └─> 2-infra:data-model, 2-infra:ci, 2-infra:build, etc.
-└─ Documentation? → 2-doc:xxx
-    └─> 2-doc:user, 2-doc:api, 2-doc:dev
+Is it a support question, uncertainty, or open design question?
+  `-> 1-question
 ```
 
-### Step 3: Priority (PICK ONE)
-```
-For Bugs:
-├─ Data corruption/crashes? → 3-P0
-├─ Core functionality broken? → 3-P1
-└─ Minor issue? → 3-P2
-
-For Features/Docs/Questions → 3-P2 (default)
-```
-
-### Step 4: Status (PICK ONE)
-```
-What's the current state?
-├─ Ready for work → 4-ready
-├─ Being worked on → 4-in-progress
-├─ Needs scientific input → 4-needs-science
-└─ Waiting on dependencies → 4-needs-deps
+### Step 2: Area (Pick ONE OR MORE `2-*` Labels)
+```text
+What part(s) of the system does it touch? (Apply multiple labels for cross-cutting issues)
+|-- Project governance or release? -> 2-meta:governance, 2-meta:release
+|-- Physics module?                -> 2-module:ohm, 2-module:snow, 2-module:stebbs, ...
+|-- Infrastructure / Python / CI?  -> 2-infra:data-model, 2-infra:ci, 2-infra:build, ...
+`-- Documentation?                 -> 2-doc:user, 2-doc:api, 2-doc:dev
 ```
 
-**Note**: Unlabeled issues implicitly need triage - no separate triage label needed.
-
-### Step 5: Special Labels (OPTIONAL)
+### Step 3: Priority (Pick ONE `3-*` Label)
+```text
+|-- Critical breakage, segfault, data corruption, or release blocker? -> 3-P0
+|-- High-priority correctness bug or important validator/API issue?   -> 3-P1
+`-- Standard feature, cleanup, docs update, or backlog item?          -> 3-P2
 ```
-Is this good for newcomers? → good-first-issue
-Need community help? → help-wanted
+
+### Step 4: Status (Pick ONE `4-*` Label)
+```text
+What is the current execution state? (Never leave two 4-* labels on one issue)
+|-- Clear, scoped, and planned for near-term work  -> 4-ready
+|-- Actively worked on or has an open PR           -> 4-in-progress
+|-- Waiting on another issue, PR, or prerequisite  -> 4-needs-deps
+|-- Agenda item needing maintainer decision        -> 4-needs-discussion
+|-- Requires scientific input or model judgement   -> 4-needs-science
+|-- Requires observational data / evaluation       -> 4-needs-obs
+`-- Valid issue, not planned for near-term work    -> 4-deferred
 ```
 
-## Complete Label Reference
+### Step 5: Right-Sizing Check (`work-sizing.md`)
+Before marking an issue `4-ready`, verify that it represents a single, reviewable concern with testable acceptance criteria (see `.claude/rules/work-sizing.md`). If it bundles multiple deliverables or spans independent subsystems, `/triage-issue` marks readiness `needs-split` and proposes an umbrella + native GitHub sub-issues decomposition (creating issues or closing duplicates is always human-gated).
 
-### Type Labels (Pick ONE)
-- `1-bug` - Something isn't working
-- `1-feature` - New functionality request
-- `1-question` - User question/support/dev query
+## Complete Tiered Label Reference
 
-### Area Labels (Pick ONE)
+### `1-*` Type Labels (Exactly One)
+- `1-bug` - Observed defect, crash, regression, or documentation inaccuracy
+- `1-feature` - New functionality, parameterisation, or user-facing capability
+- `1-maintenance` - Refactoring, cleanup, dependency updates, CI/tooling maintenance
+- `1-question` - User question, support query, or unframed design question
 
-#### Meta/Project
+### `2-*` Area Labels (One or More)
+
+#### Meta / Project
 - `2-meta:governance` - Project governance and process
 - `2-meta:release` - Release planning and management
 
@@ -96,180 +95,96 @@ Need community help? → help-wanted
 - `2-module:beers` - Building radiation
 - `2-module:biogenco2` - Biogenic CO2
 - `2-module:bluews` - Building water balance
-- `2-module:dailystate` - Daily state updates
+- `2-module:dailystate` - Daily state updates and LAI phenology
 - `2-module:ehc` - Explicit Heat Conduction
-- `2-module:estm` - Element Surface Temperature
+- `2-module:estm` - Element Surface Temperature Method (currently disabled; see `ESTM_REACTIVATION.md`)
 - `2-module:evap` - Evaporation processes
 - `2-module:lumps` - LUMPS energy balance
-- `2-module:narp` - Net All-wave Radiation
+- `2-module:narp` - Net All-wave Radiation Parameterisation
 - `2-module:ohm` - Objective Hysteresis Model
 - `2-module:resist` - Resistance calculations
-- `2-module:rslprof` - RSL profiles
+- `2-module:rslprof` - Roughness sublayer profiles
 - `2-module:snow` - Snow processes
-- `2-module:solweig` - Solar/longwave radiation
+- `2-module:solweig` - Solar and longwave radiation
 - `2-module:spartacus` - SPARTACUS radiation
-- `2-module:stebbs` - Surface Temperature Energy Balance
+- `2-module:stebbs` - STEBBS building energy model
 - `2-module:waterdist` - Water distribution
 
 #### Infrastructure
-- `2-infra:data-model` - Pydantic data models & validation
-- `2-infra:ci` - CI/CD pipelines, GitHub Actions
-- `2-infra:build` - Build system (meson, setup.py, compilation)
-- `2-infra:packaging` - Package distribution, dependencies
-- `2-infra:test` - Testing infrastructure, pytest
-- `2-infra:fortran-python` - Fortran-Python interface
-- `2-infra:logging` - Logging, debugging, and diagnostic output
-- `2-infra:type-safety` - Type safety and compiler compatibility
+- `2-infra:data-model` - Pydantic data models, schema versioning, and validation
+- `2-infra:ci` - CI/CD pipelines and GitHub Actions
+- `2-infra:build` - Build system (`meson.build`, `Makefile`, Cargo/Fortran compilation)
+- `2-infra:packaging` - Wheel distribution and dependencies
+- `2-infra:test` - Testing infrastructure and pytest markers
+- `2-infra:fortran-python` - Rust/C-ABI Fortran-Python bridge (`src/suews_bridge/`)
+- `2-infra:logging` - Logging, kernel warnings, and diagnostic output
+- `2-infra:type-safety` - Type safety and compiler checks
 - `2-infra:code-refactor` - Code refactoring and cleanup
-- `2-infra:input` - Input data handling and validation
+- `2-infra:input` - Input data loading and conversion
 - `2-infra:output` - Output formatting and export
-- `2-infra:utility` - Utility functions and helpers
+- `2-infra:utility` - Utility helpers
 
 #### Documentation
-- `2-doc:user` - User guides, tutorials
-- `2-doc:api` - API documentation
-- `2-doc:dev` - Developer documentation
+- `2-doc:user` - User guides and tutorials
+- `2-doc:api` - API and schema documentation
+- `2-doc:dev` - Developer documentation (`dev-ref/`, `.claude/`)
 
-### Priority Labels (Pick ONE)
-- `3-P0` - Critical (crashes/data loss)
-- `3-P1` - High (major functionality broken)
-- `3-P2` - Normal (everything else)
+### `3-*` Priority Labels (Exactly One on Open Issues)
+- `3-P0` - Critical (crashes, silent wrong physics, release blockers)
+- `3-P1` - High (major functionality broken or high-impact user/validator defect)
+- `3-P2` - Medium / standard backlog priority
 
-### Status Labels (Pick ONE)
-- `4-ready` - Ready for work
-- `4-in-progress` - Being worked on
-- `4-needs-science` - Requires scientific input/decision
-- `4-needs-deps` - Waiting on other issues/PRs
+### `4-*` Status Labels (Exactly One on Open Issues)
+- `4-ready` - Scoped and ready for near-term implementation
+- `4-in-progress` - Active work in flight or open PR linked
+- `4-needs-deps` - Blocked on another issue, PR, or upstream dependency
+- `4-needs-discussion` - Queued for the weekly dev catch-up meeting; remove once decided
+- `4-needs-science` - Needs scientific evidence, parameterisation choice, or domain sign-off
+- `4-needs-obs` - Needs observational dataset evaluation before proceeding
+- `4-deferred` - Valid issue parked outside near-term priorities
 
-
-### Special Labels (Use when helpful)
-- `good-first-issue` - Good for newcomers
-- `help-wanted` - Need community help
+*Note*: Untiered labels (such as `1-enhancement`, `design-sensitive`, `mechanical`, or `hard-gate`) are retired and must not be recreated.
 
 ## Triage Examples
 
-### Example 1: Bug Report
-**Issue**: "SUEWS crashes when snow module enabled on Windows"
+### Example 1: Physics Bug Report
+**Issue**: "SUEWS crashes when snow module is enabled on multi-grid runs"
+- `1-bug`, `2-module:snow`, `3-P0`, `4-ready`
 
-Labels:
-- `1-bug`
-- `2-module:snow`
-- `3-P0` (crashes)
-- `4-ready`
+### Example 2: Cross-Cutting Maintenance Refactor
+**Issue**: "Consolidate Fortran snow derived types and update bridge docs"
+- `1-maintenance`, `2-module:snow`, `2-infra:fortran-python`, `2-doc:dev`, `3-P2`, `4-ready`
 
-### Example 2: Feature Request
-**Issue**: "Add support for Pydantic validation in YAML config"
+### Example 3: Weekly Meeting Decision Item
+**Issue**: "Decide deprecation timeline for legacy table converter flags"
+- `1-maintenance`, `2-infra:input`, `2-meta:governance`, `3-P2`, `4-needs-discussion`
 
-Labels:
-- `1-feature`
-- `2-infra:data-model`
-- `3-P2`
-- `4-ready`
+### Example 4: Observational Evaluation Needed
+**Issue**: "Calibrate new storage-heat coefficients against urban flux-tower observations"
+- `1-feature`, `2-module:ohm`, `3-P2`, `4-needs-obs`
 
-### Example 3: User Question
-**Issue**: "How to configure anthropogenic heat?"
+## Useful GitHub Search Filters
 
-Labels:
-- `1-question`
-- `2-doc:user`
-- `3-P2`
-- `4-ready`
+```text
+# High-priority items ready to implement
+is:issue is:open label:3-P0,3-P1 label:4-ready
 
-### Example 4: CI Build Failure
-**Issue**: "Build fails on macOS ARM64 with Python 3.11"
+# Weekly dev meeting agenda
+is:issue is:open label:4-needs-discussion
 
-Labels:
-- `1-bug`
-- `2-infra:ci`
-- `3-P0` (blocks releases)
+# Issues awaiting scientific or observational input
+is:issue is:open label:4-needs-science,4-needs-obs
 
-### Example 5: Science Question
-**Issue**: "What albedo values should be used for new green roof type?"
-
-Labels:
-- `1-feature`
-- `2-module:ohm`
-- `3-P2`
-- `4-needs-science`
-
-### Example 6: Dependency Blocked
-**Issue**: "Update to Pydantic v3 once numpy compatibility fixed"
-
-Labels:
-- `1-feature`
-- `2-infra:data-model`
-- `3-P2`
-- `4-needs-deps`
-
-## GitHub Projects Integration
-
-Use these filters in GitHub Projects:
-
+# Unaudited open issues (for /triage-issue batch sweeps)
+is:issue is:open -label:0-auto:audited
 ```
-# View all bugs
-label:1-bug
-
-# High priority items ready to work
-label:3-P0,3-P1 label:4-ready
-
-# Infrastructure issues
-label:2-infra:pydantic,2-infra:ci,2-infra:build
-
-# Physics module bugs
-label:1-bug label:2-module:ohm,2-module:snow,2-module:estm
-
-# In progress work
-label:4-in-progress
-
-# Good first issues
-label:good-first-issue
-
-# Unlabeled issues (needs triage)
-is:issue is:open no:label
-
-# Needs science input
-label:4-needs-science
-
-# Blocked by dependencies
-label:4-needs-deps
-```
-
-## MECE Label System
-
-### Design Principles
-- **Mutually Exclusive**: Each label dimension has clear, non-overlapping categories
-- **Collectively Exhaustive**: Every issue can be properly categorized
-- **Scalable**: Easy to add new areas as the project grows
-
-### Label Requirements
-
-**Every issue must have labels from these dimensions**:
-1. Type: `1-bug`, `1-feature`, or `1-question`
-2. Area: `2-meta:*`, `2-module:*`, `2-infra:*`, or `2-doc:*`
-3. Priority: `3-P0`, `3-P1`, or `3-P2`
-4. Status: `4-ready`, `4-in-progress`, `4-needs-science`, or `4-needs-deps`
-
-**Optional labels**:
-- `good-first-issue` or `help-wanted` when appropriate
-
-### Note on Closed Issues
-- No need for "done" status label - GitHub tracks closed issues automatically
-- When an issue is completed, simply close it rather than changing labels
-
-## Best Practices
-
-1. **Label immediately** - Every new issue gets labels from all 4 dimensions
-2. **Unlabeled = needs triage** - New issues without labels need assessment
-3. **Update status** - Change when work starts/stops
-4. **Use comments** - Details go in comments, not labels
-5. **Close completed work** - Don't use "done" label, just close the issue
 
 ## Quick Triage Checklist
 
-- [ ] Set type label (`1-bug`, `1-feature`, `1-question`)
-- [ ] Set area label (`2-meta:*`, `2-module:*`, `2-infra:*`, `2-doc:*`)
-- [ ] Set priority label (`3-P0`, `3-P1`, `3-P2`)
-- [ ] Set status label (`4-ready`, `4-in-progress`, `4-needs-science`, `4-needs-deps`)
-- [ ] Add `good-first-issue` if appropriate
-- [ ] Assign if someone will work on it
-- [ ] Link related issues
+- [ ] Check live labels (`gh label list`) -- never create new labels without maintainer approval
+- [ ] Set exactly one `1-*` type (`1-bug`, `1-feature`, `1-maintenance`, `1-question`)
+- [ ] Set one or more `2-*` area labels (`2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`)
+- [ ] Set exactly one `3-*` priority (`3-P0`, `3-P1`, `3-P2`)
+- [ ] Set exactly one `4-*` status (`4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-needs-obs`, `4-deferred`)
+- [ ] Verify right-sizing (`work-sizing.md`) before marking `4-ready`
+- [ ] Close completed issues directly rather than inventing a "done" label

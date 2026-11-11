@@ -9,7 +9,7 @@ Detailed checklist for comprehensive PR review.
 ### Fortran (Critical)
 
 - [ ] File naming: `suews_<category>_<name>.f95`
-  - Categories: `ctrl`, `phys`, `util`
+  - Categories: `ctrl`, `phys`, `type`, `util`
 - [ ] Module naming: `module_<category>_<name>`
 - [ ] `IMPLICIT NONE` present in all modules
 - [ ] Type naming: `TYPE :: dts_<name>`
@@ -40,7 +40,18 @@ Detailed checklist for comprehensive PR review.
 
 - CLI files (`cmd/`) may use `print()`
 - Test files have relaxed requirements
-- Generated files excluded (`_suews_driver.py`, `_version.py`)
+- Generated version files excluded (`_version.py`, `_version_scm.py`)
+
+### Specialist Review Agents
+
+- [ ] `fortran-error-state-reviewer` dispatched (read-only) when `src/suews/**/*.f9*`
+      or `src/suews_bridge/c_api/**/*.f9*` changed (no `STOP` / `WRITE(*,...)`,
+      `set_supy_error` + `INTENT(OUT)` sentinels + `RETURN`, registered codes)
+- [ ] `schema-migration-checker` dispatched (read-only) when `src/supy/data_model/`
+      or `src/supy/sample_data/sample_config.yml` changed
+- [ ] `docs-reviewer` dispatched (findings-only drift mode) when user-facing
+      surfaces changed (`src/supy/data_model/`, physics options, output/forcing
+      registries, `src/supy/util/converter/`, public API/CLI)
 
 ### Design and Placement (not just correctness)
 
@@ -90,7 +101,7 @@ Detailed checklist for comprehensive PR review.
 
 ### Coverage Requirements
 
-- [ ] New code: ≥80% coverage
+- [ ] New code: >=80% coverage
 - [ ] Critical paths: 95-100% coverage
 - [ ] Physics changes: Validation tests present
 
@@ -146,25 +157,34 @@ Detailed checklist for comprehensive PR review.
 ### Schema version bump (trigger-specific)
 
 If the PR changes `src/supy/data_model/configuration/version.py` so that
-`CURRENT_SCHEMA_VERSION` takes a new value, check each item below in
-addition to the general "User Documentation" bullets above:
+`CURRENT_SCHEMA_VERSION` takes a new value (or if `schema-migration-checker`
+reports a bump is required), check each item below in addition to the general
+"User Documentation" bullets above:
 
-- [ ] `docs/source/contributing/schema/schema_versioning.rst` — version
+- [ ] `docs/source/contributing/schema/schema_versioning.rst` -- version
       history list and any illustrative schema tags updated to match
       `SCHEMA_VERSIONS`
-- [ ] `docs/source/inputs/transition_guide.rst` — new entry under "YAML
+- [ ] `docs/source/inputs/transition_guide.rst` -- new entry under "YAML
       schema migrations" describing what users see change and the
-      `suews-convert` / `suews-schema migrate` command to run
-- [ ] `docs/source/version-history/v<release>.rst` (if the bump rides a
-      formal release) — migration chain noted in "Breaking Changes"
+      `suews convert` / `suews schema migrate` command to run
+- [ ] `docs/source/version-history/v<release>.rst` (ONLY when the bump rides a
+      formal release PR, never on `.devN` bumps) -- migration chain noted in
+      "Breaking Changes"
 - [ ] Handler added in `src/supy/util/converter/yaml_upgrade.py::_HANDLERS`
-      from the previous schema to the new one
-- [ ] Release tag mapped in `_PACKAGE_TO_SCHEMA` (if bump rides a release)
-- [ ] Vendored fixture present under `test/fixtures/release_configs/`
+      from the previous schema to the new one (every dropped field carries a
+      human-readable `reason`)
+- [ ] `src/supy/sample_data/sample_config.yml` `schema_version` updated AND
+      `test/fixtures/sample_short/sample_config_short.yml` regenerated via
+      `python test/fixtures/sample_short/make_sample_short.py` (parity enforced
+      whenever `sample_config.yml` changes)
+- [ ] Release tag mapped in `_PACKAGE_TO_SCHEMA` (ONLY on a formal release tag,
+      never `.devN` bumps)
+- [ ] Vendored fixture present under `test/fixtures/release_configs/<tag>.yml`
+      (ONLY for formal release tags, never `.devN` bumps)
 
 This list mirrors `.claude/rules/python/schema-versioning.md` step 6
 and is enforced by `.github/workflows/schema-version-audit.yml`. Flag
-any schema bump PR that is silent on the docs — the CI gate will
+any schema bump PR that is silent on the docs -- the CI gate will
 block it anyway, and surfacing it in review saves a round trip.
 
 ---
@@ -173,8 +193,12 @@ block it anyway, and surfacing it in review saves a round trip.
 
 ### Source Files
 
-- [ ] New Fortran files in `src/suews/meson.build`
-- [ ] New Python files in appropriate `__init__.py`
+- [ ] New Fortran files added to `src/supy/meson.build` (`src_f95_all`) and
+      `src/suews/Makefile`, with `src/suews/Makefile.deps` regenerated via
+      `python scripts/suews/gen_fortran_deps.py` (also required after any new
+      Fortran `USE` dependency)
+- [ ] New Python/data files added to `src/supy/meson.build` (`py.install_sources`)
+      and appropriate `__init__.py`
 
 ### CI Status
 

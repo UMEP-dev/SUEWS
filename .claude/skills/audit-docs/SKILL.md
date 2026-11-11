@@ -53,14 +53,22 @@ uv run --no-project --with requests python .claude/skills/audit-docs/scripts/enr
 Cascade: WoS Expanded -> WoS Starter -> Crossref -> OpenAlex. Other flags:
 `--dry-run` (report sources only), `--delay SECONDS` (default 0.3).
 
-The topic vocabulary lives in the rule, the header comment of both bib files,
-and `VOCAB` in `scripts/audit.py`; the rule lists the four-file procedure for
-adding a slug.
+The topic slugs drive the live client-side JS topic filter on
+`docs/source/related_publications.rst` and
+`docs/source/community_publications.rst` (replacing the retired static RST
+`.. _pub-<slug>:` subsections): `docs/source/_ext/publications_topic_annotate.py`
+stamps each bibliography `<li>` with `pub-entry` and `pub-kw-<slug>` classes
+from the BibTeX `keywords` field, and
+`docs/source/_static/publications-filter.js` (`SLUG_LABELS`) renders interactive
+filter chips inside `#pub-filter-mount` (with `?topic=<slug>` URL deep-linking).
+Keep the topic vocabulary aligned across `.claude/rules/docs/bib-topic-tags.md`,
+the header comments of both `.bib` files, `VOCAB` in `scripts/audit.py`, and
+`SLUG_LABELS` in `docs/source/_static/publications-filter.js`.
 
 ## Hooks that point here
 
 - `check-doc-ascii.sh` (PostToolUse, Edit/Write): blocks an edit that leaves
-  non-ASCII in `docs/source/**.{py,rst,md}`.
+  non-ASCII in `docs/source/**/*.{py,rst,md}`.
 - `check-bib-tags.sh` (PostToolUse, Edit/Write): runs `scripts/audit.py` on
   edits to `docs/source/assets/refs/*.bib`.
 

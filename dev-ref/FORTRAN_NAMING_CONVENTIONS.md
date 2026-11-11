@@ -1,78 +1,70 @@
 # Fortran Naming Conventions for SUEWS
 
-This document establishes the official naming conventions for all Fortran code in SUEWS. These conventions aim to provide consistency, maintainability, and clear organisation as the codebase evolves.
+> **Canonical Rules Notice**
+>
+> Active, path-scoped rules in `.claude/` and executable CI lints supersede this reference whenever an example drifts. Always read the governing rule files first:
+> - [`AGENTS.md`](../AGENTS.md) and [`.claude/rules/00-project-essentials.md`](../.claude/rules/00-project-essentials.md)
+> - Fortran: [`.claude/rules/fortran/conventions.md`](../.claude/rules/fortran/conventions.md) and [`.claude/rules/fortran/error-reporting.md`](../.claude/rules/fortran/error-reporting.md)
+> - Python: [`.claude/rules/python/conventions.md`](../.claude/rules/python/conventions.md), [`.claude/rules/python/api-approach.md`](../.claude/rules/python/api-approach.md), and [`.claude/rules/python/config-patterns.md`](../.claude/rules/python/config-patterns.md)
+> - Rust bridge: [`.claude/rules/rust/conventions.md`](../.claude/rules/rust/conventions.md) and [`.claude/rules/rust/bridge-contract.md`](../.claude/rules/rust/bridge-contract.md)
+> - Cross-layer identifier naming: [`.claude/rules/naming-convention.md`](../.claude/rules/naming-convention.md)
+
+This document details the naming and structural conventions for Fortran code in SUEWS (`src/suews/src/`) and its migration strategy from legacy modules.
 
 ## Table of Contents
 1. [Current State and Rationale](#current-state-and-rationale)
-2. [File Naming (Established)](#file-naming-established)
-3. [Module Naming (New Standard)](#module-naming-new-standard)
+2. [File Naming](#file-naming)
+3. [Module Naming](#module-naming)
 4. [Subroutine and Function Naming](#subroutine-and-function-naming)
-5. [Variable and Constant Naming](#variable-and-constant-naming)
-6. [Type Naming](#type-naming)
-7. [Migration Strategy](#migration-strategy)
-8. [Validation Tools](#validation-tools)
+5. [Variable, Constant, and Thread-Safety Rules](#variable-constant-and-thread-safety-rules)
+6. [Derived-Type Naming](#derived-type-naming)
+7. [Formatting and Validation Tools](#formatting-and-validation-tools)
+8. [Migration Strategy](#migration-strategy)
+9. [Examples and Anti-Patterns](#examples-and-anti-patterns)
 
 ---
 
 ## Current State and Rationale
 
 ### What We Have
-As of October 2025, the SUEWS Fortran source (`src/suews/src/`) contains:
-- ✅ **Files**: Perfectly consistent (33 files)
-- ❌ **Modules**: 7+ different naming patterns across ~83 modules
-- ⚠️ **Subroutines/Functions**: 3-4 inconsistent patterns
-
-### Why This Matters
-- **Discoverability**: Developers should instantly know which file contains which module
-- **Maintainability**: Consistent patterns reduce cognitive load
-- **Tooling**: Automated checks and refactoring tools work better with conventions
-- **Onboarding**: New contributors learn the codebase faster
+The SUEWS Fortran source (`src/suews/src/`) contains:
+- `[OK]` **Files**: Consistent `suews_<category>_<name>.f95` naming across `ctrl`, `phys`, `type`, and `util`.
+- `[WIP]` **Modules**: New and migrated files use `module_<category>_<name>`, while older files still carry legacy names (`*_Module`, `METEO`, etc.) tracked for gradual migration.
+- `[WIP]` **Subroutines/Functions and Types**: New code uses `snake_case` procedures and `dts_<name>` derived types; cross-layer TYPE field migrations are tracked in gh#1324 / gh#1325 / gh#1326.
 
 ### Design Principles
-1. **Align module names with file names** (one source of truth)
-2. **Maintain categorical organisation** (ctrl, phys, util)
-3. **Use lowercase with underscores** (match scientific Python conventions)
-4. **Prefer one module per file** (simpler mental model)
+1. **Align module names with file categories** (`suews_<category>_<name>.f95` -> `module_<category>_<name>`).
+2. **Maintain categorical organisation** (`ctrl`, `phys`, `type`, `util`).
+3. **Use `snake_case`** for procedures, variables, and type components, and `UPPERCASE` for `PARAMETER` constants.
+4. **Prefer one primary module per file** (avoid splintering one physics scheme across five tiny modules).
+5. **Keep procedures re-entrant and thread-safe** for parallel multi-grid execution through `src/suews_bridge/`.
 
 ---
 
-## File Naming (Established)
-
-**Status**: ✅ **Current and enforced**
+## File Naming
 
 ### Pattern
-```
+```text
 suews_<category>_<name>.f95
 ```
 
 ### Categories
-- **`ctrl`**: Control flow, driver, input/output, type definitions, error handling
-- **`phys`**: Physics schemes and models (OHM, LUMPS, ESTM, snow, etc.)
-- **`util`**: Utilities (datetime, meteo calculations, string operations, etc.)
-
-### Examples
-```
-suews_ctrl_const.f95      - Constants and parameters
-suews_ctrl_driver.f95     - Main driver and orchestration
-suews_ctrl_type.f95       - Type definitions
-suews_phys_snow.f95       - Snow physics
-suews_phys_lumps.f95      - LUMPS urban scheme
-suews_util_datetime.f95   - Date/time utilities
-suews_util_meteo.f95      - Meteorological calculations
-```
+- **`ctrl`**: Control flow, main driver, constants, top-level state composition, and thread-local error state (`suews_ctrl_const.f95`, `suews_ctrl_driver.f95`, `suews_ctrl_type.f95`, `suews_ctrl_error.f95`).
+- **`phys`**: Physics schemes and parameterisations (`suews_phys_snow.f95`, `suews_phys_lumps.f95`, `suews_phys_spartacus.f95`, `suews_phys_stebbs.f95`, etc.).
+- **`type`**: Per-domain parameter and state derived-type definitions (`suews_type_snow.f95`, `suews_type_heat.f95`, `suews_type_hydro.f95`, `suews_type_stebbs.f95`, etc.).
+- **`util`**: Shared utilities (`suews_util_datetime.f95`, `suews_util_meteo.f95`, `suews_util_profile.f95`, `suews_util_time.f95`).
 
 ### Rules
-- All lowercase
-- Underscore-separated (snake_case)
-- `.f95` extension (not `.f90`)
-- No abbreviations in category names
-- Keep `<name>` concise but descriptive
+- Lowercase `snake_case`, `.f95` extension.
+- Whenever you add a Fortran file or modify `USE` statements, update `meson.build` (and `src/suews/Makefile` if applicable) and regenerate `src/suews/Makefile.deps`:
+  ```bash
+  python scripts/suews/gen_fortran_deps.py
+  ```
+  (`test/core/test_fortran_deps.py` fails in CI when `Makefile.deps` is stale.)
 
 ---
 
-## Module Naming (New Standard)
-
-**Status**: 🆕 **Adopted for all new code from October 2025**
+## Module Naming
 
 ### Pattern
 ```fortran
@@ -80,87 +72,34 @@ MODULE module_<category>_<name>
 ```
 
 ### File vs Module Naming
-- **Files**: Keep `suews_` prefix (e.g., `suews_phys_snow.f95`) to indicate SUEWS project ownership
-- **Modules**: Use `module_` prefix (e.g., `MODULE module_phys_snow`) for simpler, clearer code
-
-### Rationale
-- **Project ownership**: File names with `suews_` clearly indicate these belong to SUEWS
-- **Code clarity**: Module names with `module_` are simpler and more readable in USE statements
-- **Category organisation**: Both maintain `<category>` for clear structure
-- **One module per scheme**: Each physics scheme should have ONE consolidated module
+- **Files** keep the `suews_` prefix (`suews_phys_snow.f95`, `suews_type_snow.f95`) to mark SUEWS source files clearly.
+- **Modules** use the `module_` prefix (`MODULE module_phys_snow`, `MODULE module_type_snow`) for clean `USE` statements.
 
 ### Examples
 
-#### Single Module per File (Preferred)
+#### Single Primary Module per File (Preferred)
 ```fortran
 ! File: suews_phys_snow.f95
 MODULE module_phys_snow
-    IMPLICIT NONE
-    ! Snow physics implementation - all snow-related code in ONE module
+   IMPLICIT NONE
+   PRIVATE
+   PUBLIC :: update_snow_state
 CONTAINS
-    SUBROUTINE update_snow_state(...)
-    END SUBROUTINE update_snow_state
+   SUBROUTINE update_snow_state(state)
+      ! ...
+   END SUBROUTINE update_snow_state
 END MODULE module_phys_snow
 ```
 
-#### Principle: ONE Module Per Physics Scheme
+#### Avoid Splitting One Scheme into Many Sub-Modules
 
-**Avoid creating sub-modules** unless absolutely necessary. If code logically belongs to the same physics scheme or utility, merge it into ONE module.
+If procedures and constants logically belong to one physics scheme, keep them in a single `module_phys_<scheme>` module (with state/parameter types in `suews_type_<scheme>.f95` where shared with the driver and C-API bridge) rather than creating `_precision`, `_core`, `_func`, and `_couple` sub-modules inside one file.
 
-**Bad example** (too many sub-modules):
-```fortran
-! File: suews_phys_stebbs.f95
-MODULE module_phys_stebbs_precision
-MODULE module_phys_stebbs_core
-MODULE module_phys_stebbs_func
-MODULE module_phys_stebbs_couple
-MODULE module_phys_stebbs  ! Main interface
-```
-
-**Good example** (consolidated):
-```fortran
-! File: suews_phys_stebbs.f95
-MODULE module_phys_stebbs
-    USE ISO_FORTRAN_ENV, ONLY: REAL64
-    IMPLICIT NONE
-
-    ! Precision definitions (merged in)
-    INTEGER, PARAMETER :: rprc = REAL64
-
-    ! Data structures (merged in)
-    TYPE :: LBM
-        ! ... building data structure
-    END TYPE
-
-CONTAINS
-    ! All functions merged into main module
-    SUBROUTINE stebbsonlinecouple(...)
-    FUNCTION ext_conv_coeff(...) RESULT(hc)
-END MODULE module_phys_stebbs
-```
-
-#### Multiple Modules Only When Serving Different Purposes
-
-General-purpose utilities that serve MULTIPLE physics schemes may stay separate:
-
-```fortran
-! File: suews_util_meteo.f95
-MODULE module_util_meteo
-    ! Meteorological calculations used by snow, OHM, LUMPS, etc.
-END MODULE module_util_meteo
-
-! File: suews_util_time.f95
-MODULE module_util_time
-    ! Time utilities used by multiple modules
-END MODULE module_util_time
-```
-
-### Comparison with Current Codebase
-
-| File | Current Module(s) | New Module |
-|------|------------------|------------|
+| File | Legacy Module(s) | Target Standard Module |
+|------|------------------|------------------------|
 | `suews_phys_snow.f95` | `Snow_module` | `module_phys_snow` |
-| `suews_phys_stebbs.f95` | `modulestebbsprecision`, `modulestebbs`, `modulestebbsfunc`, etc. (5 modules) | `module_phys_stebbs` (ONE consolidated module) |
+| `suews_phys_stebbs.f95` | `modulestebbsprecision`, `modulestebbs`, `modulestebbsfunc`, etc. | `module_phys_stebbs` |
+| `suews_type_snow.f95` | (extracted from `suews_ctrl_type.f95`) | `module_type_snow` |
 | `suews_util_meteo.f95` | `METEO` | `module_util_meteo` |
 | `suews_util_time.f95` | `time_module` | `module_util_time` |
 
@@ -168,399 +107,208 @@ END MODULE module_util_time
 
 ## Subroutine and Function Naming
 
-**Pattern**: `snake_case` for all subroutines and functions
-
-**Rationale**: Consistent with file names, module names, and variable names. Matches scientific Python conventions (NumPy, SciPy). Simpler - no need to remember scope-based casing rules.
+**Pattern**: `snake_case` for all subroutines and functions, using variant-neutral verbs (`init`, `setup`, `prepare`, `complete`, `compute`, `calc`, `update`) rather than `-ise`/`-ize` spellings (see `.claude/rules/00-project-essentials.md`).
 
 ```fortran
 ! Subroutines
-SUBROUTINE calculate_snow_density(temperature, age, density)
+SUBROUTINE calc_snow_density(temperature, age_days, density)
 SUBROUTINE update_atmospheric_state(pressure, temperature, humidity)
-SUBROUTINE initialise_physics_scheme(config, state)
+SUBROUTINE init_snow_arrays(nsteps, nlayers)
 
 ! Functions
-FUNCTION calculate_saturation_vapour_pressure(temp) RESULT(es)
-FUNCTION get_surface_resistance(lai, radiation) RESULT(rs)
-FUNCTION interpolate_linear(x1, x2, y1, y2, x) RESULT(y)
+FUNCTION calc_saturation_vapour_pressure(temp_k) RESULT(es_pa)
+FUNCTION get_surface_resistance(lai, kdown) RESULT(rs)
+FUNCTION interp_linear(x1, x2, y1, y2, x) RESULT(y)
 ```
 
-### Common Prefixes
-
-Use clear, descriptive prefixes for clarity:
-
-```fortran
-! Calculation functions
-FUNCTION calc_aerodynamic_resistance(...) RESULT(ra)
-FUNCTION calc_roughness_length(...) RESULT(z0)
-FUNCTION calc_beta_rsl(...) RESULT(beta)
-
-! Initialisation/finalisation
-SUBROUTINE init_snow_arrays(nsteps, nlayers)
-SUBROUTINE finalise_physics_state(state)
-
-! Update routines
-SUBROUTINE update_snow_state(...)
-SUBROUTINE update_thermal_conductivity(density, temp, k_eff)
-
-! Get/set accessors (if needed)
-FUNCTION get_snow_albedo(...) RESULT(alpha)
-SUBROUTINE set_surface_properties(...)
-```
-
-### Well-Known Acronyms
-
-For well-established acronyms (≤4 letters), keep uppercase with underscores:
-```fortran
-SUBROUTINE ohm_calculate(...)      ! Objective Hysteresis Model
-SUBROUTINE estm_update(...)        ! Element Surface Temperature Method
-SUBROUTINE ehc_finalise(...)       ! Element Heat Capacity
-FUNCTION cbl_height(...) RESULT(h) ! Convective Boundary Layer
-```
-
-**Note**: These can also be lowercase (e.g., `ohm_calculate`) - choose one style and be consistent within a module.
-
-### Module-Specific Routines
-
-Prefix with module topic for clarity:
-```fortran
-MODULE suews_phys_snow
-CONTAINS
-    SUBROUTINE snow_initialise(...)   ! Initialisation
-    SUBROUTINE snow_update(...)       ! Main update step
-    SUBROUTINE snow_finalise(...)     ! Cleanup
-    FUNCTION snow_albedo(...) RESULT(alpha)
-END MODULE suews_phys_snow
-```
-
-### Summary
-
-| Component | Convention | Example |
-|-----------|------------|---------|
-| All subroutines | snake_case | `update_snow_state` |
-| All functions | snake_case | `calc_density` |
-| Well-known acronyms | lowercase or UPPERCASE | `estm_update` or `ESTM_update` |
-| Module-specific | `<topic>_<action>` | `snow_initialise` |
-
-**Key point**: One simple rule - everything uses snake_case (except UPPERCASE for constants)
+For domain acronyms (`ohm`, `ehc`, `rsl`, `cbl`), prefer lowercase `snake_case` tokens (`ohm_calc_qs`, `ehc_step`, `cbl_height`) for consistency across Fortran, Rust, and Python.
 
 ---
 
-## Variable and Constant Naming
+## Variable, Constant, and Thread-Safety Rules
 
-### Local Variables
-**Pattern**: `lowercase_with_underscores`
+### Local Variables (Never Initialise in Declarations!)
+**Pattern**: `lowercase_with_underscores`, explicit `KIND(1D0)` or `REAL64` precision, bare declaration followed by executable assignment.
+
+In Fortran, initialising a local variable in its declaration (`REAL(KIND(1D0)) :: temp_val = 0.0D0`) **implicitly grants the `SAVE` attribute**: the variable becomes static, retains its value across calls, and is shared across Rayon worker threads in multi-grid runs. `scripts/lint/check_saved_fortran_locals.py` blocks this in CI (gh#1741).
 
 ```fortran
-REAL(KIND(1D0)) :: air_temperature      ! [K]
-REAL(KIND(1D0)) :: surface_resistance   ! [s m-1]
-REAL(KIND(1D0)) :: latent_heat_flux     ! [W m-2]
-INTEGER :: time_step_count
-INTEGER :: surface_type_id
+! WRONG -- implicit SAVE! Corrupts multi-grid runs and fails CI lint.
+REAL(KIND(1D0)) :: temp_val = 0.0D0   ! [K]
+INTEGER :: iter_count = 0
+
+! CORRECT -- declare bare, then assign in the executable section
+REAL(KIND(1D0)) :: air_temperature    ! [K]
+REAL(KIND(1D0)) :: surface_resistance ! [s m-1]
+REAL(KIND(1D0)) :: temp_val           ! [K]
+INTEGER :: iter_count
 LOGICAL :: is_snow_covered
+
+temp_val = 0.0D0
+iter_count = 0
+is_snow_covered = .FALSE.
 ```
 
-### Module-Level Variables
-Same as local variables, but document scope:
-```fortran
-MODULE suews_phys_snow
-    IMPLICIT NONE
-
-    ! Module state (should be minimal, prefer passing as arguments)
-    REAL(KIND(1D0)), SAVE :: prev_snow_depth = 0.0D0  ! [m]
-    LOGICAL, SAVE :: is_initialised = .FALSE.
-```
+### No Mutable Module State (`SAVE` Forbidden)
+Do **not** declare mutable module-level variables or `SAVE` state in physics, utility, or control modules.
+- **Compile-time constants** -> `PARAMETER` (`UPPERCASE_WITH_UNDERSCORES`). Before converting a legacy local to `PARAMETER`, confirm no callee writes to the dummy argument it is passed to.
+- **Cross-timestep or per-grid state** -> store on `SUEWS_STATE` (`dts_*` types in `suews_type_*.f95` / `suews_ctrl_type.f95`) and pass explicitly.
 
 ### Constants and Parameters
-**Pattern**: `UPPERCASE_WITH_UNDERSCORES`
+**Pattern**: `UPPERCASE_WITH_UNDERSCORES` with `PARAMETER` and unit comments:
 
 ```fortran
-! Physical constants
-REAL(KIND(1D0)), PARAMETER :: STEFAN_BOLTZMANN = 5.67D-8     ! [W m-2 K-4]
-REAL(KIND(1D0)), PARAMETER :: GRAVITY_ACCEL = 9.81D0         ! [m s-2]
+REAL(KIND(1D0)), PARAMETER :: STEFAN_BOLTZMANN = 5.67D-8      ! [W m-2 K-4]
+REAL(KIND(1D0)), PARAMETER :: GRAVITY_ACCEL = 9.81D0          ! [m s-2]
 REAL(KIND(1D0)), PARAMETER :: GAS_CONSTANT_DRY_AIR = 287.04D0 ! [J kg-1 K-1]
-
-! Model constants
-REAL(KIND(1D0)), PARAMETER :: SNOW_DENSITY_FRESH = 100.0D0   ! [kg m-3]
+REAL(KIND(1D0)), PARAMETER :: SNOW_DENSITY_FRESH = 100.0D0    ! [kg m-3]
 INTEGER, PARAMETER :: MAX_ITERATIONS = 100
-REAL(KIND(1D0)), PARAMETER :: CONVERGENCE_THRESHOLD = 1.0D-6
 ```
 
-### Arrays
-Include dimensionality information:
+### Arrays and Physical Units
+Always document physical units in square brackets using plain ASCII (`[K]`, `[mm h-1]`, `[Pa]`, `[m s-1]`, `[W m-2]`, `[-]`):
 ```fortran
-! Allocatable arrays
-REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: surface_temperature  ! [K] (nsurf)
-REAL(KIND(1D0)), DIMENSION(:,:), ALLOCATABLE :: soil_moisture      ! [m3 m-3] (nsurf, nlayers)
-
-! Fixed-size arrays
-REAL(KIND(1D0), DIMENSION(7) :: surface_fraction  ! [-] (nsurf)
-```
-
-### Physical Units Documentation
-**Always document units in comments** using square brackets:
-```fortran
-REAL(KIND(1D0)) :: temperature = 0.0D0   ! [K]
-REAL(KIND(1D0)) :: rainfall = 0.0D0      ! [mm h-1]
-REAL(KIND(1D0)) :: pressure = 0.0D0      ! [Pa]
-REAL(KIND(1D0)) :: wind_speed = 0.0D0    ! [m s-1]
-REAL(KIND(1D0)) :: fraction = 0.0D0      ! [-] dimensionless
+REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: surface_temperature ! [K] (nsurf)
+REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: soil_moisture    ! [m3 m-3] (nsurf, nlayers)
+REAL(KIND(1D0)), DIMENSION(7) :: surface_fraction                 ! [-] (nsurf)
 ```
 
 ---
 
-## Type Naming
+## Derived-Type Naming
 
-### User-Defined Types (Derived Types)
-**Pattern**: `dts_<name>` where `dts` = "derived type"
+**Pattern**: `dts_<name>` (`dts` = derived type; never `_t` suffix or bare CamelCase in new types).
 
-**Rationale**:
-- `dts` is proper Fortran terminology for user-defined types
-- Prefix pattern (not suffix) makes types immediately recognizable
-- Consistent with scientific programming conventions
+Default component values inside a `TYPE :: dts_<name>` block are per-instance initialisers (unlike procedure-local initialisers, they do **not** imply `SAVE`). Note that for bridged parameter types (`*_PRM`), representation initialisers must not stand in for missing user configuration -- defaults belong in the Python Pydantic data model (see [RUST_BRIDGE_ADD_PARAMETER.md](RUST_BRIDGE_ADD_PARAMETER.md) and `.claude/rules/rust/bridge-contract.md`).
 
 ```fortran
 TYPE :: dts_snow_state
-    REAL(KIND(1D0)) :: depth = 0.0D0              ! [m]
-    REAL(KIND(1D0)) :: density = 100.0D0          ! [kg m-3]
-    REAL(KIND(1D0)) :: albedo = 0.8D0             ! [-]
-    REAL(KIND(1D0)) :: temperature = 273.15D0     ! [K]
-    INTEGER :: age_days = 0                        ! [days]
+   REAL(KIND(1D0)) :: depth = 0.0D0          ! [m]
+   REAL(KIND(1D0)) :: density = 100.0D0      ! [kg m-3]
+   REAL(KIND(1D0)) :: albedo = 0.8D0         ! [-]
+   REAL(KIND(1D0)) :: temperature = 273.15D0 ! [K]
+   INTEGER :: age_days = 0                   ! [days]
 END TYPE dts_snow_state
 
-TYPE :: dts_forcing
-    REAL(KIND(1D0)) :: temperature   ! [K]
-    REAL(KIND(1D0)) :: pressure      ! [Pa]
-    REAL(KIND(1D0)) :: humidity      ! [kg kg-1]
-    REAL(KIND(1D0)) :: wind_speed    ! [m s-1]
-END TYPE dts_forcing
-
 TYPE :: dts_fluxes
-    REAL(KIND(1D0)) :: sensible_heat  ! [W m-2]
-    REAL(KIND(1D0)) :: latent_heat    ! [W m-2]
-    REAL(KIND(1D0)) :: ground_heat    ! [W m-2]
-    REAL(KIND(1D0)) :: net_radiation  ! [W m-2]
+   REAL(KIND(1D0)) :: sensible_heat = 0.0D0  ! [W m-2]
+   REAL(KIND(1D0)) :: latent_heat = 0.0D0    ! [W m-2]
+   REAL(KIND(1D0)) :: storage_heat = 0.0D0   ! [W m-2]
+   REAL(KIND(1D0)) :: net_radiation = 0.0D0  ! [W m-2]
 END TYPE dts_fluxes
 ```
 
-### Type Components
-Use `lowercase_with_underscores` (same as variables):
-```fortran
-TYPE :: dts_ohm_state
-    REAL(KIND(1D0)) :: storage_heat_flux        ! [W m-2]
-    REAL(KIND(1D0)) :: hysteresis_coef          ! [-]
-    REAL(KIND(1D0)) :: thermal_time_constant    ! [s]
-END TYPE dts_ohm_state
-```
+---
 
-### Examples of Type Usage
-```fortran
-MODULE module_phys_snow
-    TYPE :: dts_snow_state
-        REAL(KIND(1D0)) :: depth
-        REAL(KIND(1D0)) :: density
-    END TYPE dts_snow_state
+## Formatting and Validation Tools
 
-CONTAINS
-    SUBROUTINE update_snow(state)
-        TYPE(dts_snow_state), INTENT(INOUT) :: state
-        ! Update snow state
-    END SUBROUTINE update_snow
-END MODULE module_phys_snow
-```
+### `fprettify` and `.fprettify.rc`
+Format Fortran files with `make format` (which runs `fprettify` using the repo-root `.fprettify.rc`) or check diffs via `/lint-code` (`fprettify --diff`).
+- Indentation is 3 spaces (`indent = 3`), `line-length = 132`.
+- `.fprettify.rc` sets `case = [0, 0, 0, 0]`, which **preserves existing case** for keywords, procedures/modules, derived types, and intrinsics rather than forcing lowercase or uppercase rewrites across legacy files.
+
+### CI Gates and Audit Helpers
+- **Saved-locals gate (blocking in CI)**: `python scripts/lint/check_saved_fortran_locals.py` rejects any procedure-local declaration initialiser or `SAVE` local in `src/suews/`.
+- **Module dependency graph (blocking in CI)**: `python scripts/suews/gen_fortran_deps.py` regenerates `src/suews/Makefile.deps`; verified by `pytest test/core/test_fortran_deps.py`.
+- **Standalone naming audit script**: `python scripts/suews/check_naming_conventions.py [files...]` inspects file/module/procedure naming patterns during refactors.
 
 ---
 
 ## Migration Strategy
 
-### For New Code (Effective Immediately)
-All new Fortran code must follow these conventions:
-- New modules: `MODULE module_<category>_<name>` (in file `suews_<category>_<name>.f95`)
-- New types: `TYPE :: dts_<name>`
-- One module per physics scheme (consolidate sub-modules)
-- New subroutines/functions: `snake_case`
-- New variables: `snake_case` with units in comments
+### For New Code
+All new Fortran files, modules, derived types, and procedures must follow:
+- File: `suews_<category>_<name>.f95` (`ctrl`, `phys`, `type`, `util`)
+- Module: `MODULE module_<category>_<name>`
+- Derived type: `TYPE :: dts_<name>`
+- Procedures and variables: `snake_case`, explicit `KIND(1D0)`, no local declaration initialisers, no `SAVE` state
+- Error handling: `set_supy_error` / `supy_error_flag()` / `modState%errorstate%report` (never `STOP` or `WRITE(*,...)`)
 
-### For Existing Code (Gradual Migration)
-
-#### Phase 1: Module Consolidation and Renaming (2025)
-**Current status**: In progress
-1. **Consolidate sub-modules** into ONE module per physics scheme
-   - Example: STEBBS 5 modules → 1 module
-2. **Rename modules** from old patterns to `module_<category>_<name>`
-3. **Create backward compatibility aliases** for all old module names
-4. **Update all USE statements** to use new module names
-5. **Test builds** after each batch
-4. Remove aliases after one minor version
-
-#### Phase 2: Medium-Priority Files (2026-2027)
-Files with moderate activity or partial consistency
-
-#### Phase 3: Low-Priority Files (2027+)
-Legacy files rarely touched, migrate as opportunities arise
-
-### Backward Compatibility Pattern
-```fortran
-! New standard module name
-MODULE suews_phys_snow
-    IMPLICIT NONE
-    ! Implementation
-END MODULE suews_phys_snow
-
-! Temporary alias for backward compatibility
-! TODO: Remove in version X.Y.0 (deprecated since X.(Y-1).0)
-MODULE Snow_module
-    USE suews_phys_snow
-    ! All functionality is now in suews_phys_snow
-END MODULE Snow_module
-```
-
-### Documentation Requirements
-When renaming modules:
-1. Add deprecation notice in module header comment
-2. Update CHANGELOG with `[change]` entry
-3. Update user documentation if module is referenced
-4. Add migration note to release notes
-
----
-
-## Validation Tools
-
-### Automated Naming Checker
-
-Location: `scripts/suews/check_naming_conventions.py`
-
-**Usage**:
-```bash
-# Check all Fortran files
-python scripts/suews/check_naming_conventions.py
-
-# Check specific files
-python scripts/suews/check_naming_conventions.py src/suews/src/suews_phys_snow.f95
-
-# Generate report
-python scripts/suews/check_naming_conventions.py --report naming_report.txt
-```
-
-**What it checks**:
-- ✅ File naming matches pattern
-- ✅ Module naming matches file
-- ✅ Multiple modules use appropriate suffixes
-- ⚠️ Public subroutines use PascalCase (warning only)
-- ⚠️ Constants use UPPERCASE (warning only)
-
-### Pre-commit Hook Integration
-
-Add to `.pre-commit-config.yaml`:
-```yaml
-- repo: local
-  hooks:
-    - id: fortran-naming-check
-      name: Fortran Naming Convention Check
-      entry: python scripts/suews/check_naming_conventions.py
-      language: python
-      files: \.f95$
-      pass_filenames: true
-```
-
-### CI/CD Integration
-
-Add to GitHub Actions (`.github/workflows/naming-check.yml`):
-```yaml
-name: Naming Convention Check
-on: [pull_request]
-jobs:
-  check-naming:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check Fortran Naming
-        run: python scripts/suews/check_naming_conventions.py
-```
+### For Existing Code
+Migrate legacy names (`Snow_module`, `METEO`, fused TYPE field names) in dedicated refactoring PRs rather than mixing cosmetic renames into physics bug fixes (see `.claude/rules/work-sizing.md` and gh#1324 / gh#1325). When renaming an internal Fortran module across the tree:
+1. Update `USE` statements across `src/suews/src/` and `src/suews_bridge/c_api/`.
+2. Run `python scripts/suews/gen_fortran_deps.py` to refresh `src/suews/Makefile.deps`.
+3. Rebuild and verify with `make dev && make test-smoke`.
+4. Add a `[maintenance]` entry to `CHANGELOG.md` following `.claude/rules/changelog/format.md`.
 
 ---
 
 ## Examples and Anti-Patterns
 
-### ✅ Good Example
+### `[OK]` Good Example
 
 ```fortran
-! File: suews_phys_resistance.f95
-MODULE suews_phys_resistance
-    IMPLICIT NONE
+! File: src/suews/src/suews_phys_resistance.f95
+MODULE module_phys_resistance
+   USE module_ctrl_error_state, ONLY: set_supy_error
+   IMPLICIT NONE
+   PRIVATE
 
-    ! Constants
-    REAL(KIND(1D0)), PARAMETER :: VON_KARMAN = 0.4D0  ! [-]
+   REAL(KIND(1D0)), PARAMETER :: VON_KARMAN = 0.4D0  ! [-]
 
-    ! Types
-    TYPE :: resistance_state_t
-        REAL(KIND(1D0)) :: aerodynamic    ! [s m-1]
-        REAL(KIND(1D0)) :: boundary_layer ! [s m-1]
-        REAL(KIND(1D0)) :: surface        ! [s m-1]
-    END TYPE resistance_state_t
+   TYPE :: dts_resistance_state
+      REAL(KIND(1D0)) :: aerodynamic = 0.0D0    ! [s m-1]
+      REAL(KIND(1D0)) :: boundary_layer = 0.0D0 ! [s m-1]
+      REAL(KIND(1D0)) :: surface = 0.0D0        ! [s m-1]
+   END TYPE dts_resistance_state
 
-    PRIVATE
-    PUBLIC :: resistance_state_t
-    PUBLIC :: calc_aerodynamic_resistance
+   PUBLIC :: dts_resistance_state
+   PUBLIC :: calc_aerodynamic_resistance
 
 CONTAINS
 
-    ! Public API - snake_case for all functions
-    FUNCTION calc_aerodynamic_resistance(wind_speed, height, roughness) &
-             RESULT(ra)
-        REAL(KIND(1D0)), INTENT(IN) :: wind_speed  ! [m s-1]
-        REAL(KIND(1D0)), INTENT(IN) :: height      ! [m]
-        REAL(KIND(1D0)), INTENT(IN) :: roughness   ! [m]
-        REAL(KIND(1D0)) :: ra                      ! [s m-1]
+   SUBROUTINE calc_aerodynamic_resistance(wind_speed, height, roughness, ra)
+      REAL(KIND(1D0)), INTENT(IN) :: wind_speed ! [m s-1]
+      REAL(KIND(1D0)), INTENT(IN) :: height     ! [m]
+      REAL(KIND(1D0)), INTENT(IN) :: roughness  ! [m]
+      REAL(KIND(1D0)), INTENT(OUT) :: ra        ! [s m-1]
 
-        REAL(KIND(1D0)) :: log_ratio
+      REAL(KIND(1D0)) :: log_ratio
 
-        log_ratio = calc_log_wind_profile(height, roughness)
-        ra = log_ratio / (VON_KARMAN * wind_speed)
-    END FUNCTION calc_aerodynamic_resistance
+      log_ratio = 0.0D0
+      IF (wind_speed <= 0.0D0 .OR. roughness <= 0.0D0 .OR. height <= roughness) THEN
+         CALL set_supy_error(103, 'calc_aerodynamic_resistance: invalid wind_speed, height, or roughness')
+         ra = -999.0D0
+         RETURN
+      END IF
 
-    ! Private helper - also snake_case (consistent!)
-    FUNCTION calc_log_wind_profile(z, z0) RESULT(psi)
-        REAL(KIND(1D0)), INTENT(IN) :: z, z0
-        REAL(KIND(1D0)) :: psi
-        psi = LOG(z / z0)
-    END FUNCTION calc_log_wind_profile
+      log_ratio = LOG(height / roughness)
+      ra = log_ratio / (VON_KARMAN * wind_speed)
+   END SUBROUTINE calc_aerodynamic_resistance
 
-END MODULE suews_phys_resistance
+END MODULE module_phys_resistance
 ```
 
-### ❌ Anti-Patterns to Avoid
+### `[X]` Anti-Patterns to Avoid
 
 ```fortran
-! File: snow.f95  ❌ Missing category and suews prefix
-MODULE Snow_Module  ❌ Doesn't match file, inconsistent case
+! File: snow.f95                      ! [X] Missing suews_<category>_ prefix
+MODULE Snow_Module                    ! [X] Should be MODULE module_phys_snow
 
-    REAL(KIND(1D0)) :: globalSnowDepth  ❌ Module state without SAVE, camelCase
+   REAL(KIND(1D0)), SAVE :: prev_d    ! [X] Mutable SAVE module state breaks multi-grid threads
 
-    FUNCTION getDensity(T) RESULT(rho)  ❌ PascalCase inconsistent with snake_case standard
-        REAL(KIND(1D0)) :: T  ❌ Single-letter non-standard variable
-        REAL(KIND(1D0)) :: rho
-        rho = 100 + 0.5*T  ❌ Magic numbers without explanation
-    END FUNCTION
+   TYPE :: snowstate                  ! [X] Should be TYPE :: dts_snow_state
+      REAL :: d                       ! [X] Bare REAL without KIND(1D0), cryptic name, no units
+   END TYPE snowstate
 
-    type snowstate  ❌ Missing _t suffix, no consistency
-        real :: d  ❌ No precision, single letter, no units
-        integer :: t
-    end type
+CONTAINS
 
-END MODULE
+   SUBROUTINE GetDensity(T, rho)      ! [X] CamelCase instead of snake_case
+      REAL(KIND(1D0)), INTENT(IN) :: T
+      REAL(KIND(1D0)), INTENT(OUT) :: rho
+      REAL(KIND(1D0)) :: tmp = 0.0D0  ! [X] Declaration initialiser implies SAVE!
+      IF (T < 0.0D0) STOP 'bad T'     ! [X] STOP kills Python; use set_supy_error + RETURN
+      tmp = 100.0D0 + 0.5D0*T
+      rho = tmp
+   END SUBROUTINE GetDensity
+
+END MODULE Snow_Module
 ```
 
 ---
 
 ## References
 
-- [Fortran Naming Best Practices (Fortran-Lang)](https://fortran-lang.org/learn/best_practices/)
-- [Modern Fortran Style Guide (Goddard Space Flight Center)](https://www.fortran90.org/src/best-practices.html)
-- [Scientific Software Naming Conventions (NumPy, SciPy)](https://numpy.org/doc/stable/dev/gitwash/development_workflow.html)
-
----
-
-## Revision History
-
-- 26 Oct 2025, [TS](@sunt05): Initial version establishing module naming standard
-- 26 Oct 2025, [TS](@sunt05): Added migration strategy and validation tools
+- [`.claude/rules/fortran/conventions.md`](../.claude/rules/fortran/conventions.md)
+- [`.claude/rules/fortran/error-reporting.md`](../.claude/rules/fortran/error-reporting.md)
+- [Fortran-Lang Best Practices](https://fortran-lang.org/learn/best_practices/)

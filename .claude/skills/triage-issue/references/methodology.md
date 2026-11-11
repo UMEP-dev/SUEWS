@@ -176,11 +176,17 @@ Invariants an orchestrator can rely on:
   confident reframe and is never applied standalone).
 - `Verdict: needs-discussion` requires a non-empty `Blocking question`, and
   `Applied:` is `none` (no destructive action is ever auto-applied).
-- `Verdict: skipped` is for an issue that could not be fetched/processed or was
-  excluded by the bound; it requires a reason in `Blocking question`/`Next` and
-  applies nothing.
+- `Verdict: skipped` is a batch-mode accounting verdict for an issue that could
+  not be fetched/processed or was excluded by the batch bound; it requires a
+  reason in `Blocking question`/`Next` and applies nothing.
 - Privacy: a scrub-gate hit in model-authored distilled text is redacted; a hit
   in verbatim preserved content forces `needs-discussion` (never posted).
+- Confidence-gated rewrites (`needs-summary` and `misframed`): when all
+  confidence gates in `SKILL.md` / `.claude/rules/autonomous-workflow.md` hold
+  and the verbatim privacy check passes, `body-rewrite` (and `title` when
+  accompanying a confident reframe) is auto-applied and the issue lands in
+  `triaged-applied` (`A`); if any gate fails, nothing is applied and the issue
+  lands in `needs-discussion` (`C`).
 - For a batch, emit one block per issue, then a scope line and a partitioned
   aggregate that must sum to the returned count K:
   `Scope: <filter>; <K> returned / <total> open; truncated: <yes|no>`

@@ -73,12 +73,13 @@ def save(self, output_path, format=None):
     if format == "txt":
         save_backend(df_output, df_state, output_config=self._config.output)
 
+
 # CORRECT - extracting and transforming config
 def save(self, output_path, format=None):
     if format == "txt":
         # Extract specific parameters from config
         freq_s = 3600  # default
-        if self._config and hasattr(self._config.output, 'freq'):
+        if self._config and hasattr(self._config.output, "freq"):
             freq_s = self._config.output.freq.value  # Handle RefValue
 
         # Pass concrete parameters to low-level method

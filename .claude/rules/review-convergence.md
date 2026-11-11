@@ -66,3 +66,6 @@ that ends without stating the remainder reads as "all clean" when it may not be.
   `autonomous-workflow.md`.
 - Smaller units converge faster: keep the artefact under review right-sized
   (`work-sizing.md`).
+- This rule (`blocking | major | minor | nit`) governs iterative diff and
+  artefact review loops, whereas pinned-SHA whole-repository or subsystem audits
+  follow `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`.

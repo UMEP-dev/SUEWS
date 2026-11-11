@@ -38,13 +38,18 @@ recommendation instead of spending the review on an unreviewable diff:
 - **Context**: Gather files, classify changes
 - **Size gate (first)**: see "Size Gate" above -- recommend a split before reviewing an oversized or bundled PR
 - **Code Style**: lint-code
+- **Fortran error-reporting hygiene**: If the diff touches `src/suews/**/*.f9*`
+  or `src/suews_bridge/c_api/**/*.f9*`, dispatch the read-only
+  `fortran-error-state-reviewer` agent (`.claude/rules/fortran/error-reporting.md`)
+  and fold its `[fortran-error-state-reviewer] verdict` findings into Code Style / Scientific
 - **Scientific**: Physics validation (if applicable)
 - **Testing**: Coverage, FIRST principles
-- **Rust bridge contract**: For bridge changes or changes to either side of its
-  input/output boundary, apply `.claude/rules/rust/bridge-contract.md`. Record
-  applicable BR rule IDs, source revision, evidence and unresolved gaps using
-  its audit format. Check ownership as well as numerical correctness; do not
-  treat a default round trip as field-to-kernel wiring evidence.
+- **Rust bridge contract**: For bridge changes (`src/suews_bridge/**`) or changes
+  to either side of its input/output boundary, apply
+  `.claude/rules/rust/bridge-contract.md`. Record applicable BR rule IDs, source
+  revision, evidence and unresolved gaps using its audit format. Check ownership
+  as well as numerical correctness; do not treat a default round trip as
+  field-to-kernel wiring evidence.
 - **Docs**: CHANGELOG, PR description; if the diff touches the user-facing
   surface (`src/supy/data_model/`, physics options, output or forcing
   registries, `src/supy/util/converter/`, the public API or CLI), dispatch the
@@ -54,9 +59,25 @@ recommendation instead of spending the review on an unreviewable diff:
 - **Suggested reviewers**: Derive reviewer suggestions from changed files,
   `dev-ref/SCIENTIFIC_REVIEWERS.md`, and `dev-ref/REVIEW_PROCESS.md`; include
   them in the draft summary without treating them as automatic blockers.
-- **Schema version audit**: If the PR touches `src/supy/data_model/`, apply the triggers in `.claude/rules/python/schema-versioning.md`. Field rename, removal, type change, or required-field addition should be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new `SCHEMA_VERSIONS` entry, a matching handler in `src/supy/util/converter/yaml_upgrade.py`, and a `sample_config.yml` resync. Flag any of these that are missing. CI gate `.github/workflows/schema-version-audit.yml` runs the automated check; if the PR carries the `0-ci:schema-audit-ok` bypass label, verify from the diff yourself that the reason is genuinely cosmetic before approving.
+- **Schema version audit**: If the PR touches `src/supy/data_model/` or
+  `src/supy/sample_data/sample_config.yml`, dispatch the read-only
+  `schema-migration-checker` agent and apply `.claude/rules/python/schema-versioning.md`.
+  Field rename, removal, type change, required-field addition, or default-behaviour
+  change must be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new
+  `SCHEMA_VERSIONS` entry, a matching handler in
+  `src/supy/util/converter/yaml_upgrade.py`, a `sample_config.yml` resync, AND
+  a regenerated `test/fixtures/sample_short/sample_config_short.yml`
+  (`python test/fixtures/sample_short/make_sample_short.py`). Note that
+  `test/fixtures/release_configs/<tag>.yml` and `_PACKAGE_TO_SCHEMA` mappings
+  apply **only to formal release tags** (never `.devN` bumps). CI gate
+  `.github/workflows/schema-version-audit.yml` runs the automated check on
+  `src/supy/data_model/core/` + `sample_config.yml`; if the PR carries the
+  `0-ci:schema-audit-ok` bypass label, verify from the diff yourself that the
+  reason is genuinely cosmetic before approving.
 - **Physics-change evidence audit**: If the diff touches physics source (`suews_phys_*.f95`, Rust physics backend), moves a reference fixture (`test/fixtures/data_test/sample_output_2012-*.csv` and its `provenance.json` sidecar, `.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`), or changes a physics-affecting data-model default, apply `.claude/rules/physics-change-evidence.md`. Confirm the `0-physics:change` label is present (apply or flag if missing), the PR body has a `## Scientific evidence` section (quantities + mechanism, before/after comparison, sign/magnitude reasoning -- a bare "outputs changed" is blocking), the owner sign-off is present for any owned subsystem (STEBBS -> `@yiqing1021`), any moved fixture is refreshed in this PR (or a linked PR), and the full `-m physics` tier (including `slow`) has run green.
-- **Build**: meson.build inclusion for new source files
+- **Build**: `src/supy/meson.build` (`src_f95_all`, `py.install_sources`),
+  `src/suews/Makefile`, and `src/suews/Makefile.deps` (`python scripts/suews/gen_fortran_deps.py`)
+  for new or changed source files / Fortran `USE` dependencies
 - **CI gate audit**: see "CI Gate Audit" below -- every non-green check gets a named
   remedy in the draft, not just a status
 - **Draft**: Comments for approval
@@ -140,10 +161,13 @@ sign-off, report that separately under the scientific evidence audit.
 
 | Type | Pattern | Review |
 |------|---------|--------|
-| Physics | `suews_phys_*.f95` | Scientific + code |
-| Utility | `suews_util_*.f95` | Code only |
-| Control | `suews_ctrl_*.f95` | Code only |
-| Python | `src/supy/*.py` | Code only |
+| Physics | `src/suews/src/suews_phys_*.f95` | Scientific + code + `fortran-error-state-reviewer` |
+| Utility | `src/suews/src/suews_util_*.f95` | Code + `fortran-error-state-reviewer` |
+| Control | `src/suews/src/suews_ctrl_*.f95` | Code + `fortran-error-state-reviewer` |
+| External Fortran | `src/suews/ext_lib/**` | Scientific/vendor + build + `fortran-error-state-reviewer` |
+| Rust Bridge & C-API | `src/suews_bridge/**` (Rust + `c_api/*.f9*`) | Bridge contract + Rust/Fortran code (`fortran-error-state-reviewer` on `.f9*`) |
+| Python & Data Model | `src/supy/**/*.py`, `src/supy/**/*.{yml,yaml,json}` | Code + `schema-migration-checker` / `docs-reviewer` when applicable |
+| MCP Server | `mcp/**` | Code + MCP packaging/contract |
 
 ## Code Style Quick Reference
 
@@ -174,7 +198,7 @@ CI gate: green | near-green | red
 | CI | PASS/FAIL/PENDING |
 
 ### Key Findings
-- [severity] finding (severity = blocking | major | minor | false-positive)
+- [severity] finding (severity = blocking | major | minor | nit; per `.claude/rules/review-convergence.md`, `false-positive` is a consumer dismissal disposition in `fix-issue`, not a severity emitted here)
 
 ### CI Findings
 - [severity] {check name} -- enforces {what}; red because {cause for this diff}.

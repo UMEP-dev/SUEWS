@@ -49,7 +49,9 @@ git fetch origin
 .claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master
 ```
 
-Write or update one coordination comment on each non-draft PR:
+Write or update one coordination comment on each of your own non-draft PRs
+(third-party PRs are skipped automatically unless `--allow-third-party-comment`
+is passed after explicit user approval):
 
 ```bash
 .claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --comment
@@ -96,7 +98,7 @@ make test-smoke
    - Prefer the queue scanner when the user asks about all ready PRs, merge
      queue ordering, or queue bounce-backs across several PRs.
    - Run `git fetch origin`, then:
-     `scripts/queue-ready-prs.sh --base master`.
+     `.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master`.
    - Treat "ready for review" as open and non-draft. The scanner skips PRs
      with changes requested, merge conflicts, dirty merge state, unknown
      mergeability, or failing checks unless a future operator deliberately
@@ -107,7 +109,7 @@ make test-smoke
 
 2. **Comment before queueing**
    - Treat comments as the normal coordination mechanism. Run:
-     `scripts/queue-ready-prs.sh --base master --comment`.
+     `.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --comment`.
    - The script writes or updates one marker-based comment on each non-draft
      PR. The comment includes current queue position, why the PR has that
      position, shared/high-risk files, and specific suggestions for the PR's
@@ -172,17 +174,20 @@ make test-smoke
      semantic conflict may still be real.
 
 7. **Classify the PR set**
-   - **Independent**: no shared files, separate subsystems, no logical
-     dependency. Rebase each branch onto fresh `origin/master`, run checks,
-     and queue in parallel if desired.
-   - **Serial**: shared files or nearby logic, but no strict dependency.
-     Queue the safest/lowest-level PR first. After it lands, rebase the next
-     branch onto fresh `origin/master`.
-   - **Stacked**: later PRs depend on earlier code or tests. Keep B based on A
-     until A lands, then rebase B onto `origin/master`.
-   - **Integration PR**: several PRs touch shared build, generated, or docs
-     files. Move the shared edits into one PR or prepare a final integration
-     branch.
+   - **Independent** (`independent`): no shared files, separate subsystems, no
+     logical dependency. Rebase each branch onto fresh `origin/master`, run
+     checks, and queue in parallel if desired.
+   - **Serial or review** (`serial-or-review`): shared files, high-risk files,
+     or nearby logic, though the merge simulation passes and there is no strict
+     code dependency. Queue the safest/lowest-level PR first; after it lands,
+     rebase the next branch onto fresh `origin/master`.
+   - **Stacked** (`stacked`): later PRs depend on earlier code or tests
+     (classified manually; `preflight.sh` tests sequential merge order). Keep B
+     based on A until A lands, then rebase B onto `origin/master`.
+   - **Integration PR** (`integration-needed`): supplied branches fail clean
+     merge simulation, or several PRs touch shared build, generated, or docs
+     files incompatibly. Move the shared edits into one PR or prepare a final
+     integration branch.
 
 8. **Run merge preflight**
    - Use the script to create a temporary detached worktree at the base and
@@ -209,8 +214,11 @@ Treat these as coordination points:
 - `CHANGELOG.md`
 - `meson.build`
 - `src/supy/meson.build`
+- `src/suews/Makefile*` (`Makefile`, `Makefile.deps`, `Makefile.gfortran`, etc.)
+- `src/suews_bridge/Cargo.toml`, `src/suews_bridge/Cargo.lock`, `src/suews_bridge/build.rs`
+- `pyproject.toml` and `mcp/pyproject.toml`
 - `.github/workflows/*`
-- dependency or lock files
+- dependency or lock files (`uv.lock`, `poetry.lock`, `requirements*.txt`, `environment*.yml`)
 - generated docs indexes and tutorial outputs
 - shared test fixtures and baseline outputs
 - public API schema or sample configuration files
@@ -242,7 +250,7 @@ When reporting a local-worktree preflight, use this structure:
 === MERGE QUEUE PLAN ===
 Base: origin/master
 Branches: branch-a, branch-b, branch-c
-Verdict: independent | serial | stacked | integration-needed
+Verdict: independent | serial-or-review | stacked | integration-needed
 
 Order:
 1. branch-a - reason

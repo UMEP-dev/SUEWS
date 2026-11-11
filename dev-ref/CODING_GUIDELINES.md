@@ -1,609 +1,416 @@
 # SUEWS Coding Guidelines and Policy
 
-This document defines the coding standards and policies for the SUEWS (Surface Urban Energy and Water Balance Scheme) project. These guidelines apply to both human developers and AI assistants (including Claude Code) when contributing to the project.
+> **Canonical Rules Notice**
+>
+> Active, path-scoped rules in `.claude/` and executable CI lints supersede this overview whenever an example drifts. Always read the governing rule files first:
+> - [`AGENTS.md`](../AGENTS.md) and [`.claude/rules/00-project-essentials.md`](../.claude/rules/00-project-essentials.md)
+> - Fortran: [`.claude/rules/fortran/conventions.md`](../.claude/rules/fortran/conventions.md) and [`.claude/rules/fortran/error-reporting.md`](../.claude/rules/fortran/error-reporting.md)
+> - Python: [`.claude/rules/python/conventions.md`](../.claude/rules/python/conventions.md), [`.claude/rules/python/api-approach.md`](../.claude/rules/python/api-approach.md), and [`.claude/rules/python/config-patterns.md`](../.claude/rules/python/config-patterns.md)
+> - Rust bridge: [`.claude/rules/rust/conventions.md`](../.claude/rules/rust/conventions.md) and [`.claude/rules/rust/bridge-contract.md`](../.claude/rules/rust/bridge-contract.md)
+> - Identifiers and CHANGELOG: [`.claude/rules/naming-convention.md`](../.claude/rules/naming-convention.md) and [`.claude/rules/changelog/format.md`](../.claude/rules/changelog/format.md)
+
+This document summarises the coding standards and architectural conventions for the SUEWS (Surface Urban Energy and Water Balance Scheme) project across Python (`src/supy/`), the Rust/C-ABI bridge (`src/suews_bridge/`), and Fortran (`src/suews/`).
 
 ## Table of Contents
 1. [General Principles](#general-principles)
 2. [Python Guidelines](#python-guidelines)
 3. [Fortran Guidelines](#fortran-guidelines)
-4. [Documentation Standards](#documentation-standards)
-5. [Testing Requirements](#testing-requirements)
-6. [Version Control Practices](#version-control-practices)
+4. [Rust Bridge Overview](#rust-bridge-overview)
+5. [Documentation Standards](#documentation-standards)
+6. [Testing Requirements](#testing-requirements)
+7. [Version Control and CHANGELOG Practices](#version-control-and-changelog-practices)
+8. [Configuration and Data Model Guidelines](#configuration-and-data-model-guidelines)
+9. [Automated Formatting and Linting](#automated-formatting-and-linting)
 
 ## General Principles
 
-### 1.1 Language and Spelling
-- Use **British English** for all documentation, comments, and user-facing text
-- Variable names may use common scientific abbreviations (e.g., `temp` for temperature)
+### 1.1 Language, Spelling, and Plain ASCII
+- Use **British English** for all documentation, comments, and user-facing text (exception: NumPy/SciPy API names such as `analyze`).
+- Avoid `-ise`/`-ize` spelling variants in new identifiers; prefer neutral verbs (`init`, `setup`, `prepare`, `complete`, `scale`, `compute`, `tune`).
+- Enforce **plain ASCII (`0x00..0x7F`)** in logging, CLI output, error messages, validation reports, and developer documentation:
+  - Use `->` instead of Unicode arrows.
+  - Use `[OK]` and `[X]` instead of checkmarks or emojis.
+  - Use ASCII unit notation such as `W m-2`, `kg m-3`, and `degC`.
 
 ### 1.2 File Organisation
-- Keep related functionality together in modules
-- Separate concerns between configuration, physics, and utilities
-- Use clear, descriptive file names that indicate purpose
+- Keep related functionality together in cohesive modules.
+- Separate concerns cleanly across layers:
+  - `src/supy/`: Python user interface (`SUEWSSimulation`), Pydantic data model, validation, CLI, and I/O.
+  - `src/suews_bridge/`: PyO3 + Rust + ISO_C_BINDING transport layer (`suews_bridge` extension and `suews-engine` developer CLI).
+  - `src/suews/src/`: Fortran physics engine and kernel state types.
+- Register new Python or Fortran source files in `meson.build`, and regenerate `src/suews/Makefile.deps` via `python scripts/suews/gen_fortran_deps.py` whenever Fortran files or `USE` edges change.
 
 ### 1.3 Code Quality
-- Write self-documenting code with clear variable names
-- Add comments only when the code's purpose is not immediately obvious
-- Prefer clarity over cleverness
-- Follow the principle of least surprise
+- Write self-documenting code with clear variable names following `.claude/rules/naming-convention.md` (`snake_case`, physical quantity first, then component/location, then sub-class).
+- Add comments to explain **why** (physical assumptions, invariants, literature equations), not **what**.
+- Prefer clarity and explicit contracts over implicit fallbacks.
 
 ## Python Guidelines
 
+SUEWS requires **Python `>= 3.12`** (`pyproject.toml` and `.ruff.toml` `target-version = "py312"`).
+
 ### 2.1 Import Organisation
 
-Order imports as follows:
+Order imports as standard library, third-party, then local relative imports (enforced by `ruff` rule `I`):
 ```python
 # 1. Standard library imports
-import os
-import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Literal
 
 # 2. Third-party imports
 import numpy as np
 import pandas as pd
 
-# 3. Local imports (use relative imports)
-from .supy_driver import suews_driver as sd
-from ._load import df_var_info
+# 3. Local imports
+from ._env import logger_supy, trv_supy_module
+from ._suews_simulation import SUEWSSimulation
 ```
 
 ### 2.2 Naming Conventions
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Functions | snake_case | `check_forcing`, `get_spinup_state` |
-| Variables | snake_case | `df_forcing`, `dict_state` |
-| Classes | PascalCase | `SUEWSConfig`, `BaseModel` |
-| Constants | UPPER_CASE | `DEFAULT_TIMESTEP`, `NSURF` |
-| Private items | Leading underscore | `_internal_function` |
-| Module names | lowercase with underscores | `data_model.py` |
+| Functions / methods | `snake_case` | `check_forcing`, `from_sample_data` |
+| Variables / YAML fields | `snake_case` | `df_forcing`, `temperature_wall_internal` |
+| Classes | `PascalCase` | `SUEWSSimulation`, `SUEWSConfig` |
+| Constants | `UPPER_CASE` | `DEFAULT_TIMESTEP`, `NSURF` |
+| Private items | Leading underscore | `_internal_helper` |
+| Module names | `snake_case` | `yaml_upgrade.py` |
 
-**Special Prefixes:**
-- DataFrames: `df_` (e.g., `df_forcing`)
-- Dictionaries: `dict_` (e.g., `dict_state`)
-- Lists: `list_` (e.g., `list_grid`)
-- Series: `ser_` (e.g., `ser_var`)
-- Paths: `path_` (e.g., `path_runcontrol`)
+**Container Prefixes (where helpful in internal code):**
+- DataFrames: `df_` (for example `df_forcing`, `df_state`)
+- Dictionaries: `dict_` (for example `dict_state`)
+- Lists: `list_` (for example `list_grids`)
+- Series: `ser_` (for example `ser_output`)
+- Paths: `path_` (for example `path_config`)
 
-### 2.3 Type Hints
+### 2.3 Type Hints and Public API
 
-Always use type hints for function signatures:
+Target Python `>= 3.12` syntax (`X | None`, built-in generic collections `list[...]`, `dict[...]`, `tuple[...]`, and `Literal[...]`):
 ```python
-from typing import Tuple, Optional, Union
+from pathlib import Path
+from typing import Literal
+import pandas as pd
 
-def run_supy_ser(
-    df_forcing: pd.DataFrame,
-    df_state_init: pd.DataFrame,
-    save_state: bool = False,
-    chunk_day: int = 3660,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Perform supy simulation."""
-    ...
+from supy import SUEWSSimulation
+
+
+def run_site_window(
+    path_config: Path,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    output_format: Literal["parquet", "txt"] = "parquet",
+) -> pd.DataFrame:
+    """Run a SUEWSSimulation window and return the output DataFrame."""
+    sim = SUEWSSimulation(path_config)
+    if start_date is not None or end_date is not None:
+        df_forcing = sim.forcing.df.loc[start_date:end_date]
+        sim.update_forcing(df_forcing)
+    output = sim.run()
+    return output.df
 ```
 
-### 2.4 Documentation
+Use `SUEWSSimulation` for all new scripts, tests, and tutorials (see `.claude/rules/python/api-approach.md`). Note that the legacy `supy_driver` / `f2py` / `f90wrap` wrappers and internal `run_supy_ser` entry points have been replaced by `src/suews_bridge/` and `src/supy/_run_rust.py`.
 
-Use **NumPy-style docstrings** for all public functions and classes:
+### 2.4 Docstrings
+
+Use **NumPy-style docstrings** for all public functions, methods, and classes (enforced by `ruff check --select D`):
 ```python
-def function_name(param1: type, param2: type) -> return_type:
-    """Brief description of function.
-
-    Longer description if needed.
+def calculate_flux(
+    df_input: pd.DataFrame,
+    site: str,
+    freq_s: int = 3600,
+) -> pd.DataFrame:
+    """Calculate energy flux from input forcing data.
 
     Parameters
     ----------
-    param1 : type
-        Description of param1.
-    param2 : type
-        Description of param2.
+    df_input : pd.DataFrame
+        Input forcing data with meteorological variables.
+    site : str
+        Site identifier.
+    freq_s : int, optional
+        Output frequency in seconds, by default 3600.
 
     Returns
     -------
-    return_type
-        Description of return value.
-
-    Examples
-    --------
-    >>> example_usage()
-    expected_output
+    pd.DataFrame
+        Calculated flux values.
     """
 ```
 
-### 2.5 Error Handling
+### 2.5 Logging, File Encoding, and Error Handling
 
-Use structured error handling with informative messages:
-```python
-try:
-    result = risky_operation()
-except SpecificError as e:
-    logger_supy.error(f"Operation failed: {e}")
-    raise
-except Exception:
-    logger_supy.exception("Unexpected error in operation")
-    raise
-```
-
-### 2.6 Best Practices
-
-1. **Path Handling**: Use `pathlib.Path` instead of `os.path`
-2. **Logging**: Use `logger_supy` instead of `print()`
-3. **Deep Copying**: Use `copy.deepcopy()` for mutable state
-4. **Configuration**: Keep configuration parsing separate from implementation
-5. **Validation**: Validate inputs early and provide clear error messages
+- **Plain-ASCII logging**: Use `logger_supy` (not `print()`, except inside CLI handlers under `src/supy/cmd/`) with plain ASCII messages only:
+  ```python
+  try:
+      result = run_step(df_forcing)
+  except ValueError as exc:
+      logger_supy.error("Validation failed for site %s: %s", site_name, exc)
+      raise
+  ```
+- **Explicit UTF-8 file operations**: Always pass `encoding="utf-8"` to `open()`, `Path.read_text()`, `Path.write_text()`, and text-mode `NamedTemporaryFile` (enforced in CI by `.github/workflows/encoding-audit.yml` and `scripts/lint/check_pathlib_encoding.py`).
+- **Path handling**: Use `pathlib.Path` rather than `os.path`, and `importlib.resources` (`trv_supy_module` from `supy._env`) rather than `Path(supy.__file__).parent` for packaged data.
 
 ## Fortran Guidelines
 
-**Complete naming conventions**: See **[FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md)** for comprehensive guidelines.
+See **[FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md)** and [`.claude/rules/fortran/conventions.md`](../.claude/rules/fortran/conventions.md) for complete rules.
 
-### 3.1 Module Structure
+### 3.1 Module and Derived-Type Structure
 
 ```fortran
-MODULE suews_<category>_<name>
-    USE other_module
-    IMPLICIT NONE
+! File: src/suews/src/suews_phys_snow.f95
+MODULE module_phys_snow
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   IMPLICIT NONE
+   PRIVATE
 
-    ! Parameters
-    REAL(KIND(1D0)), PARAMETER :: CONSTANT_NAME = value
+   PUBLIC :: dts_snow_state, update_snow_state
 
-    ! Type definitions
-    TYPE, PUBLIC :: TypeName
-        REAL(KIND(1D0)) :: component = 0.0D0  ! Always initialise
-    END TYPE TypeName
+   ! Constants use PARAMETER (never mutable module variables)
+   REAL(KIND(1D0)), PARAMETER :: SNOW_DENSITY_MIN = 50.0D0  ! [kg m-3]
+
+   ! Derived types use the dts_ prefix; component defaults apply per instance
+   TYPE :: dts_snow_state
+      REAL(KIND(1D0)) :: depth = 0.0D0          ! [m]
+      REAL(KIND(1D0)) :: density = 100.0D0      ! [kg m-3]
+   END TYPE dts_snow_state
 
 CONTAINS
-    ! Subroutines and functions
-END MODULE suews_<category>_<name>
+
+   SUBROUTINE update_snow_state(temp_air, state)
+      REAL(KIND(1D0)), INTENT(IN) :: temp_air         ! [K]
+      TYPE(dts_snow_state), INTENT(INOUT) :: state
+
+      ! Local variables: declare bare, NEVER initialise in the declaration!
+      REAL(KIND(1D0)) :: temp_val                     ! [K]
+
+      ! Assign local variables in the executable section
+      temp_val = 0.0D0
+
+      IF (temp_air <= 0.0D0) THEN
+         CALL set_supy_error(100, 'update_snow_state: temp_air [K] must be positive')
+         RETURN
+      END IF
+
+      temp_val = temp_air - 273.15D0
+      ! ... physics calculations ...
+   END SUBROUTINE update_snow_state
+
+END MODULE module_phys_snow
 ```
 
 ### 3.2 Naming Conventions (Summary)
 
-**Effective from October 2025** - All new code must follow these standards:
+| Element | Convention | Example |
+|---------|------------|---------|
+| **Files** | `suews_<category>_<name>.f95` (`ctrl`, `phys`, `type`, `util`) | `suews_phys_snow.f95`, `suews_type_snow.f95` |
+| **Modules** | `module_<category>_<name>` | `module_phys_snow`, `module_type_snow` |
+| **Derived types** | `dts_<name>` | `dts_snow_state` |
+| **Subroutines / Functions** | `snake_case` | `update_snow_state`, `calc_snow_density` |
+| **Constants (`PARAMETER`)** | `UPPERCASE_UNDERSCORES` | `STEFAN_BOLTZMANN`, `VON_KARMAN` |
+| **Variables & components** | `lowercase_underscores` | `air_temperature`, `surface_fraction` |
 
-| Type | Convention | Example |
-|------|------------|---------|
-| **Files** | `suews_<category>_<name>.f95` | `suews_phys_snow.f95` |
-| **Modules** | Match file name: `suews_<category>_<name>` | `suews_phys_snow` |
-| **Subroutines** | snake_case | `update_snow_state` |
-| **Functions** | snake_case | `calc_density` |
-| **Parameters** | UPPERCASE_UNDERSCORES | `STEFAN_BOLTZMANN` |
-| **Variables** | lowercase_underscores | `air_temperature` |
-| **Types** | snake_case with `_t` suffix | `snow_state_t` |
-| **Type components** | lowercase_underscores | `surface_temperature` |
+### 3.3 Thread Safety: No Implicit `SAVE` or Mutable Module State
 
-**Key principles**:
-- **One case style**: Everything uses snake_case (except UPPERCASE for constants)
-- File naming is already consistent (✅ established pattern)
-- Module names should match file names for easy discovery
-- One module per file preferred; use suffixes (`_const`, `_types`, `_ops`) if multiple needed
-- Consistent with scientific Python conventions (NumPy, SciPy, pandas)
-- Always document physical units in comments: `! [K]`, `! [W m-2]`
+The Rust bridge (`src/suews_bridge/`) executes multi-grid simulations in parallel across Rayon worker threads calling the same compiled Fortran procedures. Any static variable is shared across threads and corrupts runs.
 
-**Migration**: Legacy code uses multiple patterns. See [FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md) for migration strategy and backward compatibility approach.
+- **NEVER initialise a procedure-local variable in its declaration**:
+  ```fortran
+  ! WRONG -- implies SAVE in Fortran! Value persists across calls and races across threads.
+  ! Blocked in CI by scripts/lint/check_saved_fortran_locals.py
+  REAL(KIND(1D0)) :: temp_val = 0.0D0
+  LOGICAL :: first_call = .TRUE.
 
-### 3.3 Variable Declarations
+  ! CORRECT -- declare bare, then assign in the executable part
+  REAL(KIND(1D0)) :: temp_val
+  LOGICAL :: first_call
 
-```fortran
-! Always use explicit precision
-REAL(KIND(1D0)) :: temperature = 0.0D0  ! [K] Always include units
-INTEGER :: surface_type = 0             ! Always initialise
-CHARACTER(LEN=50) :: site_name = ''     ! Specify length
+  temp_val = 0.0D0
+  first_call = .TRUE.
+  ```
+- **Constants**: Mark true compile-time constants with `PARAMETER` (after verifying no callee mutates a dummy argument lacking `INTENT(IN)`).
+- **Persistent state**: Any quantity that must persist across timesteps belongs on `SUEWS_STATE` (`suews_type_*.f95` / `suews_ctrl_type.f95`), **never** in a `SAVE` local or mutable module variable.
+- **Error reporting**: Never use `STOP`, `ERROR STOP`, or `WRITE(*,...)`. Report fatal errors via `set_supy_error(code, 'routine: message')`, assign safe sentinels (such as `-999.0D0`) to `INTENT(OUT)` arguments, and `RETURN`. Guard downstream calls with `IF (supy_error_flag()) RETURN`. Report non-fatal warnings via `ErrorHint(..., modState)` or `modState%errorstate%report(...)` (see `.claude/rules/fortran/error-reporting.md`).
 
-! Arrays with clear dimensions
-REAL(KIND(1D0)), DIMENSION(nsurf) :: surface_fraction
-```
+### 3.4 Precision, Numerical Guarding, and Floating-Point Comparisons
 
-### 3.4 Documentation
+- Always use explicit double precision: `REAL(KIND(1D0))` or `REAL(REAL64)` from `ISO_FORTRAN_ENV`, never bare `REAL`.
+- Never test floating-point numbers with exact `==`:
+  ```fortran
+  ! Wrong
+  IF (h_flux == 0.0D0) THEN
 
-```fortran
-! Module header with change log
-! Original: sg feb 2012
-! Modified: lj jun 2012 - added snow calculations
-! Modified: hw oct 2014 - restructured for clarity
+  ! Correct
+  REAL(KIND(1D0)), PARAMETER :: EPS_FP = 1.0D-12
+  IF (ABS(h_flux) <= EPS_FP) THEN
+  ```
+- Comparisons such as `x < 0.0D0` evaluate `.FALSE.` when `x` is `NaN`. Check `IEEE_IS_NAN(x)` (from `IEEE_ARITHMETIC`) explicitly when guarding physical inputs.
 
-!===============================================
-! Subroutine: calculate_something
-! Purpose: Brief description
-! Input: var1 - description [units]
-!        var2 - description [units]
-! Output: result - description [units]
-!===============================================
-SUBROUTINE calculate_something(var1, var2, result)
-```
+## Rust Bridge Overview
 
-### 3.5 Floating-Point Comparisons
+`src/suews_bridge/` is the sole Python-Fortran interface (replacing `f90wrap` / `f2py`).
 
-Never use exact equality for floating-point numbers:
-```fortran
-! Wrong
-IF (H == 0.0) THEN
-
-! Correct
-REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0E-12
-IF (ABS(H) <= eps_fp) THEN
-```
-
-### 3.6 Best Practices
-
-1. **Always use `IMPLICIT NONE`**
-2. **Initialise all variables in type definitions**
-3. **Document physical units in comments**
-4. **Use ASSOCIATE blocks for clarity**
-5. **Define array dimensions as parameters**
-6. **Group related functionality in modules**
+- **Layers**: PyO3 `#[pyclass]` bindings -> safe Rust codecs (`StateCodec` / `CompositeCodec`) and simulation driver -> `unsafe extern "C"` FFI over `ISO_C_BINDING` facades (`src/suews_bridge/c_api/`).
+- **Contract**: Follow `.claude/rules/rust/bridge-contract.md` (BR-01 through BR-10). Keep equations in Fortran, defaults and migrations in Python (`src/supy/data_model/`), and marshalling/shape validation in the bridge. Never invent silent numeric fallbacks in Rust for missing inputs.
+- **Linting**: `cargo fmt` and `cargo clippy --all-features --all-targets -- -D warnings` (enforced by `.github/workflows/rust-clippy.yml`).
 
 ## Documentation Standards
 
-### 4.1 Code Comments
-
-- Comments should explain **why**, not **what**
-- Update comments when code changes
-- Remove commented-out code before committing
-- Use British English in all comments
-
-### 4.2 Physical Units
-
-Always document units in square brackets:
-```fortran
-REAL(KIND(1D0)) :: rainfall = 0.0D0  ! [mm h-1]
-REAL(KIND(1D0)) :: temperature = 0.0D0  ! [K]
-```
-
-### 4.3 README Files
-
-Each major component should have a README explaining:
-- Purpose and functionality
-- Dependencies
-- Usage examples
-- Key algorithms or references
+- Comments explain **why** (physical basis, invariant, edge case), not **what**.
+- Document physical units in square brackets using ASCII notation:
+  ```fortran
+  REAL(KIND(1D0)) :: rainfall     ! [mm h-1]
+  REAL(KIND(1D0)) :: temperature  ! [K]
+  ```
+- Never hand-edit generated RST or JSON schema artefacts; update the generator or Pydantic field descriptions instead (see `.claude/rules/docs/conventions.md`).
 
 ## Testing Requirements
 
-### 5.1 Test File Organisation
+See **[testing/TESTING_GUIDELINES.md](testing/TESTING_GUIDELINES.md)** and [`.claude/rules/tests/patterns.md`](../.claude/rules/tests/patterns.md).
 
-Tests are organised by functionality:
-```
+### 6.1 Test File Organisation
+
+All Python tests MUST live under `test/` and declare a module-level nature marker (`pytestmark = pytest.mark.api` or `pytestmark = pytest.mark.physics`):
+```text
 test/
-├── core/               # Essential functionality tests
-├── data_model/         # Configuration and validation tests
-├── physics/            # Scientific validation tests
-├── io_tests/           # Input/output tests
-└── fixtures/           # Test data and configurations
+|-- core/           # Core model contracts, sample output, exact reference gate
+|-- data_model/     # Pydantic schema, validators, YAML converters
+|-- physics/        # Scientific and option-sweep validation
+|-- io_tests/       # Input/output and resampling contracts
+|-- cmd/            # CLI entry points (suews run/convert/validate/schema)
+|-- mcp/            # MCP server and packaging manifests
+|-- docs/           # Documentation sanity checks
+|-- umep/           # UMEP/QGIS compatibility contracts
+`-- fixtures/       # Vendored test fixtures and reference outputs
 ```
 
-### 5.2 Test Naming Conventions
-
-- **Files**: `test_*.py` (e.g., `test_supy.py`, `test_benchmark.py`)
-- **Classes**: `TestFeatureName` using `unittest.TestCase`
-- **Methods**: Descriptive names explaining what's tested
-  ```python
-  def test_energy_balance_closure(self):
-      """Test that energy balance is conserved."""
-  
-  def test_yaml_loading_no_spurious_warnings(self):
-      """Test that loading YAML doesn't produce warnings."""
-  ```
-
-### 5.3 Test Structure
-
-#### Class-based Tests (unittest)
-```python
-class TestSuPy(TestCase):
-    def setUp(self):
-        """Set up test fixtures."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-        self.simulation = sp.SUEWSSimulation.from_sample_data()
-    
-    def test_normal_operation(self):
-        """Test feature under normal conditions."""
-        output = self.simulation.run()
-        self.assertIsNotNone(output)
-    
-    def tearDown(self):
-        """Clean up after tests."""
-        # Cleanup if needed
-```
-
-#### Function-based Tests (pytest)
-```python
-def test_sample_output_validation():
-    """Validate sample output against expected results."""
-    simulation = sp.SUEWSSimulation.from_sample_data()
-    output = simulation.run()
-    assert output is not None
-```
-
-### 5.4 Assertion Patterns
-
-- **unittest**: `self.assertTrue()`, `self.assertEqual()`, `self.assertAlmostEqual()`
-- **pytest**: Simple `assert` statements
-- **Pandas**: `pd.testing.assert_frame_equal()` for DataFrames
-- **NumPy**: `np.testing.assert_array_almost_equal()` for arrays
-- **Physical bounds**: Always check outputs are within realistic ranges
-
-### 5.5 Test Data Management
-
-- **Sample data**: Use `sp.SUEWSSimulation.from_sample_data()` for consistent test data
-- **Fixtures**: Store test data in `test/fixtures/` directory
-- **Temporary files**: Use `tempfile.TemporaryDirectory()` for file operations
-- **Benchmark data**: Store expected results in `.pkl` files for regression testing
-
-### 5.6 Physics and Scientific Testing
-
-When testing scientific functionality:
-```python
-def test_energy_balance_closure(self):
-    """Test energy balance: Rn = QH + QE + QS + QF."""
-    output = sp.SUEWSSimulation.from_sample_data().run()
-    result = output.df.SUEWS
-    
-    # Extract fluxes
-    rn = result.SUEWS['Rn']
-    qh = result.SUEWS['QH']
-    qe = result.SUEWS['QE']
-    qs = result.SUEWS['QS']
-    qf = result.SUEWS['QF']
-    
-    # Check energy balance within tolerance
-    balance = rn - (qh + qe + qs - qf)
-    tolerance = 10.0  # W/m²
-    self.assertTrue(
-        abs(balance.mean()) < tolerance,
-        f"Energy balance error: {balance.mean():.2f} W/m²"
-    )
-```
-
-### 5.7 State Isolation
-
-Ensure tests don't pollute each other:
-- Load fresh data in each test
-- Use `setUp()` and `tearDown()` methods
-- Be aware of Fortran state persistence issues
-- Run tests individually and in suite to detect pollution
-
-### 5.8 Best Practices
-
-1. **Descriptive names**: Test names should explain what's being tested
-2. **Docstrings**: Add docstrings explaining the test purpose
-3. **One concept per test**: Each test should verify one specific behaviour
-4. **Fast tests**: Keep individual tests fast (< 1 second where possible)
-5. **Reproducibility**: Tests should produce identical results on repeated runs
-6. **Platform awareness**: Consider platform-specific behaviour
-7. **Warning handling**: Suppress expected warnings, fail on unexpected ones
-
-### 5.9 Running Tests
+### 6.2 Running Tests
 
 ```bash
-# Run all tests
+# Fast critical-path validation before every commit (~30-60 s)
+make test-smoke
+
+# Everyday development suite (core, data_model, physics, io_tests; excludes slow & peripheral dirs)
 make test
 
-# Run specific test file
-python -m pytest test/test_supy.py -v
+# Complete test suite including slow tests and peripheral surfaces (cmd, mcp, docs, knowledge, umep)
+make test-all
 
-# Run with coverage
-python -m pytest test --cov=supy
-
-# Check for state pollution
-python -m pytest test/test_specific.py -v  # Run alone
-python -m pytest test -v                   # Run in suite
+# UMEP/QGIS compatibility suite (targets Windows + Python 3.12; skips elsewhere)
+make test-qgis
 ```
 
-### 5.10 Test Execution Order
-
-Only the API-surface probe is prioritised via `conftest.py` so import failures fail fast.
-All other tests retain their declared collection order.
-Native simulation calls must own fresh state, while continuation tests pass prior state explicitly; tests must not rely on suite ordering for isolation.
-The removed workaround had moved every `test/core/test_sample_output.py` item plus the public API-equivalence nodes `TestPublicAPIEquivalence` and `test_functional_matches_oop`; executable collection evidence for that bounded set lives in `test/test_api_surface.py`.
-
-### 5.11 Native Mutable-State Inventory
+### 6.3 Native Mutable-State Inventory
 
 - `src/suews_bridge/src/lib.rs` exposes the active Rust entry points, and `src/suews_bridge/c_api/driver.f95::suews_cal_multitsteps_c` materialises `SUEWS_TIMER`, `SUEWS_CONFIG`, `SUEWS_SITE`, and `SUEWS_STATE` as call-local values.
-- `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` retains the fatal-error flag, code, and message with `SAVE`; `suews_cal_multitsteps_c` calls `reset_supy_error()` at every driver entry.
-- `src/suews/src/suews_phys_anohm.f95` still contains `SAVE` declarations, but AnOHM is disabled and remains outside the active bridge path.
-  Removing or explicitly owning that state is a reactivation gate for AnOHM, not a claim that the current tree contains no `SAVE` state.
+- `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` stores fatal error flags, codes, and messages in C11 thread-local storage (`src/suews/src/suews_ctrl_error_tls.c`, GH#1736), and `suews_cal_multitsteps_c` calls `reset_supy_error()` at every driver entry; non-fatal warnings accumulate per grid on `modState%errorstate` (GH#1737).
+- `src/suews/src/suews_phys_anohm.f95` still contains legacy `SAVE` module declarations, while AnOHM remains disabled outside the active multi-grid path; removing or moving that state into `SUEWS_STATE` is a gate for reactivating it.
 
-## Version Control Practices
+## Version Control and CHANGELOG Practices
 
-### 6.1 Commit Messages
+### 7.1 Git Remote and Merge Queue
+- Use `origin` (`git@github.com:UMEP-dev/SUEWS.git`) as the sole remote.
+- Never push directly to `master`. All changes enter `master` via pull requests and the GitHub merge queue (`gh pr merge --auto` or `/queue-pr`).
+
+### 7.2 Commit Messages
 
 Follow conventional commit format:
-```
+```text
 type(scope): brief description
 
 Longer explanation if needed.
 
 Fixes #123
 ```
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`. Do not add AI agent branding prefixes to PR titles.
 
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+### 7.3 `CHANGELOG.md` Format
 
-### 6.2 Branch Naming
+Follow [`.claude/rules/changelog/format.md`](../.claude/rules/changelog/format.md) (or run `/log-changes`):
+- Date heading: `### DD Mon YYYY` (no leading zero on single-digit days, three-letter month, actual commit date; for example `### 6 May 2026` or `### 26 Nov 2025`).
+- Entry format: `- [category] Description (#PR)` or `- [category][status] Description (#PR)`.
+- Categories: `[feature]`, `[bugfix]`, `[change]`, `[maintenance]`, `[doc]`.
+- Status tags (required on `[feature]` and `[change]`): `[experimental]` (default for new features), `[stable]`, or `[internal]`.
 
-Use descriptive branch names:
-- `feature/add-new-physics-option`
-- `fix/qe-qh-discrepancy`
-- `docs/update-user-guide`
+```markdown
+### 26 Nov 2025
 
-### 6.3 Pull Request Guidelines
-
-1. Update relevant documentation
-2. Add/update tests
-3. Run full test suite
-4. Update CHANGELOG if applicable:
-   - [feature]: New user-facing functionality
-   - [bugfix]: Bug fixes (create GitHub issue)
-   - [change]: User-facing behaviour changes
-   - [maintenance]: Internal/dev tooling (including Claude Code aspects)
-   - [doc]: Documentation updates
-5. Request review from appropriate team members
+- [feature][experimental] Added new radiation scheme (#123)
+- [feature][stable] Added OOP interface for output data (#456)
+- [bugfix] Fixed snow melt energy balance (#789)
+- [maintenance] Updated CI matrix configuration (abc1234)
+```
 
 ## Configuration and Data Model Guidelines
 
-### 7.1 Separation of Concerns
+### 8.1 Separation of Concerns
 
-Configuration objects should be handled at high levels:
+High-level classes (`SUEWSSimulation`) parse `SUEWSConfig` and unwrap `RefValue` fields; low-level functions accept explicit, primitive/typed arguments rather than config objects (see `.claude/rules/python/config-patterns.md`):
 ```python
-# Good: High-level extracts configuration
-def high_level_method(self):
+# Good: high-level class extracts concrete values
+def save_outputs(self, path_out: Path) -> None:
     freq_s = self._config.output.freq.value if self._config else 3600
-    save_df_output(df_output, freq_s=freq_s)
+    save_df_output(self._df_output, path_out=path_out, freq_s=int(freq_s))
 
-# Bad: Low-level accepts configuration
-def save_df_output(df_output, config):  # Don't do this: including config in the function signature is bad practice
+# Bad: passing config object into low-level helper
+def save_df_output(df_output: pd.DataFrame, config: SUEWSConfig) -> None: ...
 ```
 
-### 7.2 Pydantic Models
+### 8.2 Pydantic Models
 
-Use Pydantic for configuration with proper validation:
+Use Pydantic v2 models in `src/supy/data_model/` with `Literal[...]` / enum types, `X | None` optional annotations, and `snake_case` field names:
 ```python
-class PhysicsConfig(BaseModel):
+from typing import Literal
+from pydantic import BaseModel, Field
+
+
+class StabilityConfig(BaseModel):
     scheme: Literal["W16", "K75"] = Field(
         default="W16",
-        description="Physics scheme selection"
+        description="Atmospheric stability scheme selection.",
     )
-
-    @field_validator("scheme")
-    def validate_scheme(cls, v):
-        if v not in ["W16", "K75"]:
-            raise ValueError(f"Unknown scheme: {v}")
-        return v
+    z0m_fallback: float | None = Field(
+        default=None,
+        description="Optional momentum roughness override [m].",
+    )
 ```
+
+Any structural schema change must follow [`.claude/rules/python/schema-versioning.md`](../.claude/rules/python/schema-versioning.md).
 
 ## Automated Formatting and Linting
 
-### 8.1 Python - Ruff
+### 9.1 Local Formatting and Style Checks
 
-SUEWS uses [Ruff](https://docs.astral.sh/ruff/) for Python formatting and linting.
+Format Python and Fortran together with `make format`, and audit style with `/lint-code` (or the underlying tools directly):
 
-**Installation:**
 ```bash
-pip install ruff
-```
+# Format Python (ruff format src test) and Fortran (fprettify via .fprettify.rc)
+make format
 
-**Usage:**
-```bash
-# Format code
-ruff format .
-
-# Lint code
+# Check Python lint + NumPy docstrings (configured in .ruff.toml)
 ruff check .
+ruff format --check src test
 
-# Fix auto-fixable issues
-ruff check --fix .
+# Check Fortran formatting without modifying files
+fprettify --diff src/suews/src/*.f95
+
+# Check Rust bridge formatting and lints (lint-only mode needs no Fortran link)
+cd src/suews_bridge && cargo fmt --check
+cd src/suews_bridge && SUEWS_BRIDGE_LINT_ONLY=1 cargo clippy --all-features --all-targets -- -D warnings
 ```
 
-**Pre-commit Integration:**
-```bash
-# Install pre-commit hooks
-pip install pre-commit
-pre-commit install
+In Claude Code or Codex sessions, invoke `/lint-code` to run `ruff`, `fprettify --diff`, changed-file docstring checks, and SUEWS convention checks together.
 
-# Run manually
-pre-commit run --all-files
-```
+### 9.2 Fortran `.fprettify.rc` Settings
 
-### 8.2 Fortran - fprettify
+`fprettify` reads `.fprettify.rc` from the repository root automatically:
+- `indent = 3` and `line-length = 132` (compiler flags also pass `-ffree-line-length-none`).
+- `case = [0, 0, 0, 0]`: **preserves existing case** for keywords, procedures/modules, derived types, and intrinsics rather than forcing uppercase or lowercase rewrites across mixed-case files. Do not pass `--case` overrides on the command line.
 
-SUEWS uses [fprettify](https://github.com/pseewald/fprettify) for Fortran formatting.
+### 9.3 CI Enforcement
 
-**Installation:**
-```bash
-pip install fprettify
-```
-
-**Usage:**
-```bash
-# Format a single file
-fprettify src/suews/src/suews_phys_snow.f95
-
-# Format all Fortran files
-find src/suews/src -name "*.f95" -o -name "*.f90" | xargs fprettify --indent 3 --line-length 132
-
-# Check without modifying
-fprettify --diff src/suews/src/suews_phys_snow.f95
-```
-
-**Recommended fprettify settings:**
-```bash
-fprettify \
-    --indent 3 \                    # 3 spaces for indentation
-    --line-length 132 \             # Allow longer lines for scientific code
-    --whitespace 2 \                # Adjust whitespace around operators
-    --strict-indent \               # Strict indentation rules
-    --enable-decl \                 # Format declarations
-    --case 1 1 1 1 \               # Keywords lowercase, intrinsics lowercase
-    src/suews/src/*.f95
-```
-
-### 8.3 Editor Integration
-
-**VS Code:**
-- Install "Ruff" extension for Python
-- Install "Modern Fortran" extension with fprettify support
-- Configure settings.json:
-```json
-{
-    "[python]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "charliermarsh.ruff"
-    },
-    "[fortran]": {
-        "editor.formatOnSave": true,
-        "fprettify.arguments": [
-            "--indent", "3",
-            "--line-length", "132",
-            "--whitespace", "2"
-        ]
-    }
-}
-```
-
-### 8.4 CI/CD Integration
-
-**Automated Formatting Philosophy**: Let machines handle formatting so developers can focus on functionality.
-
-#### GitHub Actions Workflow: `auto-format.yml`
-
-The master branch is automatically formatted after every merge:
-
-- **Triggers**: On push to master containing Python or Fortran files
-- **Actions**: 
-  - Formats Python code with ruff
-  - Formats Fortran code with fprettify
-  - Only creates commit if changes are needed
-  - Uses `[skip ci]` to avoid build loops
-- **Benefits**:
-  - Zero friction for contributors
-  - Guaranteed consistency on master
-  - Clear formatting commits in history
-
-#### Local Development:
-
-While formatting is optional for contributors, these tools are available:
-
-```bash
-make format      # Format all code locally
-make lint        # Check code style without modifying
-
-# Or use pre-commit hooks (optional but recommended)
-pip install pre-commit
-pre-commit install
-```
-
-**Note**: The master branch is the single source of truth for code formatting. All code merged to master will be automatically formatted to ensure consistency.
-
-## Enforcement and Review
-
-1. All code must pass automated checks before merging
-2. Pre-commit hooks enforce formatting locally
-3. GitHub Actions verify formatting in CI
-4. Code reviews should verify adherence to these guidelines
-5. AI assistants should reference this document when generating code
-6. Guidelines should be updated through team consensus
-
----
-
-## Revision History
-
-- 18 Jul 2025, [TS](@sunt05): Initial version
-- 18 Jul 2025, [TS](@sunt05): Added automated formatting tools (ruff, fprettify)
+Formatting, linting, and invariants are verified on pull requests and in the merge queue before code lands on `master`:
+- Python lint, formatting, and encoding checks (`ruff`, `.github/workflows/encoding-audit.yml`).
+- Rust clippy gate (`.github/workflows/rust-clippy.yml`).
+- Repository lint scripts under `scripts/lint/` (including `check_saved_fortran_locals.py`, `check_test_markers.py`, `check_packaged_data_paths.py`, and `check_schema_version_bump.py`).

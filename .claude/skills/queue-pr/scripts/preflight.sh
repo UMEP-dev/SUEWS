@@ -132,6 +132,12 @@ awk -F '\t' '
     $1 == "CHANGELOG.md" ||
     $1 == "meson.build" ||
     $1 == "src/supy/meson.build" ||
+    $1 ~ /^src\/suews\/Makefile/ ||
+    $1 == "src/suews_bridge/Cargo.toml" ||
+    $1 == "src/suews_bridge/Cargo.lock" ||
+    $1 == "src/suews_bridge/build.rs" ||
+    $1 == "pyproject.toml" ||
+    $1 == "mcp/pyproject.toml" ||
     $1 ~ /^\.github\/workflows\// ||
     $1 ~ /(^|\/)(uv\.lock|poetry\.lock|requirements.*\.txt|environment.*\.ya?ml)$/ ||
     $1 ~ /^docs\/.*(index|tutorial|example)/ ||

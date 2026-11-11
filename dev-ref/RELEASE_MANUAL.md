@@ -1,1161 +1,217 @@
 # SUEWS Release Manual
 
-> **Purpose**: This manual provides comprehensive guidelines for SUEWS releases, from development through publication.
-> **Audience**: Core developers, release managers, and contributors.
-> **Last Updated**: 20 November 2025
+> **Canonical Rules Notice**
+>
+> Active release rules, sanity checks, and operational skills supersede this manual whenever prose drifts. Always read and execute via:
+> - Rules: [`.claude/rules/docs/release-docs-sanity.md`](../.claude/rules/docs/release-docs-sanity.md), [`.claude/rules/python/schema-versioning.md`](../.claude/rules/python/schema-versioning.md), [`.claude/rules/changelog/format.md`](../.claude/rules/changelog/format.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md)
+> - Skills: `/prep-release` ([`.claude/skills/prep-release/SKILL.md`](../.claude/skills/prep-release/SKILL.md)), `/republish-docs` ([`.claude/skills/republish-docs/SKILL.md`](../.claude/skills/republish-docs/SKILL.md)), `/log-changes` ([`.claude/skills/log-changes/SKILL.md`](../.claude/skills/log-changes/SKILL.md)), and `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md))
 
 ## Executive Summary
 
-SUEWS adopts a **rolling release model** that reflects the continuous nature of research software development while providing stable reference points for academic citations.
+SUEWS uses a **CalVer rolling release model** (`YYYY.M.D`) that supports continuous research-software development while providing reproducible, citable releases:
+- **Release when ready**, not on a fixed calendar.
+- **Nightly and `.dev` builds (`YYYY.M.D.dev`)** publish pre-release wheels to **TestPyPI** (`deploy_testpypi`).
+- **Formal tagged releases (`YYYY.M.D`)** publish production `cp312-abi3` wheels to **PyPI** (`deploy_pypi`), create a GitHub Release, and mint a **Zenodo DOI**.
+- **Single wheel per platform**: One `cp312-abi3` wheel per `(OS, arch)` installs on CPython 3.12+ and NumPy 1.22+ (covering QGIS 3 LTR, QGIS 4, and standalone Python; the pre-2026-04 `rc1` NumPy-1.x dual-tag variant is retired).
+- **Clean release documentation**: `.github/workflows/release-docs-anchor.yml` builds a banner-free Read the Docs anchor commit and moves the release tag onto it after PyPI publication.
 
-**Key Principles:**
-- **Release when ready**, not by calendar
-- **No fixed schedules** or promises about release dates
-- **Continuous development** with daily `.dev` builds
-- **Feature-triggered releases** when significant work is complete
-- **Academic citation support** via Zenodo DOI for each tagged release
+---
 
-## TL;DR: Quick Release Guide
+## TL;DR: End-to-End Release Sequence (`/prep-release`)
 
-**To release SUEWS:**
+Never push commits directly to `master`. Prepare every release on a `release/YYYY.M.D` branch, merge via a PR through the GitHub merge queue, and then tag the merge commit:
 
-1. **Pre-flight**: `make test && make docs` (both pass)
-2. **CHANGELOG**: Add entry for today's date with changes
-3. **Tag**:
+1. **Select verified `.dev` base & open branch**: Pick a green `YYYY.M.D.dev` commit on `origin/master` and create `release/YYYY.M.D`.
+2. **Schema & knowledge-pack audit**: Verify any structural `src/supy/data_model/` changes bumped `CURRENT_SCHEMA_VERSION`, collapsed `.devN` to the plain `YYYY.M` release schema label where applicable (`.claude/rules/python/schema-versioning.md`), synced `sample_config.yml`, and passed `python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>` (Meson builds the knowledge pack into `@OUTDIR@` automatically on every wheel build; never commit `src/supy/knowledge/pack/current/`).
+3. **Benchmark gate (hard prerequisite before depositing)**: Build the candidate wheel (`build-suews` CI artefact or `make dev`) and run `benchmark/check_regression.py` over the KCL/London multi-version benchmark (`benchmark/REPRODUCE.md`). Confirm byte-identical reproducibility and maintainer sign-off on any metric shift before merging or tagging.
+4. **Update CHANGELOG, release notes & docs sanity**:
+   - Update `CHANGELOG.md` (`### DD Mon YYYY` + `- [category][status] ...`), `docs/source/version-history/vYYYY.M.D.rst` (filtering out `[experimental]` and `[internal]` items), and `.github/releases/YYYY.M.D.md`.
+   - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o docs/source/inputs/tables/schema.json`) and run the stray-`.dev` schema scan in `.claude/rules/docs/release-docs-sanity.md`.
+5. **Merge Release PR via Merge Queue**: Open `Release YYYY.M.D` PR, wait for `pr-gate`, and enqueue via `/queue-pr` / `gh pr merge --auto`.
+6. **Tag the Merge Commit on `master`**:
    ```bash
-   VERSION="2025.10.14"
-   git tag -a "$VERSION" -m "Release Title
-
-   Key changes:
-   - Feature 1
-   - Feature 2"
-   git push origin $VERSION
+   git fetch origin master
+   MERGE_SHA=$(gh pr list --state merged --search "Release YYYY.M.D" --json mergeCommit --jq '.[0].mergeCommit.oid')
+   git tag -a "YYYY.M.D" "$MERGE_SHA" -m "Release YYYY.M.D: <Brief Title>"
+   git push origin "YYYY.M.D"
    ```
-4. **Wait ~20 min**: GitHub Actions builds **two versions** in parallel:
-   - `2025.10.14` (one cp312-abi3 wheel per platform, installs on cp312..cp3xx and any NumPy 1.22+/2.x)
-
-   Deployed to PyPI → GitHub Release → Zenodo DOI
-5. **Verify**: Check [Actions](https://github.com/UMEP-dev/SUEWS/actions), [PyPI](https://pypi.org/project/supy/), [Zenodo dashboard](https://zenodo.org/me/uploads)
-6. **Announce**: [SUEWS Discussions](https://github.com/UMEP-dev/SUEWS/discussions) (optional)
-
-**Everything else is automatic.** See below for detailed guidance.
-
----
-
-## Single Wheel Covers All Environments
-
-Every SUEWS release produces **one cp312-abi3 wheel per (OS, arch)** from a single git tag. That wheel installs and runs on:
-
-- CPython 3.12 through 3.15 (Rust bridge via PyO3 `abi3-py312`)
-- NumPy 1.22+ (including QGIS 3 LTR's NumPy 1.26.4) through NumPy 2.x
-
-### pip Install Behaviour
-
-- `pip install supy` → Gets `2024.10.7` (the single wheel for the platform)
-- QGIS 3 (NumPy 1.26.4) and QGIS 4 (NumPy 2.x) both consume the same wheel
-
-### Why One Version Now?
-
-**History**: Before the Rust bridge replaced f90wrap/f2py, the compiled extension linked against NumPy's C-ABI, which changed in NumPy 2.0. That forced a separate `rc1` variant (`numpy<2.0`) for QGIS 3 LTR users.
-
-**Now**: `src/suews_bridge/` uses PyO3 with no NumPy C-ABI dependency; all NumPy work happens in pure Python against APIs that exist from 1.22 onwards. The runtime pin is `numpy>=1.22`, so the standard wheel installs cleanly into QGIS 3.40 LTR with no retag step.
-
-The UMEP (`rc1`) variant was retired in 2026-04 together with `.github/scripts/retag_umep_wheel.py` and the `BUILD_UMEP_VARIANT` code path in `get_ver_git.py`.
-
-### What Happens Automatically
-
-From a single tag push:
-
-1. **Build** (`build_wheels` job)
-   - Builds one `cp312-abi3` wheel per (OS, arch) via cibuildwheel
-   - The Rust bridge uses PyO3 `abi3-py312`, so the wheel installs on cp312..cp3xx
-   - Creates version `2024.10.7`
-   - Verifies the PEP 639 licence expression and bundled MPL/Apache licence files
-
-2. **Cross-CPython API tests** (the `API cross-CPython tests` lane chained behind each platform's wheel build)
-   - Installs the single wheel into each test CPython (BOOKEND for PRs, ALL for tags)
-   - Runs `pytest -m "api and <tier>"` — the api marker (gh#1300) covers
-     the Python wrapper surface (pandas/numpy/pydantic, CLI,
-     SUEWSSimulation) that varies per interpreter
-
-3. **Deployment** (`deploy_pypi` job)
-   - Waits for the build job
-   - Publishes all platform wheels to PyPI
-
-**See Also**:
-- `.github/workflows/build-publish_to_pypi.yml` - CI configuration with detailed comments
-- `get_ver_git.py` - Version string logic
-- GitHub issue #724 - Original UMEP compatibility discussion (now resolved by the Rust bridge)
+7. **Verify PyPI, GitHub Release & Zenodo**: `build-publish_to_pypi.yml` builds all platform wheels (`FULL_PLATFORMS`), runs the `all` test tier across `cp312..cp315`, uploads to PyPI, creates the GitHub Release, and triggers Zenodo DOI minting.
+8. **Publish Banner-Free `stable` Docs (`release-docs-anchor.yml`)**: Once PyPI has the wheel and `docs-sync.yml` has updated `rtd`, dispatch:
+   ```bash
+   gh workflow run release-docs-anchor.yml -f release_tag=YYYY.M.D --repo UMEP-dev/SUEWS
+   ```
+   Verify `https://docs.suews.io/stable/inputs/forcing-data.html` contains zero occurrences of `built from a development version`.
+9. **Post-Release Follow-Through**: Record the released version in `benchmark/results/index.json` + `site/benchmark/`, open a PR to `UMEP-dev/umep-reqs` bumping `supy` to `YYYY.M.D` (standard version, no `rc1`), and optionally announce on the [SUEWS Community Forum (Discourse)](https://community.suews.io).
 
 ---
 
-## Automated Release Workflow
+## 1. Single Wheel Architecture (PyPI vs TestPyPI)
+
+### One `cp312-abi3` Wheel per `(OS, arch)`
+Each build produces **one `cp312-abi3` wheel per platform** (`manylinux` `x86_64`, `macosx` `x86_64`, `macosx` `arm64`, `win` `AMD64`):
+- `src/suews_bridge/` uses PyO3 `abi3-py312` with **zero NumPy C-ABI coupling**, so one wheel installs across CPython 3.12 through 3.15 and works with `numpy>=1.22` (both NumPy 1.26.4 in QGIS 3 LTR and NumPy 2.x in QGIS 4).
+- The pre-2026-04 `rc1` dual-tag UMEP wheel workflow (`BUILD_UMEP_VARIANT` / `retag_umep_wheel.py`) is **retired**. Never push `rc1` tags for UMEP or `umep-reqs`; `UMEP-dev/umep-reqs` pins the plain `YYYY.M.D` release on PyPI.
+
+### Where Builds Publish (`build-publish_to_pypi.yml`)
+
+| Trigger | Version Example | Test Matrix | Destination |
+|---------|-----------------|-------------|-------------|
+| **Nightly schedule** (`2 AM UTC`) | `2026.5.10.dev` (auto-tagged) | `FULL_PLATFORMS` (wheels) + `NIGHTLY_API_PLATFORMS` (`api`, `cp312..cp315`), `all` tier | **TestPyPI** (`deploy_testpypi`) |
+| **Manual `.dev` tag push** | `2026.5.10.dev` | `FULL_PLATFORMS`, `cp312..cp315`, `all` tier | **TestPyPI** (`deploy_testpypi`) |
+| **Formal release tag push** (no `.dev`) | `2026.5.10` or `2026.5.10.1` | `FULL_PLATFORMS`, `cp312..cp315`, `all` tier | **PyPI** (`deploy_pypi`) + GitHub Release + Zenodo DOI |
+
+**All-Platform Gate**: Both `deploy_pypi` and `deploy_testpypi` require **every** platform wheel build, `build_mcp`, and the chained cross-CPython `api` test lanes to succeed (`needs.build_wheels.result == 'success'`). Partial platform uploads do not occur. (`suews-mcp` wheels are excluded from PyPI/TestPyPI upload because the MCP server ships via the git agent plugin.)
+
+Installing a `.dev` build from TestPyPI for pre-release testing:
+```bash
+pip install --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ \
+  "supy==2026.5.10.dev0"
+```
+
+---
+
+## 2. Release Workflow Diagram
 
 ```mermaid
 flowchart TD
-    Start([User: Prepare release: Title]) --> CheckEnv[Claude: Check Environment]
-    CheckEnv --> |git status, pull| QualityChecks[Claude: Run Quality Checks]
-
-    QualityChecks --> |make test, make docs| TestPass{Tests Pass?}
-    TestPass --> |No| FixTests[User: Fix Tests]
-    FixTests --> QualityChecks
-    TestPass --> |Yes| GenChangelog[Claude: Generate CHANGELOG]
-
-    GenChangelog --> |Parse git log<br/>Categorise commits<br/>Extract issues| ShowPreview[Claude: Show Preview]
-    ShowPreview --> |Display CHANGELOG<br/>Quality status| UserApprove{User Approves?}
-
-    UserApprove --> |No| Cancel([Cancel Release])
-    UserApprove --> |Yes| UpdateChangelog[Claude: Update CHANGELOG.md]
-
-    UpdateChangelog --> Commit[Claude: Commit & Push]
-    Commit --> |git add, commit, push| CreateTag[Claude: Create Annotated Tag]
-
-    CreateTag --> |VERSION=YYYY.M.D<br/>Generate tag message| PushTag[Claude: Push Tag]
-    PushTag --> |Triggers GitHub Actions| CreateRelease[Claude: Create GitHub Release]
-
-    CreateRelease --> |gh release create<br/>Full release notes| Monitor[Claude: Monitor Deployment]
-
-    Monitor --> |Watch GitHub Actions| CheckActions{Actions Pass?}
-    CheckActions --> |In Progress| WaitActions[Wait & Report Progress]
-    WaitActions --> CheckActions
-
-    CheckActions --> |Failed| ReportFail[Claude: Report Failure<br/>Suggest Hotfix]
-    ReportFail --> End([Manual Intervention])
-
-    CheckActions --> |Success| VerifyPyPI[Claude: Verify PyPI]
-    VerifyPyPI --> |Check package version| CreateIssue[Claude: Create Tracking Issue]
-
-    CreateIssue --> |gh issue create<br/>Post-release checklist| ProvideTemplates[Claude: Provide Announcement Templates]
-
-    ProvideTemplates --> |Email/forum drafts| UserAnnounce[User: Send Announcements]
-    UserAnnounce --> Complete([Release Complete!])
-
-    style Start fill:#e1f5ff
-    style Complete fill:#c8e6c9
-    style Cancel fill:#ffcdd2
-    style End fill:#ffcdd2
-    style CheckEnv fill:#fff9c4
-    style QualityChecks fill:#fff9c4
-    style GenChangelog fill:#fff9c4
-    style ShowPreview fill:#fff9c4
-    style UpdateChangelog fill:#fff9c4
-    style Commit fill:#fff9c4
-    style CreateTag fill:#fff9c4
-    style PushTag fill:#fff9c4
-    style CreateRelease fill:#fff9c4
-    style Monitor fill:#fff9c4
-    style VerifyPyPI fill:#fff9c4
-    style CreateIssue fill:#fff9c4
-    style ProvideTemplates fill:#fff9c4
-    style UserApprove fill:#e1bee7
-    style UserAnnounce fill:#e1bee7
-    style FixTests fill:#ffccbc
+    Start(["Start: /prep-release"]) --> DevTag["1. Pick green YYYY.M.D.dev commit & branch release/YYYY.M.D"]
+    DevTag --> Audit["2. Audit schema version, collapse .devN schema if applicable, verify knowledge-pack freshness"]
+    Audit --> Bench["3. Run pre-release Benchmark Gate (check_regression.py)"]
+    Bench --> BenchOK{"Benchmark & maintainer review OK?"}
+    BenchOK -->|No| StopBench(["Stop: investigate regression before depositing"])
+    BenchOK -->|Yes| PrepDocs["4. Update CHANGELOG, version-history RST, .github/releases/, schema.json & docs sanity scan"]
+    PrepDocs --> OpenPR["5. Open Release PR & merge via GitHub Merge Queue"]
+    OpenPR --> TagMaster["6. Tag merge commit YYYY.M.D on origin/master & push tag"]
+    TagMaster --> Actions["7. CI builds FULL_PLATFORMS wheels -> PyPI + GitHub Release + Zenodo DOI"]
+    Actions --> Anchor["8. Dispatch release-docs-anchor.yml (moves tag to clean RTD anchor)"]
+    Anchor --> PostSteps["9. Verify RTD stable banner-free, record benchmark index, PR to umep-reqs, announce on Discourse"]
 ```
 
-**Legend:**
-- 🔵 Blue: User initiates
-- 💛 Yellow: Claude Code automated (12 steps)
-- 💜 Purple: User decisions (2 touch points)
-- 🧡 Orange: User fixes if needed
-- 🟢 Green: Success
-- 🔴 Red: Cancelled/Failed
+---
 
-**Time: ~5 minutes with Claude Code** (vs 35 minutes manual)
+## 3. Documentation on Read the Docs (`release-docs-anchor.yml`)
 
-**Usage:** Ask Claude Code: "Prepare release: [Title]"
+`docs.suews.io` is served by Read the Docs (RTD). See [`.claude/rules/docs/release-docs-sanity.md`](../.claude/rules/docs/release-docs-sanity.md) and `/republish-docs` for full details.
 
-## Documentation on Read the Docs (release docs & revisions)
+### How `latest`, `stable`, and Numbered Versions Work
+- **`latest` (`rtd` branch)**: `.github/workflows/docs-sync.yml` merges `master` into `rtd`, builds the HTML with `SUEWS_DOCS_VERSION_REF=origin/master`, and commits the pre-built HTML to `rtd`. Because `origin/master` resolves to a `.dev` version, `docs/source/conf.py` intentionally emits the `"Development Version"` announcement banner on `latest`.
+- **`stable` and numbered `/YYYY.M.D/` versions**: Must **not** show the `"Development Version"` banner or stray `.dev` schema versions. Never point a release tag directly at `rtd` HEAD (its pre-built HTML carries the `.dev` banner).
 
-`docs.suews.io` is served by Read the Docs. How each version appears in the
-RTD version switcher, and how to publish or fix the docs for a release:
+### Automated Release Docs Anchor (`release-docs-anchor.yml`)
+After the formal `YYYY.M.D` tag's PyPI publish succeeds and `docs-sync.yml` has refreshed `rtd` with the release PR's doc updates:
 
-### How RTD serves SUEWS docs
-
-- **`latest`** comes from the **`rtd` branch** (rolling development docs).
-  `docs-sync.yml` merges `master` into `rtd`, builds the HTML in CI, and
-  commits it there; RTD serves that pre-built HTML directly (no compile).
-- **Numbered release versions** (e.g. `2026.4.3`) and the native **`stable`**
-  alias come from a **release tag placed on a dedicated docs commit that RTD
-  can build**. RTD's `stable` automatically tracks the highest such tag.
-
-### The key constraint (why the tag must move)
-
-RTD labels a version by the **git ref name** it builds, and it must be able to
-**build** that ref. The bare "Release X" commit on `master` is not wired to
-build docs on RTD, so the release tag must sit on a **docs commit** (kept off
-`master`) that:
-
-- carries the source **plus the pre-built sphinx-gallery**
-  (`docs/source/auto_examples`, built in CI), and
-- has a `.readthedocs.yml` that installs the **published wheel** from PyPI
-  (`pip install "supy[dev]==<version>"`) and renders Sphinx. Because the
-  gallery is pre-built, RTD runs no tutorials and needs no gfortran — a light,
-  reliable render.
-
-This is exactly how `2026.1.28` and `2026.4.3` are set up. Use the
-`2026.1.28` tag commit as the template for the docs commit + `.readthedocs.yml`.
-
-### Publishing the docs for a new release
-
-1. Cut the release normally (the CalVer tag triggers the PyPI publish). Wait
-   for the wheel to land on PyPI.
-2. From the release commit, create a docs commit that adds the pre-built
-   gallery and the RTD `.readthedocs.yml` described above.
-3. Move the release tag onto that docs commit and push it:
-   ```bash
-   git tag -f <version> <docs-commit-sha>
-   git push -f origin <version>
-   ```
-4. On Read the Docs, make sure the `<version>` version is **active** and
-   **built**. `stable` updates to the highest tag automatically.
-
-### Revising the docs of an already-released version (no new code)
-
-Redo the docs commit (same release source + the doc fix), move the tag forward
-one commit, and push it. RTD rebuilds that version; the version number is
-unchanged. No new software release is needed.
-
-### Why moving a published tag is safe
-
-- **PyPI**: the wheel is already published and PyPI never re-publishes an
-  existing version. `build-publish_to_pypi.yml`'s `verify-release-tag` job
-  additionally **skips** off-master tags.
-- **docs-sync.yml** skips off-master tags **gracefully** (its `guard` job),
-  so the move produces no red CI.
-- The docs commit still carries the release **source**, so
-  `git checkout <version>` and `setuptools-scm` still resolve to `<version>`.
-
-### The pitfall this avoids (history)
-
-`2026.4.3` was first tagged on the bare `master` "Release" commit, whose
-`.readthedocs.yml` is "copy pre-built HTML, else `exit 1`" — but no HTML lives
-on `master`/tags (it lives on the `rtd` branch). So RTD's `2026.4.3` build and
-the native `stable` build both failed, and `stable` kept serving the last good
-build (`2026.1.28`). Moving the tag onto a buildable docs commit is the fix.
-
-## 1. Version Format
-
-```
-YYYY.M.D[.dev]
-```
-
-- **YEAR**: Full year (e.g., 2025)
-- **MONTH**: Month of release (1-12)
-- **DAY**: Day of release (1-31)
-- **.dev**: Optional suffix for development builds
-
-### Examples
-- **Development build**: `2025.8.8.dev` (daily/continuous)
-- **Tagged release**: `2025.8.15` (when feature is ready)
-
-## 2. Release Philosophy
-
-### Rolling Release Model
-
-#### No Fixed Schedule
-- Release when features are complete and tested
-- No artificial deadlines or quarterly promises
-- No pressure to meet calendar dates
-
-#### Continuous Development
-- Daily development builds continue as normal
-- Every commit to master gets a `.dev` tag
-- Development is transparent and continuous
-
-#### Feature-Triggered Releases
-When something significant is ready:
-1. Remove `.dev` suffix from that day's version
-2. Create GitHub release with descriptive title
-3. Add release notes explaining the significance
-4. Zenodo automatically assigns DOI for citation
-
-### Example Timeline
-```
-2025.8.8.dev   → Daily development
-2025.8.9.dev   → More development
-2025.8.10.dev  → Feature complete
-2025.8.10      → Tagged release: "Improved Snow Physics"
-2025.8.11.dev  → Development continues
-2025.8.15      → Tagged release: "Bug fixes for extreme events"
-2025.8.16.dev  → Development continues
-```
-
-## 3. What Triggers a Release?
-
-### Release When:
-- ✅ **Significant feature** is complete and tested
-- ✅ **Important bug fixes** that users need
-- ✅ **Before conferences** for presentations
-- ✅ **Collaborators need** a stable reference
-- ✅ **Paper submissions** requiring specific version
-- ✅ **Teaching needs** stable version for semester
-
-### NOT Because:
-- ❌ It's the first Tuesday of the month
-- ❌ We promised a Q2 release
-- ❌ It's been X weeks since last release
-- ❌ Calendar says it's release day
-
-## 4. Release Naming & Communication
-
-The version number is just the date. The **significance** comes from descriptions:
-
-### GitHub Release Title
-```
-2025.8.15: Improved Snow Module
-2025.9.3: Critical Fix for QF Calculations
-2025.10.1: New Anthropogenic Heat Methods
-```
-
-### Git Tag Message
 ```bash
-git tag -a 2025.8.15 -m "Improved Snow Module
-
-- Enhanced snow accumulation physics
-- Fixed snow melt energy balance
-- Added new snow density parameterisation"
+gh workflow run release-docs-anchor.yml -f release_tag=YYYY.M.D --repo UMEP-dev/SUEWS
 ```
 
-### Changelog Entry
+What `release-docs-anchor.yml` does automatically:
+1. Checks out `rtd` and verifies `SUEWS_DOCS_VERSION_REF=YYYY.M.D` resolves to a clean non-`.dev` version.
+2. Runs a full clean Sphinx rebuild (`rm -rf build` and `sphinx-build -E -a`) so no cached page retains the `.dev` banner.
+3. Asserts that `built from a development version` does **not** appear in the rendered HTML.
+4. Commits an off-master docs anchor commit and force-moves the `YYYY.M.D` tag onto it.
+
+Why moving the published tag onto the off-master anchor is safe:
+- PyPI wheels are already published and immutable (`verify-release-tag` in `build-publish_to_pypi.yml` skips off-master tag pushes).
+- `docs-sync.yml`'s `guard` job skips off-master tags cleanly without failing CI.
+- RTD automatically rebuilds `stable` when the highest tag moves.
+
+### Revising Docs for an Already-Released Version (`/republish-docs`)
+If a documentation fix or stale schema label needs to reach `/stable/` without cutting a new code release:
+1. Land the documentation fix on `master` through a normal PR and wait for `docs-sync.yml` to update `rtd`.
+2. Dispatch `gh workflow run release-docs-anchor.yml -f release_tag=YYYY.M.D --repo UMEP-dev/SUEWS`.
+3. Verify `/stable/`:
+   ```bash
+   curl -fsSL https://docs.suews.io/stable/inputs/forcing-data.html \
+     | grep -c "built from a development version"   # must print 0
+   ```
+4. **Manual RTD dashboard step for numbered `/YYYY.M.D/`**: RTD rebuilds `stable` automatically on a tag force-move, but caches the numbered `/YYYY.M.D/` build because the tag name is unchanged. A maintainer must click **Versions -> YYYY.M.D -> Build version** in the Read the Docs dashboard to refresh `/YYYY.M.D/`.
+
+---
+
+## 4. Pre-Release Gates in Detail
+
+### 4.1 Schema Version & Docs Sanity Audit
+1. Inspect `git log <last-release-tag>..origin/master -- src/supy/data_model/`.
+2. Confirm structural schema changes follow [`.claude/rules/python/schema-versioning.md`](../.claude/rules/python/schema-versioning.md):
+   - Any `.devN` schema cycle (`2026.5.dev1..devK`) is collapsed to the released `CURRENT_SCHEMA_VERSION` (`2026.5`) in the release PR, with `SCHEMA_VERSIONS`, `sample_config.yml`, and `yaml_upgrade.py::_HANDLERS` aligned.
+3. Regenerate `docs/source/inputs/tables/schema.json` and check for stray `.dev` user-facing schema strings:
+   ```bash
+   suews schema export -o docs/source/inputs/tables/schema.json
+   grep -rn "schema 2026\.[0-9]*\.dev\|v2026\.[0-9]*\.dev[0-9]\|\"version\": \"2026\.[0-9]*\.dev" \
+     docs/source/ | grep -vi "collapsing\|development cycle\|dev1\.\.\|dev1.*dev14"
+   ```
+4. Verify the bundled knowledge pack builds cleanly against the release base (`src/supy/meson.build` generates `manifest.json` and `chunks.jsonl.gz` into `@OUTDIR@` on every wheel build, so `src/supy/knowledge/pack/current/` remains untracked in git):
+   ```bash
+   python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>
+   ```
+
+### 4.2 Benchmark Gate (`benchmark/`)
+Before merging the release PR or pushing the release tag, evaluate the candidate build (from the `build-suews` CI wheel artefact or `make dev` -- **not** PyPI, where the new version does not yet exist) against the multi-version benchmark (`benchmark/REPRODUCE.md`):
+1. Dump a candidate-schema-valid config via `SUEWSSimulation(canonical).config.model_dump()`.
+2. Run `benchmark/run_benchmark.py` twice against the restricted Zenodo observation/forcing record (`ZENODO_TOKEN` in env, never printed or committed) and confirm a byte-identical output fingerprint.
+3. Run `python benchmark/check_regression.py --candidate <version>` and record the maintainer's review of full-period flux MAE/`|MBE|` and RSL air-temperature MAE vs the previous release on the `2-meta:release` tracking issue. Do **not** deposit a release with an unreviewed regression.
+
+### 4.3 `CHANGELOG.md` and Public Release Notes Filtering
+Follow [`.claude/rules/changelog/format.md`](../.claude/rules/changelog/format.md):
 ```markdown
-## 2025.8.15 - Improved Snow Module
-- [feature] Enhanced snow accumulation physics
-- [feature] New snow density parameterisation
-- [bugfix] Fixed snow melt energy balance
+### 15 Aug 2026
+
+- [feature][stable] Added new snow density parameterisation (#1234)
+- [feature][experimental] Added prototype roof moisture coupling (#1240)
+- [bugfix] Fixed snow melt energy balance closure (#1245)
+- [maintenance] Updated CI matrix floor check (#1250)
+- [doc] Expanded forcing-data tutorial (#1252)
 ```
+When writing `docs/source/version-history/vYYYY.M.D.rst` and `.github/releases/YYYY.M.D.md`:
+- **Include**: `[feature][stable]` (and untagged legacy features), `[change][stable]`, and all `[bugfix]`, `[maintenance]`, and `[doc]` entries.
+- **Exclude**: `[experimental]` and `[internal]` entries (they stay in `CHANGELOG.md` only until promoted to `[stable]`).
 
-## 5. Distribution & Citation
+---
 
-### Distribution Channels
+## 5. Versioning, Patch Hotfixes, and Pre-Release Testing
 
-#### PyPI (Python Package Index)
-- **Tagged releases**: Published immediately
-- **Dev builds**: Daily, marked as pre-release
-- **Installation**:
-  - Stable: `pip install supy`
-  - Dev: `pip install --pre supy`
+### Version Format
+- **Formal release**: `YYYY.M.D` (no leading zeros on month or day, for example `2026.6.5`).
+- **Patch / hotfix release**: `YYYY.M.D.PATCH` (for example `2026.6.5.1`) for urgent post-release security, crash, installation, or calculation fixes.
+- **Development / TestPyPI build**: `YYYY.M.D.dev` (published to TestPyPI, never PyPI).
 
+### Hotfix Procedure (`YYYY.M.D.PATCH`)
+Even for urgent hotfixes, **do not push directly to `master`**:
+1. Branch from `origin/master` (`git checkout -b fix/hotfix-YYYY.M.D.1 origin/master`).
+2. Implement the minimal fix + regression test, update `CHANGELOG.md` and `.github/releases/YYYY.M.D.1.md`, and run `make test-smoke && make test`.
+3. Open a PR, pass `pr-gate`, and merge via the merge queue.
+4. Tag `YYYY.M.D.1` on the merge commit on `origin/master`, push the tag, and run `release-docs-anchor.yml` once PyPI and `docs-sync.yml` complete.
 
-#### GitHub Releases
-- Source tarballs
-- Release notes with meaningful titles
-- Binary wheels for major platforms
+### Pre-Release Testing via TestPyPI
+To validate platform wheels with external collaborators before cutting a formal PyPI release, push a `.dev` tag (`YYYY.M.D.dev`) on a green `origin/master` commit (or trigger `build-publish_to_pypi.yml` via `workflow_dispatch` with `deploy_target=testpypi`). Collaborators install from TestPyPI without polluting production PyPI history or minting a Zenodo DOI.
 
-### Academic Citation
+---
 
-#### Zenodo DOI
-> **Status**: ✅ Active and configured. See Appendix D for details.
+## 6. Zenodo Integration & Academic Citation
 
-**Automatic features**:
-- Each tagged release receives a unique DOI
-- Permanent archival for reproducibility
-- Machine-readable metadata with all 12 authors and ORCIDs
-- Citations include proper academic attribution
+Zenodo-GitHub archiving is **active** on `UMEP-dev/SUEWS` (configured via `.zenodo.json` in the repository root and the GitHub-Zenodo webhook):
+- Every formal GitHub Release created from a `YYYY.M.D` tag automatically deposits a versioned archive on Zenodo and mints a version-specific DOI within ~5-10 minutes.
+- `.dev` TestPyPI builds do **not** create GitHub Releases and do **not** mint Zenodo DOIs.
 
-#### Citation Format
-```
-SUEWS dev team (2025). SUEWS v2025.8.15: Improved Snow Module.
+Citation format:
+```text
+SUEWS dev team (2026). SUEWS vYYYY.M.D: <Release Title>.
 Zenodo. https://doi.org/10.5281/zenodo.XXXXXXX
 ```
 
-#### BibTeX Entry
-```bibtex
-@software{suews_2025_8_15,
-  author       = {SUEWS dev team},
-  title        = {SUEWS: Surface Urban Energy and Water Balance Scheme},
-  month        = 8,
-  year         = 2025,
-  version      = {2025.8.15},
-  doi          = {10.5281/zenodo.XXXXXXX},
-  url          = {https://github.com/UMEP-dev/SUEWS}
-}
-```
-
-## 6. Quality Assurance
-
-### Before Any Release
-- ✅ All tests pass (`make test`)
-- ✅ Documentation builds (`make docs`)
-- ✅ Changelog updated
-- ✅ Clean working directory
-
-### Testing Levels
-- **Every commit**: CI/CD automated tests
-- **Before release**: Full test suite locally
-- **Optional beta**: Share dev build for testing if needed
-
-## 7. Practical Workflows
-
-### Daily Development
-```bash
-# Normal development
-git commit -m "Add feature X"
-git push
-# Automatic: Creates 2025.8.8.dev on PyPI
-```
-
-### Creating a Release
-```bash
-# When feature is ready and tested
-git tag -a 2025.8.15 -m "Improved Snow Module
-
-- Feature description
-- Bug fixes
-- Breaking changes (if any)"
-
-git push origin 2025.8.15
-
-# This triggers:
-# - GitHub release creation
-# - PyPI upload (without .dev)
-# - Zenodo DOI assignment
-```
-
-### Post-Release
-```bash
-# Development continues immediately
-git commit -m "Start next feature"
-# Automatic: 2025.8.16.dev
-```
-
-## 8. Documentation Strategy
-
-### Documentation Principles
-- Documentation travels with code
-- Each tagged release has corresponding docs
-- Development builds use latest documentation
-- Version switcher on ReadTheDocs
-
-### Documentation Updates
-- Inline during development
-- Review before tagging release
-- Can update after release if needed
-
-## 9. Breaking Changes
-
-### Handling Breaking Changes
-- **Clear communication** in release title: "Breaking: API Changes"
-- **Migration guide** in release notes
-- **No special timing** - release when ready
-- **Deprecation warnings** when possible (but not required)
-
-### Example
-```
-2025.10.5: Breaking: New Configuration Format
-- Old format still works with warning
-- Migration guide included
-- Will remove old format support in future (no specific date)
-```
-
-## 10. Benefits of Rolling Release
-
-### For Developers
-- No release deadline stress
-- Natural development rhythm
-- Release when quality is right
-- No artificial feature freezes
-
-### For Users
-- Transparent development (daily progress visible)
-- Features available when ready
-- Clear communication about changes
-- Can pin to specific versions for stability
-
-### For Academia
-- Every tagged version is citable (DOI)
-- No waiting for quarterly releases
-- Reproducible research with specific versions
-- Stable versions available when needed for teaching
-
-
-## 11. Step-by-Step Release Guide
-
-### Pre-Release Preparation
-
-#### 1. Decide if Release is Needed
-Ask yourself:
-- Is there a significant feature complete?
-- Are there critical bug fixes users are waiting for?
-- Is a stable version needed for teaching/conference/paper?
-
-If yes to any → proceed with release.
-
-#### 2. Prepare Your Environment
-```bash
-# Ensure on master branch
-git checkout master
-git pull origin master
-
-# Ensure clean working directory
-git status  # Should be clean
-```
-
-**IMPORTANT: Merging Pull Requests**
-
-When merging PRs before a release, **always use "Merge" strategy, NOT "Squash and merge"**.
-
-**Why?**
-- **Merge commits** preserve full commit history and individual commit messages
-- **Essential for CHANGELOG generation**: Each commit message is used to generate changelog entries
-- **Squash destroys history**: Combines all commits into one, losing detailed change information
-- **Release tracking**: Individual commits allow better tracking of when features/fixes were added
-
-**How to enforce**:
-```bash
-# Via GitHub UI: Select "Create a merge commit" (green button)
-# Via command line:
-git checkout master
-git merge --no-ff feature-branch  # --no-ff ensures merge commit is created
-git push origin master
-```
-
-**Note**: GitHub repository settings can be configured to disable squash merging entirely (Settings → General → Pull Requests → uncheck "Allow squash merging").
-
-#### 3. Run Quality Checks
-```bash
-# Run full test suite
-make test
-
-# Build documentation
-make docs
-
-# Check for any deprecation warnings
-python -W all -m pytest test/
-```
-
-### Creating the Release
-
-#### 4. Update CHANGELOG.md
-```bash
-vim CHANGELOG.md
-```
-
-Add entry under current date:
-```markdown
-### 15 Aug 2025
-- [feature] Brief description of main feature ([#XXX](github.com/UMEP-dev/SUEWS/issues/XXX))
-  - Detailed point 1
-  - Detailed point 2
-- [bugfix] Fixed issue with... ([#YYY](github.com/UMEP-dev/SUEWS/issues/YYY))
-- [change] Breaking change if any
-```
-
-#### 5. Commit Changes
-```bash
-git add CHANGELOG.md
-git commit -m "docs: update changelog for 2025.8.15 release"
-git push origin master
-```
-
-#### 6. Create Git Tag
-```bash
-# Format: YYYY.M.D (no leading zeros for month/day)
-VERSION="2025.8.15"
-TITLE="Improved Snow Module"  # Short, descriptive title
-
-git tag -a "$VERSION" -m "$TITLE
-
-Key changes:
-- Enhanced snow accumulation physics
-- Fixed snow melt energy balance
-- Added new snow density parameterisation
-
-Breaking changes:
-- None (or list them)
-
-See CHANGELOG.md for full details."
-```
-
-#### 7. Push Tag to GitHub
-```bash
-git push origin $VERSION
-```
-
-This automatically triggers:
-- GitHub Actions build & test
-- PyPI package upload
-- GitHub Release creation
-- Zenodo DOI assignment (automatic within ~10 min)
-
-#### 7a. Create GitHub Release (Automatic or Manual)
-
-**Automatic**: The GitHub Actions workflow now automatically creates releases after successful PyPI deployment (fixed in commit 331b8214).
-
-**Manual** (if workflow fails or for manual control):
-```bash
-gh release create "$VERSION" \
-  --title "SUEWS v$VERSION: [Brief Title]" \
-  --notes-file release_notes.md \
-  --verify-tag
-```
-
-**Release Notes Template** (`release_notes.md`):
-```markdown
-This release focuses on [main theme: e.g., enhanced validation capabilities, modern OOP interface improvements].
-
-## Major Features
-
-- **Feature Category 1**: Brief description
-- **Feature Category 2**: Brief description
-- **Feature Category 3**: Brief description
-- **Feature Category 4**: Brief description
-- **Feature Category 5**: Brief description
-
-## Changelog
-
-### DD MMM YYYY
-- [feature] Description (#XXX)
-  - Detail point 1
-  - Detail point 2
-- [bugfix] Description (#YYY)
-- [change] **BREAKING**: Description if applicable (#ZZZ)
-
-### Previous Date (if release covers multiple dates)
-- [feature] Description
-- [bugfix] Description
-
-## Installation
-
-```bash
-pip install --upgrade supy
-```
-
-The cp312-abi3 wheel installs on any CPython 3.12+ with NumPy 1.22+,
-covering QGIS 3 LTR (NumPy 1.26.4), QGIS 4, and standalone Python.
-
-## Citation
-
-This release is automatically archived on Zenodo and assigned a DOI for academic citation. The DOI will appear here once Zenodo processing is complete (usually within a few minutes).
-
-## Documentation
-
-- [User Guide](https://docs.suews.io)
-- [Complete CHANGELOG](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md)
-- [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
-```
-
-**Tips for Release Notes**:
-- **Major Features**: Extract 5-6 key highlights for quick scanning
-- **Changelog**: Include ALL changes since last release (not just latest date)
-- **Breaking Changes**: Clearly mark with **BREAKING** prefix
-- **Issue Links**: Reference GitHub issues where relevant (#XXX)
-
-### Post-Release Tasks
-
-#### 8. Verify Release
-- Check [GitHub Actions](https://github.com/UMEP-dev/SUEWS/actions)
-- Verify on [PyPI](https://pypi.org/project/supy/)
-- Check [GitHub Releases](https://github.com/UMEP-dev/SUEWS/releases) for new release
-- Wait ~10 minutes, then check [Zenodo dashboard](https://zenodo.org/me/uploads) for new deposit
-  - New DOI will be assigned automatically
-  - All 12 authors will appear with ORCIDs
-  - Existing DOI: 10.5281/zenodo.11164910 (previous release)
-
-#### 9. Update GitHub Release (if needed)
-GitHub Releases are created automatically by the workflow. However, you can edit to:
-1. Go to [GitHub Releases](https://github.com/UMEP-dev/SUEWS/releases)
-2. Find your release
-3. Click "Edit release"
-4. Add Zenodo DOI badge once available (usually appears automatically)
-5. Add any additional notes or links
-
-#### 10. Announce Release (Optional)
-- SUEWS mailing list
-- UMEP forum
-- Social media if major feature
-
-### Troubleshooting
-
-#### If Tests Fail After Tagging
-```bash
-# Delete local tag
-git tag -d $VERSION
-
-# Delete remote tag
-git push origin --delete $VERSION
-
-# Fix issue, then retag
-```
-
-#### If PyPI Upload Fails
-- Check GitHub Actions logs
-- Verify PyPI credentials in repository secrets
-- Manual upload: `python -m build && twine upload dist/*`
-
-#### Build Issues
-
-**Q: What if one platform build fails?**
-A: Deployment proceeds with the wheels that did succeed (`fail-fast: false`). Platforms are independent.
-
-**Q: How to test before production release?**
-A: Use a dev tag (e.g., `2025.10.8.dev`) to trigger a build and publish to TestPyPI.
-
-**Q: UMEP users reporting NumPy conflicts?**
-A: The runtime pin is `numpy>=1.22`; QGIS 3 LTR's NumPy 1.26.4 satisfies it. Ask users for their full `pip install` output if conflicts appear — the issue is almost certainly elsewhere in their dependency graph (e.g. another package pinning `numpy<2`).
-
-## 13. Release Decision Matrix
-
-| Scenario | Action | Example |
-|----------|--------|---------|
-| Major feature complete | Tag release | New physics module ready |
-| Critical bug fix | Tag release immediately | Calculation error affecting results |
-| Minor bug fixes accumulated | Consider release | 5+ small fixes over 2 weeks |
-| Conference/paper deadline | Tag release if stable | Team needs citable version |
-| Teaching semester starting | Tag release | Stable version for students |
-| Only minor tweaks | Keep as dev | Documentation typos, code cleanup |
-| Experimental feature | Keep as dev | Not ready for production |
-
-## 14. FAQ
-
-**Q: How often will releases happen?**
-A: When features are ready. Could be weekly, monthly, or longer gaps.
-
-**Q: What if I need a stable version for teaching?**
-A: Use any tagged release (without .dev). We can tag a release before semester if needed.
-
-**Q: How do I know what changed?**
-A: Check GitHub releases page - each release has a descriptive title and notes.
-
-**Q: Can I request a release?**
-A: Yes, if you need a stable version for a paper/conference, let us know.
-
-**Q: What about long-term support?**
-A: No formal LTS, but older versions remain on PyPI/Zenodo indefinitely.
-
-**Q: Why do I see rc1 versions on PyPI?**
-A: Historical. Pre-2026-04 releases included an `rc1` variant with a `numpy<2.0` pin for QGIS 3 LTR. That variant was retired once the Rust bridge made the compiled artefact NumPy-ABI-free; the standard wheel now satisfies both QGIS 3 and QGIS 4. `rc1` tags going forward are only used for beta/RC testing (see Appendix E), not for NumPy variants.
-
-## Appendix A: Quick Reference Card
-
-### Release in 5 Minutes
-```bash
-# 1. Ensure tests pass
-make test
-
-# 2. Update changelog
-vim CHANGELOG.md
-
-# 3. Create tag with meaningful message
-git tag -a 2025.8.15 -m "Title: Brief description
-
-- Detail 1
-- Detail 2"
-
-# 4. Push tag
-git push origin 2025.8.15
-
-# 5. Verify on GitHub/PyPI/Zenodo
-```
-
-### Communication Templates
-
-#### Email/Forum Announcement
-```
-SUEWS v2025.8.15 Released: Improved Snow Module
-
-Install: pip install --upgrade supy
-Details: https://github.com/UMEP-dev/SUEWS/releases/tag/2025.8.15
-Cite: https://doi.org/10.5281/zenodo.XXXXXXX
-
-Key changes:
-- Enhanced snow physics
-- Fixed energy balance bug
-- Improved performance
-```
-
 ---
 
-## Appendix B: Technical Details
-
-### GitHub Actions Workflow
-The release workflow (`build-publish_to_pypi.yml`) triggers on tags:
-- Builds wheels for all platforms
-- Runs test suite
-- Uploads to PyPI if tests pass
-- Creates GitHub release draft
-
-### Zenodo Integration (Not Yet Configured)
-Once set up:
-- Repository linked via GitHub-Zenodo integration
-- DOI assigned automatically on release
-- Metadata from GitHub repository
-- Authors from `.zenodo.json` if present
-
-### Version Resolution
-Version determined by `get_ver_git.py`:
-- Tags without .dev → formal release
-- Commits after tag → adds .dev suffix
-- Used by build system automatically
-
-## Appendix C: Roles & Permissions
-
-### Who Can Release?
-- **Core team**: Full release permissions
-- **Contributors**: Can suggest via PR
-- **Release manager**: Designated person for major releases
-
-### Required Permissions
-- GitHub: Push tags to repository
-- PyPI: Maintainer access (automated via GitHub Actions)
-- Zenodo: Automatic via GitHub integration
-
-## Appendix D: Zenodo Integration Setup & Verification
-
-### Current Status
-✅ `.zenodo.json` metadata file created in repository (12 authors with ORCIDs)
-✅ GitHub Actions workflow creates releases automatically
-✅ Zenodo-GitHub integration enabled (toggle ON)
-✅ Webhook active and ready for next release
-
-### Setup Completed
-
-Integration is now active. The setup included:
-
-1. **Zenodo-GitHub Link** ✅
-   - Repository enabled at https://zenodo.org/account/settings/github/
-   - Toggle switched to ON
-   - Existing DOI: 10.5281/zenodo.11164910
-
-2. **Webhook Verified** ✅
-   - Active at https://github.com/UMEP-dev/SUEWS/settings/hooks
-   - Webhook URL: `https://zenodo.org/api/hooks/receivers/github/events/`
-   - Listening for release events
-
-3. **Metadata Configured** ✅
-   `.zenodo.json` in repository root with:
-   ```json
-   {
-     "creators": [
-       {"name": "Sun, Ting", "orcid": "0000-0000-0000-0000"},
-       {"name": "Grimmond, Sue"},
-       {"name": "Ward, Helen"},
-       {"name": "Omidvar, Hamidreza"}
-     ],
-     "license": "MPL-2.0",
-     "title": "SUEWS: Surface Urban Energy and Water Balance Scheme",
-     "keywords": ["urban climate", "energy balance", "hydrology", "meteorology"]
-   }
-   ```
-
-### Testing the Integration
-
-After enabling, test with next release:
-
-1. **Push a tag** (e.g., `git push origin 2025.10.8`)
-2. **Wait for workflow** to complete (~15 minutes)
-3. **Check GitHub Release** is created automatically
-4. **Check Zenodo** (within 5-10 minutes):
-   - Visit your Zenodo dashboard: https://zenodo.org/me/uploads
-   - New deposit should appear with the release
-   - DOI will be assigned automatically
-5. **Verify DOI badge** appears in GitHub Release
-
-### Troubleshooting
-
-**No DOI appearing?**
-- Check Zenodo webhook is active in GitHub settings
-- Verify repository toggle is ON in Zenodo
-- Check Zenodo upload dashboard for errors
-- Releases (not just tags) trigger Zenodo
-
-**DOI not in GitHub Release?**
-- DOI badge is added manually or via Zenodo badge API
-- Can edit release to add: `[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXX)`
-
-### Benefits
-- Automatic DOI for every release
-- Permanent archive (even if GitHub goes down)
-- Professional citations for academic papers
-- Version-specific DOIs for reproducibility
-
-## Appendix E: Beta/RC Testing Process
-
-### When to Use Beta/RC Releases
-
-**Release Candidates (RC)** are recommended for:
-- Major feature releases with significant API changes
-- Breaking changes that need user validation
-- Releases before conferences/teaching semesters
-- When you want feedback before final release
-
-### RC Release Process
-
-#### 1. Create RC Tag
-```bash
-VERSION="2025.10.8"
-RC="rc1"
-
-# Note: No separator between version and rc (PEP 440 compliant)
-git tag -a "${VERSION}${RC}" -m "Release Candidate 1 for $VERSION
-
-This is a release candidate for testing. Do not use in production.
-
-Key changes:
-- Feature 1
-- Feature 2
-
-Testing focus:
-- Please test X functionality
-- Verify Y behaviour
-- Check Z compatibility"
-
-git push origin ${VERSION}${RC}
-```
-
-#### 2. Deploy to PyPI as Pre-Release
-RC releases automatically deploy to PyPI as pre-releases (via GitHub Actions):
-```bash
-# Install latest RC (pre-release)
-pip install --pre supy
-
-# Install specific RC version
-pip install supy==2025.10.8rc1
-```
-
-**Note**: RC versions are marked as pre-releases on PyPI. Users must use `--pre` flag to install them.
-
-#### 3. Announce for Testing
-```markdown
-SUEWS v2025.10.8rc1 Released for Testing
-
-Install: pip install --pre supy
-Or specific version: pip install supy==2025.10.8rc1
-Duration: 1-2 weeks testing period
-Focus: [Areas needing testing]
-Feedback: GitHub issues or mailing list
-```
-
-#### 4. Collect Feedback
-- Monitor GitHub issues
-- Track mailing list discussions
-- Direct communication with beta testers
-
-#### 5. Iterate or Release
-- **If issues found**: Fix, tag rc2, repeat
-- **If stable**: Proceed with normal release process (tag without -rc)
-
-### Beta Testing Program (Optional)
-
-For major releases, consider:
-- Recruit beta testers from user community
-- Create beta testing channel (Discord/Slack)
-- Provide testing guidelines and checklists
-- Recognise beta testers in release notes
-
-## Appendix F: Hotfix and Patch Release Process
-
-### Patch Version Format
-
-For critical post-release bugs:
-```
-YYYY.M.D.PATCH
-```
-
-Examples:
-- `2025.10.8` (original release)
-- `2025.10.8.1` (first patch)
-- `2025.10.8.2` (second patch)
-
-### When to Create Patch Release
-
-**Immediate patch required for:**
-- Security vulnerabilities
-- Data corruption bugs
-- Critical calculation errors
-- Installation failures
-
-**Can wait for next regular release:**
-- Minor UI issues
-- Documentation errors
-- Non-critical warnings
-- Performance improvements (unless severe)
-
-### Hotfix Workflow
-
-#### 1. Create Hotfix Branch (Optional)
-For complex fixes:
-```bash
-git checkout -b hotfix/2025.10.8.1 2025.10.8
-# Make fixes
-# Test thoroughly
-```
-
-For simple fixes, work directly on master.
-
-#### 2. Fast-Track Testing
-```bash
-# Minimal but essential testing
-make test
-# Focus testing on affected functionality
-pytest test/specific_test.py -v
-```
-
-#### 3. Update CHANGELOG
-Add under original release date:
-```markdown
-### 8 Oct 2025
-- [feature] Original feature
-
-#### Patch 2025.10.8.1 (9 Oct 2025)
-- [bugfix] CRITICAL: Fixed security vulnerability in... ([#XXX](link))
-```
-
-#### 4. Tag and Release
-```bash
-VERSION="2025.10.8.1"
-
-git tag -a "$VERSION" -m "HOTFIX: Critical bug in calculation
-
-Fixes:
-- [SECURITY] Fixed vulnerability allowing...
-- [CRITICAL] Fixed data corruption in...
-
-Users on 2025.10.8 should upgrade immediately.
-
-See CHANGELOG.md for details."
-
-git push origin $VERSION
-```
-
-#### 5. Emergency Communication
-```markdown
-URGENT: SUEWS v2025.10.8.1 Hotfix Released
-
-Install: pip install --upgrade supy
-Affected: Users on v2025.10.8
-Impact: [Description of bug impact]
-Fix: [What was fixed]
-Action: Upgrade immediately via pip install --upgrade supy
-```
-
-### Hotfix vs Regular Release Decision Matrix
-
-| Severity | Impact | Response Time | Release Type |
-|----------|--------|---------------|--------------|
-| Critical security | All users | Immediate | Hotfix patch |
-| Data corruption | All users | Same day | Hotfix patch |
-| Calculation error | Research results | 1-2 days | Hotfix patch |
-| Installation failure | New users | 1-2 days | Hotfix patch |
-| Minor bug | Some users | Next release | Regular release |
-| Performance issue | Inconvenience | Next release | Regular release |
-
-## Appendix G: Post-Release Monitoring
-
-### Immediate Post-Release (First 24-48 Hours)
-
-#### 1. Deployment Verification Checklist
-- [ ] GitHub Actions completed successfully
-- [ ] Package appears on PyPI with correct version
-- [ ] Test installation: `pip install --upgrade supy`
-- [ ] Verify version: `python -c "import supy; print(supy.__version__)"`
-- [ ] Check documentation builds on ReadTheDocs
-
-#### 2. Monitor Key Channels
-- **GitHub Issues**: Watch for new issues tagged with version
-- **PyPI Statistics**: Check download counts (via pypistats)
-- **Mailing List**: Monitor for installation/usage problems
-- **CI/CD Logs**: Review any post-release build failures
-
-#### 3. Quick Smoke Tests
-Run basic sanity checks:
-```bash
-# Install in fresh environment
-uv venv .venv-test && source .venv-test/bin/activate
-pip install supy
-
-# Run minimal test
-python -c "
-import supy as sp
-# Basic functionality check
-print('Import successful')
-# Add version-specific smoke test
-"
-```
-
-### First Week Monitoring
-
-#### 4. Track Adoption
-```bash
-# PyPI download statistics (requires pypistats)
-pypistats recent supy
-
-# GitHub traffic
-# Check repository insights for:
-# - Clone/download activity
-# - Issue creation rate
-# - Discussion activity
-```
-
-#### 5. Issue Triage
-- **Priority 1**: Security, data corruption, installation failures → Hotfix
-- **Priority 2**: Calculation errors, major bugs → Investigate immediately
-- **Priority 3**: Minor bugs, feature requests → Schedule for next release
-
-#### 6. User Feedback Collection
-Create feedback issue:
-```markdown
-## Feedback: SUEWS v2025.10.8
-
-Please share your experience with this release:
-- Installation issues?
-- New feature feedback?
-- Performance observations?
-- Bug reports?
-
-This helps improve future releases. Thank you!
-```
-
-### Ongoing Monitoring (First Month)
-
-#### 7. Performance Metrics
-- Download trends (PyPI stats)
-- Issue resolution rate
-- Breaking change impact (reported issues)
-- Documentation clarity (related questions)
-
-#### 8. Lessons Learned
-Document for next release:
-- What went well?
-- What caused problems?
-- What would improve next release?
-- Update RELEASE_MANUAL.md if needed
-
-### Monitoring Tools
-
-**Automated:**
-```bash
-# Set up GitHub Actions for monitoring
-# - PyPI download tracking
-# - Issue auto-labelling by version
-# - CI status notifications
-```
-
-**Manual:**
-- Weekly issue review
-- Monthly download statistics
-- Quarterly user survey (for major releases)
-
-### Red Flags (Require Immediate Action)
-
-- Sudden spike in GitHub issues after release
-- PyPI download count drops significantly
-- Multiple reports of installation failures
-- Security vulnerability disclosure
-- Calculation accuracy concerns
-
-### Communication Protocol
-
-If critical issue discovered:
-1. **Acknowledge**: Respond to issue within 24 hours
-2. **Assess**: Determine if hotfix needed (see Appendix F)
-3. **Communicate**: Update issue with timeline
-4. **Fix**: Fast-track patch if critical
-5. **Verify**: Ensure fix resolves issue
-6. **Release**: Deploy hotfix with clear communication
-
----
-
-*This manual guides SUEWS releases using a sustainable rolling release model.*
-*Last updated: 20 November 2025*
-*Owner: SUEWS Development Team*
-*Location: `/dev-ref/RELEASE_MANUAL.md`*
+## 7. Release Checklist Summary
+
+- [ ] No prior merged `Release YYYY.M.D` PR left untagged (`gh pr list --state merged --search "Release"`)
+- [ ] Green `YYYY.M.D.dev` base commit selected on `origin/master`; `release/YYYY.M.D` branch created
+- [ ] Structural `data_model` audit complete; `.devN` schema collapsed if applicable; `sample_config.yml` and `schema.json` synced; no stray `.dev` labels in `docs/source/`
+- [ ] Knowledge pack freshness verified via `python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>` (built into wheel by Meson; untracked in git)
+- [ ] Pre-release **Benchmark gate** passed and recorded on the `2-meta:release` issue
+- [ ] `CHANGELOG.md`, `docs/source/version-history/vYYYY.M.D.rst`, and `.github/releases/YYYY.M.D.md` prepared (`[experimental]`/`[internal]` filtered out of public notes)
+- [ ] Release PR merged to `master` through the GitHub merge queue
+- [ ] Annotated tag `YYYY.M.D` created on the merge commit and pushed to `origin`
+- [ ] PyPI (`https://pypi.org/project/supy/`), GitHub Release, and Zenodo DOI verified
+- [ ] `release-docs-anchor.yml` completed; `https://docs.suews.io/stable/` verified free of `built from a development version`
+- [ ] Benchmark result recorded in `benchmark/results/index.json` + `site/benchmark/`; `UMEP-dev/umep-reqs` PR opened with `supy==YYYY.M.D`; optional announcement posted on [https://community.suews.io](https://community.suews.io)

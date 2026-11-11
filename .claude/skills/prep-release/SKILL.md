@@ -20,11 +20,11 @@ This workflow is **workspace-independent** - run from any worktree.
 0. **Assess necessity** - Use assessment criteria, check timing and user needs
 1. **Select dev tag** - Pick a CI-verified dev tag as release base
 2. **Create release branch** - `git checkout -b release/YYYY.M.D origin/master`
-3. **Schema version audit** - `git log <last-release-tag>..HEAD -- src/supy/data_model/`. If any commit is a structural change (see `.claude/rules/python/schema-versioning.md` for triggers), confirm that `CURRENT_SCHEMA_VERSION` was bumped, `SCHEMA_VERSIONS` has a matching entry, `sample_config.yml` carries the new version, and `yaml_upgrade.py::_HANDLERS` has a `(previous_schema -> current_schema)` handler (the handler registry is the single source of truth for compatibility; `is_schema_compatible` derives from it). Stop and fix if any are missing — this was the gap closed in gh#1304.
-4. **Benchmark gate (PREREQUISITE)** - Build supy from the release candidate (the selected dev tag / release branch via the `build-suews` artefact or `make dev` — NOT PyPI, which has nothing yet) and run the multi-version benchmark: require a reproducible fingerprint and **no energy-balance regression vs the previous release**. This **gates the release** — do NOT proceed to deposit (PR merge, tag, PyPI, GitHub Release, Zenodo) on an unreviewed regression. See `## Benchmark gate`.
+3. **Schema version audit and `.devN` collapse** - `git log <last-release-tag>..HEAD -- src/supy/data_model/`. If any commit is a structural change (see `.claude/rules/python/schema-versioning.md` for triggers), collapse any `.devN` schema chain into the plain CalVer target label (`"YYYY.M.devN"` -> `"YYYY.M"`): update `CURRENT_SCHEMA_VERSION` and consolidate `SCHEMA_VERSIONS` in `src/supy/data_model/configuration/version.py`, collapse the dev handlers into a single `(<prev-release>, "YYYY.M")` entry and add the release-tag mapping in `src/supy/util/converter/yaml_upgrade.py` (`_HANDLERS` and `_PACKAGE_TO_SCHEMA`), update `src/supy/sample_data/sample_config.yml` and regenerate `python test/fixtures/sample_short/make_sample_short.py`, and vendor `test/fixtures/release_configs/<VERSION>.yml`. Stop and fix if any are missing -- this was the gap closed in gh#1304.
+4. **Benchmark gate (PREREQUISITE)** - Build supy from the release candidate (the selected dev tag / release branch via the `build-suews` artefact or `make dev` -- NOT PyPI, which has nothing yet) and run the multi-version benchmark: require a reproducible fingerprint and **no energy-balance regression vs the previous release**. This **gates the release** -- do NOT proceed to deposit (PR merge, tag, PyPI, GitHub Release, Zenodo) on an unreviewed regression. See `## Benchmark gate`.
 5. **CHANGELOG analysis** - Use log-changes or manual (current format)
-6. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
-6a. **Docs sanity check** - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o ...`) and scan for stray `.dev` schema labels per `.claude/rules/docs/release-docs-sanity.md` (or dispatch the `docs-reviewer` agent in release mode, which runs the same scan plus a house-style pass). The banner-free `stable` build is produced post-tag by `release-docs-anchor.yml` (step 11a).
+6. **Update docs and verify knowledge-pack freshness** - `CHANGELOG.md`, version history RST (`:pr:` syntax), toctree, and run `python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>` (`src/supy/meson.build` builds `manifest.json` + `chunks.jsonl.gz` into `@OUTDIR@` automatically on every wheel build; never commit `src/supy/knowledge/pack/current/`).
+6a. **Docs sanity check** - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o docs/source/inputs/tables/schema.json`) and scan for stray `.dev` schema labels per `.claude/rules/docs/release-docs-sanity.md` (or dispatch the `docs-reviewer` agent in release mode, which runs the same scan plus a house-style pass). The banner-free `stable` build is produced post-tag by `release-docs-anchor.yml` (step 11a).
 7. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
 8. **Issue tracking** - Update the release issue, create sub-issues for manual steps
 9. **Submit PR** - Create PR, wait for CI, merge to master
@@ -46,8 +46,9 @@ When preparing a release:
 2. **Create sub-issues** for each manual post-merge step:
    - Submit PR and merge to master (closed by the PR itself)
    - Tag merge commit on master (manual)
-   - Verify PyPI, GitHub Release, Zenodo (manual)
-   - Update umep-reqs with rc1 version (manual, separate repo)
+   - Verify PyPI, GitHub Release, Zenodo, and run `release-docs-anchor.yml` for stable docs (manual)
+   - Record benchmark result in `benchmark/results/index.json` and `site/benchmark/` (manual)
+   - Update `umep-reqs` with `supy==YYYY.M.D` (manual, separate repo; no `rc1` tag)
 3. **Link sub-issues** to the parent release issue using GitHub sub-issues
 
 The parent release issue stays open until all sub-issues are closed. The PR should only close the "Submit PR" sub-issue, not the parent.
@@ -71,7 +72,7 @@ Release when ready. Scoring is guidance only.
 - Critical bugfix / security patch
 - External deadline
 
-**RECOMMENDED** (score ≥5):
+**RECOMMENDED** (score >=5):
 - Features (+3), Bugfixes (+2), User-facing change (+2), User/collaborator request (+2), >30 days (+2), >60 days (+3)
 
 **WAIT** (any one):
@@ -105,7 +106,7 @@ Selection criteria:
 [PASS/FAIL] Schema version sync (sample_config.yml matches CURRENT_SCHEMA_VERSION; run /verify-build)
 [PASS/FAIL] Schema version bump covers every structural data_model change since last tag (see .claude/rules/python/schema-versioning.md)
 [PASS/FAIL] BENCHMARK GATE (prerequisite, before depositing): candidate build reproducible (byte-identical fingerprint) + per-release schema-valid config + maintainer review of the change vs previous release recorded, informed by `benchmark/check_regression.py --candidate <version>` (exit 1 = stop; exit 3 = within proposed tolerances, review still required; exit 0 only under an approved policy)
-[PASS/FAIL] Knowledge pack rebuilt against HEAD (run `suews knowledge build --output src/supy/knowledge/pack/current --repo-root .` if data_model/ or cmd/ touched since last release; see gh#1406)
+[PASS/FAIL] Knowledge pack freshness verified (`python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>`; Meson builds the pack into the wheel automatically -- see gh#1406)
 [PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
 [PASS/FAIL] Docs sanity check (.claude/rules/docs/release-docs-sanity.md): schema.json regenerated to the released label; no stray .dev schema labels in user-facing docs (scan excludes legitimate dev-cycle narration)
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
@@ -124,7 +125,7 @@ Ready: YES/NO
 
 ### Incomplete release: PR merged but no tag created
 
-The most common release failure is merging the release PR (step 6) and then forgetting steps 7-8 (tag and verify). Without the tag:
+The most common release failure is merging the release PR (step 9) and then forgetting steps 10-11a (tag, verify, and publish stable docs). Without the tag:
 - No wheels are built or published to PyPI
 - No GitHub Release or Zenodo DOI is created
 - The CHANGELOG references a version that does not exist on PyPI
@@ -204,7 +205,7 @@ The release is benchmarked against the multi-version regression suite (KCL/Londo
 
 The gate runs against the **release candidate**, NOT PyPI (the version is not published yet):
 
-1. **Build the candidate** - obtain supy for the selected dev tag / release branch from the `build-suews` CI artefact (preferred — it is the same wheel that ships) or `make dev` in a clean venv. Do NOT `pip install "supy==<version>"` — that version does not exist on PyPI until step 11. For older releases, pin a compatible `pandas` (pre-2026 releases need `pandas<3`); keep `numpy` at the wheel's ABI. Save `freeze.txt`.
+1. **Build the candidate** - obtain supy for the selected dev tag / release branch from the `build-suews` CI artefact (preferred -- it is the same wheel that ships) or `make dev` in a clean venv. Do NOT `pip install "supy==<version>"` -- that version does not exist on PyPI until step 11. For older releases, pin a compatible `pandas` (pre-2026 releases need `pandas<3`); keep `numpy` at the wheel's ABI. Save `freeze.txt`.
 2. **Per-release config** - generate a config valid in the candidate's OWN schema by a load->dump round-trip in that build (`SUEWSSimulation(canonical).config.model_dump()` to `inputs/config_<version>.yml`); record `config_schema_on_load` + `config_hash`. `suews-convert` is NOT a YAML schema migrator. Never reuse a foreign-schema config silently.
 3. **Run + reproducibility** - fetch obs + forcing from the restricted Zenodo record (token via the `ZENODO_TOKEN` secret/env; never print or commit it), then `run_benchmark.py` over the fixed period **twice**; require a byte-identical fingerprint. Log a build/run failure with the exact error rather than inventing a number.
 4. **Regression decision (the gate)** - the scientific decision is a **maintainer review** of the candidate's change versus the previous release: compare the candidate's full-period MAE/|MBE| per flux and RSL air-temperature MAE per height, and stop and review before depositing on any material increase. Inform that review with `python benchmark/check_regression.py --candidate <version>` after `assemble_index.py` has added the candidate to `results/index.json`: exit 1 (regression beyond the proposed tolerances, or lost metric coverage) is a hard stop; exit 3 means the candidate is within the proposed tolerances but `benchmark/regression_thresholds.json` records no approved policy, so the review decision still has to be made and recorded (release issue). Only when that file carries an approved policy (`approved: true` with who/when/reference) does exit 0 constitute the decision. A reviewed, accepted shift is recorded as a narrow `exceptions` entry (one pair, axis, quantity, metric, `max_delta`, basis, evidence, reason) so the CI historical sweep stays consistent; do not describe an entry as reviewed unless the review is on record.

@@ -13,16 +13,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
+import sys
 
 
 def summarise(run_dir: Path) -> int:
+    """Print a concise pass/warn/fail summary from diagnostics.json."""
     path = run_dir / "diagnostics.json"
     if not path.exists():
         print(f"diagnostics.json not found in {run_dir}", file=sys.stderr)
         print(
-            f"Run: suews diagnose {run_dir} --format json > {path}",
+            f"Run: suews diagnose --format json {run_dir}  (writes {path} automatically)",
             file=sys.stderr,
         )
         return 2
@@ -55,6 +56,7 @@ def summarise(run_dir: Path) -> int:
 
 
 def main() -> int:
+    """Parse CLI arguments and summarise run diagnostics."""
     parser = argparse.ArgumentParser(
         description=(
             "Read a SUEWS run diagnostics.json and print a short "

@@ -43,3 +43,6 @@ MAX_JSON_RESPONSE_BYTES = int(
 
 #: Environment variable that names the per-session project root.
 ENV_PROJECT_ROOT = "SUEWS_MCP_PROJECT_ROOT"
+
+#: Trusted launcher setting: JSON array of absolute directory roots.
+ENV_ALLOWED_ROOTS = "SUEWS_MCP_ALLOWED_ROOTS"

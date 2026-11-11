@@ -89,10 +89,10 @@ def init_case(
             command=f"suews init {target_dir} --template {template}",
         )
 
-    root = ProjectRoot(project_root)
     try:
+        root = ProjectRoot(project_root)
         path = root.resolve(target_dir)
-    except SUEWSMCPSandboxError as exc:
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(str(exc), command=f"suews init {target_dir}")
 
     args = [str(path), "--template", template]

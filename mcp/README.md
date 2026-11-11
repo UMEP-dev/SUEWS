@@ -23,8 +23,23 @@ Hard rules:
 - Every tool emits the standard JSON envelope
   `{status, data, errors, warnings, meta}` defined once in
   `supy.cmd.json_envelope.Envelope`.
-- Project root is set per-session via `SUEWS_MCP_PROJECT_ROOT`; tool
-  arguments cannot escape it.
+- An explicit `SUEWS_MCP_PROJECT_ROOT` (or launcher `--root`) is the
+  authoritative session boundary; tool arguments can narrow it but cannot
+  widen it. An outside root argument retains the session boundary.
+- Without that boundary, the selected root must resolve under the user's
+  home directory or a trusted launcher allowlist. The launcher can set
+  `SUEWS_MCP_ALLOWED_ROOTS` to a JSON array of absolute, existing directory
+  paths, for example `["/srv/suews", "/mnt/projects"]`. Empty arrays add no
+  roots. Malformed values, relative entries and filesystem-root entries
+  are rejected, rather than falling back to unrestricted access. This is
+  process configuration, never a tool argument.
+- Symlinks are resolved before containment checks. `/` and other system
+  directories are not permitted by default. Hosts running in a temporary
+  CWD can pass an authorised `project_root` explicitly; workspace-folder
+  support is not required. Without an explicit argument, CWD must pass
+  the same policy. Root/path failures return actionable error envelopes.
+- File and embedded-path checks are preflight checks: concurrent filesystem
+  replacement between validation and access remains a TOCTOU limitation.
 
 ## Tool surface
 
@@ -267,8 +282,9 @@ installed.
 Any host that speaks stdio MCP (Cursor, VS Code's MCP extension, Claude
 Desktop) launches it the same way: either `uvx --from git+… suews-mcp`
 (self-bootstrapping) or the bare `suews-mcp` command when pre-installed,
-with the optional single environment variable `SUEWS_MCP_PROJECT_ROOT`
-(defaults to the host's working directory).
+with `SUEWS_MCP_PROJECT_ROOT` for a fixed session boundary, or
+`SUEWS_MCP_ALLOWED_ROOTS` for additional permitted project locations.
+Without either setting, CWD or an explicit tool root must be under home.
 
 ## Manual launch (for debugging)
 
@@ -290,4 +306,5 @@ pytest test/mcp -v
 make test
 ```
 
-Tests mock the subprocess layer; no real `suews` invocation runs in CI.
+Tests include filesystem boundary regressions and real CLI/protocol checks.
+Temporary test projects explicitly establish trusted launcher roots.

@@ -392,10 +392,10 @@ def query_knowledge(
 
     pack_path: Optional[str] = None
     if pack:
-        root = ProjectRoot(project_root)
         try:
+            root = ProjectRoot(project_root)
             pack_path = str(root.resolve(pack))
-        except SUEWSMCPSandboxError as exc:
+        except (SUEWSMCPSandboxError, OSError) as exc:
             return _error_envelope(
                 str(exc), command=f"suews knowledge query --pack {pack}"
             )
@@ -435,10 +435,10 @@ def read_knowledge_manifest(
     """
     args: list[str] = []
     if pack:
-        root = ProjectRoot(project_root)
         try:
+            root = ProjectRoot(project_root)
             pack_path = str(root.resolve(pack))
-        except SUEWSMCPSandboxError as exc:
+        except (SUEWSMCPSandboxError, OSError) as exc:
             return _error_envelope(
                 str(exc), command=f"suews knowledge manifest --pack {pack}"
             )

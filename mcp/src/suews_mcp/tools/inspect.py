@@ -31,10 +31,11 @@ def inspect_config(
     project_root
         Override the per-session project root for this call.
     """
-    root = ProjectRoot(project_root)
     try:
+        root = ProjectRoot(project_root)
         path = root.resolve(config_path)
-    except SUEWSMCPSandboxError as exc:
+        root.check_config(path)
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(str(exc), command=f"suews inspect {config_path}")
 
     try:

@@ -98,6 +98,21 @@ def suppress_import_warnings():
 
 
 @pytest.fixture(autouse=True)
+def _authorise_mcp_test_roots(request, monkeypatch):
+    """Explicit launcher authorisation for temporary MCP test projects."""
+    if request.path.parent.name != "mcp":
+        return
+    import json
+
+    tmp_path = request.getfixturevalue("tmp_path")
+    monkeypatch.delenv("SUEWS_MCP_PROJECT_ROOT", raising=False)
+    monkeypatch.setenv(
+        "SUEWS_MCP_ALLOWED_ROOTS",
+        json.dumps([str(tmp_path), str(_MCP_SRC.parents[1])]),
+    )
+
+
+@pytest.fixture(autouse=True)
 def _clear_mcp_caches():
     """Clear the per-process ``suews_mcp`` caches around every test.
 

@@ -259,7 +259,7 @@ subroutine suews_cal_multitsteps_c( &
       return
    end if
 
-   if (nlayer_i<=0 .or. ndepth_i<=0) then
+   if (nlayer_i<=0 .or. nlayer_i>15 .or. ndepth_i<=0) then
       err = SUEWS_CAPI_BAD_STATE
       return
    end if
@@ -1035,6 +1035,21 @@ subroutine unpack_timer(flat, n_flat, timer, err)
 
    if (n_flat<SUEWS_CAPI_TIMER_LEN) then
       err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   ! Reject invalid timestep representations before NINT or division.
+   ! The negated range also rejects NaN without converting it to an integer.
+   if (.not. (flat(6)>=1.0_c_double .and. flat(6)<=3600.0_c_double)) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+   if (flat(6)/=real(int(flat(6)), c_double)) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+   if (mod(3600, int(flat(6)))/=0) then
+      err = SUEWS_CAPI_BAD_STATE
       return
    end if
 

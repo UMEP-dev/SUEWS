@@ -1206,11 +1206,16 @@ pub fn run_simulation_into(
         });
     }
 
-    if input.nlayer <= 0 || input.ndepth <= 0 {
+    if !(1..=15).contains(&input.nlayer) || input.ndepth <= 0 {
         return Err(BridgeError::SimulationError {
             code: -1,
-            message: "nlayer and ndepth must be positive".to_string(),
+            message: "nlayer must be in 1..=15 and ndepth must be positive".to_string(),
         });
+    }
+    if input.timer.tstep <= 0 || input.timer.tstep > 3600 || 3600 % input.timer.tstep != 0 {
+        return Err(simulation_error(
+            "tstep must be positive and evenly divide 3600 seconds",
+        ));
     }
 
     let timer_in = input.timer.to_flat();
@@ -1359,7 +1364,7 @@ pub fn run_simulation_into(
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_dyohm_material_inputs, BUILDING_SURFACE_INDEX, OUTPUT_GROUP_LAYOUT};
+    use super::*;
     use crate::ffi;
     use crate::yaml_config::load_run_config_from_str;
 
@@ -1368,6 +1373,127 @@ mod tests {
         let mut run_cfg = load_run_config_from_str(yaml).expect("fixture config should parse");
         run_cfg.config.storage_heat_method = storage_heat_method;
         run_cfg
+    }
+
+    fn bounds_test_input() -> SimulationInput {
+        let cfg = fixture_run_config(1);
+        SimulationInput {
+            timer: cfg.timer,
+            config: cfg.config,
+            site: cfg.site,
+            site_scalars: cfg.site_scalars,
+            state: cfg.state,
+            forcing_block: vec![0.0; MET_FORCING_COLS],
+            len_sim: 1,
+            nlayer: cfg.nlayer,
+            ndepth: cfg.ndepth,
+        }
+    }
+
+    #[test]
+    fn simulation_rejects_invalid_input_bounds() {
+        for nlayer in [-999, -1, 0, 16, i32::MAX] {
+            let mut input = bounds_test_input();
+            input.nlayer = nlayer;
+            assert!(run_simulation(input)
+                .unwrap_err()
+                .to_string()
+                .contains("nlayer must be"));
+        }
+        for tstep in [-999, -1, 0, 7, 3601, 7200] {
+            let mut input = bounds_test_input();
+            input.timer.tstep = tstep;
+            assert!(run_simulation(input)
+                .unwrap_err()
+                .to_string()
+                .contains("tstep must be"));
+        }
+    }
+
+    #[test]
+    fn native_driver_rejects_invalid_input_bounds() {
+        let input = bounds_test_input();
+        let config = input.config.to_flat();
+        let scalars = encode_site_scalars(&input.site_scalars);
+        let site = encode_site_members(&input.site).unwrap();
+        let state = encode_state_members(&input.state).unwrap();
+        let cases = [-999, -1, 0, 16, i32::MAX].map(|n| (n, 300.0));
+        let steps = [
+            -999.0,
+            -1.0,
+            0.0,
+            7.0,
+            3601.0,
+            7200.0,
+            1.5,
+            f64::NAN,
+            f64::INFINITY,
+        ];
+        for (nlayer, tstep) in cases.into_iter().chain(steps.map(|t| (input.nlayer, t))) {
+            let mut timer = input.timer.to_flat();
+            timer[5] = tstep;
+            let mut timer_out = vec![0.0; timer.len()];
+            let mut state_out = vec![0.0; state.flat.len()];
+            let mut data = vec![123.0; OUTPUT_DATA_COLS];
+            let mut datetime = vec![123.0; OUTPUT_DATETIME_COLS];
+            let mut message = [0 as c_char; 512];
+            let (mut code, mut total, mut stored, mut err) = (0, 0, 0, 0);
+            let mut warning_timer = [0; 4];
+            let mut warning_text = [0 as c_char; 512];
+            // SAFETY: every buffer has the declared length, independent owned
+            // storage and a lifetime spanning this synchronous native call.
+            unsafe {
+                ffi::suews_cal_multitsteps_c(
+                    timer.as_ptr(),
+                    timer.len() as i32,
+                    config.as_ptr(),
+                    config.len() as i32,
+                    scalars.as_ptr(),
+                    scalars.len() as i32,
+                    site.flat.as_ptr(),
+                    site.flat.len() as i32,
+                    site.toc.as_ptr(),
+                    site.toc.len() as i32,
+                    SITE_MEMBER_COUNT as i32,
+                    state.flat.as_ptr(),
+                    state.flat.len() as i32,
+                    state.toc.as_ptr(),
+                    state.toc.len() as i32,
+                    STATE_MEMBER_COUNT as i32,
+                    input.forcing_block.as_ptr(),
+                    1,
+                    MET_FORCING_COLS as i32,
+                    nlayer,
+                    input.ndepth,
+                    timer_out.as_mut_ptr(),
+                    timer_out.len() as i32,
+                    state_out.as_mut_ptr(),
+                    state_out.len() as i32,
+                    data.as_mut_ptr(),
+                    data.len() as i64,
+                    1,
+                    datetime.as_mut_ptr(),
+                    datetime.len() as i64,
+                    1,
+                    &mut code,
+                    message.as_mut_ptr(),
+                    message.len() as i32,
+                    &mut total,
+                    &mut stored,
+                    1,
+                    warning_timer.as_mut_ptr(),
+                    warning_text.as_mut_ptr(),
+                    warning_text.len() as i32,
+                    &mut err,
+                );
+            }
+            assert_eq!(
+                err,
+                ffi::SUEWS_CAPI_BAD_STATE,
+                "nlayer={nlayer}, tstep={tstep}"
+            );
+            assert!(data.iter().chain(&datetime).all(|&value| value == 123.0));
+        }
     }
 
     #[test]

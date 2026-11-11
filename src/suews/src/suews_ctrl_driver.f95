@@ -98,12 +98,25 @@ CONTAINS
 
       TYPE(SUEWS_TIMER) :: timer_internal
 
+      IF (siteInfo%nlayer < 1 .OR. siteInfo%nlayer > 15) THEN
+         CALL set_supy_error(110, 'SUEWS_cal_Main: nlayer must be in 1..15')
+         CALL outputLine%init()
+         CALL sync_error_to_state(modState, timer)
+         RETURN
+      END IF
+
       ! Coupled callers provide only the established public timer fields.
       ! Derive the internal clock view without changing the public timer ABI.
       timer_internal = timer
       CALL SUEWS_cal_timer_reference( &
          timer_internal, siteInfo, siteInfo%anthroemis, &
          config%ForcingTimestampReference)
+
+      IF (supy_error_flag()) THEN
+         CALL outputLine%init()
+         CALL sync_error_to_state(modState, timer)
+         RETURN
+      END IF
 
       IF (PRESENT(debugState)) THEN
          CALL SUEWS_cal_Main_impl( &
@@ -739,6 +752,12 @@ CONTAINS
       TYPE(output_line) :: output_line_local
       INTEGER :: ir, col_offset
 
+      IF (siteInfo%nlayer < 1 .OR. siteInfo%nlayer > 15) THEN
+         CALL set_supy_error(110, 'SUEWS_cal_multitsteps_dts: nlayer must be in 1..15')
+         CALL sync_error_to_state(modState, timer)
+         RETURN
+      END IF
+
       ! Loop over timesteps
       DO ir = 1, len_sim, 1
          ! === Update timer from forcing block ===
@@ -751,6 +770,11 @@ CONTAINS
          CALL SUEWS_cal_timer_reference( &
             timer, siteInfo, siteInfo%anthroemis, &
             config%ForcingTimestampReference)
+
+         IF (supy_error_flag()) THEN
+            CALL sync_error_to_state(modState, timer)
+            RETURN
+         END IF
 
          ! === Update forcing from forcing block ===
          ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)

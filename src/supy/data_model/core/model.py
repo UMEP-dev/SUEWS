@@ -28,7 +28,13 @@ from .physics_orthogonal import (
     fold_kdown_split_constant_direct_fraction,
     fold_storage_heat_ohm_inc_qf,
 )
-from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
+from .type import (
+    FlexibleRefValue,
+    Reference,
+    RefValue,
+    df_from_cols,
+    null_rejecting_validator,
+)
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -1869,6 +1875,18 @@ class ModelControl(BaseModel):
         elif isinstance(v, (np.int64, np.int32)):
             return int(v)
         return v
+
+    # After validators run in declaration order: reject null before arithmetic.
+    _tstep_not_null = null_rejecting_validator("tstep")
+
+    @field_validator("tstep", mode="after")
+    @classmethod
+    def validate_tstep(cls, value):
+        """Require an integral number of model steps per hour."""
+        tstep = value.value if isinstance(value, RefValue) else value
+        if tstep <= 0 or tstep > 3600 or 3600 % tstep != 0:
+            raise ValueError("tstep must be positive and evenly divide 3600 seconds")
+        return value
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model control properties to DataFrame state format."""

@@ -2751,8 +2751,25 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
 
     apply_config_overrides(&mut config, root, site_root);
 
-    let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
+    let nlayer_path = &["properties", "vertical_layers", "nlayer"];
+    let nlayer = match get_path(site_root, nlayer_path) {
+        None => 5,
+        Some(_) => read_i32(site_root, nlayer_path)
+            .filter(|n| (1..=15).contains(n))
+            .ok_or("sites[0].properties.vertical_layers.nlayer must be an integer in 1..=15")?,
+    };
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
+
+    let tstep_path = &["model", "control", "tstep"];
+    if get_path(root, tstep_path).is_some() {
+        let tstep = read_i32(root, tstep_path)
+            .filter(|t| *t > 0 && *t <= 3600 && 3600 % t == 0)
+            .ok_or(
+                "model.control.tstep must be a positive integer that evenly divides 3600 seconds",
+            )?;
+        timer.tstep = tstep;
+        timer.tstep_prev = tstep;
+    }
 
     apply_site_overrides(
         &mut site,
@@ -2767,11 +2784,6 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // One read, one source: the water land cover carries the same flow
     // change the kernel reads at site level (`siteInfo%flow_change`).
     site.lc_water.flowchange = site_scalars.flowchange;
-
-    if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
-        timer.tstep = tstep;
-        timer.tstep_prev = tstep;
-    }
 
     // Resize variable-length arrays BEFORE applying state overrides so that
     // vectors like tsfc_surf have the correct length when values are assigned.
@@ -2897,6 +2909,45 @@ fn resize_state_variable_arrays(state: &mut SuewsState, nlayer: usize, ndepth: u
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejects_invalid_layer_bounds_before_resize() {
+        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        for value in ["-1", "-999", "0", "16", "4294967295", "1.5", ".nan", "null"] {
+            let mut root: Value = serde_yaml::from_str(yaml).unwrap();
+            root["sites"][0]["properties"]["vertical_layers"]["nlayer"] =
+                serde_yaml::from_str(value).unwrap();
+            let err = load_run_config_from_value(&mut root).unwrap_err();
+            assert!(
+                err.contains("nlayer must be an integer in 1..=15"),
+                "{value}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_model_timesteps() {
+        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        for value in [
+            "-1", "-999", "0", "7", "3601", "7200", "1.5", ".nan", "null",
+        ] {
+            let mut root: Value = serde_yaml::from_str(yaml).unwrap();
+            root["model"]["control"]["tstep"] = serde_yaml::from_str(value).unwrap();
+            let err = load_run_config_from_value(&mut root).unwrap_err();
+            assert!(
+                err.contains("tstep must be a positive integer"),
+                "{value}: {err}"
+            );
+        }
+        for value in [1, 60, 300, 900, 3600] {
+            let mut root: Value = serde_yaml::from_str(yaml).unwrap();
+            root["model"]["control"]["tstep"] = Value::from(value);
+            assert_eq!(
+                load_run_config_from_value(&mut root).unwrap().timer.tstep,
+                value
+            );
+        }
+    }
 
     fn get_path_mut<'a>(root: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> {
         let mut current = root;
@@ -3239,7 +3290,7 @@ mod tests {
     }
 
     #[test]
-    fn zero_layer_ehc_yaml_layout_keeps_empty_surface_contract() {
+    fn zero_layer_ehc_run_config_is_rejected() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
@@ -3247,14 +3298,9 @@ mod tests {
         *get_path_mut(site, &["properties", "vertical_layers", "nlayer", "value"])
             .expect("fixture should define nlayer") = serde_yaml::to_value(0).unwrap();
 
-        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
-
-        assert_eq!(run_cfg.site.ehc.nlayer, 0);
-        assert_eq!(run_cfg.site.ehc.ndepth, run_cfg.ndepth as usize);
-        assert_eq!(run_cfg.site.ehc.tin_surf.len(), 0);
-        assert_eq!(run_cfg.site.ehc.k_surf.len(), 0);
-        assert_eq!(run_cfg.site.ehc.cp_surf.len(), 0);
-        assert_eq!(run_cfg.site.ehc.dz_surf.len(), 0);
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("zero layers are not a valid simulation input");
+        assert!(err.contains("nlayer must be an integer in 1..=15"), "{err}");
     }
 
     #[test]

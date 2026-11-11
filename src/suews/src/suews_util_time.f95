@@ -21,6 +21,7 @@
 !===============================================================================
 ! Main module following naming standard: matches filename
 MODULE module_util_time
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    IMPLICIT NONE
    PRIVATE :: SUEWS_cal_local_standard_timer
 
@@ -317,6 +318,20 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: tstep_real ! tstep in type real
 
       tstep = timer%tstep
+      IF (tstep <= 0 .OR. tstep > 3600) THEN
+         CALL set_supy_error(110, 'SUEWS_cal_tstep: tstep must be positive and evenly divide 3600 seconds')
+         nsh = -999
+         nsh_real = -999.0D0
+         tstep_real = -999.0D0
+         RETURN
+      END IF
+      IF (MOD(3600, tstep) /= 0) THEN
+         CALL set_supy_error(110, 'SUEWS_cal_tstep: tstep must evenly divide 3600 seconds')
+         nsh = -999
+         nsh_real = -999.0D0
+         tstep_real = -999.0D0
+         RETURN
+      END IF
       nsh = 3600/tstep
       nsh_real = nsh*1.0
       tstep_real = tstep*1.0
@@ -487,6 +502,7 @@ CONTAINS
 
       CALL SUEWS_cal_dectime(timer, timer%dectime)
       CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
+      IF (supy_error_flag()) RETURN
       CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
       CALL SUEWS_cal_local_standard_timer(timer, siteInfo, forcing_timestamp_reference, timer_st)
       CALL SUEWS_cal_dectime(timer_st, timer%dectime_st)

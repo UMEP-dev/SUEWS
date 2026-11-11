@@ -338,7 +338,7 @@ CONTAINS
       REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_lw(:, :) ! longwave
 
       ! surface temperature and air temperature in Kelvin
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: tsfc_roof_K, tsfc_wall_K
+      REAL(KIND(1D0)), ALLOCATABLE :: tsfc_roof_K(:), tsfc_wall_K(:)
       REAL(KIND(1D0)), DIMENSION(nsurf) :: tsfc_surf_K
       REAL(KIND(1D0)) :: tair_K
       REAL(KIND(1D0)) :: tair_veg_K
@@ -380,11 +380,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nspec, nlayer), INTENT(IN) :: wall_specular_frac
 
       ! parameters to pass into the radiation scheme
-      REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: roof_albedo
-      REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: wall_albedo
-      REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: roof_emissivity
-      REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: wall_emissivity
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: veg_fsd, veg_contact_fraction
+      REAL(KIND(1D0)), ALLOCATABLE :: roof_albedo(:, :), wall_albedo(:, :)
+      REAL(KIND(1D0)), ALLOCATABLE :: roof_emissivity(:, :), wall_emissivity(:, :)
+      REAL(KIND(1D0)), ALLOCATABLE :: veg_fsd(:), veg_contact_fraction(:)
       REAL(KIND(1D0)) :: bldgH_use
       REAL(KIND(1D0)) :: EveTreeH_use
       REAL(KIND(1D0)) :: DecTreeH_use
@@ -404,14 +402,22 @@ CONTAINS
       qn = -999.0D0
       kup = -999.0D0
       lup = -999.0D0
-      qn_roof = -999.0D0
-      qn_wall = -999.0D0
       qn_surf = -999.0D0
       roof_in_sw_spc = -999.0D0
       roof_in_lw_spc = -999.0D0
       wall_in_sw_spc = -999.0D0
       wall_in_lw_spc = -999.0D0
       dataOutLineSPARTACUS = -999.0D0
+      IF (nlayer < 1 .OR. nlayer > 15) THEN
+         CALL set_supy_error(110, 'SPARTACUS: nlayer must be in 1..15')
+         RETURN
+      END IF
+      qn_roof = -999.0D0
+      qn_wall = -999.0D0
+      ALLOCATE (roof_albedo(nspec, nlayer), wall_albedo(nspec, nlayer), &
+                roof_emissivity(nspec, nlayer), wall_emissivity(nspec, nlayer), &
+                veg_fsd(nlayer), veg_contact_fraction(nlayer), &
+                tsfc_roof_K(nlayer), tsfc_wall_K(nlayer))
       IF (use_sw_direct_albedo) THEN
          ! Trees use vegetation SSA, not the ground direct-albedo multiplier.
          DO surface = 1, NSURF

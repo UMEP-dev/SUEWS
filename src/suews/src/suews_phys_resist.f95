@@ -88,16 +88,18 @@ CONTAINS
          !    assuming stability functions the same for heat and water
       ELSEIF (AerodynamicResistanceMethod == 2) THEN !Dyer (1974)
 
-         ! psim = stab_psi_mom(StabilityMethod, zzd/L_mod)
-         ! psih = stab_psi_heat(StabilityMethod, ZZD/L_mod)
-         psim = stab_psi_mom(StabilityMethod, zzd/L_mod) - stab_psi_mom(StabilityMethod, z0m/L_mod)
-         psih = stab_psi_heat(StabilityMethod, ZZD/L_mod) - stab_psi_heat(StabilityMethod, z0v/L_mod)
-
-         IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
+         ! Test the neutral sentinel before evaluating any stability ratios.
+         IF (ABS(L_mod) <= eps_fp) THEN
             RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1_use) !Use neutral equation
          ELSE
-            RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
-            ! RA = AVU1/UStar**2
+            psim = stab_psi_mom(StabilityMethod, zzd/L_mod) - stab_psi_mom(StabilityMethod, z0m/L_mod)
+            psih = stab_psi_heat(StabilityMethod, ZZD/L_mod) - stab_psi_heat(StabilityMethod, z0v/L_mod)
+            IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
+               RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1_use) !Use neutral equation
+            ELSE
+               RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
+               ! RA = AVU1/UStar**2
+            END IF
          END IF
 
          !3) Thom and Oliver (1977)

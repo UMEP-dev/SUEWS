@@ -259,7 +259,11 @@ CONTAINS
       ELSE
          TStar = (-H/UStar)
          L_MOD = (UStar**2)/(G_T_K*TStar)
-         zL = zzd/L_MOD
+         IF (ABS(L_MOD) <= eps_fp) THEN
+            zL = 0.0D0
+         ELSE
+            zL = zzd/L_MOD
+         END IF
       END IF
 
       IF (LOG(zzd/z0m) < 0.001000) THEN
@@ -270,7 +274,11 @@ CONTAINS
       i = 1
       LOLD = -999.
       zLOLD = -999.
-      z0L = z0m/L_MOD !z0m roughness length
+      IF (ABS(L_MOD) <= eps_fp) THEN
+         z0L = 0.0D0
+      ELSE
+         z0L = z0m/L_MOD !z0m roughness length
+      END IF
 
       !DO WHILE ((ABS(LOLD - L_MOD) > 0.01) .AND. (i < 330)) !NT: add error threshold !Iteration starts
       DO WHILE ((ABS(zLOLD - zL) > 0.001) .AND. (i < 330))
@@ -278,10 +286,16 @@ CONTAINS
          ! LOLD = MIN(MAX(-2000., L_MOD), 2000.)
          LOLD = L_MOD
          zLOLD = zL
-         zL = zzd/L_MOD
-         zL = MIN(0.5, MAX(-2., zL))
-         L_MOD = zzd/zL
-         z0L = z0m/L_MOD !z0m roughness length
+         ! L_MOD = 0 is the neutral sentinel, not a divisor.
+         IF (ABS(L_MOD) <= eps_fp) THEN
+            zL = 0.0D0
+            z0L = 0.0D0
+         ELSE
+            zL = zzd/L_MOD
+            zL = MIN(0.5, MAX(-2., zL))
+            L_MOD = zzd/zL
+            z0L = z0m/L_MOD !z0m roughness length
+         END IF
 
          ! IF (zL>2)THEN
          !    CALL ErrorHint(73,'LUMPS_atmos_functions_stab.f95: stability scale (z/L), UStar',zL,UStar,notUsedI)
@@ -305,10 +319,15 @@ CONTAINS
          ELSE
             TStar = (-H/UStar)
             L_MOD = (UStar**2)/(G_T_K*TStar)
-            zL = zzd/L_MOD
-            zL = MIN(0.5, MAX(-2., zL))
-            L_MOD = zzd/zL
-            z0L = z0m/L_MOD
+            IF (ABS(L_MOD) <= eps_fp) THEN
+               zL = 0.0D0
+               z0L = 0.0D0
+            ELSE
+               zL = zzd/L_MOD
+               zL = MIN(0.5, MAX(-2., zL))
+               L_MOD = zzd/zL
+               z0L = z0m/L_MOD
+            END IF
          END IF
          ! cap L_MOD to be within [-500,500]
          ! L_MOD = MIN(MAX(-2000., L_MOD), 2000.)

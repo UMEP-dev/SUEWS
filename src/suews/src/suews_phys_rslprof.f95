@@ -527,9 +527,15 @@ CONTAINS
 
             ! Step 6: Calculate mean variables above canopy
             !
-            psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
-            psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
-            psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+            IF (ABS(L_MOD_RSL) <= eps_fp) THEN
+               psimz0 = 0.0D0
+               psimza = 0.0D0
+               psihza = 0.0D0
+            ELSE
+               psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
+               psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+               psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+            END IF
 
             denom_RSL = LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz)
             denom_RSL = MAX(denom_RSL, 0.1D0) ! Prevent zero/negative denominator from RSL correction
@@ -539,7 +545,9 @@ CONTAINS
             ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
             UStar_RSL = MAX(0.001, UStar_RSL)
             ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
-            IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+            IF (ABS(L_MOD_RSL) > eps_fp) THEN
+               IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+            END IF
 
             ! TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_RSL
             ! qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_RSL
@@ -547,7 +555,11 @@ CONTAINS
                UStar_heat = MAX(0.15, UStar_RSL)
             ELSE
                ! use UStar_heat implied by RA_h using MOST
-               psihz0 = stab_psi_heat(StabilityMethod, z0v/L_MOD_RSL)
+               IF (ABS(L_MOD_RSL) <= eps_fp) THEN
+                  psihz0 = 0.0D0
+               ELSE
+                  psihz0 = stab_psi_heat(StabilityMethod, z0v/L_MOD_RSL)
+               END IF
                UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zd_RSL)/z0v) - psihza + psihz0)
             END IF
             TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
@@ -560,8 +572,13 @@ CONTAINS
             qa_gkg = RH2qa(avRH/100, Press_hPa, Temp_c)
 
             DO z = nz_can, nz
-               psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-               psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+               IF (ABS(L_MOD_RSL) <= eps_fp) THEN
+                  psimz = 0.0D0
+                  psihz = 0.0D0
+               ELSE
+                  psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+                  psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+               END IF
                dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))/kappa ! eqn. 3 in Theeuwes et al. (2019 BLM)
                ! eqn. 4 in Theeuwes et al. (2019 BLM)
                dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz)) &
@@ -589,8 +606,13 @@ CONTAINS
                   ! when using MOST, all vertical levels should larger than zd_RSL
                   ! REMOVED: This line creates non-monotonic arrays
                   ! IF (zarray(z) <= zd_RSL) zarray(z) = 1.01*(zd_RSL + z0_RSL)
-                  psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-                  psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+                  IF (ABS(L_MOD_RSL) <= eps_fp) THEN
+                     psimz = 0.0D0
+                     psihz = 0.0D0
+                  ELSE
+                     psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+                     psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+                  END IF
                   dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0)/kappa
                   dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza)/kappa
                   dataoutLineqRSL(z) = dataoutLineTRSL(z)

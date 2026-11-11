@@ -2,12 +2,21 @@
 
 import json
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from pathlib import Path
 
+import pytest
 import yaml
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.skipif(
+        os.name == "nt",
+        reason="These Linux workflow regressions require POSIX shell executable fixtures",
+    ),
+]
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = yaml.safe_load((ROOT / ".github/workflows/discourse-to-issue.yml").read_text())

@@ -984,6 +984,59 @@ fn apply_vertical_layers_overrides(
     }
 
     if spartacus_on {
+        let fractions = &site.spartacus_layer.building_frac[..nlayer];
+        if fractions
+            .iter()
+            .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+        {
+            return Err(format!("`{building_frac_at}` must be finite and in [0,1]"));
+        }
+        if fractions.windows(2).any(|pair| pair[1] > pair[0]) {
+            return Err(format!("`{building_frac_at}` cannot increase with height"));
+        }
+        for (name, value) in [
+            ("n_stream_sw_urban", site.spartacus.n_stream_sw_urban),
+            ("n_stream_lw_urban", site.spartacus.n_stream_lw_urban),
+            ("n_stream_sw_forest", site.spartacus.n_stream_sw_forest),
+            ("n_stream_lw_forest", site.spartacus.n_stream_lw_forest),
+        ] {
+            let path = ["properties", "spartacus", name];
+            if get_path(site_root, &path).is_some() && read_i32(site_root, &path).is_none() {
+                return Err(format!(
+                    "`{site_at}.properties.spartacus.{name}` must be a finite integer"
+                ));
+            }
+            if value < 1 {
+                return Err(format!(
+                    "`{site_at}.properties.spartacus.{name}` must be positive"
+                ));
+            }
+        }
+        let trees = site.lc_evetr.sfr + site.lc_dectr.sfr;
+        if trees > 1.0e-12 {
+            for (name, value) in [
+                (
+                    "n_vegetation_region_urban",
+                    site.spartacus.n_vegetation_region_urban,
+                ),
+                (
+                    "n_vegetation_region_forest",
+                    site.spartacus.n_vegetation_region_forest,
+                ),
+            ] {
+                let path = ["properties", "spartacus", name];
+                if get_path(site_root, &path).is_some() && read_i32(site_root, &path).is_none() {
+                    return Err(format!(
+                        "`{site_at}.properties.spartacus.{name}` must be a finite integer"
+                    ));
+                }
+                if !(1..=2).contains(&value) {
+                    return Err(format!(
+                        "`{site_at}.properties.spartacus.{name}` must be 1 or 2"
+                    ));
+                }
+            }
+        }
         // A short roof or wall list is reported as such, before naming the
         // first layer it leaves without an emissivity.
         for facet in ["roofs", "walls"] {

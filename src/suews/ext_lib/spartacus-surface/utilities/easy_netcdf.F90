@@ -25,7 +25,7 @@ module easy_netcdf
 
   use netcdf
   use parkind1,      only : jprb, jpib
-  use radiation_io,  only : nulout, nulerr, my_abort => radiation_abort
+  use radiation_io,  only : nulout, nulerr, my_abort => radiation_abort, radiation_error
 
   implicit none
 
@@ -183,6 +183,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error opening NetCDF file ', &
            &       file_name, ': ', trim(nf90_strerror(istatus))
       call my_abort('Error opening NetCDF file')
+      return
     end if
 
   end subroutine open_netcdf_file
@@ -349,6 +350,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            & var_name, ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_variable_id
@@ -374,6 +376,7 @@ contains
       write(nulerr,'(a,i0,a,a)') '*** Error inquiring about NetCDF variable with id ', &
            & ivarid, ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ndimlens(:) = 0
@@ -384,6 +387,7 @@ contains
              & j, ' of NetCDF variable with id ', ivarid, ': ', &
              & trim(nf90_strerror(istatus))
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -410,6 +414,7 @@ contains
         write(nulerr,'(a,a,a,a)') '*** Error ending define mode when writing ', &
              &    trim(this%file_name), ': ', trim(nf90_strerror(istatus))
         call my_abort('Error writing NetCDF file')
+        return
       end if
       this%is_define_mode = .false.
     end if
@@ -430,6 +435,7 @@ contains
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
     integer :: istatus
 
+    ndims = -1
     istatus = nf90_inq_varid(this%ncid, var_name, ivarid)
     if (istatus /= NF90_NOERR) then
       if (istatus == NF90_ENOTVAR) then
@@ -440,10 +446,12 @@ contains
         write(nulerr,'(a,a,a)') '*** Error inquiring about variable ', &
              &                  var_name, ': ', trim(nf90_strerror(istatus))
         call my_abort('Error reading NetCDF file')
+        return
       end if
       ndims = -1
     else
       call this%get_array_dimensions(ivarid, ndims, ndimlens)
+      if (radiation_error()) return
     end if
 
   end function get_rank
@@ -462,6 +470,7 @@ contains
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
     integer :: istatus
 
+    n = -1
     istatus = nf90_inq_varid(this%ncid, var_name, ivarid)
     if (istatus /= NF90_NOERR) then
       if (istatus == NF90_ENOTVAR) then
@@ -472,10 +481,12 @@ contains
         write(nulerr,'(a,a,a)') '*** Error inquiring about variable ', &
              &                  var_name, ': ', trim(nf90_strerror(istatus))
         call my_abort('Error reading NetCDF file')
+        return
       end if
       n = -1
     else
       call this%get_array_dimensions(ivarid, ndims, ndimlens)
+      if (radiation_error()) return
       n = ndimlens(ndims)
     end if
 
@@ -586,7 +597,9 @@ contains
 
     ! Inquire the ID, shape & size of the variable
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Compute number of elements of the variable in the file
     ntotal = 1
@@ -597,6 +610,7 @@ contains
     if (this%iverbose >= 3) then
       write(nulout,'(a,a)',advance='no') '  Reading ', var_name
       call this%print_variable_attributes(ivarid,nulout)
+      if (radiation_error()) return
     end if
 
     ! Abort if the number of elements is anything other than 1
@@ -604,6 +618,7 @@ contains
       write(nulerr,'(a,a,a,i0,a)') '*** Error reading NetCDF variable ', &
            &    var_name, ' with total length ', ntotal, ' as a scalar'
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Read variable
@@ -612,6 +627,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            &  var_name, ' as a scalar: ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_scalar
@@ -634,7 +650,9 @@ contains
 
     ! Inquire the ID, shape & size of the variable
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Compute number of elements of the slice in the file,
     ! i.e. excluding the slowest varying dimension, indexed by "index"
@@ -652,6 +670,7 @@ contains
       write(nulerr,'(a,a,a,i0,a)') '*** Error reading NetCDF variable ', &
            &    var_name, ' with slice length ', ntotal, ' as a scalar'
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     if (index < 1 .or. index > ndimlens(ndims)) then
@@ -659,6 +678,7 @@ contains
            &  ' of NetCDF variable ', &
            &    var_name, ' with outer dimension ', ndimlens(ndims)
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Read variable
@@ -669,6 +689,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            &  var_name, ' as a scalar: ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_scalar_indexed
@@ -689,7 +710,9 @@ contains
     integer                      :: j
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure variable has only one dimension in the file
     n = 1
@@ -700,6 +723,7 @@ contains
              & var_name, &
              & ' as a vector: all dimensions above the first must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -719,6 +743,7 @@ contains
     if (this%iverbose >= 3) then
       write(nulout,'(a,a,a,i0,a)',advance='no') '  Reading ', var_name, '(', n, ')'
       call this%print_variable_attributes(ivarid,nulout)
+      if (radiation_error()) return
     end if
 
     ! Read variable
@@ -727,6 +752,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            &  var_name, ' as a vector: ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_vector
@@ -747,7 +773,9 @@ contains
     integer                      :: j
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure variable has only one dimension in the file
     n = 1
@@ -758,6 +786,7 @@ contains
              & var_name, &
              & ' as a vector: all dimensions above the first must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -777,6 +806,7 @@ contains
     if (this%iverbose >= 3) then
       write(nulout,'(a,a,a,i0,a)',advance='no') '  Reading ', var_name, '(', n, ')'
       call this%print_variable_attributes(ivarid,nulout)
+      if (radiation_error()) return
     end if
 
     ! Read variable
@@ -785,6 +815,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            &  var_name, ' as a integer vector: ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_int_vector
@@ -808,7 +839,9 @@ contains
     integer                      :: j
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure variable has only one dimension aside from the last one
     n = 1
@@ -819,6 +852,7 @@ contains
              & var_name, &
              & ': all dimensions except the first and last must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -845,6 +879,7 @@ contains
            &  ' of NetCDF variable ', &
            &    var_name, ' with outer dimension ', ndimlens(ndims)
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Read variable
@@ -858,6 +893,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading 1D slice of NetCDF variable ', &
            &  var_name, ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_vector_indexed
@@ -890,7 +926,9 @@ contains
     end if
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure the variable has no more than two non-singleton
     ! dimensions
@@ -902,6 +940,7 @@ contains
            & var_name, &
            & ' as a matrix: all dimensions above the second must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -935,6 +974,7 @@ contains
         write(nulout,'(a,a,a,i0,a,i0,a)',advance='no') '  Reading ', var_name, '(', &
              &                            ndimlen2, ',', ndimlen1, ')'
         call this%print_variable_attributes(ivarid,nulout)
+        if (radiation_error()) return
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, tmp_matrix)
@@ -959,6 +999,7 @@ contains
         write(nulout,'(a,a,a,i0,a,i0,a)',advance='no') '  Reading ', var_name, '(', &
              &                            ndimlen1, ',', ndimlen2, ')'
         call this%print_variable_attributes(ivarid,nulout)
+        if (radiation_error()) return
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, matrix)
@@ -968,6 +1009,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            &    var_name, ' as a matrix: ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_matrix
@@ -1003,7 +1045,9 @@ contains
     end if
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure the variable has no more than two non-singleton
     ! dimensions aside from the last one
@@ -1015,6 +1059,7 @@ contains
            & var_name, &
            & ': all dimensions except the first, second and last must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -1023,6 +1068,7 @@ contains
            &  ' of NetCDF variable ', &
            &    var_name, ' with outer dimension ', ndimlens(ndims)
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Work out dimension lengths
@@ -1092,6 +1138,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading 2D slice of NetCDF variable ', &
            &    var_name, ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_matrix_indexed
@@ -1127,7 +1174,9 @@ contains
     end if
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure the variable has no more than three non-singleton
     ! dimensions
@@ -1139,6 +1188,7 @@ contains
            & var_name, &
            & ' as a 3D array: all dimensions above the third must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -1188,6 +1238,7 @@ contains
         write(nulout,'(a,a,a,i0,i0,i0,a)',advance='no') '  Reading ', var_name, &
              & ' (permuted dimensions ', i_permute_3d, ')'
         call this%print_variable_attributes(ivarid,nulout)
+        if (radiation_error()) return
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, var_permute)
@@ -1216,6 +1267,7 @@ contains
         write(nulout,'(a,a,a,i0,a,i0,a,i0,a)',advance='no') '  Reading ', var_name, &
              &            '(', ndimlen1, ',', ndimlen2, ',', ndimlen3, ')'
         call this%print_variable_attributes(ivarid,nulout)
+        if (radiation_error()) return
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, var)
@@ -1225,6 +1277,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            &  var_name, ' as a 3D array: ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_array3
@@ -1263,7 +1316,9 @@ contains
     end if
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure the variable has no more than three non-singleton
     ! dimensions aside from the last one
@@ -1275,6 +1330,7 @@ contains
            & var_name, &
            & ': all dimensions above the third must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -1283,6 +1339,7 @@ contains
            &  ' of NetCDF variable ', &
            &    var_name, ' with outer dimension ', ndimlens(ndims)
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Work out dimension lengths
@@ -1370,6 +1427,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading 3D slice of NetCDF variable ', &
            &  var_name, ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_array3_indexed
@@ -1405,7 +1463,9 @@ contains
     end if
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
 
     ! Ensure the variable has no more than three non-singleton
     ! dimensions
@@ -1417,6 +1477,7 @@ contains
            & var_name, &
            & ' as a 4D array: all dimensions above the third must be singletons'
         call my_abort('Error reading NetCDF file')
+        return
       end if
     end do
 
@@ -1472,6 +1533,7 @@ contains
         write(nulout,'(a,a,a,i0,i0,i0,a)',advance='no') '  Reading ', var_name, &
              & ' (permuted dimensions ', i_permute_4d, ')'
         call this%print_variable_attributes(ivarid,nulout)
+        if (radiation_error()) return
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, var_permute)
@@ -1501,6 +1563,7 @@ contains
         write(nulout,'(a,a,a,i0,a,i0,a,i0,a,i0,a)',advance='no') '  Reading ', var_name, &
              &            '(', ndimlen1, ',', ndimlen2, ',', ndimlen3,',', ndimlen4, ')'
         call this%print_variable_attributes(ivarid,nulout)
+        if (radiation_error()) return
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, var)
@@ -1510,6 +1573,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
            &  var_name, ' as a 4D array: ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_array4
@@ -1532,6 +1596,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error inquiring about variable ', var_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
     istatus = nf90_inquire_attribute(this%ncid, ivarid, attr_name, &
          &                           len = i_attr_len)
@@ -1539,6 +1604,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading size of attribute ', attr_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Allocatable character strings not supported one enough compilers
@@ -1550,6 +1616,7 @@ contains
     if (len(attr_str) < i_attr_len) then
       write(nulerr,'(a,a)') '*** Not enough space to read attribute ', attr_name
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     istatus = nf90_get_att(this%ncid, ivarid, attr_name, attr_str)
@@ -1557,6 +1624,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading attribute ', attr_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Pad with blanks since nf90_get_att does not do this
@@ -1584,12 +1652,14 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error inquiring about variable ', var_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
     istatus = nf90_get_att(this%ncid, ivarid, attr_name, attr)
     if (istatus /= NF90_NOERR) then
       write(nulerr,'(a,a,a,a)') '*** Error reading attribute ', attr_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
   end subroutine get_real_scalar_attribute
@@ -1613,6 +1683,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading size of global attribute ', attr_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Allocatable character strings not supported one enough compilers
@@ -1624,6 +1695,7 @@ contains
     if (len(attr_str) < i_attr_len) then
       write(nulerr,'(a,a)') '*** Not enough space to read global attribute ', attr_name
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     istatus = nf90_get_att(this%ncid, NF90_GLOBAL, attr_name, attr_str)
@@ -1631,6 +1703,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error reading global attribute ', attr_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
+      return
     end if
 
     ! Pad with blanks since nf90_get_att does not do this
@@ -1699,6 +1772,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error defining ', dim_name, &
            &   ' as a dimension: ', trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     if (this%iverbose >= 4) then
@@ -1742,6 +1816,7 @@ contains
         write(nulerr,'(a,a,a,a)') '*** Error inquiring ID of dimension ', &
              &             dim1_name, ': ', trim(nf90_strerror(istatus))
         call my_abort('Error writing NetCDF file')
+        return
       end if
       if (present(dim2_name)) then
         ! Variable is at least two dimensional
@@ -1751,6 +1826,7 @@ contains
           write(nulerr,'(a,a,a)') '*** Error inquiring ID of dimension ', &
                &           dim2_name, ': ', trim(nf90_strerror(istatus))
           call my_abort('Error writing NetCDF file')
+          return
         end if
         if (present(dim3_name)) then
           ! Variable is at least three dimensional
@@ -1760,6 +1836,7 @@ contains
             write(nulerr,'(a,a,a,a)') '*** Error inquiring ID of dimension ', &
                  &             dim3_name, ': ', trim(nf90_strerror(istatus))
             call my_abort('Error writing NetCDF file')
+            return
           end if
         end if
       end if
@@ -1785,6 +1862,7 @@ contains
       else
         write(nulerr,'(a,a,a)') '*** NetCDF data type "', data_type_name, '" not supported'
         call my_abort('Error writing NetCDF file')
+        return
       end if
     else if (present(is_double)) then
       data_type = NF90_DOUBLE
@@ -1801,6 +1879,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error defining variable ', var_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     ! Add optional attributes
@@ -1919,6 +1998,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing global attribute ', attr_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_global_attribute
@@ -1934,6 +2014,7 @@ contains
     integer :: istatus, ivarid
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
 
     istatus = nf90_put_att(this%ncid, ivarid, trim(attr_name), trim(attr_str))
 
@@ -1941,6 +2022,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing attribute ', attr_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_attribute
@@ -1961,14 +2043,18 @@ contains
 
     ! If we are in define mode, exit define mode
     call this%end_define_mode()
+    if (radiation_error()) return
 
     ! Check the variable is a scalar
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    if (radiation_error()) return
     if (ntotal /= 1) then
       write(nulerr,'(a,a,a,i0)') '*** Error: attempt to write scalar to ', &
            &                 var_name, ' which has total length ', ntotal
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     ! Save the scalar
@@ -1977,6 +2063,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing scalar ', var_name, ': ', &
            &                    trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_real_scalar
@@ -1996,14 +2083,18 @@ contains
 
     ! If we are in define mode, exit define mode
     call this%end_define_mode()
+    if (radiation_error()) return
 
     ! Check the variable is a scalar
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
+    if (radiation_error()) return
     if (index < 1 .or. index > ndimlens(ndims)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write scalar to element ', &
            &  index, ' of ', var_name, ' which has outer dimension  ', ndimlens(ndims)
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     ! Save the scalar
@@ -2014,6 +2105,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing scalar to ', var_name, ': ', &
            &                    trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_real_scalar_indexed
@@ -2031,14 +2123,18 @@ contains
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
 
     call this%end_define_mode()
+    if (radiation_error()) return
 
     ! Check the vector is of the right length
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    if (radiation_error()) return
     if (ntotal /= size(var,kind=jpib)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write vector of length ', &
            & size(var), ' to ', var_name, ' which has total length ', ntotal
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     ! Save the vector
@@ -2047,6 +2143,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing vector ', var_name, ': ', &
            &                    trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_real_vector
@@ -2063,14 +2160,18 @@ contains
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
 
     call this%end_define_mode()
+    if (radiation_error()) return
 
     ! Check the vector is of the right length
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    if (radiation_error()) return
     if (ntotal /= size(var,kind=jpib)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write vector of length ', &
            & size(var), ' to ', var_name, ' which has total length ', ntotal
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     ! Save the vector
@@ -2079,6 +2180,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing vector ', var_name, ': ', &
            &                    trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_int_vector
@@ -2099,20 +2201,25 @@ contains
     integer :: vcount(NF90_MAX_VAR_DIMS)
 
     call this%end_define_mode()
+    if (radiation_error()) return
 
     ! Check the vector is of the right length
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    if (radiation_error()) return
     ntotal = ntotal / ndimlens(ndims)
     if (ntotal /= size(var,kind=jpib)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write vector of length ', &
            & size(var), ' to slice of ', var_name, ' which has length ', ntotal
       call my_abort('Error writing NetCDF file')
+      return
     end if
     if (index < 1 .or. index > ndimlens(ndims)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write vector to slice ', &
            &  index, ' of ', var_name, ' which has outer dimension  ', ndimlens(ndims)
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     ! Save the vector
@@ -2125,6 +2232,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing vector to ', var_name, ': ', &
            &                    trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_real_vector_indexed
@@ -2154,9 +2262,12 @@ contains
     end if
 
     call this%end_define_mode()
+    if (radiation_error()) return
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    if (radiation_error()) return
 
     nvarlen = size(var,1)*size(var,2)
 
@@ -2166,6 +2277,7 @@ contains
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write matrix of total size ', &
            & nvarlen, ' to ', var_name, ' which has total size ', ntotal
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     if (do_transpose) then
@@ -2190,6 +2302,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing matrix ', var_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_real_matrix
@@ -2223,9 +2336,12 @@ contains
     end if
 
     call this%end_define_mode()
+    if (radiation_error()) return
 
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    if (radiation_error()) return
 
     nvarlen = size(var,1)*size(var,2)
 
@@ -2236,6 +2352,7 @@ contains
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write matrix of total size ', &
            & nvarlen, ' to ', var_name, ' which has total size ', ntotal
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     vstart(1:ndims-1) = 1
@@ -2265,6 +2382,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing matrix ', var_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_real_matrix_indexed
@@ -2304,15 +2422,19 @@ contains
     end if
 
     call this%end_define_mode()
+    if (radiation_error()) return
 
     ! Check total size
     call this%get_variable_id(var_name, ivarid)
+    if (radiation_error()) return
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    if (radiation_error()) return
     nvarlen = size(var,1)*size(var,2)*size(var,3)
     if (ntotal /= size(var,kind=jpib)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write array of total size ', &
            & nvarlen, ' to ', var_name, ' which has total size ', ntotal
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
     if (do_permute) then
@@ -2350,6 +2472,7 @@ contains
       write(nulerr,'(a,a,a,a)') '*** Error writing array ', var_name, &
            &                    ': ', trim(nf90_strerror(istatus))
       call my_abort('Error writing NetCDF file')
+      return
     end if
 
   end subroutine put_real_array3

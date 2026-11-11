@@ -215,6 +215,10 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: notUsed = -55
       ! REAL(KIND(1d0)),PARAMETER :: notUsedi=-55.5
 
+      RS = -999.0D0
+      gsc = -999.0D0
+      gfunc = -999.0D0
+      g_lai = -999.0D0
       ! initialisation
       g_dq = 0.5
       g_ta = 0.5
@@ -411,6 +415,7 @@ CONTAINS
 
       ELSEIF (gsModel < 1 .OR. gsModel > 4) THEN
          CALL errorHint(71, 'Value of gsModel not recognised.', notUsed, NotUsed, gsModel, modState)
+         RETURN
       END IF
 
       RS = 1./(gsc/1000.) ![s m-1]

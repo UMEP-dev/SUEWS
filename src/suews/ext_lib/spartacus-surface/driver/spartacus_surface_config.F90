@@ -131,6 +131,7 @@ contains
         write(nulerr,'(a,a,a)') '*** Error: namelist file "', &
              &                trim(file_name), '" not found'
         call radiation_abort('Driver configuration error')
+        return
       end if
     else
       ! Read the radiation_driver namelist, noting that it is not an

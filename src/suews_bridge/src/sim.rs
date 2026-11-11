@@ -1371,6 +1371,44 @@ mod tests {
     }
 
     #[test]
+    fn native_spartacus_failure_preserves_output_buffers() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../supy/sample_data/sample_config.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+        let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        // Exercise the native API, bypassing the YAML validator deliberately:
+        // callers of run_simulation_into can supply typed in-memory inputs.
+        input.config.net_radiation_method = 1003;
+        input.site.spartacus_layer.building_frac[0] = 0.2;
+        input.site.spartacus_layer.building_frac[1] = 0.4;
+        let sentinel = 12345.0;
+        let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+        let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+        let result = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        );
+        assert!(matches!(
+            result,
+            Err(BridgeError::SimulationError { code: 111, .. })
+        ));
+        // No failed or later timestep may publish any output, including time.
+        assert!(data.iter().all(|value| *value == sentinel));
+        assert!(datetime.iter().all(|value| *value == sentinel));
+    }
+
+    #[test]
     fn dyohm_building_validation_uses_building_not_wall() {
         let mut run_cfg = fixture_run_config(8);
         run_cfg.site.ehc.dz_wall[0] = 0.0;

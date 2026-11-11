@@ -15,6 +15,7 @@
 !   107: Stability - Reserved or unsupported psi/phi method (GH#1783)
 !   108: Stability - W16 phi functions are not implemented for RSL (GH#1784)
 !   109: SPARTACUS - Invalid effective direct ground or roof albedo (GH#1857)
+!   111: SPARTACUS - Fatal solver/configuration error
 !
 ! Thread Safety:
 !   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c

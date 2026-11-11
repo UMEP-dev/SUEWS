@@ -296,7 +296,7 @@ help:
 	@echo $(SUEWS_VER)
 	@echo $(FC_VER)
 
-libspartacus: $(FILE_SRC_UTIL_SPTCS) $(FILE_SRC_RADTOOL_SPTCS) $(FILE_SRC_RAD_SPTCS)
+libspartacus: src/suews_ctrl_error_tls.o $(FILE_SRC_UTIL_SPTCS) $(FILE_SRC_RADTOOL_SPTCS) $(FILE_SRC_RAD_SPTCS)
 	mkdir -p $(DIR_LIB_SUEWS)
 	ar r lib/$(LIBSPTCS) $^
 

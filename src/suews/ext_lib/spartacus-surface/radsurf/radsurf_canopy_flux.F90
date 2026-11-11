@@ -192,6 +192,7 @@ contains
       write(nulerr,'(a)') '*** Error: spectral resolution mismatch when scaling canopy fluxes'
       print *, ubound(factor,1), this%nspec
       call radiation_abort()
+      return
     end if
 
     ncol = this%ncol
@@ -340,6 +341,7 @@ contains
     if (.not. allocated(this%ground_dn)) then
       write(nulerr,'(a)') 'Attempt to sum canopy fluxes to an unallocated canopy flux object'
       call radiation_abort()
+      return
     end if
 
     this%ground_dn  = flux1%ground_dn + flux2%ground_dn

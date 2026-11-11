@@ -51,7 +51,7 @@ use module_c_api_heat_state, only: heat_state_unpack
 use module_c_api_roughness, only: roughness_state_unpack
 use module_c_api_stebbs_state, only: stebbs_state_unpack
 use module_c_api_nhood, only: nhood_state_unpack
-use SUEWS_Driver, only: SUEWS_cal_multitsteps_dts
+use SUEWS_Driver, only: sync_error_to_state, SUEWS_cal_multitsteps_dts
 
 implicit none
 
@@ -354,16 +354,21 @@ subroutine suews_cal_multitsteps_c( &
       state_local, output_flat(1:len_sim_i, 1:ncols_data), &
       datetime_flat(1:len_sim_i, 1:n_datetime_cols))
 
+   ! Preserve TLS-only failures, including layout validation early exits.
+   call sync_error_to_state(state_local, timer_local)
+
+   if (state_local%errorState%flag) then
+      sim_err_code = int(state_local%errorState%code, c_int)
+      call copy_to_c_buffer(state_local%errorState%message, sim_err_message, sim_err_message_len)
+      return
+   end if
+
    call pack_timer(timer_local, timer_out, timer_out_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
    end if
 
-   if (state_local%errorState%flag) then
-      sim_err_code = int(state_local%errorState%code, c_int)
-      call copy_to_c_buffer(state_local%errorState%message, sim_err_message, sim_err_message_len)
-   end if
 
    call pack_kernel_warnings( &
       state_local, warn_total, warn_stored, warn_max, warn_timer, warn_text, warn_text_len)

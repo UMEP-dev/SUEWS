@@ -47,6 +47,7 @@ contains
 
     if (lw_spectral_props%nspec > 1) then
       call radiation_abort('Simple longwave spectrum only possible with one input spectral interval')
+      return
     end if
     
     lw_spectral_props%ground_emission(1,istartcol:iendcol) = StefanBoltzmann &

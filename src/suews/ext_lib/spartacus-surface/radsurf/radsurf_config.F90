@@ -187,9 +187,11 @@ contains
     if (present(file_name) .and. present(unit)) then
       write(nulerr,'(a)') '*** Error: cannot specify both file_name and unit in call to config_type%read'
       call radiation_abort('Radiation configuration error')
+      return
     else if (.not. present(file_name) .and. .not. present(unit)) then
       write(nulerr,'(a)') '*** Error: neither file_name nor unit specified in call to config_type%read'
       call radiation_abort('Radiation configuration error')
+      return
     end if
 
     if (present(file_name)) then
@@ -212,6 +214,7 @@ contains
         write(nulerr,'(a,a,a)') '*** Error: namelist file "', &
              &                trim(file_name), '" not found'
         call radiation_abort('Radiation configuration error')
+        return
       end if
     else
       read(unit=iunit, iostat=iosread, nml=radsurf)
@@ -226,10 +229,12 @@ contains
                &      trim(file_name), '"'
           close(unit=iunit)
           call radiation_abort('Radiation configuration error')
+          return
         else
           write(nulerr,'(a,i0)') '*** Error reading namelist "radsurf" from unit ', &
                &      iunit
           call radiation_abort('Radiation configuration error')
+          return
         end if
       end if
 
@@ -245,6 +250,8 @@ contains
   
   subroutine consolidate_config(this)
 
+    use radiation_io, only : radiation_abort
+
     use yomhook,      only : lhook, dr_hook
 
     class(config_type), intent(inout) :: this
@@ -252,6 +259,19 @@ contains
     real(jprb) :: hook_handle
     
     if (lhook) call dr_hook('radsurf_config:consolidate',0,hook_handle)
+
+    if (min(this%n_stream_sw_forest, this%n_stream_sw_urban, &
+         & this%n_stream_lw_forest, this%n_stream_lw_urban) < 1) then
+      call radiation_abort('SPARTACUS stream counts must be positive')
+      return
+    end if
+    if (this%do_vegetation) then
+      if (min(this%n_vegetation_region_forest, this%n_vegetation_region_urban) < 1 &
+           & .or. max(this%n_vegetation_region_forest, this%n_vegetation_region_urban) > 2) then
+        call radiation_abort('SPARTACUS vegetation region counts must be 1 or 2')
+        return
+      end if
+    end if
 
     this%nswinternal = this%nsw
     this%nlwinternal = this%nlw

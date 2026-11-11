@@ -4099,6 +4099,25 @@ class SUEWSConfig(BaseModel):
                         f"must match nlayer ({nlayer_val})"
                     )
 
+            if self._needs_spartacus_validation():
+                fractions = _unwrap_value(vertical_layers.building_frac)
+                if any(not np.isfinite(x) or x < 0 or x > 1 for x in fractions):
+                    raise ValueError(f"{site_name}: building_frac must be finite and in [0,1]")
+                if any(fractions[i] > fractions[i - 1] for i in range(1, len(fractions))):
+                    raise ValueError(f"{site_name}: building_frac cannot increase with height")
+                spartacus = site.properties.spartacus
+                for name in ("n_stream_sw_urban", "n_stream_lw_urban",
+                             "n_stream_sw_forest", "n_stream_lw_forest"):
+                    if _unwrap_value(getattr(spartacus, name)) < 1:
+                        raise ValueError(f"{site_name}: {name} must be positive")
+                land_cover = site.properties.land_cover
+                trees = sum(_unwrap_value(getattr(land_cover, name).sfr)
+                            for name in ("evetr", "dectr"))
+                if trees > 1e-12:
+                    for name in ("n_vegetation_region_urban", "n_vegetation_region_forest"):
+                        if _unwrap_value(getattr(spartacus, name)) not in (1, 2):
+                            raise ValueError(f"{site_name}: {name} must be 1 or 2")
+
             # Validate building scales array
             if (
                 hasattr(vertical_layers, "building_scale")

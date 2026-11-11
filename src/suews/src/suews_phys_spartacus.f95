@@ -40,7 +40,7 @@ MODULE module_phys_spartacus
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
    USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
    USE module_phys_beers, ONLY: diffusefraction
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_type, ONLY: error_state
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
 
@@ -412,6 +412,28 @@ CONTAINS
       wall_in_sw_spc = -999.0D0
       wall_in_lw_spc = -999.0D0
       dataOutLineSPARTACUS = -999.0D0
+      IF (ANY(.NOT. IEEE_IS_FINITE(building_frac)) .OR. &
+          ANY(building_frac < 0D0) .OR. ANY(building_frac > 1D0)) THEN
+         CALL set_supy_error(111, 'SPARTACUS: building_frac must be finite and in [0,1]')
+         RETURN
+      END IF
+      IF (ANY(building_frac(2:nlayer) > building_frac(1:nlayer-1))) THEN
+         CALL set_supy_error(111, 'SPARTACUS: building_frac cannot increase with height')
+         RETURN
+      END IF
+      IF (MIN(n_stream_sw_urban, n_stream_lw_urban, n_stream_sw_forest, n_stream_lw_forest) < 1) THEN
+         CALL set_supy_error(111, 'SPARTACUS: stream counts must be positive')
+         RETURN
+      END IF
+      ! Unvegetated urban columns always use one solver region, independently
+      ! of the configured vegetation count (radsurf ITileUrban contract).
+      IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > eps_fp) THEN
+         IF (MIN(n_vegetation_region_urban, n_vegetation_region_forest) < 1 .OR. &
+             MAX(n_vegetation_region_urban, n_vegetation_region_forest) > 2) THEN
+            CALL set_supy_error(111, 'SPARTACUS: vegetation region counts must be 1 or 2')
+            RETURN
+         END IF
+      END IF
       IF (use_sw_direct_albedo) THEN
          ! Trees use vegetation SSA, not the ground direct-albedo multiplier.
          DO surface = 1, NSURF
@@ -539,6 +561,7 @@ CONTAINS
       config%n_stream_sw_forest = n_stream_sw_forest
       config%n_stream_lw_forest = n_stream_lw_forest
       CALL config%consolidate()
+      IF (supy_error_flag()) RETURN
 
       !!!!!!!!!!!!!! allocate and set canopy_props !!!!!!!!!!!!!!
 
@@ -859,6 +882,7 @@ CONTAINS
             ! Gas optics and spectral emission
             CALL calc_simple_spectrum_lw(config, canopy_props, lw_spectral_props, &
                  &                       istartcol, iendcol)
+            IF (supy_error_flag()) RETURN
          END IF
          ! Call the SPARTACUS-Surface radiation scheme
          CALL radsurf(config, canopy_props, &
@@ -867,17 +891,23 @@ CONTAINS
               &       istartcol, iendcol, &
               &       sw_norm_dir, sw_norm_diff, &
               &       lw_internal, lw_norm)
+         IF (supy_error_flag()) RETURN
          IF (config%do_sw) THEN
             ! Scale the normalized fluxes
             CALL sw_norm_dir%SCALE(canopy_props%nlay, &
             &  top_flux_dn_direct_sw)
+            IF (supy_error_flag()) RETURN
             CALL sw_norm_diff%SCALE(canopy_props%nlay, &
             &  top_flux_dn_sw - top_flux_dn_direct_sw)
+            IF (supy_error_flag()) RETURN
             CALL sw_flux%SUM(sw_norm_dir, sw_norm_diff)
+            IF (supy_error_flag()) RETURN
          END IF
          IF (config%do_lw) THEN
             CALL lw_norm%SCALE(canopy_props%nlay, top_flux_dn_lw)
+            IF (supy_error_flag()) RETURN
             CALL lw_flux%SUM(lw_internal, lw_norm)
+            IF (supy_error_flag()) RETURN
          END IF
       END DO
 

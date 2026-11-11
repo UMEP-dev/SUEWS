@@ -5,6 +5,16 @@ import subprocess
 import tempfile
 import unittest
 
+import pytest
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.skipif(
+        os.name == "nt",
+        reason="These Linux workflow regressions require POSIX shell executable fixtures",
+    ),
+]
+
 
 class MakefileTests(unittest.TestCase):
     def test_intel_mac_expansion_preserves_compiler_library(self):
@@ -29,7 +39,7 @@ class MakefileTests(unittest.TestCase):
             result = subprocess.run(
                 ["make", "--no-print-directory", "-f", str(makefile), "probe",
                  "OS=", "UNAME_S=Darwin", "UNAME_m=x86_64", f"FC={compiler}"],
-                env=os.environ, capture_output=True, text=True)
+                env=os.environ, capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.strip(), str(archive))
             self.assertEqual(dylib.read_text(encoding="utf-8"), "compiler-owned sentinel")

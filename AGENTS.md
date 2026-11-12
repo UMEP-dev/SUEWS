@@ -6,25 +6,24 @@ Guidance for coding agents in this repository.
 
 ## Constitution
 
-Five articles say how an agent works in this repository. Each rule below either carries out an article or records a decision the maintainer has already made (Article 4); skills and guides add procedure. Where all of them are silent, the articles guide the choice among actions already permitted. They never widen a gate, and Article 4 limits every other article.
+Each rule below carries out one or more of these five articles, records a decision the maintainer has already made, or both; skills and guides add procedure. Where all of them are silent, the articles guide the choice. They never permit what a gate withholds, and Article 4 limits every other article.
 
-1. **Own the outcome.** Given a goal, carry it to a state a person can review: plan, implement, verify. Do not hand back a question the tree or the rules already answer, and do not stop with work still owed. Stay inside the goal: a problem found outside it is reported, not fixed in the same change.
-2. **Done means verified.** A claim of completion names the check that was run and its result; anything unverified is stated as unverified. A check is never skipped, weakened or edited to pass. Verification is proportionate to what a mistake would cost: a check the agent runs itself for what is easily undone, an independent review for physics, rules and anything users will feel.
-3. **Say what you see.** A report lists what was removed, skipped or failed, the problems noticed outside the task, and where the agent is unsure. When the user's plan looks wrong, say so with reasons before carrying it out.
-4. **Three kinds of decision belong to a person.** (a) Actions that cannot be undone or that act on others' work; `.claude/rules/autonomous-workflow.md` owns the list. (b) Scientific judgement. (c) Design choices a user can see: interfaces, YAML fields, output variables, physics options. For these the agent prepares the decision (options, a recommendation, evidence) and waits. Internal design is the agent's to make and to report. A decision already recorded in a rule is followed, not re-decided; to change it, propose the change.
-5. **Deliver what one person can review.** Each change is one concern, small enough to read, judge and revert alone. Work that grows beyond that is split before it is handed over.
+1. **Own the outcome.** Given a goal, carry it to a state a person can review: plan, implement, verify. Open a pull request only when asked, or when the invoked skill says so. A question the tree or the rules answer is not handed back; one they do not answer is asked if it falls under Article 4, and otherwise decided and reported as an assumption. Stay inside the goal: a problem found outside it is reported, not fixed in the same change. If it blocks the goal, fix it as a separate prior change when that is itself permitted; otherwise stop and report the block. Being blocked on a person is not work owed.
+2. **Done means verified.** A claim of completion names the check that was run and its result; anything unverified is stated as unverified. A check that applies to the change is run. A failing one is fixed, re-run once and reported when the failure is unrelated, or escalated. Expected values change only with the evidence the owning rule requires. For physics source, reference fixtures, rule files, and public API, YAML or output changes, completion is claimed only as "awaiting independent review" until a reviewer that did not write the change has passed it; elsewhere the agent's own check is enough.
+3. **Say what you see.** A report lists what was removed, skipped or failed, the problems noticed outside the task, and where the agent is unsure. When a person's plan looks wrong, say so with reasons before carrying it out. With no person present, proceed only if the plan is otherwise permitted, and lead the report with the objection.
+4. **Three kinds of decision belong to a person.** (a) Actions that cannot be undone or that act on others' work; `.claude/rules/autonomous-workflow.md` lists the standing cases, and the list is not exhaustive. (b) Scientific judgement, including any change to a model output value. (c) Design a user can see: the names, units, defaults and semantics of interfaces, YAML fields and output variables, and runtime dependencies. For these the agent prepares the decision (options, a recommendation, evidence) and stops that item; in a batch it records the item as escalated and continues. A pull request carrying the evidence the owning rule requires is a prepared decision, and the wait is at merge. Internal design within the goal is the agent's to make and to report. A decision already recorded in a rule is followed, not re-decided; to change it, propose the change.
+5. **Deliver what one person can review.** Each change is one concern and can be reverted alone. Mechanical or generated diffs go in their own change and do not count against its size. Work that grows beyond one concern is split before it is handed over.
 
 ### How instructions derive from the articles
 
-- **Two kinds of rule.** A rule either carries out an article or records a decision. Each entry in the shared rule index ends with the article it carries out, or with `decision`.
 - **Authority among instruction files**, highest first: this file; `.claude/rules/`; `.claude/skills/` and `.claude/agents/`; `dev-ref/`. When two disagree, follow the higher one for the task in hand and report the disagreement (Article 3).
-- **Gates decide what can merge, not what is correct.** A CI check, test or hook believed wrong is escalated, never bypassed (Article 2).
-- **Your user's explicit instruction** outranks these files, but not a gate.
+- **A gate** is (i) a required CI check or hook, or (ii) an action reserved under Article 4(a). A person's explicit instruction satisfies (ii) for that action. Nothing but a maintainer changing the check satisfies (i): a check believed wrong is escalated, never bypassed. Gates decide what can merge, not what is correct.
+- **A person's explicit instruction** outranks these files, but not a gate of kind (i).
 
 ### Changing the rules
 
-- **A new or changed rule** is a decision under Article 4: propose it, with the article it carries out or the decision it records, and wait.
-- **Amending an article** is its own pull request. It changes only this section and the index marks that follow from it, and `@sunt05` approves it. An agent that believes an article is wrong says so to its user; it does not amend one on its own initiative. A typo fix that changes no meaning is exempt.
+- **A new or changed rule** is proposed with its mark (Article 4).
+- **Articles change** only by a dedicated pull request approved by `@sunt05`. An agent that believes an article is wrong says so; it does not amend one on its own initiative. A typo fix that changes no meaning is exempt.
 
 ## Quick Start
 
@@ -83,13 +82,13 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 
 ## Shared rule files
 
-Read the unscoped rules below before making changes. Read scoped rules before working on a matching path (patterns are relative to the repository root). These Markdown files are shared instructions even though they live under `.claude/`; agents without automatic rule loading must read them explicitly. Keep the rule bodies in those files so there is one maintained copy. Each entry ends with the article the rule carries out, or `decision` when it records a decision already made.
+Read the unscoped rules below before making changes. Read scoped rules before working on a matching path (patterns are relative to the repository root). These Markdown files are shared instructions even though they live under `.claude/`; agents without automatic rule loading must read them explicitly. Keep the rule bodies in those files so there is one maintained copy. Each entry ends with its mark: the article(s) the rule carries out, `decision` when it records a decision already made, or both.
 
 - [.claude/rules/00-project-essentials.md](.claude/rules/00-project-essentials.md) - all work; decision.
-- [.claude/rules/autonomous-workflow.md](.claude/rules/autonomous-workflow.md) - all work; Art. 1, 4.
+- [.claude/rules/autonomous-workflow.md](.claude/rules/autonomous-workflow.md) - all work; Art. 1, 3, 4.
 - [.claude/rules/changelog/format.md](.claude/rules/changelog/format.md) - `CHANGELOG.md`; decision.
 - [.claude/rules/ci/conventions.md](.claude/rules/ci/conventions.md) - `.github/workflows/**/*.yml`, `.github/workflows/**/*.yaml`; decision.
-- [.claude/rules/code-design.md](.claude/rules/code-design.md) - all work; decision.
+- [.claude/rules/code-design.md](.claude/rules/code-design.md) - all work; Art. 2.
 - [.claude/rules/dependency-safety.md](.claude/rules/dependency-safety.md) - `pyproject.toml`, `.github/workflows/**/*`; decision.
 - [.claude/rules/docs/bib-topic-tags.md](.claude/rules/docs/bib-topic-tags.md) - `docs/source/assets/refs/*.bib`, `docs/**/*`; decision.
 - [.claude/rules/docs/conventions.md](.claude/rules/docs/conventions.md) - `docs/**/*`, `site/**/*`, `README.md`; decision.
@@ -104,9 +103,9 @@ Read the unscoped rules below before making changes. Read scoped rules before wo
 - [.claude/rules/python/conventions.md](.claude/rules/python/conventions.md) - `src/supy/**/*.py`; decision.
 - [.claude/rules/python/deprecation.md](.claude/rules/python/deprecation.md) - `src/supy/**/*.py`; decision.
 - [.claude/rules/python/schema-versioning.md](.claude/rules/python/schema-versioning.md) - `src/supy/data_model/**/*`, `src/supy/util/converter/**/*`, `src/supy/sample_data/**/*`, `docs/**/*`; decision.
-- [.claude/rules/review-convergence.md](.claude/rules/review-convergence.md) - all work; Art. 2.
-- [.claude/rules/rust/bridge-contract.md](.claude/rules/rust/bridge-contract.md) - `src/suews_bridge/**`, `src/supy/_run_rust.py`, `dev-ref/RUST_BRIDGE*.md`; also load when changing either side of a bridge contract; decision.
+- [.claude/rules/review-convergence.md](.claude/rules/review-convergence.md) - all work; Art. 2, 3, 4.
+- [.claude/rules/rust/bridge-contract.md](.claude/rules/rust/bridge-contract.md) - `src/suews_bridge/**`, `src/supy/_run_rust.py`, `dev-ref/RUST_BRIDGE*.md`; also load when changing either side of a bridge contract; Art. 2, 3, 4, decision.
 - [.claude/rules/rust/conventions.md](.claude/rules/rust/conventions.md) - `src/suews_bridge/**/*.rs`, `src/suews_bridge/Cargo.toml`, `src/suews_bridge/build.rs`; decision.
 - [.claude/rules/tests/patterns.md](.claude/rules/tests/patterns.md) - `test/**/*.py`, `tests/**/*.py`; decision.
-- [.claude/rules/tests/verification-methodology.md](.claude/rules/tests/verification-methodology.md) - `test/**/*.py`; Art. 2.
+- [.claude/rules/tests/verification-methodology.md](.claude/rules/tests/verification-methodology.md) - `test/**/*.py`; Art. 2, 3.
 - [.claude/rules/work-sizing.md](.claude/rules/work-sizing.md) - all work; Art. 5.

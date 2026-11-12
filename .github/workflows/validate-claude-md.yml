@@ -5,20 +5,32 @@ on:
     paths:
       - 'AGENTS.md'
       - 'CLAUDE.md'
+      - '.claude/README.md'
+      - '.claude/settings.json'
       - '.claude/scripts/validate-claude-md.py'
       - '.claude/scripts/test_validate_agents_md.py'
-      - '.github/workflows/validate-claude-md.yml'
+      - '.claude/scripts/*.sh'
+      - '.claude/hooks/**'
+      - '.claude/agents/**'
       - '.claude/rules/**'
+      - 'dev-ref/CODEBASE_AUDIT_PROTOCOL.md'
+      - '.github/workflows/validate-claude-md.yml'
   push:
     branches:
       - master
     paths:
       - 'AGENTS.md'
       - 'CLAUDE.md'
+      - '.claude/README.md'
+      - '.claude/settings.json'
       - '.claude/scripts/validate-claude-md.py'
       - '.claude/scripts/test_validate_agents_md.py'
-      - '.github/workflows/validate-claude-md.yml'
+      - '.claude/scripts/*.sh'
+      - '.claude/hooks/**'
+      - '.claude/agents/**'
       - '.claude/rules/**'
+      - 'dev-ref/CODEBASE_AUDIT_PROTOCOL.md'
+      - '.github/workflows/validate-claude-md.yml'
 
 permissions:
   contents: read
@@ -36,11 +48,11 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
       with:
-        python-version: '3.x'
+        python-version: '3.12'
 
     - name: Check shared instruction integrity
       run: |
-        echo "Validating AGENTS.md and the compatibility import..."
+        echo "Validating AGENTS.md, CLAUDE.md, and shared .claude governance..."
         python -m unittest discover -s .claude/scripts -p test_validate_agents_md.py
         python .claude/scripts/validate-claude-md.py
 
@@ -48,7 +60,6 @@ jobs:
       run: |
         echo "Checking for content reduction..."
 
-        # Get line counts
         CURRENT_LINES=$(wc -l < AGENTS.md)
         git show HEAD~1:AGENTS.md > AGENTS.md.previous 2>/dev/null || git show HEAD~1:CLAUDE.md > AGENTS.md.previous 2>/dev/null || echo "First commit" > AGENTS.md.previous
         PREVIOUS_LINES=$(wc -l < AGENTS.md.previous)
@@ -56,7 +67,6 @@ jobs:
         echo "Previous version: $PREVIOUS_LINES lines"
         echo "Current version: $CURRENT_LINES lines"
 
-        # Check if this is an intentional restructuring (rule files present)
         REQUIRED_REFS=(
           ".claude/rules/00-project-essentials.md"
           ".claude/rules/fortran/conventions.md"
@@ -74,7 +84,6 @@ jobs:
           fi
         done
 
-        # Calculate reduction percentage
         if [ "$PREVIOUS_LINES" -gt 0 ]; then
           REDUCTION=$((PREVIOUS_LINES - CURRENT_LINES))
           PERCENT=$((REDUCTION * 100 / PREVIOUS_LINES))
@@ -83,10 +92,6 @@ jobs:
             if [ "$ALL_REFS_EXIST" = true ]; then
               echo "Large reduction detected ($PERCENT%), but required rule files exist"
               echo "   This appears to be an intentional restructuring (rules-based organisation)"
-              echo "   Content moved to .claude/rules/:"
-              for ref in "${REQUIRED_REFS[@]}"; do
-                echo "   - $ref"
-              done
             else
               echo "WARNING: AGENTS.md reduced by $PERCENT% ($REDUCTION lines)"
               echo "This might indicate content loss!"

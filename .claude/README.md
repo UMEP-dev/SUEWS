@@ -1,274 +1,175 @@
-# Claude Code Workspace Directory
+# Agent Workspace Directory
 
-This directory contains all Claude Code-specific documentation, plans, and configuration for SUEWS development.
+Shared governance, path-scoped rules, skills, review subagents, hooks, and validation scripts for coding agents working in SUEWS (`AGENTS.md` is the canonical root entry point; `CLAUDE.md` is a thin `@AGENTS.md` compatibility loader).
 
 ## Directory Structure
 
-```
+```text
 .claude/
-├── rules/                 # AUTO-LOADED conventions (path-conditional)
-│   ├── 00-project-essentials.md    # Always loaded
-│   ├── fortran/
-│   │   └── conventions.md          # When editing src/suews/**/*.f9*
-│   ├── python/
-│   │   ├── conventions.md          # When editing src/supy/**/*.py
-│   │   └── config-patterns.md      # When editing src/supy/**/*.py
-│   ├── docs/
-│   │   ├── conventions.md          # When editing docs/**/*, site/**/*, README.md
-│   │   ├── release-docs-sanity.md  # When editing docs/**/*
-│   │   └── bib-topic-tags.md       # When editing docs/**/*
-│   ├── tests/
-│   │   └── patterns.md             # When editing test*/**/*.py
-│   ├── changelog/
-│   │   └── format.md               # When editing CHANGELOG.md
-│   └── ci/
-│       └── conventions.md          # When editing .github/workflows/**/*
-│
-├── hooks/                 # Claude Code hooks (auto-triggered)
-│   ├── session-start.sh          # SessionStart: environment setup
-│   ├── validate-tutorial.sh      # PostToolUse: tutorial validation
-│   └── pre-commit-check.sh       # PreToolUse: quality gate on git commit
-│
-├── skills/                # Invoked via /skill-name (workflow + operation tiers)
-│   │                      # -- Workflow skills (orchestrators) --
-│   ├── fix-issue/         # Super-workflow: issue -> PR-ready branch
-│   ├── triage-issue/      # Issue governance (audit/rewrite/split)
-│   ├── triage-pr/         # PR disposition router (advance/defer/close/...)
-│   ├── audit-pr/          # Comprehensive PR review
-│   ├── split-pr/          # Carve an oversized PR into a stacked series
-│   ├── queue-pr/          # PR coordination and merge-queue preflight
-│   ├── prep-release/      # Release pre-flight + tag
-│   ├── republish-docs/    # Republish/revise released docs (clean anchor)
-│   │                      # -- Operation skills (building blocks) --
-│   ├── lint-code/         # Code style (references rules/)
-│   ├── verify-build/      # Build config checks
-│   ├── audit-docs/        # Docs sanity check (non-ASCII + bib tags)
-│   ├── log-changes/       # CHANGELOG management
-│   │                      # -- User-facing (published as the suews plugin) --
-│   └── suews/             # Run/validate/analyse simulations
-│
-├── reference/             # Templates and static reference
-│   └── templates/         # Reusable templates
-│
-├── scripts/               # Infrastructure
-│   ├── validate-claude-md.py
-│   ├── pre-commit-hook.sh
-│   └── setup-claude-protection.sh
-│
-└── README.md              # This file
+|-- rules/                 # Standing conventions (unscoped + path-conditional)
+|   |-- 00-project-essentials.md
+|   |-- autonomous-workflow.md
+|   |-- code-design.md
+|   |-- dependency-safety.md
+|   |-- labels.md
+|   |-- naming-convention.md
+|   |-- physics-change-evidence.md
+|   |-- review-convergence.md
+|   |-- work-sizing.md
+|   |-- changelog/format.md
+|   |-- ci/conventions.md
+|   |-- docs/{conventions,release-docs-sanity,bib-topic-tags}.md
+|   |-- fortran/{conventions,error-reporting}.md
+|   |-- python/{conventions,api-approach,config-patterns,deprecation,schema-versioning}.md
+|   |-- rust/{conventions,bridge-contract}.md
+|   `-- tests/{patterns,verification-methodology}.md
+|
+|-- agents/                # Review subagents dispatched by fix-issue / audit-pr
+|   |-- docs-reviewer.md
+|   |-- fortran-error-state-reviewer.md
+|   `-- schema-migration-checker.md
+|
+|-- hooks/                 # Claude Code hooks (configured in .claude/settings.json)
+|   |-- session-start.sh          # SessionStart: remote container setup
+|   |-- validate-tutorial.sh      # PostToolUse: tutorial syntax check
+|   |-- check-doc-ascii.sh        # PostToolUse: docs/source/ ASCII gate
+|   |-- check-bib-tags.sh         # PostToolUse: .bib topic-tag gate
+|   `-- pre-commit-check.sh       # PreToolUse: quality gate on git commit
+|
+|-- skills/                # Invoked on demand via /skill-name
+|   |-- fix-issue/         # Workflow: issue -> PR-ready branch
+|   |-- triage-issue/      # Workflow: issue governance (audit/rewrite/split)
+|   |-- triage-pr/         # Workflow: PR disposition router
+|   |-- audit-pr/          # Workflow: comprehensive PR review
+|   |-- split-pr/          # Workflow: carve oversized PR into stacked series
+|   |-- queue-pr/          # Workflow: PR coordination and merge-queue preflight
+|   |-- prep-release/      # Workflow: release pre-flight + tag
+|   |-- republish-docs/    # Workflow: move release docs tag to clean anchor
+|   |-- lint-code/         # Operation: static style and contract linters
+|   |-- verify-build/      # Operation: build graph and packaging checks
+|   |-- audit-docs/        # Operation: docs ASCII + bib topic-tag checks
+|   |-- log-changes/       # Operation: CHANGELOG management
+|   `-- suews/             # User-facing simulation skill (bundled into plugins/suews/)
+|
+|-- reference/
+|   `-- templates/         # Commit message and review templates
+|
+|-- scripts/               # Instruction-integrity validation and local git hook helpers
+|   |-- validate-claude-md.py
+|   |-- test_validate_agents_md.py
+|   |-- pre-commit-hook.sh
+|   `-- setup-claude-protection.sh
+|
+`-- README.md              # This file
 ```
+
+## Authority Hierarchy and Rule-Authoring Principles
+
+When repository instructions or notes disagree, precedence runs from executable checks down to historical rationale:
+
+1. **Executable CI gates and lint scripts** (`scripts/lint/*`, `scripts/suews/*`, `.claude/scripts/validate-claude-md.py`, `.github/workflows/*`).
+2. **Standing rules** (`AGENTS.md` and `.claude/rules/**/*.md`).
+3. **Skills and review subagents** (`.claude/skills/**` and `.claude/agents/*.md`).
+4. **Developer reference notes** (`dev-ref/*.md`, including `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` for whole-repository sweeps and `dev-ref/RUST_BRIDGE_AUDIT.md` for dated seam ledgers).
+
+Follow five rules whenever adding or revising `.claude/` governance files:
+
+1. **Encode recurring invariants in scripts, not prose tables.** If a rule can be checked mechanically (e.g. saved Fortran locals, `encoding="utf-8"`, manifest parity, rule-index sync), add or extend a script in `scripts/lint/` or `.claude/scripts/validate-claude-md.py` instead of pasting code tables into `.claude/rules/`.
+2. **Anchor on `path::symbol`, never bare line numbers.** Source line numbers drift every week; cite `src/suews/src/suews_ctrl_driver.f95::SUEWS_update_outputLine` or a `git grep` recipe instead.
+3. **One canonical home per rule.** State each policy once in its owning `.claude/rules/` file and cross-link from other rules, skills, and `dev-ref/` notes rather than duplicating tables.
+4. **Keep `AGENTS.md` and `.claude/rules/` in 1:1 sync.** Every `.claude/rules/**/*.md` file must appear in `AGENTS.md` under `## Shared rule files` with the exact same `paths:` globs (or `all work.` when unscoped) so Claude Code auto-loading and Codex/Gemini explicit loading never diverge. `python .claude/scripts/validate-claude-md.py` enforces this in CI.
+5. **Plain ASCII and British English everywhere.** All rules, skills, subagents, hooks, and scripts must stay strictly within ASCII (`0x00..0x7F`) and use British English prose.
 
 ## Concepts
 
-### Rules (Auto-Loaded)
+### Rules (Auto-Loaded in Claude Code, Indexed in `AGENTS.md`)
 
-Rules in `.claude/rules/` are **automatically loaded** when Claude Code starts a session.
+Rules in `.claude/rules/` with `paths:` YAML frontmatter load only when working on matching paths:
 
-**Path-conditional loading**: Rules with `paths:` frontmatter only load when working with matching files:
 ```yaml
 ---
 paths:
   - src/suews/**/*.f9*
+  - src/suews/**/*.F90
+  - src/suews_bridge/c_api/**/*.f9*
 ---
 ```
 
-**Always loaded**: Rules without `paths:` frontmatter (like `00-project-essentials.md`) load for every session.
+Rules without `paths:` frontmatter load on every task (`all work.` in `AGENTS.md`).
+Keep unscoped rules concise because they consume context on every session.
+
+### Review Subagents (`.claude/agents/`)
+
+Focused reviewers dispatched by `fix-issue` and `audit-pr`:
+
+- `docs-reviewer` - Checks user-facing doc drift against code changes and enforces `docs/` house style.
+- `fortran-error-state-reviewer` - Verifies `set_supy_error` / `supy_error_flag()` propagation, `modState%errorstate%report`, `INTENT(OUT)` sentinels, and zero `SAVE` / `STOP` / stdout `WRITE` in changed Fortran.
+- `schema-migration-checker` - Verifies `CURRENT_SCHEMA_VERSION`, `SCHEMA_VERSIONS`, `yaml_upgrade.py` handlers, `sample_config.yml` + `sample_config_short.yml`, and schema docs when `src/supy/data_model/` changes.
+
+Subagent frontmatter uses `color:` (never `colour:`) and omits `model:` so subagents inherit the caller's configured model tier.
 
 ### Skills (On-Demand)
 
-Skills perform specific workflows when invoked via `/skill-name`. Each skill has:
-- `SKILL.md` - Main content with frontmatter (name, description)
-- Optional subdirectories for references
+Skills perform multi-step workflows or atomic checks when invoked via `/skill-name`:
 
-**Key difference from rules**: Skills are invoked explicitly; rules are always available.
+- **Workflow skills (orchestrators)**: `/fix-issue`, `/triage-issue`, `/triage-pr`, `/audit-pr`, `/split-pr`, `/queue-pr`, `/prep-release`, `/republish-docs`.
+- **Operation skills (building blocks)**: `/lint-code`, `/verify-build`, `/audit-docs`, `/log-changes`.
+- **User-facing plugin skill**: `/suews` (packaged into `plugins/suews/` via `make plugin`, verified by `test/mcp/test_packaging_manifests.py`).
 
-**Two tiers of skill**:
+For whole-repository or subsystem audits at a pinned SHA (as distinct from `/audit-pr` diff review), follow `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`.
 
-- **Workflow skills** orchestrate a multi-step process and compose operation
-  skills. `fix-issue` is the super-workflow example -- it drives a triaged issue
-  to a PR-ready branch. The autonomous issue -> PR -> merge pipeline lives here.
-- **Operation skills** are atomic building blocks: a single check or action
-  (`lint-code`, `verify-build`, `log-changes`) that workflows invoke or that you
-  run directly.
+## Skill, Subagent, and Hook Relationships
 
-## Available Skills
-
-**Workflow skills (orchestrators)** -- multi-step, compose operation skills:
-
-- `/fix-issue <issue>` - **Super-workflow**: triage and implement an issue to a PR-ready branch (composes triage-issue, the operation skills, and audit-pr)
-- `/triage-issue <issue>` - Issue governance: audit, rewrite, or split into child issues (emits a readiness verdict)
-- `/triage-pr <PR>` - Disposition router for draft/stalled PRs (advance/continue/defer/close/escalate)
-- `/audit-pr <PR>` - Comprehensive PR review (style + scientific + testing + docs + build)
-- `/split-pr <PR>` - Carve an oversized PR into a stacked series of small PRs
-- `/queue-pr` - Order ready PRs and run merge-queue preflight
-- `/prep-release` - Release pre-flight checks and tag generation
-- `/republish-docs` - Republish/revise docs for an already-released version (move tag to a clean anchor)
-
-**Operation skills (building blocks)** -- single-purpose, invoked by workflows or directly:
-
-- `/lint-code` - Check code style against conventions
-- `/verify-build` - Verify build configuration (meson / pyproject / CI)
-- `/audit-docs` - Docs sanity check: non-ASCII fixes + bib topic-tags (backed by doc-change hooks)
-
-Doc-code drift and house-style review is the `docs-reviewer` agent
-(`.claude/agents/docs-reviewer.md`), dispatched by `fix-issue` and `audit-pr`
-rather than invoked as a skill.
-- `/log-changes` - Update CHANGELOG
-
-The user-facing `/suews` skill (run, validate, analyse simulations) is published
-as the `suews` plugin; see Plugin Packaging below.
-
-## Plugin Packaging
-
-Only the user-facing `suews` plugin (the `suews` skill plus the `suews-mcp`
-server) is published to the AI-agent marketplaces (`.claude-plugin/marketplace.json`,
-`.codex-plugin/`, `.agents/`). The contributor/maintainer skills listed above
-live in this repository under `.claude/skills/` and are available automatically
-on checkout. They are deliberately **not** shipped as a separate marketplace
-plugin: anyone who would use them already has the repository cloned, so a
-published `suews-dev` plugin added maintenance (a third manifest to keep in sync)
-without adding reach.
-
-## Rules vs Skills
-
-- **Loading**: Rules are automatic; skills are on-demand
-- **Purpose**: Rules define conventions/guidelines; skills perform workflows/actions
-- **Location**: Rules in `.claude/rules/`; skills in `.claude/skills/`
-- **Invocation**: Rules need none; skills via `/skill-name`
-- **Path-conditional**: Rules yes (`paths:` frontmatter); skills no
-
-## Skill & Hook Relationships
-
-```
+```text
 fix-issue (super-workflow: issue -> PR-ready)
-  ├── triage-issue           (readiness gate / governance)
-  ├── lint-code / verify-build   (quality operations)
-  ├── docs-reviewer agent    (doc-code drift, when the user-facing surface moves)
-  ├── log-changes            (CHANGELOG)
-  └── audit-pr               (PR review loop)
-        └── split-pr (if oversized) ── queue-pr (merge-queue preflight)
+  |-- triage-issue                     (readiness gate / governance)
+  |-- lint-code / verify-build         (static + build operations)
+  |-- fortran-error-state-reviewer     (when Fortran changes)
+  |-- schema-migration-checker         (when data_model / sample_config changes)
+  |-- docs-reviewer                    (when user-facing surface changes)
+  |-- log-changes                      (CHANGELOG)
+  `-- audit-pr                         (PR review convergence loop)
+        `-- split-pr (if oversized) -- queue-pr (merge-queue preflight)
 
 prep-release (release workflow)
-  ├── verify-build / lint-code   (pre-flight operations)
-  ├── docs-reviewer agent    (release docs pass)
-  └── log-changes            (CHANGELOG)
+  |-- verify-build / lint-code         (pre-flight operations)
+  |-- docs-reviewer                    (release docs pass)
+  `-- log-changes                      (CHANGELOG)
 
 republish-docs (docs workflow)
-  └── docs-sync + release-docs-anchor (move tag to a clean anchor)
+  `-- docs-sync + release-docs-anchor  (move tag to a clean anchor)
 
-standalone operations: audit-docs (hook-backed: non-ASCII + bib tags)
-
-pre-commit hook ─────┬── ruff (Python)
-  (auto on            ├── fprettify (Fortran)
-   git commit)        ├── meson.build check (new files)
-                      ├── RST heading check (docs)
-                      ├── CHANGELOG format check
-                      └── make test-smoke (Python/Fortran only)
+pre-commit-check.sh (PreToolUse on git commit)
+  |-- ruff check + ruff format --check (staged Python)
+  |-- fprettify --diff                 (staged Fortran)
+  |-- build-registration check         (new .f95 in src/supy/meson.build, src/suews/Makefile, build.rs)
+  |-- RST heading depth check          (staged .rst)
+  |-- CHANGELOG ### DD Mon YYYY + tag  (staged CHANGELOG.md additions)
+  |-- validate-claude-md.py            (staged AGENTS.md / CLAUDE.md / .claude / audit protocol)
+  `-- make test-smoke                  (staged Python or Fortran)
 ```
-
-## Quick Navigation
-
-- **"Fix a GitHub issue (end to end)"** -> `/fix-issue <issue>` (super-workflow)
-- **"Triage or clean up an issue"** -> `/triage-issue <issue>`
-- **"How do I set up my environment?"** -> Quick Start (`uv venv && source .venv/bin/activate && make dev`)
-- **"Check my code style"** -> `/lint-code`
-- **"Update the CHANGELOG"** -> `/log-changes`
-- **"Prepare for release"** -> `/prep-release`
-- **"Fortran conventions"** -> `.claude/rules/fortran/`
-- **"Python conventions"** -> `.claude/rules/python/`
-- **"Test patterns"** -> `.claude/rules/tests/`
-- **"CI/GitHub Actions"** -> `.claude/rules/ci/`
-
-## Development Workflows
-
-The issue -> PR path is driven by the **`fix-issue` super-workflow**, which
-composes the pipeline-stage workflows (`triage-issue`, `audit-pr`, `split-pr`,
-`queue-pr`) and the operation skills. The flows below show both the orchestrated
-path and the manual steps for cases `fix-issue` does not cover.
-
-### Create Workflows
-
-**Feature / Bug fix (orchestrated)** -- the `fix-issue` super-workflow
-1. `/triage-issue <N>` -- confirm readiness
-2. `/fix-issue <N>` -- branch, build, implement, run the quality operations, and loop with `/audit-pr` to a PR-ready branch
-3. `git fetch origin && git rebase origin/master`, then `gh pr create` (use "Fixes #N" to link the issue)
-4. Verify closure: issue closed and CI green (`gh issue view <N>`, `gh pr checks`)
-
-**Feature / Bug fix (manual)** -- when not using `fix-issue`
-1. `/triage-issue <N>` -- analyse readiness and scope
-2. Branch + `make dev` + baseline tests (`uv venv && make dev` if the environment is not ready)
-3. Implement (auto-loaded rules guide coding)
-4. `git commit` -- pre-commit hook auto-runs quality checks
-5. `docs-reviewer` agent (drift mode) + `/log-changes` + `make docs`
-6. `git fetch origin && git rebase origin/master`, then `gh pr create`
-7. `/audit-pr <N>` -- review
-8. Verify closure: issue closed and CI green
-
-**Refactoring**
-1. `/triage-issue <N>` -- understand scope
-2. `make test` (full baseline)
-3. Implement, `make test` (compare)
-4. `git commit` -- hook checks
-5. `docs-reviewer` agent (drift mode) + `/log-changes` ([change])
-6. `/audit-pr` (refactoring mode)
-
-**Documentation Only**
-1. Create branch, `make dev`, `make docs` (baseline)
-2. Edit docs, `docs-reviewer` agent (standalone pass), `/audit-docs` (non-ASCII + bib tags)
-3. `/log-changes` ([doc]), PR
-
-### Review Workflows
-
-**Triage Issue**: `/triage-issue <N>` -- audit readiness, rewrite, or split into child issues
-**Audit PR**: `/audit-pr <N>` -- comprehensive review (style + scientific + testing + docs + build)
-**Check GitHub**: `gh issue list` / `gh pr list` -- assigned issues, review requests, open PRs
-
-### Maintenance Workflows
-
-**Release**
-1. `/prep-release` -- assess necessity
-2. Pre-flight: `/verify-build` + `/lint-code` + `docs-reviewer` agent (release mode)
-3. `/log-changes` -- finalise CHANGELOG
-4. Open PR, CI, merge; create the tag and GitHub release (`gh release create <tag>`; `/prep-release` generates the tag)
-5. Monitor PyPI, GitHub Release, Zenodo
-
-**CI/Build**
-1. `/verify-build` -- identify issues
-2. Fix, `/verify-build` -- confirm
-3. `make test-smoke`, `/log-changes` ([maintenance]), PR
-
-**Stacked PRs / merge queue**
-1. `/split-pr <PR>` -- carve an oversized PR into a stacked series (when `/audit-pr` flags size)
-2. `/queue-pr` -- order ready PRs and run merge-queue preflight
-
-**Checks**: Run `/verify-build` + `/lint-code` together (plus the `docs-reviewer` agent when docs may drift), report summary
 
 ## Hook Infrastructure
 
-Claude Code hooks run automatically at specific trigger points:
+Configured in `.claude/settings.json`:
 
-- **SessionStart** (`session-start.sh`): Installs system deps, creates venv, builds SUEWS on session init
-- **PostToolUse on Edit/Write** (`validate-tutorial.sh`): Validates tutorial Python files after editing
-- **PreToolUse on Bash** (`pre-commit-check.sh`): Quality gate on `git commit` -- file-type-specific checks:
-  - Python: `ruff check` + `ruff format --check`
-  - Fortran: `fprettify --diff` + meson.build new-file check
-  - RST: heading level validation
-  - CHANGELOG: date format + category tag validation
-  - `make test-smoke`: runs only when Python or Fortran files are staged
-  - During a merge, files taken unchanged from the merged-in branch are skipped; only files that also differ from it (e.g. resolved conflicts) are checked
+- **SessionStart** (`session-start.sh`): Sets up system compilers, Rust availability check, `.venv`, build prerequisites, and editable install in remote web containers (`CLAUDE_CODE_REMOTE=true`).
+- **PostToolUse on Edit/Write**:
+  - `validate-tutorial.sh`: Syntax-checks edited `docs/source/tutorials/*.py` files.
+  - `check-doc-ascii.sh`: Blocks non-ASCII characters in `docs/source/**/*.{py,rst,md}`.
+  - `check-bib-tags.sh`: Validates topic tags on `docs/source/assets/refs/*.bib` via `.claude/skills/audit-docs/scripts/audit.py`.
+- **PreToolUse on Bash** (`pre-commit-check.sh`): Runs staged-file quality checks when `git commit` is invoked (skipping files brought in unchanged during a clean merge).
 
-Global hooks (in `~/.claude/settings.json`):
-- **PostToolUse on Edit/Write/MultiEdit**: runs `ruff check --fix` + `ruff format` on Python files
+## Validation
 
-## Post-Merge Verification
+Run the shared instruction validator locally after editing `AGENTS.md`, `CLAUDE.md`, `.claude/`, or `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`:
 
-After a PR is merged, verify:
-- Issue closed (if linked with "Fixes #N")
-- CI green on master
-- Documentation deployed (if docs changed)
-- No regression in dev tag CI
+```bash
+python -m unittest discover -s .claude/scripts -p test_validate_agents_md.py
+python .claude/scripts/validate-claude-md.py
+```
 
 ## Git Policy
 
-- **Commit**: All directories and files
-- **Ignore**: settings.local.json, any temp-* files
+- **Commit**: All shared rules, agents, hooks, skills, templates, and scripts.
+- **Ignore**: `settings.local.json`, `AGENTS.md.backup`, `.claude/snapshots/`, and temporary scratch files.

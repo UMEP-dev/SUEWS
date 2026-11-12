@@ -1,281 +1,119 @@
 # Merge Queue Guide
 
-> **Purpose**: Best practices for using GitHub's merge queue to ensure safe, efficient PR merging
+> **Canonical Rules Notice**
 >
-> **Audience**: All contributors with merge permissions
->
-> **Last Updated**: 1 December 2025
+> Active workflow contracts, CI matrix rules, and coordination skills supersede this guide whenever details drift. Always read:
+> - Rules: [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/ci/conventions.md`](../.claude/rules/ci/conventions.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md)
+> - Skills: `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md)), `/audit-pr` ([`.claude/skills/audit-pr/SKILL.md`](../.claude/skills/audit-pr/SKILL.md)), and `/triage-pr` ([`.claude/skills/triage-pr/SKILL.md`](../.claude/skills/triage-pr/SKILL.md))
 
 ## Overview
 
-GitHub's merge queue ensures PRs are tested against the latest `master` branch before merging. This prevents "semantic merge conflicts" where two PRs pass CI individually but break when combined.
+Branch protection on `UMEP-dev/SUEWS` prohibits direct pushes to `master`. **Every change to `master` -- including documentation updates, release preparation PRs, and hotfixes -- lands through a pull request and GitHub's merge queue.**
 
-When you add a PR to the merge queue:
-1. GitHub creates a temporary merge commit (your PR + current `master`)
-2. CI runs against this merged state
-3. If all checks pass, the PR merges automatically
-4. If checks fail, the PR is removed from the queue for investigation
+GitHub's merge queue tests each PR (or batch of PRs) against the latest `master` plus any PRs ahead of it in the queue, preventing semantic merge conflicts where two PRs pass CI individually but break when combined:
+1. GitHub constructs a temporary `merge_group` commit (`master` + queued PRs).
+2. CI runs against that combined state (`merge_group: types: [checks_requested]`).
+3. If `pr-gate` and all required checks pass, GitHub merges the PR automatically.
+4. If checks fail, GitHub removes the failing PR from the queue for diagnosis.
 
-## How SUEWS Merge Queue Works
+**Human-Gated Terminal Rule (`autonomous-workflow.md`)**: Adding a PR to the merge queue (`gh pr merge --auto` / `--merge-queue` / `queue-ready-prs.sh --enqueue`) is **always human-gated**. Autonomous agents may scan, order, and preflight PRs, but never enqueue without explicit per-run human approval, and **never** pass `--admin` to bypass branch protection or the queue.
 
-The merge queue is configured in `.github/workflows/build-publish_to_pypi.yml`:
+## CI Matrix Selection (`.github/scripts/determine-matrix.sh`)
 
-### Trigger
-```yaml
-merge_group:
-  types: [checks_requested]
-```
+`.github/scripts/determine-matrix.sh` computes the wheel-build platforms (`buildplat`), cross-Python API test platforms (`api_buildplat`), CPython versions (`python` / `api_python`), and `test_tier` for each event:
 
-### Validation Matrix
-- **Platforms**: Linux (manylinux) + ARM Mac + Windows; Linux only when the queued group changes nothing but tests or other non-package files (the wheels are then identical to what master already validated)
-- **Python version**: 3.12 (the `requires-python` / abi3 floor per gh#1553)
-- **Test tier**: `standard` (more thorough than PR smoke tests)
+### Platform Presets in `determine-matrix.sh`
+- **`MINIMAL_PLATFORMS`**: `ubuntu-latest` (`manylinux` `x86_64`) only.
+- **`PR_PLATFORMS`**: `ubuntu-latest` (`manylinux` `x86_64`), `macos-15` (`arm64`), and `windows-2025` (`AMD64`).
+- **`FULL_PLATFORMS`**: `PR_PLATFORMS` plus `macos-15-intel` (`x86_64`). (`NIGHTLY_API_PLATFORMS` drops `macos-15-intel` from nightly `api` cross-Python tests due to Intel runner scarcity while still building and gating the Intel wheel.)
 
-### Gate Job
-The `pr-gate` job consolidates all build results into a single required check for branch protection.
+### Matrix by Event and Change Scope
+
+| Event & Change Scope | Wheel / API Platforms | `api_python` Versions | `test_tier` |
+|----------------------|-----------------------|-----------------------|-------------|
+| **Draft PR** (Fortran or Rust changed) | `PR_PLATFORMS` | Bookends (`cp312`, newest) | `core` |
+| **Draft PR** (build-system changed) | `PR_PLATFORMS` | Bookends (`cp312`, newest) | `cfg` |
+| **Draft PR** (Python / util / CI / tests only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `smoke` |
+| **Ready PR** (Fortran, Rust, or build changed) | `PR_PLATFORMS` | Bookends (`cp312`, newest) | `standard` (`physics-full` if `0-physics:change`) |
+| **Ready PR** (Python or util only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `standard` (`physics-full` if `0-physics:change`) |
+| **Ready PR** (CI or tests only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `smoke` (`physics-full` if `0-physics:change`) |
+| **Merge Queue** (Fortran, Rust, Python, util, build, or CI changed) | `PR_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` (`physics-full` if `0-physics:change`) |
+| **Merge Queue** (tests or non-package files only) | `MINIMAL_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` |
+| **Nightly (`schedule`)** | `FULL_PLATFORMS` (wheels) / `NIGHTLY_API_PLATFORMS` (`api`) | All supported (`cp312..cp315`) | `all` (+ checked Fortran profile, tolerance spread, cost markers) |
+| **Release / `.dev` Tag Push** | `FULL_PLATFORMS` | All supported (`cp312..cp315`) | `all` |
+
+- **Documentation-only PRs**: `detect-changes` skips wheel builds when no code/test/build paths changed; `pr-gate` still runs and passes so docs PRs traverse the merge queue quickly.
+- **`0-physics:change` PRs**: Both Ready PR and Merge Queue runs automatically upgrade `test_tier` to `physics-full` (gh#1576) so all `-m physics` tests (including `slow`) run before merge.
+- **UMEP/QGIS (`qgis` marker)**: Excluded from PR and Merge Queue `standard` expressions (`and not qgis`); runs under `all` on Nightly, Tag pushes, and `full` manual dispatches (Windows + Python 3.12).
 
 ## Using the Merge Queue
 
-### Adding a PR to the Queue
+### Coordinating Multiple PRs with `/queue-pr`
 
-**Via GitHub CLI:**
+When several PRs or worktrees are ready at once, use `.claude/skills/queue-pr/SKILL.md` to detect shared high-risk files (`CHANGELOG.md`, `meson.build`, `src/supy/meson.build`, `.github/workflows/*`, generated docs/schema files, reference fixtures) and run a temporary-worktree merge preflight before queueing:
+
 ```bash
-# Add PR to merge queue
-gh pr merge <PR_NUMBER> --merge-queue
+# Dry-run scan and low-risk ordering across open ready-for-review PRs
+git fetch origin
+.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master
 
-# Or with specific merge method
-gh pr merge <PR_NUMBER> --merge-queue --squash
+# Local branch overlap & merge preflight
+.claude/skills/queue-pr/scripts/preflight.sh --base origin/master branch-a branch-b
+
+# Enqueue in coordinated order (ONLY with explicit human approval)
+.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --enqueue
 ```
 
-**Via GitHub Web UI:**
-1. Navigate to the PR
-2. Click "Merge when ready" (or "Add to merge queue")
-3. PR enters the queue
-
-### Checking Queue Status
+### Enqueuing a Single Approved PR
 
 ```bash
-# View your PR's queue status
+# Enqueue with head-SHA guard (recommended -- enters merge queue when checks/reviews pass)
+gh pr merge <PR_NUMBER> --auto --squash --match-head-commit <HEAD_SHA>
+
+# Or via GitHub Web UI: click "Merge when ready" / "Add to merge queue"
+```
+
+### Checking and Managing Queue Status
+
+```bash
+# View PR merge state and check rollup
 gh pr view <PR_NUMBER> --json mergeStateStatus,statusCheckRollup
 
-# List PRs currently in queue
+# Watch CI checks on a PR
+gh pr checks <PR_NUMBER> --watch
+
+# List open PRs currently in the merge queue
 gh pr list --state open --json number,title,mergeStateStatus | \
   jq '.[] | select(.mergeStateStatus | contains("QUEUE"))'
 
-# Check queue position (requires gh extension or API)
-gh api repos/UMEP-dev/SUEWS/queue
-```
-
-### Removing from Queue
-
-```bash
-# Remove PR from merge queue
+# Remove a failing or blocked PR from the merge queue
 gh pr edit <PR_NUMBER> --remove-from-merge-queue
 ```
 
 ## Best Practices
 
-### Before Adding to Queue
-
-1. **Ensure PR CI passes first** - All required checks must pass before queueing
-2. **Rebase on latest master** - Reduces queue validation time:
+### Before Queueing
+1. **Confirm PR CI (`pr-gate`) and reviews are complete** -- including `/audit-pr` convergence and any required `0-physics:change` domain-owner sign-off (`@yiqing1021` for STEBBS; `@sunt05` default).
+2. **Update stale branches cleanly** (only on branches you own, or with explicit per-branch approval):
    ```bash
    git fetch origin master
    git rebase origin/master
+   make test-smoke
    git push --force-with-lease
-   # Wait for PR CI to pass, then queue
    ```
-3. **Check queue is clear** - Optional but reduces wait time
-
-### PR Strategies for Queue Efficiency
-
-| Scenario | Recommendation |
-|----------|----------------|
-| Independent PRs (different files) | Queue together - low conflict risk |
-| Related PRs (same module) | Queue sequentially - test integration |
-| Large refactoring PR | Queue alone - easier to debug failures |
-| Docs-only PRs | Queue freely - builds are skipped |
-
-### Batching PRs
-
-GitHub can batch multiple PRs for faster throughput:
-
-**Safe to batch:**
-- Multiple small, independent bug fixes
-- Separate documentation improvements
-- Feature + its tests (if in separate PRs)
-
-**Queue sequentially:**
-- PRs modifying same Fortran physics modules
-- PRs touching shared config/data models
-- Major refactoring + dependent clean-up PRs
+3. **Order overlapping PRs**:
+   - **Independent PRs** (disjoint subsystems, no shared high-risk files): safe to batch together.
+   - **Shared-file PRs** (`CHANGELOG.md`, `meson.build`, schema/sample config, reference shards): queue sequentially, rebasing the second PR after the first lands.
+   - **Stacked PRs** (`PR2` depends on `PR1`): target `PR2` at `PR1`'s branch until `PR1` merges through the queue, then rebase `PR2` onto `origin/master` and enqueue `PR2`. Never enqueue dependent stacked PRs simultaneously.
 
 ### Queue Etiquette
-
-1. **Don't force-push while queued** - Removes PR from queue
-2. **Monitor your PR** - Check for queue failures
-3. **Unblock when failing** - Remove failing PRs promptly:
-   ```bash
-   gh pr edit <PR_NUMBER> --remove-from-merge-queue
-   ```
-4. **Communicate** - If investigating a queue failure, comment on the PR
-
-## Troubleshooting
-
-### Queue Validation Failed
-
-**Symptoms:** PR passes PR CI but fails in merge queue
-
-**Common causes:**
-1. **Another PR merged that conflicts:**
-   ```bash
-   # Rebase and retry
-   git fetch origin master
-   git rebase origin/master
-   git push --force-with-lease
-   # Wait for PR CI, then re-queue
-   ```
-
-2. **Flaky test:**
-   - Check if failure is intermittent
-   - Re-add to queue if clearly flaky
-   - Report flaky test in issue tracker
-
-3. **Genuine conflict with queued PR:**
-   - Wait for conflicting PR to merge or leave queue
-   - Then rebase and re-queue
-
-### PR Stuck in Queue
-
-**Symptoms:** PR in queue but not progressing
-
-**Solutions:**
-```bash
-# Check queue status
-gh pr view <PR_NUMBER> --json mergeStateStatus
-
-# Check if checks are running
-gh pr checks <PR_NUMBER> --watch
-
-# If stuck, remove and re-add
-gh pr edit <PR_NUMBER> --remove-from-merge-queue
-gh pr merge <PR_NUMBER> --merge-queue
-```
-
-### Queue "Poisoned" by Failing PR
-
-**Symptoms:** Other PRs blocked by a failing PR in queue
-
-**Solution:** Anyone with write access can remove the failing PR:
-```bash
-gh pr edit <FAILING_PR_NUMBER> --remove-from-merge-queue
-```
-
-### Merge Queue vs Direct Merge
-
-**When merge queue is required:**
-- All PRs to `master` (enforced by branch protection)
-
-**What bypasses the queue:**
-- Emergency fixes: Admins can bypass with appropriate permissions
-- Automated releases: Tag-triggered workflows bypass PR flow
-
-## CI Behaviour in Merge Queue
-
-### Build Matrix Differences
-
-| Event | Platforms | Python Versions | Test Tier |
-|-------|-----------|-----------------|-----------|
-| Draft PR | manylinux only | 3.12, 3.15 | smoke |
-| Ready PR | Linux, ARM Mac, Win | 3.12, 3.15 | standard |
-| **Merge Queue** | Linux, ARM Mac, Win (Linux only for tests-only groups) | 3.12 | standard |
-| Nightly | All (incl. x86 Mac) for the wheel build; api tests skip x86 Mac (runner scarcity -- see run 28990965739) | 3.12-3.15 | all |
-| Release (tag push) | All (incl. x86 Mac), api tests included | 3.12-3.15 | all |
-
-Ready-PR CI tests the oldest and newest supported CPython bookends. The merge
-queue revalidates the combined tree on the `requires-python` floor (3.12)
-only; nightly and release runs retain the wider cross-version matrix. The
-floor is clamped in `.github/scripts/determine-matrix.sh` and tracks
-`pyproject.toml` (gh#1553).
-
-### Path-Based Skipping
-
-Documentation-only PRs skip builds even in merge queue:
-- `detect-changes` job runs first
-- If no code changes detected, builds are skipped
-- `pr-gate` still passes, allowing merge
-
-### UMEP Validation
-
-UMEP/QGIS tests (the `qgis` tier) do **not** run in the merge queue. The
-merge queue's `standard` test tier explicitly excludes them
-(`api and (core or not slow) and not qgis`); `qgis`-tier tests run only under the
-`all` tier -- nightly schedule, tag push, or manual dispatch (`full`):
-- Windows Python 3.12 only (current QGIS 3 LTR / QGIS 4 runtime)
-- Validates NumPy 1.x compatibility
-
-A platform-specific UMEP/QGIS regression is therefore caught by the nightly
-build, not the merge queue -- see "Safety net" in
-`.claude/rules/ci/conventions.md`.
-
-## Workflow Integration
-
-### With Stacked PRs
-
-When using stacked PRs (see `FEATURE_DEVELOPMENT_WORKFLOW.md`):
-
-```
-PR1 (targets master) → Queue and merge first
-PR2 (targets PR1's branch) → GitHub auto-retargets to master after PR1 merges
-PR2 → Then queue PR2
-```
-
-**Important:** Don't add dependent PRs to queue simultaneously - they may fail due to missing base.
-
-### With Scientific Review
-
-From `REVIEW_PROCESS.md`:
-1. Complete scientific review before queueing
-2. Ensure domain expert has approved
-3. Then add to merge queue
-
-### With Release Process
-
-From `RELEASE_MANUAL.md`:
-- Production releases use tags, not merge queue
-- Merge queue validates pre-release PRs
-- Tag push triggers full build matrix (bypasses queue)
-
-## Quick Reference
-
-```bash
-# Add to queue (squash merge)
-gh pr merge <PR> --merge-queue --squash
-
-# Check queue status
-gh pr view <PR> --json mergeStateStatus
-
-# Remove from queue
-gh pr edit <PR> --remove-from-merge-queue
-
-# Watch CI progress
-gh pr checks <PR> --watch
-
-# List queued PRs
-gh pr list --json number,title,mergeStateStatus | \
-  jq '.[] | select(.mergeStateStatus | contains("QUEUE"))'
-```
+- **Do not push while queued**: Pushing to a queued PR branch ejects it from the queue and cancels in-flight `merge_group` runs.
+- **Unblock promptly**: If a queued PR fails due to a semantic conflict with an earlier merged PR, rebase onto `origin/master`, run `make test-smoke`, wait for PR CI, and re-enqueue.
+- **Never bypass branch protection**: Do not push commits directly to `master` and do not use `--admin`. (Tag pushes for formal `YYYY.M.D` releases point at commits already merged to `master` via the release PR.)
 
 ## See Also
 
-- `FEATURE_DEVELOPMENT_WORKFLOW.md` - Managing stacked and parallel PRs
-- `REVIEW_PROCESS.md` - Scientific review before merging
-- `RELEASE_MANUAL.md` - Release workflow (bypasses merge queue)
-- `.github/workflows/build-publish_to_pypi.yml` - CI configuration
-
----
-
-*This guide covers merge queue best practices for SUEWS contributors.*
-*Last updated: 1 December 2025*
-*Owner: SUEWS Development Team*
-*Location: `/dev-ref/MERGE_QUEUE.md`*
+- [`FEATURE_DEVELOPMENT_WORKFLOW.md`](FEATURE_DEVELOPMENT_WORKFLOW.md) - Stacked PRs and `git worktree` workflows
+- [`REVIEW_PROCESS.md`](REVIEW_PROCESS.md) - Code governance and `0-physics:change` sign-off
+- [`RELEASE_MANUAL.md`](RELEASE_MANUAL.md) - Release PR and tag workflow
+- [`.github/scripts/determine-matrix.sh`](../.github/scripts/determine-matrix.sh) - Authoritative CI matrix logic

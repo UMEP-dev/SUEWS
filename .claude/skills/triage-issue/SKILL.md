@@ -133,13 +133,17 @@ autonomous mode, end with the machine-readable verdict block defined there.
 By default this skill is interactive: it drafts and waits for explicit approval
 before any GitHub edit. Autonomous mode is an opt-in contract for unattended
 orchestration (a scheduled backlog sweep, or an upstream skill that calls
-triage). It never asks a human mid-run. Every issue ends in exactly one of two
-terminal verdicts:
+triage). It never asks a human mid-run. Every issue ends in one of **three**
+verdicts (`triaged | needs-discussion | skipped`):
 
-- `triaged`: the issue is now maintainer-ready and only safe, additive,
-  reversible changes were applied.
-- `needs-discussion`: the next action needs human judgement or external input, so
-  nothing destructive is applied and the skill hands back the specific question.
+- `triaged`: the issue is now maintainer-ready and only auto-applicable or
+  confidence-gated changes (when every gate holds) were applied.
+- `needs-discussion`: the next action needs human judgement, failed a
+  confidence/privacy gate, or requires external input, so nothing destructive is
+  applied and the skill hands back the specific question.
+- `skipped`: batch-coverage accounting verdict only, for an issue that could not
+  be fetched/processed or was excluded by the scope bound (never handed to
+  `fix-issue` as an implementation input).
 
 ### Action tiers
 
@@ -234,10 +238,16 @@ rubric readiness status to a verdict:
 
 ### Batch in autonomous mode
 
-- Process the bounded input set, apply only auto-tier actions, and accumulate one
-  verdict per issue. Body rewrites, closes, and supersedes are recorded as
-  `needs-discussion`, never applied in bulk. Stop when the set is exhausted and
-  emit the scope line and partitioned aggregate defined in `methodology.md`.
+- Process the bounded input set and accumulate one verdict (`triaged | needs-discussion | skipped`)
+  per issue. Auto-applicable actions (`comment`, `label`, `0-auto:audited`) and
+  confidence-gated `misframed` body rewrites (+ matching retitle) may be applied
+  when ALL stated confidence gates hold and the Privacy scrub gate passes with
+  zero hits inside verbatim preserved content; if any confidence gate or
+  verbatim privacy check fails, record `needs-discussion`. Human-gated actions
+  (closes, supersedes, duplicates, assignments, child-issue creation, reporter
+  pings) always resolve to `needs-discussion`. Stop when the set is exhausted
+  and emit the `Scope:` line and partitioned `Summary:` aggregate defined in
+  `methodology.md`.
 - Idempotency across runs uses the `0-auto:audited` label as the queryable marker
   (complementing the in-body `<!-- triage-issue:* -->` markers): skip the
   redundant work for issues that carry it and have not been updated since. Such an

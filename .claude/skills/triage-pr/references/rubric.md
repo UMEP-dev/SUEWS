@@ -54,7 +54,8 @@ A PR that is substantively complete and can move forward now.
 - CI passing, MERGE=CLEAN, REVIEW=APPROVED or REVIEW=NONE with low churn
   -> route: `queue-pr`.
 - Otherwise (needs polish, review not yet requested, minor fixes outstanding)
-  -> route: `prep-pr`.
+  -> route: `prep-pr` (user-level skill; in environments without `prep-pr`, run
+  the portable repo-native fallback `audit-pr` + `queue-pr`).
 
 **Priority** (Part B) is recorded in the verdict block for every `advance`.
 

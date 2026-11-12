@@ -1,13 +1,13 @@
 ---
 paths:
   - src/suews/**/*.f9*
-  - src/suews/**/*.f90
-  - src/suews/**/*.f95
+  - src/suews/**/*.F90
+  - src/suews_bridge/c_api/**/*.f9*
 ---
 
 # Fortran Conventions
 
-Conventions for SUEWS Fortran source files.
+Conventions for SUEWS Fortran source files and C-API facades.
 
 ---
 
@@ -22,7 +22,7 @@ Conventions for SUEWS Fortran source files.
 | Constant | UPPERCASE | `VON_KARMAN` |
 | Variable | lowercase_underscores | `air_temperature` |
 
-**Categories**: `ctrl`, `phys`, `util`
+**Categories**: `ctrl`, `phys`, `type`, `util`
 
 ---
 
@@ -53,8 +53,9 @@ Conventions for SUEWS Fortran source files.
   growing one procedure. The legacy giants (e.g. the driver output packing) are
   migration debt, not a template.
 - **Prefer derived types over long argument lists.** Bundle related state into a
-  `dts_*` type and pass that, instead of adding more positional arguments; flag
-  procedures with very many arguments for a derived-type refactor.
+  `dts_*` type (or `suews_type_*.f95` state/parameter type) and pass that,
+  instead of adding more positional arguments; flag procedures with very many
+  arguments for a derived-type refactor.
 - A change that only stays small by editing an oversized procedure is a signal to
   split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
 
@@ -90,29 +91,27 @@ END MODULE
 
 ---
 
-## Debugging: Buffer Overrun / Stack Smashing
+## Debugging: Buffer Overrun, Output Packing, and Build Flags
 
-When investigating "stack smashing detected" or similar buffer overruns:
+When investigating "stack smashing detected", ABI mismatches, or bounds errors:
 
-1. **Audit ALL output arrays, not just the changed ones**
-   - For each `ncolumnsDataOut*` constant in `suews_ctrl_const.f95`, count the actual elements in the corresponding array constructor in `suews_ctrl_driver.f95`
-   - The SUEWS output packing is around line 3500+ in `suews_ctrl_driver.f95`
-   - The STEBBS output packing is in `suews_phys_stebbs.f95` (around line 892)
-   - `output_line` type in `suews_ctrl_type.f95` bundles all output arrays
+1. **Audit output packing and `ncolumnsDataOut*` widths**
+   - `src/suews/src/suews_ctrl_type.f95::output_line` bundles all output group arrays sized by `ncolumnsDataOut*` in `src/suews/src/suews_ctrl_const.f95`, and `src/suews/src/suews_ctrl_driver.f95::validate_outputline_layout` checks every group's runtime size against those constants before stepping (raising fatal code `104` on mismatch).
+   - Main SUEWS output packing in `src/suews/src/suews_ctrl_driver.f95::SUEWS_update_outputLine` packs sequentially via `push_scalar` / `push_vec` and verifies the final offset in `check_packed_size` / `raise_pack_overflow` (raising fatal code `104` if packed count disagrees with `ncolumnsDataOutSUEWS - 5`).
+   - Other group packers such as `src/suews/src/suews_ctrl_driver.f95::EHC_update_outputLine` and `src/suews/src/suews_phys_stebbs.f95::stebbsonlinecouple` must match their `ncolumnsDataOut*` constants in `src/suews/src/suews_ctrl_const.f95` and `OUTPUT_REGISTRY` (`test/io_tests/test_output_layout_parity.py`, `test/data_model/test_output_contract.py`, `test/data_model/test_output_contract_artefacts.py`).
 
 2. **`git log` shows triggers, not root causes**
-   - A pre-existing bug can be exposed by an unrelated change (e.g. stack layout shift from resizing an adjacent array)
-   - Don't assume the regression is solely in the most recent commit
-   - Check code that PREDATES the regression window
+   - A pre-existing bug can be exposed by an unrelated change (e.g. stack layout shift from resizing an adjacent array).
+   - Do not assume the regression is solely in the most recent commit; check code that predates the regression window.
 
 3. **GCC version matters**
-   - CI builds use GCC 14 (manylinux2014 image)
-   - Users may have GCC 15 (Arch, Fedora 42) which has stricter stack protector defaults
-   - A "works in CI but crashes locally" report often means a latent overrun that GCC 15 catches
+   - CI Linux builds use GCC 14 (`manylinux2014` image).
+   - Users may have GCC 15 (Arch, Fedora 42) with stricter stack-protector defaults; a "works in CI but crashes locally" report often means a latent overrun that GCC 15 catches.
 
-4. **`FCFLAGS` is NOT forwarded through `make dev`**
-   - Meson-python ignores the `FCFLAGS` env var; flags are hard-coded in `meson.build`
-   - To add `-fcheck=bounds`, modify `meson.build` directly (the `fast_build` flag set)
+4. **Compiler flags and `SUEWS_BUILD_PROFILE` (`FCFLAGS` is NOT forwarded through `make dev`)**
+   - Kernel flags live in `src/suews/Makefile.gfortran` (invoked via `src/supy/run_make.py`) and C-API facade flags live in `src/suews_bridge/build.rs`, both controlled by `SUEWS_BUILD_PROFILE=release|checked`.
+   - Default `release` compiles the kernel with `-O3 -g -finit-real=zero` and C-API facades with `-O2 -finit-real=zero -finit-integer=0 -finit-logical=false` (preventing uninitialised scalar/derived-type descriptor crashes under gfortran 14+, while `ALLOCATABLE` arrays and pointers still require explicit initialisation).
+   - To enable `-O0 -fcheck=all` bounds/pointer/array-temp checks locally, run `SUEWS_BUILD_PROFILE=checked make dev` (or `make -C src/suews DEBUG=1` for the standalone kernel).
 
 ---
 

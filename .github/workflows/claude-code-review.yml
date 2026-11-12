@@ -99,15 +99,16 @@ jobs:
             This project follows British English conventions throughout its documentation and codebase.
             Examples: use "organisation" not "organization", "colour" not "color", "centre" not "center", etc.
             
-            Follow project standards:
-            - Coding guidelines: dev-ref/CODING_GUIDELINES.md
-            - Testing patterns: dev-ref/testing/
-            - Error handling: dev-ref/testing/ERROR_HANDLING_PATTERNS.md
+            Follow project standards (canonical sources):
+            - Shared instructions and rule index: AGENTS.md
+            - Core essentials, Fortran, Python, Rust, and testing rules: .claude/rules/
+            - Fortran error-reporting contract: .claude/rules/fortran/error-reporting.md
+            - Schema migration rules: .claude/rules/python/schema-versioning.md
             
             DOCUMENTATION REQUIREMENTS:
             - Check if code changes have corresponding documentation updates in docs/
             - Verify data model changes are reflected in docs/generate_datamodel_rst.py
-            - Ensure configuration schema changes update docs/gen_schema.py
+            - Ensure configuration schema changes export docs/source/inputs/tables/schema.json (`suews schema export -o docs/source/inputs/tables/schema.json`) and sync transition_guide.rst / schema_versioning.rst
             - Check that examples and tutorials are updated for API changes
             - Flag missing documentation updates as action items
             - Verify CHANGELOG.md is updated for remarkable changes with appropriate category:
@@ -173,7 +174,7 @@ jobs:
 
             - Check if code changes have corresponding docs/ updates
             - Verify data model changes update generate_datamodel_rst.py
-            - Ensure configuration changes update gen_schema.py
+            - Ensure configuration schema changes export docs/source/inputs/tables/schema.json (`suews schema export -o docs/source/inputs/tables/schema.json`)
             - Review if examples/tutorials reflect API changes
             - Verify CHANGELOG.md updated for remarkable changes
             - List any missing documentation updates

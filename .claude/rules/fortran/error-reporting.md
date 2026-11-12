@@ -1,6 +1,8 @@
 ---
 paths:
   - src/suews/**/*.f9*
+  - src/suews/**/*.F90
+  - src/suews_bridge/c_api/**/*.f9*
 ---
 
 # Error Reporting in SUEWS Fortran
@@ -11,14 +13,14 @@ Rules for raising fatal errors and warnings from Fortran code inside SUEWS.
 
 ## Never use `WRITE(*,...)` + `STOP` to report errors
 
-SUEWS runs embedded inside Python via SuPy. A plain `STOP` terminates the
-entire Python interpreter, preventing SuPy from catching the failure and
-presenting a clean exception. Likewise, `WRITE(*, ...)` to stdout bypasses
-SuPy's logger — users see garbled output on some platforms, and parallel
-runs interleave messages illegibly.
+SUEWS runs embedded inside Python via SuPy and the Rust bridge. A plain `STOP`
+terminates the entire host process, preventing SuPy from catching the failure
+and presenting a clean exception. Likewise, `WRITE(*, ...)` to stdout bypasses
+SuPy's logger -- users see garbled output on some platforms, and parallel runs
+interleave messages illegibly.
 
-The `module_ctrl_error_state` module (in `suews_ctrl_error.f95`) was
-introduced in GH#1035 precisely to avoid this. Its header states:
+`src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` was introduced in
+GH#1035 precisely to avoid this. Its header states:
 
 > Allows Python to detect Fortran errors without STOP terminating the
 > process.
@@ -64,25 +66,27 @@ Key points:
 - **Message prefix with the subroutine name** (`'compute_bar: ...'`) so
   the user can locate the offender from the Python traceback.
 - **Assign `-999.0D0` (or a type-appropriate sentinel) to `INTENT(OUT)`
-  arguments** before `RETURN` — an unassigned intent-out is undefined
+  arguments** before `RETURN` -- an unassigned intent-out is undefined
   behaviour under some compilers.
-- **`RETURN`** — do not continue. The driver checks `supy_error_flag()`
-  between grids/timesteps and surfaces the error to Python.
+- **`RETURN`** -- do not continue. The driver checks `supy_error_flag()`
+  between grids/timesteps and surfaces the error to Rust/Python.
 - **Guard later work with `IF (supy_error_flag()) RETURN`** (a function call
-  since GH#1736, not a variable). The fatal store is thread-local: each grid
-  run on a Rayon worker sees only its own error, so never cache the flag in
-  module-level or implicitly `SAVE`d variables.
+  since GH#1736, not a variable). The fatal store is thread-local
+  (`src/suews/src/suews_ctrl_error_tls.c`): each grid run on a Rayon worker sees
+  only its own error, so never cache the flag in module-level or implicitly
+  `SAVE`d variables.
 - **Never** call `STOP`, `ERROR STOP`, `CALL abort`, or `WRITE(*,...)`.
 
-Working examples: `suews_phys_stebbs.f95` (STEBBS thermal-parameter guard),
-`suews_phys_rslprof.f95` (`interp_z` NaN guards),
-`suews_phys_dailystate.f95` (observed-LAI guard, GH#1296).
+Working examples:
+- `src/suews/src/suews_phys_stebbs.f95::calculate_x1` (STEBBS thermal-parameter guard, code `102`)
+- `src/suews/src/suews_phys_rslprof.f95::interp_z` (`interp_z` NaN/bounds guards, code `103`)
+- `src/suews/src/suews_phys_lai.f95::update_gddlai` (observed-LAI guard, code `105`, GH#1296)
 
 ---
 
 ## Use `ErrorHint` for numbered messages with continuation semantics
 
-When the error message already exists in the numbered registry (1–99) or
+When the error message already exists in the numbered registry (1-99) or
 when the condition is non-fatal and the run should continue, use
 `ErrorHint`:
 
@@ -90,9 +94,9 @@ when the condition is non-fatal and the run should continue, use
 CALL ErrorHint(15, 'In compute_bar, input at lower bound', value, value2, notUsedI, modState)
 ```
 
-- `modState` is OPTIONAL — pass it where available (it enables the
+- `modState` is OPTIONAL -- pass it where available (it enables the
   thread-safe per-grid warning channel introduced in GH#1042).
-- Codes 1–99 map to hard-coded text in `ErrorHint` (`suews_ctrl_error.f95`).
+- Codes 1-99 map to hard-coded text in `src/suews/src/suews_ctrl_error.f95::ErrorHint`.
   Add a new code only with an accompanying change in that file.
 - For non-fatal warnings without a numbered code, report through the
   per-grid state so the message survives the timestep and reaches the user
@@ -116,25 +120,30 @@ CALL ErrorHint(15, 'In compute_bar, input at lower bound', value, value2, notUse
 
 ## Register new error codes
 
-Fatal codes 100+ are maintained in the header of `suews_ctrl_error.f95`.
-When introducing a new error site:
+`src/suews/src/suews_ctrl_error.f95` (`Error Codes (GH#1035):` header comment
+block) is the single authoritative registry for fatal codes `100+` (currently
+`100` through `109`; do not duplicate the code table elsewhere). When
+introducing a new fatal error site:
 
-1. Pick the next free integer (last allocated was `109` for GH#1857 — SPARTACUS effective direct albedo outside [0,1]).
-2. Add a one-line entry to the `Error Codes (GH#1035):` block at the top
-   of `suews_ctrl_error.f95` describing the scope.
-3. Reference the issue number so the history is traceable.
+1. Read the `Error Codes (GH#1035):` header in `src/suews/src/suews_ctrl_error.f95`
+   and pick the next unallocated integer after the highest registered code.
+2. Add a one-line entry to that header block describing the subsystem and scope.
+3. Reference the GitHub issue number so the history stays traceable.
 
 ---
 
 ## Why this matters
 
-- `STOP` inside an embedded Fortran call kills Python — users see
+- `STOP` inside an embedded Fortran call kills Python -- users see
   `Abort trap: 6` or similar, with no stack, no test report, and no way
   to continue batch runs.
 - `WRITE(*,...)` is not captured by pytest under some configurations,
   and is interleaved unpredictably in parallel runs.
-- The state module is f90wrap-exposed to SuPy; clean errors become
-  clean Python `RuntimeError` / `ValueError` exceptions.
+- Fatal errors and per-grid warnings cross the C-ABI boundary
+  (`src/suews/src/suews_ctrl_error_tls.c`, `src/suews_bridge/c_api/driver.f95`,
+  and `src/suews_bridge/c_api/error_state.f95`) into the Rust PyO3 bridge
+  (`src/suews_bridge/src/error.rs`), becoming clean Python `RuntimeError` /
+  `ValueError` exceptions and `kernel_warnings` entries in SuPy.
 
 When in doubt: **validate at the top, set the error state, assign safe
 defaults, and `RETURN`.** The driver handles the rest.

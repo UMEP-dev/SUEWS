@@ -10,9 +10,24 @@ gh api repos/UMEP-dev/SUEWS/pulls/{pr}/files --jq '.[] | {filename, status, addi
 
 ---
 
-## Code Style
+## Code Style and Specialist Subagents
 
-Apply lint-code checks. See `style-checks.md`.
+Apply `lint-code` checks (see `style-checks.md`) and dispatch the matching
+read-only review subagents from `.claude/agents/`:
+
+- `fortran-error-state-reviewer`: whenever `src/suews/**/*.f9*` or
+  `src/suews_bridge/c_api/**/*.f9*` changes.
+- `schema-migration-checker`: whenever `src/supy/data_model/` or
+  `src/supy/sample_data/sample_config.yml` changes (also verify
+  `test/fixtures/sample_short/sample_config_short.yml` was regenerated via
+  `python test/fixtures/sample_short/make_sample_short.py`).
+- `docs-reviewer` (drift mode, findings-only): whenever user-facing surfaces
+  change (`src/supy/data_model/`, physics options, output/forcing registries,
+  `src/supy/util/converter/`, public API or CLI).
+
+Emit findings using severities `blocking | major | minor | nit` per
+`.claude/rules/review-convergence.md` (`false-positive` is a consumer dismissal
+disposition in `fix-issue`, not an `audit-pr` finding severity).
 
 ---
 
@@ -54,7 +69,7 @@ Flag for extra scrutiny - verify physical reasoning.
 
 | Requirement | Target |
 |-------------|--------|
-| New code coverage | ≥80% |
+| New code coverage | >=80% |
 | Critical paths | 95-100% |
 | Physics validation | Required for physics |
 
@@ -64,23 +79,24 @@ Check: FIRST principles, AAA pattern, tolerance assertions.
 
 ## Documentation Review
 
-- **CHANGELOG** — entry with correct category
-- **PR description** — scientific rationale (if physics)
-- **User docs** — updated if user-facing; the `docs-reviewer` agent's
+- **CHANGELOG** -- entry with correct category
+- **PR description** -- scientific rationale (if physics)
+- **User docs** -- updated if user-facing; the `docs-reviewer` agent's
   findings-only drift report (see SKILL.md "Docs") lists the pages that should
   have moved
-- **Schema bump trigger** — if `src/supy/data_model/configuration/version.py`
+- **Schema bump trigger** -- if `src/supy/data_model/configuration/version.py`
   moved `CURRENT_SCHEMA_VERSION`, the PR must also touch
   `docs/source/contributing/schema/schema_versioning.rst` and
   `docs/source/inputs/transition_guide.rst`. See the full trigger-specific
-  checklist in `review-checklist.md` → "Schema version bump".
+  checklist in `review-checklist.md` -> "Schema version bump".
 
 ---
 
 ## Build and CI Review
 
 ```bash
-# Verify meson.build includes new Fortran files, __init__.py new Python files
+# Verify src/supy/meson.build (src_f95_all + py.install_sources),
+# src/suews/Makefile, and src/suews/Makefile.deps include new/changed files
 
 # Checks, with the workflow each belongs to
 gh pr checks {pr} --repo UMEP-dev/SUEWS --json name,state,bucket,workflow,link

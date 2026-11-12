@@ -65,11 +65,13 @@ def _match_field(body: str, name: str) -> tuple[int, int, str] | None:
 
 
 def extract_field(body: str, name: str) -> str | None:
+    """Return the unwrapped value of BibTeX field ``name`` or ``None``."""
     match = _match_field(body, name)
     return match[2] if match else None
 
 
 def parse_slugs(raw: str) -> list[str]:
+    """Split a comma-separated keywords string into stripped topic slugs."""
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
@@ -80,6 +82,7 @@ def audit_entry(
     violations: list[str],
     warnings: list[str],
 ) -> None:
+    """Validate one BibTeX entry and append any violations or warnings."""
     key = entry["key"]
     body = entry["body"]
     line = entry["line"]
@@ -121,7 +124,7 @@ def audit_entry(
         if val is None or not val.strip():
             violations.append(f"{prefix}: missing or empty `{field}`")
 
-    # Abstract (warning only — collaborators without WoS access can still pass)
+    # Abstract (warning only -- collaborators without WoS access can still pass)
     abstract = extract_field(body, "abstract")
     if abstract is None or not abstract.strip():
         warnings.append(
@@ -130,6 +133,7 @@ def audit_entry(
 
 
 def find_entries(text: str) -> list[dict]:
+    """Locate all top-level BibTeX entries in ``text``."""
     starts = list(ENTRY_START.finditer(text))
     entries = []
     for i, m in enumerate(starts):
@@ -149,6 +153,7 @@ def find_entries(text: str) -> list[dict]:
 def audit_file(
     path: Path, all_keys: dict[str, str]
 ) -> tuple[int, list[str], list[str]]:
+    """Audit every BibTeX entry in ``path``."""
     text = path.read_text(encoding="utf-8")
     entries = find_entries(text)
     violations: list[str] = []
@@ -159,6 +164,7 @@ def audit_file(
 
 
 def main() -> int:
+    """Run the CLI bibliography topic-tag audit."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else "")
     ap.add_argument("paths", nargs="+", help="Bib files to audit")
     ap.add_argument(

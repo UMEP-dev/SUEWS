@@ -1,152 +1,167 @@
 #!/usr/bin/env python3
 """
 Comprehensive CHANGELOG restructuring script that:
-1. Parses CHANGELOG.md to structured JSON
+1. Parses CHANGELOG.md to structured JSON (preserving optional governance status tags)
 2. Cleans duplicates and merges entries
 3. Sorts properly by date
-4. Formats back to clean markdown with:
-   - Table of Contents by year
-   - Annual statistics table
-   - GitHub PR/issue links
-   - Proper heading levels
+4. Formats back to clean markdown while preserving existing Table of Contents
+   and Annual Statistics sections (or generating fallbacks when absent)
 """
 
-import re
-import json
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Tuple
-import hashlib
+import argparse
 from collections import defaultdict
+import contextlib
+from datetime import datetime
+import hashlib
+import json
+from pathlib import Path
+import re
+
+CATEGORY_NORMALISE = {
+    "changes": "change",
+    "docs": "doc",
+}
+
+_LINK_TOKEN_RE = re.compile(
+    r"(?P<protected>`[^`]*`|\[[^\]]+\]\([^)]+\)|https?://\S+)"
+    r"|(?<!\w)PR\s*#(?P<pr>\d+)\b"
+    r"|(?<!\w)gh#(?P<gh>\d+)\b"
+    r"|(?<![\w/#\[])#(?P<issue>\d+)\b(?!\])"
+)
 
 
 class ChangelogRestructurer:
     def __init__(self, changelog_path: str = "CHANGELOG.md"):
         self.changelog_path = Path(changelog_path)
-        # Support both old format (- DATE:) and new format (### DATE)
         self.date_pattern = re.compile(r"^(?:- |### )(\d{1,2} \w+ \d{4})(?::\s*)?$")
-        self.entry_pattern = re.compile(r"^(?:  )?- \[(\w+)\] (.+)$")
+        self.year_heading_pattern = re.compile(r"^## (\d{4}|Unknown Year)\s*$")
+        self.entry_pattern = re.compile(
+            r"^(?:  )?- \[(feature|bugfix|change|changes|maintenance|doc|docs)\]"
+            r"(?:\[(experimental|stable|internal)\])?:?\s+(.+)$"
+        )
 
-    def parse_to_json(self) -> Dict:
-        """Parse CHANGELOG.md into structured JSON format"""
+    @staticmethod
+    def _record_date_entries(
+        data: dict, current_date: str | None, current_entries: list[dict]
+    ) -> None:
+        if not current_date or not current_entries:
+            return
+        data["entries"].setdefault(current_date, []).extend(current_entries)
+        data["raw_entries"].append({
+            "date": current_date,
+            "entries": current_entries.copy(),
+        })
+
+    @staticmethod
+    def _consume_preamble_line(data: dict, section: str, line: str) -> str:
+        if line.startswith("## Table of Contents"):
+            data["toc_lines"].append(line)
+            return "toc"
+        if line.startswith("## Annual Statistics"):
+            data["stats_lines"].append(line)
+            return "stats"
+        if section == "toc":
+            data["toc_lines"].append(line)
+        elif section == "stats":
+            data["stats_lines"].append(line)
+        else:
+            data["header"].append(line)
+        return section
+
+    def _consume_entry_block(
+        self, lines: list[str], start_idx: int, entry_match: re.Match[str]
+    ) -> tuple[dict[str, object], int]:
+        raw_cat = entry_match.group(1)
+        category = CATEGORY_NORMALISE.get(raw_cat, raw_cat)
+        details: list[str] = []
+        j = start_idx + 1
+        while j < len(lines) and (
+            lines[j].startswith("    -") or lines[j].startswith("  -")
+        ):
+            if self.entry_pattern.match(lines[j]):
+                break
+            detail = lines[j].strip()
+            if detail.startswith("- "):
+                detail = detail[2:]
+            details.append(detail)
+            j += 1
+        entry: dict[str, object] = {
+            "category": category,
+            "status": entry_match.group(2),
+            "description": entry_match.group(3),
+            "details": details,
+        }
+        return entry, j - 1
+
+    def parse_to_json(self) -> dict:
+        """Parse CHANGELOG.md into structured JSON format."""
         if not self.changelog_path.exists():
             raise FileNotFoundError(f"{self.changelog_path} not found")
 
-        content = self.changelog_path.read_text(encoding="utf-8")
-        lines = content.split("\n")
-
-        # Structure to hold parsed data
-        data = {
+        lines = self.changelog_path.read_text(encoding="utf-8").split("\n")
+        data: dict = {
             "header": [],
-            "entries": {},  # date_str -> list of entries
-            "raw_entries": [],  # For debugging
+            "toc_lines": [],
+            "stats_lines": [],
+            "entries": {},
+            "raw_entries": [],
         }
 
-        current_date = None
-        current_entries = []
-        in_header = True
+        current_date: str | None = None
+        current_entries: list[dict] = []
+        preamble_section: str | None = "header"
 
         i = 0
         while i < len(lines):
             line = lines[i]
-
-            # Check for date line
             date_match = self.date_pattern.match(line)
             if date_match:
-                # Save previous date's entries
-                if current_date and current_entries:
-                    if current_date not in data["entries"]:
-                        data["entries"][current_date] = []
-                    data["entries"][current_date].extend(current_entries)
-                    data["raw_entries"].append({
-                        "date": current_date,
-                        "entries": current_entries.copy(),
-                    })
-
-                # Start new date
+                self._record_date_entries(data, current_date, current_entries)
                 current_date = date_match.group(1)
                 current_entries = []
-                in_header = False
-
-            elif in_header:
-                data["header"].append(line)
-
-            elif self.entry_pattern.match(line):
-                # This is an entry line
+                preamble_section = None
+            elif self.year_heading_pattern.match(line):
+                preamble_section = None
+            elif preamble_section is not None:
+                preamble_section = self._consume_preamble_line(
+                    data, preamble_section, line
+                )
+            else:
                 entry_match = self.entry_pattern.match(line)
                 if entry_match:
-                    category = entry_match.group(1)
-                    description = entry_match.group(2)
-
-                    # Start new entry
-                    current_entry = {
-                        "category": category,
-                        "description": description,
-                        "details": [],
-                    }
-
-                    # Look ahead for detail lines (starting with '  -' or '    -')
-                    j = i + 1
-                    while j < len(lines) and (
-                        lines[j].startswith("    -") or lines[j].startswith("  -")
-                    ):
-                        # Skip if it's another category entry
-                        if self.entry_pattern.match(lines[j]):
-                            break
-                        detail = lines[j].strip()
-                        if detail.startswith("- "):
-                            detail = detail[2:]  # Remove '- '
-                        current_entry["details"].append(detail)
-                        j += 1
-
-                    current_entries.append(current_entry)
-                    i = j - 1  # Skip the detail lines we just processed
-
+                    entry, i = self._consume_entry_block(lines, i, entry_match)
+                    current_entries.append(entry)
             i += 1
 
-        # Don't forget the last entry
-        if current_date and current_entries:
-            if current_date not in data["entries"]:
-                data["entries"][current_date] = []
-            data["entries"][current_date].extend(current_entries)
-            data["raw_entries"].append({
-                "date": current_date,
-                "entries": current_entries,
-            })
-
+        self._record_date_entries(data, current_date, current_entries)
         return data
 
-    def clean_entries(self, data: Dict) -> Dict:
-        """Clean duplicates and merge similar entries"""
+    @staticmethod
+    def clean_entries(data: dict) -> dict:
+        """Clean duplicates and merge similar entries."""
         cleaned_data = data.copy()
         cleaned_entries = {}
-
-        # Track seen entries to remove duplicates
         seen_entries = set()
 
         for date_str, entries in data["entries"].items():
             cleaned_date_entries = []
-
             for entry in entries:
-                # Create a hash of the entry to detect duplicates
                 entry_hash = hashlib.md5(
                     json.dumps(entry, sort_keys=True).encode()
                 ).hexdigest()
-
                 if entry_hash not in seen_entries:
                     seen_entries.add(entry_hash)
                     cleaned_date_entries.append(entry)
-
             if cleaned_date_entries:
                 cleaned_entries[date_str] = cleaned_date_entries
 
         cleaned_data["entries"] = cleaned_entries
         return cleaned_data
 
-    def sort_entries(self, data: Dict) -> List[Tuple[str, List]]:
-        """Sort entries by date in reverse chronological order"""
+    @staticmethod
+    def sort_entries(data: dict) -> list[tuple[str, list]]:
+        """Sort entries by date in reverse chronological order."""
         date_entries = []
-
         for date_str, entries in data["entries"].items():
             try:
                 date_obj = datetime.strptime(date_str, "%d %b %Y")
@@ -154,193 +169,162 @@ class ChangelogRestructurer:
             except ValueError:
                 print(f"Warning: Could not parse date '{date_str}'")
 
-        # Sort by date object in reverse order
         date_entries.sort(key=lambda x: x[0], reverse=True)
-
-        # Return sorted list of (date_str, entries) tuples
         return [(date_str, entries) for _, date_str, entries in date_entries]
 
-    def format_github_links(self, text: str) -> str:
-        """Convert #xxx and PR #xxx to GitHub links"""
-        # Check if already formatted (contains markdown links)
-        if "](https://github.com/" in text:
-            return text
+    @staticmethod
+    def format_github_links(text: str) -> str:
+        """Convert bare #NNN, gh#NNN, and PR #NNN references to GitHub links."""
 
-        # Pattern for PR mentions
-        pr_pattern = r"PR #(\d+)"
-        text = re.sub(
-            pr_pattern, r"[PR #\1](https://github.com/UMEP-dev/SUEWS/pull/\1)", text
-        )
+        def _replace(match: re.Match[str]) -> str:
+            if match.group("protected") is not None:
+                return match.group("protected")
+            if match.group("pr") is not None:
+                num = match.group("pr")
+                return f"[PR #{num}](https://github.com/UMEP-dev/SUEWS/pull/{num})"
+            if match.group("gh") is not None:
+                num = match.group("gh")
+                return f"[gh#{num}](https://github.com/UMEP-dev/SUEWS/issues/{num})"
+            num = match.group("issue")
+            return f"[#{num}](https://github.com/UMEP-dev/SUEWS/issues/{num})"
 
-        # Pattern for issue mentions (but not PR mentions and not already in brackets)
-        issue_pattern = r"(?<!PR )(?<!\[)#(\d+)(?!\])"
-        text = re.sub(
-            issue_pattern, r"[#\1](https://github.com/UMEP-dev/SUEWS/issues/\1)", text
-        )
+        return _LINK_TOKEN_RE.sub(_replace, text)
 
-        return text
-
-    def generate_toc(self, sorted_entries: List[Tuple[str, List]]) -> List[str]:
-        """Generate table of contents by year"""
+    @staticmethod
+    def generate_toc(sorted_entries: list[tuple[str, list]]) -> list[str]:
+        """Generate fallback table of contents by year when none exists."""
         years = set()
         for date_str, _ in sorted_entries:
-            try:
-                date_obj = datetime.strptime(date_str, "%d %b %Y")
-                years.add(date_obj.year)
-            except ValueError:
-                pass
+            with contextlib.suppress(ValueError):
+                years.add(datetime.strptime(date_str, "%d %b %Y").year)
 
         toc_lines = ["## Table of Contents", ""]
         for year in sorted(years, reverse=True):
             toc_lines.append(f"- [{year}](#{year})")
-
         return toc_lines
 
-    def generate_stats_table(self, sorted_entries: List[Tuple[str, List]]) -> List[str]:
-        """Generate annual statistics table"""
-        # Collect stats by year
-        stats_by_year = defaultdict(lambda: defaultdict(int))
-
+    @staticmethod
+    def generate_stats_table(sorted_entries: list[tuple[str, list]]) -> list[str]:
+        """Generate fallback annual statistics table when none exists."""
+        stats_by_year: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         for date_str, entries in sorted_entries:
-            try:
-                date_obj = datetime.strptime(date_str, "%d %b %Y")
-                year = date_obj.year
-
+            with contextlib.suppress(ValueError):
+                year = datetime.strptime(date_str, "%d %b %Y").year
                 for entry in entries:
-                    category = entry["category"]
-                    stats_by_year[year][category] += 1
+                    stats_by_year[year][entry["category"]] += 1
                     stats_by_year[year]["total"] += 1
 
-            except ValueError:
-                pass
-
-        # Generate table
         table_lines = [
-            "",
             "## Annual Statistics",
             "",
             "| Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |",
             "|------|----------|----------|---------|-------------|------|-------|",
         ]
-
         categories = ["feature", "bugfix", "change", "maintenance", "doc"]
-
         for year in sorted(stats_by_year.keys(), reverse=True):
             stats = stats_by_year[year]
-            row = f"| {year} |"
-            for cat in categories:
-                count = stats.get(cat, 0)
-                row += f" {count} |"
-            row += f" {stats['total']} |"
-            table_lines.append(row)
-
+            counts = " ".join(f"{stats.get(cat, 0)} |" for cat in categories)
+            table_lines.append(f"| {year} | {counts} {stats['total']} |")
         return table_lines
 
-    def format_to_markdown(
-        self, data: Dict, sorted_entries: List[Tuple[str, List]]
-    ) -> str:
-        """Format the cleaned and sorted data back to markdown"""
-        lines = []
+    @staticmethod
+    def _trim_trailing_blanks(section_lines: list[str]) -> list[str]:
+        trimmed = list(section_lines)
+        while trimmed and not trimmed[-1]:
+            trimmed.pop()
+        return trimmed
 
-        # Add header (but skip any existing TOC or stats tables)
-        for line in data["header"]:
-            # Skip lines that are part of TOC or stats table
-            if line.startswith("## Table of Contents") or line.startswith(
-                "## Annual Statistics"
-            ):
-                break
-            if line.startswith("| Year |") or line.startswith("|------|"):
-                continue
-            if line.startswith("- [20") and "](#20" in line:  # TOC entry
-                continue
-            lines.append(line)
-
-        # Remove trailing empty lines from header
-        while lines and lines[-1] == "":
-            lines.pop()
-
-        lines.append("")  # Add single blank line after header
-
-        # Add TOC
-        toc = self.generate_toc(sorted_entries)
-        lines.extend(toc)
-
-        # Add stats table
-        stats_table = self.generate_stats_table(sorted_entries)
-        lines.extend(stats_table)
-        lines.append("")  # Extra blank line
-
-        # Group entries by year
-        entries_by_year = defaultdict(list)
+    @staticmethod
+    def _group_by_year(
+        sorted_entries: list[tuple[str, list]],
+    ) -> dict[int, list[tuple[str, list]]]:
+        entries_by_year: dict[int, list[tuple[str, list]]] = defaultdict(list)
         for date_str, entries in sorted_entries:
             try:
-                date_obj = datetime.strptime(date_str, "%d %b %Y")
-                year = date_obj.year
+                year = datetime.strptime(date_str, "%d %b %Y").year
                 entries_by_year[year].append((date_str, entries))
             except ValueError:
-                # If date parsing fails, put in "Unknown" year
                 entries_by_year[0].append((date_str, entries))
+        return entries_by_year
 
-        # Add entries grouped by year
-        for year in sorted(entries_by_year.keys(), reverse=True):
-            if year == 0:
-                lines.append("\n## Unknown Year")
-            else:
-                lines.append(f"\n## {year}")
+    def _render_date_block(self, date_str: str, entries: list[dict]) -> list[str]:
+        preferred_order = ["feature", "bugfix", "change", "maintenance", "doc"]
+        block = [f"### {date_str}", ""]
+        by_category: dict[str, list[dict]] = defaultdict(list)
+        for entry in entries:
+            by_category[entry["category"]].append(entry)
 
+        ordered_categories = preferred_order + [
+            cat for cat in by_category if cat not in preferred_order
+        ]
+        for category in ordered_categories:
+            for entry in by_category.get(category, []):
+                description = self.format_github_links(entry["description"])
+                status = entry.get("status")
+                status_tag = f"[{status}]" if status else ""
+                block.append(f"- [{entry['category']}]{status_tag} {description}")
+                for detail in entry["details"]:
+                    block.append(f"  - {self.format_github_links(detail)}")
+        block.append("")
+        return block
+
+    def format_to_markdown(
+        self, data: dict, sorted_entries: list[tuple[str, list]]
+    ) -> str:
+        """Format the cleaned and sorted data back to markdown."""
+        lines: list[str] = []
+
+        header_lines = self._trim_trailing_blanks(data.get("header", []))
+        if header_lines:
+            lines.extend(header_lines)
             lines.append("")
 
+        preserved_toc = self._trim_trailing_blanks(data.get("toc_lines", []))
+        toc = preserved_toc if preserved_toc else self.generate_toc(sorted_entries)
+        if toc:
+            lines.extend(toc)
+            lines.append("")
+
+        preserved_stats = self._trim_trailing_blanks(data.get("stats_lines", []))
+        stats_table = (
+            preserved_stats
+            if preserved_stats
+            else self.generate_stats_table(sorted_entries)
+        )
+        if stats_table:
+            lines.extend(stats_table)
+
+        entries_by_year = self._group_by_year(sorted_entries)
+        for year in sorted(entries_by_year.keys(), reverse=True):
+            lines.append("\n## Unknown Year" if year == 0 else f"\n## {year}")
+            lines.append("")
             for date_str, entries in entries_by_year[year]:
-                lines.append(f"### {date_str}")
+                lines.extend(self._render_date_block(date_str, entries))
 
-                # Group entries by category for better organization
-                by_category = {}
-                for entry in entries:
-                    cat = entry["category"]
-                    if cat not in by_category:
-                        by_category[cat] = []
-                    by_category[cat].append(entry)
+        lines = self._trim_trailing_blanks(lines)
+        return "\n".join(lines) + "\n"
 
-                # Output in preferred category order
-                category_order = ["feature", "bugfix", "change", "maintenance", "doc"]
+    def save_json_debug(self, data: dict, filename: str | None = None) -> Path:
+        """Save parsed data to JSON for debugging."""
+        target = (
+            Path(filename)
+            if filename is not None
+            else self.changelog_path.with_name(f"{self.changelog_path.stem}_debug.json")
+        )
+        with open(target, "w", encoding="utf-8") as f:
+            json.dump(data.copy(), f, indent=2, default=str)
+        print(f"Debug data saved to {target}")
+        return target
 
-                for category in category_order:
-                    if category in by_category:
-                        for entry in by_category[category]:
-                            # Format description with GitHub links
-                            description = self.format_github_links(entry["description"])
-                            lines.append(f"- [{entry['category']}] {description}")
-
-                            # Format details with GitHub links
-                            for detail in entry["details"]:
-                                formatted_detail = self.format_github_links(detail)
-                                lines.append(f"  - {formatted_detail}")
-
-                lines.append("")  # Blank line after each date
-
-        # Remove trailing blank lines
-        while lines and lines[-1] == "":
-            lines.pop()
-
-        return "\n".join(lines)
-
-    def save_json_debug(self, data: Dict, filename: str = "changelog_debug.json"):
-        """Save parsed data to JSON for debugging"""
-        with open(filename, "w", encoding="utf-8") as f:
-            # Convert datetime objects to strings for JSON serialization
-            json_data = data.copy()
-            json.dump(json_data, f, indent=2, default=str)
-        print(f"Debug data saved to {filename}")
-
-    def restructure(self):
-        """Main method to restructure the changelog"""
+    def restructure(self, save_debug: bool = True) -> None:
+        """Restructure CHANGELOG.md in place after writing a .backup copy."""
         print("Step 1: Parsing CHANGELOG.md to JSON...")
         data = self.parse_to_json()
         print(f"  Found {len(data['entries'])} unique dates")
         print(f"  Total raw entries: {len(data['raw_entries'])}")
 
-        # Save debug JSON
-        self.save_json_debug(data)
+        if save_debug:
+            self.save_json_debug(data)
 
         print("\nStep 2: Cleaning duplicates...")
         cleaned_data = self.clean_entries(data)
@@ -348,37 +332,45 @@ class ChangelogRestructurer:
 
         print("\nStep 3: Sorting entries by date...")
         sorted_entries = self.sort_entries(cleaned_data)
-
         if sorted_entries:
-            newest = sorted_entries[0][0]
-            oldest = sorted_entries[-1][0]
-            print(f"  Date range: {newest} → {oldest}")
+            print(f"  Date range: {sorted_entries[0][0]} -> {sorted_entries[-1][0]}")
 
         print("\nStep 4: Formatting back to markdown...")
         markdown = self.format_to_markdown(cleaned_data, sorted_entries)
 
-        # Backup original
         backup_path = self.changelog_path.with_suffix(".md.backup")
         self.changelog_path.rename(backup_path)
         print(f"\nOriginal backed up to: {backup_path}")
 
-        # Write new changelog
         self.changelog_path.write_text(markdown, encoding="utf-8")
-        print(f"✓ Restructured CHANGELOG saved to: {self.changelog_path}")
+        print(f"[OK] Restructured CHANGELOG saved to: {self.changelog_path}")
 
-        # Summary statistics
         total_entries = sum(len(entries) for _, entries in sorted_entries)
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"  - Total dates: {len(sorted_entries)}")
         print(f"  - Total entries: {total_entries}")
-        print(
-            f"  - Average entries per date: {total_entries / len(sorted_entries):.1f}"
-        )
+        if sorted_entries:
+            print(
+                f"  - Average entries per date: {total_entries / len(sorted_entries):.1f}"
+            )
 
 
-def main():
-    restructurer = ChangelogRestructurer()
-    restructurer.restructure()
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Restructure SUEWS CHANGELOG.md")
+    parser.add_argument(
+        "path",
+        nargs="?",
+        default="CHANGELOG.md",
+        help="Path to CHANGELOG markdown file (default: CHANGELOG.md)",
+    )
+    parser.add_argument(
+        "--no-debug-json",
+        action="store_true",
+        help="Skip writing <stem>_debug.json",
+    )
+    args = parser.parse_args()
+    restructurer = ChangelogRestructurer(args.path)
+    restructurer.restructure(save_debug=not args.no_debug_json)
 
 
 if __name__ == "__main__":

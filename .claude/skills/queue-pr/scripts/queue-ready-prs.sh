@@ -5,15 +5,17 @@ set -o pipefail
 usage() {
     cat <<'USAGE'
 Usage:
-  queue-ready-prs.sh [--base master] [--limit 100] [--comment] [--enqueue]
+  queue-ready-prs.sh [--base master] [--limit 100] [--comment] [--allow-third-party-comment] [--enqueue]
 
 Scans open ready-for-review pull requests for a base branch, orders queueable
 PRs by merge-queue risk, and optionally writes coordination comments or
 enqueues them in that order.
 
 Default mode is dry-run. Use --comment to create or update one coordination
-comment on each non-draft PR. Use --enqueue only when the user explicitly asks
-to put PRs into the merge queue.
+comment on each non-draft PR authored by the authenticated user (third-party PRs
+are skipped unless --allow-third-party-comment is passed after explicit human
+approval). Use --enqueue only when the user explicitly asks to put PRs into the
+merge queue.
 USAGE
 }
 
@@ -25,6 +27,7 @@ die() {
 base="master"
 limit="100"
 comment=0
+allow_third_party_comment=0
 enqueue=0
 
 while [ "$#" -gt 0 ]; do
@@ -41,6 +44,10 @@ while [ "$#" -gt 0 ]; do
             ;;
         --comment)
             comment=1
+            shift
+            ;;
+        --allow-third-party-comment)
+            allow_third_party_comment=1
             shift
             ;;
         --enqueue)
@@ -95,13 +102,13 @@ if ! gh pr list \
     --state open \
     --base "$base" \
     --limit "$limit" \
-    --json number,title,headRefName,headRefOid,isDraft,reviewDecision,mergeStateStatus,mergeable,updatedAt,createdAt,url \
-    --jq '.[] | [.number, (.isDraft | tostring), ((.reviewDecision // "none") | if . == "" then "none" else . end), ((.mergeStateStatus // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), ((.mergeable // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), .headRefName, .headRefOid, .createdAt, .updatedAt, .url, .title] | @tsv' \
+    --json number,title,headRefName,headRefOid,isDraft,reviewDecision,mergeStateStatus,mergeable,updatedAt,createdAt,url,author \
+    --jq '.[] | [.number, (.isDraft | tostring), ((.reviewDecision // "none") | if . == "" then "none" else . end), ((.mergeStateStatus // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), ((.mergeable // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), .headRefName, .headRefOid, .createdAt, .updatedAt, .url, (.author.login // "unknown"), .title] | @tsv' \
     > "$prs_tsv"; then
     die "could not list pull requests for base: $base"
 fi
 
-while IFS="$tab" read -r number is_draft review state mergeable head oid created updated url title; do
+while IFS="$tab" read -r number is_draft review state mergeable head oid created updated url author title; do
     [ -n "${number:-}" ] || continue
 
     if [ "$is_draft" = "true" ]; then
@@ -109,8 +116,8 @@ while IFS="$tab" read -r number is_draft review state mergeable head oid created
         continue
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$number" "$review" "$state" "$mergeable" "$head" "$oid" "$created" "$url" "$title" >> "$ready_tsv"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$number" "$review" "$state" "$mergeable" "$head" "$oid" "$created" "$url" "$author" "$title" >> "$ready_tsv"
 
     reason=""
     if [ "$review" = "CHANGES_REQUESTED" ]; then
@@ -166,6 +173,12 @@ awk -F '\t' '
     $1 == "CHANGELOG.md" ||
     $1 == "meson.build" ||
     $1 == "src/supy/meson.build" ||
+    $1 ~ /^src\/suews\/Makefile/ ||
+    $1 == "src/suews_bridge/Cargo.toml" ||
+    $1 == "src/suews_bridge/Cargo.lock" ||
+    $1 == "src/suews_bridge/build.rs" ||
+    $1 == "pyproject.toml" ||
+    $1 == "mcp/pyproject.toml" ||
     $1 ~ /^\.github\/workflows\// ||
     $1 ~ /(^|\/)(uv\.lock|poetry\.lock|requirements.*\.txt|environment.*\.ya?ml)$/ ||
     $1 ~ /^docs\/.*(index|tutorial|example)/ ||
@@ -189,6 +202,12 @@ awk -F '\t' '
     $1 == "CHANGELOG.md" ||
     $1 == "meson.build" ||
     $1 == "src/supy/meson.build" ||
+    $1 ~ /^src\/suews\/Makefile/ ||
+    $1 == "src/suews_bridge/Cargo.toml" ||
+    $1 == "src/suews_bridge/Cargo.lock" ||
+    $1 == "src/suews_bridge/build.rs" ||
+    $1 == "pyproject.toml" ||
+    $1 == "mcp/pyproject.toml" ||
     $1 ~ /^\.github\/workflows\// ||
     $1 ~ /(^|\/)(uv\.lock|poetry\.lock|requirements.*\.txt|environment.*\.ya?ml)$/ ||
     $1 ~ /^docs\/.*(index|tutorial|example)/ ||
@@ -442,8 +461,12 @@ if [ "$comment" -eq 1 ]; then
 
     printf 'Actions:\n'
     comment_failed=0
-    while IFS="$tab" read -r number review state mergeable head oid created url title; do
+    while IFS="$tab" read -r number review state mergeable head oid created url author title; do
         [ -n "${number:-}" ] || continue
+        if [ "$allow_third_party_comment" -ne 1 ] && [ "$author" != "$login" ]; then
+            printf -- '- comment #%s: skipped (third-party PR owned by @%s; pass --allow-third-party-comment after approval)\n' "$number" "$author"
+            continue
+        fi
         comment_file="$(build_comment "$number" "$title")"
         printf -- '- comment #%s: ' "$number"
         if ! upsert_comment "$number" "$comment_file" "$repo" "$login"; then

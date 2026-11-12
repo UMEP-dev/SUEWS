@@ -1,385 +1,153 @@
 # SUEWS Testing Guidelines Reference
 
-This document consolidates all testing guidelines and patterns for permanent reference by both human developers and AI assistants.
+> **Canonical Rules Notice**
+>
+> Active, path-scoped testing rules in `.claude/` and CI lints supersede this overview whenever an example drifts. Always read the governing rule files first:
+> - [`.claude/rules/tests/patterns.md`](../../.claude/rules/tests/patterns.md) -- test placement taxonomy, nature/cost markers, tolerances, `importlib.resources` packaged-data access, and banned test constructions
+> - [`.claude/rules/tests/verification-methodology.md`](../../.claude/rules/tests/verification-methodology.md) -- reading existing loaders (`sample_output_io.load_sample_output`), covering all public API paths, and diagnostic discipline
+> - [`.claude/rules/physics-change-evidence.md`](../../.claude/rules/physics-change-evidence.md) -- required evidence, fixtures, and `0-physics:change` CI gates when model outputs move
+>
+> Note: Companion files [`FORTRAN_TEST_PATTERNS.md`](FORTRAN_TEST_PATTERNS.md) and [`ERROR_HANDLING_PATTERNS.md`](ERROR_HANDLING_PATTERNS.md) contain historical design explorations -- check their top banners before copying snippets.
 
-## Overview
+## 1. Test Design Philosophy
 
-These guidelines are extracted from the planning documents and represent best practices and patterns to follow when writing tests for SUEWS.
+### Level Taxonomy (Test Contracts, Not Implementation Details)
+Before writing a test, ask whether it could fail while user-visible or physically meaningful behaviour is unchanged. Place each test at the level that owns the contract (see `.claude/rules/tests/patterns.md` "Test Placement: the Level Taxonomy"):
+- **Config / validator contracts**: Test via `SUEWSConfig.from_yaml` / `from_dict` or CLI entry points, not private `_validate_*` helpers on `SimpleNamespace` stubs.
+- **Model physics**: Test via `SUEWSSimulation` runs (`test/physics/`, `test/core/`) with physically justified tolerances, plus Rust bridge codec/CLI checks in `src/suews_bridge/`.
+- **Adaptor layers** (CLI wrapping `supy`, MCP wrapping CLI): Assert delegation, argument wiring, and error mapping rather than re-testing core physics.
+- **Public pure helpers**: Unit-test directly.
 
-## 1. Test Design Philosophy (from TEST_DESIGN_DISCUSSION.md)
+### FIRST Principles and AAA Pattern
+- **FIRST**: **F**ast, **I**ndependent, **R**epeatable, **S**elf-validating, **T**imely.
+- **AAA**: **A**rrange (set up inputs/fixtures), **A**ct (run the public entry point), **A**ssert (verify physical or API contracts).
 
-### Types of Tests
-- **Unit Tests**: Test individual functions/methods in isolation
-- **Integration Tests**: Test how components work together
-- **Scientific Validation Tests**: Verify physics/science (energy balance, water conservation)
-- **Regression Tests**: Ensure changes don't break existing functionality
-- **Edge Case Tests**: Handle extreme/unusual inputs
+## 2. Running Tests Locally (`Makefile` Targets)
 
-### Key Questions When Designing Tests
-1. **What am I testing?** (One clear objective)
-2. **What's the expected behaviour?** (Define success)
-3. **What could go wrong?** (Failure modes)
-4. **How do I know it worked?** (Assertions)
-5. **Is this test reproducible?** (Deterministic)
-6. **Is this test fast enough?** (Performance)
+Use the repository `Makefile` targets (requires an activated virtual environment built with `make dev`):
 
-### FIRST Principles
-- **F**ast - Tests should run quickly
-- **I**ndependent - No dependencies between tests
-- **R**epeatable - Same results every time
-- **S**elf-validating - Clear pass/fail
-- **T**imely - Written with the code
+```bash
+# Fast fail-fast smoke suite (~30-60 s) -- run before every commit
+make test-smoke
 
-### AAA Pattern
-- **A**rrange - Set up test data
-- **A**ct - Execute the functionality
-- **A**ssert - Verify the results
+# Everyday development suite (~2 min across up to TEST_JOBS=4 xdist workers)
+# Covers test/test_api_surface.py, test/core, test/data_model, test/physics, test/io_tests
+# Excludes slow tests and peripheral surfaces (cmd, mcp, docs, knowledge, umep)
+make test
 
-## 2. Fortran Test Patterns (from FORTRAN_TEST_PATTERNS.md)
+# Full test suite including slow regressions and all peripheral directories
+make test-all
 
-### Historical f90wrap modules (removed)
-The f90wrap interface has been removed. Fortran physics is now accessed
-exclusively via the Rust bridge. The module list previously here is retained
-in `FORTRAN_TEST_PATTERNS.md` for historical reference.
-
-### Common Test Patterns
-
-#### Pattern 1: Direct Physics Function Testing
-Test individual physics calculations without full model overhead.
-
-#### Pattern 2: State Object Testing
-Test Fortran derived types and state management.
-
-#### Pattern 3: Array Handling Tests
-Test array operations between Python and Fortran.
-
-#### Pattern 4: Edge Case Testing
-Test numerical edge cases and boundary conditions.
-
-#### Pattern 5: Performance Testing
-Test performance with batch operations.
-
-#### Pattern 6: Physics Validation Testing
-Validate physics calculations against known solutions.
-
-#### Pattern 7: Error Detection Testing
-Verify error handling and invalid input detection.
-
-### Best Practices
-1. **Test Naming**: Use descriptive names indicating what is being tested
-2. **Input Validation**: Always test with physically realistic values
-3. **Output Validation**: Check physical constraints, verify units
-4. **Documentation**: Document the physics being tested with references
-5. **Performance**: Minimize Python-Fortran transitions
-
-### Common Pitfalls and Solutions
-- **Uninitialized Variables**: Always check initialization
-- **Array Indexing**: Remember Fortran uses 1-based indexing
-- **Floating Point Comparison**: Use `np.allclose()` or tolerance
-- **State Pollution**: Reset state or use fresh instances
-- **Memory Leaks**: Test with memory profiling
-
-## 3. Error Handling Patterns (from ERROR_HANDLING_PATTERNS.md)
-
-### Core Principles
-1. **Helpful for debugging** - Precise indication of cause
-2. **Friendly for user experience** - Easy to understand what went wrong
-
-### Dual-Layer Error Strategy
-- **Technical Layer**: Exact error location, stack trace, variable states
-- **User Layer**: What went wrong, why it matters, how to fix it
-
-### Error Message Structure
-```python
-class SUEWSError(Exception):
-    def __init__(self, user_message, debug_info=None, fix_hint=None):
-        self.user_message = user_message
-        self.debug_info = debug_info or {}
-        self.fix_hint = fix_hint
+# UMEP/QGIS compatibility suite (targets Windows + Python 3.12; skips elsewhere)
+make test-qgis
 ```
 
-### Best Practices
-**DO**:
-- Provide clear user messages in plain language
-- Include actionable fix hints
-- Capture debug context for investigation
-- Use error hierarchies appropriately
-- Test error paths
+When editing a peripheral surface skipped by `make test` (`test/cmd/`, `test/mcp/`, `test/docs/`, `test/knowledge/`, or `test/umep/`), run that directory explicitly (for example `pytest test/cmd -v`) or run `make test-all`.
 
-**DON'T**:
-- Don't expose stack traces to users by default
-- Don't use technical jargon in user messages
-- Don't lose context when re-raising exceptions
-- Don't ignore errors
-- Don't assume user technical knowledge
+## 3. Test File Organisation
 
-## 4. Test Organisation Standards
+**SuPy runtime and physics tests MUST live under `test/`.** Standard `make test*` targets and `scripts/lint/check_test_markers.py` collect from `test/` (`pyproject.toml` sets `testpaths = ["test"]`); placing a SuPy test alongside `src/` leaves it uncollected. Two dedicated standalone suites live outside `test/` and run in their own workflows: `benchmark/tests/test_*.py` (regression-harness unit tests) and `.claude/scripts/test_validate_agents_md.py` (`unittest` suite for shared agent-governance rules).
 
-### Python Test Structure
-```
+```text
 test/
-├── unit/                    # Fast, focused tests
-│   ├── test_data_model/    # Configuration validation
-│   ├── test_fortran_interface/  # Type conversions
-│   └── test_utilities/     # Helper functions
-├── integration/            # Component interaction tests
-│   ├── test_temporal/      # Time-series tests
-│   └── test_weather/       # Weather scenarios
-├── physics/                # Scientific validation
-│   ├── test_energy_balance/
-│   ├── test_water_balance/
-│   └── test_atmospheric_stability/
-└── performance/            # Performance benchmarks
+|-- core/           # Core API, state persistence, sample output, exact reference gate
+|-- data_model/     # Pydantic config validation, schema versioning, YAML converters
+|-- physics/        # Scientific validation, conservation checks, option sweeps
+|-- io_tests/       # Input/output formats, forcing loaders, resampling
+|-- cmd/            # CLI entry points (suews run, convert, validate, schema)
+|-- mcp/            # MCP server tools and plugin packaging manifests
+|-- docs/           # Documentation generation and RST sanity checks
+|-- umep/           # UMEP/QGIS compatibility contracts (auto-marked api + qgis)
+`-- fixtures/       # Vendored self-contained test fixtures and reference shards
 ```
 
-### Fortran Test Organisation (by Physics)
-```
-test/physics/
-├── test_atmospheric_stability/
-├── test_evaporation/
-├── test_energy_balance/
-└── test_radiation/
-```
+## 4. Composed Pytest Markers and CI Tiers
 
-## 5. pytest Markers and Configuration
+Markers compose across orthogonal nature, importance, and cost axes declared in `pyproject.toml` (gh#1300, gh#1680):
 
-### Composed Marker Properties (gh#1300, gh#1680)
+- **Nature axis (REQUIRED at module level in every `test/**/*.py` file)**:
+  ```python
+  import pytest
 
-Markers compose across orthogonal nature, importance, and cost properties,
-declared in `pyproject.toml` (see
-`.claude/rules/tests/patterns.md` for the full authoring guide):
-
-- **Nature axis** -- what the test actually exercises. Every test file must
-  declare exactly one (or, rarely, both) at module level via `pytestmark`:
-  - `physics` -- numerical/binary correctness; sufficient to run once per
-    `(OS, arch)` on the canonical build Python (the compiled artefact
-    determines the result, not the interpreter).
-  - `api` -- Python wrapper correctness (pandas/numpy/pydantic, CLI,
-    `SUEWSSimulation`); run across `(platform x Python)` because the
-    dependency surface varies per interpreter.
-- **Importance and cost** -- independent properties applied as per-test
-  decorators on top of the nature marker; absence of a cost marker means fast:
-  - `smoke` -- minimal wheel validation (~6 tests, ~60s)
-  - `smoke_bridge` -- bridge-loading subset run across `cp312..cp3xx` after a
-    single abi3 build
-  - `core` -- core physics and logic tests (Fortran, driver)
-  - `cfg` -- config/schema validation tests
-  - `util` -- utility function tests (non-critical)
-  - `rust` -- Rust bridge backend tests (requires `suews_bridge` built with
-    the `physics` feature)
-  - `medium` -- test body of 10 to 30 CPU seconds on the Linux reference runner
-    (cp312), as recorded per test in the nightly `ci-metrics-*` artefacts
-  - `slow` -- test body of 30 CPU seconds or more on that runner, or unsuitable
-    for routine PR runs for a stated non-CPU reason (`slow(reason="...")`);
-    `scripts/lint/check_cost_markers.py` checks both markers nightly
-  - `qgis` -- UMEP plugin integration tests in `test/umep/`, targeting
-    Windows + Python 3.12 (current QGIS 3 LTR / QGIS 4 runtime); auto-applied
-    by `test/umep/conftest.py`, stays out of normal PR/merge-queue tiers
-
-```python
-# pyproject.toml (abbreviated -- see pyproject.toml for the authoritative list)
-[tool.pytest.ini_options]
-markers = [
-    # Nature axis
-    "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
-    "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
-    # Importance markers
-    "smoke: Minimal wheel validation (~6 tests, ~60s)",
-    "smoke_bridge: Bridge-loading subset run across cp312..cp3xx after a single abi3 build",
-    "core: Core physics & logic tests (Fortran, driver)",
-    "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
-    "util: Utility function tests (non-critical)",
-    "cfg: Config/schema validation tests",
-    # Cost markers
-    "medium: Test body of 10 to 30 CPU seconds on the Linux reference runner (cp312); excluded from the smoke tier only, included by core, cfg and standard",
-    "slow: Test body of 30 CPU seconds or more on the Linux reference runner, or unsuitable for routine PR runs for a stated reason (slow(reason=...)); excluded from standard unless core",
-    "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
-]
-```
-
-A CI expression composes nature, importance, and cost, e.g. `-m "api and smoke
-and not (medium or slow)"` or `-m "physics and (core or not slow)"`. A static lint
-(`scripts/lint/check_test_markers.py`) plus a `pytest_collection_finish` hook
-in `test/conftest.py` fail any PR that adds a test file without a nature
-marker.
+  pytestmark = pytest.mark.api      # Python wrapper, Pydantic, pandas, CLI, I/O
+  # or:
+  pytestmark = pytest.mark.physics  # Numerical / compiled Fortran + Rust kernel output
+  ```
+  Enforced by `scripts/lint/check_test_markers.py` and `test/conftest.py`.
+- **Importance and cost decorators** (applied per test as needed):
+  - `smoke`: Minimal wheel validation (~60 s).
+  - `smoke_bridge`: Bridge-loading subset across `cp312..cp3xx` after one `abi3` build.
+  - `core`: Essential physics/logic guardrails (included in `standard` even if `slow`).
+  - `cfg`: Configuration and schema validation tests.
+  - `util`: Non-critical utility tests.
+  - `rust`: Rust bridge backend tests requiring `suews_bridge` with `physics`.
+  - `medium`: Test body takes 10 to 30 CPU seconds on the Linux `cp312` reference runner.
+  - `slow`: Test body takes 30+ CPU seconds on the reference runner, or carries `slow(reason="...")` for a non-CPU reason; audited nightly by `scripts/lint/check_cost_markers.py`.
+  - `qgis`: UMEP/QGIS plugin tests in `test/umep/` (Windows + Python 3.12 target).
 
 ### Tier -> CI Mapping
 
-Tier names map onto CI wall-clock budgets and the events that run them (see
-`.claude/rules/ci/conventions.md` "Test Tier Definitions" and "Test Tier
-Assignment by Event" for the authoritative mapping):
-
 | Tier | Approx. duration | Runs on |
-|------|-------------------|---------|
-| `smoke` | ~60s | Draft PRs (python/util/ci/tests-only changes), ready PRs (ci/tests-only) |
-| `core` / `cfg` | ~2-3 min | Draft PRs (fortran/rust -> core; build-system -> cfg) |
+|------|------------------|---------|
+| `smoke` | ~60 s | Draft PRs (`python`/`util`/`ci`/tests-only changes), ready PRs (`ci`/tests-only) |
+| `core` / `cfg` | ~2-3 min | Draft PRs (`fortran`/`rust` -> `core`; build-system -> `cfg`) |
 | `standard` | ~5-10 min | Ready PRs, merge queue |
-| `physics-full` | physics axis widens to include `slow`; api axis stays `standard` | Ready PR / merge queue when the PR carries `0-physics:change` (gh#1576) |
+| `physics-full` | physics axis includes `slow`; api axis stays `standard` | Ready PR / merge queue when PR carries `0-physics:change` (gh#1576) |
 | `all` | ~15-30 min | Nightly schedule, tag push, manual dispatch (`full`) |
 
-`qgis`-tier tests run only under the `all` tier (nightly/release/manual
-`full`); every other tier expression explicitly excludes them
-(`and not qgis`), so they never gate a PR or the merge queue.
+## 5. Session-Scoped Sample Fixtures
 
-The `all` tier is only part of what the nightly does. The scheduled run is the
-project's scientific tier: it also builds the checked Fortran profile, records
-the cross-platform tolerance spread and checks the cost markers against measured
-CPU seconds, none of which gate a PR. What runs there, what may redden it, and
-where a new expensive check belongs are in `.claude/rules/ci/conventions.md`
-("The Nightly as the Scientific Tier").
+Tests that only **read** a completed sample simulation's config, forcing, state, or output should reuse the session-scoped fixtures in `test/conftest.py` instead of running a fresh simulation per test:
+- `sample_data_loaded`: Bundled `(df_state_init, df_forcing)` loaded once per session (read-only; `.copy()` before mutating).
+- `completed_sample_sim`: Short `SUEWSSimulation` from sample YAML with `.run()` already executed (read-only; do not mutate, `.reset()`, or re-run).
+- `sample_run_cached`: Session-scoped factory memoising OOP sample runs by forcing window.
+- `sample_reference`: Loads the 12 monthly sample-output reference shards via `sample_output_io.load_sample_output`.
 
-## 6. Coverage Standards
+## 6. Locating Packaged Data (`importlib.resources` Required)
 
-### Coverage Targets
-- **Overall Goal**: 80% coverage
-- **Critical Paths**: 95-100% coverage required
-- **Core Functions**: 85-90% coverage target
-- **Utilities**: 70-80% coverage target
-- **UI/CLI**: 60-70% coverage acceptable
+**NEVER use `Path(sp.__file__).parent` or any imported `<module>.__file__` in `test/`** to reach packaged `sample_data` or schema files. `scripts/lint/check_packaged_data_paths.py` **fails CI** on any `<module>.__file__` access under `test/`.
 
-### Pull Request Rules
-1. No PR can decrease overall coverage
-2. New code must have ≥ 80% coverage
-3. Critical path changes require 95% coverage
-4. Coverage report required in PR
+### Canonical Pattern: `importlib.resources.files("supy")` or `trv_supy_module`
 
-## 7. Test Documentation Standards
-
-Tests should serve as documentation:
+Prefer the package's own `SUEWSSimulation.from_sample_data()` factory when you just need a configured simulation:
 ```python
-def test_urban_canyon_radiation(self):
-    """
-    Test radiation calculations in urban canyon.
+import supy as sp
 
-    This validates equation 3.2 from Grimmond & Oke (1999)
-    which calculates net radiation considering:
-    - Multiple reflections between buildings
-    - Sky view factor
-    - Building height/width ratio
-
-    Expected accuracy: ±5 W/m²
-    """
+sim = sp.SUEWSSimulation.from_sample_data()
+df_state_init = sim.state_init
+df_forcing = sim.forcing.df
 ```
 
-## 8. CI Test Tier Principles
+When a test genuinely needs packaged files from `supy/sample_data`, use `importlib.resources.files("supy") / "sample_data"` (or the shared handle `trv_supy_module` from `supy._env`) and honour the `Traversable` protocol:
 
-### Tier Structure
-
-CI tiers are driven by the composed marker properties in Section 5, not a
-separate taxonomy. The `determine_matrix` job in
-`.github/workflows/build-publish_to_pypi.yml` assigns a tier per event; see
-`.claude/rules/ci/conventions.md` ("Test Tier Definitions" and "Test Tier
-Assignment by Event") for the authoritative mapping:
-
-- **Draft PR**: `smoke`, `core`, or `cfg` depending on what changed -- fastest
-  feedback (~60s-3 min)
-- **Ready PR / merge queue**: `standard` (all non-`slow` tests plus `core`
-  regressions regardless of cost, ~5-10 min), or
-  `physics-full` when the PR carries `0-physics:change` (gh#1576)
-- **Nightly / tag push / manual dispatch (`full`)**: `all` -- the complete
-  suite including `slow` and `qgis` (~15-30 min)
-
-### Test Selection Criteria for PR
-- Fast (< 10 seconds per test)
-- Focused (test one functionality)
-- Stable (no flaky failures)
-- Critical (block merging if fail)
-
-### Session-Scoped Sample Fixtures (Required for Sample Runs)
-
-Tests that need the bundled sample simulation should use the session-scoped
-fixtures in `test/conftest.py` rather than building or running a fresh
-`SUEWSSimulation` per test:
-
-- `sample_data_loaded` -- the bundled `(df_state_init, df_forcing)`, loaded
-  once per session (read-only; `.copy()` before mutating)
-- `completed_sample_sim` -- a short `SUEWSSimulation` built from the sample
-  YAML with `.run()` already called (read-only; do not `.reset()`, mutate, or
-  re-run)
-- `sample_run_cached` -- a session-scoped factory memoising OOP sample runs by
-  forcing window
-
-Use these for any test that only *reads* a completed run's config, forcing,
-state, or output. Tests exercising running, mutation, or lifecycle behaviour
-(reset, checkpoint continuation, chunking, parallelism, before/after-run
-state) must still construct and run their own instance -- see each fixture's
-docstring in `test/conftest.py` for the full contract.
-
----
-
-## For AI Assistants (Claude Code)
-
-When writing tests for SUEWS:
-1. Follow the patterns documented above
-2. Use the Rust bridge for Fortran integration testing
-3. Keep tests AI-friendly and human-manageable
-4. Always use British English in test documentation
-5. Prioritise clarity over cleverness
-6. Include physics references where applicable
-7. Ensure tests are deterministic and reproducible
-8. Treat supy as an external package - use proper package data access methods
-
-## 9. Package Data Access Standards
-
-### Accessing supy Package Data in Tests
-
-Tests should treat supy as an external package. When accessing package data (e.g., sample configurations, test data), use the standard Python approach:
-
-#### Recommended Approach: `importlib.resources` (Python 3.9+)
 ```python
-from importlib.resources import files, as_file
-import supy as sp
+from importlib.resources import as_file, files
 import yaml
+import supy as sp
+from supy._env import trv_supy_module
 
-# Method 1: Direct reading
-sample_config = files("supy") / "sample_data" / "sample_config.yml"
-with sample_config.open() as f:
+# Method 1: Read directly via Traversable protocol methods (.is_file(), .open(), .read_text())
+sample_config = trv_supy_module / "sample_data" / "sample_config.yml"
+# Equivalent: sample_config = files("supy") / "sample_data" / "sample_config.yml"
+assert sample_config.is_file()  # Use .is_file(), NOT .exists()
+with sample_config.open(encoding="utf-8") as f:
     config_data = yaml.safe_load(f)
 
-# Method 2: Extract to temporary path for functions expecting file paths
-with as_file(files("supy") / "sample_data" / "sample_config.yml") as config_path:
-    df_state_init = sp.SUEWSSimulation(config_path).state_init
+# Method 2: Materialise the directory with as_file() when sibling files (forcing) are needed
+with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+    sim = sp.SUEWSSimulation(path_sample_dir / "sample_config.yml")
 ```
 
-#### Why This Approach?
-- **Works in all environments**: zipfiles, eggs, wheels, frozen applications
-- **Package-agnostic**: Doesn't assume filesystem layout
-- **Future-proof**: Standard Python way to access package data
-- **Type-safe**: Modern typing support
-- **Portable**: No assumptions about installation method
+**Key rules for `Traversable` handles** (see `.claude/rules/tests/patterns.md` "Locating packaged data"):
+- Never call `.parent` or `.exists()` on a `Traversable`, and never pass a `Traversable` directly to `open()` or `str()` as a filesystem path; wrap with `as_file(...)` whenever a real `os.PathLike` is needed.
+- Materialise the `sample_data` **directory** (not `sample_config.yml` alone) when calling `SUEWSSimulation(...)` or forcing loaders so sibling forcing files (`Kc_2012_data_60.txt`) exist alongside the YAML.
 
-#### Acceptable Alternative (with limitations)
-```python
-from pathlib import Path
-import supy as sp
+## 7. Coverage, Skipping, and Documentation Standards
 
-# This works but is less portable
-config_path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-```
-
-#### Use supy's API When Available
-```python
-# Preferred: Use SuPy's sample simulation factory
-simulation = sp.SUEWSSimulation.from_sample_data()
-df_state_init = simulation.state_init
-df_forcing = simulation.forcing.df
-
-# Instead of manually accessing files
-```
-
-### Best Practices
-1. **Use supy's API first**: If supy provides a function, use it
-2. **Use importlib.resources for package data**: When you need direct file access
-3. **Never use relative paths from repo root**: Don't assume repo structure
-4. **Don't traverse to `src/`**: Treat supy as installed package
-
-## For Human Developers
-
-1. Write tests alongside code development
-2. Use the test patterns as templates
-3. Document why a test exists, not just what it does
-4. Keep individual tests focused and fast
-5. Use meaningful test names that describe the scenario
-6. Ensure tests work across all supported platforms
-7. Review coverage reports to identify gaps
-8. Use `importlib.resources` for accessing package data
+- **Coverage targets**: >= 80% overall and on new code; 95-100% on critical validation/kernel paths.
+- **Skipping tests**: Every `pytest.skip`, `@pytest.mark.skip`, `@pytest.mark.skipif`, and `pytest.importorskip` MUST provide a concrete `reason="..."` explaining what resource/platform is missing or linking a tracking issue (`#NNNN`). Never wrap test bodies in `try ... except Exception: pytest.skip(...)`.
+- **Scientific docstrings**: Cite literature equations and state physical tolerance justifications in plain ASCII (for example `+/- 5.0 W m-2`):
+  ```python
+  def test_urban_canyon_radiation():
+      """Validate canyon net radiation against Grimmond & Oke (1999) Eq. 3.2 (+/- 5.0 W m-2)."""
+  ```

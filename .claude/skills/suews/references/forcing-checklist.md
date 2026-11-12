@@ -1,11 +1,20 @@
 # Forcing data checklist
 
-> CLI: this reference uses unified `suews <subcommand>` syntax. If your install only has the legacy hyphenated entry points (`suews-validate`, `suews-convert`, `suews-schema`, `suews-run`), substitute accordingly. See `../SKILL.md` for the rule.
+> CLI: this reference uses unified `suews <subcommand>` syntax. If your install only has the legacy hyphenated entry points (`suews-validate`, `suews-inspect`, `suews-convert`, `suews-schema`, `suews-run`), substitute accordingly. See `../SKILL.md` for the rule.
 
-Before running, verify these eight properties of the forcing CSV.
+Before running, verify these eight properties of the forcing file (`.csv` or
+whitespace-delimited `.txt`, declared at `model.control.forcing.file`).
 
-1. **Required columns present** (case-sensitive headers): `Tair`, `RH`,
-   `Press`, `U`, `Kdown`, `rain`. Optional: `Ldown`, `fcld`, `qn1_obs`.
+1. **Required columns present** (case-sensitive canonical headers per
+   `src/supy/data_model/forcing/variables.py`):
+   - Baseline time coordinates: `iy`, `id`, `it`, `imin` (interval-end timestamp).
+   - Baseline meteorological drivers: `U`, `RH`, `Tair` (legacy file alias
+     `temp_c`), `pres` (lowercase -- not `Press`), `rain`, `kdown` (lowercase --
+     not `Kdown`).
+   - Conditional / optional columns: `ldown` (lowercase -- not `Ldown`), `fcld`,
+     `qn` (legacy file alias `qn1_obs`), `qs` (legacy alias `qs_obs`), `qf`
+     (legacy alias `qf_obs`), `snow` (legacy alias `snowfrac`), `Wuh` (legacy
+     aliases `wu_mm`, `wuh`), `xsmd`, `lai`, `kdiff`, `kdir`, `wdir`.
 2. **Time index regular** -- same delta between every row. No missing rows.
    Use `pandas.infer_freq` on the parsed index; it should return a fixed
    frequency string.
@@ -13,29 +22,33 @@ Before running, verify these eight properties of the forcing CSV.
    (no DST). Mixing the two within a single run is a hidden
    showstopper.
 4. **Units match SUEWS expectations** -- see
-   `variable-glossary.md`. Common traps: `Press` in Pa not kPa, `Kdown`
+   `variable-glossary.md`. Common traps: `pres` in Pa not kPa, `kdown`
    in J/m^2 not W/m^2, `Tair` in K not deg C.
-5. **No physically impossible values** -- `RH` in [0, 100], `Press` in
-   [80, 110] kPa, `Tair` in [-50, 60] deg C, `Kdown >= 0`,
-   `rain >= 0`.
+5. **No physically impossible values** -- `RH` in [0.0001, 105] %, `pres` in
+   [68, 130] kPa, `Tair` in [-60, 90] deg C, `kdown` in [0, 1400] W/m^2,
+   `rain >= 0` mm.
 6. **NaN proportion < 1%** per variable. Higher proportions hide silent
-   gap-filling failures. `suews diagnose` reports per-variable NaN
-   proportion in the standard envelope.
+   gap-filling failures. `suews diagnose --format json <run_dir>` reports NaN
+   proportions in the standard envelope.
 7. **Spin-up adequacy** -- at least one full year of forcing prior to
    the analysis window, otherwise soil moisture has not equilibrated.
    For multi-year studies, two-year spin-up is conservative.
-8. **Site time zone matches `Country`** -- the YAML's `Country` /
-   `timezone` should match the forcing's local standard time.
+8. **Site time zone matches forcing** -- `sites[*].properties.timezone` (UTC
+   offset in hours) and `model.control.forcing.timestamp_reference` must match
+   the forcing file's local standard time or UTC (there is no `Country` field
+   in the YAML schema).
 
 Quick check from the command line:
 
 ```bash
-suews validate --format json config.yml | jq '.warnings, .errors'
-suews inspect config.yml --format json | jq '.data.forcing_summary'
+suews validate --dry-run --format json config.yml | jq '.warnings, .errors'
+suews inspect --format json config.yml | jq '.data.forcing_summary'
 ```
 
-The `check_forcing_columns.py` script in `scripts/` returns a
-non-zero exit code when required columns are missing.
+Run `python .claude/skills/suews/scripts/check_forcing_columns.py <forcing>`
+(or `plugins/suews/skills/suews/scripts/check_forcing_columns.py` when installed
+as a plugin) to verify required headers; it exits non-zero when baseline columns
+are missing.
 
 ## Where to get forcing data
 
@@ -94,6 +107,8 @@ Why this bites a fresh user:
   forcing data represents -- record that in the assumption ledger.
 
 > The authoritative rule is the sfr-dependent one in
-> `data_model/validation/pipeline/phase_b_rules/physics_rules.py`. Two other
-> places state it differently and are stale: a `checker_rules_joint.json` remark
-> ("3x canopy height") and `PHASE_B_DETAILED.md` ("fixed 2x"). Trust the code.
+> `src/supy/data_model/validation/pipeline/phase_b_rules/physics_rules.py`. Two
+> other places state it differently and are stale: a
+> `src/supy/checker_rules_joint.json` remark ("3x canopy height") and
+> `src/supy/data_model/validation/pipeline/PHASE_B_DETAILED.md` ("fixed 2x").
+> Trust the code.

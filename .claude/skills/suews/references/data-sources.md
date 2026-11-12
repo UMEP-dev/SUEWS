@@ -1,9 +1,9 @@
 # Authorised data sources
 
 The datasets SUEWS work is **authorised to recommend by name**. These are the
-SUEWS-curated / team-sanctioned sources -- the same ones the `suews-global`
-"direct mode" (`--urbdesc-src direct`) derives urban descriptors from. When a
-user asks "where do I get the data", recommend from THIS list and cite it.
+SUEWS-curated / team-sanctioned sources for forcing, urban site descriptors, and
+surface parameter values. When a user asks "where do I get the data", recommend
+from THIS list and cite it.
 
 > **Honesty rule.** Recommend **only** the sources below by name. Other GIS
 > tools and datasets (OpenStreetMap, OS MasterMap, ad-hoc LiDAR DSM/DTM,
@@ -17,9 +17,9 @@ user asks "where do I get the data", recommend from THIS list and cite it.
 ## Forcing / meteorology
 
 - **ERA5 / ERA5-Land** via the Copernicus CDS. Single point or time series
-  (CDS dataset `reanalysis-era5-single-levels-timeseries`; `suews-global` uses
-  `--metforc-src era5land`). Reanalysis is a proxy, not site observations -- say
-  so. A user's own flux-tower / weather-station data is preferred when available.
+  (CDS dataset `reanalysis-era5-single-levels-timeseries`). Reanalysis is a
+  proxy, not site observations -- say so. A user's own flux-tower /
+  weather-station data is preferred when available.
 
 ## Site descriptors (land cover, morphology, population)
 
@@ -35,7 +35,8 @@ user asks "where do I get the data", recommend from THIS list and cite it.
   Sensing of Environment* 253:112165, doi:10.1016/j.rse.2020.112165).
 - **Population (day / night density)**: **GHSL / GHS-POP** (Global Human
   Settlement Layer).
-- **Location / timezone**: from the site coordinates directly.
+- **Location / timezone**: from the site coordinates directly (`sites[*].properties.lat`,
+  `sites[*].properties.lng`, `sites[*].properties.timezone`).
 
 ## Parameter *values* & typologies
 
@@ -49,11 +50,11 @@ user asks "where do I get the data", recommend from THIS list and cite it.
   reference the repo / plugin, not a publication, for now. (Ongoing work; the
   typology set is still developing -- treat coverage as evolving.)
 
-## Automated route (preferred for global / unknown sites)
+## Automation status
 
-`suews-global` derives all of the above automatically -- point users here rather
-than at a hand-built GIS pipeline:
-
-```bash
-uv run suews-global <SITE> --metforc-src era5land --urbdesc-src direct --download-era5
-```
+SUEWS does not currently ship an automated ERA5 or global site-descriptor fetch
+command in the public `supy` / `suews` CLI surface (see `forcing-checklist.md`,
+"Where to get forcing data"). Do **not** invent CLI commands or flags (such as
+an unshipped `suews-global --download-era5` invocation); guide the user to pull
+from the authorised sources above and record any proxy choices in the assumption
+ledger.

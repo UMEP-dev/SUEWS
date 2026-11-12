@@ -1,337 +1,136 @@
 # SUEWS Developer Onboarding Guide
 
+> **Canonical Rules Notice**
+>
+> Active standing rules, path-scoped conventions, and automated workflows live in [`AGENTS.md`](../AGENTS.md) and [`.claude/README.md`](../.claude/README.md). Read those first -- when an onboarding summary drifts from `.claude/rules/`, `.claude/rules/` takes precedence.
+
 ## Overview
 
-This guide provides a structured onboarding process for new developers joining the SUEWS development team. It combines technical setup instructions with practical workflow guidance to ensure smooth integration into the development process.
+This guide provides a structured onboarding walkthrough for developers joining SUEWS, combining environment setup with the repository's issue, pull-request, review, and merge-queue workflows.
 
 ## Prerequisites
 
-Before starting development, ensure you have:
+Before starting development, install:
 
-1. **Essential Tools**:
-   - Git installed and configured
-   - GitHub account with repository access
-   - `gfortran` compiler installed (platform-specific installation)
-   - Python 3.12 or newer installed
-   - Text editor or IDE of choice
+1. **Essential Build & Runtime Tools**:
+   - `git` configured with SSH access (`origin` set to `git@github.com:UMEP-dev/SUEWS.git`)
+   - GitHub CLI (`gh`) authenticated with repository access
+   - **Python `>= 3.12`** and [`uv`](https://docs.astral.sh/uv/)
+   - **`gfortran` compiler** (`>= 9.3.0`)
+   - **Rust toolchain** (`rustup` / `cargo` from [https://rustup.rs](https://rustup.rs)) for compiling `src/suews_bridge/`
+   - `meson` and `ninja` build tools
 
 2. **Recommended Tools**:
-   - AI coding assistants (for understanding complex issues)
-   - Multiple communication platforms access (Teams, Slack, etc.)
+   - Coding agents (Claude Code, Codex, or Antigravity) configured to read `AGENTS.md` and `.claude/`
+   - Editor support for Ruff (Python), `fprettify` (Fortran), and `rust-analyzer` / `clippy` (Rust)
 
 ## Part 1: User Perspective - Understanding SUEWS
 
-### 1.1 Familiarise as a New User
+### 1.1 Familiarise Yourself as a User
 
-Before diving into development, understand SUEWS from a user's perspective:
+1. **Use `SUEWSSimulation`**:
+   - `SUEWSSimulation` is the primary object-oriented Python interface (`from supy import SUEWSSimulation`).
+   - Configurations use validated YAML schemas (`SUEWSConfig` in `src/supy/data_model/`).
+   - Review the tutorials on [https://docs.suews.io](https://docs.suews.io) to see standard simulation workflows.
 
-1. **Use the SUEWSSimulation Object**:
-   - This is the primary interface for running simulations
-   - Replaces the older table-based input system
-   - Review user documentation to understand typical workflows
+2. **CLI Entry Points**:
+   - The unified `suews` CLI provides `suews run`, `suews convert`, `suews validate`, and `suews schema`.
+   - Legacy table-based inputs are migrated to YAML using `suews convert` (the older `suews-convert` alias is deprecated).
 
-2. **Explore Documentation Structure**:
-   - **User Guide**: Basic SUEWS usage and tutorials
-   - **Development Guide**: Technical documentation for contributors
-   - **Scientific References**: Papers and background material
-   - **Community Resources**: GitHub discussions and issues
-
-3. **Key Areas to Review**:
-   - Getting Started tutorial
-   - Input file formats (YAML-based configuration)
-   - Running sample simulations
-   - Understanding model outputs
-
-### 1.2 Transition from Legacy Systems
-
-If familiar with older SUEWS versions:
-- Table-based input format is being deprecated
-- YAML configuration is the new standard
-- Conversion tools available (`sys convert`) for migrating existing data
-- Documentation includes migration guides for legacy users
+3. **Community Channels**:
+   - Technical bugs and feature tracking: [GitHub Issues](https://github.com/UMEP-dev/SUEWS/issues)
+   - User questions and community discussion: [SUEWS Community Forum (Discourse)](https://community.suews.io)
 
 ## Part 2: Development Workflow
 
 ### 2.1 Issue-Driven Development
 
-All development follows an issue-first approach:
+All substantive changes start with an issue on `UMEP-dev/SUEWS`:
 
 1. **Create or Claim an Issue**:
-   - Browse existing issues for suitable tasks
-   - Create new issues for features/bugs/questions
-   - Use proper labelling (refer to existing labels for guidance)
-   - Define clear, specific targets (avoid "moving targets")
-   - Break complex tasks into smaller, manageable modules
+   - Check existing issues before creating a new one (`gh issue list --state all --limit 50`).
+   - Apply the four-tier label hierarchy (`1-*` type, `2-*` area, `3-*` priority, `4-*` status; see [ISSUE_TRIAGE.md](ISSUE_TRIAGE.md) and `.claude/rules/labels.md`).
+   - Keep each issue scoped to one reviewable, revertible concern (see `.claude/rules/work-sizing.md`; `/triage-issue` helps audit readiness).
 
-2. **Issue Best Practices**:
-   - Start simple - choose easier implementations first
-   - Be specific about expected outcomes
-   - Link related issues and pull requests
-   - Update issue status regularly
-   - Use AI tools to help draft clear issue descriptions
+### 2.2 Local Environment and Feature Branches
 
-### 2.2 Pull Request Workflow
+```bash
+# Clone repository (keep 'origin' as the ONLY git remote)
+git clone git@github.com:UMEP-dev/SUEWS.git
+cd SUEWS
+git checkout -b feat/your-feature-name
 
-1. **Create a Draft PR**:
-   - Link to the corresponding issue
-   - Mark as "Draft" to indicate work in progress
-   - This prevents premature reviews while allowing progress tracking
+# Create .venv and install editable build (Fortran + Rust suews_bridge + supy)
+make setup
+source .venv/bin/activate
+make dev
 
-2. **Development Environment Setup**:
+# Run fast smoke tests (~30-60 s) and everyday dev suite
+make test-smoke
+make test
+```
+
+For parallel work across multiple issues or PRs, prefer `git worktree` rather than switching branches inside a single build tree (see [FEATURE_DEVELOPMENT_WORKFLOW.md](FEATURE_DEVELOPMENT_WORKFLOW.md)).
+
+### 2.3 Core Architecture (`src/`, `test/`, `docs/`)
+
+- **`src/suews/src/` (Fortran physics kernel)**:
+  - Contains `suews_{ctrl,phys,type,util}_*.f95`.
+  - Never initialise local variables in declarations (implies `SAVE` and breaks multi-grid thread safety; blocked by `scripts/lint/check_saved_fortran_locals.py`).
+  - Report errors via `set_supy_error` / `supy_error_flag()` (never `STOP` or `WRITE(*,...)`).
+  - After adding a Fortran file or changing `USE` statements, register the file in `meson.build` and run `python scripts/suews/gen_fortran_deps.py` to refresh `src/suews/Makefile.deps`.
+
+- **`src/suews_bridge/` (C-ABI + Rust PyO3 bridge)**:
+  - Replaces the retired `supy_driver` / `f90wrap` / `f2py` layer.
+  - Exposes the `suews_bridge` Python extension (`cp312-abi3` wheel) and the standalone developer binary `suews-engine` (`make bridge`).
+  - Governed by `.claude/rules/rust/conventions.md` and `.claude/rules/rust/bridge-contract.md` (BR-01..BR-10): keep physics in Fortran, defaults/migrations in Python Pydantic models, and transport/validation in the bridge.
+
+- **`src/supy/` (Python interface and Pydantic data model)**:
+  - Houses `SUEWSSimulation`, `SUEWSConfig` (`src/supy/data_model/`), YAML upgraders, output definitions, and the `suews` CLI (`src/supy/cmd/`).
+  - Structural schema changes require a schema version bump and migration handler per `.claude/rules/python/schema-versioning.md`.
+
+- **`test/` (Pytest suite)**:
+  - Every `test/**/*.py` file must live under `test/` and declare `pytestmark = pytest.mark.api` or `pytestmark = pytest.mark.physics`.
+  - Access packaged `sample_data` via `importlib.resources.files("supy")` or `trv_supy_module` (never `Path(sp.__file__).parent`).
+
+- **`docs/` (Sphinx user documentation)**:
+  - Edit source RST or generator scripts/Pydantic descriptions -- never hand-edit generated parameter tables or `schema.json` (see `.claude/rules/docs/conventions.md` and run `/audit-docs`).
+
+### 2.4 Pre-PR Verification, Review, and Merge Queue
+
+1. **Format and Lint**:
    ```bash
-   # Clone repository and checkout new branch
-   git clone https://github.com/UMEP-dev/SUEWS.git
-   cd SUEWS
-   git checkout -b feature/your-feature-name
-   
-   # Setup development environment with uv (ultrafast Python tool)
-   make setup  # Creates virtual environment with uv
-   
-   # Build local development version
-   make dev    # Builds SUEWS with development settings
-   
-   # Run test suite to verify setup
-   make test   # Runs all tests - should see hundreds passing
+   make format      # Formats Python (ruff) and Fortran (fprettify)
+   make test-smoke  # Required before every commit
+   make test        # Run everyday suite (or make test-all when touching cmd/mcp/docs/umep)
    ```
+   Use `/lint-code`, `/verify-build`, and `/audit-docs` in agent sessions.
 
-3. **Core Development Areas**:
+2. **Open a Pull Request**:
+   - Open as a Draft PR early if you want CI feedback on reduced tiers; mark Ready for review once tests, docs, and `CHANGELOG.md` (if applicable) are complete.
+   - If the PR alters model physics or reference fixtures, apply `0-physics:change`, include a `## Scientific evidence` section, refresh moved fixtures in the same PR, and obtain required domain-owner sign-off (for example `@yiqing1021` for STEBBS; see `.claude/rules/physics-change-evidence.md` and [SCIENTIFIC_REVIEWERS.md](SCIENTIFIC_REVIEWERS.md)).
 
-   #### Source Code (`src/`)
-   - **`suews/`**: Core Fortran physics engine
-     - Modify only if changing fundamental model physics
-     - Most Python-level changes won't require Fortran modifications
-   
-   - **`supy/`**: Python interface layer
-     - Data model definitions
-     - Input/output handling
-     - API for users
-   
-   - **`supy_driver/`**: Python-Fortran bridge
-     - Rarely needs modification
-     - Consult core team if structural changes needed
+3. **Merge via the Merge Queue (Never Push Directly to `master`)**:
+   - Branch protection prohibits direct pushes to `master`.
+   - Once CI (`pr-gate`) and required reviews pass, enqueue the PR via GitHub's merge queue (`gh pr merge <PR> --auto --squash` or `/queue-pr`; see [MERGE_QUEUE.md](MERGE_QUEUE.md)).
 
-   #### Testing (`test/`)
-   - Add comprehensive tests for new features
-   - Use existing test patterns as templates
-   - Test edge cases and error conditions
-   - Ensure tests are independent and reproducible
-   
-   #### Documentation (`docs/`)
-   - Update relevant documentation sections
-   - YAML reference pages are auto-generated - don't edit directly
-   - Modify source parsing scripts for structural changes
-   - Include examples for new features
-
-4. **Local Testing Protocol**:
-   ```bash
-   # Run full test suite
-   make test
-   
-   # Run specific test file
-   pytest test/test_your_feature.py
-   
-   # Run with verbose output
-   pytest -v test/
-   ```
-
-5. **Prepare for Review**:
-   - Ensure all tests pass
-   - Update documentation
-   - Clean up debug code and comments
-   - Change PR status from "Draft" to "Ready for review"
-   - Request reviews from appropriate team members
-
-### 2.3 Code Review and Merge Process
-
-1. **Review Process**:
-   - Core team members (Ting, Matthew, Sue, others) review code
-   - Address feedback constructively
-   - Update PR based on review comments
-   - Re-request review after changes
-
-2. **Merge Criteria**:
-   - All tests passing
-   - Documentation updated
-   - At least one approval from core team
-   - No unresolved conversations
-
-3. **Post-Merge**:
-   - Developers may merge approved PRs themselves
-   - Delete feature branch after merge
-   - Close related issues
-   - Update project boards if applicable
-
-## Part 3: Technical Deep Dive
-
-### 3.1 Build System (Meson)
-
-The project uses Meson build system for robust compilation:
-
-- **Configuration**: `meson.build` files define build structure
-- **Adding Files**: New source files must be declared in `meson.build`
-- **Recursive Structure**: Subdirectories have their own `meson.build`
-- **Error Detection**: Build system catches many errors at compile time
-
-### 3.2 Data Model System
-
-Understanding the YAML-based data model:
-
-1. **Structure**:
-   - Hierarchical configuration
-   - Type-safe parameter definitions
-   - Validation at load time
-   - Clear separation of user vs. developer parameters
-
-2. **Modifying the Data Model**:
-   - Edit source definitions, not generated documentation
-   - Run parsing scripts to update documentation
-   - Validate changes with sample configurations
-   - Test backward compatibility
-
-### 3.3 Common Development Scenarios
-
-#### Scenario 1: Fixing a Bug
-1. Reproduce the issue locally
-2. Write a failing test
-3. Implement the fix
-4. Verify test passes
-5. Check for regressions
-
-#### Scenario 2: Adding a Feature
-1. Design the interface first
-2. Implement with minimal changes
-3. Add comprehensive tests
-4. Document usage and parameters
-5. Include example configurations
-
-#### Scenario 3: Performance Optimisation
-1. Profile existing code
-2. Identify bottlenecks
-3. Implement improvements
-4. Benchmark changes
-5. Ensure no accuracy loss
-
-## Part 4: Common Development Areas
-
-### 4.1 Model Physics
-
-When working on model physics components:
-- Review relevant scientific literature first
-- Understand existing implementation before modifying
-- Coordinate with team members who have domain expertise
-- Validate changes against published results
-- Ensure physical consistency across components
-
-### 4.2 Data Model and Input Systems
-
-For work on configuration and input handling:
-- Understand YAML structure and validation
-- Maintain backward compatibility where possible
-- Document new parameters thoroughly
-- Provide migration tools for breaking changes
-- Test with various configuration scenarios
-
-### 4.3 Performance and Optimisation
-
-When optimising code:
-- Profile before optimising
-- Maintain scientific accuracy
-- Document performance improvements
-- Consider memory usage alongside speed
-- Benchmark against previous versions
-
-## Part 5: Best Practices
-
-### 5.1 Scientific Integrity
-
-- Always validate against published results
-- Document assumptions and limitations
-- Preserve reproducibility
-- Maintain physical consistency
-
-### 5.2 Code Quality
-
-- Follow existing code style
-- Write self-documenting code
-- Add meaningful test coverage
-- Keep changes focused and minimal
-
-### 5.3 Communication
-
-- Regular updates on progress
-- Ask questions early
-- Share knowledge with team
-- Document decisions and rationale
-
-### 5.4 Time Management
-
-- Start with simple tasks
-- Build complexity gradually
-- Set realistic timelines
-- Communicate availability constraints
-
-## Part 6: Resources and Support
-
-### 6.1 Documentation
-
-- **User Documentation**: https://docs.suews.io
-- **GitHub Repository**: https://github.com/UMEP-dev/SUEWS
-- **Scientific Papers**: Available in references section
-- **Meeting Notes**: Stored in team repository
-
-### 6.2 Communication Channels
-
-- **GitHub Issues**: Primary for technical discussions
-- **Team Meetings**: Regular synchronisation (mid-month preferred)
-- **Chat Platforms**: Quick questions and informal discussion
-- **Email**: Formal communications and scheduling
-
-### 6.3 Getting Help
-
-- Review existing issues and discussions
-- Check documentation and examples
-- Ask team members directly
-- Use AI tools for code understanding
-- Schedule pair programming sessions if needed
-
-## Part 7: Onboarding Checklist
+## Part 3: Onboarding Checklist
 
 ### Week 1: Environment Setup
-- [ ] Install all prerequisites
-- [ ] Clone repository
-- [ ] Set up development environment
-- [ ] Run test suite successfully
-- [ ] Review user documentation
+- [ ] Install Python `>= 3.12`, `uv`, `gfortran`, `rustup`/`cargo`, `meson`, and `ninja`
+- [ ] Clone `git@github.com:UMEP-dev/SUEWS.git` and verify `git remote -v` shows only `origin`
+- [ ] Run `make setup && source .venv/bin/activate && make dev`
+- [ ] Run `make test-smoke` and `make test`
+- [ ] Read [`AGENTS.md`](../AGENTS.md) and [`.claude/README.md`](../.claude/README.md)
 
-### Week 2: Familiarisation
-- [ ] Explore code structure
-- [ ] Understand data model
-- [ ] Review existing tests
-- [ ] Read relevant scientific papers
-- [ ] Identify first issue to work on
+### Week 2: Codebase Familiarisation
+- [ ] Run a sample simulation with `SUEWSSimulation.from_sample_data().run()`
+- [ ] Explore `src/supy/data_model/`, `src/suews_bridge/`, and `src/suews/src/`
+- [ ] Read [CODING_GUIDELINES.md](CODING_GUIDELINES.md) and [testing/TESTING_GUIDELINES.md](testing/TESTING_GUIDELINES.md)
+- [ ] Pick a starter `4-ready` issue (`gh issue list --label 4-ready`)
 
-### Week 3-4: First Contribution
-- [ ] Create/claim an issue
-- [ ] Set up feature branch
-- [ ] Implement solution
-- [ ] Add tests
-- [ ] Submit draft PR
-
-### Month 2: Integration
-- [ ] Complete first PR review cycle
-- [ ] Merge first contribution
-- [ ] Take on more complex issues
-- [ ] Participate in team discussions
-- [ ] Contribute to documentation
-
-## Conclusion
-
-Successful onboarding requires both technical proficiency and understanding of team workflows. Start simple, ask questions, and gradually build expertise. The team is supportive and values scientific rigour alongside code quality.
-
-Remember: The goal is to contribute to a scientifically robust urban climate model while maintaining code quality and team collaboration. Your contributions help advance urban climate science and support researchers worldwide.
-
----
-
-*Last Updated: [Date]*  
-*Version: 1.0*  
-*Maintainer: SUEWS Development Team*
+### Weeks 3-4: First Contribution
+- [ ] Create a feature branch (or `git worktree`) linked to the issue
+- [ ] Implement the change with tests (`pytestmark` nature marker included)
+- [ ] Run `make format && make test-smoke && make test`
+- [ ] Open a PR, address review feedback (`/audit-pr`), and land via the merge queue

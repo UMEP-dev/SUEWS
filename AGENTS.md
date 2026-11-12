@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Shared instructions for Claude Code, Codex, and other coding agents. `AGENTS.md` is canonical; `CLAUDE.md` imports it for compatibility. Edit AGENTS.md (and AGENT_GUIDE.md where present), never the CLAUDE.md compatibility loader. Tool-specific commands below apply only when that tool is available; other agents should read the referenced procedure and use their equivalent tools.
-
-Guidance for coding agents in this repository.
+The constitution for work in this repository, and the index of the rules that carry it out.
+`AGENTS.md` is canonical for every coding agent; `CLAUDE.md` only imports it, so edit this file and never the loader.
+Setup, everyday rules and skill procedures live in the files listed under References.
 
 ## Constitution
 
@@ -23,68 +23,16 @@ Authority runs from evidence, to the decisions of named people where evidence ru
 5. **One concern per change.** Each change can be reviewed, repeated and reverted alone.
    Work that grows beyond that is not handed over whole: a split is proposed first.
 
-### How instructions derive from the articles
+### Authority and amendment
 
-- **Statements in rules are of three kinds.** A *fact* cites steps that can be repeated now; one that no longer reproduces is void, and that is reported.
-  A *decision* is a recorded choice, which the person who answers for it may change.
-  The rest is *procedure* for carrying out an article, and the shared rule index names the article(s) for the rules that hold it.
-  Existing statements are unlabelled and bind as written; they are classified when next changed.
-- **An instruction cannot make a failing check pass or a false statement true.** Faced with one, an agent does the rest of what was asked and says which part it did not do, and why.
-  Only the explicit instruction of the person who answers for a recorded decision outranks it.
 - **Authority among instruction files**, highest first: this file; `.claude/rules/`; `.claude/skills/` and `.claude/agents/`; `dev-ref/`.
   When two disagree, follow the higher one for the task in hand and report the disagreement.
 - **Where the rules are silent**, the articles guide the choice.
-  They never permit what a rule reserves for a person; `.claude/rules/autonomous-workflow.md` ("Carrying out the constitution") holds that procedure.
-
-### Changing the rules
-
-- **A new or changed statement in a rule** says which kind it is: a fact gives its steps, a decision names who made it.
+  They never permit what a rule reserves for a person.
+- **Procedure** for the articles is in `.claude/rules/autonomous-workflow.md` ("Carrying out the constitution").
 - **Articles change** only by a dedicated pull request approved by `@sunt05`, who answers for them.
   An agent that believes an article is wrong says so; it does not amend one on its own initiative.
   A typo fix that changes no meaning is exempt.
-
-## Quick Start
-
-```bash
-uv venv && source .venv/bin/activate && make dev && make test-smoke
-```
-
-Style check: `/lint-code` | Docs check: `/audit-docs` | Build check: `/verify-build` | PR review: `/audit-pr`
-
-## Essential Rules
-
-The everyday subset of the rules indexed below.
-
-- **British English** (exception: numpy/scipy conventions like "analyze")
-- **No emoji** in print/logging - plain ASCII only
-- **Test before commit**: `make test-smoke`
-- **Git remote**: `origin` only (`git@github.com:UMEP-dev/SUEWS.git`)
-- **New source files**: Add to `meson.build`; after adding a Fortran file or `USE` statement, regenerate `src/suews/Makefile.deps` (`python scripts/suews/gen_fortran_deps.py`)
-
-## Project Structure
-
-| Directory | Purpose | Rules |
-|-----------|---------|-------|
-| `src/suews/src/` | Fortran | `.claude/rules/fortran/` |
-| `src/supy/` | Python | `.claude/rules/python/` |
-| `docs/` | Documentation | `.claude/rules/docs/` |
-| `test/` | Tests | `.claude/rules/tests/` |
-| `.github/workflows/` | CI/Actions | `.claude/rules/ci/` |
-
-## Skills
-
-- `/lint-code` - Check code style
-- `/audit-docs` - Docs sanity check (non-ASCII + bib topic-tags)
-- `/triage-issue` - Audit, rewrite, or split a GitHub issue (governance)
-- `/fix-issue` - Triage and implement a GitHub issue to PR-ready status
-- `/republish-docs` - Republish/revise released docs (move tag to clean anchor)
-- `/verify-build` - Build configuration
-- `/triage-pr` - Triage draft and stalled PRs into a disposition (advance/continue/defer/close/escalate)
-- `/audit-pr` - Review pull requests
-- `/split-pr` - Carve an oversized PR into a stacked series of small PRs
-- `/queue-pr` - Coordinate PRs before merge queue
-- `/log-changes` - Update CHANGELOG
-- `/prep-release` - Prepare releases
 
 ## Rule loading
 
@@ -92,11 +40,12 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 
 ## References
 
-- `.impeccable.md` - Design direction for SUEWS-facing surfaces (site/, landing, docs)
-- `.claude/README.md` - Full workspace documentation
-- `.claude/skills/` - Detailed skill workflows
+- `.claude/rules/00-project-essentials.md` - Setup, the rules that apply to all work, and what to run before committing
 - `.claude/rules/` - Facts, recorded decisions, and procedure for the articles
-- `.claude/agents/` - Review subagents (`docs-reviewer` for doc-code drift and docs house style)
+- `.claude/README.md` - The workspace: available skills, hooks, and how rules and skills relate
+- `.claude/skills/` - Skill procedures
+- `.claude/agents/` - Review subagents
+- `.impeccable.md` - Design direction for SUEWS-facing surfaces (site/, landing, docs)
 
 ## Shared rule files
 

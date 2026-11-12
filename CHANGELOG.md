@@ -57,6 +57,7 @@ EXAMPLES:
 ### 12 Nov 2026
 
 - [maintenance] Add a five-article constitution to `AGENTS.md`, binding people and agents alike: evidence decides what it can, a named person answers where it cannot, and each change is one concern; the procedure for carrying it out is in `.claude/rules/autonomous-workflow.md` (#2029)
+- [maintenance] Slim `AGENTS.md` to the constitution and the rule index: the quick start moves to `.claude/rules/00-project-essentials.md`, the skills list stays in `.claude/README.md`, and the validator now requires the constitution and the rule index (#2030)
 
 ### 9 Nov 2026
 

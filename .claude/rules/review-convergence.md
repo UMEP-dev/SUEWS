@@ -19,8 +19,11 @@ instance of the procedure below.
    finding carries a severity (`blocking | major | minor | nit`) and a stable
    signature (file + location + problem).
 2. **Triage and apply** -- apply confirmed blocking/major findings and cheap
-   minors. For any finding needing design, scientific, or human judgement, do NOT
-   guess: escalate and stop (see Escalation).
+   minors. A finding whose fix needs a design choice is decided and reported as a
+   choice, per `autonomous-workflow.md` ("Agents"). Escalate and stop only when
+   the finding needs scientific judgement, or its fix would change a model output
+   value, change what a user of the model sees, or cannot be undone (see
+   Escalation).
 3. **Re-review** -- run the next round over the revised artefact.
 4. **Test for convergence** (below). If converged, stop and report; otherwise go
    to step 2.
@@ -36,8 +39,10 @@ instance of the procedure below.
   and the remainder are all minors/nits explicitly judged acceptable.
 - **Round cap**: a hard cap (default 3-4 rounds). At the cap, stop and log every
   remaining finding as accepted or deferred -- never silently.
-- **Escalation**: any round surfaces a finding needing human/design/scientific
-  judgement -> stop and hand it back.
+- **Escalation**: any round surfaces a finding that needs scientific judgement,
+  or whose fix would change a model output value, change what a user of the model
+  sees, or cannot be undone -> stop and hand it back. Other design choices are
+  decided and reported, not escalated.
 
 ## Oscillation guard
 

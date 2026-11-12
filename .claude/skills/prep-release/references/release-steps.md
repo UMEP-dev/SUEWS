@@ -265,7 +265,7 @@ Ready to merge and tag after CI passes."
 
 - Wait for PR CI checks to pass
 - Review docs if needed
-- Merge PR to master (use merge commit, not squash)
+- Merge PR to master (squash; see "The merge gate" in `.claude/rules/autonomous-workflow.md`)
 
 ---
 

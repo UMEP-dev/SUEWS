@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 12 Nov 2026
 
+- [maintenance] Record five governance decisions in `.claude/rules/autonomous-workflow.md`: tags, release publishing and side-effecting workflow dispatches always wait for a person, while additive `0-*` labels do not; user-visible changes wait at merge, and "structural migration" means a schema-bump trigger; review loops decide and report design choices; `[stable]` changelog status is approved by the domain owner, otherwise the maintainer; pull requests are squash-merged, release pull requests included
 - [maintenance] Add a five-article constitution to `AGENTS.md`, binding people and agents alike: evidence decides what it can, a named person answers where it cannot, and each change is one concern; the procedure for carrying it out is in `.claude/rules/autonomous-workflow.md` (#2029)
 - [maintenance] Slim `AGENTS.md` to the constitution and the rule index: the quick start moves to `.claude/rules/00-project-essentials.md`, the skills list stays in `.claude/README.md`, and the validator now requires the constitution and the rule index (#2030)
 

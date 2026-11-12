@@ -38,11 +38,14 @@ Conventions for SUEWS CHANGELOG entries.
 For `[feature]` and `[change]` entries, add a status tag:
 
 - `[experimental]` - Under development, not for public announcement
-- `[stable]` - Governance-approved, can appear in public release notes
+- `[stable]` - Approved for public release notes by the domain owner of the
+  subsystem where a rule names one (e.g. STEBBS -> `@yiqing1021` in
+  `physics-change-evidence.md`), otherwise by the maintainer (`@sunt05`)
 - `[internal]` - Internal tooling, never announced publicly
 
 **Rules**:
-- New features default to `[experimental]` until governance approval
+- New features default to `[experimental]` until that approval is recorded,
+  with who approved and when, on the pull request or the release issue
 - Only `[stable]` entries are included in public release announcements
 - `[bugfix]`, `[maintenance]`, `[doc]` do not need status tags
 

@@ -56,7 +56,8 @@ It applies in both modes; the sections below give the pipeline's detail.
   There is no time limit on the answer.
 - A change to model output values, or to what a user of the model can see (names, units, defaults and semantics of interfaces, YAML fields and output variables; runtime dependencies), is accepted by a named person.
   For a physics change, a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge.
-  A structural schema or data-model migration is a design choice with no evidence to prepare first, so the wait is before implementation.
+  A structural schema or data-model migration, meaning a change that meets a bump trigger in `python/schema-versioning.md` ("When to bump"), is a design choice with no evidence to prepare first, so the wait is before implementation.
+  Any other such change is listed in the pull request body under a `User-visible changes` heading, and the wait is at merge.
 
 ### Agents (Articles 2 and 4)
 
@@ -68,6 +69,31 @@ It applies in both modes; the sections below give the pipeline's detail.
   An agent waiting on a named person has met Article 4.
 - Unattended, an item that waits is recorded under the stage's own verdict (`needs-discussion`, `escalate`, or `skipped` with the reason) and the rest continues.
   A plan the agent believes wrong is escalated for that item with the objection; it is not carried out.
+
+### Recorded decisions
+
+Each entry is a decision under Article 3: who decided, when, what was known, and what evidence would overturn it.
+
+- **Release actions are always human-gated; additive `0-*` labels are not.**
+  Decided by `@sunt05` on 12 Nov 2026.
+  Known: the always-human-gated list named merges and pushes but not tags or publishing, so `prep-release` and `republish-docs` pushed and moved release tags with no stop; the list also gated editing another's PR metadata while `triage-pr`, `audit-pr` and `physics-change-evidence.md` applied `0-*` labels to any PR.
+  Overturn: an additive `0-*` label shown to cause harm a person had to undo, or a release action shown to be reversible without user impact.
+- **User-visible changes other than physics and structural migrations wait at merge.**
+  Decided by `@sunt05` on 12 Nov 2026.
+  Known: this section gave the wait only for physics changes (at merge) and structural migrations (before implementation), and did not define "structural".
+  Overturn: a user-visible change merged with its `User-visible changes` entry accepted that then had to be reverted for a reason a person would have caught before implementation.
+- **Review loops decide and report design choices as this section's "Agents" procedure says.**
+  Decided by `@sunt05` on 12 Nov 2026.
+  Known: `review-convergence.md` escalated every design judgement, while "Agents" escalates only choices that change a model output value, change what a user sees, or cannot be undone.
+  Overturn: review-loop choices reported but not escalated that a person then had to reverse.
+- **`[stable]` changelog status is approved by the domain owner, otherwise the maintainer.**
+  Decided by `@sunt05` on 12 Nov 2026.
+  Known: `changelog/format.md` and `log-changes` required "governance approval" without naming who gives it.
+  Overturn: a domain owner who declines the role, or a public announcement that needed approval from someone other than the owner.
+- **Pull requests to `master` are squash-merged, release pull requests included.**
+  Decided by `@sunt05` on 12 Nov 2026.
+  Known: `dev-ref/MERGE_QUEUE.md` squashes, while `dev-ref/RELEASE_MANUAL.md` and `prep-release` asked for merge commits; the last release pull request (#1512) was squashed, master's recent history has no merge commits, and the merge queue applies a single merge method.
+  Overturn: a release or changelog step shown to need the individual commits of a merged pull request.
 
 ---
 
@@ -203,9 +229,14 @@ The following are ALWAYS human-gated, in every stage and both modes:
 - Closing, superseding, or marking an issue duplicate.
 - Creating issues or parent/child links (umbrella decomposition).
 - Pushing to a branch the agent did not create this run (including any force-push
-  or rewrite), or editing the body/metadata of a PR you do not own.
+  or rewrite), or editing the body/metadata of a PR you do not own. Exempt:
+  adding a `0-*` label that a rule calls for, and the swap a rule defines within
+  a mutually exclusive `0-*` family. Removing any other label is not exempt.
 - Posting to a reporter or onto a PR you do not own.
 - Any structural schema/data-model migration.
+- Creating, moving or deleting a tag; publishing a release (PyPI, GitHub
+  Release, Zenodo); or dispatching a workflow that pushes, tags, publishes or
+  deploys.
 
 Privacy is a hard invariant on every outward write: no internal tracker IDs,
 absolute local paths, or private host names reach a public issue / PR / comment /
@@ -221,6 +252,9 @@ approved step. fix-issue stops at PR-ready; split-pr hands a stack to queue-pr;
 queue-pr enters the merge queue only on explicit per-run approval. Handing work
 downstream never transfers merge authority. An autonomous batch run therefore
 converges to "PRs ready plus verdicts emitted", and a human authorises the merge.
+
+Every pull request to `master`, the release pull request included, is
+squash-merged (see "Recorded decisions").
 
 ---
 

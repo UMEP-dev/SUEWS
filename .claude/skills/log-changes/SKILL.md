@@ -29,7 +29,7 @@ Fill CHANGELOG.md gap from last documented date to today.
 For `[feature]` and `[change]` entries, add a status tag:
 
 - `[experimental]` - Default for new features, **excluded from public release notes**
-- `[stable]` - Governance-approved, **included in public release notes**
+- `[stable]` - Approved by the domain owner, otherwise `@sunt05` (see `.claude/rules/changelog/format.md`), **included in public release notes**
 - `[internal]` - Internal tooling, **excluded from public release notes**
 
 **Default behaviour**: New `[feature]` and `[change]` entries get `[experimental]` tag unless explicitly marked otherwise.
@@ -42,7 +42,7 @@ For `[feature]` and `[change]` entries, add a status tag:
 - Include refs: `(#123)` for PRs, `(abc1234)` for commits
 - Skip minor changes (formatting, typos)
 - British English
-- **New features default to `[experimental]`** — only governance-approved features get `[stable]`
+- **New features default to `[experimental]`** — only features whose approval is recorded per `.claude/rules/changelog/format.md` get `[stable]`
 
 Details: `references/workflow-details.md`
 

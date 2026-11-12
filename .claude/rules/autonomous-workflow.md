@@ -16,6 +16,18 @@ Read it alongside `work-sizing.md` (sizing and umbrella decomposition).
 Procedure for the five articles in `AGENTS.md`.
 It applies in both modes; the sections below give the pipeline's detail.
 
+### Statements in rules
+
+- Statements in rules are of three kinds.
+  A *fact* cites steps that can be repeated now; one that no longer reproduces is void, and that is reported.
+  A *decision* is a recorded choice, which the person who answers for it may change.
+  The rest is *procedure* for carrying out an article, and the shared rule index in `AGENTS.md` names the article(s) for the rules that hold it.
+- Existing statements are unlabelled and bind as written; they are classified when next changed.
+- A new or changed statement says which kind it is: a fact gives its steps, a decision names who made it.
+- An instruction cannot make a failing check pass or a false statement true.
+  Faced with one, an agent does the rest of what was asked and says which part it did not do, and why.
+- Only the explicit instruction of the person who answers for a recorded decision outranks it.
+
 ### Checks (Article 1)
 
 - The checks a change must pass are those its rule and its CI tier assign.

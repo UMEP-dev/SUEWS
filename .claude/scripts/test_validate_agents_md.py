@@ -54,6 +54,16 @@ class SharedInstructionValidation(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("Missing critical sections", result.stdout)
 
+    def test_missing_constitution_fails(self):
+        path = self.root / "AGENTS.md"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(
+            text.replace("## Constitution", "## Preamble"), encoding="utf-8"
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("## Constitution", result.stdout)
+
     def test_wrong_import_fails(self):
         (self.root / "CLAUDE.md").write_text("@OTHER.md\n", encoding="utf-8")
         result = self.run_validator()

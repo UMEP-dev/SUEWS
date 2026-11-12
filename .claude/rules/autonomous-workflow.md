@@ -11,6 +11,60 @@ Read it alongside `work-sizing.md` (sizing and umbrella decomposition).
 
 ---
 
+## Carrying out the constitution
+
+Procedure for the five articles in `AGENTS.md`. It applies in both modes; the
+sections below give the pipeline's detail.
+
+### Checks (Article 1)
+
+- The checks a change must pass are those its rule and its CI tier assign. A
+  check deferred to a later tier names where it runs (for example the nightly
+  physics tier); until it has run, the claim it supports is reported, not
+  confirmed.
+- A failing check is fixed or escalated. A failure unrelated to the change is
+  reported with its remedy, never ignored.
+- Expected values (reference fixtures, snapshots) change only with the evidence
+  the owning rule requires.
+- A claim that needs several steps (for example "this removed text has no other
+  home") states the steps. Only a question for which no steps can be stated is a
+  judgement under Article 3, and it goes to a named person at once.
+
+### Gates (Article 3)
+
+- A gate is (i) a required CI check or hook, or (ii) an action that waits for a
+  person: the always-human-gated list in "Gating model" below, and anything else
+  that cannot be undone or that acts on others' work. The list is not exhaustive.
+- The explicit instruction of the person who answers for it satisfies (ii) for
+  that action.
+- Nothing but changing the check, with evidence, satisfies (i). A check believed
+  wrong is escalated, never bypassed. The one exception is a bypass the check
+  itself defines (for example `0-ci:schema-audit-ok`), applied by the person its
+  rule names.
+- A passing gate shows that the check ran, not that the change is right.
+- A change to model output values, or to what a user of the model can see
+  (names, units, defaults and semantics of interfaces, YAML fields and output
+  variables; runtime dependencies), is accepted by a named person. A pull request
+  carrying the evidence its rule requires is the prepared decision, and the wait
+  is at merge.
+
+### Agents (Articles 2 and 4)
+
+- An agent opens a pull request only when asked, or when the invoked skill says
+  so.
+- A question the tree or the rules answer is not handed back. One they do not
+  answer is decided and reported as a choice, unless it is a judgement under
+  Article 3.
+- A problem outside the goal is reported, not fixed in the same change. If it
+  blocks the goal, fix it first as its own commit or pull request when that is
+  itself permitted (`work-sizing.md`); otherwise stop and report the block.
+  Waiting on a named person is not work owed.
+- Unattended, an item that waits is recorded as escalated and the rest
+  continues. A plan the agent believes wrong is escalated for that item with the
+  objection; it is not carried out.
+
+---
+
 ## Stages
 
 1. `triage-issue` -- issue governance. Emits a `[triage-issue] verdict` block.

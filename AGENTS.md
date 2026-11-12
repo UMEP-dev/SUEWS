@@ -6,24 +6,27 @@ Guidance for coding agents in this repository.
 
 ## Constitution
 
-Five articles govern every instruction in this repository. They are the reason each rule exists; the rules, skills and guides below are how they are carried out. When a situation is covered by no rule, act on the articles directly.
+Five articles are the reasons behind the rules below. Each protects something that is expensive to lose: the science, the truth of these instructions, the maintainer's attention, the user's work, and trust that cannot be rebuilt. Rules, skills and guides carry the articles out. Where they are silent, the articles guide the choice among actions already permitted; they never widen a gate.
 
-1. **Claims are checkable.** The tree and its executable gates are the truth; instructions describe them and never override them. A path, symbol, command or flag written in an instruction must exist as written. A scientific claim or audit finding carries evidence someone else can reproduce. A rule that states a target the code has not reached says so and cites the tracking issue.
-2. **One owner.** Each fact, rule and behaviour lives in exactly one place, and everything else points to it. Put behaviour in the code that owns the operation; change a generator, never its output. Removing text means moving it to its owner or stating that it is retired.
-3. **One convention per surface.** A reader meets one language, one naming scheme and one format on each surface (code, YAML, docs, changelog, labels). The convention is chosen once and recorded in a rule; it is not re-decided per file.
-4. **Reversible by default.** Work is sized so one person can review and revert it, and every loop has a stopping rule. Anything irreversible or outward-facing (merging, closing, posting onto others' work, schema migrations, scientific sign-off) waits for a human.
-5. **Users are never broken silently.** A change users can feel is announced, versioned and given a migration path. Errors reach the user by name through the supported channel; the model never stops the interpreter or substitutes a value without saying so.
+1. **The model is right, and shown to be.** Numerics are explicit, deterministic and the same on every supported platform. A change to model output carries evidence someone else can reproduce, and the sign-off of whoever owns that science.
+2. **Instructions tell the truth.** An instruction describes the tree as it is: a path, symbol, command or flag it names exists as written. The tree records what the code does, not what it should do, so a suspected bug is reported, not documented as intended. A rule that states a target the code has not reached says so and cites the issue.
+3. **Decide once, state once.** Each fact, rule and behaviour has one owner, and everything else points to it. Each surface (code, YAML, docs, changelog, labels) has one convention, recorded in a rule. A diff does not add a second copy, edit generated output, or remove text without moving it or declaring it retired.
+4. **Users are not broken silently.** A change users can feel is announced, versioned where a schema is involved, and given a migration path. A diff does not add a way to stop the interpreter, or a fallback value without a reported error.
+5. **Nothing irreversible without a human.** Work is small enough to review and revert, and every loop has a stopping rule. Actions that cannot be undone, or that act on others' work, wait for a human. Untrusted input never receives credentials, nothing private reaches a public surface, and reporters and authors keep their credit. `.claude/rules/autonomous-workflow.md` owns the list of gated actions.
+
+No article overrides a gate under Article 5. Other conflicts between articles are settled by the rules, and by a human where the rules are silent.
 
 ### How instructions derive from the articles
 
-- **Authority**, highest first: executable gates (CI, hooks, tests); this file; `.claude/rules/`; `.claude/skills/` and `.claude/agents/`; `dev-ref/`. A lower layer that disagrees with a higher one is wrong and gets fixed, not followed.
-- **Every rule cites its articles.** Each entry in the shared rule index below ends with the article(s) it serves. Skills and guides carry out rules; they add procedure, not policy.
-- **Review against the articles.** A change to any instruction file is judged by the article it serves: Article 1 changes are checked against the tree, Article 2 changes by confirming every removed line has an owner.
+- **Authority among instruction files**, highest first: this file; `.claude/rules/`; `.claude/skills/` and `.claude/agents/`; `dev-ref/`. When two disagree, follow the higher one for the task in hand and report the disagreement; fix the lower one only when asked, or in its own pull request.
+- **Gates decide what can merge, not what is correct.** A CI check, test or hook believed wrong is escalated, never bypassed or edited to pass.
+- **Your user's explicit instruction** outranks these files, but not a gate.
+- **The index cites the articles.** Each entry in the shared rule index ends with the article(s) its rules serve. Know-how in a rule file (build notes, debugging tips) needs no article. Skills and agents add procedure; policy found in one belongs in a rule.
 
 ### Changing the rules
 
-- **Start from the articles.** Before adding or changing a rule, name the article it serves. If an existing rule already serves that purpose, change that rule. If no article fits, the rule is not needed, or the constitution is missing something: settle that first.
-- **Amending an article** is its own pull request, touches only this section, and needs maintainer approval. It is never bundled with rule changes and never made by an agent on its own initiative.
+- **Start from the articles.** Before adding or changing a rule, name the article it serves. If an existing rule already serves that purpose, change that rule. A poor fit is a signal to raise with the maintainer, not grounds to force a citation or to delete the rule.
+- **Amending an article** is its own pull request. It changes only this section and the citations that follow from it, and `@sunt05` approves it. An agent that believes an article is wrong says so to its user; it does not amend one on its own initiative. A typo fix that changes no meaning is exempt.
 
 ## Quick Start
 
@@ -82,30 +85,30 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 
 ## Shared rule files
 
-Read the unscoped rules below before making changes. Read scoped rules before working on a matching path (patterns are relative to the repository root). These Markdown files are shared instructions even though they live under `.claude/`; agents without automatic rule loading must read them explicitly. Keep the rule bodies in those files so there is one maintained copy (Article 2). Each entry ends with the article(s) it serves.
+Read the unscoped rules below before making changes. Read scoped rules before working on a matching path (patterns are relative to the repository root). These Markdown files are shared instructions even though they live under `.claude/`; agents without automatic rule loading must read them explicitly. Keep the rule bodies in those files so there is one maintained copy (Article 3). Each entry ends with the article(s) it serves.
 
-- [.claude/rules/00-project-essentials.md](.claude/rules/00-project-essentials.md) - all work; Art. 3.
-- [.claude/rules/autonomous-workflow.md](.claude/rules/autonomous-workflow.md) - all work; Art. 4.
-- [.claude/rules/changelog/format.md](.claude/rules/changelog/format.md) - `CHANGELOG.md`; Art. 3, 5.
-- [.claude/rules/ci/conventions.md](.claude/rules/ci/conventions.md) - `.github/workflows/**/*.yml`, `.github/workflows/**/*.yaml`; Art. 1, 4.
-- [.claude/rules/code-design.md](.claude/rules/code-design.md) - all work; Art. 2.
-- [.claude/rules/dependency-safety.md](.claude/rules/dependency-safety.md) - `pyproject.toml`, `.github/workflows/**/*`; Art. 4.
+- [.claude/rules/00-project-essentials.md](.claude/rules/00-project-essentials.md) - all work; Art. 3, 4.
+- [.claude/rules/autonomous-workflow.md](.claude/rules/autonomous-workflow.md) - all work; Art. 2, 5.
+- [.claude/rules/changelog/format.md](.claude/rules/changelog/format.md) - `CHANGELOG.md`; Art. 3, 4.
+- [.claude/rules/ci/conventions.md](.claude/rules/ci/conventions.md) - `.github/workflows/**/*.yml`, `.github/workflows/**/*.yaml`; Art. 1, 5.
+- [.claude/rules/code-design.md](.claude/rules/code-design.md) - all work; Art. 3.
+- [.claude/rules/dependency-safety.md](.claude/rules/dependency-safety.md) - `pyproject.toml`, `.github/workflows/**/*`; Art. 5.
 - [.claude/rules/docs/bib-topic-tags.md](.claude/rules/docs/bib-topic-tags.md) - `docs/source/assets/refs/*.bib`, `docs/**/*`; Art. 3.
-- [.claude/rules/docs/conventions.md](.claude/rules/docs/conventions.md) - `docs/**/*`, `site/**/*`, `README.md`; Art. 2, 3.
-- [.claude/rules/docs/release-docs-sanity.md](.claude/rules/docs/release-docs-sanity.md) - `docs/**/*`; Art. 1, 5.
-- [.claude/rules/fortran/conventions.md](.claude/rules/fortran/conventions.md) - `src/suews/**/*.f9*`, `src/suews/**/*.f90`, `src/suews/**/*.f95`; Art. 3.
-- [.claude/rules/fortran/error-reporting.md](.claude/rules/fortran/error-reporting.md) - `src/suews/**/*.f9*`; Art. 5.
+- [.claude/rules/docs/conventions.md](.claude/rules/docs/conventions.md) - `docs/**/*`, `site/**/*`, `README.md`; Art. 3.
+- [.claude/rules/docs/release-docs-sanity.md](.claude/rules/docs/release-docs-sanity.md) - `docs/**/*`; Art. 2, 4.
+- [.claude/rules/fortran/conventions.md](.claude/rules/fortran/conventions.md) - `src/suews/**/*.f9*`, `src/suews/**/*.f90`, `src/suews/**/*.f95`; Art. 1, 3.
+- [.claude/rules/fortran/error-reporting.md](.claude/rules/fortran/error-reporting.md) - `src/suews/**/*.f9*`; Art. 4.
 - [.claude/rules/labels.md](.claude/rules/labels.md) - all work; Art. 3.
-- [.claude/rules/naming-convention.md](.claude/rules/naming-convention.md) - `src/supy/**/*.py`, `src/supy/**/*.yml`, `src/supy/**/*.yaml`, `docs/**/*`; Art. 3.
-- [.claude/rules/physics-change-evidence.md](.claude/rules/physics-change-evidence.md) - `src/suews/src/suews_phys_*.f95`, `test/fixtures/data_test/sample_output_2012-*.csv`, `test/fixtures/data_test/provenance.json`, `test/fixtures/data_test/stebbs_test/**`, `test/fixtures/benchmark1/**`; Art. 1.
+- [.claude/rules/naming-convention.md](.claude/rules/naming-convention.md) - `src/supy/**/*.py`, `src/supy/**/*.yml`, `src/supy/**/*.yaml`, `docs/**/*`; Art. 3, 4.
+- [.claude/rules/physics-change-evidence.md](.claude/rules/physics-change-evidence.md) - `src/suews/src/suews_phys_*.f95`, `test/fixtures/data_test/sample_output_2012-*.csv`, `test/fixtures/data_test/provenance.json`, `test/fixtures/data_test/stebbs_test/**`, `test/fixtures/benchmark1/**`; Art. 1, 5.
 - [.claude/rules/python/api-approach.md](.claude/rules/python/api-approach.md) - `src/supy/**/*.py`, `docs/source/tutorials/**/*.py`; Art. 3.
-- [.claude/rules/python/config-patterns.md](.claude/rules/python/config-patterns.md) - `src/supy/**/*.py`; Art. 2.
-- [.claude/rules/python/conventions.md](.claude/rules/python/conventions.md) - `src/supy/**/*.py`; Art. 3.
-- [.claude/rules/python/deprecation.md](.claude/rules/python/deprecation.md) - `src/supy/**/*.py`; Art. 5.
-- [.claude/rules/python/schema-versioning.md](.claude/rules/python/schema-versioning.md) - `src/supy/data_model/**/*`, `src/supy/util/converter/**/*`, `src/supy/sample_data/**/*`, `docs/**/*`; Art. 5.
-- [.claude/rules/review-convergence.md](.claude/rules/review-convergence.md) - all work; Art. 4.
-- [.claude/rules/rust/bridge-contract.md](.claude/rules/rust/bridge-contract.md) - `src/suews_bridge/**`, `src/supy/_run_rust.py`, `dev-ref/RUST_BRIDGE*.md`; also load when changing either side of a bridge contract; Art. 2.
+- [.claude/rules/python/config-patterns.md](.claude/rules/python/config-patterns.md) - `src/supy/**/*.py`; Art. 3.
+- [.claude/rules/python/conventions.md](.claude/rules/python/conventions.md) - `src/supy/**/*.py`; Art. 1, 3.
+- [.claude/rules/python/deprecation.md](.claude/rules/python/deprecation.md) - `src/supy/**/*.py`; Art. 4.
+- [.claude/rules/python/schema-versioning.md](.claude/rules/python/schema-versioning.md) - `src/supy/data_model/**/*`, `src/supy/util/converter/**/*`, `src/supy/sample_data/**/*`, `docs/**/*`; Art. 4.
+- [.claude/rules/review-convergence.md](.claude/rules/review-convergence.md) - all work; Art. 5.
+- [.claude/rules/rust/bridge-contract.md](.claude/rules/rust/bridge-contract.md) - `src/suews_bridge/**`, `src/supy/_run_rust.py`, `dev-ref/RUST_BRIDGE*.md`; also load when changing either side of a bridge contract; Art. 3, 4.
 - [.claude/rules/rust/conventions.md](.claude/rules/rust/conventions.md) - `src/suews_bridge/**/*.rs`, `src/suews_bridge/Cargo.toml`, `src/suews_bridge/build.rs`; Art. 3.
 - [.claude/rules/tests/patterns.md](.claude/rules/tests/patterns.md) - `test/**/*.py`, `tests/**/*.py`; Art. 1, 3.
 - [.claude/rules/tests/verification-methodology.md](.claude/rules/tests/verification-methodology.md) - `test/**/*.py`; Art. 1.
-- [.claude/rules/work-sizing.md](.claude/rules/work-sizing.md) - all work; Art. 4.
+- [.claude/rules/work-sizing.md](.claude/rules/work-sizing.md) - all work; Art. 5.

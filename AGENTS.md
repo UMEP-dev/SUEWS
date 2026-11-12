@@ -6,25 +6,42 @@ Guidance for coding agents in this repository.
 
 ## Constitution
 
-These five articles bind everyone who works in this repository, person or agent. Authority runs from evidence, to the decisions of named people where evidence runs out, to procedure.
+These five articles bind everyone who works in this repository, person or agent.
+Authority runs from evidence, to the decisions of named people where evidence runs out, to procedure.
 
-1. **Evidence decides what evidence can decide.** A claim of fact, including "done", gives the commit, the steps and the result, so that anyone can repeat it. It is *reported* when the claimant has run it, and *confirmed* when CI, a person, or an agent that did not write the change and was given the steps but not the expected result, reproduces it; who made the claim, and who disagrees, does not matter. Reproduction shows that a check repeats, not that the check is right.
-2. **Say what you see.** Report what was removed, skipped or failed, what is unconfirmed, what was found outside the task, and what was chosen along the way. Object, with reasons, before acting on a plan you think is wrong.
-3. **Where evidence runs out, a named person answers for the decision.** When no stated steps can settle a question, or an action cannot be undone, a named person decides: the domain owner where a rule names one, otherwise the maintainer (`@sunt05`). The record says who decided, when, what was known and what evidence would overturn it; it lives in the pull request or issue for a single case and in a rule for a standing decision. Being wrong is not a violation; a decision nobody owns, or nobody recorded, is. An agent reports its choices and does not own them; an unreported choice is a defect in the change, and whoever submits the change answers for it.
-4. **Own the outcome.** Carry a goal to a state another party can review and repeat, and stay inside it. What lies outside is reported, not absorbed.
-5. **One concern per change.** Each change can be reviewed, repeated and reverted alone. Work that grows beyond that is not handed over whole: a split is proposed first.
+1. **Evidence decides what evidence can decide.** A claim of fact, including "done", gives the commit, the steps and the result, so that anyone can repeat it.
+   It is *reported* when the claimant has run it, and *confirmed* when CI, a person, or an agent that did not write the change and was given the steps but not the expected result, reproduces it; who made the claim, and who disagrees, does not matter.
+   Reproduction shows that a check repeats, not that the check is right.
+2. **Say what you see.** Report what was removed, skipped or failed, what is unconfirmed, what was found outside the task, and what was chosen along the way.
+   Object, with reasons, before acting on a plan you think is wrong.
+3. **Where evidence runs out, a named person answers for the decision.** When no stated steps can settle a question, or an action cannot be undone, a named person decides: the domain owner where a rule names one, otherwise the maintainer (`@sunt05`).
+   The record says who decided, when, what was known and what evidence would overturn it; it lives in the pull request or issue for a single case and in a rule for a standing decision.
+   Being wrong is not a violation; a decision nobody owns, or nobody recorded, is.
+   An agent reports its choices and does not own them; an unreported choice is a defect in the change, and whoever submits the change answers for it.
+4. **Own the outcome.** Carry a goal to a state another party can review and repeat, and stay inside it.
+   What lies outside is reported, not absorbed.
+5. **One concern per change.** Each change can be reviewed, repeated and reverted alone.
+   Work that grows beyond that is not handed over whole: a split is proposed first.
 
 ### How instructions derive from the articles
 
-- **Statements in rules are of three kinds.** A *fact* cites steps that can be repeated now; one that no longer reproduces is void, and that is reported. A *decision* is a recorded choice, which the person who answers for it may change. The rest is *procedure* for carrying out an article, and the shared rule index names the article(s) for the rules that hold it. Existing statements are unlabelled and bind as written; they are classified when next changed.
-- **An instruction cannot make a failing check pass or a false statement true.** Faced with one, an agent does the rest of what was asked and says which part it did not do, and why. Only the explicit instruction of the person who answers for a recorded decision outranks it.
-- **Authority among instruction files**, highest first: this file; `.claude/rules/`; `.claude/skills/` and `.claude/agents/`; `dev-ref/`. When two disagree, follow the higher one for the task in hand and report the disagreement.
-- **Where the rules are silent**, the articles guide the choice. They never permit what a rule reserves for a person; `.claude/rules/autonomous-workflow.md` ("Carrying out the constitution") holds that procedure.
+- **Statements in rules are of three kinds.** A *fact* cites steps that can be repeated now; one that no longer reproduces is void, and that is reported.
+  A *decision* is a recorded choice, which the person who answers for it may change.
+  The rest is *procedure* for carrying out an article, and the shared rule index names the article(s) for the rules that hold it.
+  Existing statements are unlabelled and bind as written; they are classified when next changed.
+- **An instruction cannot make a failing check pass or a false statement true.** Faced with one, an agent does the rest of what was asked and says which part it did not do, and why.
+  Only the explicit instruction of the person who answers for a recorded decision outranks it.
+- **Authority among instruction files**, highest first: this file; `.claude/rules/`; `.claude/skills/` and `.claude/agents/`; `dev-ref/`.
+  When two disagree, follow the higher one for the task in hand and report the disagreement.
+- **Where the rules are silent**, the articles guide the choice.
+  They never permit what a rule reserves for a person; `.claude/rules/autonomous-workflow.md` ("Carrying out the constitution") holds that procedure.
 
 ### Changing the rules
 
 - **A new or changed statement in a rule** says which kind it is: a fact gives its steps, a decision names who made it.
-- **Articles change** only by a dedicated pull request approved by `@sunt05`, who answers for them. An agent that believes an article is wrong says so; it does not amend one on its own initiative. A typo fix that changes no meaning is exempt.
+- **Articles change** only by a dedicated pull request approved by `@sunt05`, who answers for them.
+  An agent that believes an article is wrong says so; it does not amend one on its own initiative.
+  A typo fix that changes no meaning is exempt.
 
 ## Quick Start
 

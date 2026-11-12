@@ -16,14 +16,13 @@ reviews manually when a science or module-specific review is needed.
 
 ## Sign-Off Roles
 
-This section is the roster for the two roles that carry a gate. Everything else
-in this guide is advisory routing: a review from a listed reviewer is not a
-sign-off. The duties of each role are set in
-`physics-change-evidence.md`.
+Two roles carry a gate; their duties are set in `physics-change-evidence.md`.
+Everything else in this guide is advisory routing, and a review from an advisory
+reviewer is not a sign-off.
 
-- **Science arbitrator, all domains:** @suegrimmond.
-- **Domain owner, STEBBS** (`suews_phys_stebbs.f95`, the STEBBS data model, the
-  STEBBS fixtures): @yiqing1021.
+- **Science arbitrator, all modules:** @suegrimmond.
+- **Domain owners:** the "Owner (sign-off)" column of "Named Module Reviewers". A
+  module with no owner there has none, so Article 3 in `AGENTS.md` applies.
 
 The maintainer adds, removes or reassigns a role, in its own pull request. When
 a holder changes, keep the previous holder in the entry with "until <date>", so
@@ -59,37 +58,38 @@ manual review requests.
 
 ## Named Module Reviewers
 
-| Module | Label | File paths | Manual reviewers |
-|--------|-------|------------|------------------|
-| STEBBS | [`2-module:stebbs`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Astebbs) | `/src/suews/src/suews_phys_stebbs.f95` | @yiqing1021, @denisehertwig |
-| RSL Profiles | [`2-module:rslprof`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Arslprof) | `/src/suews/src/suews_phys_rslprof.f95` | @vitorlavor, @suegrimmond |
-| SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | `/src/suews/src/suews_phys_spartacus.f95`, `/src/suews/src/suews_type_spartacus.f95`, `/src/suews/ext_lib/spartacus-surface/` | @suegrimmond, @yiqing1021, @vitorlavor |
-| Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | `/src/suews/src/suews_phys_biogenco2.f95` | @havum, @ljarvi |
-| Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | `/src/suews/src/suews_phys_snow.f95` | @havum, @ljarvi |
-| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | @sunt05 |
-| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | @sunt05 |
+| Module | Label | File paths | Owner (sign-off) | Advisory reviewers |
+|--------|-------|------------|------------------|--------------------|
+| STEBBS | [`2-module:stebbs`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Astebbs) | `/src/suews/src/suews_phys_stebbs.f95`, the STEBBS data model, `/test/fixtures/data_test/stebbs_test/` | @yiqing1021 | @denisehertwig |
+| RSL Profiles | [`2-module:rslprof`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Arslprof) | `/src/suews/src/suews_phys_rslprof.f95` | - | @vitorlavor, @suegrimmond |
+| SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | `/src/suews/src/suews_phys_spartacus.f95`, `/src/suews/src/suews_type_spartacus.f95`, `/src/suews/ext_lib/spartacus-surface/` | - | @suegrimmond, @yiqing1021, @vitorlavor |
+| Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | `/src/suews/src/suews_phys_biogenco2.f95` | - | @havum, @ljarvi |
+| Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | `/src/suews/src/suews_phys_snow.f95` | - | @havum, @ljarvi |
+| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | - | @sunt05 |
+| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | - | @sunt05 |
 
 ## Default Scientific Review Coverage
 
-Modules without a named domain panel are routed manually to @sunt05 and
-@suegrimmond until the panel appoints module-specific reviewers.
+Modules without a named domain panel have no owner, and their advisory
+reviewers are @sunt05 and @suegrimmond until the panel appoints module-specific
+reviewers.
 
-| Module | Label | File path | Manual reviewers |
-|--------|-------|-----------|------------------|
-| Atmospheric stability | [`2-module:atmmoiststab`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aatmmoiststab) | `/src/suews/src/suews_phys_atmmoiststab.f95` | @sunt05, @suegrimmond |
-| Evaporation | [`2-module:evap`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aevap) | `/src/suews/src/suews_phys_evap.f95` | @sunt05, @suegrimmond |
-| Water distribution | [`2-module:waterdist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Awaterdist) | `/src/suews/src/suews_phys_waterdist.f95` | @sunt05, @suegrimmond |
-| Anthropogenic heat | [`2-module:anthro`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanthro) | `/src/suews/src/suews_phys_anthro.f95` | @sunt05, @suegrimmond |
-| OHM | [`2-module:ohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aohm) | `/src/suews/src/suews_phys_ohm.f95` | @sunt05, @suegrimmond |
-| ESTM (disabled) | [`2-module:estm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aestm) | out of the build since gh#1802; source in git history, see [`ESTM_REACTIVATION.md`](../../dev-ref/ESTM_REACTIVATION.md) | @sunt05, @suegrimmond |
-| LUMPS | [`2-module:lumps`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Alumps) | `/src/suews/src/suews_phys_lumps.f95` | @sunt05, @suegrimmond |
-| NARP | [`2-module:narp`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Anarp) | `/src/suews/src/suews_phys_narp.f95` | @sunt05, @suegrimmond |
-| SOLWEIG | [`2-module:solweig`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asolweig) | `/src/suews/src/suews_phys_solweig.f95` | @sunt05, @suegrimmond |
-| BEERS | [`2-module:beers`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abeers) | `/src/suews/src/suews_phys_beers.f95` | @sunt05, @suegrimmond |
-| Resistance | [`2-module:resist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aresist) | `/src/suews/src/suews_phys_resist.f95` | @sunt05, @suegrimmond |
-| BLUEWS | [`2-module:bluews`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abluews) | `/src/suews/src/suews_phys_bluews.f95` | @sunt05, @suegrimmond |
-| Daily state | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_dailystate.f95` | @sunt05, @suegrimmond |
-| LAI phenology (GDD/SDD) | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_lai.f95` | @sunt05, @suegrimmond |
+| Module | Label | File path |
+|--------|-------|-----------|
+| Atmospheric stability | [`2-module:atmmoiststab`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aatmmoiststab) | `/src/suews/src/suews_phys_atmmoiststab.f95` |
+| Evaporation | [`2-module:evap`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aevap) | `/src/suews/src/suews_phys_evap.f95` |
+| Water distribution | [`2-module:waterdist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Awaterdist) | `/src/suews/src/suews_phys_waterdist.f95` |
+| Anthropogenic heat | [`2-module:anthro`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanthro) | `/src/suews/src/suews_phys_anthro.f95` |
+| OHM | [`2-module:ohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aohm) | `/src/suews/src/suews_phys_ohm.f95` |
+| ESTM (disabled) | [`2-module:estm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aestm) | out of the build since gh#1802; source in git history, see [`ESTM_REACTIVATION.md`](../../dev-ref/ESTM_REACTIVATION.md) |
+| LUMPS | [`2-module:lumps`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Alumps) | `/src/suews/src/suews_phys_lumps.f95` |
+| NARP | [`2-module:narp`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Anarp) | `/src/suews/src/suews_phys_narp.f95` |
+| SOLWEIG | [`2-module:solweig`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asolweig) | `/src/suews/src/suews_phys_solweig.f95` |
+| BEERS | [`2-module:beers`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abeers) | `/src/suews/src/suews_phys_beers.f95` |
+| Resistance | [`2-module:resist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aresist) | `/src/suews/src/suews_phys_resist.f95` |
+| BLUEWS | [`2-module:bluews`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abluews) | `/src/suews/src/suews_phys_bluews.f95` |
+| Daily state | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_dailystate.f95` |
+| LAI phenology (GDD/SDD) | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_lai.f95` |
 
 For any new `src/suews/src/suews_phys_*.f95` module not listed here, use the
 default reviewers until this guide is updated.

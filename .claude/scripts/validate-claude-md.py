@@ -13,12 +13,10 @@ from datetime import datetime
 
 # Critical sections that must be preserved (slim AGENTS.md structure)
 CRITICAL_SECTIONS = [
-    "## Quick Start",
-    "## Essential Rules",
-    "## Project Structure",
-    "## Skills",
+    "## Constitution",
     "## Rule loading",
     "## References",
+    "## Shared rule files",
 ]
 
 # Required skill files that contain detailed content

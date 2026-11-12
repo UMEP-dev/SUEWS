@@ -71,8 +71,12 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
 
 ## Quick Start
 
-See the Quick Start in `CLAUDE.md`. For platform-specific setup (macOS,
-Linux, Windows), see the `Makefile` recipes and the installation docs.
+```bash
+uv venv && source .venv/bin/activate && make dev && make test-smoke
+```
+
+For platform-specific setup (macOS, Linux, Windows), see the `Makefile` recipes and the installation docs.
+The available skills are listed in `.claude/README.md` ("Available Skills").
 
 ## Build System Notes
 

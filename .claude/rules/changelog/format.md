@@ -39,8 +39,8 @@ For `[feature]` and `[change]` entries, add a status tag:
 
 - `[experimental]` - Under development, not for public announcement
 - `[stable]` - Approved for public release notes by the domain owner of the
-  subsystem where a rule names one (e.g. STEBBS -> `@yiqing1021` in
-  `physics-change-evidence.md`), otherwise by the maintainer (`@sunt05`)
+  subsystem where one exists, otherwise by the maintainer (roster:
+  `.claude/rules/roles.md`)
 - `[internal]` - Internal tooling, never announced publicly
 
 **Rules**:

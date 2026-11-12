@@ -104,10 +104,8 @@ A copy-paste skeleton:
 ### 2. Domain-owner sign-off
 
 When the change touches an owned subsystem, the owner must approve before merge.
-Current owned subsystems:
-
-- **STEBBS** (`suews_phys_stebbs.f95`, STEBBS data model, STEBBS fixtures) ->
-  `@yiqing1021`.
+The owned subsystems, their scope and their holders are on the roster in
+`.claude/rules/roles.md`.
 
 Owner sign-off is for changes to a subsystem's own physics or behaviour. A
 cross-cutting maintenance fix that touches an owned file only as one of many
@@ -117,7 +115,7 @@ owner's approval; the maintainer records that ruling in the PR's
 `Domain owner sign-off` line instead (see #1803).
 
 For subsystems without a named owner, sign-off falls to the maintainer
-(`@sunt05`). Scientific reviewer routing is documented in
+(`roles.md`). Scientific reviewer routing is documented in
 `dev-ref/SCIENTIFIC_REVIEWERS.md` so domain reviewers are requested manually
 when science review is needed. The `audit-pr` gate records the required sign-off
 and blocks approval until it is present.

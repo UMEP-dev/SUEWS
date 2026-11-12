@@ -47,7 +47,7 @@ It applies in both modes; the sections below give the pipeline's detail.
   The list is not exhaustive.
   Acting on others' work waits for a person unless the Gating model places it in another tier.
 - The explicit instruction of the person who answers for it satisfies (ii) for that action.
-  That person is the domain owner where a rule names one (roster: `dev-ref/SCIENTIFIC_REVIEWERS.md`), otherwise the maintainer; the user directing a session is that person only for the decisions that are theirs to answer for.
+  That person is the domain owner where a rule names one (roster: `.claude/rules/scientific-reviewers.md`), otherwise the maintainer; the user directing a session is that person only for the decisions that are theirs to answer for.
 - Only the check passing satisfies (i).
   A check believed wrong is escalated and changed in its own reviewed change, never bypassed.
   The one exception is a bypass the check itself defines (for example `0-ci:schema-audit-ok`), applied by whoever its rule says may apply it.
@@ -95,9 +95,9 @@ The operative text is in the section each entry names.
   Decided by the maintainer on 12 Nov 2026.
   Known: `dev-ref/MERGE_QUEUE.md` squashes, while `dev-ref/RELEASE_MANUAL.md` and `prep-release` asked for merge commits; the last release pull request (#1512) was squashed, master's recent history has no merge commits, and the merge queue applies a single merge method.
   Overturn: a release or changelog step shown to need the individual commits of a merged pull request.
-- **Made the scientific-reviewer guide the one roster of sign-off roles** ("Sign-Off Roles" in `dev-ref/SCIENTIFIC_REVIEWERS.md`).
+- **Moved the scientific-reviewer guide from `dev-ref/` into the rules as the one roster of sign-off roles** ("Sign-Off Roles" in `.claude/rules/scientific-reviewers.md`).
   Decided by the maintainer on 12 Nov 2026.
-  Known: the STEBBS owner's handle was repeated in five rule and skill files, and the guide already listed reviewers per module without saying which of them carry a gate.
+  Known: the STEBBS owner's handle was repeated in five rule and skill files, and the guide already listed reviewers per module, in `dev-ref/` (the lowest authority tier), without saying which of them carry a gate.
   Overturn: a record naming a role and a date that the roster could not resolve to one person.
 - **Named a science arbitrator for every domain** (`physics-change-evidence.md`, "Domain-owner sign-off").
   Decided by the maintainer on 12 Nov 2026.
@@ -309,7 +309,7 @@ independent of the `0-pr:*` disposition family (a PR can carry both). It marks
 that a PR changes model physics or moves a reference output, and it activates the
 evidence gate in `.claude/rules/physics-change-evidence.md`: a `## Scientific
 evidence` PR-body section, domain-owner sign-off for any owned subsystem (roster
-in `dev-ref/SCIENTIFIC_REVIEWERS.md`), the reference-fixture refresh travelling in the same PR, and
+in `.claude/rules/scientific-reviewers.md`), the reference-fixture refresh travelling in the same PR, and
 the full `-m physics` CI tier (including `slow`) running as a required check
 before merge. `triage-pr` and `audit-pr` apply it when the diff matches the
 physics-change triggers; a maintainer creates the label once and the autonomous

@@ -39,7 +39,7 @@ For `[feature]` and `[change]` entries, add a status tag:
 
 - `[experimental]` - Under development, not for public announcement
 - `[stable]` - Approved for public release notes by the person Article 3
-  names for the subsystem (roster: `dev-ref/SCIENTIFIC_REVIEWERS.md`)
+  names for the subsystem (roster: `.claude/rules/scientific-reviewers.md`)
 - `[internal]` - Internal tooling, never announced publicly
 
 **Rules**:

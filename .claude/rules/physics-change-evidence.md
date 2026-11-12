@@ -105,7 +105,7 @@ A copy-paste skeleton:
 
 When the change touches an owned subsystem, the owner must approve before merge.
 The owned subsystems, their scope and their owners are on the roster in
-`dev-ref/SCIENTIFIC_REVIEWERS.md` ("Sign-Off Roles").
+`.claude/rules/scientific-reviewers.md` ("Sign-Off Roles").
 
 Owner sign-off is for changes to a subsystem's own physics or behaviour. A
 cross-cutting maintenance fix that touches an owned file only as one of many
@@ -116,7 +116,7 @@ owner's approval; the maintainer records that ruling in the PR's
 
 For subsystems without a named owner, sign-off falls to the maintainer
 (Article 3 in `AGENTS.md`). Scientific reviewer routing is documented in
-`dev-ref/SCIENTIFIC_REVIEWERS.md` so domain reviewers are requested manually
+`.claude/rules/scientific-reviewers.md` so domain reviewers are requested manually
 when science review is needed. The `audit-pr` gate records the required sign-off
 and blocks approval until it is present.
 

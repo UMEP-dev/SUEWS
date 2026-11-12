@@ -138,7 +138,7 @@ mutually-exclusive `0-pr:*` family) and activates the evidence requirements in
 `.claude/rules/physics-change-evidence.md`: a `## Scientific evidence` PR-body
 section, domain-owner sign-off, and the full `-m physics` CI tier. When you apply
 it, note in the marker comment that the PR needs the evidence section and owner
-sign-off (roster in `dev-ref/SCIENTIFIC_REVIEWERS.md`) before it can advance.
+sign-off (roster in `.claude/rules/scientific-reviewers.md`) before it can advance.
 
 ### Priority
 

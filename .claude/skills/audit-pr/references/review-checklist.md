@@ -243,6 +243,6 @@ PR can be merged when ALL of:
 
 ## Module Reviewer Mapping
 
-Use `.claude/rules/scientific-reviewers.md` as the operational source for suggested
+Use `dev-ref/SCIENTIFIC_REVIEWERS.md` as the operational source for suggested
 scientific reviewers in the audit summary. Use `dev-ref/REVIEW_PROCESS.md` for
 manual code-governance maintainer suggestions.

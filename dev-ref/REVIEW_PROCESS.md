@@ -18,7 +18,7 @@ process, coding style, issue-triage conventions, and workflow administration.
 ### Scientific Review Panel
 
 Scientific reviewer routing is maintained in
-[`scientific-reviewers.md`](../.claude/rules/scientific-reviewers.md). Use that guide to identify
+[`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md). Use that guide to identify
 reviewers for physics modules and request them manually when science review is
 needed. Scientific module reviewers are intentionally not wired into GitHub
 automatic review requests.
@@ -32,7 +32,7 @@ paths needs a review request.
 | Area | Path examples | Suggested maintainers |
 |------|---------------|-----------------------|
 | Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | @sunt05, @suegrimmond |
-| Scientific reviewer guide | `.claude/rules/scientific-reviewers.md` | @sunt05, @suegrimmond |
+| Scientific reviewer guide | `dev-ref/SCIENTIFIC_REVIEWERS.md` | @sunt05, @suegrimmond |
 | Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | @sunt05, @suegrimmond |
 | AI review and rule surfaces | `.claude/skills/audit-pr/`, `.claude/rules/` | @sunt05, @suegrimmond |
 | GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | @sunt05 |
@@ -52,7 +52,7 @@ When an issue is opened, maintainers apply the MECE label system described in
 Assignees are set only when someone is expected to drive the issue. For module
 issues that need scientific input, use the relevant `2-module:*` label and
 `4-needs-science`, then route the discussion to the panel owner listed in
-[`scientific-reviewers.md`](../.claude/rules/scientific-reviewers.md).
+[`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md).
 
 ### 2. PR Triage
 
@@ -62,7 +62,7 @@ When a PR is opened, maintainers perform initial triage:
    style, process, or infrastructure.
 2. Determine which labels and ownership areas apply.
 3. Use the code-governance table above for process and workflow maintainer
-   suggestions, and [`scientific-reviewers.md`](../.claude/rules/scientific-reviewers.md) for
+   suggestions, and [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md) for
    manual scientific reviewer suggestions.
 4. Document physics impact and scientific rationale in the PR description or PR
    comments, rather than creating one-off labels for every review state.
@@ -73,7 +73,7 @@ For PRs requiring scientific validation:
 
 1. Apply the relevant `2-module:*` label.
 2. Request review manually from the domain expert(s) identified by
-   [`scientific-reviewers.md`](../.claude/rules/scientific-reviewers.md).
+   [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md).
 3. Provide context about what specifically needs review.
 4. Track review status in PR comments and GitHub's review system.
 
@@ -161,7 +161,7 @@ Module labels identify which physics components are affected:
 Following the simplified labeling approach, PRs use:
 - Module labels (as above) to identify affected components
 - Scientific reviewer suggestions are routed through
-  [`scientific-reviewers.md`](../.claude/rules/scientific-reviewers.md)
+  [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md)
 - Code-governance maintainer suggestions are routed through this document
 - Review status is tracked in PR comments and GitHub's review system
 - Physics impacts are documented in PR descriptions rather than labels

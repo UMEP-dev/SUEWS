@@ -66,7 +66,7 @@ can run again, and the mechanical steps to put it back.
 - The data-model refusal from gh#1785 (`_reject_estm` in
   `src/supy/data_model/core/model.py`), which stops the value before the kernel.
 - The `2-module:estm` GitHub label and the ESTM row in
-  `.claude/rules/scientific-reviewers.md`.
+  `SCIENTIFIC_REVIEWERS.md`.
 
 ## Blockers to fix before it can run
 

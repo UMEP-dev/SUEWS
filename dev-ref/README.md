@@ -37,7 +37,7 @@ This directory contains internal documentation for SUEWS core developers.
   - What to look for in reviews
   - Manual maintainer routing for governance and process changes
 
-- **[Scientific Reviewers](../.claude/rules/scientific-reviewers.md)** - Manual scientific reviewer routing
+- **[Scientific Reviewers](SCIENTIFIC_REVIEWERS.md)** - Manual scientific reviewer routing
   - Module-specific reviewer suggestions
   - When and how to request scientific review
 

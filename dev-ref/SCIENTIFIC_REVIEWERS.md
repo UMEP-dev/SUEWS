@@ -1,12 +1,3 @@
----
-paths:
-  - src/suews/src/suews_phys_*.f95
-  - test/fixtures/data_test/sample_output_2012-*.csv
-  - test/fixtures/data_test/provenance.json
-  - test/fixtures/data_test/stebbs_test/**
-  - test/fixtures/benchmark1/**
----
-
 # Scientific Reviewer Routing
 
 This guide is the maintained source for scientific reviewer suggestions in
@@ -16,7 +7,7 @@ reviews manually when a science or module-specific review is needed.
 
 ## Sign-Off Roles
 
-Two roles carry a gate; their duties are set in `physics-change-evidence.md`.
+Two roles carry a gate; their duties are set in `.claude/rules/physics-change-evidence.md`.
 Everything else in this guide is advisory routing, and a review from an advisory
 reviewer is not a sign-off.
 
@@ -81,7 +72,7 @@ reviewers.
 | Water distribution | [`2-module:waterdist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Awaterdist) | `/src/suews/src/suews_phys_waterdist.f95` |
 | Anthropogenic heat | [`2-module:anthro`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanthro) | `/src/suews/src/suews_phys_anthro.f95` |
 | OHM | [`2-module:ohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aohm) | `/src/suews/src/suews_phys_ohm.f95` |
-| ESTM (disabled) | [`2-module:estm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aestm) | out of the build since gh#1802; source in git history, see [`ESTM_REACTIVATION.md`](../../dev-ref/ESTM_REACTIVATION.md) |
+| ESTM (disabled) | [`2-module:estm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aestm) | out of the build since gh#1802; source in git history, see [`ESTM_REACTIVATION.md`](ESTM_REACTIVATION.md) |
 | LUMPS | [`2-module:lumps`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Alumps) | `/src/suews/src/suews_phys_lumps.f95` |
 | NARP | [`2-module:narp`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Anarp) | `/src/suews/src/suews_phys_narp.f95` |
 | SOLWEIG | [`2-module:solweig`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asolweig) | `/src/suews/src/suews_phys_solweig.f95` |

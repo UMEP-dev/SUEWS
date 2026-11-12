@@ -11,6 +11,54 @@ Read it alongside `work-sizing.md` (sizing and umbrella decomposition).
 
 ---
 
+## Carrying out the constitution
+
+Procedure for the five articles in `AGENTS.md`.
+It applies in both modes; the sections below give the pipeline's detail.
+
+### Checks (Article 1)
+
+- The checks a change must pass are those its rule and its CI tier assign.
+  A check deferred to a later tier names where it runs; until it has run, the claim it supports is reported, not confirmed.
+- A reported claim may be handed over, stated as reported.
+  Merge needs every check the owning rule requires before merge to be confirmed.
+- A confirmed claim names who reproduced it and attaches the reproducer's own output, so the two results can be compared afterwards.
+- A failing check is fixed or escalated.
+  A failure unrelated to the change is reported with its remedy, never ignored.
+- Expected values (reference fixtures, snapshots) change only with the evidence the owning rule requires.
+- A claim that needs several steps (for example "this removed text has no other home") states the steps.
+  Only a question for which no steps can be stated is a judgement under Article 3, and it goes to a named person at once.
+
+### Gates (Article 3)
+
+- A gate is (i) a required CI check or hook, or (ii) an action that waits for a person: the always-human-gated list in "Gating model" below, and anything else that cannot be undone.
+  The list is not exhaustive.
+  Acting on others' work waits for a person unless the Gating model places it in another tier.
+- The explicit instruction of the person who answers for it satisfies (ii) for that action.
+  That person is the domain owner where a rule names one, otherwise the maintainer; the user directing a session is that person only for the decisions that are theirs to answer for.
+- Only the check passing satisfies (i).
+  A check believed wrong is escalated and changed in its own reviewed change, never bypassed.
+  The one exception is a bypass the check itself defines (for example `0-ci:schema-audit-ok`), applied by whoever its rule says may apply it.
+- A passing gate shows that the check ran, not that the change is right.
+- A decision that is waiting stays visible: the pull request or issue says who it waits on and for what.
+  There is no time limit on the answer.
+- A change to model output values, or to what a user of the model can see (names, units, defaults and semantics of interfaces, YAML fields and output variables; runtime dependencies), is accepted by a named person.
+  For a physics change, a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge.
+  A structural schema or data-model migration is a design choice with no evidence to prepare first, so the wait is before implementation.
+
+### Agents (Articles 2 and 4)
+
+- An agent opens a pull request only when asked, or when the invoked skill says so.
+- A question the tree or the rules answer is not handed back.
+  One they do not answer is decided and reported as a choice, unless it changes a model output value, changes what a user of the model sees, or cannot be undone.
+- A problem outside the goal is reported, not fixed in the same change.
+  If it blocks the goal, fix it first as its own commit or pull request when that is itself permitted (`work-sizing.md`); otherwise stop and report the block.
+  An agent waiting on a named person has met Article 4.
+- Unattended, an item that waits is recorded under the stage's own verdict (`needs-discussion`, `escalate`, or `skipped` with the reason) and the rest continues.
+  A plan the agent believes wrong is escalated for that item with the objection; it is not carried out.
+
+---
+
 ## Stages
 
 1. `triage-issue` -- issue governance. Emits a `[triage-issue] verdict` block.

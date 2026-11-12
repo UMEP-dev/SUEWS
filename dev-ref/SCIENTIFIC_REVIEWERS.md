@@ -5,6 +5,21 @@ SUEWS. Scientific reviewer routing is intentionally kept out of GitHub automatic
 review-request mechanisms. PR authors and maintainers should request these
 reviews manually when a science or module-specific review is needed.
 
+## Sign-Off Roles
+
+This section is the roster for the two roles that carry a gate. Everything else
+in this guide is advisory routing: a review from a listed reviewer is not a
+sign-off. The duties of each role are set in
+`.claude/rules/physics-change-evidence.md`.
+
+- **Science arbitrator, all domains:** @suegrimmond.
+- **Domain owner, STEBBS** (`suews_phys_stebbs.f95`, the STEBBS data model, the
+  STEBBS fixtures): @yiqing1021.
+
+The maintainer adds, removes or reassigns a role, in its own pull request. When
+a holder changes, keep the previous holder in the entry with "until <date>", so
+an earlier record naming the role and a date still resolves to one person.
+
 ## When to Request Scientific Review
 
 Request scientific review when a PR:
@@ -26,7 +41,8 @@ design input. Otherwise wait until the PR is ready enough for a focused review.
    reviewer group.
 3. Request those reviewers manually in GitHub and include the review scope in
    the PR description or a short comment.
-4. Track scientific sign-off through GitHub reviews or PR comments.
+4. Track the reviews through GitHub reviews or PR comments; a sign-off comes only
+   from a role under "Sign-Off Roles".
 
 Do not rely on GitHub automatic ownership for scientific reviewer requests.
 SUEWS does not maintain a CODEOWNERS file; this guide is advisory routing for

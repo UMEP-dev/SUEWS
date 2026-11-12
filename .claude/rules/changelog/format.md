@@ -38,9 +38,8 @@ Conventions for SUEWS CHANGELOG entries.
 For `[feature]` and `[change]` entries, add a status tag:
 
 - `[experimental]` - Under development, not for public announcement
-- `[stable]` - Approved for public release notes by the domain owner of the
-  subsystem where one exists, otherwise by the maintainer (roster:
-  `.claude/rules/roles.md`)
+- `[stable]` - Approved for public release notes by the person Article 3
+  names for the subsystem (roster: `.claude/rules/domain-owners.md`)
 - `[internal]` - Internal tooling, never announced publicly
 
 **Rules**:

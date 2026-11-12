@@ -47,7 +47,7 @@ It applies in both modes; the sections below give the pipeline's detail.
   The list is not exhaustive.
   Acting on others' work waits for a person unless the Gating model places it in another tier.
 - The explicit instruction of the person who answers for it satisfies (ii) for that action.
-  That person is the domain owner where a rule names one, otherwise the maintainer (roster: `roles.md`); the user directing a session is that person only for the decisions that are theirs to answer for.
+  That person is the domain owner where a rule names one (roster: `domain-owners.md`), otherwise the maintainer; the user directing a session is that person only for the decisions that are theirs to answer for.
 - Only the check passing satisfies (i).
   A check believed wrong is escalated and changed in its own reviewed change, never bypassed.
   The one exception is a bypass the check itself defines (for example `0-ci:schema-audit-ok`), applied by whoever its rule says may apply it.
@@ -72,32 +72,33 @@ It applies in both modes; the sections below give the pipeline's detail.
 
 ### Recorded decisions
 
-Each entry is a decision under Article 3: who decided, when, what was known, and what evidence would overturn it.
+Each entry records a past decision under Article 3: what changed and where, who decided, when, what was known, and what evidence would overturn it.
+The operative text is in the section each entry names.
 
-- **Release actions are always human-gated; additive `0-*` labels are not.**
+- **Added release actions to the always-human-gated list and exempted additive `0-*` labels** ("Gating model").
   Decided by the maintainer on 12 Nov 2026.
-  Known: the always-human-gated list named merges and pushes but not tags or publishing, so `prep-release` and `republish-docs` pushed and moved release tags with no stop; the list also gated editing another's PR metadata while `triage-pr`, `audit-pr` and `physics-change-evidence.md` applied `0-*` labels to any PR.
+  Known: the list named merges and pushes but not tags or publishing, so `prep-release` and `republish-docs` pushed and moved release tags with no stop; it also gated editing another's PR metadata while `triage-pr`, `audit-pr` and `physics-change-evidence.md` applied `0-*` labels to any PR.
   Overturn: an additive `0-*` label shown to cause harm a person had to undo, or a release action shown to be reversible without user impact.
-- **User-visible changes other than physics and structural migrations wait at merge.**
+- **Set when other user-visible changes wait, and defined a structural migration** ("Gates").
   Decided by the maintainer on 12 Nov 2026.
   Known: this section gave the wait only for physics changes (at merge) and structural migrations (before implementation), and did not define "structural".
-  Overturn: a user-visible change merged with its `User-visible changes` entry accepted that then had to be reverted for a reason a person would have caught before implementation.
-- **Review loops decide and report design choices as this section's "Agents" procedure says.**
+  Overturn: a user-visible change accepted at merge that then had to be reverted for a reason a person would have caught before implementation.
+- **Aligned review-loop escalation with "Agents"** (`review-convergence.md`).
   Decided by the maintainer on 12 Nov 2026.
   Known: `review-convergence.md` escalated every design judgement, while "Agents" escalates only choices that change a model output value, change what a user sees, or cannot be undone.
   Overturn: review-loop choices reported but not escalated that a person then had to reverse.
-- **`[stable]` changelog status is approved by the domain owner, otherwise the maintainer.**
+- **Named who approves `[stable]` changelog status** (`changelog/format.md`).
   Decided by the maintainer on 12 Nov 2026.
   Known: `changelog/format.md` and `log-changes` required "governance approval" without naming who gives it.
-  Overturn: a domain owner who declines the role, or a public announcement that needed approval from someone other than the owner.
-- **Pull requests to `master` are squash-merged, release pull requests included.**
+  Overturn: a domain owner who declines the role, or a public announcement that needed approval from someone else.
+- **Settled the merge method** ("The merge gate").
   Decided by the maintainer on 12 Nov 2026.
   Known: `dev-ref/MERGE_QUEUE.md` squashes, while `dev-ref/RELEASE_MANUAL.md` and `prep-release` asked for merge commits; the last release pull request (#1512) was squashed, master's recent history has no merge commits, and the merge queue applies a single merge method.
   Overturn: a release or changelog step shown to need the individual commits of a merged pull request.
-- **Rules name roles, not people; `roles.md` holds the roster.**
+- **Moved the list of domain owners into a roster** (`domain-owners.md`).
   Decided by the maintainer on 12 Nov 2026.
-  Known: handles were repeated across rules and skills (the maintainer's in five places, the STEBBS owner's in five), so a change of holder meant editing every copy, and `dev-ref/SCIENTIFIC_REVIEWERS.md` listed reviewers beside owners without saying which carry a gate.
-  Overturn: a decision record whose role and date could not be resolved to one person from the roster.
+  Known: the STEBBS owner's handle was repeated in five rule and skill files, so a change of owner meant editing every copy.
+  Overturn: a record naming the domain owner and a date that the roster could not resolve to one person.
 
 ---
 
@@ -304,7 +305,7 @@ independent of the `0-pr:*` disposition family (a PR can carry both). It marks
 that a PR changes model physics or moves a reference output, and it activates the
 evidence gate in `.claude/rules/physics-change-evidence.md`: a `## Scientific
 evidence` PR-body section, domain-owner sign-off for any owned subsystem (roster
-in `roles.md`), the reference-fixture refresh travelling in the same PR, and
+in `domain-owners.md`), the reference-fixture refresh travelling in the same PR, and
 the full `-m physics` CI tier (including `slow`) running as a required check
 before merge. `triage-pr` and `audit-pr` apply it when the diff matches the
 physics-change triggers; a maintainer creates the label once and the autonomous

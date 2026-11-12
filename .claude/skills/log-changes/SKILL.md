@@ -29,7 +29,7 @@ Fill CHANGELOG.md gap from last documented date to today.
 For `[feature]` and `[change]` entries, add a status tag:
 
 - `[experimental]` - Default for new features, **excluded from public release notes**
-- `[stable]` - Approved by the domain owner, otherwise the maintainer (see `.claude/rules/changelog/format.md` and `.claude/rules/roles.md`), **included in public release notes**
+- `[stable]` - Approved as `.claude/rules/changelog/format.md` says, **included in public release notes**
 - `[internal]` - Internal tooling, **excluded from public release notes**
 
 **Default behaviour**: New `[feature]` and `[change]` entries get `[experimental]` tag unless explicitly marked otherwise.

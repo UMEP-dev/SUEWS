@@ -23,6 +23,8 @@ sections below give the pipeline's detail.
   claim it supports is reported, not confirmed.
 - A reported claim may be handed over, stated as reported. Merge needs every
   check the owning rule requires before merge to be confirmed.
+- A confirmed claim names who reproduced it and attaches the reproducer's own
+  output, so the two results can be compared afterwards.
 - A failing check is fixed or escalated. A failure unrelated to the change is
   reported with its remedy, never ignored.
 - Expected values (reference fixtures, snapshots) change only with the evidence
@@ -46,6 +48,8 @@ sections below give the pipeline's detail.
   bypass the check itself defines (for example `0-ci:schema-audit-ok`), applied
   by whoever its rule says may apply it.
 - A passing gate shows that the check ran, not that the change is right.
+- A decision that is waiting stays visible: the pull request or issue says who
+  it waits on and for what. There is no time limit on the answer.
 - A change to model output values, or to what a user of the model can see
   (names, units, defaults and semantics of interfaces, YAML fields and output
   variables; runtime dependencies), is accepted by a named person. For a physics
@@ -59,8 +63,8 @@ sections below give the pipeline's detail.
 - An agent opens a pull request only when asked, or when the invoked skill says
   so.
 - A question the tree or the rules answer is not handed back. One they do not
-  answer is decided and reported as a choice, unless it is scientific, changes
-  what a user of the model sees, or cannot be undone.
+  answer is decided and reported as a choice, unless it changes a model output
+  value, changes what a user of the model sees, or cannot be undone.
 - A problem outside the goal is reported, not fixed in the same change. If it
   blocks the goal, fix it first as its own commit or pull request when that is
   itself permitted (`work-sizing.md`); otherwise stop and report the block.

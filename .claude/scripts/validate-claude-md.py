@@ -13,7 +13,7 @@ from datetime import datetime
 
 # Critical sections that must be preserved (slim AGENTS.md structure)
 CRITICAL_SECTIONS = [
-    "## Constitution",
+    "## Core principles",
     "## Rule loading",
     "## References",
     "## Shared rule files",

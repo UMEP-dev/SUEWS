@@ -16,35 +16,25 @@ Two maintainers hold the highest authority, with different remits.
 "A maintainer" in any other file means the maintainer whose remit covers the question.
 A question that touches both remits is decided by both.
 
-## Domain owners
+## Module owners and reviewers
 
-A domain owner's sign-off is required before a change to that subsystem's own physics or behaviour is merged (`.claude/rules/physics-change-evidence.md`).
+One list for who answers for the science of each module.
+A change to a module's own physics or behaviour needs sign-off before it is merged (`.claude/rules/physics-change-evidence.md`); the people under "Also ask" are requested by hand for a scientific review and their review is advisory.
+When and how to request a review is in `dev-ref/SCIENTIFIC_REVIEWERS.md`.
 
-- **STEBBS** (`suews_phys_stebbs.f95`, the STEBBS data model, STEBBS reference fixtures): `@yiqing1021`.
+| Module | Label | File paths | Sign-off required from | Also ask |
+|--------|-------|------------|------------------------|----------|
+| STEBBS | [`2-module:stebbs`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Astebbs) | `/src/suews/src/suews_phys_stebbs.f95` | `@yiqing1021` | `@denisehertwig` |
+| RSL Profiles | [`2-module:rslprof`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Arslprof) | `/src/suews/src/suews_phys_rslprof.f95` | a maintainer | `@vitorlavor`, `@suegrimmond` |
+| SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | `/src/suews/src/suews_phys_spartacus.f95`, `/src/suews/src/suews_type_spartacus.f95`, `/src/suews/ext_lib/spartacus-surface/` | a maintainer | `@suegrimmond`, `@yiqing1021`, `@vitorlavor` |
+| Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | `/src/suews/src/suews_phys_biogenco2.f95` | a maintainer | `@havum`, `@ljarvi` |
+| Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | `/src/suews/src/suews_phys_snow.f95` | a maintainer | `@havum`, `@ljarvi` |
+| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | a maintainer | `@sunt05` |
+| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | a maintainer | `@sunt05` |
 
-A subsystem with no named owner falls to a maintainer.
+### Modules with no named owner or reviewer
 
-## Scientific reviewers
-
-Reviewers to request, by hand, when a change needs a scientific review.
-This list is advisory: it creates no required review.
-When and how to request one is in `dev-ref/SCIENTIFIC_REVIEWERS.md`.
-
-### Modules with named reviewers
-
-| Module | Label | File paths | Manual reviewers |
-|--------|-------|------------|------------------|
-| STEBBS | [`2-module:stebbs`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Astebbs) | `/src/suews/src/suews_phys_stebbs.f95` | @yiqing1021, @denisehertwig |
-| RSL Profiles | [`2-module:rslprof`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Arslprof) | `/src/suews/src/suews_phys_rslprof.f95` | @vitorlavor, @suegrimmond |
-| SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | `/src/suews/src/suews_phys_spartacus.f95`, `/src/suews/src/suews_type_spartacus.f95`, `/src/suews/ext_lib/spartacus-surface/` | @suegrimmond, @yiqing1021, @vitorlavor |
-| Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | `/src/suews/src/suews_phys_biogenco2.f95` | @havum, @ljarvi |
-| Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | `/src/suews/src/suews_phys_snow.f95` | @havum, @ljarvi |
-| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | @sunt05 |
-| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | @sunt05 |
-
-### Modules reviewed by the maintainers
-
-These modules have no named reviewers yet, so both maintainers are asked.
+Sign-off falls to a maintainer, and both maintainers are asked to review.
 Any new `src/suews/src/suews_phys_*.f95` module not listed in this file is treated the same way.
 
 | Module | Label | File path |

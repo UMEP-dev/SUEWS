@@ -34,7 +34,7 @@ manual review requests.
 
 ## Who to Ask
 
-The reviewers for each module, the domain owners and the maintainers are listed in
+The owners and reviewers for each module, and the maintainers, are listed in
 [`MAINTAINERS.md`](../MAINTAINERS.md), which is the only place people are tied to roles.
 For a module that file does not list, ask the maintainers.
 

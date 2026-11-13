@@ -40,7 +40,7 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 
 ## References
 
-- `MAINTAINERS.md` - Who holds each role: maintainers, domain owners and scientific reviewers; the only file that names them
+- `MAINTAINERS.md` - Who holds each role: the maintainers, and the owners and reviewers of each module; the only file that names them
 - `.claude/rules/00-project-essentials.md` - Setup, the rules that apply to all work, and what to run before committing
 - `.claude/rules/` - Facts, recorded decisions, and procedure for the articles
 - `.claude/README.md` - The workspace: available skills, hooks, and how rules and skills relate

@@ -27,15 +27,16 @@ automatic review requests.
 
 The table below is an advisory maintainer-routing reference. It does not grant
 automatic ownership, create required reviews, or mean every PR touching these
-paths needs a review request.
+paths needs a review request. Who the maintainers are is recorded in
+[`MAINTAINERS.md`](../MAINTAINERS.md).
 
-| Area | Path examples | Suggested maintainers |
+| Area | Path examples | Suggested maintainer |
 |------|---------------|-----------------------|
-| Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | @sunt05, @suegrimmond |
-| Scientific reviewer guide | `dev-ref/SCIENTIFIC_REVIEWERS.md` | @sunt05, @suegrimmond |
-| Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | @sunt05, @suegrimmond |
-| AI review and rule surfaces | `.claude/skills/audit-pr/`, `.claude/rules/` | @sunt05, @suegrimmond |
-| GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | @sunt05 |
+| Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | both maintainers |
+| Scientific reviewer guide | `dev-ref/SCIENTIFIC_REVIEWERS.md` | both maintainers |
+| Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | both maintainers |
+| AI review and rule surfaces | `.claude/skills/audit-pr/`, `.claude/rules/` | both maintainers |
+| GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | software maintainer |
 
 ## Review Workflow
 
@@ -79,7 +80,7 @@ For PRs requiring scientific validation:
 
 Example comment:
 ```
-@yiqing1021 @denisehertwig - This PR modifies 2-module:stebbs temperature calculations.
+<@reviewer> <@reviewer> - This PR modifies 2-module:stebbs temperature calculations.
 Please review for scientific validity, particularly the changes to surface temperature iteration in suews_phys_stebbs.f95.
 ```
 
@@ -176,7 +177,7 @@ For complex or controversial changes:
 
 ## Contributing as a Reviewer
 
-Interested in joining the review panel? Contact @sunt05 or @suegrimmond with:
+Interested in joining the review panel? Contact a maintainer (see [`MAINTAINERS.md`](../MAINTAINERS.md)) with:
 - Your domain expertise
 - SUEWS experience
 - GitHub handle

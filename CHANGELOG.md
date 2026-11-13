@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 13 Nov 2026
+
+- [maintenance] Name the maintainers and module owners in one file, `MAINTAINERS.md`; other instruction files refer to roles, `dev-ref/SCIENTIFIC_REVIEWERS.md` is folded into it and `dev-ref/REVIEW_PROCESS.md`, and the validator fails when a listed person is named elsewhere (#2032)
+
 ### 12 Nov 2026
 
 - [maintenance] Add a five-article constitution to `AGENTS.md`, binding people and agents alike: evidence decides what it can, a named person answers where it cannot, and each change is one concern; the procedure for carrying it out is in `.claude/rules/autonomous-workflow.md` (#2029)

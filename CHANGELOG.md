@@ -57,6 +57,7 @@ EXAMPLES:
 ### 13 Nov 2026
 
 - [maintenance] Name the maintainers and module owners in one file, `MAINTAINERS.md`; other instruction files refer to roles, `dev-ref/SCIENTIFIC_REVIEWERS.md` is folded into it and `dev-ref/REVIEW_PROCESS.md`, and the validator fails when a listed person is named elsewhere (#2032)
+- [maintenance] Restate the five articles in `AGENTS.md` as three core principles (intellectual honesty, accountable authority, bounded responsibility), define evidence, and add the procedure for what an observation shows to `.claude/rules/autonomous-workflow.md` (#2033)
 
 ### 12 Nov 2026
 

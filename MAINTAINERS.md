@@ -13,28 +13,30 @@ Two maintainers hold the highest authority, with different remits.
 - **Software maintainer**: Ting Sun (`@sunt05`).
   Final decision on software, architecture, process and agent instructions, and the day-to-day maintenance of the repository.
 
-"A maintainer" in any other file means the maintainer whose remit covers the question.
-A question that touches both remits is decided by both.
+Day-to-day sign-off and merging are the software maintainer's, including for the science of modules that have no named owner.
+The science maintainer has the final say when a scientific question is in doubt or disputed.
+"A maintainer" in any other file means the software maintainer unless the question is one of those.
 
 ## Module owners and reviewers
 
 One list for who answers for the science of each module.
-A change to a module's own physics or behaviour needs sign-off before it is merged (`.claude/rules/physics-change-evidence.md`); the people under "Also ask" are requested by hand for a scientific review and their review is advisory.
+A change to a module's own physics or behaviour needs sign-off before it is merged (`.claude/rules/physics-change-evidence.md`).
+The people under "Also ask" are requested by hand when a change would benefit from their scientific view; their review is advisory and never blocks a merge.
 When and how to request a review is in `dev-ref/SCIENTIFIC_REVIEWERS.md`.
 
 | Module | Label | File paths | Sign-off required from | Also ask |
 |--------|-------|------------|------------------------|----------|
 | STEBBS | [`2-module:stebbs`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Astebbs) | `/src/suews/src/suews_phys_stebbs.f95` | `@yiqing1021` | `@denisehertwig` |
-| RSL Profiles | [`2-module:rslprof`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Arslprof) | `/src/suews/src/suews_phys_rslprof.f95` | a maintainer | `@vitorlavor`, `@suegrimmond` |
-| SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | `/src/suews/src/suews_phys_spartacus.f95`, `/src/suews/src/suews_type_spartacus.f95`, `/src/suews/ext_lib/spartacus-surface/` | a maintainer | `@suegrimmond`, `@yiqing1021`, `@vitorlavor` |
-| Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | `/src/suews/src/suews_phys_biogenco2.f95` | a maintainer | `@havum`, `@ljarvi` |
-| Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | `/src/suews/src/suews_phys_snow.f95` | a maintainer | `@havum`, `@ljarvi` |
-| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | a maintainer | `@sunt05` |
-| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | a maintainer | `@sunt05` |
+| RSL Profiles | [`2-module:rslprof`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Arslprof) | `/src/suews/src/suews_phys_rslprof.f95` | the software maintainer | `@vitorlavor`, `@suegrimmond` |
+| SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | `/src/suews/src/suews_phys_spartacus.f95`, `/src/suews/src/suews_type_spartacus.f95`, `/src/suews/ext_lib/spartacus-surface/` | the software maintainer | `@suegrimmond`, `@yiqing1021`, `@vitorlavor` |
+| Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | `/src/suews/src/suews_phys_biogenco2.f95` | the software maintainer | `@havum`, `@ljarvi` |
+| Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | `/src/suews/src/suews_phys_snow.f95` | the software maintainer | `@havum`, `@ljarvi` |
+| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | the software maintainer | `@sunt05` |
+| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | the software maintainer | `@sunt05` |
 
 ### Modules with no named owner or reviewer
 
-Sign-off falls to a maintainer, and both maintainers are asked to review.
+Sign-off falls to the software maintainer; either maintainer may be asked for a scientific view.
 Any new `src/suews/src/suews_phys_*.f95` module not listed in this file is treated the same way.
 
 | Module | Label | File path |

@@ -37,9 +37,8 @@ This directory contains internal documentation for SUEWS core developers.
   - What to look for in reviews
   - Manual maintainer routing for governance and process changes
 
-- **[Scientific Reviewers](SCIENTIFIC_REVIEWERS.md)** - Manual scientific reviewer routing
-  - Module-specific reviewer suggestions
-  - When and how to request scientific review
+- **[Maintainers](../MAINTAINERS.md)** - Who holds each role
+  - The maintainers, and the owners and reviewers of each module
 
 - **[Rust Bridge Design](RUST_BRIDGE_DESIGN.md)** - Responsibilities, data flow and shared audit rules
 - **[Rust Bridge Baseline Audit](RUST_BRIDGE_AUDIT.md)** - Checked boundaries, known deviations and follow-up evidence

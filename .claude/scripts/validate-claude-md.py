@@ -56,6 +56,44 @@ PLACEHOLDER_PATTERNS = [
 ]
 
 
+ROSTER_FILE = "MAINTAINERS.md"
+HANDLE_RE = re.compile(r"(?<![\w`/<])@([A-Za-z0-9][A-Za-z0-9-]{1,38})\b")
+
+
+def check_single_roster(root: Path) -> list[str]:
+    """People are tied to roles in MAINTAINERS.md and named nowhere else.
+
+    Every handle listed in the roster is looked for in the other instruction
+    files (AGENTS.md, .claude/, dev-ref/); a hit means the same fact now has
+    two homes.
+    """
+    roster = root / ROSTER_FILE
+    if not roster.is_file():
+        return [f"Missing {ROSTER_FILE}: roles must be tied to people in one file"]
+    handles = set(
+        re.findall(r"`@([A-Za-z0-9][A-Za-z0-9-]{1,38})`", roster.read_text(encoding="utf-8"))
+    ) | set(HANDLE_RE.findall(roster.read_text(encoding="utf-8")))
+    if not handles:
+        return [f"{ROSTER_FILE} names no one"]
+    pattern = re.compile(r"@(" + "|".join(sorted(re.escape(h) for h in handles)) + r")\b")
+    files = [root / "AGENTS.md"]
+    for folder in (".claude", "dev-ref"):
+        base = root / folder
+        if base.is_dir():
+            files.extend(sorted(base.rglob("*.md")))
+    warnings = []
+    for path in files:
+        if not path.is_file():
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if pattern.search(line):
+                rel = path.relative_to(root).as_posix()
+                warnings.append(
+                    f"{rel}:{number}: names a person; use the role and point to {ROSTER_FILE}"
+                )
+    return warnings
+
+
 def check_file_integrity(filepath: Path) -> dict:
     """Check AGENTS.md for integrity issues."""
 
@@ -108,6 +146,8 @@ def check_file_integrity(filepath: Path) -> dict:
 
     if missing_rules:
         warnings.append(f"Missing rule files: {', '.join(missing_rules)}")
+
+    warnings.extend(check_single_roster(filepath.parent))
 
     # Calculate content hash for tracking changes
     content_hash = hashlib.sha256(content.encode()).hexdigest()

@@ -9,6 +9,10 @@ on:
       - '.claude/scripts/test_validate_agents_md.py'
       - '.github/workflows/validate-claude-md.yml'
       - '.claude/rules/**'
+      - 'MAINTAINERS.md'
+      - '.claude/skills/**/*.md'
+      - '.claude/agents/**'
+      - 'dev-ref/**/*.md'
   push:
     branches:
       - master
@@ -19,6 +23,10 @@ on:
       - '.claude/scripts/test_validate_agents_md.py'
       - '.github/workflows/validate-claude-md.yml'
       - '.claude/rules/**'
+      - 'MAINTAINERS.md'
+      - '.claude/skills/**/*.md'
+      - '.claude/agents/**'
+      - 'dev-ref/**/*.md'
 
 permissions:
   contents: read

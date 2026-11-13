@@ -14,7 +14,7 @@ Authority runs from evidence, to the decisions of named people where evidence ru
    Reproduction shows that a check repeats, not that the check is right.
 2. **Say what you see.** Report what was removed, skipped or failed, what is unconfirmed, what was found outside the task, and what was chosen along the way.
    Object, with reasons, before acting on a plan you think is wrong.
-3. **Where evidence runs out, a named person answers for the decision.** When no stated steps can settle a question, or an action cannot be undone, a named person decides: the domain owner where a rule names one, otherwise the maintainer (`@sunt05`).
+3. **Where evidence runs out, a named person answers for the decision.** When no stated steps can settle a question, or an action cannot be undone, a named person decides: the domain owner where a rule names one, otherwise a maintainer.
    The record says who decided, when, what was known and what evidence would overturn it; it lives in the pull request or issue for a single case and in a rule for a standing decision.
    Being wrong is not a violation; a decision nobody owns, or nobody recorded, is.
    An agent reports its choices and does not own them; an unreported choice is a defect in the change, and whoever submits the change answers for it.
@@ -30,7 +30,7 @@ Authority runs from evidence, to the decisions of named people where evidence ru
 - **Where the rules are silent**, the articles guide the choice.
   They never permit what a rule reserves for a person.
 - **Procedure** for the articles is in `.claude/rules/autonomous-workflow.md` ("Carrying out the constitution").
-- **Articles change** only by a dedicated pull request approved by `@sunt05`, who answers for them.
+- **Articles change** only by a dedicated pull request approved by the software maintainer, who answers for them.
   An agent that believes an article is wrong says so; it does not amend one on its own initiative.
   A typo fix that changes no meaning is exempt.
 
@@ -40,6 +40,7 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 
 ## References
 
+- `MAINTAINERS.md` - Who holds each role: the maintainers, and the owners and reviewers of each module; the only file that names them
 - `.claude/rules/00-project-essentials.md` - Setup, the rules that apply to all work, and what to run before committing
 - `.claude/rules/` - Facts, recorded decisions, and procedure for the articles
 - `.claude/README.md` - The workspace: available skills, hooks, and how rules and skills relate

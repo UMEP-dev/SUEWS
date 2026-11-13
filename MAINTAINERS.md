@@ -22,7 +22,7 @@ The science maintainer has the final say when a scientific question is in doubt 
 One list for who answers for the science of each module.
 A change to a module's own physics or behaviour needs sign-off before it is merged (`.claude/rules/physics-change-evidence.md`).
 The people under "Also ask" are requested by hand when a change would benefit from their scientific view; their review is advisory and never blocks a merge.
-When and how to request a review is in `dev-ref/SCIENTIFIC_REVIEWERS.md`.
+When and how to request a review is in `dev-ref/REVIEW_PROCESS.md`.
 
 | Module | Label | File paths | Sign-off required from | Also ask |
 |--------|-------|------------|------------------------|----------|
@@ -31,8 +31,8 @@ When and how to request a review is in `dev-ref/SCIENTIFIC_REVIEWERS.md`.
 | SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | `/src/suews/src/suews_phys_spartacus.f95`, `/src/suews/src/suews_type_spartacus.f95`, `/src/suews/ext_lib/spartacus-surface/` | the software maintainer | `@suegrimmond`, `@yiqing1021`, `@vitorlavor` |
 | Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | `/src/suews/src/suews_phys_biogenco2.f95` | the software maintainer | `@havum`, `@ljarvi` |
 | Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | `/src/suews/src/suews_phys_snow.f95` | the software maintainer | `@havum`, `@ljarvi` |
-| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | the software maintainer | `@sunt05` |
-| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | the software maintainer | `@sunt05` |
+| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | `/src/suews/src/suews_phys_ehc.f95` | the software maintainer | - |
+| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | `/src/suews/src/suews_phys_anohm.f95` | the software maintainer | - |
 
 ### Modules with no named owner or reviewer
 

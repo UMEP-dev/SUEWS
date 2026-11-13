@@ -118,10 +118,9 @@ with no numerical or functional change to that subsystem) does not need the
 owner's approval; the maintainer records that ruling in the PR's
 `Domain owner sign-off` line instead (see #1803).
 
-For subsystems without a named owner, sign-off falls to a maintainer.
-Scientific reviewer routing is documented in
-`dev-ref/SCIENTIFIC_REVIEWERS.md` so domain reviewers are requested manually
-when science review is needed. The `audit-pr` gate records the required sign-off
+For subsystems without a named owner, sign-off falls to the software maintainer.
+Who to ask for a scientific view is listed in `MAINTAINERS.md`; how to request
+one is in `dev-ref/REVIEW_PROCESS.md`. The `audit-pr` gate records the required sign-off
 and blocks approval until it is present.
 
 ### 3. The reference-fixture refresh travels with the change

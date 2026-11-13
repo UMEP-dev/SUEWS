@@ -27,6 +27,10 @@ It applies in both modes; the sections below give the pipeline's detail.
 - An instruction cannot make a failing check pass or a false statement true.
   Faced with one, an agent does the rest of what was asked and says which part it did not do, and why.
 - Only the explicit instruction of the person who answers for a recorded decision outranks it.
+- A fact found stated in two places is kept in one, and the other is changed to point to it.
+  The place kept is the one higher in the authority order in `AGENTS.md`; inside a change with another goal, the duplicate is reported instead.
+- Where two places contradict each other, follow the higher one for the task in hand and report the contradiction.
+  Neither is silently picked, and neither is silently corrected.
 
 ### Evidence (Principle 1)
 

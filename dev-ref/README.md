@@ -39,7 +39,6 @@ This directory contains internal documentation for SUEWS core developers.
 
 - **[Maintainers](../MAINTAINERS.md)** - Who holds each role
   - The maintainers, and the owners and reviewers of each module
-  - When and how to request scientific review
 
 - **[Rust Bridge Design](RUST_BRIDGE_DESIGN.md)** - Responsibilities, data flow and shared audit rules
 - **[Rust Bridge Baseline Audit](RUST_BRIDGE_AUDIT.md)** - Checked boundaries, known deviations and follow-up evidence

@@ -121,6 +121,7 @@ def bridge_inputs(sample_config_loaded, sample_data_loaded):
     )
 
 
+@pytest.mark.core
 @pytest.mark.parametrize("method", [0, 1, -1, -999, 99])
 def test_unchecked_mapping_reports_kernel_error(method, bridge_inputs):
     """Direct bridge callers also receive GH#1783's fatal kernel error."""
@@ -130,6 +131,20 @@ def test_unchecked_mapping_reports_kernel_error(method, bridge_inputs):
     with pytest.raises(RuntimeError, match=f"stability={method} is reserved or unsupported") as error:
         rust.run_suews_multi([json.dumps(config)], forcing, n_steps, 1)
     assert "(code 107)" in str(error.value)
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("wind", [float("nan"), float("inf"), -float("inf")])
+def test_non_finite_wind_reaches_driver_error_boundary(wind, sample_config_loaded, sample_data_loaded):
+    """Unchecked bridge forcing must expose cal_Stab error 110 to Python."""
+    run_rust = import_module("supy._run_rust")
+    _, forcing = sample_data_loaded
+    forcing = forcing.iloc[:2].copy()
+    forcing["U"] = wind
+    block = run_rust._prepare_forcing_block(forcing).ravel(order="C").tolist()
+    config = sample_config_loaded.model_dump(exclude_none=True, mode="json")
+    with pytest.raises(RuntimeError, match=r"code 110.*cal_Stab: non-finite"):
+        run_rust._check_rust_available().run_suews_multi([json.dumps(config)], block, len(forcing), 1)
 
 
 @pytest.mark.parametrize("selector", [1, 2, 3, 4])

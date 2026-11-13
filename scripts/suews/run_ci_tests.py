@@ -55,6 +55,15 @@ def main() -> int:
     )
     pytest_environment["SUEWS_CI_METRICS"] = str(metrics_path)
 
+    # The cp312 manylinux reference lane also owns the analytic Fortran
+    # probes. Wheel builds can use a temporary source tree, so provide the
+    # libraries in the test tree explicitly and make missing probes fatal.
+    if os.environ.get("SUEWS_REFERENCE_LANE") == "1":
+        rc = subprocess.call(["make", "-C", str(project_dir / "src/suews"), "all", "-j2"])
+        if rc != 0:
+            return rc
+        pytest_environment["SUEWS_REQUIRE_FORTRAN_PROBES"] = "1"
+
     # Run pytest
     rc = subprocess.call(
         [

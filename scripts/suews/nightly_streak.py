@@ -8,10 +8,10 @@ that streak in one command:
     python scripts/suews/nightly_streak.py
 
 Green means the run concluded `success` and no gating job failed or was
-cancelled. The recording jobs (tolerance spread, cost-marker drift) carry
-`continue-on-error: true`, so they can fail without reddening the run and
-without opening the nightly tracking issue; they are listed separately rather
-than breaking the streak.
+cancelled. The recording jobs (tolerance spread, cost-marker drift, Python
+coverage) carry `continue-on-error: true`, so they can fail without reddening
+the run and without opening the nightly tracking issue; they are listed
+separately rather than breaking the streak.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ DEFAULT_LIMIT = 30
 # Display-name patterns of the jobs that record rather than gate: they are
 # `continue-on-error: true`, count as failures in neither report_scheduled_run
 # nor pr-gate, so their failure is information, not a red nightly.
-NON_GATING_JOB_PATTERNS = ("Tolerance spread*", "Cost-marker drift*")
+NON_GATING_JOB_PATTERNS = ("Tolerance spread*", "Cost-marker drift*", "Python coverage*")
 
 BAD_CONCLUSIONS = ("failure", "cancelled", "timed_out")
 

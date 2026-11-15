@@ -30,6 +30,10 @@ class SharedInstructionValidation(unittest.TestCase):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("# Existing guidance\n", encoding="utf-8")
+        (self.root / "MAINTAINERS.md").write_text(
+            "# Maintainers\n\n- Software maintainer: Example (`@example-person`).\n",
+            encoding="utf-8",
+        )
 
     def run_validator(self):
         return subprocess.run(
@@ -53,6 +57,29 @@ class SharedInstructionValidation(unittest.TestCase):
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
         self.assertIn("Missing critical sections", result.stdout)
+
+    def test_missing_core_principles_fails(self):
+        path = self.root / "AGENTS.md"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(
+            text.replace("## Core principles", "## Preamble"), encoding="utf-8"
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("## Core principles", result.stdout)
+
+    def test_missing_roster_fails(self):
+        (self.root / "MAINTAINERS.md").unlink()
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("MAINTAINERS.md", result.stdout)
+
+    def test_person_named_outside_roster_fails(self):
+        rule = self.root / ".claude" / "rules" / "00-project-essentials.md"
+        rule.write_text("Ask @example-person to approve.\n", encoding="utf-8")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("names a person", result.stdout)
 
     def test_wrong_import_fails(self):
         (self.root / "CLAUDE.md").write_text("@OTHER.md\n", encoding="utf-8")

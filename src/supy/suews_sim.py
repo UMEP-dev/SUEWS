@@ -45,6 +45,7 @@ from ._save import (
     DEFAULT_OUTPUT_GROUPS,
     StreamedParquetParts,
     StreamedTextFiles,
+    check_provisional_groups,
     parquet_file_path,
 )
 
@@ -296,11 +297,15 @@ class SUEWSSimulation:
         # user had declared them, so conditional validators gated on
         # model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,
         # site completeness) would fire false errors on sparse configs.
+        # round_trip omits computed outputs: they must be re-derived after
+        # a patch, rather than carried back as stale user input.
         # Internal bookkeeping keys are re-stamped by from_dict; carrying
         # them through the merge would nest snapshots inside snapshots.
         base = {
             k: v
-            for k, v in config.model_dump(exclude_unset=True, mode="json").items()
+            for k, v in config.model_dump(
+                exclude_unset=True, round_trip=True, mode="json"
+            ).items()
             if not k.startswith("_")
         }
 
@@ -340,6 +345,7 @@ class SUEWSSimulation:
                     isinstance(node_obj, BaseModel)
                     and not isinstance(node_obj, RefValue)
                     and key not in type(node_obj).model_fields
+                    and key not in type(node_obj).model_computed_fields
                 ):
                     raise ValueError(f"Unknown configuration key: '{key_path}'")
                 attr = getattr(node_obj, key, None) if node_obj is not None else None
@@ -982,6 +988,9 @@ class SUEWSSimulation:
             save_settings = self._resolve_save_settings(None, {})
             stream_chunk = self._check_stream_chunk(save_settings)
             list_keep = self._groups_saved(save_settings["output_config"])
+            check_provisional_groups(
+                list_keep, save_settings["output_config"].include_provisional
+            )
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -1178,6 +1187,11 @@ class SUEWSSimulation:
             - **command** : str
                 Command line that produced the run (recorded in the
                 ``provenance.json`` sidecar; set by ``suews run``).
+            - **include_provisional** : bool
+                Allow provisional groups (BEERS, EHC, NHood, SPARTACUS,
+                STEBBS) named in ``config.model.control.output.groups`` to
+                be saved as text, with a warning. Overrides
+                ``output.include_provisional`` for this save.
 
             **Not currently supported** (due to internal constraints):
 
@@ -1329,6 +1343,7 @@ class SUEWSSimulation:
             "forcing_timestamp_reference": forcing_timestamp_reference,
             "freq_s": int(freq_s),
             "site": site,
+            "include_provisional": save_kwargs.get("include_provisional"),
         }
 
     @staticmethod
@@ -1357,6 +1372,7 @@ class SUEWSSimulation:
             forcing_timestamp_reference=settings["forcing_timestamp_reference"],
             streamed_files=streamed_files,
             units=settings.get("units"),
+            include_provisional=settings["include_provisional"],
         )
 
     def _write_save_sidecars(

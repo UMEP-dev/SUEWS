@@ -1,5 +1,21 @@
 ! -----------------------------------------------------------------------------
 ! SUEWS Rust bridge C API facade for STEBBS_PRM.
+!
+! Reference facade for adding a field (see dev-ref/RUST_BRIDGE_ADD_PARAMETER.md):
+! - stebbs_prm_shadow mirrors the kernel type STEBBS_PRM with c_double
+!   components. Its initialisers are the run-time defaults Rust receives
+!   (suews_stebbs_prm_default packs a fresh shadow), so a field nothing else
+!   sets reaches the kernel with this value.
+! - stebbs_prm_pack (shadow -> flat) defines the order Rust's from_flat,
+!   to_flat and stebbs_prm_field_names must follow.
+! - stebbs_prm_unpack (flat -> kernel type) is what the driver calls with
+!   the values Rust sends. It must use the same order as pack. Nothing checks
+!   this: a line out of place puts the right number into the wrong variable.
+! - INTEGER components travel as real(c_double) and come back with nint();
+!   LOGICAL ones as 0/1, read back with flat(idx) >= 0.5.
+! - Changing the layout: raise SUEWS_CAPI_STEBBS_PRM_LEN and
+!   SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION, and the matching constants in
+!   src/stebbs_prm.rs.
 ! -----------------------------------------------------------------------------
 module module_c_api_stebbs_prm
 use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
@@ -117,6 +133,8 @@ subroutine suews_stebbs_prm_default(flat, n_flat, err) bind(C, name='suews_stebb
 
 end subroutine suews_stebbs_prm_default
 
+! Shadow -> flat buffer. The order of the flat(idx) lines is the bridge
+! layout; keep stebbs_prm_unpack and src/stebbs_prm.rs in the same order.
 subroutine stebbs_prm_pack(state, flat, n_flat, err)
    implicit none
 
@@ -198,6 +216,8 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
 
 end subroutine stebbs_prm_pack
 
+! Flat buffer -> kernel type, called by the driver for every run. Must
+! mirror stebbs_prm_pack line for line.
 subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    implicit none
 

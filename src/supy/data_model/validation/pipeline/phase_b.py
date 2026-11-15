@@ -1441,6 +1441,9 @@ def adjust_model_dependent_nullification(
                     return False
 
                 nullified_params: List[str] = []
+                from ...core.site import ArchetypeProperties
+
+                bridge_only = ArchetypeProperties._BRIDGE_ONLY_FIELDS
 
                 def _recursive_nullify(node: Any, path: str):
                     if isinstance(node, dict):
@@ -1456,6 +1459,10 @@ def adjust_model_dependent_nullification(
                                     nullified_params.append(path)
                         else:
                             for key, val in node.items():
+                                # These internal bridge descriptors remain wired
+                                # through even when STEBBS is disabled (#2001).
+                                if path == "building_archetype" and key in bridge_only:
+                                    continue
                                 child_path = f"{path}.{key}" if path else key
                                 if isinstance(val, (dict, list)):
                                     _recursive_nullify(val, child_path)
@@ -1732,7 +1739,7 @@ def adjust_seasonal_parameters(
     Notes
     -----
     - LAI is set based on season: summer uses laimax, winter uses laimin, spring/fall use the mean.
-    - snowalb is nullified for summer/tropical/equatorial seasons.
+    - snowalb is removed for summer/tropical/equatorial seasons, so the default applies.
     - Vegetation albedo (alb_id) is set based on season and surface type.
     - DLS (startdls, enddls) and timezone are calculated and set if missing or outdated.
     - All changes are recorded for reporting.
@@ -1762,19 +1769,22 @@ def adjust_seasonal_parameters(
             season in ("summer", "tropical", "equatorial")
             and "snowalb" in initial_states
         ):
-            current_snowalb = initial_states["snowalb"].get("value")
-            if current_snowalb is not None:
-                initial_states["snowalb"]["value"] = None
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter="snowalb",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=str(current_snowalb),
-                        new_value="null",
-                        reason=f"Nullified for {season} season (no snow expected)",
-                    )
+            # Drop the key rather than writing null: snowalb rejects null,
+            # and an omitted key takes the documented default (gh#2001).
+            removed = initial_states.pop("snowalb")
+            current_snowalb = (
+                removed.get("value") if isinstance(removed, dict) else removed
+            )
+            adjustments.append(
+                ScientificAdjustment(
+                    parameter="snowalb",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    old_value=str(current_snowalb),
+                    new_value="omitted (model default applies)",
+                    reason=f"Removed for {season} season (no snow expected)",
                 )
+            )
 
         land_cover = props.get("land_cover", {})
         dectr = land_cover.get("dectr", {})

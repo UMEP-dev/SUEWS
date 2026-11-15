@@ -30,7 +30,7 @@ on:
         required: true
         type: string
       python_json:
-        description: 'JSON array of CPython tags to measure on (the two bookends, e.g. ["cp312","cp314"])'
+        description: 'JSON array of CPython tags to measure on (the two bookends, e.g. ["cp312","cp315"])'
         required: true
         type: string
       build_profile:

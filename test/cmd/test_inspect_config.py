@@ -186,7 +186,7 @@ def test_inspect_unwraps_stebbs_enabled_refvalue() -> None:
 
 
 def test_inspect_reports_retired_smd_code_without_a_name() -> None:
-    """Code 2 left the soil-moisture selector at schema 2026.6.dev6."""
+    """Code 2 left the soil-moisture selector at schema 2026.6.dev9."""
     from supy.cmd.inspect_config import _physics_summary
 
     physics = _physics_summary(

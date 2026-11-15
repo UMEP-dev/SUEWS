@@ -46,7 +46,7 @@ Post-merge formatting workflow that:
 ### 3. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
-- Supports Python 3.12-3.14
+- Supports Python 3.12-3.15
 - Runs tests on each platform
 - Publishes to TestPyPI on nightly/dev tag builds
 - Publishes to PyPI on tagged releases
@@ -57,8 +57,8 @@ Automated build and publish workflow that:
 When triggering via Actions tab → "Run workflow", you can configure:
 - **matrix_config**: Choose build matrix
   - `full` - All platforms, all Python versions (default)
-  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.12 + 3.14
-  - `minimal` - Linux only, Python 3.12 + 3.14
+  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.12 + 3.15
+  - `minimal` - Linux only, Python 3.12 + 3.15
   - `custom` - Use individual platform/Python toggles
 - **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
 - **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`
@@ -77,6 +77,12 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   dispatch with the `tolerance_spread` input) installs the built wheel on the
   two CPython bookends per platform and records the zero-tolerance spread of
   the sample comparison; it records and never gates.
+- The nightly `Python coverage (Linux cp312)` job (also on dispatch with the
+  `python_coverage` input) installs the Linux cp312 wheel, runs the whole suite
+  except `qgis` on four workers under coverage, and uploads `coverage.json` and
+  `coverage.xml` as the `python-coverage` artefact with a per-package summary;
+  the configuration is in `pyproject.toml`, so `pytest --cov` gives the same
+  numbers locally. It records and never gates.
 - `smoke` excludes both `medium` and `slow`; `core` and `cfg` exclude `slow`.
   `standard` includes non-slow tests plus essential `core` regressions even
   when they are slow. All normal tiers exclude `qgis`; `all` is reserved for

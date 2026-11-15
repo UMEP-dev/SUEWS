@@ -45,10 +45,16 @@ The exit code is 1 when any test is flagged, so a local run is useful on its
 own; the nightly step that runs it carries `continue-on-error`, so drift is
 reported and never reddens the run.
 
+`--test-file` restricts the check to the tests in the named test files (the
+part of a node id before `::`), which is how a pull-request run judges only the
+test files that pull request adds or changes. `--json` writes the outcome as
+JSON (counts and one record per flagged test) for a workflow step to read.
+
 Usage::
 
     python scripts/lint/check_cost_markers.py ci-metrics/ [--markdown SUMMARY]
     python scripts/lint/check_cost_markers.py api.json physics-pytest.json --histogram
+    python scripts/lint/check_cost_markers.py ci-metrics/ --test-file test/core/test_x.py --json out.json
 """
 
 from __future__ import annotations
@@ -147,6 +153,8 @@ class Report:
     findings: list[Finding] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
     unmeasured: int = 0
+    # The test files the check was restricted to, or None for every test.
+    restricted_to: tuple[str, ...] | None = None
 
     @property
     def ok(self) -> bool:
@@ -159,12 +167,43 @@ class Report:
         return grouped
 
     def _scope(self) -> str:
+        restriction = ""
+        if self.restricted_to is not None:
+            restriction = f" in {len(self.restricted_to)} given test file(s)"
         return (
-            f"{len(self.tests)} measured tests ({self.unmeasured} skipped or xfailed "
-            f"not judged) from {len(self.sources)} artefact(s); cost = {self.phase}-phase "
+            f"{len(self.tests)} measured tests{restriction} ({self.unmeasured} skipped or "
+            f"xfailed not judged) from {len(self.sources)} artefact(s); cost = {self.phase}-phase "
             f"CPU seconds; medium >= {self.medium_seconds:g} s, slow >= "
             f"{self.slow_seconds:g} s, band {self.band:g}."
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the outcome as plain data, for `--json`."""
+        return {
+            "ok": self.ok,
+            "flagged": len(self.findings),
+            "measured": len(self.tests),
+            "unmeasured": self.unmeasured,
+            "restricted_to": (
+                None if self.restricted_to is None else list(self.restricted_to)
+            ),
+            "phase": self.phase,
+            "medium_seconds": self.medium_seconds,
+            "slow_seconds": self.slow_seconds,
+            "band": self.band,
+            "sources": list(self.sources),
+            "findings": [
+                {
+                    "node_id": finding.test.node_id,
+                    "kind": finding.kind,
+                    "cpu_seconds": finding.test.cpu_seconds,
+                    "current": finding.test.cost_marker,
+                    "wanted": finding.wanted,
+                    "source": finding.test.source,
+                }
+                for finding in self.findings
+            ],
+        }
 
     def message(self) -> str:
         """Plain-text report: header, then each finding class with its nodes."""
@@ -292,6 +331,25 @@ def load_tests(
     return tests, sources
 
 
+def _posix_path(path: str) -> str:
+    """Return a repository-relative path in the form pytest writes into a node id."""
+    path = path.replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+    return path
+
+
+def node_file(node_id: str) -> str:
+    """Return the test file a node id belongs to: everything before the first `::`."""
+    return _posix_path(node_id.split("::", 1)[0])
+
+
+def restrict_to_files(tests: Iterable[TestCost], test_files: Iterable[str]) -> list[TestCost]:
+    """Keep the tests whose node id lies in one of `test_files`."""
+    wanted = {_posix_path(path) for path in test_files}
+    return [test for test in tests if node_file(test.node_id) in wanted]
+
+
 def largest_per_node(tests: Iterable[TestCost]) -> list[TestCost]:
     """Keep one measurement per node id: the largest CPU cost seen."""
     best: dict[str, TestCost] = {}
@@ -352,13 +410,20 @@ def check_costs(
     band: float = BAND,
     phase: str = DEFAULT_PHASE,
     sources: Iterable[str] = (),
+    test_files: Iterable[str] | None = None,
 ) -> Report:
-    """Compare every measured test's cost marker with the marker its cost calls for."""
+    """Compare every measured test's cost marker with the marker its cost calls for.
+
+    With `test_files`, only the tests in those files are judged and counted.
+    """
     if not medium_seconds < slow_seconds:
         raise ValueError("the medium threshold must be below the slow threshold")
     if band < 1.0:
         raise ValueError("the band must be at least 1")
     report = Report(medium_seconds, slow_seconds, band, phase, sources=list(sources))
+    if test_files is not None:
+        report.restricted_to = tuple(sorted({_posix_path(path) for path in test_files}))
+        tests = restrict_to_files(tests, report.restricted_to)
     all_tests = largest_per_node(tests)
     report.tests = [test for test in all_tests if test.measured]
     report.unmeasured = len(all_tests) - len(report.tests)
@@ -434,6 +499,22 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action="store_true",
         help="also print the CPU-seconds histogram",
     )
+    parser.add_argument(
+        "--test-file",
+        dest="test_files",
+        action="append",
+        metavar="PATH",
+        help=(
+            "judge only the tests in this test file (repository-relative, as in the "
+            "node id); repeat for several files"
+        ),
+    )
+    parser.add_argument(
+        "--json",
+        dest="json_path",
+        type=Path,
+        help="write the outcome (counts and flagged tests) as JSON to this file",
+    )
     return parser.parse_args(argv)
 
 
@@ -457,6 +538,7 @@ def main(argv: list[str] | None = None) -> int:
         band=args.band,
         phase=args.phase,
         sources=sources,
+        test_files=args.test_files,
     )
     print(report.message())
     if args.histogram:
@@ -466,6 +548,11 @@ def main(argv: list[str] | None = None) -> int:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
         with args.markdown.open("a", encoding="utf-8") as handle:
             handle.write(report.markdown())
+    if args.json_path:
+        args.json_path.parent.mkdir(parents=True, exist_ok=True)
+        args.json_path.write_text(
+            json.dumps(report.to_dict(), indent=2) + "\n", encoding="utf-8"
+        )
     return 0 if report.ok else 1
 
 

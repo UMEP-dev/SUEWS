@@ -15,6 +15,7 @@ from .type import (
     FlexibleRefValue,
     df_from_cols,
     SurfaceType,
+    null_rejecting_validator,
 )
 from ..._env import logger_supy
 
@@ -414,6 +415,8 @@ class InitialStateVeg(SurfaceInitialState):
         },
         default=0,
     )  # This need to be consistent with GDD.
+
+    _sdd_id_not_null = null_rejecting_validator("sdd_id")
     wu: WaterUse = Field(
         default_factory=WaterUse, json_schema_extra={"display_name": "Water Use"}
     )
@@ -894,6 +897,9 @@ class InitialStates(BaseModel):
         ge=0,
         le=1,
     )
+
+    _snowalb_not_null = null_rejecting_validator("snowalb")
+
     paved: InitialStatePaved = Field(
         default_factory=InitialStatePaved,
         description="Initial states for paved surfaces",

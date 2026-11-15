@@ -3,7 +3,7 @@
   "source_contract": "1.2.0",
   "target_contract": "2.0.0",
   "source_schema": "2026.6.dev5",
-  "target_schema": "2026.6.dev6",
+  "target_schema": "2026.6.dev9",
   "layer_top_m": 0,
   "layer_depth_m": 0.2,
   "density_kg_m3": 1250,

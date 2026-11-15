@@ -4861,7 +4861,7 @@ def test_phase_b_apply_science_suggestions_mutates_copy(monkeypatch):
 
     assert paved_state["tsfc"]["value"] == 15.5
     assert paved_sfr["value"] == pytest.approx(1.0)
-    assert updated["sites"][0]["initial_states"]["snowalb"]["value"] is None
+    assert "snowalb" not in updated["sites"][0]["initial_states"]
     assert len(adjustments) == len(suggestions)
     assert yaml_data["sites"][0]["initial_states"]["paved"]["tsfc"]["value"] == 0.0
 

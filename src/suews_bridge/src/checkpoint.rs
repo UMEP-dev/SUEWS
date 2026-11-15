@@ -1,3 +1,9 @@
+//! Restart envelope: complete model state plus elapsed timer, not cold-start
+//! configuration. A missing member or incompatible version must not fall back
+//! to a freshly initialised state. Timer validation here is complemented by
+//! timestep compatibility checks in `sim` and nested member checks in
+//! `suews_state`; preserve all three when changing restart representation.
+
 use crate::error::BridgeError;
 use crate::suews_state::{
     suews_state_from_nested_payload, suews_state_to_checkpoint_value, SuewsState,

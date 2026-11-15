@@ -62,6 +62,18 @@ def test_recording_job_failure_does_not_break_the_streak() -> None:
     ]
 
 
+def test_python_coverage_failure_is_a_recording_failure() -> None:
+    """The nightly coverage job records; its failure or timeout is not a red night."""
+    record = summarise_run(
+        _run(5, "success"),
+        [_job("Python coverage (Linux cp312)", "timed_out")],
+    )
+
+    assert record["alert_expected"] is False
+    assert record["gating_failures"] == []
+    assert record["recording_failures"] == ["Python coverage (Linux cp312)"]
+
+
 @pytest.mark.core
 def test_gating_job_failure_expects_the_alert() -> None:
     """A failing test tier is a gating failure and names the job."""

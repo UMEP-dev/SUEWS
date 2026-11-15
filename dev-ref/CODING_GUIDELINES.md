@@ -605,5 +605,5 @@ pre-commit install
 
 ## Revision History
 
-- 18 Jul 2025, [TS](@sunt05): Initial version
-- 18 Jul 2025, [TS](@sunt05): Added automated formatting tools (ruff, fprettify)
+- 18 Jul 2025, TS: Initial version
+- 18 Jul 2025, TS: Added automated formatting tools (ruff, fprettify)

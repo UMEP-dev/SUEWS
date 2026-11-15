@@ -1260,6 +1260,13 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
       renamed to convention-compliant identifiers while preserving values.
     * 2026.6.dev4 -> 2026.6.dev5 (#1832): the shortwave text selector
       renamed to ``perez`` without changing numeric option 3.
+    * 2026.6.dev5 -> 2026.6.dev6 (#1974): default-backed
+      ``output.include_provisional`` added; YAML content unchanged.
+    * 2026.6.dev6 -> 2026.6.dev7 (#2001): the CO2 point source written
+      as 0.0 wherever it was absent or null, the value the model received.
+    * 2026.6.dev7 -> 2026.6.dev8 (#2001): a null ``initial_states.snowalb``
+      dropped, so the default 0.5 applies; a null vegetation ``sdd_id`` or
+      water ``flowchange`` written as 0.0, the value the model received.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
@@ -1346,6 +1353,125 @@ def _migrate_2026_6_dev4_to_2026_6_dev5(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict) -> dict:
+    """Preserve YAML content when adding ``output.include_provisional``.
+
+    The new switch defaults to false. A YAML whose ``output.groups`` names a
+    provisional group still loads (with a warning); saving that group needs
+    the switch, which the migration deliberately does not turn on.
+    """
+    return cfg
+
+
+_CO2_POINT_SOURCE = "emission_co2_point_source"
+_CO2_POINT_SOURCE_LEGACY = "co2pointsource"
+
+
+def _migrate_2026_6_dev6_to_2026_6_dev7(cfg: dict) -> dict:
+    """Write the CO2 point source the model used to receive as 0.0.
+
+    From 2026.6.dev7 the point source is required when the emissions method
+    adds it to the CO2 flux (#2001). Before, an absent or null value reached
+    the model as 0, so every site gets that 0.0
+    written explicitly; a value the user gave is left alone.
+    """
+    for site in cfg.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        props = site.setdefault("properties", {})
+        if not isinstance(props, dict):
+            continue
+        emissions = props.setdefault("anthropogenic_emissions", {})
+        if not isinstance(emissions, dict):
+            continue
+        co2 = emissions.setdefault("co2", {})
+        if not isinstance(co2, dict):
+            continue
+        if any(
+            _unwrap_scalar(co2.get(name)) is not None
+            for name in (_CO2_POINT_SOURCE, _CO2_POINT_SOURCE_LEGACY)
+        ):
+            continue
+        co2.pop(_CO2_POINT_SOURCE_LEGACY, None)
+        co2[_CO2_POINT_SOURCE] = {"value": 0.0}
+        _log(
+            f"[yaml-upgrade]   set {_CO2_POINT_SOURCE!r} to 0.0 "
+            "(absent or null; the value the model used)"
+        )
+    return cfg
+
+
+def _unwrap_scalar(value):
+    """Return the scalar inside a ``{value: ...}`` wrapper, or the value itself."""
+    if isinstance(value, dict):
+        return value.get("value")
+    return value
+
+
+def _migrate_2026_6_dev7_to_2026_6_dev8(cfg: dict) -> dict:
+    """Repair previously emitted nulls without changing the schema lineage.
+
+    From 2026.6.dev8 ``snowalb`` rejects null (#2001). Earlier
+    ``suews validate --science-fixes apply`` runs wrote ``snowalb: null`` for
+    a snow-free start, so such files would no longer load. Removing the key
+    lets the documented default (0.5) apply; a number the user gave is kept.
+    Null vegetation ``sdd_id`` and water ``flowchange`` instead receive their
+    former effective 0.0 explicitly, retaining any reference metadata.
+    """
+    def restore_zero(block, name):
+        if not isinstance(block, dict) or name not in block:
+            return
+        entry = block[name]
+        if _unwrap_scalar(entry) is not None:
+            return
+        if isinstance(entry, dict):
+            entry["value"] = 0.0
+        else:
+            block[name] = 0.0
+        _log(
+            f"[yaml-upgrade]   set {name!r} to 0.0 "
+            "(null is no longer accepted; preserve the former effective zero)"
+        )
+
+    for site in cfg.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        states = site.get("initial_states")
+        if isinstance(states, dict):
+            for surface in ("evetr", "dectr", "grass"):
+                restore_zero(states.get(surface), "sdd_id")
+            if "snowalb" in states and _unwrap_scalar(states["snowalb"]) is None:
+                states.pop("snowalb")
+                _log(
+                    "[yaml-upgrade]   dropped 'snowalb' "
+                    "(null is no longer accepted; the default 0.5 applies)"
+                )
+        props = site.get("properties")
+        if isinstance(props, dict):
+            land_cover = props.get("land_cover")
+            if isinstance(land_cover, dict):
+                restore_zero(land_cover.get("water"), "flowchange")
+    return cfg
+
+
+def _migrate_2026_6_dev6_to_current(cfg: dict) -> dict:
+    """Chain the CO2 point source and the null snowalb removal."""
+    cfg = _migrate_2026_6_dev6_to_2026_6_dev7(cfg)
+    return _migrate_2026_6_dev7_to_2026_6_dev8(cfg)
+
+
+def _migrate_2026_6_dev5_to_current(cfg: dict) -> dict:
+    """Chain the provisional-output switch and all subsequent schema deltas."""
+    cfg = _migrate_2026_6_dev5_to_2026_6_dev6(cfg)
+    return _migrate_2026_6_dev6_to_current(cfg)
+
+
+def _migrate_2026_6_dev4_to_current(cfg: dict) -> dict:
+    """Chain the shortwave selector rename and all subsequent schema deltas."""
+    cfg = _migrate_2026_6_dev4_to_2026_6_dev5(cfg)
+    return _migrate_2026_6_dev5_to_current(cfg)
+
+
 SOIL_MIGRATION_MESSAGE = (
     "This YAML uses observed soil moisture, so it must be converted together "
     "with its legacy xsmd forcing; no output configuration was written. "
@@ -1404,7 +1530,7 @@ def _scaled_soil_value(value, scale):
     return float(_soil_raw(value)) * scale
 
 
-def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict, *, migration_context=None) -> dict:
+def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) -> dict:
     """Apply the soil delta transactionally, retaining original method evidence."""
     result = deepcopy(cfg)
     physics = result.get("model", {}).get("physics", {})
@@ -1512,9 +1638,9 @@ def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict, *, migration_context=None) ->
 
 
 def _migrate_2026_6_dev3_to_current(cfg: dict) -> dict:
-    """Chain the optional STEBBS controls and the shortwave selector rename."""
+    """Chain the optional STEBBS controls and all subsequent schema deltas."""
     cfg = _migrate_2026_6_dev3_to_2026_6_dev4(cfg)
-    return _migrate_2026_6_dev4_to_2026_6_dev5(cfg)
+    return _migrate_2026_6_dev4_to_current(cfg)
 
 
 def _migrate_2026_6_dev2_to_current(cfg: dict) -> dict:
@@ -1595,7 +1721,10 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.6.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev4_to_2026_6_dev5,
+    ("2026.6.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev7_to_2026_6_dev8,
+    ("2026.6.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev6_to_current,
+    ("2026.6.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev5_to_current,
+    ("2026.6.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev4_to_current,
     ("2026.6.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev3_to_current,
     ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_current,
     ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_current,
@@ -1606,21 +1735,21 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
 }
 
 
-# Snapshot the outgoing routes before wrapping; intermediate dev5 targets keep
+# Snapshot the outgoing routes before wrapping; intermediate dev8 targets keep
 # their original bodies. Every older-to-current edge composes the delta once.
 def _with_soil_delta(handler):
     @wraps(handler)
     def migrate(cfg, *, migration_context=None):
         cfg = handler(deepcopy(cfg))
-        return _migrate_2026_6_dev5_to_2026_6_dev6(cfg, migration_context=migration_context)
+        return _migrate_2026_6_dev8_to_2026_6_dev9(cfg, migration_context=migration_context)
     return migrate
 
 
 for (_source, _target), _handler in list(_HANDLERS.items()):
     if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
-        _HANDLERS[(_source, "2026.6.dev5")] = _handler
+        _HANDLERS[(_source, "2026.6.dev8")] = _handler
         _HANDLERS[(_source, _target)] = _with_soil_delta(_handler)
-_HANDLERS[("2026.6.dev5", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev5_to_2026_6_dev6
+_HANDLERS[("2026.6.dev8", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev8_to_2026_6_dev9
 
 
 def apply_migration_handler(handler, cfg, *, migration_context=None):

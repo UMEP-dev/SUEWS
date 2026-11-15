@@ -44,6 +44,9 @@ from ..validation.required_fields import (
     BUILDING_PRESENT_SFR_TOL,
     BUILDING_REQUIRED,
     BUILDING_REQUIRED_PROVIDED_FAI,
+    CO2_POINT_SOURCE_METHOD_DIGITS,
+    CO2_POINT_SOURCE_METHOD_FAMILIES,
+    CO2_POINT_SOURCE_REQUIRED,
     CONDUCTANCE_REQUIRED,
     DECIDUOUS_REQUIRED,
     DECIDUOUS_REQUIRED_PROVIDED_FAI,
@@ -231,7 +234,7 @@ def _soil_selector_code(value) -> Optional[int]:
 
 _CANONICAL_SOIL_OBSERVATION_KEYS = ("layer_top", "layer_depth")
 # First schema with explicit observed-soil layer bounds and canonical sm forcing.
-_OBSERVED_SOIL_LAYER_SCHEMA = "2026.6.dev6"
+_OBSERVED_SOIL_LAYER_SCHEMA = "2026.6.dev9"
 
 
 def _predates_observed_soil_layers(schema_version) -> bool:
@@ -1648,7 +1651,6 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         The following parameters are checked:
-        - emission_co2_point_source: CO2 point source emission factor
         - emission_factor_co2_fuel: CO2 emission factor per unit of fuel energy
         - fraction_fossil_fuel_heating: Fraction of heating energy from fossil fuels
         - fraction_fossil_fuel_non_heating: Fraction of non-heating energy from fossil fuels
@@ -1658,7 +1660,6 @@ class SUEWSConfig(BaseModel):
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
-            "emission_co2_point_source": "CO2 point source emission factor",
             "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
             "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
             "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
@@ -3444,7 +3445,14 @@ class SUEWSConfig(BaseModel):
           ``g_sm``, ``kmax``, ``s1``, ``s2``, ``tl``, ``th``). Both
           ``GSModel.JARVI`` and ``GSModel.WARD`` consume these.
 
-        CO2 / OHM blocks are out of scope for this check: in the gh#1333
+        - Whenever the emissions method uses it (biogenic methods 11-16,
+          21-26, 31-36, 41-46), each site must give
+          ``anthropogenic_emissions.co2.emission_co2_point_source``
+          (:meth:`_iter_co2_point_source_issues`, gh#2001). Unlike the
+          rules above, this one does not depend on an explicit
+          ``land_cover`` block.
+
+        OHM blocks are out of scope for this check: in the gh#1333
         reproducer those fields are populated with a sentinel value
         (``1``), not ``None`` -- a different bug class handled in a
         follow-up.
@@ -3781,6 +3789,64 @@ class SUEWSConfig(BaseModel):
                                 fix=fix,
                             )
 
+        issues.extend(self._iter_co2_point_source_issues())
+        return issues
+
+    def _iter_co2_point_source_issues(self) -> List[Dict[str, str]]:
+        """Return an issue per site missing a CO2 point source that is used.
+
+        The kernel adds ``emission_co2_point_source`` to the anthropogenic CO2
+        flux for the biogenic emissions methods 11-16, 21-26, 31-36 and
+        41-46. Methods 0-6 do not use it: the driver discards every CO2 flux
+        they compute. A missing value used to reach the kernel as the Rust
+        bridge's own 0; for those methods it must now be given, ``0``
+        included (gh#2001). Like the other site checks, this applies only to
+        configurations loaded from user input (``from_yaml`` / ``from_dict``).
+
+        Returns
+        -------
+        List[Dict[str, str]]
+            Issues in the shape of
+            :meth:`_iter_critical_null_site_param_issues`.
+        """
+        if getattr(self, "_yaml_raw", None) is None or not getattr(
+            self, "sites", None
+        ):
+            return []
+
+        physics = getattr(getattr(self, "model", None), "physics", None)
+        method = getattr(physics, "emissions", None)
+        method = getattr(method, "value", method)
+        method = getattr(method, "value", method)
+        if not isinstance(method, int) or (
+            method // 10 not in CO2_POINT_SOURCE_METHOD_FAMILIES
+            or method % 10 not in CO2_POINT_SOURCE_METHOD_DIGITS
+        ):
+            return []
+
+        issues: List[Dict[str, str]] = []
+        for i, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"site[{i}]")
+            emissions = getattr(
+                getattr(site, "properties", None), "anthropogenic_emissions", None
+            )
+            co2 = getattr(emissions, "co2", None)
+            for field_name, (message, fix) in CO2_POINT_SOURCE_REQUIRED.items():
+                raw = getattr(co2, field_name, None)
+                if getattr(raw, "value", raw) is None:
+                    issues.append(
+                        {
+                            "error_text": (
+                                f"sites[{i}] ({site_name}), anthropogenic_emissions.co2: "
+                                f"{field_name} is None but emissions method "
+                                f"{method} uses it"
+                            ),
+                            "path": f"sites[{i}]/properties/anthropogenic_emissions/co2",
+                            "param": field_name,
+                            "message": message,
+                            "fix": fix,
+                        }
+                    )
         return issues
 
     def _check_critical_null_site_params(self) -> List[str]:
@@ -3901,7 +3967,6 @@ class SUEWSConfig(BaseModel):
             from ..validation.core.utils import check_missing_params
 
             critical_params = {
-                "emission_co2_point_source": "CO2 point source emission factor",
                 "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
                 "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
                 "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
@@ -5376,8 +5441,11 @@ class SUEWSConfig(BaseModel):
             If True, preserve internal-only fields for lossless round-tripping.
             Set to False to produce a clean user-facing YAML export.
         """
-        # Use mode='json' to serialize enums as their values
-        config_dict = self.model_dump(exclude_none=True, mode="json")
+        # Use mode='json' to serialize enums as their values. round_trip
+        # leaves out computed fields (stebbs.deep_soil_temperature): they are
+        # derived, so a stale copy in the YAML would fail the next load once
+        # its source changed (gh#2001).
+        config_dict = self.model_dump(exclude_none=True, mode="json", round_trip=True)
 
         # An explicit null forcing file means "forcing supplied at runtime"
         # (gh#1722). exclude_none would drop it, and reloading would then

@@ -17,8 +17,8 @@ process, coding style, issue-triage conventions, and workflow administration.
 
 ### Scientific Review Panel
 
-Scientific reviewer routing is maintained in
-[`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md). Use that guide to identify
+Scientific reviewers are listed in
+[`MAINTAINERS.md`](../MAINTAINERS.md). Use that file to identify
 reviewers for physics modules and request them manually when science review is
 needed. Scientific module reviewers are intentionally not wired into GitHub
 automatic review requests.
@@ -27,15 +27,16 @@ automatic review requests.
 
 The table below is an advisory maintainer-routing reference. It does not grant
 automatic ownership, create required reviews, or mean every PR touching these
-paths needs a review request.
+paths needs a review request. Who the maintainers are is recorded in
+[`MAINTAINERS.md`](../MAINTAINERS.md).
 
-| Area | Path examples | Suggested maintainers |
+| Area | Path examples | Suggested maintainer |
 |------|---------------|-----------------------|
-| Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | @sunt05, @suegrimmond |
-| Scientific reviewer guide | `dev-ref/SCIENTIFIC_REVIEWERS.md` | @sunt05, @suegrimmond |
-| Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | @sunt05, @suegrimmond |
-| AI review and rule surfaces | `.claude/skills/audit-pr/`, `.claude/rules/` | @sunt05, @suegrimmond |
-| GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | @sunt05 |
+| Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | both maintainers |
+| Roles, owners and reviewers | `MAINTAINERS.md` | both maintainers |
+| Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | both maintainers |
+| AI review and rule surfaces | `.claude/skills/audit-pr/`, `.claude/rules/` | both maintainers |
+| GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | software maintainer |
 
 ## Review Workflow
 
@@ -52,7 +53,7 @@ When an issue is opened, maintainers apply the MECE label system described in
 Assignees are set only when someone is expected to drive the issue. For module
 issues that need scientific input, use the relevant `2-module:*` label and
 `4-needs-science`, then route the discussion to the panel owner listed in
-[`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md).
+[`MAINTAINERS.md`](../MAINTAINERS.md).
 
 ### 2. PR Triage
 
@@ -62,24 +63,38 @@ When a PR is opened, maintainers perform initial triage:
    style, process, or infrastructure.
 2. Determine which labels and ownership areas apply.
 3. Use the code-governance table above for process and workflow maintainer
-   suggestions, and [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md) for
+   suggestions, and [`MAINTAINERS.md`](../MAINTAINERS.md) for
    manual scientific reviewer suggestions.
 4. Document physics impact and scientific rationale in the PR description or PR
    comments, rather than creating one-off labels for every review state.
 
 ### 3. Scientific Review Request
 
+Request scientific review when a PR:
+
+- changes model physics, equations, parameterisations, or scientific constants
+- changes module-specific Fortran types, data-model defaults, or benchmark
+  behaviour with physical meaning
+- refreshes reference fixtures or benchmark outputs because the model behaviour
+  changed
+- updates module documentation in a way that needs domain judgement
+
+For draft PRs, request early advice only when the reviewer is being asked for
+design input. Otherwise wait until the PR is ready enough for a focused review.
+Scientific reviewers are requested by hand; they are not wired into GitHub
+automatic review requests, and their review is advisory.
+
 For PRs requiring scientific validation:
 
 1. Apply the relevant `2-module:*` label.
 2. Request review manually from the domain expert(s) identified by
-   [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md).
+   [`MAINTAINERS.md`](../MAINTAINERS.md).
 3. Provide context about what specifically needs review.
 4. Track review status in PR comments and GitHub's review system.
 
 Example comment:
 ```
-@yiqing1021 @denisehertwig - This PR modifies 2-module:stebbs temperature calculations.
+<@reviewer> <@reviewer> - This PR modifies 2-module:stebbs temperature calculations.
 Please review for scientific validity, particularly the changes to surface temperature iteration in suews_phys_stebbs.f95.
 ```
 
@@ -161,7 +176,7 @@ Module labels identify which physics components are affected:
 Following the simplified labeling approach, PRs use:
 - Module labels (as above) to identify affected components
 - Scientific reviewer suggestions are routed through
-  [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md)
+  [`MAINTAINERS.md`](../MAINTAINERS.md)
 - Code-governance maintainer suggestions are routed through this document
 - Review status is tracked in PR comments and GitHub's review system
 - Physics impacts are documented in PR descriptions rather than labels
@@ -176,7 +191,7 @@ For complex or controversial changes:
 
 ## Contributing as a Reviewer
 
-Interested in joining the review panel? Contact @sunt05 or @suegrimmond with:
+Interested in joining the review panel? Contact a maintainer (see [`MAINTAINERS.md`](../MAINTAINERS.md)) with:
 - Your domain expertise
 - SUEWS experience
 - GitHub handle

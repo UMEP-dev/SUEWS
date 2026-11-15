@@ -20,6 +20,10 @@ This module contains:
 - ``RSL_VARIABLE_BLDGS_REQUIRED`` and the ``DYOHM_BUILDING_*`` constants,
   which ``SUEWSConfig._validate_rsl`` and ``SUEWSConfig._validate_storage``
   consume for their physics-dependent checks.
+- ``CO2_POINT_SOURCE_REQUIRED`` and the ``CO2_POINT_SOURCE_METHOD_*``
+  constants, the CO2 point source demanded whenever the emissions method adds
+  it to the CO2 flux, consumed by
+  ``SUEWSConfig._iter_critical_null_site_param_issues``.
 - ``WATER_DISTRIBUTION_REQUIRED``, the destinations each surface must route
   water to, consumed by ``WaterDistribution.validate_distribution``. A failure
   there is reported as a warning while a configuration loads, but the missing
@@ -226,6 +230,20 @@ SPARTACUS_OBSERVED_STORAGE_METHOD: int = 0
 SPARTACUS_BUILDING_STORAGE_METHODS: tuple[int, ...] = (5, 7)
 BUILDING_PRESENT_SFR_TOL: float = 1e-6
 
+# Emission methods whose CO2 flux includes the point source: the biogenic
+# families (tens digit 1-4) with a heat method 1-6 (suews_phys_anthro.f95).
+# Methods 0-6 compute it too, but SUEWS_cal_AnthropogenicEmission then
+# discards every CO2 flux for them, so the value has no effect there. Checked
+# by SUEWSConfig._iter_critical_null_site_param_issues for user YAML (gh#2001).
+CO2_POINT_SOURCE_METHOD_FAMILIES: tuple[int, ...] = (1, 2, 3, 4)
+CO2_POINT_SOURCE_METHOD_DIGITS: tuple[int, ...] = (1, 2, 3, 4, 5, 6)
+CO2_POINT_SOURCE_REQUIRED: RequirementTable = {
+    "emission_co2_point_source": (
+        "CO2 point source is required when the emissions method uses it",
+        "Add the whole-grid CO2 point source in kg C per day (0 if there is none)",
+    ),
+}
+
 # Water-distribution destinations each surface must give when its waterdist
 # block is supplied; an omitted block takes surface-specific defaults. Keyed by
 # surface type value; the water surface has no distribution.
@@ -387,6 +405,12 @@ DOC_REQUIRED_WHEN: dict[str, dict[str, str]] = {
         "ie_start": _irrigation_condition("ie_end"),
         "ie_end": _irrigation_condition("ie_start"),
     },
+    "CO2Params": dict.fromkeys(
+        CO2_POINT_SOURCE_REQUIRED,
+        "``model.physics.emissions`` is a biogenic CO2 method (``11``-``16``, "
+        "``21``-``26``, ``31``-``36`` or ``41``-``46``); give ``0`` for a site "
+        "without a point source. Methods ``0``-``6`` do not use it",
+    ),
     "AnthropogenicEmissions": {
         "startdls": _dls_condition("enddls"),
         "enddls": _dls_condition("startdls"),

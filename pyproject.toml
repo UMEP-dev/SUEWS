@@ -58,7 +58,8 @@ dependencies = [
     "click",
     "pyarrow>=20,<21; python_version < '3.14' and platform_system == 'Linux'",  # Linux needs manylinux2014 wheels on CPython 3.12-3.13
     "pyarrow>=20; python_version < '3.14' and platform_system != 'Linux'",  # Non-Linux platforms may use newer pyarrow binaries
-    "pyarrow>=22; python_version >= '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
+    "pyarrow>=22; python_version == '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
+    "pyarrow>=26; python_version >= '3.15'",  # 26.x is the first release with cp315 wheels
 
     # Scientific packages
     "atmosp",
@@ -87,6 +88,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "Operating System :: MacOS :: MacOS X",
@@ -225,6 +227,38 @@ markers = [
     "slow: Test body of 30 CPU seconds or more on the Linux reference runner, or unsuitable for routine PR runs for a stated reason (slow(reason=...)); excluded from standard unless core",
     "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
+
+# Python line and branch coverage of supy and suews_mcp. Read by `pytest --cov`
+# (pytest-cov) and by the nightly python_coverage job in
+# .github/workflows/build-publish_to_pypi.yml, which measures the installed
+# wheel as the other CI lanes test it. Coverage only: nothing here changes how
+# the package builds or what it depends on.
+[tool.coverage.run]
+branch = true
+# Each xdist worker and each subprocess writes its own data file; pytest-cov
+# combines them at the end of the run.
+parallel = true
+# Many tests start the `suews` command in a subprocess; measure those too
+# (coverage 7.10 or later).
+patch = ["subprocess"]
+source_pkgs = ["supy", "suews_mcp"]
+# Written at build time by get_ver_git.py, so absent from a source checkout and
+# unmappable to it.
+omit = ["*/_version_scm.py"]
+
+[tool.coverage.paths]
+# Map an installed wheel back to the source tree, so a report names
+# repository paths whether supy was installed from a wheel or in editable mode.
+# The first entry of each list is where the reported files are read from.
+supy = ["src/supy/", "*/site-packages/supy/", "*\\site-packages\\supy\\"]
+suews_mcp = [
+    "mcp/src/suews_mcp/",
+    "*/site-packages/suews_mcp/",
+    "*\\site-packages\\suews_mcp\\",
+]
+
+[tool.coverage.report]
+precision = 1
 
 [tool.ruff]
 line-length = 120

@@ -57,6 +57,28 @@ def signed_yaml(tmp_path: Path, release_yaml: Path) -> Path:
 
 
 @pytest.mark.cfg
+def test_dev5_upgrade_keeps_provisional_output_switch_off(
+    sample_yaml_path: Path, tmp_path: Path
+):
+    """The dev6 stamp preserves content and leaves provisional groups opt-in."""
+    payload = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+    payload["schema_version"] = "2026.6.dev5"
+    payload["model"]["control"]["output"] = {"format": "txt", "groups": ["BEERS"]}
+    source = tmp_path / "dev5.yml"
+    output = tmp_path / "dev6.yml"
+    source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    upgrade_yaml(input_path=source, output_path=output)
+
+    migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
+    assert migrated.pop("schema_version") == CURRENT_SCHEMA_VERSION
+    payload.pop("schema_version")
+    assert migrated == payload
+    with pytest.warns(UserWarning, match="names provisional group"):
+        config = SUEWSConfig.from_yaml(str(output))
+    assert config.model.control.output.include_provisional is False
+
+
 @pytest.mark.parametrize("explicit_controls", [False, True])
 def test_dev3_stebbs_controls_upgrade_preserves_content(
     sample_yaml_path: Path, tmp_path: Path, explicit_controls: bool

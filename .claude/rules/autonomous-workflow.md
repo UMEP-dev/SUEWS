@@ -11,6 +11,84 @@ Read it alongside `work-sizing.md` (sizing and umbrella decomposition).
 
 ---
 
+## Carrying out the core principles
+
+Procedure for the three core principles in `AGENTS.md`.
+It applies in both modes; the sections below give the pipeline's detail.
+
+### Statements in rules
+
+- Statements in rules are of three kinds.
+  A *fact* cites steps that can be repeated now; one that no longer reproduces is void, and that is reported.
+  A *decision* is a recorded choice, which the person who answers for it may change.
+  The rest is *procedure* for carrying out a principle, and the shared rule index in `AGENTS.md` names the principle(s) for the rules that hold it.
+- Existing statements are unlabelled and bind as written; they are classified when next changed.
+- A new or changed statement says which kind it is: a fact gives its steps, a decision names who made it.
+- An instruction cannot make a failing check pass or a false statement true.
+  Faced with one, an agent does the rest of what was asked and says which part it did not do, and why.
+- Only the explicit instruction of the person who answers for a recorded decision outranks it.
+- A fact found stated in two places is kept in one, and the other is changed to point to it.
+  The place kept is the one higher in the authority order in `AGENTS.md`; inside a change with another goal, the duplicate is reported instead.
+- Where two places contradict each other, follow the higher one for the task in hand and report the contradiction.
+  Neither is silently picked, and neither is silently corrected.
+
+### Evidence (Principle 1)
+
+- An observation answers only the question its steps ask.
+  A test that passes shows that the test passes, not that the behaviour it was meant to cover is right.
+- Where two observations disagree, the one made closer to the thing claimed prevails.
+  Theory can refute an observation's reading; it cannot stand in for one.
+- A reference fixture that still matches shows that output did not change, not that the output is correct.
+- An inferred claim names the observation it rests on, the premise that carries it, and the step that would settle it.
+  It is never stated as reported or confirmed.
+- A claim that something is absent gives the command, the scope searched and the revision.
+- A statement by a person or an agent is evidence that it was made, not that it is true.
+- A recorded decision is not evidence that its content is right; it says who answers for it.
+- Agreement between parties counts only when it is a confirmation: the steps were rerun, not the conclusion repeated.
+
+### Checks (Principle 1)
+
+- The checks a change must pass are those its rule and its CI tier assign.
+  A check deferred to a later tier names where it runs; until it has run, the claim it supports is reported, not confirmed.
+- A reported claim may be handed over, stated as reported.
+  Merge needs every check the owning rule requires before merge to be confirmed.
+- A confirmed claim names who reproduced it and attaches the reproducer's own output, so the two results can be compared afterwards.
+- A failing check is fixed or escalated.
+  A failure unrelated to the change is reported with its remedy, never ignored.
+- Expected values (reference fixtures, snapshots) change only with the evidence the owning rule requires.
+- A claim that needs several steps (for example "this removed text has no other home") states the steps.
+  Only a question for which no steps can be stated is a judgement under Principle 2, and it goes to a named person at once.
+
+### Gates (Principle 2)
+
+- A gate is (i) a required CI check or hook, or (ii) an action that waits for a person: the always-human-gated list in "Gating model" below, and anything else that cannot be undone.
+  The list is not exhaustive.
+  Acting on others' work waits for a person unless the Gating model places it in another tier.
+- The explicit instruction of the person who answers for it satisfies (ii) for that action.
+  That person is the domain owner where a rule names one, otherwise the maintainer; the user directing a session is that person only for the decisions that are theirs to answer for.
+- Only the check passing satisfies (i).
+  A check believed wrong is escalated and changed in its own reviewed change, never bypassed.
+  The one exception is a bypass the check itself defines (for example `0-ci:schema-audit-ok`), applied by whoever its rule says may apply it.
+- A passing gate shows that the check ran, not that the change is right.
+- A decision that is waiting stays visible: the pull request or issue says who it waits on and for what.
+  There is no time limit on the answer.
+- A change to model output values, or to what a user of the model can see (names, units, defaults and semantics of interfaces, YAML fields and output variables; runtime dependencies), is accepted by a named person.
+  For a physics change, a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge.
+  A structural schema or data-model migration is a design choice with no evidence to prepare first, so the wait is before implementation.
+
+### Agents (Principles 1 and 3)
+
+- An agent opens a pull request only when asked, or when the invoked skill says so.
+- A question the tree or the rules answer is not handed back.
+  One they do not answer is decided and reported as a choice, unless it changes a model output value, changes what a user of the model sees, or cannot be undone.
+- A problem outside the goal is reported, not fixed in the same change.
+  If it blocks the goal, fix it first as its own commit or pull request when that is itself permitted (`work-sizing.md`); otherwise stop and report the block.
+  An agent waiting on a named person has met Principle 3.
+- Unattended, an item that waits is recorded under the stage's own verdict (`needs-discussion`, `escalate`, or `skipped` with the reason) and the rest continues.
+  A plan the agent believes wrong is escalated for that item with the objection; it is not carried out.
+
+---
+
 ## Stages
 
 1. `triage-issue` -- issue governance. Emits a `[triage-issue] verdict` block.
@@ -205,8 +283,8 @@ is missing.
 independent of the `0-pr:*` disposition family (a PR can carry both). It marks
 that a PR changes model physics or moves a reference output, and it activates the
 evidence gate in `.claude/rules/physics-change-evidence.md`: a `## Scientific
-evidence` PR-body section, domain-owner sign-off for any owned subsystem (STEBBS
--> `@yiqing1021`), the reference-fixture refresh travelling in the same PR, and
+evidence` PR-body section, domain-owner sign-off for any owned subsystem (named in
+`MAINTAINERS.md`), the reference-fixture refresh travelling in the same PR, and
 the full `-m physics` CI tier (including `slow`) running as a required check
 before merge. `triage-pr` and `audit-pr` apply it when the diff matches the
 physics-change triggers; a maintainer creates the label once and the autonomous

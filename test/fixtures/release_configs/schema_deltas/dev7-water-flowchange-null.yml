@@ -1,0 +1,21 @@
+# Outgoing dev7 shape accepted before the null-input tightening.
+schema_version: 2026.6.dev7
+sites:
+  - name: water-flowchange
+    properties:
+      land_cover:
+        paved:
+          sfr: {value: 0.0}
+        bldgs:
+          sfr: {value: 0.0}
+        evetr:
+          sfr: {value: 0.0}
+        dectr:
+          sfr: {value: 0.0}
+        grass:
+          sfr: {value: 0.0}
+        bsoil:
+          sfr: {value: 0.0}
+        water:
+          sfr: {value: 1.0}
+          flowchange: {value: null}

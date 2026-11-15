@@ -74,7 +74,7 @@ MODELPHYSICS_RENAMES: Dict[str, str] = {
 # CLI (``suews run``) on a Schema 2026.5 YAML should migrate via
 # ``suews-schema migrate --target-version 2026.5.dev2`` first.
 
-# Schema 2026.6.dev6: source selection no longer specifies observation units.
+# Schema 2026.6.dev9: source selection no longer specifies observation units.
 MODELPHYSICS_SOIL_RENAMES: Dict[str, str] = {
     "soil_moisture_deficit": "soil_moisture",
 }

@@ -1256,6 +1256,10 @@ class TestLegacyAnohmNames:
             # Kept out of the bridge-facing one-to-one registry on purpose.
             assert old not in ALL_FIELD_RENAMES
 
+    # The YAML path emits one warning per legacy name and surface, and
+    # pytest.warns re-emits those it does not match; Python 3.15 now attributes
+    # them to supy, where the pyproject gate would turn them into errors.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_yaml_path_accepts_legacy_names(self, tmp_path):
         expected = _sample_anohm_values()
         path_legacy = tmp_path / "legacy_anohm.yml"

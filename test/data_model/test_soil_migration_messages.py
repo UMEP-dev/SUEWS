@@ -151,13 +151,15 @@ def test_current_yaml_with_selector_alias_is_renamed_not_refused(tmp_path, alias
     [
         ("smdmethod", None, True),
         ("smdmethod", "2026.6.dev5", True),
-        ("smdmethod", "2026.6.dev6", False),
+        ("smdmethod", "2026.6.dev8", True),
+        ("smdmethod", "2026.6.dev9", False),
         ("smdmethod", "2026.7", False),
         # A declared older schema needs the xsmd conversion whatever the spelling;
         # an undeclared one with the canonical name is taken as current.
         ("soil_moisture", None, False),
         ("soil_moisture", "2026.6.dev5", True),
-        ("soil_moisture", "2026.6.dev6", False),
+        ("soil_moisture", "2026.6.dev8", True),
+        ("soil_moisture", "2026.6.dev9", False),
     ],
 )
 def test_selector_without_observation_block_follows_schema_version(

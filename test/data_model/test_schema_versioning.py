@@ -541,14 +541,14 @@ def test_every_older_current_route_applies_soil_delta_once(monkeypatch):
     from supy.util.converter import yaml_upgrade as upgrade
     from supy.data_model.configuration.migration import SchemaMigrator
     calls = []
-    original = upgrade._migrate_2026_6_dev5_to_2026_6_dev6
+    original = upgrade._migrate_2026_6_dev8_to_2026_6_dev9
 
     def tracked(cfg, *, migration_context=None):
         calls.append(True)
         return original(cfg, migration_context=migration_context)
 
-    monkeypatch.setattr(upgrade, "_migrate_2026_6_dev5_to_2026_6_dev6", tracked)
-    monkeypatch.setitem(upgrade._HANDLERS, ("2026.6.dev5", CURRENT_SCHEMA_VERSION), tracked)
+    monkeypatch.setattr(upgrade, "_migrate_2026_6_dev8_to_2026_6_dev9", tracked)
+    monkeypatch.setitem(upgrade._HANDLERS, ("2026.6.dev8", CURRENT_SCHEMA_VERSION), tracked)
     sources = [source for source, target in upgrade._HANDLERS
                if target == CURRENT_SCHEMA_VERSION and source != target]
     assert len(sources) >= 9

@@ -47,7 +47,7 @@ on:
         type: boolean
         default: false
       api_python_json:
-        description: 'JSON array of test-time CPython tags for the api lane (e.g. ["cp312","cp314"]); only read when run_api_tests is true'
+        description: 'JSON array of test-time CPython tags for the api lane (e.g. ["cp312","cp315"]); only read when run_api_tests is true'
         required: false
         type: string
         default: '[]'

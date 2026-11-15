@@ -3483,8 +3483,6 @@ sites:
     lambda_c:
       value: 3.05
   initial_states:
-    snowalb:
-      value: null
     paved:
       state:
         value: 0.0

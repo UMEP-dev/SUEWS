@@ -37,9 +37,15 @@ This directory contains internal documentation for SUEWS core developers.
   - What to look for in reviews
   - Manual maintainer routing for governance and process changes
 
-- **[Scientific Reviewers](SCIENTIFIC_REVIEWERS.md)** - Manual scientific reviewer routing
-  - Module-specific reviewer suggestions
-  - When and how to request scientific review
+- **[Maintainers](../MAINTAINERS.md)** - Who holds each role
+  - The maintainers, and the owners and reviewers of each module
+
+- **[Rust Bridge Design](RUST_BRIDGE_DESIGN.md)** - Responsibilities, data flow and shared audit rules
+- **[Rust Bridge Baseline Audit](RUST_BRIDGE_AUDIT.md)** - Checked boundaries, known deviations and follow-up evidence
+
+- **[Adding a Parameter at the Rust Level](RUST_BRIDGE_ADD_PARAMETER.md)** - Bringing a new parameter through the Rust bridge
+  - The eight hand-maintained steps, from the Fortran type to the YAML reader and data model
+  - Where a mistake fails silently, and a checklist
 
 - **[ESTM Reactivation](ESTM_REACTIVATION.md)** - Bringing back the disabled ESTM storage-heat scheme
   - What gh#1802 took out of the build and where it lives in git history
@@ -74,4 +80,5 @@ This directory contains internal documentation for SUEWS core developers.
 - [GitHub Discussions](https://github.com/UMEP-dev/SUEWS/discussions)
 
 ## Note for AI Assistants
-AI-specific instructions and workflows are maintained separately in `.claude/`. See `.claude/CLAUDE.md` for AI assistant guidance.
+Shared coding-agent instructions start in [AGENTS.md](../AGENTS.md), with rules
+and workflows maintained under `.claude/`.

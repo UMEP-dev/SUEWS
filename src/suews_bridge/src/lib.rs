@@ -1,3 +1,15 @@
+//! Python/engine boundary for transporting SUEWS parameters, state and outputs.
+//!
+//! The parameter/state codecs and the forcing/output buffer contracts are
+//! distinct representations. Python's direct-output entry points validate and
+//! lend buffers; `sim` owns the checked native invocation. Keep buffer guards
+//! alive through that call and preserve the caller's exclusive-access contract.
+//!
+//! Configuration defaults belong upstream and scientific calculations belong
+//! in the model. Existing YAML fallback behaviour is tracked separately from
+//! this required boundary; see `dev-ref/RUST_BRIDGE_DESIGN.md` and the BR rules
+//! in `.claude/rules/rust/bridge-contract.md` before extending the interface.
+
 // Crate-level lint allowances for the SUEWS Rust bridge. Each is justified;
 // every other clippy lint is gated (`-D warnings`) by .github/workflows/rust-clippy.yml.
 //
@@ -4467,8 +4479,9 @@ mod python_bindings {
     /// # Safety
     ///
     /// `table` must have passed [`lend_output_buffer`] and, together with
-    /// every other table in use, [`check_disjoint`]; the GIL must stay held
-    /// while the matrix lives, so no Python code can touch the memory.
+    /// every other table in use, [`check_disjoint`]. Keep the buffer guard alive
+    /// and the GIL held while the matrix lives. The caller must also exclude
+    /// concurrent native writers: holding the GIL alone cannot stop them.
     #[cfg(feature = "physics")]
     unsafe fn output_matrix(table: &LentOutput) -> PyResult<OutputMatrix<'_>> {
         let ptr = std::ptr::NonNull::new(table.buffer.buf_ptr().cast::<f64>())

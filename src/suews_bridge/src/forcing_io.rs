@@ -1,3 +1,10 @@
+//! Standalone-engine forcing file adapter and interpolation, adjacent to the
+//! transport core. Column order and interpolation kinds come from `forcing`;
+//! timestamps come from `forcing_time`. Existing unit conversion (including
+//! file pressure to kernel pressure) belongs to this I/O contract, not codecs.
+//! Preserve cumulative/average/instantaneous semantics and optional-value
+//! markers; a new scientific default or unit policy needs its owning layer.
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;

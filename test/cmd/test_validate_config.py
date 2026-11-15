@@ -1320,3 +1320,143 @@ def test_validate_sample_period_is_covered(tmp_path: Path) -> None:
     report = _validate_sample_with_bounds(tmp_path, "2012-01-01", "2012-12-31")
     messages = _issue_messages(report)
     assert not any("does not cover" in message for message in messages), messages
+
+
+def test_default_export_survives_disabled_stebbs_science_fixes(tmp_path):
+    """The default export keeps the internal occupancy fields loadable."""
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.core import SUEWSConfig
+
+    data = _load_sample_dict()
+    data["model"]["physics"]["stebbs"]["enabled"] = False
+    config = SUEWSConfig.from_dict(data)
+    path = tmp_path / "export.yml"
+    config.to_yaml(str(path))
+
+    result = CliRunner().invoke(validate_cli, [
+        str(path), "--pipeline", "BC", "--science-fixes", "apply",
+        "--forcing", "off", "--mode", "dev",
+    ])
+
+    assert result.exit_code == 0, result.output
+    reloaded = SUEWSConfig.from_yaml(str(tmp_path / "updated_export.yml"))
+    archetype = reloaded.model_dump(mode="json")["sites"][0]["properties"][
+        "building_archetype"
+    ]
+    for name in ("hhs0", "age_0_4", "age_5_11", "age_12_18", "age_19_64", "age_65plus"):
+        assert archetype[name] == 0.0
+
+
+# Fields whose model rejects ``{value: null}`` (gh#2001). Omitting one gives
+# its default, so the default pipeline must accept the omission and must not
+# write a null placeholder for it into the updated YAML.
+_NULL_REJECTING_OMISSIONS = [
+    (("properties", "land_cover", "water"), "flowchange"),
+    (("initial_states", "evetr"), "sdd_id"),
+    (("initial_states",), "snowalb"),
+]
+
+
+@pytest.mark.parametrize(("path", "key"), _NULL_REJECTING_OMISSIONS)
+def test_validate_accepts_omitted_null_rejecting_field(
+    tmp_path: Path, path: tuple, key: str
+) -> None:
+    """Omitting a null-rejecting field passes ``suews validate`` (gh#2001)."""
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.core import SUEWSConfig
+
+    data = _load_sample_dict()
+    block = data["sites"][0]
+    for part in path:
+        block = block[part]
+    del block[key]
+    config_path = tmp_path / "myconfig.yml"
+    _write_yaml(config_path, data)
+
+    result = CliRunner().invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    updated = tmp_path / "updated_myconfig.yml"
+    assert updated.exists(), result.output
+    text = updated.read_text(encoding="utf-8")
+    SUEWSConfig.from_yaml(str(updated))
+    reloaded = yaml.safe_load(text)["sites"][0]
+    for part in path:
+        reloaded = reloaded[part]
+    assert key not in reloaded, reloaded
+
+
+def test_missing_block_gets_no_null_for_null_rejecting_field() -> None:
+    """A block Phase A fills in skips the null-rejecting fields (gh#2001)."""
+    from supy.data_model.validation.pipeline.phase_a import (
+        create_clean_missing_param_annotation,
+    )
+
+    lines = create_clean_missing_param_annotation(
+        "evetr", {"state": {"value": 0.0}, "sdd_id": {"value": 0}}
+    )
+    assert lines[:2] == ["evetr:", "  state:"], lines
+    assert not any("sdd_id" in line for line in lines), lines
+
+
+def test_default_export_survives_annual_mean_science_fix(tmp_path, monkeypatch):
+    """A default export carries no stale ``deep_soil_temperature`` (gh#2001).
+
+    With STEBBS enabled, ``--science-fixes apply`` rewrites
+    ``temperature_air_annual_mean``; the computed deep soil temperature must
+    follow it instead of surviving in the exported YAML as an input.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.core import SUEWSConfig
+    from supy.data_model.validation.pipeline import phase_b
+
+    data = _load_sample_dict()
+    data["model"]["physics"]["stebbs"]["enabled"] = True
+    data["sites"][0]["properties"]["stebbs"]["temperature_air_annual_mean"] = {
+        "value": 5.0
+    }
+    monkeypatch.setattr(
+        phase_b, "get_mean_annual_air_temperature", lambda lat, lng: 13.0
+    )
+    path = tmp_path / "export.yml"
+    SUEWSConfig.from_dict(data).to_yaml(str(path))
+
+    result = CliRunner().invoke(validate_cli, [
+        str(path), "--pipeline", "BC", "--science-fixes", "apply",
+        "--forcing", "off", "--mode", "dev",
+    ])
+
+    assert result.exit_code == 0, result.output
+    reloaded = SUEWSConfig.from_yaml(str(tmp_path / "updated_export.yml"))
+    stebbs = reloaded.sites[0].properties.stebbs
+    assert stebbs.deep_soil_temperature == 13.0
+
+
+def test_snowalb_drop_survives_revalidation(tmp_path: Path) -> None:
+    """An ``apply`` run that drops ``snowalb`` validates again (gh#2001).
+
+    A summer start makes Phase B remove ``snowalb``; validating that output
+    a second time must not put a null placeholder back.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    data = _load_sample_dict()
+    data["model"]["control"]["start_time"] = "2012-07-01"
+    data["model"]["control"]["end_time"] = "2012-07-31"
+    config_path = tmp_path / "myconfig.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    first = runner.invoke(validate_cli, [
+        str(config_path), "--science-fixes", "apply", "--forcing", "off",
+    ])
+    assert first.exit_code == 0, first.output
+    updated = yaml.safe_load(
+        (tmp_path / "updated_myconfig.yml").read_text(encoding="utf-8")
+    )
+    assert "snowalb" not in updated["sites"][0]["initial_states"]
+
+    again = tmp_path / "again.yml"
+    _write_yaml(again, updated)
+    second = runner.invoke(validate_cli, [str(again), "--forcing", "off"])
+    assert second.exit_code == 0, second.output

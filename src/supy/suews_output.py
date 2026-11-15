@@ -775,6 +775,7 @@ class SUEWSOutput:
         freq_s: Optional[int] = None,
         groups: Optional[List[str]] = None,
         units: Optional[Dict] = None,
+        include_provisional: Optional[bool] = None,
     ) -> List[Path]:
         """
         Save output to files.
@@ -800,10 +801,17 @@ class SUEWSOutput:
         units : mapping, optional
             Variable names or (group, variable) pairs to requested unit strings.
         groups : list, optional
-            Output groups to write as text files, overriding
-            ``model.control.output.groups``. ``None`` (the default) uses the
-            configured groups, else ``['SUEWS', 'DailyState']``. Parquet
-            output always holds every group.
+            TXT output groups, for example ['SUEWS', 'DailyState', 'RSL'].
+            An explicit list overrides ``model.control.output.groups`` for
+            this save only. When ``None``, use the configured groups, or
+            ['SUEWS', 'DailyState'] if none are configured. An empty list
+            writes no TXT output groups. Parquet saves every available group.
+        include_provisional : bool, optional
+            Allow provisional groups (BEERS, EHC, NHood, SPARTACUS, STEBBS),
+            whose variables may change between releases, in the TXT groups
+            saved; saving them emits a ``UserWarning``. Without it, naming
+            one raises ``ValueError``. When ``None``, use
+            ``model.control.output.include_provisional`` (default False).
 
         Returns
         -------
@@ -879,10 +887,11 @@ class SUEWSOutput:
             path_dir_save=str(path),
             output_config=output_config,
             output_format=format,
+            output_groups=groups,
+            include_provisional=include_provisional,
             save_state=False,
             forcing_timestamp_reference=forcing_timestamp_reference,
             units=units,
-            output_groups=list(groups) if groups is not None else None,
         )
 
         if self._checkpoint is not None:

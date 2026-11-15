@@ -785,3 +785,54 @@ def test_checkout_abba_workflow_is_manual_sequential_and_non_production() -> Non
     assert "test_tier: smoke" in workflow
     assert "uses: ./.github/actions/build-suews" in workflow
     assert "- '.github/workflows/benchmark-checkout-provenance.yml'" in path_filters
+
+
+def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
+    """The nightly coverage job never gates and tests with the api lane's pins.
+
+    It must stay out of the nightly alert and the PR gate like the other
+    recording jobs, carry continue-on-error and a timeout, and install the same
+    exact test requirements as the api lane plus exactly pinned pytest-cov and
+    coverage, so its figures describe the suite the lanes actually run.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(encoding="utf-8")
+    )
+    job = caller["jobs"]["python_coverage"]
+
+    assert job["name"] == "Python coverage (Linux cp312)"
+    assert job["continue-on-error"] is True
+    assert 0 < job["timeout-minutes"] <= 120
+    assert "github.event_name == 'schedule'" in job["if"]
+    assert "inputs.python_coverage == true" in job["if"]
+    assert "python_coverage" not in caller["jobs"]["report_scheduled_run"]["needs"]
+    assert "python_coverage" not in caller["jobs"]["pr-gate"]["needs"]
+
+    def pins(text: str) -> set[str]:
+        return set(re.findall(r"\b[\w.-]+==[\w.]+", text))
+
+    install = next(
+        step["run"] for step in job["steps"] if "pytest-cov==" in str(step.get("run", ""))
+    )
+    api_workflow = (root / ".github/workflows/test-api-cross-python-reusable.yml").read_text(
+        encoding="utf-8"
+    )
+    api_install = next(
+        line for line in api_workflow.splitlines() if "pip install pytest==" in line
+    )
+    assert pins(api_install) <= pins(install)
+    assert {p.split("==")[0] for p in pins(install) - pins(api_install)} == {
+        "pytest-cov",
+        "coverage",
+    }
+
+    run = next(
+        step["run"] for step in job["steps"] if "--cov" in str(step.get("run", ""))
+    )
+    assert '-m "not qgis"' in run
+    assert "-n 4" in run
+    assert "--cov-report=json:coverage/coverage.json" in run
+    upload = job["steps"][-1]
+    assert upload["if"] == "always()"
+    assert upload["with"]["name"] == "python-coverage"

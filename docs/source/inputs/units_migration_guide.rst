@@ -140,7 +140,7 @@ The forcing contract moves from ``1.2.0`` to ``2.1.0`` in two steps.
   the instantaneous liquid-water content of a specified soil layer in
   kg |m^-2|, from which SuPy derives the moisture deficit. This needs matching
   YAML changes (``soil_moisture``, the observation layer and
-  ``soil_field_capacity``); see :ref:`schema_dev6_soil_migration` for the YAML
+  ``soil_field_capacity``); see :ref:`schema_dev9_soil_migration` for the YAML
   upgrade and the "Observed liquid soil water" section of :ref:`met_forcing`
   for the forcing. An ``xsmd`` column that is entirely missing, as in most
   existing files, is still read as missing ``sm`` for modelled soil moisture,

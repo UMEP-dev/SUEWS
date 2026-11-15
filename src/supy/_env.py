@@ -5,14 +5,14 @@ except ImportError:
     from importlib_resources import files
 
 
+import inspect
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import os
+from pathlib import Path
 import sys
 import tempfile
 import warnings
-from logging.handlers import TimedRotatingFileHandler
-from pathlib import Path
-
 
 ########################################################################
 # this file provides variable and functions useful for the whole module.
@@ -219,3 +219,28 @@ if sys.version_info >= (3, 8):
     from importlib import metadata
 else:
     from importlib_metadata import metadata
+
+
+def _user_warning_stacklevel() -> int:
+    """Locate the caller outside SuPy and Pydantic for a user-facing warning.
+
+    Count from the function calling ``warnings.warn``. Save wrappers and
+    configuration constructors have different depths, so a fixed level
+    points inside the library on some public paths.
+    """
+    frame = inspect.currentframe()
+    try:
+        frame = frame.f_back if frame is not None else None
+        level = 1
+        while frame is not None:
+            module = frame.f_globals.get("__name__", "")
+            if not any(
+                module == name or module.startswith(name + ".")
+                for name in ("supy", "pydantic", "pydantic_core")
+            ):
+                break
+            level += 1
+            frame = frame.f_back
+        return level
+    finally:
+        del frame

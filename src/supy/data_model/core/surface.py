@@ -10,7 +10,13 @@ from pydantic import (
 from typing import Optional, Literal, List, Union
 import pandas as pd
 import warnings
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from .type import (
+    RefValue,
+    Reference,
+    FlexibleRefValue,
+    df_from_cols,
+    null_rejecting_validator,
+)
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
 from ..._env import logger_supy
 
@@ -1072,6 +1078,8 @@ class WaterProperties(NonVegetatedSurfaceProperties):
         json_schema_extra={"unit": "mm h-1", "display_name": "Flow Change"},
     )
 
+    _flowchange_not_null = null_rejecting_validator("flowchange")
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert water surface properties to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
@@ -1129,6 +1137,21 @@ class VerticalLayers(BaseModel):
         json_schema_extra={"unit": "1", "display_name": "Number of Layers"},
         ge=1,
         le=15,  # SPARTACUS-Surface supports at most 15 vertical layers.
+    )
+    # The kernel fixes the number of material layers per facet at compile time
+    # (``ndepth`` in suews_ctrl_const.f95), matching the five-element lists of
+    # ThermalLayers. It is emitted so the Rust bridge, which sizes its
+    # per-facet arrays from this key, needs no fallback of its own (gh#1991).
+    ndepth: FlexibleRefValue(int) = Field(
+        default=5,
+        description=(
+            "Number of material layers in each roof, wall and ground facet. "
+            "Fixed at 5 by the model, matching the five values given in each "
+            "thermal_layers list."
+        ),
+        ge=5,
+        le=5,
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
     )
     height: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 10.0, 20.0, 30.0],

@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 15 Nov 2026
 
+- [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead
+- [doc] Add a "Supported platforms" section to the installation guide, stating how far each published platform is tested
 - [maintenance] Run the api tests of a `full` manual dispatch and of a tag release on the nightly platform set, without macOS Intel, whose api lanes run past the 45-minute job timeout and would fail the wheel build that publishing waits on; the macOS Intel wheel is still built and runs its build-step tests
 - [maintenance] Merge master into the `units-cf` integration branch ahead of its merge to master. Both lines had claimed YAML schema `2026.6.dev6`, so the observed soil-water schema from `units-cf` (#1422) becomes `2026.6.dev9`, after master's `dev6` to `dev8`; its migration now runs after the `dev8` step, the soil-schema boundary in the loader moves to `dev9`, and the sample configurations, fixtures, tests and schema documentation follow
 - [maintenance] Build each stream-chunk test simulation with one configuration update instead of up to three, so the initial state frame is rebuilt from the configuration once per simulation; the state the tests run from is unchanged

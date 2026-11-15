@@ -1,15 +1,17 @@
 """Machine-readable projection of the SUEWS output-variable registry."""
 
 from enum import Enum, StrEnum
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from .variables import (
     AggregationMethod,
+    CellMethods,
     OutputGroup,
     OutputLevel,
     OutputVariableRegistry,
+    TemperatureMetadata,
 )
 
 
@@ -92,8 +94,11 @@ class OutputContractVariable(BaseModel):
     name: str
     ordinal: int = Field(ge=0)
     unit: str
+    interval_water_flux: bool = False
     description: str
     aggregation: AggregationMethod
+    cell_methods: CellMethods
+    units_metadata: Optional[TemperatureMetadata]
     level: OutputLevel
 
     model_config = ConfigDict(extra="forbid", frozen=True, use_enum_values=True)
@@ -139,8 +144,11 @@ def _project_output_contract(
                 name=variable.name,
                 ordinal=dict_next_ordinal[group_name],
                 unit=variable.unit,
+                interval_water_flux=variable.interval_water_flux,
                 description=variable.description,
                 aggregation=AggregationMethod(_enum_value(variable.aggregation)),
+                cell_methods=variable.cell_methods,
+                units_metadata=variable.units_metadata,
                 level=OutputLevel(_enum_value(variable.level)),
             )
         )

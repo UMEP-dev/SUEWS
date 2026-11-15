@@ -15,7 +15,7 @@ from .variables import (
 DATETIME_VARIABLES = [
     OutputVariable(
         name="Year",
-        unit="-",
+        unit="1",
         description="Year (4-digit integer)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
@@ -23,7 +23,7 @@ DATETIME_VARIABLES = [
     ),
     OutputVariable(
         name="DOY",
-        unit="-",
+        unit="1",
         description="Day of year (1-366)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
@@ -31,7 +31,7 @@ DATETIME_VARIABLES = [
     ),
     OutputVariable(
         name="Hour",
-        unit="-",
+        unit="1",
         description="Hour of day (0-23)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
@@ -39,7 +39,7 @@ DATETIME_VARIABLES = [
     ),
     OutputVariable(
         name="Min",
-        unit="-",
+        unit="1",
         description="Minute of hour (0-59)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
@@ -47,7 +47,7 @@ DATETIME_VARIABLES = [
     ),
     OutputVariable(
         name="Dectime",
-        unit="-",
+        unit="1",
         description="Decimal time (fractional day of year)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,

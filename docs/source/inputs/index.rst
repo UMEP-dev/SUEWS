@@ -27,6 +27,7 @@ SUEWS supports two formats for providing input parameters:
 
    converter
    transition_guide
+   units_migration_guide
    yaml/validation
 
 .. toctree::

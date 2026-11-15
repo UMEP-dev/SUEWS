@@ -221,3 +221,12 @@ def test_cli_rejects_a_released_digest_rewrite(
 
     assert audit.main(["--base", "master"]) == 1
     assert "append-only" in capsys.readouterr().err
+
+
+def test_output_2_0_0_digest_is_immutable() -> None:
+    base = _state("2.0.0", ("1.0.0", _DIGEST_A), ("2.0.0", _DIGEST_A))
+    current = _state("2.0.0", ("1.0.0", _DIGEST_A), ("2.0.0", _DIGEST_B))
+    for kind in ("output", "forcing"):
+        with pytest.raises(audit.AuditFailure, match="append-only"):
+            audit._validate_transition(kind, base, current)
+

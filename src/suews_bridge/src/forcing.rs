@@ -209,7 +209,7 @@ suews_fields! {
 
     (wu_mm, 18, ["wu_mm", "wuh"], InterpKind::Sum, false),
 
-    (xsmd, 19, ["xsmd"], InterpKind::Instantaneous, false),
+    (xsmd, 19, ["sm"], InterpKind::Instantaneous, false),
 
     (lai_evetr, 20, ["lai_evetr"], InterpKind::Instantaneous, false),
     (lai_dectr, 21, ["lai_dectr"], InterpKind::Instantaneous, false),

@@ -83,10 +83,12 @@ class TestFromYamlDriftHints:
         with pytest.raises(ValueError) as excinfo:
             SUEWSConfig.from_yaml(str(path))
 
+        # A YAML that already declares the current schema is not drifted:
+        # converting it would change nothing, so no conversion is suggested.
         message = str(excinfo.value)
-        assert "suews-convert -i <old.yml>" in message
-        assert f"Current schema version:  {CURRENT_SCHEMA_VERSION}" in message
-        assert "Detected schema version:" in message
+        assert "removed_field_from_old_release" in message
+        assert f"already declares the current schema version ({CURRENT_SCHEMA_VERSION})" in message
+        assert "suews-convert" not in message
 
     def test_typeerror_path_gets_drift_hint(self, sample_config_dict, tmp_path):
         """A raw TypeError from validation is wrapped with the drift hint."""
@@ -132,6 +134,7 @@ class TestFromYamlDriftHints:
 
         message = str(excinfo.value)
         assert "Detected schema version: 2025.12" in message
+        assert "suews-convert -i <old.yml> -o <new.yml>" in message
 
     def test_unsigned_yaml_hint_requests_from_ver(self, sample_config_dict, tmp_path):
         """Unsigned YAMLs must not be told to run the bare suews-convert command.

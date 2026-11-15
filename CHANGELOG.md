@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 15 Nov 2026
 
+- [maintenance] Build each stream-chunk test simulation with one configuration update instead of up to three, so the initial state frame is rebuilt from the configuration once per simulation; the state the tests run from is unchanged
 - [maintenance] Remove the `@claude` agent workflows (`claude.yml`, `claude-code-review.yml`, `claude-dispatch.yml`), which are no longer used, and the instructions for their secrets
 - [maintenance] Measure Python line and branch coverage of supy and suews_mcp nightly, as a recording job that never gates; configuration in `pyproject.toml` (#2036)
 - [maintenance] Mark the stream-chunk test cases by their measured cost: in nightly run 43544098140 the cases at 30 CPU-s or more on the Linux cp312 api lane become `slow` and those at 20 to 30 `medium`, keeping at least one case of each test in the pre-merge tier, so 31 cases (about 28% of the lane's summed test time) leave the standard tier and still run nightly; with these markers the cost-marker check reports no drift on that run's artefacts (#2034)

@@ -296,8 +296,10 @@ or more, or unsuitable for routine PR runs for a stated non-CPU reason
 (`pytest.mark.slow(reason="...")`). Absence of either cost marker means fast.
 The nightly `cost_markers` job (`scripts/lint/check_cost_markers.py`, also on
 `workflow_dispatch` with the `cost_markers` input) reports every marker that
-disagrees with the measurement and never gates; the thresholds and their
-reasoning are in `.claude/rules/tests/patterns.md`. Each
+disagrees with the measurement and never gates; on a pull request that changes
+test files, `cost_markers_pr` runs the same lint on those files alone and adds
+the result to the CI summary comment, again without gating. The thresholds and
+their reasoning are in `.claude/rules/tests/patterns.md`. Each
 higher tier is a superset of smoke. The `standard` tier excludes non-core
 `slow` tests but retains tests marked both `core` and `slow`.
 
@@ -445,7 +447,7 @@ trusted, which is what the alert job below is for.
 | `build_wheels` at test tier `all` | every event, but `all` only on schedule, tag and manual dispatch (`test_tier: all`, the dispatch default) | the `cp*` wheels and the `ci-metrics-*` artefacts | anyone diagnosing a lane's cost with `scripts/suews/analyse_ci_run.py` or `benchmark_ci_metrics.py` |
 | `build_wheels_checked` | `schedule` only | `checked-cp*` wheels, built `-O0 -fcheck=all`, running the full physics tier | whoever investigates a Fortran runtime error; the release-profile run in the same night is the comparison |
 | `tolerance_spread` | `schedule`, or `workflow_dispatch` with the `tolerance_spread` input | one `tolerance-spread-<platform>-<arch>-<cpXY>` JSON per matrix cell, 30-day retention | the tolerance derivation for `test/core/test_sample_output.py`, via `tolerance_spread.py summarise` (see `.claude/rules/tests/patterns.md`) |
-| `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md` |
+| `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds, and a drift status and count that `report_scheduled_run` prints (its job summary, and the tracking-issue comment on a night that fails for another reason) | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md`. Pull requests get the same check on the test files they change from `cost_markers_pr`, in the CI summary comment |
 | `report_scheduled_run` | `schedule` only | the `2-infra:ci` tracking issue "Nightly scheduled run is failing" | everyone; the first green night closes it |
 
 `create_nightly_tag` and the TestPyPI publish are schedule-side infrastructure
@@ -461,7 +463,8 @@ which the nightly restores nothing from but still saves, under "Build Caches".
 ### What may redden the nightly
 
 Only the genuine test tiers and the infrastructure they need. The alert
-watches exactly `report_scheduled_run`'s needs: `build_wheels`,
+watches exactly `report_scheduled_run`'s needs other than `cost_markers`, which
+it reads only for its drift count: `build_wheels`,
 `build_wheels_checked`, `test_api_cross_python`, `check_test_markers`,
 `build_mcp`, `create_nightly_tag` and `deploy_testpypi`. The matrix and tag
 jobs they depend on (`determine_matrix`, `detect-changes`,
@@ -469,7 +472,10 @@ jobs they depend on (`determine_matrix`, `detect-changes`,
 needed jobs, which reaches the alert as a non-success result.
 
 The recording jobs -- `tolerance_spread` and `cost_markers` -- carry
-`continue-on-error: true` and feed neither `report_scheduled_run` nor `pr-gate`.
+`continue-on-error: true` and never count as a failure: neither feeds `pr-gate`,
+`tolerance_spread` does not feed `report_scheduled_run`, and
+`report_scheduled_run` reads `cost_markers` only to print its drift count,
+excluding it by name from the jobs it counts.
 A wide spread or a drifted marker is information to act on, not a red night. A
 new recording job must be wired the same way, or the nightly stops being
 trusted and the fast PR tier stops being defensible.

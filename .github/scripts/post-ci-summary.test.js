@@ -73,3 +73,107 @@ test('no-build PRs skip the configuration table', () => {
   assert.match(body, /No code build required/);
   assert.doesNotMatch(body, /\*\*Matrix\*\*/);
 });
+
+// ---- Cost-marker section (postCostMarkers) ----
+
+const { costMarkerSection, withCostMarkerSection, postCostMarkers } = require('./post-ci-summary.js');
+
+function costReport(overrides) {
+  return {
+    ok: true, flagged: 0, measured: 0, unmeasured: 0,
+    restricted_to: ['test/core/test_stream_chunk.py'], findings: [],
+    ...overrides,
+  };
+}
+
+const DRIFT = costReport({
+  ok: false, flagged: 2, measured: 40,
+  findings: [
+    { node_id: 'test/core/test_stream_chunk.py::test_a[1-lst]', kind: 'unmarked-over-medium', cpu_seconds: 36.3, current: null, wanted: 'medium', source: 'api.json' },
+    { node_id: 'test/core/test_stream_chunk.py::test_b`x`', kind: 'medium-over-slow', cpu_seconds: 61.26, current: 'medium', wanted: 'slow', source: 'api.json' },
+  ],
+});
+
+test('cost-marker section is empty when no test in the changed files was measured', () => {
+  assert.equal(costMarkerSection(costReport({}), { testTier: 'standard' }), '');
+  assert.equal(costMarkerSection(null), '');
+  assert.equal(costMarkerSection(undefined), '');
+});
+
+test('cost-marker section is one line when every measured test agrees', () => {
+  const one = costMarkerSection(costReport({ measured: 12 }), { testTier: 'standard' });
+  assert.equal(one.split('\n').length, 1);
+  assert.match(one, /12 measured tests in 1 changed test file agree with their measured CPU seconds/);
+  assert.match(one, /`standard` tier; tests the tier does not run are not measured/);
+  assert.match(costMarkerSection(costReport({ measured: 1 })), /1 measured test in 1 changed test file agrees with its/);
+});
+
+test('cost-marker section lists each disagreement and never claims to gate', () => {
+  const section = costMarkerSection(DRIFT, { testTier: 'standard' });
+  assert.match(section, /information only, not a gate/);
+  assert.match(section, /2 of the 40 measured tests in 1 changed test file/);
+  assert.match(section, /- `test\/core\/test_stream_chunk\.py::test_a\[1-lst\]`: 36\.3 CPU-s, no cost marker -> medium/);
+  // A backtick in a node id cannot break out of its code span.
+  assert.match(section, /- `test\/core\/test_stream_chunk\.py::test_b'x'`: 61\.3 CPU-s, medium -> slow/);
+  assert.match(section, /patterns\.md/);
+});
+
+test('cost-marker list is capped', () => {
+  const findings = Array.from({ length: 20 }, (_, i) => ({ node_id: `t.py::t${i}`, cpu_seconds: 40, current: null, wanted: 'medium' }));
+  const section = costMarkerSection(costReport({ flagged: 20, measured: 20, findings }));
+  assert.equal((section.match(/^- `/gm) || []).length, 15);
+  assert.match(section, /\.\.\.and 5 more/);
+  // Heaviest first: the 61 CPU-s finding leads even though it sorts last by name.
+  const ordered = costMarkerSection(DRIFT);
+  assert.ok(ordered.indexOf('61.3 CPU-s') < ordered.indexOf('36.3 CPU-s'));
+});
+
+test('cost-marker block sits above the footer, is replaced in place and removed when empty', () => {
+  const body = buildBody(envFor({ TESTS_CHANGED: 'true' }), ctx);
+  const withDrift = withCostMarkerSection(body, costMarkerSection(DRIFT));
+  assert.ok(withDrift.indexOf('<!-- cost-markers:start -->') < withDrift.lastIndexOf('\n---\n'));
+  assert.ok(withDrift.includes('<!-- ci-build-plan -->'));
+  // Idempotent, and a new section replaces the old one rather than stacking.
+  assert.equal(withCostMarkerSection(withDrift, costMarkerSection(DRIFT)), withDrift);
+  const clean = withCostMarkerSection(withDrift, costMarkerSection(costReport({ measured: 3 })));
+  assert.equal((clean.match(/cost-markers:start/g) || []).length, 1);
+  assert.doesNotMatch(clean, /test_a\[1-lst\]/);
+  // Nothing to say removes the block and restores the original body exactly.
+  assert.equal(withCostMarkerSection(withDrift, ''), body);
+  assert.equal(withCostMarkerSection(body, ''), body);
+});
+
+function fakeGithub(comments) {
+  const calls = [];
+  return {
+    calls,
+    rest: { issues: {
+      listComments: async () => ({ data: comments }),
+      updateComment: async (args) => { calls.push(args); },
+    } },
+  };
+}
+const fakeContext = { repo: { owner: 'UMEP-dev', repo: 'SUEWS' }, issue: { number: 7 } };
+const fakeCore = { messages: [], info(m) { this.messages.push(m); } };
+
+test('postCostMarkers updates only the bot summary comment, and only when it changes', async () => {
+  const body = buildBody(envFor({}), ctx);
+  const gh = fakeGithub([
+    { id: 1, user: { type: 'User' }, body: 'a human comment <!-- ci-build-plan -->' },
+    { id: 2, user: { type: 'Bot' }, body },
+  ]);
+  await postCostMarkers({ github: gh, context: fakeContext, core: fakeCore, report: DRIFT, testTier: 'standard' });
+  assert.equal(gh.calls.length, 1);
+  assert.equal(gh.calls[0].comment_id, 2);
+  assert.match(gh.calls[0].body, /cost-markers:start/);
+
+  // Nothing measured and no existing block: no API write at all.
+  const quiet = fakeGithub([{ id: 2, user: { type: 'Bot' }, body }]);
+  await postCostMarkers({ github: quiet, context: fakeContext, core: fakeCore, report: costReport({}), testTier: 'standard' });
+  assert.equal(quiet.calls.length, 0);
+
+  // No summary comment yet: nothing is created.
+  const none = fakeGithub([]);
+  await postCostMarkers({ github: none, context: fakeContext, core: fakeCore, report: DRIFT });
+  assert.equal(none.calls.length, 0);
+});

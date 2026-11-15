@@ -308,3 +308,100 @@ def test_cli_exit_codes_and_markdown_summary(
     (tmp_path / "phases.json").write_text(json.dumps({"schema_version": 1}), encoding="utf-8")
     assert checker.main([str(tmp_path / "phases.json")]) == 2
     assert "[skip]" in capsys.readouterr().out
+
+
+def test_restriction_judges_only_the_tests_in_the_named_files() -> None:
+    """`test_files` narrows both the judged and the counted tests to those files."""
+    tests = [
+        _cost("test/core/test_new.py::test_heavy", 45.0),
+        _cost("test/core/test_new.py::test_fast", 0.1),
+        _cost("test/core/test_new.py::test_skipped", 0.0, "slow", outcome="skipped"),
+        _cost("test/core/test_old.py::test_heavy_too", 45.0),
+        _cost("test/core/test_old.py::test_skipped", 0.0, outcome="skipped"),
+    ]
+
+    narrowed = checker.check_costs(
+        tests,
+        medium_seconds=MEDIUM,
+        slow_seconds=SLOW,
+        band=BAND,
+        # A leading ./ and Windows separators name the same file as the node id.
+        test_files=["./test/core/test_new.py", "test\\core\\test_new.py"],
+    )
+
+    assert narrowed.restricted_to == ("test/core/test_new.py",)
+    assert [finding.test.node_id for finding in narrowed.findings] == [
+        "test/core/test_new.py::test_heavy"
+    ]
+    assert len(narrowed.tests) == 2
+    assert narrowed.unmeasured == 1
+    assert "2 measured tests in 1 given test file(s)" in narrowed.message()
+
+    unrelated = checker.check_costs(
+        tests, medium_seconds=MEDIUM, slow_seconds=SLOW, band=BAND,
+        test_files=["test/core/test_unrelated.py"],
+    )
+    assert unrelated.ok
+    assert unrelated.tests == []
+    assert unrelated.unmeasured == 0
+
+    unrestricted = _check(tests)
+    assert unrestricted.restricted_to is None
+    assert len(unrestricted.findings) == 2
+
+
+def test_node_file_is_the_part_before_the_first_separator() -> None:
+    assert checker.node_file("test/a.py::TestX::test_y[1-a::b]") == "test/a.py"
+    assert checker.node_file("test/a.py") == "test/a.py"
+
+
+def test_cli_restricts_to_test_files_and_writes_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--test-file` narrows the check; `--json` records counts and each flagged test."""
+    artefact = _artefact(
+        tmp_path / "api.json",
+        [
+            _record("test/core/test_new.py::test_heavy_unmarked", call=42.0),
+            _record("test/core/test_new.py::test_fast", call=0.1),
+            _record("test/core/test_old.py::test_medium_is_fast", call=1.0, markers=("medium",)),
+        ],
+    )
+    thresholds = ["--medium-seconds", "10", "--slow-seconds", "30"]
+    out_json = tmp_path / "out" / "cost-markers.json"
+
+    assert checker.main([
+        str(artefact), *thresholds,
+        "--test-file", "test/core/test_new.py", "--json", str(out_json),
+    ]) == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["flagged"] == 1
+    assert payload["measured"] == 2
+    assert payload["restricted_to"] == ["test/core/test_new.py"]
+    assert payload["findings"] == [
+        {
+            "node_id": "test/core/test_new.py::test_heavy_unmarked",
+            "kind": "unmarked-over-medium",
+            "cpu_seconds": 42.0,
+            "current": None,
+            "wanted": "medium",
+            "source": "api.json",
+        }
+    ]
+    assert "test_old.py" not in capsys.readouterr().out
+
+    # A file with no measured tests is clean and silent about the rest.
+    assert checker.main([
+        str(artefact), *thresholds,
+        "--test-file", "test/core/test_unrelated.py", "--json", str(out_json),
+    ]) == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert (payload["ok"], payload["flagged"], payload["measured"]) == (True, 0, 0)
+    capsys.readouterr()
+
+    # Without --test-file every test is judged and restricted_to is null.
+    assert checker.main([str(artefact), *thresholds, "--json", str(out_json)]) == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["restricted_to"] is None
+    assert payload["flagged"] == 2

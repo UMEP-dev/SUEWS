@@ -17,8 +17,16 @@
 // describes the matrix that actually runs. The draft/ready flag from the event
 // payload is shown for context only; it does not drive the matrix description.
 //
-// Testable pieces (describeTier, describeMatrix, buildBody) are attached to the
-// exported function; see post-ci-summary.test.js (run: node --test .github/scripts/post-ci-summary.test.js).
+// Testable pieces (describeTier, describeMatrix, buildBody, costMarkerSection,
+// withCostMarkerSection) are attached to the exported function; see
+// post-ci-summary.test.js (run: node --test .github/scripts/post-ci-summary.test.js).
+//
+// postCostMarkers is a second entry point, called by the PR cost-marker job
+// after the builds: it adds the cost-marker result for the test files the PR
+// adds or changes to this same comment, as a section between two markers, and
+// removes that section when there is nothing to say. Each push rewrites the
+// comment from buildBody first, so a section never outlives the run it
+// describes.
 
 // Keep in sync with the test_tier values emitted by determine-matrix.sh and
 // the tier -> pytest expression map in build-wheels-reusable.yml.
@@ -170,6 +178,95 @@ function buildBody(env, { isDraft, owner, repo }) {
 }
 
 const MARKER = '<!-- ci-build-plan -->';
+const COST_START = '<!-- cost-markers:start -->';
+const COST_END = '<!-- cost-markers:end -->';
+const COST_BLOCK = new RegExp(`\\n*${COST_START}[\\s\\S]*?${COST_END}\\n*`);
+const COST_LIST_LIMIT = 15;
+
+// Node ids come from the PR's own test run, so keep them inside one code span.
+function codeSpan(text) {
+  return '`' + String(text).replace(/[`\r\n]/g, "'") + '`';
+}
+
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
+// The cost-marker section for a report written by
+// `scripts/lint/check_cost_markers.py --test-file ... --json`. Empty when no
+// test in the changed files was measured (nothing to say); one line when every
+// measured test agrees with its marker; a short list otherwise.
+function costMarkerSection(report, { testTier } = {}) {
+  if (!report || !report.measured) return '';
+  const files = (report.restricted_to || []).length;
+  const scope = `${plural(report.measured, 'measured test')} in ${plural(files, 'changed test file')}`;
+  const where = `Linux cp312${testTier ? `, \`${testTier}\` tier` : ''}; tests the tier does not run are not measured`;
+  // Heaviest first, so a capped list still shows the worst offenders.
+  const findings = [...(report.findings || [])].sort((a, b) => b.cpu_seconds - a.cpu_seconds);
+  if (!report.flagged || findings.length === 0) {
+    const verb = report.measured === 1 ? 'agrees with its' : 'agree with their';
+    return `**Cost markers:** the ${scope} ${verb} measured CPU seconds (${where}).`;
+  }
+  const lines = [
+    `**Cost markers** (information only, not a gate): ${report.flagged} of the ${scope} ` +
+      `carry a cost marker that disagrees with their measured CPU seconds (${where}):`,
+    '',
+  ];
+  for (const f of findings.slice(0, COST_LIST_LIMIT)) {
+    const cpu = Number(f.cpu_seconds).toFixed(1);
+    lines.push(`- ${codeSpan(f.node_id)}: ${cpu} CPU-s, ${f.current || 'no cost marker'} -> ${f.wanted}`);
+  }
+  if (findings.length > COST_LIST_LIMIT) {
+    lines.push(`- _...and ${findings.length - COST_LIST_LIMIT} more_`);
+  }
+  lines.push(
+    '',
+    'Fix the marker, not the threshold: see "Importance and cost" in `.claude/rules/tests/patterns.md`. ' +
+      'A test that is slow for a reason other than CPU states it as `pytest.mark.slow(reason="...")`.',
+  );
+  return lines.join('\n');
+}
+
+// Replace (or drop, for an empty section) the cost-marker block in a summary
+// comment body, placing it just above the footer rule. Idempotent.
+function withCostMarkerSection(body, section) {
+  const base = body.replace(COST_BLOCK, '\n\n');
+  if (!section) return base;
+  const block = `${COST_START}\n${section}\n${COST_END}`;
+  const footer = base.lastIndexOf('\n---\n');
+  if (footer === -1) return `${base.trimEnd()}\n\n${block}\n`;
+  return `${base.slice(0, footer).trimEnd()}\n\n${block}\n${base.slice(footer)}`;
+}
+
+async function findSummaryComment(github, context) {
+  const { data: comments } = await github.rest.issues.listComments({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: context.issue.number
+  });
+  return comments.find(c =>
+    c.user.type === 'Bot' && c.body.includes(MARKER)
+  );
+}
+
+async function postCostMarkers({ github, context, core, report, testTier }) {
+  const existing = await findSummaryComment(github, context);
+  if (!existing) {
+    core.info('No CI summary comment on this PR; nothing to add the cost markers to.');
+    return;
+  }
+  const body = withCostMarkerSection(existing.body, costMarkerSection(report, { testTier }));
+  if (body === existing.body) {
+    core.info('Cost-marker section unchanged.');
+    return;
+  }
+  await github.rest.issues.updateComment({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    comment_id: existing.id,
+    body: body
+  });
+}
 
 module.exports = async ({ github, context }) => {
   const env = process.env;
@@ -183,15 +280,7 @@ module.exports = async ({ github, context }) => {
   });
 
   // Post or update sticky comment
-  const { data: comments } = await github.rest.issues.listComments({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    issue_number: prNumber
-  });
-
-  const existing = comments.find(c =>
-    c.user.type === 'Bot' && c.body.includes(MARKER)
-  );
+  const existing = await findSummaryComment(github, context);
 
   if (existing) {
     await github.rest.issues.updateComment({
@@ -214,3 +303,6 @@ module.exports.buildBody = buildBody;
 module.exports.describeTier = describeTier;
 module.exports.describeMatrix = describeMatrix;
 module.exports.TIER_DESC = TIER_DESC;
+module.exports.costMarkerSection = costMarkerSection;
+module.exports.withCostMarkerSection = withCostMarkerSection;
+module.exports.postCostMarkers = postCostMarkers;

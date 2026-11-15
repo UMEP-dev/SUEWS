@@ -5,7 +5,7 @@ MODULE module_phys_dailystate
    USE module_ctrl_error_state, ONLY: supy_error_flag
 
    use module_phys_lai, only: update_gddlai
-
+   USE module_ctrl_const_physconst, ONLY: sec_per_day
    IMPLICIT NONE
 
 CONTAINS
@@ -664,7 +664,7 @@ CONTAINS
 
       ! Calculate a quasi-5-day-running-mean temp
       days_prev = MIN(4, & ! dt_since_start >= 4 days
-                      FLOOR(dt_since_start/(24*60*60)*1.)) ! dt_since_start < 4 days
+                      FLOOR(dt_since_start/(sec_per_day)*1.)) ! dt_since_start < 4 days
       HDD_id(4) = (HDD_id(4)*days_prev + HDD_id(3))/(days_prev + 1)
 
       ! Calculate number of days since rain

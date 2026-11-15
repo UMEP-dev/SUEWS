@@ -311,3 +311,61 @@ See Also
 - :ref:`yaml_config_reference` - YAML configuration documentation
 - :ref:`schema_versioning` - Schema versioning details
 - :ref:`validation` - Configuration validation guide
+
+Coordinated soil-observation conversion
+--------------------------------------
+
+Legacy volumetric (method 1) and gravimetric (method 2) forcing must be
+converted together with the YAML configuration. Renaming ``xsmd`` alone
+cannot establish liquid-water content. Provide ``soil_field_capacity`` on
+every positive-area non-water surface in the input YAML; it is not inferred
+from the retired sensor ``smcap``. The available water capacity remains
+``soil_store_capacity``.
+
+.. code-block:: bash
+
+   suews convert -i legacy.yml -o converted/config.yml \
+       --forcing legacy.txt --forcing-output converted/forcing.txt \
+       --manifest converted/conversion.json \
+       --layer-top 0 --layer-depth 0.2 --dry-run
+
+Remove ``--dry-run`` to write the validated pair and its manifest.
+The identical operation is available as ``suews schema convert-soil``.
+Output paths must be new and distinct; input files are never overwritten.
+A dry run reports proposed hashes, changes and missing information without
+writing files or stamping a new schema. The manifest records the original
+method, units, layer bounds, fine-earth fraction, density scaling, warnings
+and SHA256 hashes of both input and output files.
+
+Both layer bounds must be confirmed explicitly in metres. The layer must
+start at zero and span every active non-water soil store. Use
+``--legacy-depth-is-thickness`` only when the old ``depth`` really described
+represented thickness; this also checks its conversion from mm to m.
+Otherwise the explicit bounds replace the old installation-depth value while
+preserving its reference. A saved selector labelled only ``observed`` needs
+``--source-unit 'm3 m-3'`` or ``--source-unit 'kg kg-1'`` to resolve its
+lost method provenance. Numeric methods and conflicting declared units are
+checked before schema parsing.
+
+The converter reads whitespace tables with named headers. For headerless
+24-column tables, ``--source-contract 1.2.0`` explicitly selects legacy
+position 20; ``2.0.0`` selects canonical ``sm``. Timestamps, missing tokens,
+unrelated columns and row count are preserved. Legacy conversions use the
+fine-earth basis: method 1 multiplies by water density, represented thickness
+and ``soil_not_rocks``; method 2 uses dry bulk density converted from
+``g cm-3`` to ``kg m-3``. These factors are never applied again at runtime.
+
+Missing observed rows, missing field capacity, mismatched layers, incompatible
+shared grids, mixed old/new names and ambiguous source units are refused
+before output is written. An entirely missing modelled ``xsmd`` placeholder
+can be renamed unattended. Populated method-0 values need confirmed units
+and bounds, or ``--drop-legacy`` to record an explicit archival drop; the
+original forcing remains the archive. Already canonical pairs need no layer
+confirmation and retain their content on repeated conversion.
+
+Canonical ``sm`` is retained above field capacity and below the implied
+wilting reference, with warnings giving the count, first timestamp and
+maximum excess. The derived deficit is field-capacity content minus ``sm``,
+clamped between zero and available water capacity. Migrated observed runs
+may therefore differ from legacy sensor-capacity runs. Modelled soil-moisture
+calculations are unchanged.

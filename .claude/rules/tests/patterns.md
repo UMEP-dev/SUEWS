@@ -272,7 +272,14 @@ than being skipped, so a schema bump cannot read as no drift. The nightly
 `cost_markers` job in `build-publish_to_pypi.yml` runs the check after the two
 Linux cp312 lanes (also on `workflow_dispatch` with the `cost_markers` input)
 with `continue-on-error`, so drift is reported in the step summary and never
-reddens the run. Run it locally on downloaded artefacts:
+reddens the run; `report_scheduled_run` prints the drift count in its own
+summary and, on a night that fails for another reason, in the tracking-issue
+comment, but never counts drift as a failure. On a pull request that changes
+test files, the `cost_markers_pr` job runs the same check restricted to those
+files (`--test-file`) on the PR's own Linux cp312 metrics and adds the result to
+the CI summary comment; it never gates, and it cannot judge tests the PR tier
+does not run (`slow`, and `medium` on the smoke tier). Run it locally on
+downloaded artefacts:
 
 ```bash
 gh run download <run-id> -n ci-metrics-api-cp312-manylinux-x86_64 -D ci-metrics/api

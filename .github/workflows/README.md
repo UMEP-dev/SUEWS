@@ -4,38 +4,7 @@ This directory contains GitHub Actions workflows for the SUEWS project.
 
 ## Available Workflows
 
-### 1. Claude Code (`claude.yml`)
-AI-powered workflow automation using Claude. Mention `@claude` to:
-- Convert issues to pull requests
-- Get implementation help
-- Fix bugs automatically
-- Code assistance with project context
-- Code review and security analysis
-
-**Usage Examples:**
-```
-# In an issue
-@claude please implement this feature
-
-# In a PR comment
-@claude help me fix the failing tests
-
-# Code review
-@claude review this PR for security vulnerabilities
-@claude check if this follows our coding standards
-
-# For complex tasks
-@claude complex: refactor the entire validation system
-```
-
-**Features:**
-- Automatic model selection (Sonnet for normal tasks, Opus for complex ones)
-- Full access to SUEWS development tools (make dev, make test, etc.)
-- Project-specific instructions from CLAUDE.md
-- Code review capabilities integrated
-- Post-processing with reactions and PR linking
-
-### 2. Format Master (`format-master.yml`)
+### 1. Format Master (`format-master.yml`)
 Post-merge formatting workflow that:
 - Runs when Python/Fortran code is pushed to master
 - Formats Python code using ruff v0.8.6
@@ -43,7 +12,7 @@ Post-merge formatting workflow that:
 - Commits formatting changes directly to master
 - Simpler than PR-based formatting (no double-build overhead)
 
-### 3. Build and Publish (`build-publish_to_pypi.yml`)
+### 2. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
 - Supports Python 3.12-3.15
@@ -91,7 +60,7 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   run only when `all` reaches the Windows + Python 3.12 compatibility cell or
   when selected explicitly.
 
-### 4. GitHub Pages Deploy (`pages-deploy.yml`)
+### 3. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:
 - Deploys `site/` directory content on push to master
 - Creates ephemeral PR previews at `/preview/pr-{number}/`
@@ -106,7 +75,7 @@ Deploys static site content to GitHub Pages at suews.io:
 **PR Previews:**
 Previews are ephemeral - they exist only until the next deployment. Each deployment includes full production content from the repository (single source of truth).
 
-### 5. Debug cibuildwheel (`cibuildwheel-debug.yml`)
+### 4. Debug cibuildwheel (`cibuildwheel-debug.yml`)
 Interactive debugging environment for cibuildwheel build issues with SSH access, Claude Code CLI integration, and comprehensive error capture.
 
 **Key Features:**
@@ -133,65 +102,21 @@ These have been replaced by the unified `auto-format.yml` workflow that runs onl
 ## Configuration
 
 ### Required Secrets
-- `CLAUDE_AUTHORIZED_USERS`: **REQUIRED** - List of authorised GitHub usernames
-  - Format option 1 (comma-separated): `sunt05,user2,user3`
-  - Format option 2 (newline-separated):
-    ```
-    sunt05
-    user2
-    user3
-    ```
-- `CLAUDE_CODE_OAUTH_TOKEN`: OAuth token used by Claude Code workflows
 - `RTD_PUSH_TOKEN`: PAT used only for syncing the protected `rtd` branch
 - `SUEWS_AGENT_PUSH_TOKEN`: fine-grained PAT used only by
   `sync-agent-plugin.yml` to publish the generated `UMEP-dev/suews-agent`
   repository. Scope it to `UMEP-dev/suews-agent` with Contents read/write.
 
 
-## Security Configuration
-
-**IMPORTANT**: Claude workflows enforce strict access control. You MUST configure the `CLAUDE_AUTHORIZED_USERS` secret with a list of GitHub usernames who are allowed to trigger Claude.
-
-Example configurations in repository settings:
-
-**Option 1 - Comma-separated (recommended for small lists):**
-```
-sunt05,trusted-user2,trusted-user3
-```
-
-**Option 2 - Newline-separated (recommended for longer lists):**
-```
-sunt05
-trusted-user2
-trusted-user3
-trusted-user4
-```
-
-Without this configuration, all Claude requests will be denied.
-
 ## Best Practices
 
-1. **Using Claude:**
-   - Be specific in your requests
-   - Use "complex" keyword for tasks requiring more computational power
-   - Check Claude's suggestions before merging
-
-2. **Security:**
+1. **Security:**
    - Keep API keys secure in GitHub Secrets
-   - Only add trusted users to CLAUDE_AUTHORIZED_USERS
-   - Review Claude's code changes carefully
-   - Regularly audit the authorised users list
    - Pin every external GitHub Action to a full commit SHA, never a tag or branch
    - Set `persist-credentials: false` on `actions/checkout` unless the job must push
    - Prefer Trusted Publishers (OIDC) over static registry tokens for package publishing
 
-3. **Performance:**
-   - Claude workflows consume GitHub Actions minutes
-   - Use specific commands to reduce token usage
-   - Set appropriate turn limits for your use case
-
 ## Troubleshooting
 
-- If Claude doesn't respond, check if you're in the authorised users list
 - For build failures, check the tmate debugging session (15 min timeout)
 - For auto-formatting issues, check the format-master workflow logs

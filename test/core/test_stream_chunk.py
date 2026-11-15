@@ -233,14 +233,14 @@ def test_chunk_keys_fold_a_leading_stub():
 # ---------------------------------------------------------------------------
 
 
-def _replicate_sites(sim, list_gridiv):
-    """Replace the site by one copy per *list_gridiv* entry.
+def _with_replicated_sites(config, list_gridiv):
+    """A copy of *config* whose site is replaced by one per *list_gridiv* entry.
 
     Each copy is 10 degrees further north than the one before, so the grids'
     outputs differ and a block of rows carrying the wrong grid's label would
     not match.
     """
-    config = sim.config.model_copy(deep=True)
+    config = config.model_copy(deep=True)
     site0 = config.sites[0]
     list_site = []
     for pos, gridiv in enumerate(list_gridiv):
@@ -250,16 +250,22 @@ def _replicate_sites(sim, list_gridiv):
         site.properties.lat.value += 10.0 * pos
         list_site.append(site)
     config.sites = list_site
-    sim.update_config(config, auto_load_forcing=False)
+    return config
 
 
-def _set_site_clock(sim, timezone, startdls, enddls):
-    """Give every site a time zone and a daylight-saving window."""
-    config = sim.config.model_copy(deep=True)
+def _with_site_clock(config, timezone, startdls, enddls):
+    """A copy of *config* giving every site a time zone and a daylight-saving window."""
+    config = config.model_copy(deep=True)
     for site in config.sites:
         site.properties.timezone.value = timezone
         site.properties.anthropogenic_emissions.startdls.value = startdls
         site.properties.anthropogenic_emissions.enddls.value = enddls
+    return config
+
+
+def _replicate_sites(sim, list_gridiv):
+    """Replace the site of *sim* by one per *list_gridiv* entry (see above)."""
+    config = _with_replicated_sites(sim.config, list_gridiv)
     sim.update_config(config, auto_load_forcing=False)
 
 
@@ -306,10 +312,11 @@ def _year_crossing_sim(
     """
     sim = short_sample_sim()
     forcing = _year_crossing_forcing(sim, end=end, start=start)
+    config = sim.config
     if list_gridiv is not None:
-        _replicate_sites(sim, list_gridiv)
+        config = _with_replicated_sites(config, list_gridiv)
     if site_clock is not None:
-        _set_site_clock(sim, *site_clock)
+        config = _with_site_clock(config, *site_clock)
     output = {
         "format": fmt,
         "freq": freq_s,
@@ -320,19 +327,25 @@ def _year_crossing_sim(
     }
     if stream_chunk is not None:
         output["stream_chunk"] = stream_chunk
-    sim.update_config(
-        {
-            "model": {
-                "control": {
-                    "start_time": str(forcing.index[0]),
-                    "end_time": str(forcing.index[-1]),
-                    "forcing": {"timestamp_reference": clock[0]},
-                    "output": output,
-                }
+    update = {
+        "model": {
+            "control": {
+                "start_time": str(forcing.index[0]),
+                "end_time": str(forcing.index[-1]),
+                "forcing": {"timestamp_reference": clock[0]},
+                "output": output,
             }
-        },
-        auto_load_forcing=False,
-    )
+        }
+    }
+    if config is not sim.config:
+        # Changed sites travel in the same update, which replaces the sites
+        # list wholesale, so the state frame is built from the configuration
+        # once rather than once per change.
+        update["sites"] = [
+            site.model_dump(exclude_unset=True, round_trip=True, mode="json")
+            for site in config.sites
+        ]
+    sim.update_config(update, auto_load_forcing=False)
     sim.update_forcing(forcing)
     return sim
 
@@ -1582,12 +1595,11 @@ def test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts(
     same folder; nothing is deleted.
     """
     dir_out = tmp_path / "out"
-    _parquet_sim(short_sample_sim, dir_out, 3600, 1).run()
+    sim_out = _parquet_sim(short_sample_sim, dir_out, 3600, 1)
+    sim_out.run()
     sim_mid = _parquet_sim(short_sample_sim, tmp_path / "mid", 3600, None)
     sim_mid.run(end_date="2011-12-20 00:00")
-    sim = SUEWSSimulation.from_checkpoint(
-        _parquet_sim(short_sample_sim, dir_out, 3600, 1).config, sim_mid.checkpoint
-    )
+    sim = SUEWSSimulation.from_checkpoint(sim_out.config, sim_mid.checkpoint)
     sim.update_forcing(sim_mid.forcing.df)
     n_part = len(_part_names(dir_out))
 

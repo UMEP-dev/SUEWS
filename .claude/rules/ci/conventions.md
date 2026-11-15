@@ -444,6 +444,7 @@ trusted, which is what the alert job below is for.
 |---|---|---|---|
 | `build_wheels` at test tier `all` | every event, but `all` only on schedule, tag and manual dispatch (`test_tier: all`, the dispatch default) | the `cp*` wheels and the `ci-metrics-*` artefacts | anyone diagnosing a lane's cost with `scripts/suews/analyse_ci_run.py` or `benchmark_ci_metrics.py` |
 | `build_wheels_checked` | `schedule` only | `checked-cp*` wheels, built `-O0 -fcheck=all`, running the full physics tier | whoever investigates a Fortran runtime error; the release-profile run in the same night is the comparison |
+| `python_coverage` | `schedule`, or `workflow_dispatch` with the `python_coverage` input | the `python-coverage` artefact (`coverage.json`, `coverage.xml`, 30-day retention) and a job-summary table of line and branch coverage per package, for `supy` and `suews_mcp` over the whole suite except `qgis` on the Linux cp312 wheel | whoever asks which code no test reaches; `pytest --cov` reproduces it locally from the `[tool.coverage.*]` tables in `pyproject.toml` |
 | `tolerance_spread` | `schedule`, or `workflow_dispatch` with the `tolerance_spread` input | one `tolerance-spread-<platform>-<arch>-<cpXY>` JSON per matrix cell, 30-day retention | the tolerance derivation for `test/core/test_sample_output.py`, via `tolerance_spread.py summarise` (see `.claude/rules/tests/patterns.md`) |
 | `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md` |
 | `report_scheduled_run` | `schedule` only | the `2-infra:ci` tracking issue "Nightly scheduled run is failing" | everyone; the first green night closes it |
@@ -479,6 +480,12 @@ failure, `skipped` included. On a schedule every one of its needs is expected to
 run, so a skip means an upstream job failed and the night built nothing;
 counting only `failure` and `cancelled` would report that night as green and
 close the tracking issue.
+
+`python_coverage` is a recording job in the same way: `continue-on-error: true`,
+a timeout, and in neither `report_scheduled_run`'s needs nor `pr-gate`'s. A
+failing test lowers its figures and is reported by the test lanes, not by it;
+`scripts/suews/nightly_streak.py` lists its failures with the other recording
+jobs.
 
 ### Where a new expensive check goes
 

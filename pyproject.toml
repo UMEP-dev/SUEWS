@@ -228,6 +228,38 @@ markers = [
     "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 
+# Python line and branch coverage of supy and suews_mcp. Read by `pytest --cov`
+# (pytest-cov) and by the nightly python_coverage job in
+# .github/workflows/build-publish_to_pypi.yml, which measures the installed
+# wheel as the other CI lanes test it. Coverage only: nothing here changes how
+# the package builds or what it depends on.
+[tool.coverage.run]
+branch = true
+# Each xdist worker and each subprocess writes its own data file; pytest-cov
+# combines them at the end of the run.
+parallel = true
+# Many tests start the `suews` command in a subprocess; measure those too
+# (coverage 7.10 or later).
+patch = ["subprocess"]
+source_pkgs = ["supy", "suews_mcp"]
+# Written at build time by get_ver_git.py, so absent from a source checkout and
+# unmappable to it.
+omit = ["*/_version_scm.py"]
+
+[tool.coverage.paths]
+# Map an installed wheel back to the source tree, so a report names
+# repository paths whether supy was installed from a wheel or in editable mode.
+# The first entry of each list is where the reported files are read from.
+supy = ["src/supy/", "*/site-packages/supy/", "*\\site-packages\\supy\\"]
+suews_mcp = [
+    "mcp/src/suews_mcp/",
+    "*/site-packages/suews_mcp/",
+    "*\\site-packages\\suews_mcp\\",
+]
+
+[tool.coverage.report]
+precision = 1
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"

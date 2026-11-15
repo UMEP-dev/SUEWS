@@ -193,6 +193,27 @@ of them, which artefact and timestamp produced each, and the range of current
 tolerances. Deriving a tolerance from the spread is deliberately left to the
 reader of that table.
 
+## Python coverage summary
+
+**Script**: `coverage_summary.py`
+
+The nightly `python_coverage` job in `build-publish_to_pypi.yml` runs the
+whole suite except `qgis` under coverage on the Linux cp312 wheel and writes
+`coverage.json`; this script turns that report into the job summary: total line
+and branch percentages, then one row per package (each top-level `supy`
+subpackage, the modules directly under `supy`, and `suews_mcp`).
+
+```bash
+python -m pytest test -m "not qgis" -n 4 --cov --cov-report=json:coverage/coverage.json
+python scripts/suews/coverage_summary.py coverage/coverage.json [--markdown SUMMARY]
+```
+
+The coverage configuration (`[tool.coverage.run]`, `[tool.coverage.paths]`,
+`[tool.coverage.report]`) is in `pyproject.toml`. `paths` maps an installed
+wheel back to `src/supy/` and `mcp/src/suews_mcp/`, so the report names
+repository paths; a file the mapping missed is listed under "other" with a
+note rather than dropped.
+
 ## Hosted pytest scheduler comparison
 
 **Workflow**: `Hosted pytest scheduler ABBA`
@@ -391,8 +412,9 @@ python scripts/suews/nightly_streak.py --json     # machine-readable
 
 A run counts as green when it concluded `success` and no gating job failed --
 the condition under which the `report_scheduled_run` alert stays silent. The
-recording jobs (`tolerance_spread`, `cost_markers`) are `continue-on-error` and
-are listed separately, so their failures do not break the streak. Runs and jobs
+recording jobs (`tolerance_spread`, `cost_markers`, `python_coverage`) are
+`continue-on-error` and are listed separately, so their failures do not break
+the streak. Runs and jobs
 come from `gh api`; `--runs-json` and `--jobs-json` read saved payloads instead.
 The verification criterion for the nightly-as-scientific-tier arrangement is
 thirty consecutive green runs; see `.claude/rules/ci/conventions.md` ("The

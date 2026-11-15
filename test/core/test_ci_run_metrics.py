@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 
 import pytest
 import yaml
@@ -353,7 +354,13 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+# determine-matrix.sh runs on the Linux determine_matrix job only. Under the
+# `bash` a Windows runner finds on PATH it exits 1 (merge-queue run
+# 43745949704), so the test holds the script to the platforms it runs on.
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh runs under bash on Linux CI only",
+)
 @pytest.mark.parametrize(
     ("event_name", "ref"),
     [

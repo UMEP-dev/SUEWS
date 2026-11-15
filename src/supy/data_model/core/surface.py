@@ -1151,7 +1151,7 @@ class VerticalLayers(BaseModel):
         ),
         ge=5,
         le=5,
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": "1", "internal_only": True},
     )
     height: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 10.0, 20.0, 30.0],

@@ -1082,7 +1082,7 @@ class ModelPhysics(BaseModel):
         ),
         ge=1,
         le=2,
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": None, "internal_only": True},
     )
     roughness_sublayer: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,

@@ -1967,7 +1967,7 @@ class ArchetypeProperties(BaseModel):
             "Household size (occupants per household). Not used by the model "
             "yet: carried for the building archetype only."
         ),
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": "1", "internal_only": True},
         ge=0.0,
     )
     age_0_4: FlexibleRefValue(float) = Field(
@@ -1976,7 +1976,7 @@ class ArchetypeProperties(BaseModel):
             "Fraction of occupants aged 0-4. Not used by the model yet: "
             "carried for the building archetype only."
         ),
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": "1", "internal_only": True},
         ge=0.0,
         le=1.0,
     )
@@ -1986,7 +1986,7 @@ class ArchetypeProperties(BaseModel):
             "Fraction of occupants aged 5-11. Not used by the model yet: "
             "carried for the building archetype only."
         ),
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": "1", "internal_only": True},
         ge=0.0,
         le=1.0,
     )
@@ -1996,7 +1996,7 @@ class ArchetypeProperties(BaseModel):
             "Fraction of occupants aged 12-18. Not used by the model yet: "
             "carried for the building archetype only."
         ),
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": "1", "internal_only": True},
         ge=0.0,
         le=1.0,
     )
@@ -2006,7 +2006,7 @@ class ArchetypeProperties(BaseModel):
             "Fraction of occupants aged 19-64. Not used by the model yet: "
             "carried for the building archetype only."
         ),
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": "1", "internal_only": True},
         ge=0.0,
         le=1.0,
     )
@@ -2016,7 +2016,7 @@ class ArchetypeProperties(BaseModel):
             "Fraction of occupants aged 65 and over. Not used by the model yet: "
             "carried for the building archetype only."
         ),
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": "1", "internal_only": True},
         ge=0.0,
         le=1.0,
     )

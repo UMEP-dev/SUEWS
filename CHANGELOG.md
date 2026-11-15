@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 15 Nov 2026
 
+- [maintenance] Move ten stream-chunk test cases from `slow` to `medium`: after the single configuration update made them cheaper, the cost-marker check read them at 11 to 15 CPU-s in full run 43741338503, clearly under the 30 CPU-s `slow` threshold, so they run in the pre-merge tier again
 - [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead
 - [doc] Add a "Supported platforms" section to the installation guide, stating how far each published platform is tested
 - [maintenance] Run the api tests of a `full` manual dispatch and of a tag release on the nightly platform set, without macOS Intel, whose api lanes run past the 45-minute job timeout and would fail the wheel build that publishing waits on; the macOS Intel wheel is still built and runs its build-step tests

@@ -60,17 +60,24 @@ CLOCK_FOLLOW = ("local_standard_time", "follow")
 CLOCK_UTC = ("utc", "utc")
 CLOCK_LST = ("local_standard_time", "local_standard_time")
 
-# Cost markers of the cases measured at 20 CPU-s or more: call-phase CPU
-# seconds in nightly run 43544098140 (14 Nov 2026), artefact
-# ci-metrics-api-cp312-manylinux-x86_64; thresholds and their reasoning are in
-# .claude/rules/tests/patterns.md. A case at 30 CPU-s or more is `slow` and one
-# at 20 to 30 is `medium`, except that where every case of a test is at 30 or
-# more, the cheapest stays `medium`, so each test keeps a case in the
-# pre-merge tier. Tests whose cases all take the same marker carry it as a
-# decorator instead (test_resume_rewrites_a_file_without_a_whole_header,
+# Cost markers of the expensive cases, from call-phase CPU seconds in the
+# artefact ci-metrics-api-cp312-manylinux-x86_64; thresholds, the hysteresis
+# band and their reasoning are in .claude/rules/tests/patterns.md. The markers
+# were first set from nightly run 43544098140 (14 Nov 2026): a case at 30
+# CPU-s or more `slow`, one at 20 to 30 `medium`, and where every case of a
+# test was at 30 or more the cheapest kept `medium`, so each test keeps a case
+# in the pre-merge tier. Building each simulation with one configuration
+# update then made these tests cheaper, and the cases that
+# scripts/lint/check_cost_markers.py found clearly under `slow` in full run
+# 43741338503 (15 Nov 2026), at 11 to 15 CPU-s, moved to `medium`; markers
+# inside the band stay. Three tests below are now `medium` in every case but
+# keep their entries here; tests whose cases all take the same marker
+# otherwise carry it as a decorator
+# (test_resume_rewrites_a_file_without_a_whole_header,
 # test_parquet_daily_state_only_matches_run_then_save and
 # test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts, all
-# `medium`). Measure again and edit here when these tests get cheaper.
+# `medium`). Run the check on a nightly artefact and edit here when the
+# readings move.
 COST_MARKER = {
     "test_files_match_run_then_save": {
         "1-300-2grids-daily": "slow",
@@ -92,18 +99,18 @@ COST_MARKER = {
     },
     "test_non_zero_time_zone_matches_run_then_save": {
         "utc-tz+8": "medium",
-        "utc-tz-5": "slow",
-        "lst-tz+8": "slow",
-        "lst-tz-5": "slow",
+        "utc-tz-5": "medium",
+        "lst-tz+8": "medium",
+        "lst-tz-5": "medium",
     },
     "test_non_zero_time_zone_resume_matches_an_uninterrupted_run": {
-        "utc-tz+8": "slow",
+        "utc-tz+8": "medium",
         "utc-tz-5": "medium",
-        "lst-tz+8": "slow",
-        "lst-tz-5": "slow",
+        "lst-tz+8": "medium",
+        "lst-tz-5": "medium",
     },
     "test_parquet_matches_run_then_save": {
-        "1-300-2grids": "slow",
+        "1-300-2grids": "medium",
         "1-3600-1grid": "medium",
         "1-3600-2grids": "slow",
         "1-86400-2grids": "slow",
@@ -118,9 +125,9 @@ COST_MARKER = {
         "1-lst-2grids": "slow",
     },
     "test_parquet_non_zero_time_zone_matches_run_then_save": {
-        "utc-tz+8": "slow",
-        "utc-tz-5": "slow",
-        "lst-tz+8": "slow",
+        "utc-tz+8": "medium",
+        "utc-tz-5": "medium",
+        "lst-tz+8": "medium",
         "lst-tz-5": "medium",
     },
     "test_parquet_resumed_run_matches_an_uninterrupted_run": {

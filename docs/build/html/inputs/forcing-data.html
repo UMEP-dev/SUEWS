@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-21T20:13:45+00:00" />
-    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.11.10.dev6 documentation</title>
+    <meta property="article:modified_time" content="2026-11-15T18:04:16+00:00" />
+    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.11.15.dev6 documentation</title>
   
   
   
@@ -36,7 +36,7 @@
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=bab574ae" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
-    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=6a604523" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
@@ -45,11 +45,11 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=d75907b2"></script>
+    <script src="../_static/documentation_options.js?v=fbd890a7"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
-    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../_static/design-tabs.js?v=fcb327ea"></script>
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/forcing-data';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="4.2. Vertical and Material Layer Conventions" href="yaml/layer-conventions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.10.dev6" />
-    <meta name="docbuild:last-update" content="2026-10-21"/>
+  <meta name="docsearch:version" content="2026.11.15.dev6" />
+    <meta name="docbuild:last-update" content="2026-11-15"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.10.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360" style="color: #31708f;">9bf2069</a>).
+        (2026.11.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756" style="color: #31708f;">cabbe8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -157,8 +157,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -254,23 +254,24 @@
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="converter.html">4.7. SUEWS Format Converter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="yaml/validation.html">4.9. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="tables/index.html">4.10. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="tables/met_input.html">4.10.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="tables/RunControl/RunControl.html">4.10.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/scheme_options.html">4.10.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/Time_related_options.html">4.10.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/File_related_options.html">4.10.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.10.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="units_migration_guide.html">4.9. Upgrading Across the Units Change</a></li>
+<li class="toctree-l2"><a class="reference internal" href="yaml/validation.html">4.10. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="tables/index.html">4.11. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="tables/met_input.html">4.11.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="tables/RunControl/RunControl.html">4.11.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/scheme_options.html">4.11.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/Time_related_options.html">4.11.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/File_related_options.html">4.11.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.11.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.10.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="tables/Initial_Conditions/Initial_Conditions.html">4.10.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Soil_moisture_states.html">4.10.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Vegetation_parameters.html">4.10.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Recent_meteorology.html">4.10.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Above_ground_state.html">4.10.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Snow_related_parameters.html">4.10.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.11.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="tables/Initial_Conditions/Initial_Conditions.html">4.11.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Soil_moisture_states.html">4.11.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Vegetation_parameters.html">4.11.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Recent_meteorology.html">4.11.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Above_ground_state.html">4.11.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Snow_related_parameters.html">4.11.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -619,7 +620,10 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.3.1. Data Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.3.1. Data Requirements</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#declaring-file-units-in-python">4.3.1.1. Declaring file units in Python</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.3.2. File Format</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.3.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.3.4. Important Requirements</a></li>
@@ -636,6 +640,7 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.11. Data Preparation Tips</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.12. Validating Forcing Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.13. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#observed-liquid-soil-water">4.3.14. Observed liquid soil water</a></li>
 </ul>
             </nav>
         </div>
@@ -738,6 +743,55 @@ missing-value policies.</p>
 </tbody>
 </table>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Pressure is the one column whose unit changes on loading. A forcing file
+holds <code class="docutils literal notranslate"><span class="pre">pres</span></code> in kPa; <code class="xref py py-func docutils literal notranslate"><span class="pre">read_forcing()</span></code>,
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">from_file()</span></code> and <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation" title="supy.SUEWSSimulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a>
+convert it to hPa, the unit of the loaded forcing, of
+<a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.forcing" title="supy.SUEWSSimulation.forcing"><code class="xref py py-attr docutils literal notranslate"><span class="pre">forcing</span></code></a> and of the model itself. A DataFrame
+passed to <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.update_forcing" title="supy.SUEWSSimulation.update_forcing"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_forcing()</span></code></a> must therefore
+already hold pressure in hPa; one whose pressure looks like kPa is rejected
+with an error.</p>
+</div>
+<section id="declaring-file-units-in-python">
+<h3><span class="section-number">4.3.1.1. </span>Declaring file units in Python<a class="headerlink" href="#declaring-file-units-in-python" title="Link to this heading">#</a></h3>
+<p>Files normally hold the registry units listed above. If a file holds other
+units, pass a <code class="docutils literal notranslate"><span class="pre">units=</span></code> mapping from column names to unit strings when loading
+it. For example, for air temperature in kelvin, pressure in hPa and rainfall
+as an hourly rate in mm:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span>
+    <span class="s2">"site.yml"</span><span class="p">,</span>
+    <span class="n">units</span><span class="o">=</span><span class="p">{</span><span class="s2">"Tair"</span><span class="p">:</span> <span class="s2">"K"</span><span class="p">,</span> <span class="s2">"pres"</span><span class="p">:</span> <span class="s2">"hPa"</span><span class="p">,</span> <span class="s2">"rain"</span><span class="p">:</span> <span class="s2">"mm h-1"</span><span class="p">},</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The mapping describes the file named by the existing YAML forcing block; it
+is a Python argument, not a YAML field. It is also accepted by
+<a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.update_config" title="supy.SUEWSSimulation.update_config"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_config()</span></code></a>,
+<a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.update_forcing" title="supy.SUEWSSimulation.update_forcing"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_forcing()</span></code></a> for file inputs,
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">from_file()</span></code>, <code class="xref py py-func docutils literal notranslate"><span class="pre">read_forcing()</span></code> and
+<code class="xref py py-func docutils literal notranslate"><span class="pre">load_forcing_grid()</span></code>. One mapping applies to every file in a list
+or directory and only to that load. Use separate loads when files use
+different units.</p>
+<p>Declared columns are converted through <code class="xref py py-func docutils literal notranslate"><span class="pre">convert()</span></code> to their
+registry file units before validation and resampling. Temperature is on-scale:
+273.15 K becomes 0 degrees Celsius. Pressure then follows the existing
+kPa-to-hPa runtime conversion exactly once. Rain and water-use columns must be
+declared as rates, such as <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span> <span class="pre">s-1</span></code>, <code class="docutils literal notranslate"><span class="pre">mm</span> <span class="pre">h-1</span></code> or <code class="docutils literal notranslate"><span class="pre">mm</span> <span class="pre">d-1</span></code>; SuPy
+converts them to the amount per forcing interval, from the interval of the
+file’s timestamps. A bare amount (<code class="docutils literal notranslate"><span class="pre">mm</span></code>, <code class="docutils literal notranslate"><span class="pre">m</span></code>, <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span></code>) is refused. Leave
+these columns undeclared to read per-interval amounts in mm as before.</p>
+<p>Undeclared columns keep their existing interpretation; omitting <code class="docutils literal notranslate"><span class="pre">units</span></code>
+leaves loading unchanged. Missing-value sentinels are preserved. Column names
+and file aliases are case-insensitive. Unknown or absent columns, columns
+without an unconditional registry unit, non-string units, unsupported unit
+strings and dimension mismatches raise errors naming the column. Unit strings
+must be accepted by <code class="xref py py-func docutils literal notranslate"><span class="pre">parse_unit()</span></code>. Upgrade notes are in
+<a class="reference internal" href="units_migration_guide.html#units-migration-guide"><span class="std std-ref">Upgrading Across the Units Change</span></a>. In-memory forcing already uses runtime units
+and does not accept a file-unit declaration.</p>
 <p><strong>Time Information</strong></p>
 <p>Each row must include these timestamp columns. Their position is unrestricted
 in a named-column file:</p>
@@ -747,6 +801,7 @@ in a named-column file:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">it</span></code> - Hour (0-23)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">imin</span></code> - Minute (0-59)</p></li>
 </ol>
+</section>
 </section>
 <section id="file-format">
 <h2><span class="section-number">4.3.2. </span>File Format<a class="headerlink" href="#file-format" title="Link to this heading">#</a></h2>
@@ -761,7 +816,7 @@ conditional fields; do not use blanks or <code class="docutils literal notransla
 <p><strong>Canonical columns</strong></p>
 <p>The historical compatibility order is shown below. Modern named-column files
 may use any column order:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  sm  lai  kdiff  kdir  wdir
 </pre></div>
 </div>
 <p>Where:</p>
@@ -772,7 +827,7 @@ may use any column order:</p>
 <li><p>Columns 16-24: Additional conditional or optional variables</p></li>
 </ul>
 <p><strong>Example</strong></p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  sm  lai  kdiff  kdir  wdir
 2020  1  1   0  -999  -999  -999  -999  -999  2.1  85  5.2  101.3  0.0  0  -999  315  -999  -999  -999  -999  -999  -999  -999
 2020  1  2   0  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
 2020  1  3   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
@@ -835,7 +890,7 @@ to all applicable surfaces unless a corresponding land-cover-specific
 column is provided, in which case its value overrides the bulk value.
 Fallback is based on column absence: an explicitly supplied <code class="docutils literal notranslate"><span class="pre">-999</span></code> does
 not request the bulk value and is invalid while that physics path is active.
-Soil-moisture deficit (<code class="docutils literal notranslate"><span class="pre">xsmd</span></code>) is a bulk site-level quantity and is
+Liquid soil-water content (<code class="docutils literal notranslate"><span class="pre">sm</span></code>, <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span></code>) is a bulk non-water-area quantity and is
 intentionally not land-cover-specific.</p>
 </li>
 <li><p><strong>Unknown columns</strong>: any column not in the canonical or whitelisted
@@ -1169,7 +1224,8 @@ See <a class="reference internal" href="../parameterisations-and-sub-models.html
 <span class="c1"># 1. Read EPW file (wind speed at 10 m by default)</span>
 <span class="n">df_epw</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">read_epw</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"weather.epw"</span><span class="p">))</span>
 
-<span class="c1"># 2. Extract and rename columns for SUEWS forcing</span>
+<span class="c1"># 2. Prepare file-unit forcing (kPa) for export to a text file.</span>
+<span class="c1">#    For an in-memory DataFrame, divide EPW pressure by 100 for hPa.</span>
 <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
     <span class="s1">'U'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Wind Speed'</span><span class="p">],</span>
     <span class="s1">'Tair'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Dry Bulb Temperature'</span><span class="p">],</span>
@@ -1331,6 +1387,65 @@ validated without a forcing file and reports a warning instead (see
 <li><p><a class="reference internal" href="../troubleshooting.html"><span class="doc">Troubleshooting</span></a> - Common forcing data issues and solutions</p></li>
 </ul>
 </section>
+<section id="observed-liquid-soil-water">
+<h2><span class="section-number">4.3.14. </span>Observed liquid soil water<a class="headerlink" href="#observed-liquid-soil-water" title="Link to this heading">#</a></h2>
+<p>Forcing contract <code class="docutils literal notranslate"><span class="pre">2.0.0</span></code> uses <code class="docutils literal notranslate"><span class="pre">sm</span></code> at column position 20: instantaneous
+liquid-water content in <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span></code> over the non-water footprint. The CF
+quantity <code class="docutils literal notranslate"><span class="pre">mass_content_of_water_in_soil_layer</span></code> includes all phases; this
+input deliberately includes liquid water only. A point probe must first be
+assigned a representative whole-store layer by the data provider.</p>
+<p>Set <code class="docutils literal notranslate"><span class="pre">model.physics.soil_moisture:</span> <span class="pre">observed</span></code> and provide
+<code class="docutils literal notranslate"><span class="pre">soil_observation.layer_top:</span> <span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">layer_depth</span></code> in metres. Every
+positive-area non-water surface must have the same soil depth as this layer,
+and a finite <code class="docutils literal notranslate"><span class="pre">soil_field_capacity</span></code> in <code class="docutils literal notranslate"><span class="pre">m3</span> <span class="pre">m-3</span></code>. Water and zero-area
+surfaces do not contribute. Modelled mode needs none of this metadata.</p>
+<p>For non-water fractions <span class="math notranslate nohighlight">\(f_i\)</span>, let <span class="math notranslate nohighlight">\(F=\sum_i f_i\)</span>,
+<span class="math notranslate nohighlight">\(FC=\sum_i f_i 1000\theta_{fc,i}d_i/F\)</span> and
+<span class="math notranslate nohighlight">\(C=\sum_i f_i C_i/F\)</span>, with depths <span class="math notranslate nohighlight">\(d_i\)</span> in metres and
+available water capacities <span class="math notranslate nohighlight">\(C_i\)</span> in <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span></code>. The kernel deficit is
+<span class="math notranslate nohighlight">\(D=\min(C,\max(0,FC-sm))\)</span> in mm, using the fixed liquid-water
+convention <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">kg</span> <span class="pre">m-2</span> <span class="pre">=</span> <span class="pre">1</span> <span class="pre">mm</span></code>. Field-capacity content must be at least AWC,
+so the implied wilting reference is non-negative.</p>
+<p>SuPy interpolates content linearly between adjacent valid observations before
+clamping the deficit. It neither bridges missing observations nor extrapolates
+beyond their coverage. Observed runs require every model timestamp, including
+when general input checking is disabled. Negative content and infinities fail;
+NaN and <code class="docutils literal notranslate"><span class="pre">-999</span></code> represent missing observations. Modelled mode permits missing
+content. Values above field capacity or below the wilting reference are retained
+with warnings stating the count, first timestamp and maximum excess. Only the
+derived deficit is clamped. Shared observed forcing requires matching layer
+bounds, effective AWC and field capacity across grids.</p>
+<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">supy.util.soil_moisture_to_content()</span></code> for explicit preprocessing:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">soil_moisture_to_content</span>
+
+<span class="c1"># Both routes give 50 kg m-2 over a 0.2 m layer.</span>
+<span class="n">sm</span> <span class="o">=</span> <span class="n">soil_moisture_to_content</span><span class="p">([</span><span class="mf">0.25</span><span class="p">],</span> <span class="n">source_unit</span><span class="o">=</span><span class="s2">"m3 m-3"</span><span class="p">,</span> <span class="n">layer_depth</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+<span class="n">sm</span> <span class="o">=</span> <span class="n">soil_moisture_to_content</span><span class="p">(</span>
+    <span class="p">[</span><span class="mf">0.20</span><span class="p">],</span> <span class="n">source_unit</span><span class="o">=</span><span class="s2">"kg kg-1"</span><span class="p">,</span> <span class="n">layer_depth</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">bulk_density</span><span class="o">=</span><span class="mi">1250</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Fine-earth volume basis gives 40 kg m-2; the correction is applied once.</span>
+<span class="n">sm</span> <span class="o">=</span> <span class="n">soil_moisture_to_content</span><span class="p">(</span>
+    <span class="p">[</span><span class="mf">0.25</span><span class="p">],</span> <span class="n">source_unit</span><span class="o">=</span><span class="s2">"m3 m-3"</span><span class="p">,</span> <span class="n">layer_depth</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+    <span class="n">volume_basis</span><span class="o">=</span><span class="s2">"fine_earth"</span><span class="p">,</span> <span class="n">soil_not_rocks</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The helper also accepts liquid water-equivalent <code class="docutils literal notranslate"><span class="pre">mm</span></code>. Density is dry bulk
+density in <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-3</span></code>, never particle or wet density. Keep the returned Series
+attributes (units, phase and layer bounds) with the configuration provenance;
+a text column alone does not record layer geometry. No per-field YAML unit
+overrides are accepted. <code class="docutils literal notranslate"><span class="pre">soil_moisture</span></code> is an accessor alias for <code class="docutils literal notranslate"><span class="pre">sm</span></code>.</p>
+<p>Legacy <code class="docutils literal notranslate"><span class="pre">xsmd</span></code> and <code class="docutils literal notranslate"><span class="pre">smd</span></code> columns that carry values are refused; simply
+renaming populated old columns is not a conversion. An <code class="docutils literal notranslate"><span class="pre">xsmd</span></code> column that is
+entirely missing (<code class="docutils literal notranslate"><span class="pre">-999</span></code>), the placeholder most existing forcing files carry,
+is still read as missing <code class="docutils literal notranslate"><span class="pre">sm</span></code> for modelled soil moisture, with a deprecation
+warning; observed runs refuse it. This allowance will be withdrawn from forcing
+contract 3.0.0, so rename the header to <code class="docutils literal notranslate"><span class="pre">sm</span></code> or run the converter. Sensor saturation capacity is retired; deficit now
+uses the configured model soil-store capacity and field-capacity reference.
+Positional imports require <code class="docutils literal notranslate"><span class="pre">source_contract=&quot;2.0.0&quot;</span></code>. The direct Rust file
+runner refuses populated <code class="docutils literal notranslate"><span class="pre">sm</span></code> until it can prepare deficits with site
+metadata; use <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation" title="supy.SUEWSSimulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a> for observed runs.</p>
+</section>
 </section>
 
 
@@ -1380,7 +1495,10 @@ validated without a forcing file and reports a warning instead (see
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.3.1. Data Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.3.1. Data Requirements</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#declaring-file-units-in-python">4.3.1.1. Declaring file units in Python</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.3.2. File Format</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.3.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.3.4. Important Requirements</a></li>
@@ -1397,6 +1515,7 @@ validated without a forcing file and reports a warning instead (see
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.11. Data Preparation Tips</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.12. Validating Forcing Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.13. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#observed-liquid-soil-water">4.3.14. Observed liquid soil water</a></li>
 </ul>
   </nav></div>
 
@@ -1430,7 +1549,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-21.
+  Last updated on 2026-11-15.
   <br/>
 </p>
   </div>
@@ -1438,8 +1557,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.10.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360">9bf2069</a> |
+  <p>Version: 2026.11.15.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756">cabbe8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

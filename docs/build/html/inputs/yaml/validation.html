@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-11-10T16:24:27+00:00" />
-    <title>4.9. Validation Tool Reference &#8212; SUEWS 2026.11.10.dev6 documentation</title>
+    <title>4.10. Validation Tool Reference &#8212; SUEWS 2026.11.15.dev6 documentation</title>
   
   
   
@@ -36,7 +36,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=bab574ae" />
     <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=c83e6b79" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=6a604523" />
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
@@ -45,22 +45,22 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=d75907b2"></script>
+    <script src="../../_static/documentation_options.js?v=fbd890a7"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
-    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../../_static/design-tabs.js?v=fcb327ea"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/yaml/validation';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="4.10. Table-based Input Files (Legacy Format)" href="../tables/index.html" />
-    <link rel="prev" title="4.8. Transitioning to YAML-based Configuration" href="../transition_guide.html" />
+    <link rel="next" title="4.11. Table-based Input Files (Legacy Format)" href="../tables/index.html" />
+    <link rel="prev" title="4.9. Upgrading Across the Units Change" href="../units_migration_guide.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.10.dev6" />
+  <meta name="docsearch:version" content="2026.11.15.dev6" />
     <meta name="docbuild:last-update" content="2026-11-10"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.10.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360" style="color: #31708f;">9bf2069</a>).
+        (2026.11.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756" style="color: #31708f;">cabbe8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -253,23 +253,24 @@
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="../converter.html">4.7. SUEWS Format Converter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.9. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../tables/index.html">4.10. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../tables/met_input.html">4.10.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/RunControl/RunControl.html">4.10.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/scheme_options.html">4.10.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Time_related_options.html">4.10.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/File_related_options.html">4.10.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.10.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../units_migration_guide.html">4.9. Upgrading Across the Units Change</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.10. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../tables/index.html">4.11. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tables/met_input.html">4.11.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/RunControl/RunControl.html">4.11.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/scheme_options.html">4.11.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Time_related_options.html">4.11.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/File_related_options.html">4.11.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.11.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="../tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.10.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/Initial_Conditions/Initial_Conditions.html">4.10.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Soil_moisture_states.html">4.10.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Vegetation_parameters.html">4.10.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Recent_meteorology.html">4.10.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Above_ground_state.html">4.10.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Snow_related_parameters.html">4.10.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.11.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/Initial_Conditions/Initial_Conditions.html">4.11.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Soil_moisture_states.html">4.11.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Vegetation_parameters.html">4.11.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Recent_meteorology.html">4.11.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Above_ground_state.html">4.11.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Snow_related_parameters.html">4.11.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -618,18 +619,18 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.9.1. What the Validator Does</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.9.2. Basic Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.9.3. Phase B Scientific Fix Policy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.9.4. Output Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.9.5. Understanding Reports</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.9.6. Exit Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.9.7. JSON Output</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.9.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.9.8.1. Batch Processing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.10.1. What the Validator Does</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.10.2. Basic Usage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.10.3. Phase B Scientific Fix Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.10.4. Output Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.10.5. Understanding Reports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.10.6. Exit Codes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.10.7. JSON Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.10.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.10.8.1. Batch Processing</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.9.9. Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.10.9. Troubleshooting</a></li>
 </ul>
             </nav>
         </div>
@@ -651,13 +652,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </ol>
 </div>
 <section id="validation-tool-reference">
-<span id="validation"></span><h1><span class="section-number">4.9. </span>Validation Tool Reference<a class="headerlink" href="#validation-tool-reference" title="Link to this heading">#</a></h1>
+<span id="validation"></span><h1><span class="section-number">4.10. </span>Validation Tool Reference<a class="headerlink" href="#validation-tool-reference" title="Link to this heading">#</a></h1>
 <p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code> command checks SUEWS YAML configuration files and writes
 an updated YAML file plus a validation report. It is a validator first: structural
 updates are applied where they are mechanical, while scientific initialisation
 changes are only applied when explicitly requested.</p>
 <section id="what-the-validator-does">
-<h2><span class="section-number">4.9.1. </span>What the Validator Does<a class="headerlink" href="#what-the-validator-does" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.1. </span>What the Validator Does<a class="headerlink" href="#what-the-validator-does" title="Link to this heading">#</a></h2>
 <p>The validation system performs three groups of checks:</p>
 <ul class="simple">
 <li><p><strong>Completeness check</strong>: detects missing parameters, updates deprecated parameter
@@ -672,7 +673,7 @@ SUEWS data model.</p></li>
 </ul>
 </section>
 <section id="basic-usage">
-<h2><span class="section-number">4.9.2. </span>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.2. </span>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate configuration and write updated_config.yml plus report_config.txt</span>
 suews<span class="w"> </span>validate<span class="w"> </span>config.yml
 
@@ -698,7 +699,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w
 </div>
 </section>
 <section id="phase-b-scientific-fix-policy">
-<h2><span class="section-number">4.9.3. </span>Phase B Scientific Fix Policy<a class="headerlink" href="#phase-b-scientific-fix-policy" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.3. </span>Phase B Scientific Fix Policy<a class="headerlink" href="#phase-b-scientific-fix-policy" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">--science-fixes</span></code> controls transformations that can change scientific or
 user-provided values:</p>
 <ul class="simple">
@@ -718,7 +719,7 @@ They may be inappropriate for observed initial states, spin-up workflows,
 historical timezone settings, or specialist case studies.</p>
 </section>
 <section id="output-files">
-<h2><span class="section-number">4.9.4. </span>Output Files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.4. </span>Output Files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
 <p>When you run <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span> <span class="pre">config.yml</span></code>, it creates:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">updated_config.yml</span></code> - the updated configuration from the last successful
@@ -733,7 +734,7 @@ the <code class="docutils literal notranslate"><span class="pre">data.validation
 </ul>
 </section>
 <section id="understanding-reports">
-<h2><span class="section-number">4.9.5. </span>Understanding Reports<a class="headerlink" href="#understanding-reports" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.5. </span>Understanding Reports<a class="headerlink" href="#understanding-reports" title="Link to this heading">#</a></h2>
 <p>Reports use stable action sections:</p>
 <ul class="simple">
 <li><p><strong>ACTION NEEDED</strong>: blocking validation errors that must be fixed before the
@@ -783,7 +784,7 @@ occur before a validation phase starts do not claim an A, B, or C stage.</p>
 </div>
 </section>
 <section id="exit-codes">
-<h2><span class="section-number">4.9.6. </span>Exit Codes<a class="headerlink" href="#exit-codes" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.6. </span>Exit Codes<a class="headerlink" href="#exit-codes" title="Link to this heading">#</a></h2>
 <p>For scripting and CI/CD:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">0</span></code> - configuration is valid, including configurations with warnings or
@@ -793,14 +794,14 @@ suggestions</p></li>
 </ul>
 </section>
 <section id="json-output">
-<h2><span class="section-number">4.9.7. </span>JSON Output<a class="headerlink" href="#json-output" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.7. </span>JSON Output<a class="headerlink" href="#json-output" title="Link to this heading">#</a></h2>
 <p>JSON output exposes separate issue arrays with stable fields:
 <code class="docutils literal notranslate"><span class="pre">errors</span></code>, <code class="docutils literal notranslate"><span class="pre">warnings</span></code>, <code class="docutils literal notranslate"><span class="pre">suggestions</span></code>, <code class="docutils literal notranslate"><span class="pre">applied_fixes</span></code>, and <code class="docutils literal notranslate"><span class="pre">info</span></code>.
 Each issue includes <code class="docutils literal notranslate"><span class="pre">code</span></code>, <code class="docutils literal notranslate"><span class="pre">severity</span></code>, <code class="docutils literal notranslate"><span class="pre">path</span></code>, <code class="docutils literal notranslate"><span class="pre">site_gridid</span></code>,
 <code class="docutils literal notranslate"><span class="pre">message</span></code>, <code class="docutils literal notranslate"><span class="pre">suggested_value</span></code>, and <code class="docutils literal notranslate"><span class="pre">source</span></code> where available.</p>
 </section>
 <section id="ci-cd-integration">
-<h2><span class="section-number">4.9.8. </span>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.8. </span>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate SUEWS Configuration</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">    </span><span class="no">suews validate -p C --dry-run --format json config.yml &gt; results.json</span>
@@ -811,7 +812,7 @@ Each issue includes <code class="docutils literal notranslate"><span class="pre"
 </pre></div>
 </div>
 <section id="batch-processing">
-<h3><span class="section-number">4.9.8.1. </span>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.10.8.1. </span>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
 <span class="k">for</span><span class="w"> </span>config<span class="w"> </span><span class="k">in</span><span class="w"> </span>configs/*.yml<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span>suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span><span class="s2">"</span><span class="nv">$config</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="w"> </span>/dev/null<span class="p">;</span><span class="w"> </span><span class="k">then</span>
@@ -825,7 +826,7 @@ Each issue includes <code class="docutils literal notranslate"><span class="pre"
 </section>
 </section>
 <section id="troubleshooting">
-<h2><span class="section-number">4.9.9. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.10.9. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
 <dl class="simple">
 <dt><strong>“Command not found”</strong></dt><dd><p>Install SuPy: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">supy</span></code></p>
 </dd>
@@ -853,12 +854,12 @@ validator reports renamed parameters using current snake_case names.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../transition_guide.html"
+       href="../units_migration_guide.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">4.8. </span>Transitioning to YAML-based Configuration</p>
+        <p class="prev-next-title"><span class="section-number">4.9. </span>Upgrading Across the Units Change</p>
       </div>
     </a>
     <a class="right-next"
@@ -866,7 +867,7 @@ validator reports renamed parameters using current snake_case names.</p>
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">4.10. </span>Table-based Input Files (Legacy Format)</p>
+        <p class="prev-next-title"><span class="section-number">4.11. </span>Table-based Input Files (Legacy Format)</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -888,18 +889,18 @@ validator reports renamed parameters using current snake_case names.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.9.1. What the Validator Does</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.9.2. Basic Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.9.3. Phase B Scientific Fix Policy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.9.4. Output Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.9.5. Understanding Reports</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.9.6. Exit Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.9.7. JSON Output</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.9.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.9.8.1. Batch Processing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.10.1. What the Validator Does</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.10.2. Basic Usage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.10.3. Phase B Scientific Fix Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.10.4. Output Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.10.5. Understanding Reports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.10.6. Exit Codes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.10.7. JSON Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.10.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.10.8.1. Batch Processing</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.9.9. Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.10.9. Troubleshooting</a></li>
 </ul>
   </nav></div>
 
@@ -941,8 +942,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.10.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360">9bf2069</a> |
+  <p>Version: 2026.11.15.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756">cabbe8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

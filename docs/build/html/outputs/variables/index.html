@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>5.3. Output Variable Reference &#8212; SUEWS 2026.11.10.dev6 documentation</title>
+    <title>5.3. Output Variable Reference &#8212; SUEWS 2026.11.15.dev6 documentation</title>
   
   
   
@@ -35,7 +35,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=bab574ae" />
     <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=c83e6b79" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=6a604523" />
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
@@ -44,11 +44,11 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=d75907b2"></script>
+    <script src="../../_static/documentation_options.js?v=fbd890a7"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
-    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../../_static/design-tabs.js?v=fcb327ea"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'outputs/variables/index';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
@@ -59,7 +59,7 @@
     <link rel="prev" title="5.2. Parquet Format Output" href="../parquet_format.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.10.dev6" />
+  <meta name="docsearch:version" content="2026.11.15.dev6" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -107,7 +107,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.10.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360" style="color: #31708f;">9bf2069</a>).
+        (2026.11.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756" style="color: #31708f;">cabbe8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -251,23 +251,24 @@
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="../../inputs/converter.html">4.7. SUEWS Format Converter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../inputs/transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/validation.html">4.9. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/tables/index.html">4.10. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/met_input.html">4.10.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/RunControl/RunControl.html">4.10.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/scheme_options.html">4.10.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Time_related_options.html">4.10.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/File_related_options.html">4.10.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.10.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/units_migration_guide.html">4.9. Upgrading Across the Units Change</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/validation.html">4.10. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/tables/index.html">4.11. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/met_input.html">4.11.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/RunControl/RunControl.html">4.11.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/scheme_options.html">4.11.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Time_related_options.html">4.11.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/File_related_options.html">4.11.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.11.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.10.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.10.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.10.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.10.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.10.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.10.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.10.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.11.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.11.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.11.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.11.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.11.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.11.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.11.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -528,7 +529,9 @@
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
 </button>
-
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
 </div></div>
       
     </div>
@@ -544,6 +547,14 @@
     <div id="print-main-content">
         <div id="jb-print-toc">
             
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#units-in-saved-output">5.3.14. Units in saved output</a></li>
+</ul>
+            </nav>
         </div>
     </div>
 </div>
@@ -567,86 +578,135 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <p>This reference documents all SUEWS output variables organised by output group.</p>
 <div class="sd-tab-set docutils">
 <input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-0">
-datetime</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-0-content" class="sd-tab-label" for="sd-tab-item-0">
+datetime</label><div class="sd-tab-content docutils" id="sd-tab-item-0-content">
 <p>Date and time information for output records.</p>
 <p><strong>5 variables</strong> - <a class="reference internal" href="datetime.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-1">
-SUEWS</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-1-content" class="sd-tab-label" for="sd-tab-item-1">
+SUEWS</label><div class="sd-tab-content docutils" id="sd-tab-item-1-content">
 <p>Core SUEWS energy balance, water balance, and meteorological outputs.</p>
 <p><strong>113 variables</strong> - <a class="reference internal" href="suews.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-2" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-2">
-snow</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-2-content" class="sd-tab-label" for="sd-tab-item-2">
+snow</label><div class="sd-tab-content docutils" id="sd-tab-item-2-content">
 <p>Snow-specific outputs for each surface type.</p>
 <p><strong>98 variables</strong> - <a class="reference internal" href="snow.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-3" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-3">
-ESTM</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-3-content" class="sd-tab-label" for="sd-tab-item-3">
+ESTM</label><div class="sd-tab-content docutils" id="sd-tab-item-3-content">
 <p>Element Surface Temperature Model outputs.</p>
 <p><strong>27 variables</strong> - <a class="reference internal" href="estm.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-4" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-4">
-RSL</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-4-content" class="sd-tab-label" for="sd-tab-item-4">
+RSL</label><div class="sd-tab-content docutils" id="sd-tab-item-4-content">
 <p>Roughness Sublayer vertical profile outputs.</p>
 <p><strong>135 variables</strong> - <a class="reference internal" href="rsl.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-5" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-5">
-DailyState</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-5-content" class="sd-tab-label" for="sd-tab-item-5">
+DailyState</label><div class="sd-tab-content docutils" id="sd-tab-item-5-content">
 <p>Daily accumulated state variables.</p>
 <p><strong>47 variables</strong> - <a class="reference internal" href="dailystate.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-6" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-6">
-BL</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-6-content" class="sd-tab-label" for="sd-tab-item-6">
+BL</label><div class="sd-tab-content docutils" id="sd-tab-item-6-content">
 <p>Convective boundary layer model outputs. The boundary layer model is not called in this version, so this group is not produced.</p>
 <p><strong>17 variables</strong> - <a class="reference internal" href="bl.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-7" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-7">
-BEERS</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-7-content" class="sd-tab-label" for="sd-tab-item-7">
+BEERS</label><div class="sd-tab-content docutils" id="sd-tab-item-7-content">
 <p>BEERS radiation model outputs.</p>
 <p><strong>29 variables</strong> - <a class="reference internal" href="beers.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-8" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-8">
-debug</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-8-content" class="sd-tab-label" for="sd-tab-item-8">
+debug</label><div class="sd-tab-content docutils" id="sd-tab-item-8-content">
 <p>Debug and diagnostic outputs for model development.</p>
 <p><strong>131 variables</strong> - <a class="reference internal" href="debug.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-9" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-9">
-EHC</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-9-content" class="sd-tab-label" for="sd-tab-item-9">
+EHC</label><div class="sd-tab-content docutils" id="sd-tab-item-9-content">
 <p>Element Heat Capacity model outputs for building thermal layers.</p>
 <p><strong>224 variables</strong> - <a class="reference internal" href="ehc.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-10" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-10">
-SPARTACUS</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-10-content" class="sd-tab-label" for="sd-tab-item-10">
+SPARTACUS</label><div class="sd-tab-content docutils" id="sd-tab-item-10-content">
 <p>SPARTACUS radiation model outputs (experimental).</p>
 <p><strong>408 variables</strong> - <a class="reference internal" href="spartacus.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-11" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-11">
-STEBBS</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-11-content" class="sd-tab-label" for="sd-tab-item-11">
+STEBBS</label><div class="sd-tab-content docutils" id="sd-tab-item-11-content">
 <p>STEBBS model outputs (experimental).</p>
 <p><strong>82 variables</strong> - <a class="reference internal" href="stebbs.html"><span class="doc">View details</span></a></p>
 </div>
 <input id="sd-tab-item-12" name="sd-tab-set-0" type="radio">
-<label class="sd-tab-label" for="sd-tab-item-12">
-NHood</label><div class="sd-tab-content docutils">
+<label aria-controls="sd-tab-item-12-content" class="sd-tab-label" for="sd-tab-item-12">
+NHood</label><div class="sd-tab-content docutils" id="sd-tab-item-12-content">
 <p>Neighbourhood-scale outputs (experimental; not yet written by the kernel).</p>
 <p><strong>1 variables</strong> - <a class="reference internal" href="nhood.html"><span class="doc">View details</span></a></p>
 </div>
 </div>
 <div class="toctree-wrapper compound">
 </div>
+<section id="units-in-saved-output">
+<h2><span class="section-number">5.3.14. </span>Units in saved output<a class="headerlink" href="#units-in-saved-output" title="Link to this heading">#</a></h2>
+<p>The output registry owns units, time operations and temperature kinds. Writers
+convert per-step water fluxes to interval-mean rates in <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span> <span class="pre">s-1</span></code>.
+DailyState water columns remain daily totals in <code class="docutils literal notranslate"><span class="pre">mm</span></code> with <code class="docutils literal notranslate"><span class="pre">time:</span> <span class="pre">sum</span></code>.
+These serialisation annotations sit outside the output contract catalogue and
+need no independent contract release. The catalogue version is recorded as
+<code class="docutils literal notranslate"><span class="pre">output_contract_version</span></code> (currently <code class="docutils literal notranslate"><span class="pre">2.0.0</span></code>).</p>
+<p>Every text output table has a neighbouring <code class="docutils literal notranslate"><span class="pre">&lt;filename&gt;.units.json</span></code> file.
+Sidecars are auxiliary files; save methods retain their primary-file return lists.
+Its <code class="docutils literal notranslate"><span class="pre">columns</span></code> object uses the exact table headers, including date coordinates.
+Each known column contains <code class="docutils literal notranslate"><span class="pre">units</span></code>, <code class="docutils literal notranslate"><span class="pre">cell_methods</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code> (the long
+registry description), <code class="docutils literal notranslate"><span class="pre">interval</span></code> and, where set, <code class="docutils literal notranslate"><span class="pre">units_metadata</span></code>.
+Unregistered columns contain <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:</span> <span class="pre">&quot;unknown&quot;}</span></code>; units are never guessed.</p>
+<p>Parquet output carries the same strings in each data field’s Arrow metadata,
+and <code class="docutils literal notranslate"><span class="pre">output_contract_version</span></code> in the file schema metadata. This applies to
+whole files and every part of a streamed output folder. Pandas index metadata
+is retained. Final-state and run-summary Parquet files have different schemas
+and are not output-registry tables.</p>
+<p>The interval comes from the writer’s output frequency, after resampling.
+For example, hourly Rain has <code class="docutils literal notranslate"><span class="pre">units:</span> <span class="pre">kg</span> <span class="pre">m-2</span> <span class="pre">s-1</span></code>, <code class="docutils literal notranslate"><span class="pre">interval:</span> <span class="pre">1</span> <span class="pre">hour</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cell_methods:</span> <span class="pre">time:</span> <span class="pre">mean</span> <span class="pre">(interval:</span> <span class="pre">1</span> <span class="pre">hour)</span></code>. Native five-minute output uses
+<code class="docutils literal notranslate"><span class="pre">5</span> <span class="pre">minutes</span></code>. DailyState water totals describe the <code class="docutils literal notranslate"><span class="pre">covered</span> <span class="pre">day</span></code>; other
+DailyState statistics retain <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">day</span></code> and point values retain <code class="docutils literal notranslate"><span class="pre">time:</span> <span class="pre">point</span></code>.
+<code class="docutils literal notranslate"><span class="pre">P_day</span></code> and <code class="docutils literal notranslate"><span class="pre">WU_EveTr1-3</span></code>, <code class="docutils literal notranslate"><span class="pre">WU_DecTr1-3</span></code> and <code class="docutils literal notranslate"><span class="pre">WU_Grass1-3</span></code> keep the
+model’s raw sums, including a partial first day, and sum when resampled; a run
+ending part-way through a day writes no row for that day.
+Their coverage is informational: <code class="docutils literal notranslate"><span class="pre">daily_coverage_s</span></code> in text sidecars and
+<code class="docutils literal notranslate"><span class="pre">supy_output_daily_coverage_s</span></code> in Parquet attrs never divide the totals.
+Amount requests (<code class="docutils literal notranslate"><span class="pre">mm</span></code>, <code class="docutils literal notranslate"><span class="pre">m</span></code>, <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span></code>) are accepted; rate units are rejected.
+An interval qualifies a time operation, not the physical unit string.
+Legacy native-step Parquet calls without model state cannot supply an interval;
+they omit it rather than infer a timestep from the index.</p>
+<p><code class="docutils literal notranslate"><span class="pre">output.units[(&quot;SUEWS&quot;,</span> <span class="pre">&quot;Rain&quot;)]</span></code> returns the unit string. The read-only
+<code class="docutils literal notranslate"><span class="pre">output.units.metadata</span></code> mapping exposes the same CF fields, including
+<code class="docutils literal notranslate"><span class="pre">units_metadata</span></code> for temperature kind. Its interval describes the held rows
+(or the configured written frequency for streamed output). A resampled output
+object reports its new interval. Without run context, its interval is unknown.
+Both levels of the metadata mapping are read-only.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.parquet</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pq</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">pq</span><span class="o">.</span><span class="n">read_schema</span><span class="p">(</span><span class="s2">"site_SUEWS_output.parquet"</span><span class="p">)</span>
+<span class="n">field_metadata</span> <span class="o">=</span> <span class="n">schema</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">metadata</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"site1_2012_SUEWS_60.txt.units.json"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+    <span class="n">units</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">stream</span><span class="p">)[</span><span class="s2">"columns"</span><span class="p">][</span><span class="s2">"Rain"</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 
@@ -685,6 +745,23 @@ NHood</label><div class="sd-tab-content docutils">
             
             
               
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#units-in-saved-output">5.3.14. Units in saved output</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
             
           </div>
           <footer class="bd-footer-content">
@@ -718,8 +795,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.10.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360">9bf2069</a> |
+  <p>Version: 2026.11.15.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756">cabbe8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

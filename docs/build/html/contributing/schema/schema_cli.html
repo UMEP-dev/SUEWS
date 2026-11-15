@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
-    <title>2.4. Schema Management CLI &#8212; SUEWS 2026.11.10.dev6 documentation</title>
+    <meta property="article:modified_time" content="2026-11-15T18:04:16+00:00" />
+    <title>2.4. Schema Management CLI &#8212; SUEWS 2026.11.15.dev6 documentation</title>
   
   
   
@@ -36,7 +36,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=bab574ae" />
     <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=c83e6b79" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=6a604523" />
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
@@ -45,11 +45,11 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=d75907b2"></script>
+    <script src="../../_static/documentation_options.js?v=fbd890a7"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
-    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../../_static/design-tabs.js?v=fcb327ea"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'contributing/schema/schema_cli';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="2.3. Data-interface versioning" href="data_interface_versioning.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.10.dev6" />
-    <meta name="docbuild:last-update" content="2026-10-15"/>
+  <meta name="docsearch:version" content="2026.11.15.dev6" />
+    <meta name="docbuild:last-update" content="2026-11-15"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.10.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360" style="color: #31708f;">9bf2069</a>).
+        (2026.11.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756" style="color: #31708f;">cabbe8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -253,23 +253,24 @@
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="../../inputs/converter.html">4.7. SUEWS Format Converter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../inputs/transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/validation.html">4.9. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/tables/index.html">4.10. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/met_input.html">4.10.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/RunControl/RunControl.html">4.10.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/scheme_options.html">4.10.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Time_related_options.html">4.10.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/File_related_options.html">4.10.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.10.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/units_migration_guide.html">4.9. Upgrading Across the Units Change</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/validation.html">4.10. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/tables/index.html">4.11. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/met_input.html">4.11.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/RunControl/RunControl.html">4.11.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/scheme_options.html">4.11.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Time_related_options.html">4.11.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/File_related_options.html">4.11.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.11.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.10.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.10.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.10.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.10.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.10.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.10.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.10.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.11.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.11.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.11.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.11.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.11.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.11.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.11.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -638,6 +639,7 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-best-practices">2.4.8. CLI Best Practices</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-troubleshooting">2.4.9. CLI Troubleshooting</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">2.4.10. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coordinated-soil-observation-conversion">2.4.11. Coordinated soil-observation conversion</a></li>
 </ul>
             </nav>
         </div>
@@ -926,6 +928,57 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <li><p><a class="reference internal" href="../../inputs/yaml/validation.html#validation"><span class="std std-ref">Validation Tool Reference</span></a> - Configuration validation guide</p></li>
 </ul>
 </section>
+<section id="coordinated-soil-observation-conversion">
+<h2><span class="section-number">2.4.11. </span>Coordinated soil-observation conversion<a class="headerlink" href="#coordinated-soil-observation-conversion" title="Link to this heading">#</a></h2>
+<p>Legacy volumetric (method 1) and gravimetric (method 2) forcing must be
+converted together with the YAML configuration. Renaming <code class="docutils literal notranslate"><span class="pre">xsmd</span></code> alone
+cannot establish liquid-water content. Provide <code class="docutils literal notranslate"><span class="pre">soil_field_capacity</span></code> on
+every positive-area non-water surface in the input YAML; it is not inferred
+from the retired sensor <code class="docutils literal notranslate"><span class="pre">smcap</span></code>. The available water capacity remains
+<code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>legacy.yml<span class="w"> </span>-o<span class="w"> </span>converted/config.yml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--forcing<span class="w"> </span>legacy.txt<span class="w"> </span>--forcing-output<span class="w"> </span>converted/forcing.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--manifest<span class="w"> </span>converted/conversion.json<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--layer-top<span class="w"> </span><span class="m">0</span><span class="w"> </span>--layer-depth<span class="w"> </span><span class="m">0</span>.2<span class="w"> </span>--dry-run
+</pre></div>
+</div>
+<p>Remove <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> to write the validated pair and its manifest.
+The identical operation is available as <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">convert-soil</span></code>.
+Output paths must be new and distinct; input files are never overwritten.
+A dry run reports proposed hashes, changes and missing information without
+writing files or stamping a new schema. The manifest records the original
+method, units, layer bounds, fine-earth fraction, density scaling, warnings
+and SHA256 hashes of both input and output files.</p>
+<p>Both layer bounds must be confirmed explicitly in metres. The layer must
+start at zero and span every active non-water soil store. Use
+<code class="docutils literal notranslate"><span class="pre">--legacy-depth-is-thickness</span></code> only when the old <code class="docutils literal notranslate"><span class="pre">depth</span></code> really described
+represented thickness; this also checks its conversion from mm to m.
+Otherwise the explicit bounds replace the old installation-depth value while
+preserving its reference. A saved selector labelled only <code class="docutils literal notranslate"><span class="pre">observed</span></code> needs
+<code class="docutils literal notranslate"><span class="pre">--source-unit</span> <span class="pre">'m3</span> <span class="pre">m-3'</span></code> or <code class="docutils literal notranslate"><span class="pre">--source-unit</span> <span class="pre">'kg</span> <span class="pre">kg-1'</span></code> to resolve its
+lost method provenance. Numeric methods and conflicting declared units are
+checked before schema parsing.</p>
+<p>The converter reads whitespace tables with named headers. For headerless
+24-column tables, <code class="docutils literal notranslate"><span class="pre">--source-contract</span> <span class="pre">1.2.0</span></code> explicitly selects legacy
+position 20; <code class="docutils literal notranslate"><span class="pre">2.0.0</span></code> selects canonical <code class="docutils literal notranslate"><span class="pre">sm</span></code>. Timestamps, missing tokens,
+unrelated columns and row count are preserved. Legacy conversions use the
+fine-earth basis: method 1 multiplies by water density, represented thickness
+and <code class="docutils literal notranslate"><span class="pre">soil_not_rocks</span></code>; method 2 uses dry bulk density converted from
+<code class="docutils literal notranslate"><span class="pre">g</span> <span class="pre">cm-3</span></code> to <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-3</span></code>. These factors are never applied again at runtime.</p>
+<p>Missing observed rows, missing field capacity, mismatched layers, incompatible
+shared grids, mixed old/new names and ambiguous source units are refused
+before output is written. An entirely missing modelled <code class="docutils literal notranslate"><span class="pre">xsmd</span></code> placeholder
+can be renamed unattended. Populated method-0 values need confirmed units
+and bounds, or <code class="docutils literal notranslate"><span class="pre">--drop-legacy</span></code> to record an explicit archival drop; the
+original forcing remains the archive. Already canonical pairs need no layer
+confirmation and retain their content on repeated conversion.</p>
+<p>Canonical <code class="docutils literal notranslate"><span class="pre">sm</span></code> is retained above field capacity and below the implied
+wilting reference, with warnings giving the count, first timestamp and
+maximum excess. The derived deficit is field-capacity content minus <code class="docutils literal notranslate"><span class="pre">sm</span></code>,
+clamped between zero and available water capacity. Migrated observed runs
+may therefore differ from legacy sensor-capacity runs. Modelled soil-moisture
+calculations are unchanged.</p>
+</section>
 </section>
 
 
@@ -995,6 +1048,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-best-practices">2.4.8. CLI Best Practices</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-troubleshooting">2.4.9. CLI Troubleshooting</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">2.4.10. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coordinated-soil-observation-conversion">2.4.11. Coordinated soil-observation conversion</a></li>
 </ul>
   </nav></div>
 
@@ -1028,7 +1082,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-15.
+  Last updated on 2026-11-15.
   <br/>
 </p>
   </div>
@@ -1036,8 +1090,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.10.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360">9bf2069</a> |
+  <p>Version: 2026.11.15.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756">cabbe8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

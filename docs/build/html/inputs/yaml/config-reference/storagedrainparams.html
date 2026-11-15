@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for drainage parameters parameters" name="description" />
 <meta content="SUEWS, YAML, storagedrainparams, parameters, configuration" name="keywords" />
 
-    <title>4.6.48. Drainage Parameters &#8212; SUEWS 2026.11.10.dev6 documentation</title>
+    <title>4.6.48. Drainage Parameters &#8212; SUEWS 2026.11.15.dev6 documentation</title>
   
   
   
@@ -37,7 +37,7 @@
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=bab574ae" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=6a604523" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
@@ -46,11 +46,11 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=d75907b2"></script>
+    <script src="../../../_static/documentation_options.js?v=fbd890a7"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
-    <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../../../_static/design-tabs.js?v=fcb327ea"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/yaml/config-reference/storagedrainparams';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.47. STEBBS" href="stebbsproperties.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.10.dev6" />
+  <meta name="docsearch:version" content="2026.11.15.dev6" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.10.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360" style="color: #31708f;">9bf2069</a>).
+        (2026.11.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756" style="color: #31708f;">cabbe8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.10.dev6 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -253,23 +253,24 @@
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="../../converter.html">4.7. SUEWS Format Converter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation.html">4.9. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../tables/index.html">4.10. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../tables/met_input.html">4.10.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../tables/RunControl/RunControl.html">4.10.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/scheme_options.html">4.10.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/Time_related_options.html">4.10.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/File_related_options.html">4.10.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.10.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../units_migration_guide.html">4.9. Upgrading Across the Units Change</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation.html">4.10. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../tables/index.html">4.11. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../tables/met_input.html">4.11.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../tables/RunControl/RunControl.html">4.11.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/scheme_options.html">4.11.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/Time_related_options.html">4.11.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/File_related_options.html">4.11.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.11.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="../../tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.10.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../tables/Initial_Conditions/Initial_Conditions.html">4.10.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Soil_moisture_states.html">4.10.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Vegetation_parameters.html">4.10.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Recent_meteorology.html">4.10.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Above_ground_state.html">4.10.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Snow_related_parameters.html">4.10.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.11.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../tables/Initial_Conditions/Initial_Conditions.html">4.11.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Soil_moisture_states.html">4.11.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Vegetation_parameters.html">4.11.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Recent_meteorology.html">4.11.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Above_ground_state.html">4.11.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Snow_related_parameters.html">4.11.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -577,7 +578,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dd><p>Minimum water storage capacity</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
+<dd class="field-odd"><p>kg m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>Optional</p>
@@ -600,39 +601,39 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; paved; Paved</p></td>
 <td><p><span class="bibtex-citation" id="id1">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; buildings; Building</p></td>
 <td><p><span class="bibtex-citation" id="id2">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; paved; Paved</p></td>
 <td><p><span class="bibtex-citation" id="id3">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; buildings; Buildings</p></td>
 <td><p><span class="bibtex-citation" id="id4">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; bare soil; Bare Soil</p></td>
 <td><p><span class="bibtex-citation" id="id5">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.3</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.3</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree</p></td>
 <td><p><span class="bibtex-citation" id="id6">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.3</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.3</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree</p></td>
 <td><p><span class="bibtex-citation" id="id7">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.9</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.9</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; grass; Grass</p></td>
 <td><p><span class="bibtex-citation" id="id8">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; water; Water</p></td>
 <td><p><span class="bibtex-citation" id="id9">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
@@ -647,7 +648,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dd><p>Maximum water storage capacity</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
+<dd class="field-odd"><p>kg m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>No default; not checked by the validator - supply a value</p>
@@ -667,39 +668,39 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; paved; Paved</p></td>
 <td><p><span class="bibtex-citation" id="id10">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; buildings; Building</p></td>
 <td><p><span class="bibtex-citation" id="id11">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; paved; Paved</p></td>
 <td><p><span class="bibtex-citation" id="id12">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; buildings; Buildings</p></td>
 <td><p><span class="bibtex-citation" id="id13">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; bare soil; Bare Soil</p></td>
 <td><p><span class="bibtex-citation" id="id14">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.3</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.3</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree</p></td>
 <td><p><span class="bibtex-citation" id="id15">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree</p></td>
 <td><p><span class="bibtex-citation" id="id16">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.9</span></code> mm</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.9</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; grass; Grass</p></td>
 <td><p><span class="bibtex-citation" id="id17">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code> mm</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; water; Water</p></td>
 <td><p><span class="bibtex-citation" id="id18">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
@@ -714,7 +715,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dd><p>Current surface/interception water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: <a class="reference external" href="https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html">https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html</a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
+<dd class="field-odd"><p>kg m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>No default; not checked by the validator - supply a value</p>
@@ -727,14 +728,11 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <span class="sig-name descname"><span class="pre">drain_eq</span></span><a class="headerlink" href="#input-option-drain_eq" title="Link to this definition">#</a></dt>
 <dd><p>Drainage equation selection (1: threshold power law; 2: modified Rutter exponential equation; 3: power law). The default 0 is an unset placeholder and should be replaced for configured surfaces</p>
 <dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dimensionless</p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
 </dd>
-<dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Optional</p>
-</dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
 </dd>
 </dl>
 <p class="rubric">Example values</p>
@@ -751,71 +749,71 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>London; paved; Paved [sample run]</p></td>
 <td><p><span class="bibtex-citation" id="id19">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>Swindon; paved; Paved</p></td>
 <td><p><span class="bibtex-citation" id="id20">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id110" title="Ward, H. C., Evans, J. G., and Grimmond, C. S. B. Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in swindon, UK. Atmospheric Chemistry and Physics, 13(9):4645–4666, May 2013. doi:10.5194/acp-13-4645-2013.">2013</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
 <td><p>London; evergreen tree; EvergreenTree [sample run]</p></td>
 <td><p><span class="bibtex-citation" id="id21">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
 <td><p>London; deciduous tree; Deciduous Tree [sample run]</p></td>
 <td><p><span class="bibtex-citation" id="id22">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>Helsinki; grass; Grass, irrigated</p></td>
 <td><p><span class="bibtex-citation" id="id23">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
 <td><p>Helsinki; grass; Grass, unirrigated</p></td>
 <td><p><span class="bibtex-citation" id="id24">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
 <td><p>London; grass; Grass [sample run]</p></td>
 <td><p><span class="bibtex-citation" id="id25">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>Helsinki; buildings; Building</p></td>
 <td><p><span class="bibtex-citation" id="id26">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>London; evergreen tree; EvergreenTree - Helsinki, Zurich, Beijing</p></td>
 <td><p><span class="bibtex-citation" id="id27">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>London; deciduous tree; Deciduous Tree - Helsinki, Zurich, Beijing</p></td>
 <td><p><span class="bibtex-citation" id="id28">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>London; grass; Grass - Helsinki, Zurich, Beijing</p></td>
 <td><p><span class="bibtex-citation" id="id29">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>SE England; paved; Paved</p></td>
 <td><p><span class="bibtex-citation" id="id30">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>SE England; buildings; Buildings</p></td>
 <td><p><span class="bibtex-citation" id="id31">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
 <td><p>SE England; bare soil; Bare Soil</p></td>
 <td><p><span class="bibtex-citation" id="id32">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree</p></td>
 <td><p><span class="bibtex-citation" id="id33">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code> dimensionless</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree</p></td>
 <td><p><span class="bibtex-citation" id="id34">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code> dimensionless</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
 <td><p>SE England; grass; Grass</p></td>
 <td><p><span class="bibtex-citation" id="id35">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
@@ -1099,8 +1097,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.10.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9bf20693ad5f9df2900969277511606b31748360">9bf2069</a> |
+  <p>Version: 2026.11.15.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756">cabbe8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

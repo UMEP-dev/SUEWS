@@ -695,7 +695,8 @@ jobs:
   # artefacts and file names it reads are data. PR tiers do not run `slow`
   # tests (smoke skips `medium` too), so the comment states how many tests it
   # measured and says nothing when none of the changed tests ran. A fork PR's
-  # token is read-only, so there the comment step fails without effect.
+  # token is read-only, so there the comment step is skipped and a notice
+  # says the result is in the job summary.
   cost_markers_pr:
     name: Cost markers of changed tests
     needs: [detect-changes, determine_matrix, build_wheels]
@@ -758,6 +759,7 @@ jobs:
             --json cost-markers.json --markdown "$GITHUB_STEP_SUMMARY"
 
       - name: Add the result to the CI summary comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
@@ -772,6 +774,14 @@ jobs:
             const report = JSON.parse(fs.readFileSync('cost-markers.json', 'utf8'));
             const { postCostMarkers } = require('./.github/scripts/post-ci-summary.js');
             await postCostMarkers({ github, context, core, report, testTier: process.env.TEST_TIER });
+
+      # A fork PR's token cannot edit comments (GitHub restricts it to read),
+      # so say where the result is instead of failing the comment step.
+      - name: Explain why a fork PR gets no comment
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        shell: bash
+        run: |
+          echo "::notice title=Cost markers::This pull request comes from a fork, whose workflow token is read-only, so the CI summary comment is not edited. The cost-marker result is in this job's summary."
 
   # Standalone static lints over the test tree. Both use AST-based scripts
   # that never import supy, so CI can run them without building — that is

@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 15 Nov 2026
 
+- [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead
+- [doc] Add a "Supported platforms" section to the installation guide, stating how far each published platform is tested
 - [maintenance] Build each stream-chunk test simulation with one configuration update instead of up to three, so the initial state frame is rebuilt from the configuration once per simulation; the state the tests run from is unchanged
 - [maintenance] Remove the `@claude` agent workflows (`claude.yml`, `claude-code-review.yml`, `claude-dispatch.yml`), which are no longer used, and the instructions for their secrets
 - [maintenance] Measure Python line and branch coverage of supy and suews_mcp nightly, as a recording job that never gates; configuration in `pyproject.toml` (#2036)

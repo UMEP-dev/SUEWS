@@ -16,7 +16,7 @@ import yaml
 # Use C-based YAML dumper when available (5-10x faster than pure Python)
 _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
-from ._env import logger_supy
+from ._env import logger_supy, warn_platform_support
 from ._post import df_var, gen_index
 
 from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
@@ -93,6 +93,7 @@ def _check_rust_available():
     module = _load_rust_module()
     if not hasattr(module, "run_suews_into"):
         raise RuntimeError(_RUST_ERROR_MSG)
+    warn_platform_support()
     return module
 
 

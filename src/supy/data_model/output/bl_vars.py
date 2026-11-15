@@ -126,6 +126,7 @@ BL_VARIABLES = [
     ),
     OutputVariable(
         name="avcp",
+        units_metadata="temperature: difference",
         unit="J kg-1 K-1",
         description="Specific heat capacity of air",
         aggregation=AggregationMethod.AVERAGE,
@@ -134,6 +135,7 @@ BL_VARIABLES = [
     ),
     OutputVariable(
         name="gamt",
+        units_metadata="temperature: difference",
         unit="K m-1",
         description=(
             "Vertical gradient of potential temperature above the boundary-layer top"

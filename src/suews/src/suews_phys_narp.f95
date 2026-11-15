@@ -22,7 +22,7 @@ MODULE module_phys_narp
    ! 4 - LDOWN modelled from FCLD(Kdown); i.e. day FCLD only
    !     cloud fraction is kept constant throught the night (Offerle et al. 2003, JAM)
    ! 5 - Option 3 at night and 4 during the day (might cause discontinuities in LDOWN)
-
+   USE module_ctrl_const_allocate, ONLY: DEG2RAD
    !SUEWS   L. Jarvi - Oct 2010
    !Currently LDOWN options 4 and 5 commented out in order to reduce input files.
    !Last modified:
@@ -34,14 +34,14 @@ MODULE module_phys_narp
    ! in the main program
    ! LJ Oct 2012 - Zenith angle change in the calculation of albedo added
    ! sg feb 2012 - Allocatable array module added
-
+   USE module_ctrl_const_mathconst, ONLY: pi_d0, pi_sp
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-
+   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day, SBConst_567, arcsec_per_deg
    IMPLICIT NONE
 
 CONTAINS
@@ -260,9 +260,8 @@ CONTAINS
                          qn_is, kup_is, lup_is, tsurf_is, & !Sub-surface radiation components
                          SF_all
 
-      REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
       ! REAL(KIND(1D0)),PARAMETER   ::RAD2DEG=57.29577951
-      REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = 5.67E-8
+      REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = SBConst_567
 
       ! NB: NARP_G is not assigned with a value in SUEWS_translate.
       ! 3.0 is used here as annual average for mid-latitude areas. TS 24 Oct 2017
@@ -272,9 +271,9 @@ CONTAINS
       ! DTIME=dectime
       ! KDOWN=avkdn
       KDOWN_HR = 0.
-      tsfc_surf_K = tsfc_surf + 273.15
+      tsfc_surf_K = tsfc_surf + C2K
       ! tsurf_0_K = tsurf_0 + 273.15
-      Temp_K = Temp_C + 273.15
+      Temp_K = Temp_C + C2K
       SIGMATK4 = SIGMA_SB*Temp_K**4
       TD = dewpoint_narp(Temp_C, RH)
       ! Sun postition is now calculated in the main loop, FL
@@ -412,7 +411,7 @@ CONTAINS
 
          !Net all wave
          QSTAR = KDOWN - KUP + LDOWN - LUP
-         TSURF_C = TSURF_K - 273.15
+         TSURF_C = TSURF_K - C2K
 
          !Define sub-surface radiation components
          qn1_ind_nosnow(is) = QSTAR
@@ -447,7 +446,7 @@ CONTAINS
             END IF
 
             QSTAR_SNOW = KDOWN - KUP_SNOW + LDOWN - LUP_SNOW
-            TSURF_SNOW_C = TSURF_SNOW_K - 273.15
+            TSURF_SNOW_C = TSURF_SNOW_K - C2K
 
          ELSE
             KUP_SNOW = 0
@@ -642,7 +641,7 @@ CONTAINS
       modState) ! input/output
 
       USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, SUEWS_STATE
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -653,7 +652,7 @@ CONTAINS
       REAL(KIND(1D0)) :: idectime
 
       year = REAL(timer%iy, KIND(1D0))
-      idectime = timer%dectime - timer%tstep/2/86400
+      idectime = timer%dectime - timer%tstep/2/sec_per_day
 
       CALL NARP_cal_SunPosition( &
          year, idectime, timer%tz_solar, &
@@ -723,7 +722,7 @@ CONTAINS
       julianday = FLOOR(365.25*(Y + 4716.)) + FLOOR(30.6001*(M + 1)) + D + B - 1524.5
 
       delta_t = 0. ! 33.184;
-      julianephemeris_day = julianday + (delta_t/86400)
+      julianephemeris_day = julianday + (delta_t/sec_per_day)
 
       juliancentury = (julianday - 2451545.)/36525.
 
@@ -799,7 +798,7 @@ CONTAINS
       !REAL(KIND(1D0)) :: R2_terms      !>
       !REAL(KIND(1D0)) :: R3_terms      !>
       !REAL(KIND(1D0)), dimension(3) :: R4_terms      !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the earth position relative to the sun, using
       ! tabulated values.
@@ -958,7 +957,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(252) :: nutation_terms1 !>
       REAL(KIND(1D0)), DIMENSION(4, 63) :: nutation_terms
       INTEGER :: i
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the nutation in longtitude and in obliquity, in
       ! degrees.
@@ -1077,7 +1076,7 @@ CONTAINS
            &p(1)*U**10 + p(2)*U**9 + p(3)*U**8 + p(4)*U**7 + p(5)*U**6 + p(6)*U**5 + p(7)*U**4 + &
            &p(8)*U**3 + p(9)*U**2 + p(10)*U + p(11)
 
-      corr_obliquity = (mean_obliquity/3600) + nutationobliquity
+      corr_obliquity = (mean_obliquity/arcsec_per_deg) + nutationobliquity
    END SUBROUTINE corr_obliquity_calculation
 
    SUBROUTINE abberation_correction_calculation(earth_heliocentric_positionradius, aberration_correction)
@@ -1089,7 +1088,7 @@ CONTAINS
       ! This function compute the aberration_correction, as a function of the
       ! earth-sun distance.
 
-      aberration_correction = -20.4898/(3600*earth_heliocentric_positionradius)
+      aberration_correction = -20.4898/(arcsec_per_deg*earth_heliocentric_positionradius)
 
    END SUBROUTINE abberation_correction_calculation
 
@@ -1146,7 +1145,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: sun_rigth_ascension !>
       REAL(KIND(1D0)) :: argument_denominator !>
       REAL(KIND(1D0)) :: argument_numerator !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the sun rigth ascension.
 
@@ -1168,7 +1167,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: sun_geocentric_declination !>
       REAL(KIND(1D0)), INTENT(in) :: sun_geocentric_positionlatitude !>
       REAL(KIND(1D0)) :: argument !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       argument = (SIN(sun_geocentric_positionlatitude*pi/180.0)*COS(corr_obliquity*pi/180.0)) + &
                  (COS(sun_geocentric_positionlatitude*pi/180.0)*SIN(corr_obliquity*pi/180)*SIN(apparent_sun_longitude*pi/180.0))
@@ -1212,14 +1211,14 @@ CONTAINS
       REAL(KIND(1D0)) :: u !>
       REAL(KIND(1D0)) :: x !>
       REAL(KIND(1D0)) :: y !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! topocentric_sun_positionrigth_ascension_parallax
       ! This function compute the sun position (rigth ascension and declination)
       ! with respect to the observer local position at the Earth surface.
 
       ! Equatorial horizontal parallax of the sun in degrees
-      eq_horizontal_parallax = 8.794/(3600*earth_heliocentric_positionradius)
+      eq_horizontal_parallax = 8.794/(arcsec_per_deg*earth_heliocentric_positionradius)
 
       ! Term u, used in the following calculations (in radians)
       u = ATAN(0.99664719*TAN(locationlatitude*pi/180))
@@ -1277,7 +1276,7 @@ CONTAINS
       REAL(KIND(1D0)) :: refraction_corr !>
       REAL(KIND(1D0)) :: sunazimuth !>
       REAL(KIND(1D0)) :: sunzenith !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
       ! This function compute the sun zenith angle, taking into account the
       ! atmospheric refraction. A default temperature of 283K and a
       ! default pressure of 1010 mbar are used.
@@ -1408,7 +1407,6 @@ CONTAINS
       REAL(KIND(1D0)) :: zenith, Isurf
       INTEGER :: doy
       REAL(KIND(1D0)) :: Rmean, Rse, cosZ, Itoa
-      REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
 
       Rmean = 149.6 !Stull 1998
       Rse = solar_ESdist(doy)
@@ -1432,7 +1430,7 @@ CONTAINS
       e = 0.0167
       a = 146.457
 
-      MA = 2.*3.141592654*(doy - 3)/365.25463 !Mean anomaly
+      MA = 2.*pi_sp*(doy - 3)/365.25463 !Mean anomaly
       nu = MA + 0.0333988*SIN(MA) + .0003486*SIN(2.*MA) + 5E-6*SIN(3.*MA) !true anomaly
       Rse = a*(1 - e*e)/(1 + e*COS(nu))
 
@@ -1476,7 +1474,6 @@ CONTAINS
       REAL(KIND(1D0)) :: Press_hPa, TemP_C_dew, zenith, G, trans
       REAL(KIND(1D0)) :: m, TrTpg, u, Tw, Ta, cosZ
       REAL(KIND(1D0)) :: Tdf
-      REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
 
       IF (zenith > 80.*DEG2RAD) THEN
          cosZ = COS(80.*DEG2RAD)

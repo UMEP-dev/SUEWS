@@ -38,7 +38,10 @@ def output_frames():
     )
     df_output = pd.DataFrame(np.nan, index=index, columns=columns)
     df_output["SUEWS"] = 100.0
-    df_output.loc[index[-1], "DailyState"] = 2.0
+    # The kernel writes DailyState at the last step of each date (23:30 at
+    # 30 minutes); a row stamped 00:00 would hold the next day and open a
+    # bin of its own in resampled output.
+    df_output.loc[index[-2], "DailyState"] = 2.0
     df_output["BEERS"] = np.repeat(
         np.arange(48, dtype=float)[:, None], len(df_registry.loc["BEERS"]), axis=1
     )

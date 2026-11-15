@@ -372,7 +372,7 @@ def _compare_dirs(dir_a, dir_b):
     names_b = sorted(p.name for p in dir_b.iterdir())
     assert names_a == names_b
     for name in names_a:
-        if name.endswith(".txt"):
+        if name.endswith((".txt", ".units.json")):
             assert (dir_a / name).read_bytes() == (dir_b / name).read_bytes(), name
         elif name.endswith("_checkpoint.json"):
             ckpt_a = json.loads((dir_a / name).read_text(encoding="utf-8"))
@@ -766,6 +766,7 @@ def test_logs_the_folder_and_each_chunk(short_sample_sim, tmp_path):
     list_msg = _collect_log(sim)
 
     folder = dir_out.resolve()
+    n_primary_files = sum(not p.name.endswith(".units.json") for p in folder.iterdir())
     assert list_msg == [
         f"stream_chunk: writing the output to {folder} in chunks of up to 30 days; "
         "it is not kept in memory, and chunk_day is ignored.",
@@ -773,7 +774,7 @@ def test_logs_the_folder_and_each_chunk(short_sample_sim, tmp_path):
         f"to {folder}",
         f"stream_chunk: wrote 2012 chunk 1 of 1 (2012-01-01 00:05:00 to {last}) "
         f"to {folder}",
-        f"stream_chunk: finished writing {len(list(folder.iterdir()))} files to "
+        f"stream_chunk: finished writing {n_primary_files} files to "
         f"{folder}; the returned output holds no rows.",
     ]
     assert all(msg.isascii() for msg in list_msg)
@@ -986,7 +987,9 @@ def test_save_afterwards_returns_the_written_files(short_sample_sim, tmp_path):
 
     paths = sim.save()
 
-    assert {Path(p).name for p in paths} == set(dict_bytes)
+    assert {Path(p).name for p in paths} == {
+        name for name in dict_bytes if not name.endswith(".units.json")
+    }
     assert len(paths) == len(set(paths))
     # Nothing was written again.
     assert {p.name: p.read_bytes() for p in dir_out.iterdir()} == dict_bytes
@@ -1454,6 +1457,69 @@ def test_parquet_short_last_chunk_at_the_model_timestep(
     _compare_with_whole(tmp_path, dir_whole, GROUPS_PARQUET, TSTEP_S)
 
 
+def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, tmp_path):
+    """A completed streamed run retains the last chunk's fifteen-minute bin."""
+    from supy.suews_output import SUEWSOutput
+
+    sim = _parquet_sim(
+        short_sample_sim, tmp_path, 3600, 1,
+        end="2011-12-17 00:15", groups=["SUEWS", "DailyState"],
+    )
+    forcing = sim.forcing.df.copy()
+    forcing["rain"] = 0.5
+    sim.update_forcing(forcing)
+    sim.run()
+
+    path = _output_path(tmp_path)
+    parts = sorted(path.glob("part-*.parquet"))
+    assert len(parts) == 2
+    key = "1|2011-12-17T01:00:00"
+    for source in (path, parts[-1]):
+        saved = pd.read_parquet(source)
+        assert saved.attrs["supy_output_coverage_s"][key] == 900
+        assert saved["SUEWS", "Rain"].dropna().to_numpy() == pytest.approx(0.5 / TSTEP_S)
+        daily = SUEWSOutput(saved, None).resample("D")
+        # DailyState-only bins have no main-group coverage or rain rate.
+        rain = daily.df["SUEWS", "Rain"].dropna()
+        assert len(rain) == (2 if source == path else 1)
+        assert rain.to_numpy() == pytest.approx(0.5 / TSTEP_S)
+
+
+@pytest.mark.parametrize("freq", ["MS", "ME", "YE"])
+def test_parquet_reload_resamples_dailystate_like_the_run(
+    short_sample_sim, tmp_path, freq
+):
+    """Streamed hourly Parquet reloaded and resampled keeps each day's period.
+
+    The folder declares one-hour rows while DailyState keeps its native
+    23:55 stamps, so treating those stamps as hourly start labels moved
+    31 December's P_day and daily coverage into the next year (and each
+    month's last day into the next month).
+    """
+    from supy._post import _resample_output
+    from supy.suews_output import SUEWSOutput
+
+    groups = ["SUEWS", "DailyState"]
+    output = _year_crossing_sim(
+        short_sample_sim, tmp_path / "whole", 3600, None, groups=groups
+    ).run()
+    _parquet_sim(short_sample_sim, tmp_path / "streamed", 3600, 7, groups=groups).run()
+    saved = pd.read_parquet(_output_path(tmp_path / "streamed"))
+    assert saved.attrs["supy_output_interval_s"] == 3600
+
+    expected = output.resample(freq).df
+    coverage = "supy_output_daily_coverage_s"
+    for reloaded in (
+        SUEWSOutput(saved, output.state_final).resample(freq).df,
+        _resample_output(saved, freq),
+    ):
+        p_day = reloaded["DailyState", "P_day"].dropna()
+        pd.testing.assert_series_equal(
+            p_day, expected["DailyState", "P_day"].dropna(), rtol=1e-9
+        )
+        assert reloaded.attrs[coverage] == pytest.approx(expected.attrs[coverage])
+
+
 def test_parquet_output_names_the_folder_and_save_returns_it(
     short_sample_sim, tmp_path
 ):
@@ -1524,7 +1590,8 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
 
     The mid-year case is resumed twice, the first resume itself failing part
     of the way, so deleting the parts after the checkpoint must be
-    repeatable. The completed year's parts are kept, not written again.
+    repeatable. Completed parts keep their values; only the first part's
+    folder-wide coverage metadata is refreshed at completion.
     """
     dir_full = tmp_path / "full"
     _parquet_sim(short_sample_sim, dir_full, freq_s, 1, list_gridiv=list_gridiv).run()
@@ -1549,9 +1616,14 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
     _resume(sim, dir_out)
 
     _compare_streamed_dirs(dir_out, dir_full)
+    # Folder readers use the first part's schema. Completion atomically
+    # refreshes that schema with coverage from all parts, including the
+    # resumed year; _compare_streamed_dirs above still checks every value.
+    first_part = min(dict_2011)
     assert {
         p.name: p.stat().st_mtime_ns for p in path_output.glob("part-2011-*.parquet")
-    } == dict_2011
+        if p.name != first_part
+    } == {name: mtime for name, mtime in dict_2011.items() if name != first_part}
 
 
 def test_parquet_part_cut_short_is_never_left_half_written(
@@ -1861,7 +1933,9 @@ def test_cli_run_streams_each_file_once(tmp_path, monkeypatch):
         if line.strip().startswith(str(dir_out))
     ]
     assert len(listed) == len(set(listed))
-    assert {Path(p).name for p in listed} == {p.name for p in dir_out.iterdir()}
+    assert {Path(p).name for p in listed} == {
+        p.name for p in dir_out.iterdir() if not p.name.endswith(".units.json")
+    }
     prov = read_provenance(dir_out)
     assert prov["run"]["interface"] == "cli"
     assert prov["run"]["command"] == "suews run case.yml"

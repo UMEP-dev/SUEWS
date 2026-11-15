@@ -7,13 +7,13 @@ meteorological forcing data for SUEWS simulations.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Mapping, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
 from ._load import ForcingConflictError  # noqa: F401  (public re-export)
-from .data_model.forcing import FORCING_REGISTRY
+from .data_model.forcing import FORCING_REGISTRY, ForcingVariable
 
 # Compatibility projections retained for downstream users of these module
 # constants. File aliases remain a separate registry namespace.
@@ -184,6 +184,8 @@ class SUEWSForcing:
         tstep_mod: int = 300,
         *,
         on_conflict: str = "error",
+        source_contract: Optional[str] = None,
+        units: Optional[Mapping[str, str]] = None,
     ) -> "SUEWSForcing":
         """
         Load forcing from file(s).
@@ -205,10 +207,18 @@ class SUEWSForcing:
             ``-999``) is filled from the other rather than treated as a
             conflict.
 
+        units : mapping of str to str, optional
+            File column names (or file aliases) mapped to their declared units.
+            Values are converted through supy.units.convert to registry units
+            before the existing runtime conversion (pressure to hPa). Undeclared
+            columns retain their historical interpretation.
+
         Returns
         -------
         SUEWSForcing
-            Loaded forcing data
+            Loaded forcing data, in the in-memory units: pressure (``pres``)
+            is held in kPa in a forcing file and converted to hPa here, as
+            declared by the forcing registry.
 
         Raises
         ------
@@ -243,7 +253,7 @@ class SUEWSForcing:
                 if not file_path.exists():
                     raise FileNotFoundError(f"Forcing file not found: {file_path}")
                 df = read_forcing(
-                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract, units=units
                 )
                 dfs.append(df)
                 sources.append(str(file_path))
@@ -259,7 +269,7 @@ class SUEWSForcing:
         if not file_path.exists():
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict)
+        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract, units=units)
         df_main, extras = cls._split_per_landcover_columns(df)
         instance = cls(df_main, source=str(file_path))
         instance._extras = extras
@@ -1076,11 +1086,13 @@ class SUEWSForcing:
         out["it"] = idx.hour.to_numpy(dtype=np.int64)
         out["imin"] = idx.minute.to_numpy(dtype=np.int64)
 
-        def _to_file_values(values: np.ndarray, scale: float) -> np.ndarray:
+        def _to_file_values(
+            values: np.ndarray, variable: Optional[ForcingVariable] = None
+        ) -> np.ndarray:
             values = np.asarray(values, dtype=np.float64)
             missing = ~np.isfinite(values) | (values <= SUEWS_MISSING_THRESHOLD)
-            if scale != 1.0:
-                values = np.where(missing, values, values / scale)
+            if variable is not None and variable.runtime_unit is not None:
+                values = np.where(missing, values, variable.to_file_unit(values))
             return np.where(missing, FORCING_OPTIONAL_FILL, values)
 
         consumed = set(datetime_cols) | {"isec"}
@@ -1092,9 +1104,7 @@ class SUEWSForcing:
                 out[variable.name] = np.full(n_rows, FORCING_OPTIONAL_FILL)
                 continue
             consumed.add(str(series.name).lower())
-            out[variable.name] = _to_file_values(
-                series.to_numpy(), variable.runtime_scale
-            )
+            out[variable.name] = _to_file_values(series.to_numpy(), variable)
 
         # Per-landcover extensions (gh#1372): the registry order first, then
         # any further whitelisted names carried in ``extras``.
@@ -1113,7 +1123,7 @@ class SUEWSForcing:
                     f"Extension column '{name}' has {values.shape[0]} values "
                     f"but the forcing has {n_rows} rows."
                 )
-            out[name] = _to_file_values(values, 1.0)
+            out[name] = _to_file_values(values)
 
         unknown = [col for col in data.columns if str(col).lower() not in consumed]
         if unknown:
@@ -1124,7 +1134,7 @@ class SUEWSForcing:
                 stacklevel=3,
             )
             for col in unknown:
-                out[str(col)] = _to_file_values(data[col].to_numpy(), 1.0)
+                out[str(col)] = _to_file_values(data[col].to_numpy())
 
         return pd.DataFrame(out)
 

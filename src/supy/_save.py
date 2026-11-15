@@ -1,6 +1,7 @@
 import csv
 from functools import partial
 import io
+import json
 import os
 from pathlib import Path
 import re
@@ -15,6 +16,15 @@ import pandas as pd
 # import ray
 from ._env import _user_warning_stacklevel, logger_supy
 from ._load import load_SUEWS_dict_ModConfig
+from ._output_metadata import (
+    HeldInterval,
+    output_interval_seconds,
+    prepare_output,
+    resolve_held_interval,
+    with_daily_coverage,
+    write_output_parquet,
+    write_text_metadata,
+)
 from ._post import _resample_output, df_var as df_var_out
 from .data_model.output import PROVISIONAL_OUTPUT_GROUPS
 
@@ -265,6 +275,15 @@ def relabel_output_timestamps(
 
     df_relabelled = df_output.copy()
     df_relabelled.index = index
+    for key in ("supy_output_coverage_s", "supy_output_daily_coverage_s"):
+        coverage = df_output.attrs.get(key)
+        if coverage:
+            # Coverage follows row identity when a writer changes its clock.
+            df_relabelled.attrs[key] = {
+                f"{new_grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
+                for (grid, date), (new_grid, new_date) in zip(df_output.index, index)
+                if f"{grid}|{date.isoformat()}" in coverage
+            }
     return df_relabelled
 
 
@@ -385,18 +404,18 @@ def _txt_header_line(df_year: pd.DataFrame) -> str:
     return buffer.getvalue()
 
 
-def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False) -> None:
+def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False, rate_columns=()) -> None:
     r"""Write one grid-group-year table as SUEWS tab-separated text.
 
     With *append*, the rows are added to the end of an existing file and no
     header is written, so a file built from consecutive tables holds the
     same bytes as one written from their concatenation.
 
-    The layout is the one SuPy has always written: the date columns, then
-    every value as ``%.4f`` right-justified to ``max(8, len(name))`` with
-    missing values as -999. Rows are formatted and written a block at a
+    The layout retains the date columns and non-water values as ``%.4f``
+    right-justified to ``max(8, len(name))``. Water-rate columns use ``%.10e``
+    to retain small fluxes; missing values remain -999. Rows are written a block at a
     time, so no string copy of the whole table is built (gh#1849). The bytes
-    match formatting every cell to a ``str`` and writing the table with
+    of non-water columns match formatting each cell to a ``str`` and writing with
     ``pandas.DataFrame.to_csv(sep="\t", index=False)``: ``'%W.4f'`` and
     ``format(value, '>W.4f')`` share CPython's float formatting, and the
     header goes through the same csv writer settings pandas uses.
@@ -408,7 +427,10 @@ def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False) -
     fmt_dt = "\t".join(
         [f"%{max(3, len(name))}d" for name in list_name_dt[:4]] + ["%8.4f"]
     )
-    fmt_var = "\t".join(f"%{max(8, len(name))}.4f" for name in list_name_var)
+    fmt_var = "\t".join(
+        f"%{max(8, len(name))}.10e" if name in rate_columns else f"%{max(8, len(name))}.4f"
+        for name in list_name_var
+    )
 
     list_dt = list(zip(*(df_datetime[name].tolist() for name in df_datetime.columns)))
     ar_value = df_year.to_numpy(dtype=np.float64)
@@ -578,7 +600,9 @@ class StreamedParquetParts:
         """Name the chunk the next :meth:`write` holds."""
         self._chunk = (int(year), int(chunk))
 
-    def write(self, path_output: Path, df_frame: pd.DataFrame, write_sidecars) -> None:
+    def write(
+        self, path_output: Path, df_frame: pd.DataFrame, write_sidecars, interval_s=None
+    ) -> None:
         """Write one chunk's rows to its own part file.
 
         *write_sidecars* writes the files saved beside the output folder and
@@ -594,9 +618,7 @@ class StreamedParquetParts:
         year, chunk = self._chunk
         path_part = self.path_output / f"part-{year:04d}-{chunk:03d}.parquet"
         path_tmp = path_part.with_name(f".{path_part.name}.tmp")
-        df_frame.to_parquet(
-            path_tmp, engine=_parquet_engine(), compression="snappy", index=True
-        )
+        write_output_parquet(df_frame, path_tmp, interval_s)
         os.replace(path_tmp, path_part)
         self._chunk = None
 
@@ -606,7 +628,37 @@ class StreamedParquetParts:
         The output folder comes first, as :func:`save_df_output_parquet`
         returns its output file first.
         """
+        self._complete_coverage_metadata()
         return [self.path_output, *self._write_sidecars()]
+
+    def _complete_coverage_metadata(self) -> None:
+        """Let folder readers recover coverage from every completed part.
+
+        Arrow uses the first part's schema for a folder. Merge only coverage
+        from the other footers (including resumed parts), then atomically
+        rewrite the first chunk with that schema. Memory stays chunk-bounded.
+        Individual parts retain their own complete coverage.
+        """
+        import pyarrow.parquet as pq
+
+        paths = sorted(self.path_output.glob("part-*.parquet"))
+        if len(paths) < 2:
+            return
+        metadata = dict(pq.read_schema(paths[0]).metadata)
+        attrs = json.loads(metadata[b"PANDAS_ATTRS"])
+        for path in paths[1:]:
+            part_attrs = json.loads(pq.read_schema(path).metadata[b"PANDAS_ATTRS"])
+            for key in ("supy_output_coverage_s", "supy_output_daily_coverage_s"):
+                if part_attrs.get(key):
+                    attrs[key] = {**(attrs.get(key) or {}), **part_attrs[key]}
+        combined = json.dumps(attrs).encode("utf-8")
+        if combined == metadata[b"PANDAS_ATTRS"]:
+            return
+        metadata[b"PANDAS_ATTRS"] = combined
+        table = pq.read_table(paths[0]).replace_schema_metadata(metadata)
+        path_tmp = paths[0].with_name(f".{paths[0].name}.tmp")
+        pq.write_table(table, path_tmp, compression="snappy")
+        os.replace(path_tmp, paths[0])
 
     def prepare(self) -> None:
         """Clear or trim the output folder before the run's first chunk."""
@@ -765,6 +817,7 @@ def save_df_grid_group(
     fallback_freq_s=300,
     streamed_files: Optional[StreamedTextFiles] = None,
     year: Optional[int] = None,
+    metadata_interval_s: Optional[int] = None,
 ):
     """Write one grid-group-year table as a text file; return its path.
 
@@ -780,7 +833,11 @@ def save_df_grid_group(
     # processing path
     path_dir = Path(dir_save)
     # pandas bug here: monotonic datetime index would lose `freq` once `pd.concat`ed
-    if freq_s is not None:
+    if group == "DailyState":
+        # Sparse daily records can include a partial last day. Preserve their
+        # timestamps; the nominal day is only used for the file name.
+        freq = pd.Timedelta(days=1)
+    elif freq_s is not None:
         freq = pd.Timedelta(freq_s, unit="s")
         if not allow_irregular_timestamps:
             df_year = _asfreq_frame(df_year, freq)
@@ -816,13 +873,39 @@ def save_df_grid_group(
         path_out, _txt_header_line(df_year)
     )
     t_start = time.time()
-    _write_df_txt(df_year, path_out, append=append)
+    df_year = prepare_output(
+        df_year, group=group, write=True,
+        interval_s=metadata_interval_s if metadata_interval_s is not None else int(freq.total_seconds()),
+    )
+    rate_columns = [
+        name for name in df_year.columns
+        if (group, name) in df_year.attrs.get("supy_water_rate_columns", [])
+    ]
+    _write_df_txt(df_year, path_out, append=append, rate_columns=rate_columns)
     t_end = time.time()
     # remove freq info from `DailyState` file
     if "DailyState" in path_out.name:
         str_fn_dd = str(path_out).replace("DailyState_5", "DailyState")
         path_out.rename(Path(str_fn_dd))
         path_out = Path(str_fn_dd)
+    daily_coverage = None
+    if group == "DailyState":
+        dates = {date.isoformat() for date in df_year.index}
+        daily_coverage = {
+            key: value for key, value in (df_year.attrs.get("supy_output_daily_coverage_s") or {}).items()
+            if key.split("|", 1)[1] in dates
+        }
+    write_text_metadata(
+        path_out,
+        [name.strip() for name in _txt_header_names(df_year)],
+        group,
+        metadata_interval_s
+        if metadata_interval_s is not None
+        else int(freq.total_seconds()),
+        units=df_year.attrs.get("supy_output_units"),
+        coverage=daily_coverage,
+        append=append,
+    )
     logger_supy.debug(f"{path_out} saved in {t_end - t_start:.2f} s")
     return path_out
 
@@ -868,6 +951,11 @@ def _save_row_index(
     is moved back by *step_s*, the table's step.
     """
     if shift_to_period_start:
+        # A table saved at its native step skips resampling and may be a slice
+        # of a longer run (a short last chunk), whose datetime level still
+        # holds the run's other timestamps; replacing that level needs it to
+        # hold exactly the timestamps present.
+        index = index.remove_unused_levels()
         idx_dt = index.get_level_values("datetime").drop_duplicates()
 
         # cast freq to index if not associated
@@ -901,6 +989,7 @@ def _save_groups(
     timestamps_are_final=False,
     dict_group_frequency_s=None,
     step_s=None,
+    metadata_interval_s=None,
     streamed_files: Optional[StreamedTextFiles] = None,
 ) -> list:
     """Save ``list_group`` of ``df_save`` one grid, group and year at a time.
@@ -925,7 +1014,14 @@ def _save_groups(
             df_group = df_save[group]
             df_group.index = index
             df_grid_group = df_group.xs(grid, level="grid")
-            idx_asfreq = _grid_asfreq_index(
+            if group == "DailyState":
+                coverage = df_save.attrs.get("supy_output_daily_coverage_s")
+                df_grid_group.attrs["supy_output_daily_coverage_s"] = {
+                    f"{grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
+                    for (old_grid, date), (_, new_date) in zip(df_save.index, index)
+                    if old_grid == grid and f"{grid}|{date.isoformat()}" in coverage
+                } if coverage is not None else None
+            idx_asfreq = None if group == "DailyState" else _grid_asfreq_index(
                 df_grid_group.index, allow_irregular_timestamps
             )
             for year in list_year:
@@ -956,6 +1052,9 @@ def _save_groups(
                         fallback_freq_s=step_s if step_s is not None else 300,
                         streamed_files=streamed_files,
                         year=year,
+                        metadata_interval_s=86400
+                        if group == "DailyState"
+                        else metadata_interval_s,
                     )
                     list_path_save.append(path_save)
                 del df_year
@@ -1022,6 +1121,7 @@ def save_df_output(
     forcing_timestamp_reference="local_standard_time",
     df_state_final: Optional[pd.DataFrame] = None,
     streamed_files: Optional[StreamedTextFiles] = None,
+    units: Optional[dict] = None,
     *,
     include_provisional: bool = False,
 ) -> list:
@@ -1029,6 +1129,8 @@ def save_df_output(
 
     Parameters
     ----------
+    units : mapping, optional
+        Requested output units by variable name or (group, variable) pair.
     df_output : pd.DataFrame
         output dataframe of supy simulation
     freq_s : int, optional
@@ -1073,6 +1175,11 @@ def save_df_output(
     relabelled and written one (grid, group) at a time (gh#1849).
     """
     check_provisional_groups(output_groups, include_provisional)
+    held, held_s = _resolve_save_interval(df_output, df_state_final)
+    _check_save_tstep(held, save_tstep)
+    _check_positive_frequency(freq_s)
+    df_output = with_daily_coverage(df_output, held_s)
+    df_output = prepare_output(df_output, units, interval_s=held_s)
 
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
@@ -1093,15 +1200,23 @@ def save_df_output(
     # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
     df_dailystate = None
     if "DailyState" in list_group_save:
+        _check_dailystate_interval(held_s)
         df_dailystate = _dailystate_rows(df_output)
     list_group_no_daily = [g for g in list_group_save if g != "DailyState"]
+    if list_group_no_daily:
+        # Only these groups are resampled to `freq_s`; DailyState rows are
+        # written as held, so a DailyState-only save leaves `freq_s` unused.
+        _check_save_frequency(held_s, freq_s)
 
     # resample `df_output` at `freq_save` (excluding DailyState); at the
     # native timestep `df_output` itself comes back, unresampled
     df_rsmp = None
     list_group_rsmp = []
     if list_group_no_daily:
-        df_rsmp = _resample_output(df_output, freq_save, groups=list_group_no_daily)
+        df_rsmp = _resample_output(
+            df_output, freq_save, groups=list_group_no_daily,
+            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
+        )
         list_group_rsmp = [
             g
             for g in df_rsmp.columns.get_level_values("group").unique()
@@ -1160,8 +1275,12 @@ def save_df_output(
             df_state_final,
             step_s=fallback_frequency_s,
         )
+        metadata_interval_s = fallback_frequency_s
+        if save_tstep and df_save is df_output:
+            metadata_interval_s = held_s
+        df_written = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
         list_path_save += _save_groups(
-            df_save,
+            df_written,
             list_group,
             index_save,
             path_dir_save,
@@ -1171,6 +1290,7 @@ def save_df_output(
             timestamps_are_final=timestamps_are_final,
             dict_group_frequency_s=dict_group_frequency_s,
             step_s=fallback_frequency_s,
+            metadata_interval_s=metadata_interval_s,
             streamed_files=streamed_files,
         )
     return list_path_save
@@ -1355,6 +1475,133 @@ def save_initcond_nml(
     return list_path_nml
 
 
+def _check_save_tstep(held, save_tstep: bool) -> None:
+    """Reject saving calendar-resampled output, naming the remedy.
+
+    Calendar periods (``W``, ``MS``, ``ME``, ``YE``) have no fixed length, so
+    the writers can neither name the files by an interval in minutes nor
+    record an interval in their metadata; resampling such rows again to a
+    fixed saving step would split each period across two rows. *held* is the
+    save's resolved interval (see :func:`_resolve_save_interval`), so final
+    state outranks the stamps: native rows kept once a week are not calendar
+    rows.
+    """
+    if held.kind != "calendar":
+        return
+    if save_tstep:
+        raise ValueError(
+            "save_tstep=True conflicts with calendar-resampled output (for example ME). "
+            "Save the native output before calendar resampling."
+        )
+    raise ValueError(
+        "Calendar-resampled output (for example ME or W) cannot be saved to files: "
+        "a calendar period has no fixed interval to name the files and describe "
+        "the rows. Save the native output, at a fixed freq_s if needed, or write "
+        "the resampled frame (output.df) with pandas."
+    )
+
+
+def _check_positive_frequency(freq_s) -> None:
+    """Reject a saving frequency that is not positive, whatever is resampled."""
+    if not freq_s > 0:
+        raise ValueError(f"Output frequency must be positive, got freq_s={freq_s}")
+
+
+def _check_save_frequency(held_s, freq_s) -> None:
+    """Reject a saving frequency the held rows cannot be aggregated to.
+
+    Resampled rows (for example daily) cannot be split into finer saving
+    periods: the writer would describe daily values as hourly ones. A saving
+    period that is not a whole number of held intervals would put a varying
+    number of rows in each period (five-minute rows saved at seven minutes
+    hold alternately five and ten minutes), so it is refused as the
+    configuration refuses an output frequency that is not a multiple of the
+    timestep. *held_s* is resolved as resampling resolves it (see
+    :func:`_resolve_save_interval`), so a frame saved without final state is
+    checked against the regular cadence of its timestamps; only when no
+    interval can be established is the check skipped, with a warning.
+    """
+    _check_positive_frequency(freq_s)
+    if held_s is None:
+        logger_supy.warning(
+            "The interval the output rows hold is unknown (no declared "
+            "interval, final state or regular timestamps), so freq_s=%s "
+            "cannot be checked against it.",
+            freq_s,
+        )
+        return
+    if freq_s < held_s:
+        raise ValueError(
+            f"freq_s={freq_s} is finer than the held output interval of "
+            f"{int(held_s)} s; resampled output can only be saved at its own "
+            "interval or a coarser one."
+        )
+    if freq_s % held_s != 0:
+        raise ValueError(
+            f"freq_s={freq_s} must be a whole multiple of the held output "
+            f"interval of {int(held_s)} s, so that each saved row holds the "
+            "same number of held rows."
+        )
+
+
+def _check_dailystate_interval(held_s, freq_s=None) -> None:
+    """Reject saving DailyState rows that aggregate more than one day.
+
+    The writers describe every DailyState row as one day (its water totals
+    as the covered day), so rows of a multi-day resample (for example
+    ``"2D"``) would be saved under that description. ``freq_s`` is given
+    where the writer resamples DailyState itself (Parquet), so a saving
+    period longer than a day is refused there too.
+    """
+    span_s = max(held_s or 0, freq_s or 0)
+    if span_s > 86400:
+        raise ValueError(
+            f"DailyState rows resampled to more than one day ({int(span_s)} s) "
+            "cannot be saved: the files describe each DailyState row as one "
+            "day. Save the other groups only (groups=['SUEWS'], text output), "
+            "or save the native or daily output."
+        )
+
+
+def _resolve_save_interval(df_output, df_state_final) -> Tuple[HeldInterval, Optional[float]]:
+    """Resolve once per save the interval the rows hold, for every guard.
+
+    Resolved by :func:`supy._output_metadata.resolve_held_interval`, as
+    resampling resolves it: the frame's declared interval, else the model
+    timestep in final state, else the regular cadence of the timestamps. The
+    writers resolve once and share the answer, so no guard decides on less
+    evidence than another.
+
+    Returns the :class:`~supy._output_metadata.HeldInterval` and its fixed
+    length in seconds: the declared value unchanged, else an int when whole.
+    The seconds are ``None`` for calendar rows (refused by
+    :func:`_check_save_tstep`) and when no interval can be established.
+    """
+    held = resolve_held_interval(df_output, df_state_final=df_state_final)
+    if held.kind != "fixed":
+        return held, None
+    if held.source == "attrs":
+        return held, df_output.attrs["supy_output_interval_s"]
+    seconds = int(held.seconds) if float(held.seconds).is_integer() else held.seconds
+    return held, seconds
+
+
+def _native_interval_s(df_state_final) -> Optional[int]:
+    """Return the model timestep held in final state, or None without one.
+
+    Callers that supply no state fall back, through
+    :func:`supy._output_metadata.resolve_held_interval`, to the cadence
+    :func:`pandas.infer_freq` finds in the output index, which declines for
+    irregular timestamps.
+    """
+    if df_state_final is None or df_state_final.empty:
+        return None
+    try:
+        return int(_state_scalar(df_state_final, df_state_final.index[0], "tstep"))
+    except (KeyError, ValueError):
+        return None
+
+
 def _parquet_engine() -> str:
     """Return the Parquet engine, raising a helpful error without pyarrow."""
     try:
@@ -1415,7 +1662,22 @@ def _parquet_chunk_frame(
         list_frame.append(_dailystate_rows(df_output))
     df_chunk = list_frame[0] if len(list_frame) == 1 else pd.concat(list_frame, axis=1)
     columns = df_output.columns[ser_group.isin(df_chunk.columns.get_level_values(0))]
-    return df_chunk.reindex(columns=columns).sort_index()
+    df_chunk = df_chunk.reindex(columns=columns).sort_index()
+    # Main rows and sparse daily rows have different interval attributes;
+    # concat otherwise drops the explicit unit declarations they share.
+    df_chunk.attrs = df_output.attrs.copy()
+    if list_main:
+        df_chunk.attrs.update(df_main.attrs)
+        coverage = df_main.attrs.get("supy_output_coverage_s", {}).copy()
+        # Sparse DailyState-only rows carry no main-group water interval.
+        coverage.update({
+            f"{grid}|{date.isoformat()}": 0.0
+            for grid, date in df_chunk.index.difference(df_main.index)
+        })
+        if coverage:
+            df_chunk.attrs["supy_output_coverage_s"] = coverage
+    df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
+    return df_chunk
 
 
 def _write_parquet_sidecars(
@@ -1476,6 +1738,7 @@ def save_df_output_parquet(
     timestamp_reference="follow",
     forcing_timestamp_reference="local_standard_time",
     streamed_parquet: Optional[StreamedParquetParts] = None,
+    units: Optional[dict] = None,
 ) -> list:
     """Save supy output to Parquet format.
 
@@ -1487,6 +1750,8 @@ def save_df_output_parquet(
 
     Parameters
     ----------
+    units : mapping, optional
+        Requested output units by variable name or (group, variable) pair.
     df_output : pd.DataFrame
         Output dataframe from supy simulation
     df_state_final : pd.DataFrame
@@ -1521,7 +1786,18 @@ def save_df_output_parquet(
     list
         List containing paths to saved Parquet files
     """
-    engine = _parquet_engine()
+    _parquet_engine()
+    held, held_s = _resolve_save_interval(df_output, df_state_final)
+    _check_save_tstep(held, save_tstep)
+    _check_save_frequency(held_s, freq_s)
+    if "DailyState" in df_output.columns.get_level_values("group"):
+        # DailyState is resampled with the other groups unless saved as held.
+        _check_dailystate_interval(
+            held_s, freq_s if streamed_parquet is None and not save_tstep else None
+        )
+    df_output = with_daily_coverage(df_output, held_s)
+    df_output = prepare_output(df_output, units, interval_s=held_s)
+
 
     if streamed_parquet is None:
         # The output mode, not the function, is retired, so internal callers
@@ -1544,7 +1820,10 @@ def save_df_output_parquet(
         df_to_save = _parquet_chunk_frame(df_save, freq_save, streamed_parquet.tstep_s)
     elif not save_tstep:
         # Resample output
-        df_rsmp = _resample_output(df_save, freq_save)
+        df_rsmp = _resample_output(
+            df_save, freq_save,
+            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
+        )
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
@@ -1556,13 +1835,6 @@ def save_df_output_parquet(
         df_to_save = df_rsmp
     else:
         df_to_save = df_save
-
-    df_to_save = relabel_output_timestamps(
-        df_to_save,
-        timestamp_reference,
-        forcing_timestamp_reference,
-        df_state_final,
-    )
 
     # Construct filenames
     path_output = parquet_file_path(path_dir_save, site, "output", timestamp_reference)
@@ -1578,17 +1850,26 @@ def save_df_output_parquet(
         timestamp_reference,
     )
 
+    interval_s = freq_s
+    if save_tstep and streamed_parquet is None:
+        interval_s = held_s
+
+    if interval_s is None:
+        interval_s = int(output_interval_seconds(df_save))
+    df_to_save = prepare_output(df_to_save, interval_s=interval_s, write=True)
+    df_to_save = relabel_output_timestamps(
+        df_to_save,
+        timestamp_reference,
+        forcing_timestamp_reference,
+        df_state_final,
+    )
+
     if streamed_parquet is not None:
-        streamed_parquet.write(path_output, df_to_save, write_sidecars)
+        streamed_parquet.write(path_output, df_to_save, write_sidecars, interval_s)
         return [path_output]
 
     # Write output data
-    df_to_save.to_parquet(
-        path_output,
-        engine=engine,
-        compression="snappy",
-        index=True,  # Preserve multi-index
-    )
+    write_output_parquet(df_to_save, path_output, interval_s)
     list_path_save = [path_output, *write_sidecars()]
 
     logger_supy.info(f"Saved Parquet output to {path_output}")

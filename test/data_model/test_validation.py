@@ -3480,7 +3480,7 @@ def test_forcing_validation_valid_forcing_file():
         "ldown": [300.0] * 5,
         "fcld": [0.5] * 5,
         "wuh": [10.0] * 5,
-        "xsmd": [0.2] * 5,
+        "sm": [0.2] * 5,
         "lai": [2.0] * 5,
         "kdiff": [100.0] * 5,
         "kdir": [100.0] * 5,
@@ -3537,7 +3537,7 @@ def test_forcing_validation_invalid_ranges():
         "ldown": [300.0] * 5,
         "fcld": [0.5] * 5,
         "wuh": [10.0] * 5,
-        "xsmd": [0.2] * 5,
+        "sm": [0.2] * 5,
         "lai": [2.0] * 5,
         "kdiff": [100.0] * 5,
         "kdir": [100.0] * 5,
@@ -3709,7 +3709,7 @@ def test_forcing_validation_line_number_accuracy():
         "ldown": [300.0] * 10,
         "fcld": [0.5] * 10,
         "wuh": [10.0] * 10,
-        "xsmd": [0.2] * 10,
+        "sm": [0.2] * 10,
         "lai": [2.0] * 10,
         "kdiff": [100.0] * 10,
         "kdir": [100.0] * 10,
@@ -3779,7 +3779,7 @@ def test_forcing_validation_refvalue_format():
         "ldown": [300.0] * 3,
         "fcld": [0.5] * 3,
         "wuh": [10.0] * 3,
-        "xsmd": [0.2] * 3,
+        "sm": [0.2] * 3,
         "lai": [2.0] * 3,
         "kdiff": [100.0] * 3,
         "kdir": [100.0] * 3,
@@ -3847,7 +3847,7 @@ def test_forcing_validation_multiple_files():
         "ldown": [300.0] * 3,
         "fcld": [0.5] * 3,
         "wuh": [10.0] * 3,
-        "xsmd": [0.2] * 3,
+        "sm": [0.2] * 3,
         "lai": [2.0] * 3,
         "kdiff": [100.0] * 3,
         "kdir": [100.0] * 3,
@@ -3939,7 +3939,7 @@ def test_forcing_validation_cli_integration(cli_runner):
         "ldown": [300.0] * 3,
         "fcld": [0.5] * 3,
         "wuh": [10.0] * 3,
-        "xsmd": [0.2] * 3,
+        "sm": [0.2] * 3,
         "lai": [2.0] * 3,
         "kdiff": [100.0] * 3,
         "kdir": [100.0] * 3,
@@ -4503,7 +4503,7 @@ model:
     roughness_length_momentum: {value: 1}
     roughness_length_heat: {value: 2}
     stability: {value: 3}
-    soil_moisture_deficit: {value: 0}
+    soil_moisture: {value: 0}
     water_use: {value: 0}
     roughness_sublayer: {value: 1}
     roughness_sublayer_level: {value: 1}
@@ -4578,7 +4578,7 @@ model:
     roughness_length_momentum: {value: 1}
     roughness_length_heat: {value: 2}
     stability: {value: 3}
-    soil_moisture_deficit: {value: 0}
+    soil_moisture: {value: 0}
     water_use: {value: 0}
     roughness_sublayer: {value: 1}
     frontal_area_index: {value: 1}
@@ -4664,7 +4664,7 @@ model:
     roughness_length_momentum: {value: 1}
     roughness_length_heat: {value: 2}
     stability: {value: 3}
-    soil_moisture_deficit: {value: 0}
+    soil_moisture: {value: 0}
     water_use: {value: 0}
     roughness_sublayer: {value: 1}
     frontal_area_index: {value: 1}
@@ -5027,7 +5027,7 @@ class TestPhaseBRenameAwareLookups:
     _REQUIRED_FLAT_PHYSICS = [
         "net_radiation", "emissions", "storage_heat", "ohm_inc_qf",
         "roughness_length_momentum", "roughness_length_heat", "stability",
-        "soil_moisture_deficit", "water_use", "roughness_sublayer",
+        "soil_moisture", "water_use", "roughness_sublayer",
         "frontal_area_index", "roughness_sublayer_level", "surface_conductance",
         "snow_use",
     ]

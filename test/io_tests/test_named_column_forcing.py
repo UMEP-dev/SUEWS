@@ -8,8 +8,8 @@ import pytest
 
 pytestmark = pytest.mark.api
 
-FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "benchmark1" / "forcing"
-CANONICAL_FIXTURE = FIXTURE_DIR / "Kc1_2011_data_5_tiny.txt"
+FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "soil_observation"
+CANONICAL_FIXTURE = FIXTURE_DIR / "modelled_content.txt"
 
 
 def _read_canonical():
@@ -184,7 +184,7 @@ def test_per_landcover_columns_separated_into_extras(tmp_path):
     assert (forcing.extras["wuh_paved"] == 0.25).all()
     # Main DataFrame retains canonical columns; per-landcover ones are gone.
     canonical = {"iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "rain",
-                 "kdown", "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
+                 "kdown", "snow", "ldown", "fcld", "Wuh", "sm", "lai",
                  "qn", "qh", "qe", "qs", "qf", "isec"}
     assert canonical.issubset(set(forcing.df.columns))
     assert "lai_evetr" not in forcing.df.columns
@@ -341,7 +341,7 @@ def test_shuffled_header_yields_same_dataframe_as_canonical():
     canonical_path = CANONICAL_FIXTURE
     shuffled_path = (
         Path(__file__).resolve().parent.parent
-        / "fixtures" / "forcing" / "kc_shuffled.txt"
+        / "fixtures" / "soil_observation" / "content_shuffled.txt"
     )
     df_canonical = read_forcing(str(canonical_path), tstep_mod=None)
     df_shuffled = read_forcing(str(shuffled_path), tstep_mod=None)

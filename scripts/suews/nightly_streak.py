@@ -29,7 +29,7 @@ DEFAULT_WORKFLOW = "build-publish_to_pypi.yml"
 DEFAULT_LIMIT = 30
 
 # Display-name patterns of the jobs that record rather than gate: they are
-# `continue-on-error: true` in the workflow and feed neither report_scheduled_run
+# `continue-on-error: true`, count as failures in neither report_scheduled_run
 # nor pr-gate, so their failure is information, not a red nightly.
 NON_GATING_JOB_PATTERNS = ("Tolerance spread*", "Cost-marker drift*")
 

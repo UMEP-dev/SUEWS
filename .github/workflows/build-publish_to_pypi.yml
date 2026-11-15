@@ -479,8 +479,8 @@ jobs:
       is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
       build_profile: ${{ inputs.build_profile || 'release' }}
       # The api lane runs on this platform when it is in api_buildplat (the
-      # nightly drops macos-15-intel there; every other event sets it equal to
-      # buildplat) and the MCP distribution it installs was built. The quoted
+      # nightly, the full dispatch and tag releases drop macos-15-intel there;
+      # every other event sets it equal to buildplat) and the MCP distribution it installs was built. The quoted
       # runner label is the containment key because the script writes the
       # triples as `["<runner>", "<platform>", "<arch>"]`, and the closing
       # quote keeps "macos-15" from matching "macos-15-intel". Fall back to

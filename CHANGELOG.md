@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 15 Nov 2026
 
+- [maintenance] Run the api tests of a `full` manual dispatch and of a tag release on the nightly platform set, without macOS Intel, whose api lanes run past the 45-minute job timeout and would fail the wheel build that publishing waits on; the macOS Intel wheel is still built and runs its build-step tests
 - [maintenance] Build each stream-chunk test simulation with one configuration update instead of up to three, so the initial state frame is rebuilt from the configuration once per simulation; the state the tests run from is unchanged
 - [maintenance] Remove the `@claude` agent workflows (`claude.yml`, `claude-code-review.yml`, `claude-dispatch.yml`), which are no longer used, and the instructions for their secrets
 - [maintenance] Measure Python line and branch coverage of supy and suews_mcp nightly, as a recording job that never gates; configuration in `pyproject.toml` (#2036)

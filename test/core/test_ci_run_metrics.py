@@ -5,8 +5,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 import json
+import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 
 import pytest
 import yaml
@@ -350,6 +353,62 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
 
 
 @pytest.mark.smoke
+@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+@pytest.mark.parametrize(
+    ("event_name", "ref"),
+    [
+        ("workflow_dispatch", "refs/heads/master"),
+        ("push", "refs/tags/2026.11.1"),
+    ],
+    ids=["full-dispatch", "tag-release"],
+)
+def test_full_matrices_build_macos_intel_but_skip_its_api_lanes(
+    tmp_path: Path, event_name: str, ref: str
+) -> None:
+    """A full dispatch and a tag release build every wheel, test api as nightly.
+
+    The macOS Intel api lanes run past the 45-minute job timeout (dispatched
+    run 43734399764), and a cancelled lane fails build_wheels and skips every
+    job that needs it, the publish jobs of a release among them. Both
+    triggers therefore keep macos-15-intel in `buildplat` and drop it from
+    `api_buildplat`, matching the nightly schedule.
+    """
+    root = Path(__file__).resolve().parents[2]
+    output = tmp_path / "github_output"
+    output.write_text("", encoding="utf-8")
+    env = {
+        **os.environ,
+        "GITHUB_OUTPUT": str(output),
+        "GITHUB_REF": ref,
+        "EVENT_NAME": event_name,
+        "INPUT_MATRIX_CONFIG": "full",
+        "IS_DRAFT": "false",
+        "FORTRAN_CHANGED": "false",
+        "RUST_CHANGED": "false",
+        "PYTHON_CHANGED": "false",
+        "UTIL_CHANGED": "false",
+        "BUILD_CHANGED": "false",
+        "CI_CHANGED": "false",
+        "INPUT_TEST_TIER": "all",
+        "PHYSICS_CHANGE": "false",
+    }
+    subprocess.run(
+        ["bash", str(root / ".github/scripts/determine-matrix.sh")],
+        env=env,
+        check=True,
+        capture_output=True,
+    )
+    outputs = dict(
+        line.split("=", 1)
+        for line in output.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    built = {runner for runner, _p, _a in json.loads(outputs["buildplat"])}
+    api = {runner for runner, _p, _a in json.loads(outputs["api_buildplat"])}
+    assert "macos-15-intel" in built
+    assert api == built - {"macos-15-intel"}
+
+
 def test_api_platform_gate_finds_every_preset_runner_label() -> None:
     """Every platform preset spells its runner label the way the gate looks it up.
 

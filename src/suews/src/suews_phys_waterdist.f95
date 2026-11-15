@@ -1233,7 +1233,7 @@ CONTAINS
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, SUEWS_STATE
       USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -1325,7 +1325,7 @@ CONTAINS
                wu = 0
 
                ! timestep in second
-               tstep = INT(3600/NSH)
+               tstep = INT(sec_per_hour/NSH)
 
                ! accumulated daily rainfall
                rain_cum_daily = HDD_id(11)
@@ -1443,7 +1443,7 @@ CONTAINS
 
    ! TODO: this is a temporary workaround for the fact that the compiler does not support function-calling within associate
    FUNCTION get_Prof_SpecTime_sum(Hour, Min, Sec, Prof_24h, dt) RESULT(Prof_CurrTime)
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
       INTEGER :: i, j !Used to count over hours and sub-hourly timesteps
@@ -1455,7 +1455,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Prof_CurrTime
 
       total_sec = Min*60 + Sec
-      SecPerHour = 3600
+      SecPerHour = sec_per_hour
 
       Prof_24h_sum = MERGE(Prof_24h/(SUM(Prof_24h)), 0.D0, SUM(Prof_24h) /= 0) ! prevent zero-division
 

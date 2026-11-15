@@ -113,7 +113,10 @@ so the row labelled ``2012-01-15`` holds the state at the end of 15 January,
 ``(2012-01-15 00:00, 2012-01-16 00:00]``. When ``DailyState`` is combined with
 other output groups at daily resolution, for example with
 ``SUEWSOutput.resample()``, its dates therefore run one day earlier
-than those of the other groups (see :ref:`output-dailystate`).
+than those of the other groups (see :ref:`output-dailystate`). Calendar
+frequencies (``W``, ``MS``, ``ME``, ``YE``) have no start-of-day label, so
+there DailyState takes the period's label like every other group, and a row
+holds one period for all groups.
 
 Forcing stamped at the start of each interval
 =============================================

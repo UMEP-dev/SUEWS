@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -12,15 +13,21 @@ from .._load import (
     resample_forcing_met,
     set_index_dt,
 )
+from ..data_model.forcing import FORCING_REGISTRY
 from ._missing import from_nan
+from ._forcing import interpolate_soil_content, validate_soil_content
 
 # Surface air pressure is never below ~300 hPa (that altitude is well into
 # the free troposphere, not a surface site). A DataFrame whose median
 # pressure falls below this almost certainly carries kPa values that were
 # never converted to the hPa the model expects -- the conversion that file
 # loading applies but direct DataFrame assignment historically bypassed
-# (gh#1537).
+# (gh#1537). The floor sits between the registry's file-unit range (68 to
+# 130 kPa) and its in-memory range (680 to 1300 hPa), so it separates the two
+# units without overlapping either; the units and the factor come from the
+# registry (gh#1547).
 _PRESSURE_HPA_FLOOR = 300.0
+_PRESSURE = FORCING_REGISTRY.by_file_name("pres")
 
 
 def read_suews(path_suews_file: str) -> pd.DataFrame:
@@ -48,7 +55,10 @@ def read_suews(path_suews_file: str) -> pd.DataFrame:
     return df_suews
 
 
-def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error") -> pd.DataFrame:
+def read_forcing(
+    path_suews_file: str, tstep_mod=300, on_conflict="error", *,
+    source_contract=None, units: Optional[Mapping[str, str]] = None,
+) -> pd.DataFrame:
     """Read in SUEWS forcing files as DataFrame ready for SuPy simulation.
 
     Parameters
@@ -67,10 +77,17 @@ def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error") -> pd
         :func:`supy._load.merge_forcing_frames`. The default rejects
         conflicts with :class:`supy._load.ForcingConflictError`.
 
+    units : mapping of str to str, optional
+        File column names (or file aliases) mapped to their declared units.
+        Values are converted through supy.units.convert to registry units
+        before the existing runtime conversion (pressure to hPa). Undeclared
+        columns retain their historical interpretation.
+
     Returns
     -------
     pd.DataFrame
-        datetime-aware DataFrame
+        datetime-aware DataFrame in the in-memory units: pressure (``pres``)
+        is held in kPa in a forcing file and returned in hPa.
 
     See Also
     --------
@@ -81,7 +98,7 @@ def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error") -> pd
     str_pattern = path_suews_file.name
 
     df_forcing_raw = load_SUEWS_Forcing_met_df_pattern(
-        path_input, str_pattern, on_conflict=on_conflict
+        path_input, str_pattern, on_conflict=on_conflict, source_contract=source_contract, units=units
     )
     return resample_forcing_df(df_forcing_raw, tstep_mod=tstep_mod)
 
@@ -110,6 +127,7 @@ def resample_forcing_df(df_forcing_raw: pd.DataFrame, tstep_mod=300) -> pd.DataF
         Forcing aligned to ``tstep_mod`` (or unchanged if no resampling was
         required).
     """
+    validate_soil_content(df_forcing_raw)
     tstep_met_in = (
         df_forcing_raw.index.to_series().diff().iloc[-1] / pd.Timedelta("1s")
     )
@@ -123,6 +141,10 @@ def resample_forcing_df(df_forcing_raw: pd.DataFrame, tstep_mod=300) -> pd.DataF
             df_forcing_raw, tstep_met_in, tstep_mod, kdownzen=0
         )
         df_forcing = from_nan(df_forcing)
+        if "sm" in df_forcing_raw:
+            df_forcing["sm"] = interpolate_soil_content(
+                df_forcing_raw["sm"], df_forcing.index
+            ).fillna(FORCING_OPTIONAL_FILL)
 
     return df_forcing
 
@@ -192,11 +214,15 @@ def prepare_dataframe_forcing(
     ser_pres = df_forcing["pres"]
     ser_pres_valid = ser_pres[ser_pres > FORCING_OPTIONAL_FILL / 2]
     if ser_pres_valid.size and ser_pres_valid.median() < _PRESSURE_HPA_FLOOR:
+        file_unit, memory_unit = _PRESSURE.unit, _PRESSURE.runtime_unit
         raise ValueError(
-            "DataFrame forcing pressure (`pres`) looks like kPa, not hPa "
-            f"(median {ser_pres_valid.median():.1f}). SUEWS expects surface "
-            "pressure in hPa; multiply by 10 if your data are in kPa, or use "
-            "supy.util.read_forcing, which applies the conversion."
+            f"DataFrame forcing pressure (`pres`) looks like {file_unit}, not "
+            f"{memory_unit} (median {ser_pres_valid.median():.1f}). A forcing "
+            f"file holds pressure in {file_unit}, but an in-memory DataFrame "
+            f"must hold it in {memory_unit}, as supy.util.read_forcing and "
+            f"SUEWSSimulation.forcing return it; multiply by "
+            f"{_PRESSURE.runtime_scale:g} if your data are in {file_unit}, or "
+            "load the file with supy.util.read_forcing, which converts it."
         )
 
     df_forcing = resample_forcing_df(df_forcing.copy(), tstep_mod=tstep_mod)

@@ -22,10 +22,14 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``1.2.0`` and the output contract at
-``1.1.8``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
+The forcing contract is published at ``2.1.0`` and the output contract at ``2.0.0``.
+Forcing ``2.1.0`` adds a canonical declared water-rate unit while retaining legacy undeclared amounts.
+Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
-requiredness to reflect its physics-dependent use. Output ``1.1.0`` adds
+requiredness to reflect its physics-dependent use. Forcing ``2.0.0`` replaces
+selector-dependent ``xsmd`` with instantaneous liquid content ``sm`` in
+``kg m-2`` at the same position 20. The internal deficit is derived from
+field capacity and available water capacity after content interpolation. Output ``1.1.0`` adds
 configurable saved-output timestamp references while retaining the forcing
 clock by default; ``1.1.1`` corrects the descriptions of five water-balance
 variables to match what the kernel computes, leaving every name, unit, group
@@ -37,7 +41,21 @@ temperature and LUMPS phenology factor, and the descriptions of further
 columns that disagreed with the kernel; ``1.1.7`` describes the debug ``x_exp``
 column as ``G_sm*(vsmd - dsp)``, the expression the kernel now writes;
 ``1.1.8`` describes the BEERS ``DirectRad`` and ``DiffuseRad`` columns as the
-kernel now writes them, after their values were found swapped. Each forcing release is stored as an immutable canonical
+kernel now writes them, after their values were found swapped; ``1.1.9``
+writes every unit in the CF notation of ``supy.units`` (water stores in
+``kg m-2``) and adds CF ``cell_methods`` and ``units_metadata`` to every catalogue entry.
+This single output version combines the CF unit relabelling with time-base and temperature metadata, including DailyState means, totals and extrema and the BEERS ``Tg`` and ``Tw`` temperature differences above air temperature.
+It preserves numerical values, names, groups, aggregation codes, layouts and all released bundles through ``1.1.8``.
+Output ``2.0.0`` converts written water fluxes to interval-mean ``kg m-2 s-1`` rates and changes their ``cell_methods`` to ``time: mean``.
+The registry aggregation codes continue to describe native kernel amounts; the external boundary divides their interval sums by the written duration.
+DailyState ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` remain daily totals in ``mm`` with ``time: sum`` and sum aggregation.
+Their model sums, including a partial first day, are written unchanged (a run ending part-way through a day writes no row for that day); coverage remains informational in attrs and sidecars and never divides these totals.
+Amount units (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.
+Per-step water fluxes are written as ``kg m-2 s-1`` rates.
+Output ``2.0.0`` is frozen like every earlier version: its digest is immutable, and any later correction needs a new version.
+Native in-memory amounts remain available, with their actual units exposed by the output accessor.
+:ref:`units_migration_guide` describes what these forcing and output versions change for users.
+Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The
 output contract's immutable bundles are stored under
 ``src/supy/data_model/output/artefacts/`` after the registry projection and
@@ -64,6 +82,35 @@ The histories are append-only. A contributor may append a newer version and
 digest, but must not edit, reorder, or remove an existing entry. The current
 version pointer must name the last entry, and the pointer and history must move
 together.
+
+Output time and temperature metadata
+------------------------------------
+
+``cell_methods`` describes the time operation represented by a value.
+The default mapping is ``A`` to ``time: mean``, ``S`` to ``time: sum`` and
+``L`` to ``time: point``; datetime coordinates (``T``) use the empty string.
+A variable definition can override this mapping where the producer has already
+performed a time operation before Python selects the last row.
+The closed vocabulary also includes ``time: minimum`` and ``time: maximum``
+for the daily temperature extrema; these are neither means nor totals.
+
+DailyState records are sparse daily summaries.
+Their ``L`` resampling code is retained, while their CF metadata identifies
+daily means, precipitation and irrigation totals, daylight duration and extrema.
+``HDD4_T5d`` is a running mean, with its averaging history described in the
+variable description; GDD and SDD are accumulated phenological states sampled
+at the day end, rather than sums over the current output interval.
+These attributes describe the registry's native output quantities, not a new
+aggregation policy for arbitrary multi-day resampling.
+
+``units_metadata`` is ``temperature: on_scale`` for temperatures and
+``temperature: difference`` for temperature scales, degree-day indices,
+gradients and coefficients involving temperature differences.
+It is JSON ``null`` for variables whose units contain no temperature.
+The registry retains the same ``degC``, ``K`` and compound unit strings.
+No temperature conversion or output-value change is performed.
+This distinction follows the `CF units guidance
+<https://cfconventions.org/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#units>`_.
 
 CI enforcement
 --------------

@@ -160,7 +160,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (3, "campbell_norman", ("cn98",)),
         (4, "businger_hoegstrom", ("bh71",)),
     ],
-    "soil_moisture_deficit": [
+    "soil_moisture": [
         (0, "modelled", ()),
         (1, "observed", ()),
     ],
@@ -173,7 +173,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
     ],
     "frontal_area_index": [
         # Source-of-input selector on the shared observed/modelled axis
-        # (matches laimethod, water_use, soil_moisture_deficit). Code 0 takes
+        # (matches laimethod, water_use, soil_moisture). Code 0 takes
         # the site-supplied FAI ("observed"); code 1 derives it internally.
         (0, "observed", ()),
         (1, "modelled", ()),
@@ -219,7 +219,7 @@ MODEL_PHYSICS_ENUM_FIELDS: tuple[str, ...] = (
     "roughness_length_momentum",
     "roughness_length_heat",
     "stability",
-    "soil_moisture_deficit",
+    "soil_moisture",
     "water_use",
     "laimethod",
     "roughness_sublayer",
@@ -277,7 +277,6 @@ _CITATION_PREFERRED_FIELDS = frozenset(
     }
 )
 _COMPATIBILITY_DISPLAY_NAMES = {
-    ("soil_moisture_deficit", 2): "observed",
 }
 _PHYSICS_CANONICAL_TO_PUBLIC = {
     canonical_name: public_name

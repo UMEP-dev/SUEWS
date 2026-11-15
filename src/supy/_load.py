@@ -2,7 +2,7 @@ import functools
 import json
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 import f90nml
 import numpy as np
@@ -786,7 +786,7 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
 
 # load raw data: met forcing
 def load_SUEWS_Forcing_met_df_raw(
-    path_input, filecode, grid, tstep_met_in, multiplemetfiles
+    path_input, filecode, grid, tstep_met_in, multiplemetfiles, *, units=None
 ):
     # file name pattern for met files
     forcingfile_met_pattern = "{site}{grid}_*_{tstep}.txt".format(
@@ -796,7 +796,7 @@ def load_SUEWS_Forcing_met_df_raw(
     )
     # path_forcing_pattern = path_input / forcingfile_met_pattern
     df_forcing_met = load_SUEWS_Forcing_met_df_pattern(
-        path_input, forcingfile_met_pattern
+        path_input, forcingfile_met_pattern, units=units
     )
     return df_forcing_met
 
@@ -1005,7 +1005,32 @@ def _with_inferred_freq(df):
     return df
 
 # caching loaded met df for better performance in initialisation
-def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="error"):
+def _read_forcing_table(path, source_contract=None):
+    """Require a declared contract for positional files; never infer soil units."""
+    if source_contract not in (None, "2.0.0"):
+        raise ValueError("Legacy soil-moisture input requires explicit migration before loading contract 2.0.0.")
+    frame = pd.read_csv(path, sep=r"\s+", comment="!", on_bad_lines="error")
+    with open(path, encoding="utf-8") as stream:
+        first = next(line for line in stream if line.strip() and not line.lstrip().startswith("!"))
+    try:
+        [float(token) for token in first.split()]
+        positional = True
+    except ValueError:
+        positional = False
+    if positional:
+        if len(first.split()) != len(ORDERED_CANONICAL_FORCING_COLUMNS):
+            raise ValueError("Positional forcing contract 2.0.0 requires exactly 24 columns.")
+        if source_contract is None:
+            raise ValueError("Positional forcing requires explicit source_contract='2.0.0'; never guess soil units.")
+        frame = pd.read_csv(path, sep=r"\s+", comment="!", header=None,
+                            names=ORDERED_CANONICAL_FORCING_COLUMNS, on_bad_lines="error")
+    return frame
+
+
+def load_SUEWS_Forcing_met_df_pattern(
+    path_input, file_pattern, on_conflict="error", *, source_contract=None,
+    units: Optional[Mapping[str, str]] = None,
+):
     """Load and concatenate SUEWS forcing files by *column name*.
 
     Header row is required and is read by name. Baseline-required columns
@@ -1060,9 +1085,7 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="err
     # the canonical names first, then datetime-index at the end.
     canonical_per_file = [
         _apply_named_column_matching(
-            pd.read_csv(
-                fn, sep=r"\s+", comment="!", on_bad_lines="error"
-            ).drop_duplicates()
+            _read_forcing_table(fn, source_contract).drop_duplicates(), units=units
         )
         for fn in list_file_MetForcing
     ]
@@ -1099,7 +1122,94 @@ def _validate_integer_timestamp_columns(
         )
 
 
-def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
+def _forcing_interval_seconds(df_forcing: pd.DataFrame) -> float:
+    """Read the regular forcing interval through the existing timestamp parser."""
+    if isinstance(df_forcing.index, pd.DatetimeIndex) and df_forcing.index.freq is not None:
+        return df_forcing.index.freq.nanos / 1e9
+    dict_coordinates = {}
+    for column in df_forcing.columns:
+        variable = FORCING_REGISTRY.by_file_name(str(column))
+        if variable is not None and variable.role == "coordinate":
+            dict_coordinates[variable.name] = df_forcing[column]
+    df_time = pd.DataFrame(dict_coordinates)
+    _validate_integer_timestamp_columns(df_time, list(BASELINE_DATETIME_FORCING_COLUMNS))
+    if len(df_time) < 2:
+        raise ValueError("declared water rates require at least two forcing timestamps")
+    return set_index_dt(df_time).index.freq.nanos / 1e9
+
+
+def _convert_forcing_units(
+    df_forcing: pd.DataFrame, units: Optional[Mapping[str, str]] = None
+) -> pd.DataFrame:
+    """Convert declared file units to registry units, preserving missing values.
+
+    An absent declaration returns the original frame untouched. File aliases
+    follow the same registry lookup as header matching. Conversion precedes
+    validation, timestamp construction and the existing file-to-runtime step.
+    """
+    from .units import UnitError, convert, convert_water_rate, parse_unit
+
+    if units is None:
+        return df_forcing
+    if not isinstance(units, Mapping):
+        raise TypeError("forcing units must be a mapping from column to unit string")
+    if not units:
+        return df_forcing
+    df_result = df_forcing.copy()
+    declared = set()
+    interval_s = None
+    for column, unit in units.items():
+        variable = (
+            FORCING_REGISTRY.by_file_name(column)
+            if isinstance(column, str) else None
+        )
+        if variable is None:
+            raise ValueError(f"forcing column {column!r}: unknown column in units declaration")
+        if variable.role == "coordinate":
+            raise ValueError(
+                f"forcing column {column!r}: time coordinates (iy, id, it, imin) "
+                "take no units declaration; remove the key"
+            )
+        if variable.name in declared:
+            raise ValueError(f"forcing column {column!r}: duplicate units declaration")
+        declared.add(variable.name)
+        if not isinstance(unit, str):
+            raise TypeError(f"forcing column {column!r}: unit must be a string")
+        if variable.unit is None:
+            raise ValueError(f"forcing column {column!r}: no unconditional registry unit")
+        columns = [
+            name for name in df_result.columns
+            if FORCING_REGISTRY.by_file_name(str(name).lstrip("%")) == variable
+        ]
+        if not columns:
+            raise ValueError(f"forcing column {column!r}: declared column is absent from file")
+        try:
+            source = parse_unit(unit)
+            # Validate dimensions even for columns containing only missing values.
+            for name in columns:
+                values = df_result[name]
+                valid = values.notna() & (values != FORCING_OPTIONAL_FILL)
+                if variable.declared_rate_unit is not None:
+                    converted = convert_water_rate(
+                        values.loc[valid], source, variable.declared_rate_unit,
+                    )
+                    if interval_s is None:
+                        interval_s = _forcing_interval_seconds(df_forcing)
+                    converted *= interval_s
+                else:
+                    converted = convert(
+                        values.loc[valid], source, variable.unit,
+                        units_metadata=getattr(variable, "units_metadata", None),
+                    )
+                df_result[name] = values.where(~valid, converted)
+        except UnitError as exc:
+            raise ValueError(f"forcing column {column!r}: {exc}") from exc
+    return df_result
+
+
+def _apply_named_column_matching(
+    df_forcing_met: pd.DataFrame, *, units: Optional[Mapping[str, str]] = None
+) -> pd.DataFrame:
     """Reindex a raw forcing DataFrame against canonical names (gh#1372).
 
     Shared between :func:`load_SUEWS_Forcing_met_df_pattern` and
@@ -1111,6 +1221,12 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     columns, datetime-indexed.
     """
     import warnings
+
+    from .util._forcing import LEGACY_PLACEHOLDER_ATTR, accept_legacy_soil_placeholder
+
+    df_forcing_met = _convert_forcing_units(df_forcing_met, units)
+    df_forcing_met = accept_legacy_soil_placeholder(df_forcing_met)
+    legacy_placeholder = bool(df_forcing_met.attrs.get(LEGACY_PLACEHOLDER_ATTR))
 
     # Build lowercase -> original-case header groups for case-insensitive
     # matching. Multiple files can spell the same canonical column with
@@ -1127,6 +1243,9 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
         variable = FORCING_REGISTRY.by_file_name(normalised)
         group_name = variable.name if variable is not None else normalised
         header_groups.setdefault(group_name.lower(), []).append(col)
+    from .util._forcing import validate_soil_content
+
+    validate_soil_content(df_forcing_met.rename(columns={c: str(c).lstrip("%").lower() for c in df_forcing_met.columns}))
     canonical_lower = {c.lower() for c in CANONICAL_FORCING_COLUMNS}
 
     # 1) Baseline-required columns must be present (case-insensitive).
@@ -1182,7 +1301,12 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
 
     # 6) Existing post-processing.
     _validate_wuh_values(df_canonical)
-    df_canonical["pres"] *= 10  # kPa -> hPa
+    # File units -> in-memory units (pressure: kPa -> hPa), as declared by the
+    # forcing registry rather than repeated here (gh#1547).
+    for variable in FORCING_REGISTRY.runtime_scaled_variables:
+        df_canonical[variable.name] = variable.to_runtime_unit(
+            df_canonical[variable.name]
+        )
     df_canonical["isec"] = 0
     complete_dt_columns = list(BASELINE_DATETIME_FORCING_COLUMNS) + ["isec"]
     _validate_integer_timestamp_columns(df_canonical, complete_dt_columns)
@@ -1190,10 +1314,15 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
         np.int64
     )
     df_canonical = set_index_dt(df_canonical)
+    if legacy_placeholder:
+        df_canonical.attrs[LEGACY_PLACEHOLDER_ATTR] = True
     return df_canonical
 
 
-def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error"):
+def load_SUEWS_Forcing_met_df_yaml(
+    path_forcing, on_conflict="error", *, source_contract=None,
+    units: Optional[Mapping[str, str]] = None,
+):
     """Load forcing for a YAML ``forcing.file`` entry (file, directory or list).
 
     Files are canonicalised individually and merged with
@@ -1223,9 +1352,7 @@ def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error"):
     # load_SUEWS_Forcing_met_df_pattern for the full rationale).
     canonical_per_file = [
         _apply_named_column_matching(
-            pd.read_csv(
-                fn, sep=r"\s+", comment="!", on_bad_lines="error"
-            ).drop_duplicates()
+            _read_forcing_table(fn, source_contract).drop_duplicates(), units=units
         )
         for fn in file_list
     ]

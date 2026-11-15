@@ -534,6 +534,12 @@ def info(ctx):
     console.print("  • Future wizard: Will use these utilities for validation")
 
 
+# One coordinated operation, shared with the existing converter CLI.
+from .table_converter import convert_table_cmd
+
+cli.add_command(convert_table_cmd, name="convert-soil")
+
+
 def main():
     """Main entry point for the schema CLI."""
     cli(obj={})

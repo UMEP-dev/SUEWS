@@ -38,12 +38,12 @@ MODULE module_phys_spartacus
    !==============================================================================================
    USE module_ctrl_const_allocate, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
-   USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
+   USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp, p_ref_pa_d0
    USE module_phys_beers, ONLY: diffusefraction
    USE module_ctrl_error_state, ONLY: set_supy_error
    USE module_ctrl_type, ONLY: error_state
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
-
+   USE module_ctrl_const_mathconst, ONLY: pi_d0
    IMPLICIT NONE
 
 CONTAINS
@@ -215,9 +215,9 @@ CONTAINS
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
-
+      USE module_ctrl_const_physconst, ONLY: C2K
+      USE module_ctrl_const_mathconst, ONLY: pi_sp
       IMPLICIT NONE
-
       !!!!!!!!!!!!!! Set objects and variables !!!!!!!!!!!!!!
 
       ! Input parameters and variables from SUEWS
@@ -548,7 +548,7 @@ CONTAINS
 
       ! set cos_sza, nlay, ncol, ntotlay
       ! Guard against negative night-time values to keep radiation geometry physical.
-      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*3.1415927/180))
+      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*pi_sp/180))
       canopy_props%nlay = nlay
       canopy_props%ncol = ncol
       canopy_props%ntotlay = nlayer
@@ -621,11 +621,11 @@ CONTAINS
       END IF
 
       ! set temperature
-      tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin
-      tsfc_roof_K = tsfc_roof + 273.15 ! convert surface temperature to Kelvin
-      tsfc_wall_K = tsfc_wall + 273.15 ! convert surface temperature to Kelvin
-      tair_K = Tair_hbh_C + 273.15 ! convert air temperature to Kelvin
-      tair_veg_K = Tair_veg_C + 273.15 ! convert vegetation air temperature to Kelvin
+      tsfc_surf_K = tsfc_surf + C2K ! convert surface temperature to Kelvin
+      tsfc_roof_K = tsfc_roof + C2K ! convert surface temperature to Kelvin
+      tsfc_wall_K = tsfc_wall + C2K ! convert surface temperature to Kelvin
+      tair_K = Tair_hbh_C + C2K ! convert air temperature to Kelvin
+      tair_veg_K = Tair_veg_C + C2K ! convert vegetation air temperature to Kelvin
 
       ! set ground temperature as the area-weighted average of the surface temperature of all land covers but buildings
       IF (1.0D0 - sfr_surf(BldgSurf) > eps_fp) THEN
@@ -1409,7 +1409,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: min_cos_zenith = 0.065D0
       REAL(KIND(1D0)), PARAMETER :: max_airmass = 12.0D0
       REAL(KIND(1D0)), PARAMETER :: max_zenith = 87.0D0
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       kdirect = MAX(0.0D0, MIN(1.0D0, fallback_direct_frac))*MAX(0.0D0, kdown)
       IF (kdown <= 0.0D0) RETURN
@@ -1435,9 +1435,9 @@ CONTAINS
       ELSE IF (Press_hPa > 100.0D0) THEN
          press_pa = Press_hPa*100.0D0
       ELSE
-         press_pa = 101325.0D0
+         press_pa = p_ref_pa_d0
       END IF
-      abs_airmass = MIN(max_airmass, rel_airmass*press_pa/101325.0D0)
+      abs_airmass = MIN(max_airmass, rel_airmass*press_pa/p_ref_pa_d0)
       kt_prime_factor = 1.031D0*EXP(-1.4D0/(0.9D0 + 9.4D0/abs_airmass)) + 0.1D0
       kt_prime = kt/kt_prime_factor
       kt_prime = MIN(1.0D0, MAX(0.0D0, kt_prime))
@@ -1482,7 +1482,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: kdirect_horizontal ! [W m-2] direct horizontal irradiance
       REAL(KIND(1D0)) :: altitude, cos_zenith, ecc, kt, kdiffuse, direct_normal
       REAL(KIND(1D0)) :: temperature, humidity
-      REAL(KIND(1D0)), PARAMETER :: PI = 3.141592653589793D0
+      REAL(KIND(1D0)), PARAMETER :: PI = pi_d0
 
       kdirect_horizontal = 0.0D0
       IF (.NOT. IEEE_IS_FINITE(kdown) .OR. .NOT. IEEE_IS_FINITE(zenith_deg)) RETURN
@@ -1521,7 +1521,7 @@ CONTAINS
       REAL(KIND(1D0)) :: component_sum
       REAL(KIND(1D0)) :: cos_sza
       REAL(KIND(1D0)) :: scale
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       kdirect = 0.0D0
       kdiffuse = 0.0D0
@@ -1655,7 +1655,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: ecc
 
       REAL(KIND(1D0)) :: b
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       b = 2.0D0*pi*jday/365.0D0
       ecc = 1.00011D0 + 0.034221D0*COS(b) + 0.001280D0*SIN(b) &

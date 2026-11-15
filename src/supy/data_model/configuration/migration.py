@@ -78,6 +78,8 @@ class SchemaMigrator:
         config_dict: Dict[str, Any],
         from_version: Optional[str] = None,
         to_version: str = CURRENT_SCHEMA_VERSION,
+        *,
+        migration_context=None,
     ) -> Dict[str, Any]:
         """
         Migrate a configuration from one schema version to another.
@@ -118,7 +120,11 @@ class SchemaMigrator:
             handler_key = (current_version, next_version)
             if handler_key in self.migration_handlers:
                 logger.info(f"Migrating from {current_version} to {next_version}")
-                config = self.migration_handlers[handler_key](config)
+                from ...util.converter.yaml_upgrade import apply_migration_handler
+                config = apply_migration_handler(
+                    self.migration_handlers[handler_key], config,
+                    migration_context=migration_context,
+                )
                 current_version = next_version
             else:
                 # Provide generic migration for compatible versions
@@ -264,6 +270,8 @@ def migrate_config_file(
     input_path: str,
     output_path: Optional[str] = None,
     to_version: str = CURRENT_SCHEMA_VERSION,
+    *,
+    migration_context=None,
 ) -> None:
     """
     Migrate a YAML configuration file to a different schema version.
@@ -283,7 +291,7 @@ def migrate_config_file(
 
     # Migrate
     migrator = SchemaMigrator()
-    migrated = migrator.migrate(config, to_version=to_version)
+    migrated = migrator.migrate(config, to_version=to_version, migration_context=migration_context)
 
     # Save
     output_file = Path(output_path) if output_path else input_file

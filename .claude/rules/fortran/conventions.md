@@ -133,6 +133,29 @@ procedures, so any static local is shared between grids.
 
 ---
 
+## No New Physical-Constant Literals
+
+Physical constants and unit conversions belong in named `PARAMETER`s in
+`suews_ctrl_const.f95`, not in literals. `scripts/lint/check_fortran_literals.py`
+counts the literal kinds the kernel still writes inline (`273.15`/`273.16`,
+Stefan-Boltzmann, pi, degree-radian factors and `pi/180`, 3600, 86400 and
+`24*3600`, 1440, reference pressure, the `cp` and `Lv` values) per file, and CI
+fails when any count differs from `scripts/lint/fortran_literals_baseline.json`.
+`suews_ctrl_const.f95` is not counted: its literals are the definitions.
+
+- **Count went up**: use the named constant (`C2K` for `273.15`); if none
+  exists, add one at the literal's current value and precision.
+- **Count went down**: lower the baseline in the same diff with
+  `python scripts/lint/check_fortran_literals.py --write-baseline`.
+- **Replacing a literal with a name** must keep its value and precision, so the
+  output does not move: a bare `273.15` is a default-real literal, and `C2K`
+  is declared from the same literal. Changing a value or precision is a
+  separate physics-change PR.
+- `--report` also lists the factor-1000, 0.001 and 1E6 literals, which are not
+  gated because most of them are not unit conversions.
+
+---
+
 ## Numerical Guarding
 
 - Comparisons like `< 0.0D0` do not catch `NaN`.

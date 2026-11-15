@@ -13,6 +13,7 @@ from ..output.contract import PROVISIONAL_OUTPUT_GROUPS
 from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
+    MODELPHYSICS_SOIL_RENAMES,
     apply_field_renames,
     fold_stebbs_physics,
 )
@@ -409,17 +410,10 @@ class StabilityMethod(Enum):
 
 
 class SMDMethod(Enum):
-    """
-    Method for determining soil moisture deficit (SMD).
-
-    0: MODELLED - SMD calculated from water balance using soil parameters
-    1: OBSERVED_VOLUMETRIC - Uses observed volumetric soil moisture content (m³/m³) from forcing file
-    2: OBSERVED_GRAVIMETRIC - Uses observed gravimetric soil moisture content (kg/kg) from forcing file
-    """
+    """Soil moisture source: modelled water balance or observed liquid content."""
 
     MODELLED = 0
-    OBSERVED_VOLUMETRIC = 1
-    OBSERVED_GRAVIMETRIC = 2
+    OBSERVED = 1
 
     def __int__(self):
         return self.value
@@ -805,7 +799,7 @@ class StebbsPhysics(BaseModel):
             "are disabled and `parameters` is ignored."
         ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "provides_to": ["stebbs.capacitance"],
             "note": "Enables the STEBBS branch; capacitance/RC options are only meaningful when STEBBS is enabled.",
         },
@@ -813,13 +807,13 @@ class StebbsPhysics(BaseModel):
     parameters: FlexibleRefValue(StebbsParameterSource) = Field(
         default=StebbsParameterSource.DEFAULT,
         description=_enum_description(StebbsParameterSource),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     capacitance: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["stebbs.enabled"],
             "note": "Only meaningful when STEBBS is enabled; controls building-envelope heat-capacity splitting.",
         },
@@ -827,27 +821,27 @@ class StebbsPhysics(BaseModel):
     setpoint: FlexibleRefValue(SetpointMethod) = Field(
         default=SetpointMethod.CONSTANT,
         description=_enum_description(SetpointMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
         default=SameAlbedoWall.DISABLED,
         description=_enum_description(SameAlbedoWall),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
         default=SameAlbedoRoof.DISABLED,
         description=_enum_description(SameAlbedoRoof),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
         default=SameEmissivityWall.DISABLED,
         description=_enum_description(SameEmissivityWall),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
         default=SameEmissivityRoof.DISABLED,
         description=_enum_description(SameEmissivityRoof),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
 
     ref: Optional[Reference] = None
@@ -894,6 +888,7 @@ class ModelPhysics(BaseModel):
             values = apply_field_renames(
                 values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__
             )
+            values = apply_field_renames(values, MODELPHYSICS_SOIL_RENAMES, cls.__name__)
             # gh#1483: expose OHMIncQF under the storage_heat selector while
             # preserving the flat field used by the internal/Fortran state.
             values = fold_storage_heat_ohm_inc_qf(values, cls.__name__)
@@ -956,7 +951,7 @@ class ModelPhysics(BaseModel):
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["snow_use"],
             "provides_to": ["storage_heat"],
             "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by STEBBS (7) storage heat; EHC (5) uses it to resolve roof and wall facets and otherwise lumps all land covers into one plan-area slab.",
@@ -966,7 +961,7 @@ class ModelPhysics(BaseModel):
         default=KdownSplitMethod.PEREZ,
         description=_enum_description(KdownSplitMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["net_radiation"],
             "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
         },
@@ -980,7 +975,7 @@ class ModelPhysics(BaseModel):
         ge=0.0,
         le=1.0,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "depends_on": ["kdown_split_method"],
             "display_name": "Sw Dn Direct Frac",
             "internal_only": True,
@@ -990,7 +985,7 @@ class ModelPhysics(BaseModel):
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "provides_to": ["ohm_inc_qf", "energy_balance"],
             "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
         },
@@ -999,7 +994,7 @@ class ModelPhysics(BaseModel):
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
             "provides_to": ["energy_balance"],
             "note": (
@@ -1019,7 +1014,7 @@ class ModelPhysics(BaseModel):
         default=OhmIncQf.EXCLUDE,
         description=_enum_description(OhmIncQf),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["emissions", "storage_heat"],
             "provides_to": ["storage_heat"],
             "note": "Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.",
@@ -1029,7 +1024,7 @@ class ModelPhysics(BaseModel):
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "provides_to": ["roughness_length_heat", "stability"],
             "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
         },
@@ -1038,7 +1033,7 @@ class ModelPhysics(BaseModel):
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["roughness_length_momentum"],
             "provides_to": ["stability"],
             "note": "Calculates heat roughness length (z0h) from z0m for stability corrections.",
@@ -1048,7 +1043,7 @@ class ModelPhysics(BaseModel):
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "provides_to": [
                 "roughness_length_momentum",
                 "roughness_length_heat",
@@ -1057,21 +1052,21 @@ class ModelPhysics(BaseModel):
             "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
         },
     )
-    soil_moisture_deficit: FlexibleRefValue(SMDMethod) = Field(
+    soil_moisture: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
         description=_enum_description(SMDMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     water_use: FlexibleRefValue(WaterUseMethod) = Field(
         default=WaterUseMethod.MODELLED,
         description=_enum_description(WaterUseMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     laimethod: FlexibleRefValue(LAIMethod) = Field(
         default=LAIMethod.MODELLED,
         description=_enum_description(LAIMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
         },
     )
@@ -1087,13 +1082,13 @@ class ModelPhysics(BaseModel):
         ),
         ge=1,
         le=2,
-        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+        json_schema_extra={"unit": None, "internal_only": True},
     )
     roughness_sublayer: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
         description=_enum_description(RSLMethod),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["stability"],
             "provides_to": ["roughness_sublayer_level"],
             "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
@@ -1102,13 +1097,13 @@ class ModelPhysics(BaseModel):
     frontal_area_index: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.OBSERVED,
         description=_enum_description(FAIMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={"unit": None},
     )
     roughness_sublayer_level: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
         description=_enum_description(RSLLevel),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["roughness_sublayer"],
             "provides_to": ["surface_conductance"],
             "note": "Selects the air temperature (forcing, diagnosed T2, or level-10 profile temperature) passed to the daily state, anthropogenic heat, surface conductance and biogenic CO2 calculations",
@@ -1118,7 +1113,7 @@ class ModelPhysics(BaseModel):
         default=GSModel.WARD,
         description=_enum_description(GSModel),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "depends_on": ["roughness_sublayer_level"],
             "note": "Stomatal conductance model influenced by roughness_sublayer_level adjustments",
         },
@@ -1127,7 +1122,7 @@ class ModelPhysics(BaseModel):
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "provides_to": [
                 "net_radiation",
                 "storage_heat",
@@ -1167,7 +1162,7 @@ class ModelPhysics(BaseModel):
         ("roughness_length_momentum", "roughlenmommethod"),
         ("roughness_length_heat", "roughlenheatmethod"),
         ("stability", "stabilitymethod"),
-        ("soil_moisture_deficit", "smdmethod"),
+        ("soil_moisture", "smdmethod"),
         ("water_use", "waterusemethod"),
         ("laimethod", "laimethod"),
         ("roughness_sublayer", "rslmethod"),
@@ -1253,7 +1248,7 @@ class ModelPhysics(BaseModel):
             ("roughlenmommethod", "roughness_length_momentum"),
             ("roughlenheatmethod", "roughness_length_heat"),
             ("stabilitymethod", "stability"),
-            ("smdmethod", "soil_moisture_deficit"),
+            ("smdmethod", "soil_moisture"),
             ("waterusemethod", "water_use"),
             ("rslmethod", "roughness_sublayer"),
             ("faimethod", "frontal_area_index"),

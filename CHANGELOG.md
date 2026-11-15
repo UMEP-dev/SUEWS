@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 15 Nov 2026
 
+- [maintenance] Merge master into the `units-cf` integration branch ahead of its merge to master. Both lines had claimed YAML schema `2026.6.dev6`, so the observed soil-water schema from `units-cf` (#1422) becomes `2026.6.dev9`, after master's `dev6` to `dev8`; its migration now runs after the `dev8` step, the soil-schema boundary in the loader moves to `dev9`, and the sample configurations, fixtures, tests and schema documentation follow
 - [maintenance] Build each stream-chunk test simulation with one configuration update instead of up to three, so the initial state frame is rebuilt from the configuration once per simulation; the state the tests run from is unchanged
 - [maintenance] Remove the `@claude` agent workflows (`claude.yml`, `claude-code-review.yml`, `claude-dispatch.yml`), which are no longer used, and the instructions for their secrets
 - [maintenance] Measure Python line and branch coverage of supy and suews_mcp nightly, as a recording job that never gates; configuration in `pyproject.toml` (#2036)
@@ -71,6 +72,15 @@ EXAMPLES:
 
 - [maintenance] Add a five-article constitution to `AGENTS.md`, binding people and agents alike: evidence decides what it can, a named person answers where it cannot, and each change is one concern; the procedure for carrying it out is in `.claude/rules/autonomous-workflow.md` (#2029)
 - [maintenance] Slim `AGENTS.md` to the constitution and the rule index: the quick start moves to `.claude/rules/00-project-essentials.md`, the skills list stays in `.claude/README.md`, and the validator now requires the constitution and the rule index (#2030)
+
+### 10 Nov 2026
+
+- [bugfix] Forcing unit declarations: a unit of the wrong dimension for a water rate (for example `{"rain": "W m-2"}`) now reports that the dimensions differ instead of asking for a time unit, and the time coordinates `iy`, `id`, `it`, `imin` refuse a declaration when it is made instead of failing later as non-integer timestamps
+- [bugfix] Calendar resampling (`W`, `MS`, `ME`, `YE`) now puts every output group of one period in one row: DailyState totals were labelled one period early (with `ME`, January's `P_day` sat under 2011-12-31 while January's `Rain` sat under 2012-01-31), and with `W`, `ME` and `YE` the step stamped 00:00 that closes a period was counted in the next period. Resampling in two steps (for example `output.resample("D").resample("ME")`) now gives the same rows as resampling directly. Fixed-frequency resampling, including DailyState's start-of-day label at `D`, is unchanged
+- [bugfix] Saving resampled output: output resampled to a fixed frequency (for example `D`) is saved at that interval, with file names and `interval` metadata to match (daily rows were described as `1 hour`), also when the rows are wrapped again (`SUEWSOutput(output.resample("D").df, state)`) or reloaded from Parquet; calendar-resampled output is refused with a message naming the alternatives instead of crashing (`ME`, `MS`) or writing mislabelled files (`W`, `YE`); DailyState rows resampled to more than one day (for example `2D`, or Parquet output saved at a frequency longer than one day) are refused, because the files describe each DailyState row as one day
+- [bugfix] An explicit `freq_s` on save now overrides `model.control.output.freq` (it was ignored when the configuration set a frequency) and must be a positive whole multiple of the interval the rows hold, as the configuration already requires of `output.freq`: `freq_s=420` on five-minute output is refused instead of writing rows of alternately five and ten minutes
+- [bugfix] `SUEWSOutput.save(groups=[...])` now writes the requested text-output groups instead of ignoring the argument in favour of the configured groups; an unknown group is refused
+- [doc] Units migration guide, output sections: `save_tstep` is not part of the save methods (the paragraph now describes calendar saves); the save methods return the checkpoint and provenance JSON as well as the data files; a run ending part-way through a day writes no DailyState row for that day; why `to_units({"Rain": "mm"})` is refused although `output.units` reports `mm`
 
 ### 9 Nov 2026
 
@@ -113,6 +123,48 @@ EXAMPLES:
   - Enforce the opt-in in the shared TXT writer as well as streamed runs, and report provisional warnings at the user call site.
   - Schema `2026.6.dev6` adds the default-backed `include_provisional` field; the migration from `2026.6.dev5` preserves content and leaves the switch off.
 - [maintenance] Make the schema-version rule and the schema-migration-checker agent treat a change that makes an existing valid YAML behave differently, such as a new default-backed field that changes what it saves, as a bump trigger; an optional field is exempt only when its default leaves every existing YAML unchanged (#1974).
+
+### 29 Oct 2026
+
+- [change][experimental] Breaking: units at the edges of SUEWS. Forcing contract 2.1.0 and output contract 2.0.0 declare, check and convert units where data enters and leaves SuPy, in the CF (UDUNITS-2) notation of a new unit vocabulary; the kernel still computes in its own units. Upgrade notes for forcing files and saved output are in the "Upgrading Across the Units Change" documentation page (#1903)
+- [change][experimental] Breaking: saved water fluxes are written as interval-mean rates in `kg m-2 s-1` (output contract 2.0.0) instead of amounts in mm per output interval: precipitation, irrigation, evaporation, runoff, drainage, water use, storage change, snowmelt, refreezing and snow removal, including the per-surface `snow` and `debug` columns (71 variables) (#1903)
+  - Multiply a written rate by the written interval in seconds to recover mm per interval (1 kg m-2 of liquid water is 1 mm), or save with `units={"Rain": "mm h-1"}`; requesting an amount unit such as `mm` for a water flux raises an error
+  - Each rate divides the water accumulated in an output bin by the seconds that bin actually covers, so trailing partial bins (kept for every variable) and calendar bins (`W`, `MS`, `ME`, `YE`) are not diluted; resampling a rate again weights by coverage
+  - Text output writes water rates in scientific notation so light rain does not round to zero
+  - Output held in memory keeps the kernel's native amounts (mm per timestep), and `SUEWSOutput.units` reports the unit actually held
+  - `MeltWater`, the per-surface refreezing amounts `frMelt_*` and debug `wu_*`, `ev0_*`, `ev_*`, `drain_*` now sum when resampled instead of being averaged
+  - Water stores, deficits and snow water equivalent keep their amounts, now labelled `kg m-2` with unchanged values
+- [change][experimental] Breaking: forcing contract 2.0.0 replaces observed `xsmd` with `sm`, the instantaneous liquid-water content of a specified soil layer in `kg m-2` (#1422)
+  - After validating the whole-store layer and interpolating content to model timestamps, SuPy derives `D = rho_w * theta_fc * d - sm`, clamped to `[0, AWC]`. The bulk store uses non-water area-weighted field-capacity content and available water capacity; `soil_store_capacity` remains AWC.
+  - YAML schema `2026.6.dev9` introduces `soil_moisture`, explicit observation layer bounds and optional `soil_field_capacity` (`m3 m-3`), required on each positive-area non-water surface in observed mode. Modelled runs do not require field capacity and retain their existing calculation.
+  - Legacy volumetric (SMDMethod 1) and gravimetric (SMDMethod 2, `kg kg-1`) observations require coordinated YAML and forcing conversion with confirmed layer geometry; changing a header is insufficient. The converter preserves inputs and references, records hashes and supports a dry-run report.
+  - An `xsmd` column that is entirely missing, as most existing forcing files carry, is still read as missing `sm` for modelled runs with a `FutureWarning`; observed runs and any `xsmd` with values are refused. The allowance ends at forcing contract 3.0.0.
+  - Sensor `smcap` is retired, so migrated observed runs may produce different deficits. Contents above field capacity or below the implied wilting reference are retained with warnings; only the derived deficit is clamped.
+  - Observed `sm` must be gap-free over the run and is interpolated only between valid observations, never extrapolated; earlier releases filled sensor gaps silently. A refusal names the missing timestamps and, at the start or end of the run, the first and last times a run can use.
+  - The converter reports each refusal with the CLI flags that resolve it, lists the surfaces whose `soil_field_capacity` is missing or too small with the minimum value, validates as strictly as the loader (site-completeness checks included), and records a discarded legacy `depth` in the manifest. `suews validate` no longer reports `soil_observation` or `soil_field_capacity` as extra parameters (a misspelt key inside them still is), and directs legacy observed YAMLs to the coordinated conversion instead of renaming the selector. A YAML counts as legacy observed from its observation block, a gravimetric method or its schema version, not from the selector's spelling, since `smdmethod` and the other legacy names remain accepted aliases; numeric selectors such as `1.0` are read by value. A YAML that mixes legacy `depth`/`smcap` or method 2 with canonical `layer_top`/`layer_depth`, at one site or across sites, keeps its selector and is reported by `suews validate` and the loader as a mix of contracts, naming the sites and keys to remove, instead of being renamed as current.
+- [feature][experimental] Forcing files can declare their units: `SUEWSForcing.from_file`, `supy.util.read_forcing`, `load_forcing_grid` and `SUEWSSimulation(config, units=...)` (also `update_config` and file-based `update_forcing`) take a mapping such as `{"Tair": "K", "pres": "hPa"}`, and declared columns are converted on load to the forcing registry's units before validation; undeclared columns load exactly as before and the YAML schema does not change (#1903)
+  - Rain, bulk and per-surface water use must be declared as rates (`kg m-2 s-1`, `mm h-1`, `mm d-1`), converted to the amount per forcing interval; a bare amount such as `mm` is refused, and forcing contract 2.1.0 records the rate unit (#1903)
+  - Unknown, absent or duplicated columns, unparseable units and dimension mismatches raise errors naming the column; in-memory forcing refuses a declaration
+- [feature][experimental] Output can be written in requested units: `SUEWSOutput.to_units`, `SUEWSOutput.save(units=...)` and `SUEWSSimulation.save(units=...)` take per-variable target units (for example `{"QE": "kW m-2", "T2": "K"}`), converted once after the run through `supy.units.convert`; output without a request keeps its values (#1903)
+  - Temperature differences convert by scale only and on-scale temperatures with their offset; a unit of the wrong dimension, an unknown or ambiguous variable, or a variable without a unit is refused
+  - Streamed runs cannot be converted after writing, and say so
+- [feature][experimental] Saved output carries its units: each text file gets a `<file>.units.json` sidecar, Parquet output carries per-field metadata and the output contract version, and `SUEWSOutput.units` maps each column to its unit with CF `cell_methods`, `interval` and `units_metadata` in `.metadata` (#1903)
+  - `cell_methods` names the written interval, for example `time: mean (interval: 1 hour)`; point values carry none
+  - Columns outside the output registry are marked `status: unknown`, with no inferred unit
+  - Parquet output keeps the written units, held interval and partial-bin coverage when read back with `pandas.read_parquet`, including later streamed parts; only SuPy-owned attributes are stored
+- [feature][experimental] DailyState `P_day`, `WU_EveTr1-3`, `WU_DecTr1-3` and `WU_Grass1-3` stay daily totals in mm with unchanged values, now marked `time: sum` over the covered day: partial first and last days keep their raw totals, the seconds each day covers are recorded as information (`daily_coverage_s` in text sidecars), amount units (`mm`, `m`, `kg m-2`) are accepted and rate units refused, and resampling across days sums them instead of taking the last day (#1903)
+- [feature][experimental] Output contract 1.1.9 writes every catalogue unit in CF notation (signed integer exponents, `1` for ratios, water stores in `kg m-2`) and gives each entry CF `cell_methods` (`time: mean`, `sum`, `point`, `minimum` or `maximum`) and `units_metadata` (`temperature: on_scale` or `temperature: difference`); values, names, groups and layouts are unchanged, and a test parses every unit string in the input data model and output catalogue (#1903)
+  - The time base follows each variable's aggregation code, with explicit overrides for DailyState means, totals and extrema
+  - Temperature differences (for example BEERS `Tg` and `Tw`, `TStar`, degree-day indices) are marked as such; every other `degC` or `K` variable is on-scale
+  - The conductance soil-moisture parameter `g_sm` is labelled `m2 kg-1` instead of `mm-1`; values are unchanged because 1 mm of water is 1 kg m-2
+- [bugfix] Calendar-resampled output saved with `save_tstep=True` now raises an error asking for the native output to be saved before resampling (#1903)
+- [bugfix] `supy.util` saturation vapour pressure (`cal_vap_sat`, and through it the dry-air and vapour density helpers) now converts pressure from hPa to kPa for DataFrame (2-D) input as it already did for Series, array and scalar input; the 2-D fallback branch used the hPa value directly, which overstated the pressure term of the enhancement factor tenfold (about 0.3 % in the result at surface pressure) (#1887)
+- [feature][internal] New `supy.units` module: the SUEWS unit vocabulary, a strict subset of CF (UDUNITS-2) syntax with a dimension, scale and offset for each symbol, `parse_unit`, a `Unit` type, a `NO_UNIT` marker for flags and selectors, and `convert` for boundary conversions; the unit strings of the input data model and output catalogue are checked against it (#1903)
+  - `scripts/lint/report_unit_strings.py` lists registry unit strings the vocabulary rejects
+- [maintenance] The file loader, range-check message, UMEP-to-EPW converter and forcing writer apply the pressure unit boundary through helpers in the forcing registry (kPa in a forcing file, hPa in memory and in the kernel); loaded values and the kernel input are unchanged (#1547)
+  - An out-of-range `pres` now reports both units, `[680, 1300] hPa in memory, which is [68, 130] kPa in a forcing file`, instead of a kPa range against hPa values, and the error for a kPa-looking DataFrame says which unit each entry point expects
+- [maintenance] Fortran physical-constant and unit-conversion literals are named: Celsius-Kelvin offsets (`C2K`), pi, Stefan-Boltzmann, degree-radian factors, latent heat, the specific heat of air, reference pressure and time conversions (`sec_per_hour`, `sec_per_day`, `min_per_day` and companions), each at the literal's own precision; the compiled code and read-only data of every touched object are identical before and after on Linux release builds (#1939, #1941, #1942, #1943, #1944, #1946, #1947, #1948, #1949)
+  - CI fails when a Fortran source gains such a literal: `scripts/lint/check_fortran_literals.py` compares per-file counts with a committed baseline, which clean-up PRs lower (#1888)
 
 ### 28 Oct 2026
 
@@ -546,7 +598,6 @@ EXAMPLES:
   - Fixed mixed evergreen/deciduous RSL temperature sampling to use weighted half-tree height (from RSL).
   - Guarded non-urban/forest-only SPARTACUS paths so direct-albedo and longwave fallback logic no longer touch urban-only roof/wall arrays.
   - Added tests for mixed-tree RSL sampling height and non-urban direct-albedo SPARTACUS runs.
-
 
 ### 20 Jun 2026
 
@@ -2408,7 +2459,6 @@ EXAMPLES:
   - Ensured consistent output types for error handling
   - Removed DAVE-specific parameters from STEBBS
 
-
 ## 2024
 
 ### 20 Dec 2024
@@ -2551,7 +2601,6 @@ EXAMPLES:
 ### 31 Jan 2024
 - [bugfix] Fixed GCC and M1 environment compatibility issues
 
-
 ## 2023
 
 ### 19 Dec 2023
@@ -2625,7 +2674,6 @@ EXAMPLES:
 ### 27 Jan 2023
 - [feature] Added EPW (EnergyPlus Weather) file header support (#69)
 - [bugfix] Fixed various test and CI pipeline issues (#75, #76)
-
 
 ## 2022
 
@@ -2722,7 +2770,6 @@ EXAMPLES:
 ### 17 Jan 2022
 - [maintenance] Moved SPARTACUS-specific output files to output section (#77)
 
-
 ## 2021
 
 ### 11 Dec 2021
@@ -2775,7 +2822,6 @@ EXAMPLES:
   - Improved RSL computational stability
   - Added comprehensive test suite for 2021a
 
-
 ## 2020
 
 ### 8 Dec 2020
@@ -2824,7 +2870,6 @@ EXAMPLES:
 - [bugfix] Fixed ERA5 data file location issues
 - [maintenance] Enhanced testing with pytest integration
 
-
 ## 2019
 
 ### 15 Nov 2019
@@ -2861,7 +2906,6 @@ EXAMPLES:
 - [maintenance] Trimmed unnecessary output groups
 - [doc] Major documentation improvements and restructuring
 
-
 ## 2018
 
 ### 28 Dec 2018
@@ -2897,7 +2941,6 @@ EXAMPLES:
   - Restructured physics scheme layout
   - Improved output file alignment
 - [maintenance] Removed AnthropCO2Method from RunControl.nml
-
 
 ## 2017
 

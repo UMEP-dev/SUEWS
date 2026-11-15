@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev8"`` describes the shape of the configuration
+``schema_version: "2026.6.dev9"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev8"
+   schema_version: "2026.6.dev9"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -116,7 +116,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev8 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev9 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -125,13 +125,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev8.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev9.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev8.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev9.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -181,7 +181,15 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev8** (current; development)
+**Schema 2026.6.dev9** (current; development)
+   Observed soil water (#1422): the source selector is
+   ``model.physics.soil_moisture`` (``modelled`` or ``observed``), observations
+   describe a whole-store layer in metres, and sensor ``smcap`` is retired.
+   Modelled configurations upgrade unattended; active legacy observation
+   methods need the coordinated forcing converter. See
+   :ref:`schema_dev9_soil_migration`.
+
+**Schema 2026.6.dev8** (development)
    ``initial_states.snowalb`` rejects null. Earlier
    ``suews validate --science-fixes apply`` runs wrote ``snowalb: null`` for a
    site whose run starts in summer or in the tropics, and the null reached the
@@ -383,3 +391,20 @@ FAQ
    No. The schema version tracks the YAML shape. The model version
    tracks the SUEWS code. One schema typically spans several model
    releases.
+
+Schema 2026.6.dev9: observed soil water
+---------------------------------------
+
+The source selector is now ``model.physics.soil_moisture`` (``modelled`` or
+``observed``). Observations describe a whole-store liquid-water layer using
+``soil_observation.layer_depth`` and ``layer_top`` in metres. Optional dry
+``bulk_density`` uses kg per cubic metre. Sensor ``smcap`` is retired.
+Each contributing non-water surface requires ``soil_field_capacity`` in
+volumetric units; the implied wilting point must be non-negative.
+
+Modelled configurations upgrade unattended. Active legacy observation methods
+require confirmed layer bounds and a completed forcing-conversion manifest;
+a configuration-only upgrade refuses to write output. The keyword-only
+``migration_context`` argument to the Python migration APIs carries this
+private evidence; it is not a runtime YAML field. The forcing conversion
+operation is supplied separately from this configuration-schema change.

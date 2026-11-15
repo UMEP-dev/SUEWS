@@ -152,12 +152,12 @@ class TestNativeSaveRoundTrip:
     def test_missing_optional_columns_filled_with_sentinel(self, tmp_path):
         index = pd.date_range("2012-01-01 00:05", periods=12, freq="5min")
         forcing = _synthetic_forcing(index)
-        df = forcing.df.drop(columns=["kdiff", "kdir", "wdir", "xsmd"])
+        df = forcing.df.drop(columns=["kdiff", "kdir", "wdir", "sm"])
         path = SUEWSForcing(df).save(tmp_path / "forcing.txt")
         written = pd.read_csv(path, sep="\t")
         assert list(written.columns) == _CANONICAL
         np.testing.assert_array_equal(
-            written[["kdiff", "kdir", "wdir", "xsmd"]].to_numpy(), -999.0
+            written[["kdiff", "kdir", "wdir", "sm"]].to_numpy(), -999.0
         )
         _reload(path, tstep_mod=300)
 

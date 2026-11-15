@@ -57,6 +57,7 @@ EXAMPLES:
 ### 15 Nov 2026
 
 - [maintenance] Mark the stream-chunk test cases by their measured cost: in nightly run 43544098140 the cases at 30 CPU-s or more on the Linux cp312 api lane become `slow` and those at 20 to 30 `medium`, keeping at least one case of each test in the pre-merge tier, so 31 cases (about 28% of the lane's summed test time) leave the standard tier and still run nightly; with these markers the cost-marker check reports no drift on that run's artefacts (#2034)
+- [maintenance] Report cost-marker drift in the nightly report's summary and, for the test files a pull request changes, in its CI summary comment; it never gates (#2035)
 
 ### 13 Nov 2026
 

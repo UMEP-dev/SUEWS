@@ -85,6 +85,24 @@ def cru_data_available():
         pytest.skip("CRU climatology data not available")
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _silence_platform_support_notice():
+    """Keep the once-per-process platform notice out of the test suite.
+
+    On macOS Intel the first simulation in each process warns that the
+    platform has reduced test coverage. Which test runs first in a worker is
+    arbitrary, so a test asserting on the warnings a run emits would fail on
+    that platform alone. Marking the notice as shown keeps every platform
+    alike; ``test/core/test_platform_notice.py`` tests the notice itself.
+    """
+    import supy._env as env
+
+    shown = env._platform_notice_shown
+    env._platform_notice_shown = True
+    yield
+    env._platform_notice_shown = shown
+
+
 @pytest.fixture(autouse=True)
 def suppress_import_warnings():
     """Suppress ImportWarning globally for all tests.

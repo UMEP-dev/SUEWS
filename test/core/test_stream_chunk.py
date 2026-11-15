@@ -21,6 +21,7 @@ resumes from it, trims the files it writes back to what the run up to the
 checkpoint produced, and ends with the files of an uninterrupted run.
 """
 
+import itertools
 import json
 import logging
 import os
@@ -58,6 +59,112 @@ STEPS_PER_HOUR = 3600 // TSTEP_S
 CLOCK_FOLLOW = ("local_standard_time", "follow")
 CLOCK_UTC = ("utc", "utc")
 CLOCK_LST = ("local_standard_time", "local_standard_time")
+
+# Cost markers of the cases measured at 20 CPU-s or more: call-phase CPU
+# seconds in nightly run 43544098140 (14 Nov 2026), artefact
+# ci-metrics-api-cp312-manylinux-x86_64; thresholds and their reasoning are in
+# .claude/rules/tests/patterns.md. A case at 30 CPU-s or more is `slow` and one
+# at 20 to 30 is `medium`, except that where every case of a test is at 30 or
+# more, the cheapest stays `medium`, so each test keeps a case in the
+# pre-merge tier. Tests whose cases all take the same marker carry it as a
+# decorator instead (test_resume_rewrites_a_file_without_a_whole_header,
+# test_parquet_daily_state_only_matches_run_then_save and
+# test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts, all
+# `medium`). Measure again and edit here when these tests get cheaper.
+COST_MARKER = {
+    "test_files_match_run_then_save": {
+        "1-300-2grids-daily": "slow",
+        "1-300-2grids-nodaily": "slow",
+        "1-3600-2grids-daily": "slow",
+        "1-3600-2grids-nodaily": "slow",
+    },
+    "test_explicit_clock_files_match_run_then_save": {
+        "1-utc-2grids": "slow",
+        "1-lst-2grids": "slow",
+    },
+    "test_resumed_run_matches_an_uninterrupted_run": {
+        "at-year-end-follow": "medium",
+        "at-year-end-utc": "medium",
+        "at-year-end-lst": "medium",
+        "mid-year-follow": "slow",
+        "mid-year-utc": "slow",
+        "mid-year-lst": "slow",
+    },
+    "test_non_zero_time_zone_matches_run_then_save": {
+        "utc-tz+8": "medium",
+        "utc-tz-5": "slow",
+        "lst-tz+8": "slow",
+        "lst-tz-5": "slow",
+    },
+    "test_non_zero_time_zone_resume_matches_an_uninterrupted_run": {
+        "utc-tz+8": "slow",
+        "utc-tz-5": "medium",
+        "lst-tz+8": "slow",
+        "lst-tz-5": "slow",
+    },
+    "test_parquet_matches_run_then_save": {
+        "1-300-2grids": "slow",
+        "1-3600-1grid": "medium",
+        "1-3600-2grids": "slow",
+        "1-86400-2grids": "slow",
+        "30-300-2grids": "medium",
+        "30-3600-2grids": "slow",
+        "30-86400-2grids": "medium",
+    },
+    "test_parquet_explicit_clock_matches_run_then_save": {
+        "1-utc-1grid": "medium",
+        "1-utc-2grids": "slow",
+        "1-lst-1grid": "medium",
+        "1-lst-2grids": "slow",
+    },
+    "test_parquet_non_zero_time_zone_matches_run_then_save": {
+        "utc-tz+8": "slow",
+        "utc-tz-5": "slow",
+        "lst-tz+8": "slow",
+        "lst-tz-5": "medium",
+    },
+    "test_parquet_resumed_run_matches_an_uninterrupted_run": {
+        "3600-1grid-at-year-end": "slow",
+        "3600-1grid-mid-year": "slow",
+        "3600-2grids-at-year-end": "slow",
+        "3600-2grids-mid-year": "slow",
+        "86400-1grid-at-year-end": "medium",
+        "86400-1grid-mid-year": "slow",
+        "86400-2grids-at-year-end": "slow",
+        "86400-2grids-mid-year": "slow",
+    },
+}
+
+
+def _parametrize_by_cost(argnames, *axes):
+    """Parametrise over every combination of *axes*, marked from COST_MARKER.
+
+    Each axis maps case ids to values. A case's id joins its ids with "-" in
+    the order of *axes*, as stacked ``parametrize`` decorators do from the
+    bottom one up, and the case takes the marker COST_MARKER gives that id
+    under the decorated test's name. A COST_MARKER id that names no case
+    raises, so a changed axis cannot drop a marker unnoticed.
+    """
+
+    def decorate(func):
+        dict_marker = COST_MARKER.get(func.__name__, {})
+        list_param = []
+        for combo in itertools.product(*(axis.items() for axis in axes)):
+            case = "-".join(key for key, _ in combo)
+            marker = dict_marker.get(case)
+            list_param.append(
+                pytest.param(
+                    *(value for _, value in combo),
+                    marks=[getattr(pytest.mark, marker)] if marker else [],
+                    id=case,
+                )
+            )
+        unknown = set(dict_marker) - {param.id for param in list_param}
+        if unknown:
+            raise ValueError(f"{func.__name__}: no case {sorted(unknown)}")
+        return pytest.mark.parametrize(argnames, list_param)(func)
+
+    return decorate
 
 
 # ---------------------------------------------------------------------------
@@ -314,10 +421,13 @@ def saved_whole(short_sample_sim, tmp_path_factory):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("groups", [GROUPS, GROUPS_NO_DAILY], ids=["daily", "nodaily"])
-@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
-@pytest.mark.parametrize("freq_s", [3600, TSTEP_S])
-@pytest.mark.parametrize("stream_chunk", [1, 30, 366])
+@_parametrize_by_cost(
+    ("stream_chunk", "freq_s", "list_gridiv", "groups"),
+    {"1": 1, "30": 30, "366": 366},
+    {"3600": 3600, "300": TSTEP_S},
+    {"1grid": None, "2grids": [2, 1]},
+    {"daily": GROUPS, "nodaily": GROUPS_NO_DAILY},
+)
 def test_files_match_run_then_save(
     short_sample_sim, saved_whole, tmp_path, stream_chunk, freq_s, list_gridiv, groups
 ):
@@ -337,9 +447,12 @@ def test_files_match_run_then_save(
     assert "stream_chunk" not in read_provenance(dir_whole)["run"]
 
 
-@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
-@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
-@pytest.mark.parametrize("stream_chunk", [1, 30, 366])
+@_parametrize_by_cost(
+    ("stream_chunk", "clock", "list_gridiv"),
+    {"1": 1, "30": 30, "366": 366},
+    {"utc": CLOCK_UTC, "lst": CLOCK_LST},
+    {"1grid": None, "2grids": [2, 1]},
+)
 def test_explicit_clock_files_match_run_then_save(
     short_sample_sim, saved_whole, tmp_path, stream_chunk, clock, list_gridiv
 ):
@@ -819,11 +932,10 @@ def _resume(sim, dir_out, monkeypatch=None, fail_after=None):
 N_CHUNK_2011 = 16  # one-day chunks from 16 to 31 December 2011
 
 
-@pytest.mark.parametrize(
-    "clock", [CLOCK_FOLLOW, CLOCK_UTC, CLOCK_LST], ids=["follow", "utc", "lst"]
-)
-@pytest.mark.parametrize(
-    "n_written", [N_CHUNK_2011, N_CHUNK_2011 + 3], ids=["at-year-end", "mid-year"]
+@_parametrize_by_cost(
+    ("n_written", "clock"),
+    {"at-year-end": N_CHUNK_2011, "mid-year": N_CHUNK_2011 + 3},
+    {"follow": CLOCK_FOLLOW, "utc": CLOCK_UTC, "lst": CLOCK_LST},
 )
 def test_resumed_run_matches_an_uninterrupted_run(
     short_sample_sim, tmp_path, monkeypatch, clock, n_written
@@ -999,6 +1111,7 @@ def test_fresh_run_removes_a_previous_runs_sidecars(
 
 
 @pytest.mark.parametrize("damage", ["empty", "partial-header"])
+@pytest.mark.medium
 def test_resume_rewrites_a_file_without_a_whole_header(
     short_sample_sim, tmp_path, monkeypatch, damage
 ):
@@ -1025,8 +1138,9 @@ SITE_CLOCKS = {
 }
 
 
-@pytest.mark.parametrize("site_clock", SITE_CLOCKS.values(), ids=SITE_CLOCKS.keys())
-@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
+@_parametrize_by_cost(
+    ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
+)
 def test_non_zero_time_zone_matches_run_then_save(
     short_sample_sim, saved_whole, tmp_path, clock, site_clock
 ):
@@ -1040,8 +1154,9 @@ def test_non_zero_time_zone_matches_run_then_save(
     _compare_dirs(tmp_path, dir_whole)
 
 
-@pytest.mark.parametrize("site_clock", SITE_CLOCKS.values(), ids=SITE_CLOCKS.keys())
-@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
+@_parametrize_by_cost(
+    ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
+)
 def test_non_zero_time_zone_resume_matches_an_uninterrupted_run(
     short_sample_sim, tmp_path, monkeypatch, clock, site_clock
 ):
@@ -1191,9 +1306,12 @@ def _compare_streamed_dirs(dir_a, dir_b):
     _compare_sidecars(dir_a, dir_b)
 
 
-@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
-@pytest.mark.parametrize("freq_s", [TSTEP_S, 3600, 86400])
-@pytest.mark.parametrize("stream_chunk", [1, 30, 366])
+@_parametrize_by_cost(
+    ("stream_chunk", "freq_s", "list_gridiv"),
+    {"1": 1, "30": 30, "366": 366},
+    {"300": TSTEP_S, "3600": 3600, "86400": 86400},
+    {"1grid": None, "2grids": [2, 1]},
+)
 def test_parquet_matches_run_then_save(
     short_sample_sim, saved_whole, tmp_path, stream_chunk, freq_s, list_gridiv
 ):
@@ -1222,6 +1340,7 @@ def test_parquet_matches_run_then_save(
 
 
 @pytest.mark.parametrize("freq_s", [TSTEP_S, 3600, 86400])
+@pytest.mark.medium
 def test_parquet_daily_state_only_matches_run_then_save(
     short_sample_sim, saved_whole, tmp_path, freq_s
 ):
@@ -1258,9 +1377,12 @@ def test_parquet_folder_holds_one_file_per_chunk(
     assert _part_names(tmp_path) == names
 
 
-@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
-@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
-@pytest.mark.parametrize("stream_chunk", [1, 366])
+@_parametrize_by_cost(
+    ("stream_chunk", "clock", "list_gridiv"),
+    {"1": 1, "366": 366},
+    {"utc": CLOCK_UTC, "lst": CLOCK_LST},
+    {"1grid": None, "2grids": [2, 1]},
+)
 def test_parquet_explicit_clock_matches_run_then_save(
     short_sample_sim, saved_whole, tmp_path, stream_chunk, clock, list_gridiv
 ):
@@ -1279,8 +1401,9 @@ def test_parquet_explicit_clock_matches_run_then_save(
     _compare_with_whole(tmp_path, dir_whole, GROUPS_PARQUET, 3600)
 
 
-@pytest.mark.parametrize("site_clock", SITE_CLOCKS.values(), ids=SITE_CLOCKS.keys())
-@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
+@_parametrize_by_cost(
+    ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
+)
 def test_parquet_non_zero_time_zone_matches_run_then_save(
     short_sample_sim, saved_whole, tmp_path, clock, site_clock
 ):
@@ -1375,12 +1498,12 @@ def test_fresh_parquet_run_removes_a_previous_runs_files(
     assert (dir_out / "other.parquet").read_bytes() == b"mine"
 
 
-@pytest.mark.parametrize(
-    "n_written", [N_CHUNK_2011, N_CHUNK_2011 + 3], ids=["at-year-end", "mid-year"]
+@_parametrize_by_cost(
+    ("freq_s", "list_gridiv", "n_written"),
+    {"3600": 3600, "86400": 86400},
+    {"1grid": None, "2grids": [2, 1]},
+    {"at-year-end": N_CHUNK_2011, "mid-year": N_CHUNK_2011 + 3},
 )
-@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
-@pytest.mark.parametrize("freq_s", [3600, 86400])
-@pytest.mark.medium
 def test_parquet_resumed_run_matches_an_uninterrupted_run(
     short_sample_sim, tmp_path, monkeypatch, freq_s, list_gridiv, n_written
 ):
@@ -1449,6 +1572,7 @@ def test_parquet_part_cut_short_is_never_left_half_written(
     _compare_streamed_dirs(dir_out, dir_full)
 
 
+@pytest.mark.medium
 def test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts(
     short_sample_sim, tmp_path
 ):

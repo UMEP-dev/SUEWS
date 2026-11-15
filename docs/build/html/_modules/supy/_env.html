@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy._env &#8212; SUEWS 2026.11.15.dev6 documentation</title>
+    <title>supy._env &#8212; SUEWS 2026.11.15.dev8 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=fbd890a7"></script>
+    <script src="../../_static/documentation_options.js?v=0a829344"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.15.dev6" />
+  <meta name="docsearch:version" content="2026.11.15.dev8" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756" style="color: #31708f;">cabbe8b</a>).
+        (2026.11.15.dev8, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/786b0e78f173f661ee16f07ce6fb4d05a7745590" style="color: #31708f;">786b0e7</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.15.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.15.dev8 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.15.dev8 documentation - Home"/>
   
   
 </a></div>
@@ -561,11 +561,14 @@
     <span class="kn">from</span><span class="w"> </span><span class="nn">importlib_resources</span><span class="w"> </span><span class="kn">import</span> <span class="n">files</span>
 
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">ctypes</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ctypes.util</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">logging.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">TimedRotatingFileHandler</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">platform</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
@@ -806,6 +809,74 @@
         <span class="k">return</span> <span class="n">level</span>
     <span class="k">finally</span><span class="p">:</span>
         <span class="k">del</span> <span class="n">frame</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_running_under_rosetta</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Tell whether this x86_64 process runs translated on Apple Silicon.</span>
+
+<span class="sd">    macOS reports ``sysctl.proc_translated`` as 1 for a process Rosetta 2</span>
+<span class="sd">    translates and 0 for a native one; on an Intel Mac the key does not</span>
+<span class="sd">    exist and the call fails. Any failure reads as "not translated".</span>
+<span class="sd">    """</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_size_t</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">sizeof</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">sysctlbyname</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">CDLL</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">find_library</span><span class="p">(</span><span class="s2">"c"</span><span class="p">))</span><span class="o">.</span><span class="n">sysctlbyname</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">sysctlbyname</span><span class="p">(</span>
+            <span class="sa">b</span><span class="s2">"sysctl.proc_translated"</span><span class="p">,</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">byref</span><span class="p">(</span><span class="n">value</span><span class="p">),</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">byref</span><span class="p">(</span><span class="n">size</span><span class="p">),</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_size_t</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="mi">1</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_platform_support_notice</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">"""Return the reduced-support notice for this platform, or None.</span>
+
+<span class="sd">    The macOS x86_64 wheel is built, published and runs its build-step tests,</span>
+<span class="sd">    but the Python API tests do not run on that platform in nightly or release</span>
+<span class="sd">    CI. An x86_64 Python on an Apple Silicon Mac gets the same wheel, so it is</span>
+<span class="sd">    pointed at the arm64 build instead.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span> <span class="o">!=</span> <span class="s2">"darwin"</span> <span class="ow">or</span> <span class="n">platform</span><span class="o">.</span><span class="n">machine</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">"x86_64"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">_running_under_rosetta</span><span class="p">():</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="s2">"SuPy on macOS Intel (x86_64) is running here under Rosetta on an "</span>
+            <span class="s2">"Apple Silicon Mac. The Intel build is tested less than the native "</span>
+            <span class="s2">"one: install an arm64 Python and reinstall supy to use the arm64 "</span>
+            <span class="s2">"build, which runs the full test suite."</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="s2">"SuPy on macOS Intel (x86_64) is built and published, but tested less "</span>
+        <span class="s2">"than on other platforms: its Python API tests do not run in nightly or "</span>
+        <span class="s2">"release CI. If something goes wrong on this platform, please report it "</span>
+        <span class="sa">f</span><span class="s2">"at </span><span class="si">{</span><span class="n">ISSUES_URL</span><span class="si">}</span><span class="s2"> and say that you are on an Intel Mac."</span>
+    <span class="p">)</span>
+
+
+<span class="n">_platform_notice_shown</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">warn_platform_support</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Warn once per process when this platform has reduced test coverage.</span>
+
+<span class="sd">    Called when a simulation is about to run, not on import, so the CLI and</span>
+<span class="sd">    hosts such as QGIS do not show it on every start. Silence it with the</span>
+<span class="sd">    standard warnings filter, for example</span>
+<span class="sd">    ``warnings.filterwarnings("ignore", message="SuPy on macOS Intel")``.</span>
+<span class="sd">    """</span>
+    <span class="k">global</span> <span class="n">_platform_notice_shown</span>
+    <span class="k">if</span> <span class="n">_platform_notice_shown</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">_platform_notice_shown</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">notice</span> <span class="o">=</span> <span class="n">_platform_support_notice</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">notice</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">notice</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="n">_user_warning_stacklevel</span><span class="p">())</span>
 </pre></div>
 
                 </article>
@@ -858,8 +929,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.15.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cabbe8b68f14b9d615d2fe11329a3cb4cb9d5756">cabbe8b</a> |
+  <p>Version: 2026.11.15.dev8 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/786b0e78f173f661ee16f07ce6fb4d05a7745590">786b0e7</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

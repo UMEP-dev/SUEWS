@@ -14,10 +14,10 @@
 # (BOOKEND for PRs, the abi3 floor for merge queue, ALL for nightly/tag).
 # "api_buildplat" is the platform matrix consumed by test-api-cross-python
 # (the wheel-build job keeps plain "buildplat"). Identical to "buildplat" on
-# every branch except the nightly schedule, where it drops macos-15-intel
-# (see NIGHTLY_API_PLATFORMS below) -- macOS Intel wheels are still built and
-# release-gated, only nightly api-test coverage on that runner class is
-# dropped.
+# every branch except the nightly schedule, the "full" manual dispatch and tag
+# releases, where it drops macos-15-intel (see NIGHTLY_API_PLATFORMS below) --
+# macOS Intel wheels are still built and run their build-step tests; only
+# api-test coverage on that runner class is dropped for those triggers.
 #
 # Required environment variables:
 #   EVENT_NAME           -- github.event_name
@@ -62,15 +62,22 @@ FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "m
 PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
 MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 
-# Nightly-only api-test preset: FULL_PLATFORMS minus macos-15-intel. Run
+# Api-test preset for the nightly schedule, the "full" manual dispatch and tag
+# releases: FULL_PLATFORMS minus macos-15-intel (the name dates from when only
+# the nightly used it). Run
 # 28990965739 (9 Jul 2026) showed the nightly `api cross-CPython` job on
 # macos-15-intel waiting ~3h54m for a scarce macOS Intel runner while every
 # other job finished within a few minutes -- wall clock 4h39m for a run that
-# should take well under an hour. macOS Intel wheels are still built and
-# release-gated (see FULL_PLATFORMS above); only the nightly api-test
+# should take well under an hour. macOS Intel wheels are still built and run
+# their build-step tests (see FULL_PLATFORMS above); only the api-test
 # coverage on that platform is dropped, since it is a declining platform
-# already excluded from PR/merge-queue via PR_PLATFORMS. See api_buildplat
-# below.
+# already excluded from PR/merge-queue via PR_PLATFORMS. Dispatched run
+# 43734399764 (15 Nov 2026, matrix "full") lost two of its four macOS Intel
+# api lanes to the 45-minute job timeout and the other two took 35 and 45
+# minutes; the cancelled lanes failed build_wheels and skipped every job that
+# needs it, so the full dispatch uses this preset too, and so do tag
+# releases, which ran the same api lanes and whose publish jobs need
+# build_wheels in the same way. See api_buildplat below.
 NIGHTLY_API_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
 
 # Python version policy.
@@ -196,7 +203,9 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
     full)
       echo "Manual dispatch: full matrix"
       echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
-      echo "api_buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
+      # As nightly: build the macOS Intel wheel, skip its api lanes, whose
+      # three cells run past the job timeout on that runner class.
+      echo "api_buildplat=$NIGHTLY_API_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       API_PYTHON="$ALL_PYTHON"
       ;;
@@ -250,11 +259,14 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
   echo "test_tier=${INPUT_TEST_TIER}" >> "$GITHUB_OUTPUT"
 
 else
-  # Tag pushes - full matrix for releases (Intel api coverage retained: releases
-  # stay fully gated, unlike the nightly api_buildplat trim above)
-  echo "Tag release - full matrix, all tests"
+  # Tag pushes - full build matrix for releases. The api tests skip
+  # macos-15-intel as nightly and the full dispatch do: its api lanes run past
+  # the job timeout, and a cancelled lane would fail build_wheels and block
+  # the publish jobs. The macOS Intel wheel is still built and runs its
+  # build-step tests.
+  echo "Tag release - full matrix, all tests (api tests skip macos-15-intel)"
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
-  echo "api_buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$NIGHTLY_API_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
   API_PYTHON="$ALL_PYTHON"

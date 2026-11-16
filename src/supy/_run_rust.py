@@ -16,7 +16,7 @@ import yaml
 # Use C-based YAML dumper when available (5-10x faster than pure Python)
 _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
-from ._env import logger_supy
+from ._env import logger_supy, warn_platform_support
 from ._post import df_var, gen_index
 
 from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
@@ -93,6 +93,7 @@ def _check_rust_available():
     module = _load_rust_module()
     if not hasattr(module, "run_suews_into"):
         raise RuntimeError(_RUST_ERROR_MSG)
+    warn_platform_support()
     return module
 
 
@@ -330,13 +331,24 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
     )
 
 
-def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
+def _prepare_forcing_block(df_forcing: pd.DataFrame, *, soil_moisture_method: int = 0) -> np.ndarray:
     """Prepare the forcing as the ``(len_sim, MET_FORCING_COLS)`` kernel block.
 
     The block is C-ordered: the bridge reads it row by row, so its memory is
     already the row-major layout the kernel expects and it can be handed over
     as a buffer without a copy in Python (gh#1849).
     """
+    from .util._forcing import validate_soil_content
+
+    validate_soil_content(df_forcing, required=soil_moisture_method == 1)
+    if soil_moisture_method not in (0, 1):
+        raise ValueError("Legacy soil-moisture input requires explicit migration.")
+    if soil_moisture_method == 1:
+        if "_soil_deficit" not in df_forcing:
+            raise ValueError("Observed soil moisture requires prepared deficits; use SUEWSSimulation.")
+        deficit = df_forcing["_soil_deficit"].to_numpy(dtype=float)
+        if not np.isfinite(deficit).all() or (deficit < 0).any():
+            raise ValueError("Prepared soil deficit must be finite and non-negative in mm.")
     len_sim = len(df_forcing)
     columns_by_lower = {str(col).lower(): col for col in df_forcing.columns}
 
@@ -356,7 +368,7 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (16, "ldown", 0.0),
         (17, "fcld", 0.0),
         (18, "Wuh", 0.0),
-        (19, "xsmd", 0.0),
+        (19, "_soil_deficit", 0.0),
         (30, "kdiff", -999.0),
         (31, "kdir", -999.0),
     ]
@@ -922,6 +934,22 @@ class _KeptOutputStore:
         )
 
 
+def config_to_engine_yaml(config: SUEWSConfig) -> str:
+    """Return the resolved YAML the Rust engine receives for *config*.
+
+    This is the hand-off between the data model and the bridge: the validated
+    configuration, with every data-model default filled in, dumped exactly as
+    ``suews run`` and the library backend pass it to the engine. The
+    standalone ``suews-engine run`` binary expects input in this form (gh#2004).
+    """
+    return yaml.dump(
+        config.model_dump(exclude_none=True, mode="json"),
+        default_flow_style=False,
+        sort_keys=False,
+        Dumper=_yaml_Dumper,
+    )
+
+
 def run_suews_rust(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
@@ -939,13 +967,8 @@ def run_suews_rust(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
-        default_flow_style=False,
-        sort_keys=False,
-        Dumper=_yaml_Dumper,
-    )
-    forcing_block = _prepare_forcing_block(df_forcing)
+    config_yaml = config_to_engine_yaml(config)
+    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
 
     df_output, state_json, raw_warnings = _run_grid_into(
         rust_module, config_yaml, forcing_block, len(df_forcing), grid_id
@@ -1021,7 +1044,7 @@ def run_suews_rust_multi(
     _check_max_workers(max_workers)
 
     # --- Prepare shared data once ---
-    forcing_block = _prepare_forcing_block(df_forcing)
+    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
     len_forcing = len(df_forcing)
     list_grid_ids, list_config_jsons = _grid_config_jsons(config)
 
@@ -1139,7 +1162,7 @@ def run_suews_rust_multi_with_state(
         raise ValueError("forcing data is empty")
     _check_max_workers(max_workers)
 
-    forcing_block = _prepare_forcing_block(df_forcing)
+    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
     len_forcing = len(df_forcing)
     list_grid_ids, list_config_jsons = _grid_config_jsons(config)
     list_state_jsons = [dict_state_json_by_grid[grid_id] for grid_id in list_grid_ids]
@@ -1182,13 +1205,8 @@ def run_suews_rust_with_state(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
-        default_flow_style=False,
-        sort_keys=False,
-        Dumper=_yaml_Dumper,
-    )
-    forcing_block = _prepare_forcing_block(df_forcing)
+    config_yaml = config_to_engine_yaml(config)
+    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
 
     df_output, new_state_json, raw_warnings = _run_grid_into(
         rust_module, config_yaml, forcing_block, len(df_forcing), grid_id, state_json
@@ -1373,7 +1391,7 @@ def run_suews_rust_chunked(
         dict_state_json_chunk, warnings_chunk = _write_grids_output(
             rust_module,
             list_config_jsons,
-            _prepare_forcing_block(df_forcing_chunk),
+            _prepare_forcing_block(df_forcing_chunk, soil_moisture_method=int(config.model.physics.soil_moisture.value.value)),
             len_chunk,
             list_grid_ids,
             list_state_jsons,

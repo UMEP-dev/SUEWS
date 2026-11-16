@@ -45,7 +45,9 @@ parameters missing under MOST. Output contract `1.1.7` describes the debug
 after a sign error in `S2` was corrected. Output contract `1.1.8` describes the
 BEERS `DirectRad` (direct beam normal to the sun) and `DiffuseRad` (diffuse on
 the horizontal) columns as the kernel now writes them, after their values were
-found swapped. A group is covered when that group is
+found swapped. Output contract `1.1.9` writes every unit in the CF notation
+of `supy.units` (water stores in `kg m-2`), leaving every value, name, group
+and layout unchanged. A group is covered when that group is
 present; the contract does not promise that every optional group is emitted by
 every run.
 

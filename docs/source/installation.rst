@@ -43,6 +43,31 @@ One can install ``supy`` using ``pip``:
   python3 -m pip install supy --upgrade
 
 
+.. _supported_platforms:
+
+Supported platforms
+*******************
+
+SuPy publishes wheels for Linux (x86_64), macOS (Apple Silicon and Intel) and Windows (x86_64).
+Each release is tested on every one of them, but not to the same depth:
+
+- **Linux, macOS on Apple Silicon and Windows** run the full test suite, including the Python API tests on every supported Python version.
+- **macOS on Intel** is built and published and runs the tests of its build step, but its Python API tests do not run in nightly or release testing.
+  On this platform SuPy warns once per session, when a simulation first runs, that it is tested less.
+  If something goes wrong on an Intel Mac, please `report it as an issue <https://github.com/UMEP-dev/SUEWS/issues/new>`__ and say that you are on an Intel Mac.
+
+On an Apple Silicon Mac, check that your Python is the arm64 build: an Intel (x86_64) Python running under Rosetta installs the Intel wheel, and SuPy then says so in its warning.
+``python3 -c "import platform; print(platform.machine())"`` prints ``arm64`` for the native build.
+
+To silence the warning, filter it as any Python warning:
+
+.. code-block:: python
+
+  import warnings
+
+  warnings.filterwarnings("ignore", message="SuPy on macOS Intel")
+
+
 
 
 

@@ -184,9 +184,10 @@ under `pull_request` only). Read the workflow's `paths:` rather than assuming.
   - Enforces: every action pinned to a full commit SHA with a version comment.
   - Author-fixable only -- no bypass. `Advisory workflow audit` (zizmor) in the same
     workflow is informational.
-- **`Audit Python dependency intake`** (`dependency-audit.yml`)
+- **`Audit Python dependency intake (3.13)`** / **`(3.15)`** (`dependency-audit.yml`)
   - Fires on: `pyproject.toml`, `Makefile`, `scripts/security/**`, the build
-    workflows.
+    workflows. One job per Python version, because requirement markers resolve
+    different pins on each.
   - Enforces (blocking): the Python startup-hook sweep and legacy `.pth` removal.
     The `pip-audit` step is explicitly advisory (`continue-on-error: true`), so
     advisories alone cannot turn this check red -- do not report them as the cause.

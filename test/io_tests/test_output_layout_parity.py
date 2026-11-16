@@ -111,6 +111,12 @@ def test_parquet_layout_and_null_round_trip(tmp_path: Path, streamed: bool):
     assert saved.columns.to_list() == columns.to_list()
     assert saved.columns.names == ["group", "var"]
     pd.testing.assert_index_equal(saved.index, index)
-    pd.testing.assert_frame_equal(saved, output, check_exact=True)
+    # Water fluxes are written as interval-mean rates (output contract 2.0.0):
+    # 1.5 mm over a 300 s step is 0.005 kg m-2 s-1. Other columns round-trip
+    # exactly.
+    rain = ("SUEWS", "Rain")
+    others = [column for column in columns if column != rain]
+    pd.testing.assert_frame_equal(saved[others], output[others], check_exact=True)
+    np.testing.assert_allclose(saved[rain], output[rain] / 300, rtol=1e-12, atol=0)
     assert pd.isna(saved.loc[(7, index.levels[1][1]), ("SUEWS", "QH")])
     assert arrow_table.column("('SUEWS', 'QH')").null_count == 1

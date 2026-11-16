@@ -562,5 +562,5 @@ END MODULE
 
 ## Revision History
 
-- 26 Oct 2025, [TS](@sunt05): Initial version establishing module naming standard
-- 26 Oct 2025, [TS](@sunt05): Added migration strategy and validation tools
+- 26 Oct 2025, TS: Initial version establishing module naming standard
+- 26 Oct 2025, TS: Added migration strategy and validation tools

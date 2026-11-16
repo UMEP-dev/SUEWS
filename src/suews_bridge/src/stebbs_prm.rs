@@ -1,3 +1,29 @@
+//! `STEBBS_PRM`: STEBBS building-energy parameters. Use this module as the
+//! reference when adding a scalar field to a bridged parameter type.
+//!
+//! Three lists must stay in lockstep with each other and with the Fortran
+//! facade `c_api/stebbs_prm.f95`:
+//!
+//! 1. `StebbsPrm::from_flat` reads the buffer with `next()` in order;
+//! 2. `StebbsPrm::to_flat` writes it in the same order;
+//! 3. `stebbs_prm_field_names` names each position, in the same order.
+//!
+//! And in Fortran, `stebbs_prm_pack` and `stebbs_prm_unpack` must use that
+//! order too. `STEBBS_PRM_FLAT_LEN` and `STEBBS_PRM_SCHEMA_VERSION` must equal
+//! `SUEWS_CAPI_STEBBS_PRM_LEN` and `SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION`, and
+//! each `Default` value must equal the shadow initialiser in the facade.
+//!
+//! Integer and logical Fortran components travel as `f64`. Validate them in
+//! `from_flat` and return `BridgeError::BadState` for a value outside the
+//! valid set (pattern: `daylight_control`, `internal_shading`,
+//! `destination_waste_heat` below), because Fortran's `nint` would otherwise
+//! accept any number.
+//!
+//! The YAML reader matches `properties.stebbs` keys onto these field names by
+//! name (`yaml_config::set_mapped_value`), so a new field needs no reader code
+//! but its name must match after normalisation, or the value is dropped.
+//! Full walkthrough: `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`.
+
 use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;

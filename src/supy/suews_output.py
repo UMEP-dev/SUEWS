@@ -15,6 +15,7 @@ from packaging.version import Version
 import pandas as pd
 
 from ._filename import safe_filename_component
+from ._output_metadata import OutputUnits, prepare_output, with_daily_coverage
 from .suews_checkpoint import SUEWSCheckpoint
 
 
@@ -200,6 +201,7 @@ class SUEWSOutput:
         checkpoint: Optional[SUEWSCheckpoint] = None,
         kernel_warnings: Optional[pd.DataFrame] = None,
         streamed_paths: list[str | Path] | None = None,
+        units: Optional[Dict] = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -216,6 +218,8 @@ class SUEWSOutput:
             Typed restart checkpoint from the Rust backend
         metadata : dict, optional
             Additional metadata (timing, version, etc.)
+        units : mapping, optional
+            Requested output units, applied after the run by the shared boundary.
         kernel_warnings : pd.DataFrame, optional
             Non-fatal warnings raised by the Fortran kernel (columns
             ``grid``, ``datetime``, ``location``, ``message``)
@@ -234,7 +238,29 @@ class SUEWSOutput:
         # (gh#1849). `.df` hands the table out through `_frame_for_caller`,
         # which shares it without exposing it to writes, and the group
         # accessors through `_group_for_caller`.
-        self._df_output = df_output.copy(deep=False)
+        interval_s = (metadata or {}).get(
+            "tstep_s", df_output.attrs.get("supy_output_interval_s")
+        )
+        if "resampled_to" in (metadata or {}):
+            try:
+                interval_s = pd.tseries.frequencies.to_offset(metadata["resampled_to"]).nanos / 1e9
+            except ValueError:
+                interval_s = None
+        if (
+            interval_s is None
+            and "resampled_to" not in (metadata or {})
+            and "supy_output_interval_s" not in df_output.attrs
+        ):
+            if config is not None:
+                value = getattr(config.model.control, "tstep", None)
+                interval_s = getattr(value, "value", value)
+            if interval_s is None:
+                from ._save import _native_interval_s
+
+                interval_s = _native_interval_s(df_state_final)
+        if not df_output.empty:
+            df_output = with_daily_coverage(df_output, interval_s)
+        self._df_output = prepare_output(df_output, units, interval_s=interval_s).copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None
         )
@@ -255,6 +281,35 @@ class SUEWSOutput:
         """Raise if this output was streamed to disk and holds no rows."""
         if self._streamed_paths is not None:
             raise streamed_output_error(self._streamed_paths)
+
+    @property
+    def units(self) -> OutputUnits:
+        """Read-only units keyed by column, with CF fields in ``.metadata``.
+
+        The held rows use the model timestep; streamed output uses the
+        configured output frequency. Without run context the interval is unknown.
+        """
+        interval_s = self._metadata.get(
+            "tstep_s", self._df_output.attrs.get("supy_output_interval_s")
+        )
+        if self._config is not None and "supy_output_interval_s" not in self._df_output.attrs:
+            control = self._config.model.control
+            value = (
+                control.output.freq
+                if self._streamed_paths is not None
+                else control.tstep
+            )
+            interval_s = int(getattr(value, "value", value))
+        if "resampled_to" in self._metadata:
+            try:
+                interval_s = pd.tseries.frequencies.to_offset(self._metadata["resampled_to"]).nanos / 1e9
+            except ValueError:
+                interval_s = None
+        return OutputUnits(
+            self._df_output.columns, interval_s,
+            self._df_output.attrs.get("supy_output_units"),
+            native=self._streamed_paths is None,
+        )
 
     @property
     def df(self) -> pd.DataFrame:
@@ -588,6 +643,69 @@ class SUEWSOutput:
     # Manipulation (domain-specific)
     # =========================================================================
 
+    def _held_interval(self, freq_source=None):
+        """Return the interval the held rows hold, see ``resolve_held_interval``.
+
+        The wrapper's evidence comes first (*freq_source*, ``resampled_to``,
+        the ``tstep_s`` metadata), then the frame's own attributes, the
+        configured timestep, the final state and the index cadence.
+        """
+        from ._output_metadata import resolve_held_interval
+
+        if freq_source is None:
+            freq_source = self._metadata.get("resampled_to")
+        if freq_source is None and self._metadata.get("tstep_s") is not None:
+            freq_source = pd.Timedelta(self._metadata["tstep_s"], "s")
+        native_s = None
+        if self._config is not None:
+            value = self._config.model.control.tstep
+            native_s = getattr(value, "value", value)
+        return resolve_held_interval(
+            self._df_output, freq_source, native_s=native_s,
+            df_state_final=self._df_state_final,
+        )
+
+    def _output_frequency(self):
+        """Return the held fixed interval as a Timedelta, else the calendar alias or None."""
+        held = self._held_interval()
+        if held.kind == "fixed":
+            return pd.Timedelta(held.seconds, "s")
+        return self._metadata.get("resampled_to")
+
+    def _held_fixed_interval_s(self) -> Optional[int]:
+        """Return the fixed interval of resampled rows in seconds, else None.
+
+        ``None`` for native output (saved at the configured frequency) and
+        for calendar-resampled output, which the writers refuse. A frame
+        built from resampled rows without this wrapper's metadata (for
+        example ``SUEWSOutput(output.resample("D").df, state)`` or a reloaded
+        Parquet file) is recognised by its declared interval differing from
+        the model timestep.
+        """
+        if "resampled_to" not in self._metadata:
+            interval_s = self._df_output.attrs.get("supy_output_interval_s")
+            if interval_s is None:
+                return None
+            native_s = self._metadata.get("tstep_s")
+            if native_s is None and self._config is not None:
+                value = self._config.model.control.tstep
+                native_s = getattr(value, "value", value)
+            if native_s is None:
+                from ._save import _native_interval_s
+
+                native_s = _native_interval_s(self._df_state_final)
+            if native_s is not None and int(interval_s) == int(native_s):
+                return None
+            return int(interval_s)
+        try:
+            return int(
+                pd.Timedelta(
+                    pd.tseries.frequencies.to_offset(self._metadata["resampled_to"])
+                ).total_seconds()
+            )
+        except ValueError:
+            return None
+
     def resample(self, freq: str) -> "SUEWSOutput":
         """
         Resample output to different frequency.
@@ -599,8 +717,10 @@ class SUEWSOutput:
 
         Each value covers the left-open, right-closed interval
         ``(t - freq, t]`` and is labelled by its end ``t``
-        (``closed="right", label="right"``); DailyState is labelled by the
-        start of each day. See :ref:`timestamp_convention`.
+        (``closed="right", label="right"``); at fixed frequencies DailyState
+        is labelled by the start of each day, while at calendar frequencies
+        (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``) every group takes the period's
+        label. See :ref:`timestamp_convention`.
 
         Parameters
         ----------
@@ -628,12 +748,34 @@ class SUEWSOutput:
     # Export
     # =========================================================================
 
+    def to_units(self, units: Dict) -> "SUEWSOutput":
+        """Return a new output with the requested per-variable units.
+
+        Parameters
+        ----------
+        units : mapping
+            Variable names (or (group, variable) pairs) to target unit strings.
+
+        Returns
+        -------
+        SUEWSOutput
+            Output converted by the shared boundary, preserving run context.
+        """
+        self._require_rows()
+        return SUEWSOutput(
+            self._df_output, self._df_state_final, config=self._config,
+            metadata=copy.deepcopy(self._metadata), checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings, units=units,
+        )
+
     def save(
         self,
         path: Union[str, Path] = ".",
         format: Optional[str] = None,
         freq_s: Optional[int] = None,
         groups: Optional[List[str]] = None,
+        units: Optional[Dict] = None,
+        include_provisional: Optional[bool] = None,
     ) -> List[Path]:
         """
         Save output to files.
@@ -649,9 +791,27 @@ class SUEWSOutput:
             'txt' if no configuration is available. An explicit value
             always overrides the configuration.
         freq_s : int, optional
-            Output frequency in seconds (default: from config or 3600)
+            Output frequency in seconds. Default: the held interval for
+            output from :meth:`resample` at a fixed frequency (for example
+            ``"D"``), else ``model.control.output.freq``, else 3600.
+            Calendar-resampled output (``"W"``, ``"MS"``, ``"ME"``,
+            ``"YE"``) cannot be saved; see the error for alternatives.
+            An explicit value must be positive and a whole multiple of the
+            interval the rows hold (the model timestep for native output).
+        units : mapping, optional
+            Variable names or (group, variable) pairs to requested unit strings.
         groups : list, optional
-            Groups to save (default: ['SUEWS', 'DailyState'])
+            TXT output groups, for example ['SUEWS', 'DailyState', 'RSL'].
+            An explicit list overrides ``model.control.output.groups`` for
+            this save only. When ``None``, use the configured groups, or
+            ['SUEWS', 'DailyState'] if none are configured. An empty list
+            writes no TXT output groups. Parquet saves every available group.
+        include_provisional : bool, optional
+            Allow provisional groups (BEERS, EHC, NHood, SPARTACUS, STEBBS),
+            whose variables may change between releases, in the TXT groups
+            saved; saving them emits a ``UserWarning``. Without it, naming
+            one raises ``ValueError``. When ``None``, use
+            ``model.control.output.include_provisional`` (default False).
 
         Returns
         -------
@@ -661,11 +821,29 @@ class SUEWSOutput:
         from ._supy_module import _save_supy
 
         self._require_rows()
+        if groups is not None:
+            if isinstance(groups, str):
+                groups = [groups]
+            missing = [group for group in groups if group not in self.groups]
+            if missing:
+                raise ValueError(
+                    f"Output group(s) {missing} not in this output; "
+                    f"available groups: {self.groups}"
+                )
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
-        # Get defaults from config if available
-        freq = freq_s or 3600
+        held_s = self._held_fixed_interval_s()
+        if freq_s is not None and held_s is not None and freq_s < held_s:
+            raise ValueError(
+                f"freq_s={freq_s} is finer than the held output interval of "
+                f"{held_s} s; resampled output can only be saved at its own "
+                "interval or a coarser one."
+            )
+
+        # Get defaults from config if available; resampled output defaults to
+        # the interval it holds rather than the configured output frequency.
+        freq = freq_s if freq_s is not None else (held_s or 3600)
         site = ""
         output_config = None
         forcing_timestamp_reference = "local_standard_time"
@@ -676,9 +854,20 @@ class SUEWSOutput:
                     control = self._config.model.control
                     if hasattr(control, "output"):
                         output_control = control.output
-                        if hasattr(output_control, "freq") and output_control.freq:
-                            freq = freq_s or output_control.freq
-                        output_config = output_control
+                        if (
+                            hasattr(output_control, "freq")
+                            and output_control.freq
+                            and held_s is None
+                        ):
+                            freq = (
+                                freq_s if freq_s is not None else output_control.freq
+                            )
+                        # The writer takes the frequency from the config;
+                        # pass the one resolved here so an explicit freq_s
+                        # and a resampled interval are both honoured.
+                        output_config = output_control.model_copy(
+                            update={"freq": int(freq)}
+                        )
                     if hasattr(control, "forcing"):
                         forcing_timestamp_reference = (
                             control.forcing.timestamp_reference
@@ -698,8 +887,11 @@ class SUEWSOutput:
             path_dir_save=str(path),
             output_config=output_config,
             output_format=format,
+            output_groups=groups,
+            include_provisional=include_provisional,
             save_state=False,
             forcing_timestamp_reference=forcing_timestamp_reference,
+            units=units,
         )
 
         if self._checkpoint is not None:

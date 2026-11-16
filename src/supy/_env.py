@@ -5,14 +5,17 @@ except ImportError:
     from importlib_resources import files
 
 
+import ctypes
+import ctypes.util
+import inspect
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import os
+from pathlib import Path
+import platform
 import sys
 import tempfile
 import warnings
-from logging.handlers import TimedRotatingFileHandler
-from pathlib import Path
-
 
 ########################################################################
 # this file provides variable and functions useful for the whole module.
@@ -219,3 +222,96 @@ if sys.version_info >= (3, 8):
     from importlib import metadata
 else:
     from importlib_metadata import metadata
+
+
+def _user_warning_stacklevel() -> int:
+    """Locate the caller outside SuPy and Pydantic for a user-facing warning.
+
+    Count from the function calling ``warnings.warn``. Save wrappers and
+    configuration constructors have different depths, so a fixed level
+    points inside the library on some public paths.
+    """
+    frame = inspect.currentframe()
+    try:
+        frame = frame.f_back if frame is not None else None
+        level = 1
+        while frame is not None:
+            module = frame.f_globals.get("__name__", "")
+            if not any(
+                module == name or module.startswith(name + ".")
+                for name in ("supy", "pydantic", "pydantic_core")
+            ):
+                break
+            level += 1
+            frame = frame.f_back
+        return level
+    finally:
+        del frame
+
+
+def _running_under_rosetta() -> bool:
+    """Tell whether this x86_64 process runs translated on Apple Silicon.
+
+    macOS reports ``sysctl.proc_translated`` as 1 for a process Rosetta 2
+    translates and 0 for a native one; on an Intel Mac the key does not
+    exist and the call fails. Any failure reads as "not translated".
+    """
+    value = ctypes.c_int(0)
+    size = ctypes.c_size_t(ctypes.sizeof(value))
+    try:
+        sysctlbyname = ctypes.CDLL(ctypes.util.find_library("c")).sysctlbyname
+        status = sysctlbyname(
+            b"sysctl.proc_translated",
+            ctypes.byref(value),
+            ctypes.byref(size),
+            None,
+            ctypes.c_size_t(0),
+        )
+    except Exception:
+        return False
+    return status == 0 and value.value == 1
+
+
+def _platform_support_notice():
+    """Return the reduced-support notice for this platform, or None.
+
+    The macOS x86_64 wheel is built, published and runs its build-step tests,
+    but the Python API tests do not run on that platform in nightly or release
+    CI. An x86_64 Python on an Apple Silicon Mac gets the same wheel, so it is
+    pointed at the arm64 build instead.
+    """
+    if sys.platform != "darwin" or platform.machine() != "x86_64":
+        return None
+    if _running_under_rosetta():
+        return (
+            "SuPy on macOS Intel (x86_64) is running here under Rosetta on an "
+            "Apple Silicon Mac. The Intel build is tested less than the native "
+            "one: install an arm64 Python and reinstall supy to use the arm64 "
+            "build, which runs the full test suite."
+        )
+    return (
+        "SuPy on macOS Intel (x86_64) is built and published, but tested less "
+        "than on other platforms: its Python API tests do not run in nightly or "
+        "release CI. If something goes wrong on this platform, please report it "
+        f"at {ISSUES_URL} and say that you are on an Intel Mac."
+    )
+
+
+_platform_notice_shown = False
+
+
+def warn_platform_support() -> None:
+    """Warn once per process when this platform has reduced test coverage.
+
+    Called when a simulation is about to run, not on import, so the CLI and
+    hosts such as QGIS do not show it on every start. Silence it with the
+    standard warnings filter, for example
+    ``warnings.filterwarnings("ignore", message="SuPy on macOS Intel")``.
+    """
+    global _platform_notice_shown
+    if _platform_notice_shown:
+        return
+    _platform_notice_shown = True
+    notice = _platform_support_notice()
+    if notice is not None:
+        warnings.warn(notice, UserWarning, stacklevel=_user_warning_stacklevel())

@@ -16,7 +16,7 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 import warnings
 
 import numpy as np
@@ -156,6 +156,8 @@ def load_forcing_grid(
     path_init: str,
     grid: int,
     df_state_init: pd.DataFrame = None,
+    *,
+    units: Optional[Mapping[str, str]] = None,
 ) -> pd.DataFrame:
     """Load forcing for the UMEP YAML compatibility workflow.
 
@@ -165,7 +167,9 @@ def load_forcing_grid(
 
     This forwarding shim is retained for the UMEP processor's YAML,
     single-grid workflow. Namelist and multi-file loading remain available
-    only through the deprecated namelist CLI.
+    only through the deprecated namelist CLI. ``units`` declares the units
+    held in the forcing files, keyed by column name, and is forwarded to
+    the simulation's shared file reader.
     """
     del grid, df_state_init
     _warn_functional_deprecation("load_forcing_grid")
@@ -178,7 +182,7 @@ def load_forcing_grid(
 
     from .suews_sim import SUEWSSimulation
 
-    simulation = SUEWSSimulation(path_config)
+    simulation = SUEWSSimulation(path_config, units=units)
     if simulation.forcing is None:
         raise RuntimeError(
             f"No forcing data found in YAML configuration: {path_config}"
@@ -208,6 +212,10 @@ def _save_supy(
     save_state: bool = True,
     forcing_timestamp_reference="local_standard_time",
     streamed_files=None,
+    units: Optional[dict] = None,
+    *,
+    output_groups=None,
+    include_provisional=None,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -250,6 +258,16 @@ def _save_supy(
         or the chunk's rows go to their own file in the run's Parquet folder
         (see ``supy._save.StreamedParquetParts``); it must match the output
         format.
+    output_groups : list of str, optional
+        TXT groups to save. An explicit list (including an empty list)
+        overrides ``output_config.groups``. Otherwise use the configured
+        groups, or the default SUEWS and DailyState groups. Does not filter
+        Parquet output.
+    include_provisional : bool, optional
+        Allow TXT output of provisional groups (see
+        ``supy._save.PROVISIONAL_OUTPUT_GROUPS``), with a warning. An explicit
+        value overrides ``output_config.include_provisional``; otherwise
+        provisional groups are refused.
 
     Returns
     -------
@@ -278,7 +296,6 @@ def _save_supy(
 
     # Handle output configuration if provided
     # output_format = "txt"  # default - MP: Moved as argument
-    output_groups = None  # default will be handled in save_df_output
     output_timestamp_reference = "follow"
 
     if output_config is not None:
@@ -294,8 +311,10 @@ def _save_supy(
                 output_format = str(output_config.format)
             output_timestamp_reference = output_config.timestamp_reference
             # Get groups for txt format
-            if output_format == "txt" and output_config.groups is not None:
+            if output_format == "txt" and output_groups is None:
                 output_groups = output_config.groups
+            if include_provisional is None:
+                include_provisional = output_config.include_provisional
         elif isinstance(output_config, str):
             # Legacy string format - issue deprecation warning
             warnings.warn(
@@ -340,6 +359,7 @@ def _save_supy(
             timestamp_reference=output_timestamp_reference,
             forcing_timestamp_reference=forcing_timestamp_reference,
             streamed_parquet=streamed_files,
+            units=units,
         )
     else:
         # Save as text files (existing behavior)
@@ -357,6 +377,8 @@ def _save_supy(
             forcing_timestamp_reference=forcing_timestamp_reference,
             df_state_final=df_state_final,
             streamed_files=streamed_files,
+            units=units,
+            include_provisional=bool(include_provisional),
         )
 
         # MP: Parquet saves this already - breaks the parquet save check

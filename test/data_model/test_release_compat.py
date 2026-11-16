@@ -134,3 +134,16 @@ class TestReleaseCompat:
                 f"Docs example {yaml_path.name} no longer parses under current "
                 f"schema: {type(exc).__name__}: {exc}\n\n{_REMEDIATION_HINT}"
             )
+
+
+def test_outgoing_soil_schema_fixture_upgrades(tmp_path):
+    import yaml
+    fixture = RELEASE_FIXTURES / "schema_deltas" / "2026.6.dev5.yml"
+    original = fixture.read_bytes()
+    cfg = yaml.safe_load(original)
+    assert cfg["schema_version"] == "2026.6.dev5"
+    assert "soil_moisture_deficit" in cfg["model"]["physics"]
+    target = tmp_path / "current.yml"
+    upgrade_yaml(fixture, target)
+    SUEWSConfig.from_yaml(target)
+    assert fixture.read_bytes() == original

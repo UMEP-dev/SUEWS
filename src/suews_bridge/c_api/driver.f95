@@ -59,9 +59,16 @@ private
 
 integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
 integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 24_c_int
+! Must equal SUEWS_CAPI_SITE_SCALARS_LEN in src/sim.rs (not checked at run
+! time). The layout is encode_site_scalars (Rust) / unpack_site_scalars here.
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
 integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 32_c_int
 
+! Site members travel as one flat buffer plus a table of contents (TOC) of
+! (offset, length) pairs, one per member, indexed by the constants below
+! (see member_span_from_toc). A new field in an existing member type needs no
+! change here; a new member type needs a new index, a higher member count,
+! the matching (0-based) index in src/sim.rs, and an unpack call in this file.
 integer(c_int), parameter :: SUEWS_CAPI_SITE_MEMBER_COUNT = 18_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STATE_MEMBER_COUNT = 13_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SITE_MEMBER_SPARTACUS = 1_c_int

@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev5"
+CURRENT_SCHEMA_VERSION = "2026.6.dev9"
 
 # Schema version history and descriptions.
 #
@@ -152,6 +152,40 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "bare and RefValue-wrapped selectors while preserving reference "
         "metadata. Numeric option 3 and its default calculation are unchanged. "
         "The optional reindl selector (option 4) adds no required inputs."
+    ),
+    "2026.6.dev6": (
+        "Development schema adding model.control.output.include_provisional "
+        "(#1974), default false: output groups the output contract marks "
+        "provisional (BEERS, EHC, NHood, SPARTACUS, STEBBS) are saved only "
+        "when it is true. Existing 2026.6.dev5 YAMLs remain compatible "
+        "through a no-op content migration; a YAML naming a provisional "
+        "group still loads, with a warning, and needs the new setting to "
+        "save that group."
+    ),
+    "2026.6.dev7": (
+        "Development schema requiring "
+        "anthropogenic_emissions.co2.emission_co2_point_source in a YAML "
+        "whose model.physics.emissions is a biogenic CO2 method (11-16, "
+        "21-26, 31-36, 41-46), the methods whose CO2 flux includes it "
+        "(#2001). A missing value used to reach the model as 0. The "
+        "(2026.6.dev6 -> 2026.6.dev7) migration writes that 0.0 explicitly "
+        "wherever the point source is absent or null, so upgraded YAMLs run "
+        "unchanged."
+    ),
+    "2026.6.dev8": (
+        "Development schema rejecting a null initial_states.snowalb (#2001). "
+        "suews validate --science-fixes apply used to write snowalb: null for "
+        "a snow-free start, which reached the model as 0; the field now needs "
+        "a number. The (2026.6.dev7 -> 2026.6.dev8) migration drops a null "
+        "snowalb, so an upgraded YAML takes the default 0.5; a value the user "
+        "gave is kept. Null vegetation sdd_id and water flowchange receive "
+        "their former effective 0.0 explicitly."
+    ),
+    "2026.6.dev9": (
+        "Observed soil-water configuration (#1422): soil_moisture source selector, "
+        "explicit whole-store layer bounds in metres, optional SI density and "
+        "surface field capacity; retire sensor saturation capacity. Active legacy "
+        "observations require confirmed bounds and a completed forcing manifest."
     ),
 }
 

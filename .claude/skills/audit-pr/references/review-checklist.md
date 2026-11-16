@@ -54,6 +54,14 @@ Detailed checklist for comprehensive PR review.
 - [ ] "Output is identical" is not used to conclude "design is fine"
 - [ ] Ref: `.claude/rules/code-design.md` -> "Fix Placement and Encapsulation"
 
+### Rust bridge boundaries
+
+- [ ] Apply `.claude/rules/rust/bridge-contract.md` to affected Python, Rust and
+      Fortran boundary paths; record applicable BR IDs and revision-specific
+      evidence using its audit format
+- [ ] Distinguish current behaviour, required contract and unresolved follow-ups;
+      a schema/length check or round trip does not establish kernel-field wiring
+
 ---
 
 ## Scientific Review Checklist
@@ -235,6 +243,6 @@ PR can be merged when ALL of:
 
 ## Module Reviewer Mapping
 
-Use `dev-ref/SCIENTIFIC_REVIEWERS.md` as the operational source for suggested
+Use `MAINTAINERS.md` as the operational source for suggested
 scientific reviewers in the audit summary. Use `dev-ref/REVIEW_PROCESS.md` for
 manual code-governance maintainer suggestions.

@@ -8,7 +8,7 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 import copy
 from enum import Enum
 from pathlib import Path, PurePosixPath
-from typing import Any, Optional, Union
+from typing import Any, Mapping, Optional, Union
 import warnings
 
 import pandas as pd
@@ -18,6 +18,7 @@ from ._check import check_forcing
 from ._env import logger_supy
 from ._filename import safe_filename_component
 from ._load import merge_forcing_frames
+from ._output_metadata import with_daily_coverage
 from ._provenance import (
     PROVENANCE_FILENAME,
     PROVENANCE_FORMAT_VERSION,
@@ -44,6 +45,7 @@ from ._save import (
     DEFAULT_OUTPUT_GROUPS,
     StreamedParquetParts,
     StreamedTextFiles,
+    check_provisional_groups,
     parquet_file_path,
 )
 
@@ -104,7 +106,10 @@ class SUEWSSimulation:
 
     """
 
-    def __init__(self, config: Union[str, Path, dict, Any] = None):
+    def __init__(
+        self, config: Union[str, Path, dict, Any] = None, *,
+        units: Optional[Mapping[str, str]] = None,
+    ):
         """
         Initialize SUEWS simulation.
 
@@ -117,6 +122,11 @@ class SUEWSSimulation:
               through ``SUEWSConfig`` exactly like a YAML file)
             - SUEWSConfig object
             - None to create empty simulation
+        units : mapping of str to str, optional
+            Units held in the forcing files, keyed by column name. Applied
+            only to this load, through the shared file reader; never stored
+            in YAML. In-memory forcing already uses runtime units.
+
         """
         self._config = None
         self._config_path = None
@@ -137,12 +147,14 @@ class SUEWSSimulation:
         self._run_metadata = None
 
         if config is not None:
-            self.update_config(config)
+            self.update_config(config, units=units)
 
     def update_config(
         self,
         config: Union[str, Path, dict, SUEWSConfig],
         auto_load_forcing: bool = True,
+        *,
+        units: Optional[Mapping[str, str]] = None,
     ) -> "SUEWSSimulation":
         """
         Update simulation configuration.
@@ -169,6 +181,11 @@ class SUEWSSimulation:
             - You want explicit control over forcing data loading
             - Forcing file paths in config are placeholders
             - You plan to provide forcing data programmatically
+
+        units : mapping of str to str, optional
+            Units held in the forcing files, keyed by column name. Applied
+            only to this load, through the shared file reader; never stored
+            in YAML. In-memory forcing already uses runtime units.
 
         Returns
         -------
@@ -202,7 +219,7 @@ class SUEWSSimulation:
 
             # Optionally try to load forcing from config
             if auto_load_forcing:
-                self._try_load_forcing_from_config()
+                self._try_load_forcing_from_config(units=units)
 
         elif isinstance(config, dict):
             if self._config is None:
@@ -224,7 +241,7 @@ class SUEWSSimulation:
                 # in the config. Relative paths resolve against the CWD
                 # here (no file anchor); failures warn rather than raise.
                 if auto_load_forcing:
-                    self._try_load_forcing_from_config()
+                    self._try_load_forcing_from_config(units=units)
             else:
                 # Merge the partial update onto the existing config, then
                 # re-validate the whole configuration so enum coercion,
@@ -239,6 +256,9 @@ class SUEWSSimulation:
                     yaml_path=str(self._config_path) if self._config_path else None,
                 )
 
+                if auto_load_forcing and units is not None:
+                    self._try_load_forcing_from_config(units=units)
+
             # Regenerate state DataFrame
             self._df_state_init = self._config.to_df_state()
 
@@ -247,6 +267,8 @@ class SUEWSSimulation:
             self._config = config
             self._config_identity = None
             self._df_state_init = self._config.to_df_state()
+            if auto_load_forcing and units is not None:
+                self._try_load_forcing_from_config(units=units)
 
         return self
 
@@ -275,11 +297,15 @@ class SUEWSSimulation:
         # user had declared them, so conditional validators gated on
         # model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,
         # site completeness) would fire false errors on sparse configs.
+        # round_trip omits computed outputs: they must be re-derived after
+        # a patch, rather than carried back as stale user input.
         # Internal bookkeeping keys are re-stamped by from_dict; carrying
         # them through the merge would nest snapshots inside snapshots.
         base = {
             k: v
-            for k, v in config.model_dump(exclude_unset=True, mode="json").items()
+            for k, v in config.model_dump(
+                exclude_unset=True, round_trip=True, mode="json"
+            ).items()
             if not k.startswith("_")
         }
 
@@ -319,6 +345,7 @@ class SUEWSSimulation:
                     isinstance(node_obj, BaseModel)
                     and not isinstance(node_obj, RefValue)
                     and key not in type(node_obj).model_fields
+                    and key not in type(node_obj).model_computed_fields
                 ):
                     raise ValueError(f"Unknown configuration key: '{key_path}'")
                 attr = getattr(node_obj, key, None) if node_obj is not None else None
@@ -436,6 +463,7 @@ class SUEWSSimulation:
         forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing],
         *,
         on_conflict: str = "error",
+        units: Optional[Mapping[str, str]] = None,
     ) -> "SUEWSSimulation":
         """
         Update meteorological forcing data.
@@ -457,6 +485,11 @@ class SUEWSSimulation:
             ``"first"`` / ``"last"`` resolve them by list order (earlier /
             later file wins) and log a warning. Ignored for DataFrame and
             SUEWSForcing inputs.
+
+        units : mapping of str to str, optional
+            Units held in the forcing files, keyed by column name. Applied
+            only to this load, through the shared file reader; never stored
+            in YAML. In-memory forcing already uses runtime units.
 
         Returns
         -------
@@ -500,6 +533,8 @@ class SUEWSSimulation:
 
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
+        if units is not None and isinstance(forcing_data, (SUEWSForcing, pd.DataFrame)):
+            raise ValueError("units declarations apply only to forcing files, not in-memory data")
         if isinstance(forcing_data, SUEWSForcing):
             self._df_forcing = prepare_dataframe_forcing(
                 forcing_data.to_dataframe(include_extras=True), tstep_mod=tstep_mod
@@ -515,7 +550,7 @@ class SUEWSSimulation:
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(
-                forcing_data, tstep_mod=tstep_mod, on_conflict=on_conflict
+                forcing_data, tstep_mod=tstep_mod, on_conflict=on_conflict, units=units
             )
             self._forcing_sources = self._describe_forcing_sources(
                 "files",
@@ -526,7 +561,7 @@ class SUEWSSimulation:
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
             self._df_forcing = SUEWSSimulation._load_forcing_file(
-                forcing_path, tstep_mod=tstep_mod, on_conflict=on_conflict
+                forcing_path, tstep_mod=tstep_mod, on_conflict=on_conflict, units=units
             )
             if forcing_path.is_dir():
                 dir_files = []
@@ -575,7 +610,7 @@ class SUEWSSimulation:
                 record["description"] = description
         return record
 
-    def _try_load_forcing_from_config(self):
+    def _try_load_forcing_from_config(self, *, units: Optional[Mapping[str, str]] = None):
         """Try to load forcing data from configuration if not explicitly provided."""
         if self._config is None:
             return
@@ -608,9 +643,11 @@ class SUEWSSimulation:
                         if self._config_path:
                             forcing_value = self._resolve_forcing_paths(forcing_value)
 
-                        self.update_forcing(forcing_value)
+                        self.update_forcing(forcing_value, units=units)
 
         except Exception as e:
+            if units is not None:
+                raise
             warnings.warn(f"Could not load forcing from config: {e}", stacklevel=2)
 
     def _forcing_declared_runtime(self) -> bool:
@@ -688,6 +725,7 @@ class SUEWSSimulation:
         forcing_list: list[Union[str, Path]],
         tstep_mod: int = 300,
         on_conflict: str = "error",
+        units: Optional[Mapping[str, str]] = None,
     ) -> pd.DataFrame:
         """Load and merge forcing data from a list of files.
 
@@ -713,7 +751,7 @@ class SUEWSSimulation:
                     "Directories are not allowed in lists."
                 )
 
-            df = read_forcing(str(path), tstep_mod=tstep_mod, on_conflict=on_conflict)
+            df = read_forcing(str(path), tstep_mod=tstep_mod, on_conflict=on_conflict, units=units)
             dfs.append(df)
             sources.append(str(path))
 
@@ -721,7 +759,8 @@ class SUEWSSimulation:
 
     @staticmethod
     def _load_forcing_file(
-        forcing_path: Path, tstep_mod: int = 300, on_conflict: str = "error"
+        forcing_path: Path, tstep_mod: int = 300, on_conflict: str = "error", *,
+        units: Optional[Mapping[str, str]] = None
     ) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
@@ -745,7 +784,7 @@ class SUEWSSimulation:
 
             # Merge all files, reconciling overlapping timestamps
             dfs = [
-                read_forcing(str(file), tstep_mod=tstep_mod, on_conflict=on_conflict)
+                read_forcing(str(file), tstep_mod=tstep_mod, on_conflict=on_conflict, units=units)
                 for file in forcing_files
             ]
             return merge_forcing_frames(
@@ -753,7 +792,7 @@ class SUEWSSimulation:
             )
         else:
             return read_forcing(
-                str(forcing_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+                str(forcing_path), tstep_mod=tstep_mod, on_conflict=on_conflict, units=units
             )
 
     def run(
@@ -949,6 +988,9 @@ class SUEWSSimulation:
             save_settings = self._resolve_save_settings(None, {})
             stream_chunk = self._check_stream_chunk(save_settings)
             list_keep = self._groups_saved(save_settings["output_config"])
+            check_provisional_groups(
+                list_keep, save_settings["output_config"].include_provisional
+            )
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -1030,28 +1072,12 @@ class SUEWSSimulation:
                 if _check_observed_lai_nonneg(df_forcing_slice, lai_issues):
                     raise RuntimeError(lai_issues[0])
 
-        # Preserve observed-soil-moisture preprocessing from the retired
-        # DataFrame runner on the single canonical execution path.
-        soil_moisture_deficit = getattr(
-            self._config.model.physics,
-            "soil_moisture_deficit",
-            None,
-        )
-        if soil_moisture_deficit is None:
-            soil_moisture_deficit = getattr(
-                self._config.model.physics,
-                "smdmethod",
-                None,
-            )
-        if hasattr(soil_moisture_deficit, "value"):
-            soil_moisture_deficit = soil_moisture_deficit.value
-        if soil_moisture_deficit is not None and int(soil_moisture_deficit) > 0:
-            from .util._forcing import convert_observed_soil_moisture
+        # Mandatory even with check_input=False; the public frame remains content.
+        from .util._forcing import convert_observed_soil_moisture
 
-            df_forcing_slice = convert_observed_soil_moisture(
-                df_forcing_slice.copy(),
-                self._df_state_init,
-            )
+        df_forcing_slice = convert_observed_soil_moisture(
+            df_forcing_slice, self._df_state_init,
+        )
 
         # Snapshot the identity of the inputs as they are handed to the
         # kernel, so a later update_config/update_forcing without a rerun
@@ -1156,9 +1182,16 @@ class SUEWSSimulation:
             - **format** : str
                 Output format: 'txt' (default) or 'parquet'.
                 Note: This overrides config file settings.
+            - **units** : mapping
+                Requested output units by variable name or (group, variable) pair.
             - **command** : str
                 Command line that produced the run (recorded in the
                 ``provenance.json`` sidecar; set by ``suews run``).
+            - **include_provisional** : bool
+                Allow provisional groups (BEERS, EHC, NHood, SPARTACUS,
+                STEBBS) named in ``config.model.control.output.groups`` to
+                be saved as text, with a warning. Overrides
+                ``output.include_provisional`` for this save.
 
             **Not currently supported** (due to internal constraints):
 
@@ -1205,6 +1238,11 @@ class SUEWSSimulation:
         settings = self._resolve_save_settings(output_path, save_kwargs)
 
         if self._streamed_paths is not None:
+            if save_kwargs.get("units"):
+                raise ValueError(
+                    "Streamed output cannot be converted after writing; "
+                    "rerun without stream_chunk."
+                )
             # The run streamed every file to disk; the frame is gone, so
             # nothing can be written again somewhere else.
             streamed_dir = Path(self._streamed_paths[0]).parent
@@ -1301,9 +1339,11 @@ class SUEWSSimulation:
             "output_path": output_path,
             "output_format": output_format,
             "output_config": output_config,
+            "units": save_kwargs.get("units"),
             "forcing_timestamp_reference": forcing_timestamp_reference,
             "freq_s": int(freq_s),
             "site": site,
+            "include_provisional": save_kwargs.get("include_provisional"),
         }
 
     @staticmethod
@@ -1331,6 +1371,8 @@ class SUEWSSimulation:
             save_state=False,
             forcing_timestamp_reference=settings["forcing_timestamp_reference"],
             streamed_files=streamed_files,
+            units=settings.get("units"),
+            include_provisional=settings["include_provisional"],
         )
 
     def _write_save_sidecars(
@@ -1545,8 +1587,13 @@ class SUEWSSimulation:
         else:
             streamed_files = StreamedTextFiles(resume_after=resume_after)
             year_last = None
-        # _save_supy sets the SuPy logger level on every call; keep the
-        # caller's level so later chunks and the end-of-run summaries still log.
+        # Streaming chunks are right-closed; a day's midnight step may be in
+        # the preceding chunk. Count the run's forcing rows before slicing.
+        coverage_index = df_forcing.index
+        if resume_after is not None:
+            coverage_index = coverage_index.insert(0, pd.Timestamp(resume_after))
+        daily_steps = pd.Series(1, index=coverage_index.normalize()).groupby(level=0).sum()
+        # _save_supy sets the logger level; preserve the caller's level.
         log_level = logger_supy.level
         folder = Path(settings["output_path"]).resolve()
         logger_supy.info(
@@ -1577,6 +1624,7 @@ class SUEWSSimulation:
                 ),
                 keep_groups=list_keep,
             ):
+                df_chunk = with_daily_coverage(df_chunk, tstep_s, daily_steps=daily_steps)
                 kernel_warnings.extend(warnings_chunk)
                 dict_state_json = dict_state_chunk
                 if is_parquet:

@@ -1,460 +1,209 @@
-import os
-
-from conftest import load_sample_frames, run_simulation
+"""Independent soil-content algebra and mandatory kernel-boundary checks."""
+# Tests deliberately exercise the private forcing/kernel preparation boundary.
+# ruff: disable[import-private-name]
 import numpy as np
 import pandas as pd
 import pytest
 
-from supy.util._forcing import convert_observed_soil_moisture
+from supy import SUEWSSimulation
+from supy._run_rust import _prepare_forcing_block
+from supy.data_model.core.config import SUEWSConfig
+from supy.util import soil_moisture_to_content
+from supy.util._forcing import (
+    convert_observed_soil_moisture,
+    interpolate_soil_content,
+    validate_soil_content,
+)
 
-# All tests in this module are core physics tests
+# ruff: enable[import-private-name]
+
 pytestmark = [pytest.mark.core, pytest.mark.physics]
-FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
-# Default to full-window validation; set SUEWS_FAIL_FAST_STEPS>0 for fast debugging.
-DEFAULT_FAIL_FAST_STEPS = 0
 
 
-def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
-    """Return number of timesteps for fail-fast execution."""
-    raw = os.environ.get(FAIL_FAST_STEPS_ENV)
-    if raw is None or raw == "":
-        return default_steps
-    try:
-        return int(raw)
-    except ValueError as exc:
-        raise ValueError(
-            f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
-        ) from exc
+def state(method=1):
+    # Non-water weights 0.3/0.2: AWC=(30+10)/0.5=80;
+    # FC=(0.3*0.6*200+0.2*0.6*200)/0.5=120 mm.
+    row = {("smdmethod", "0"): method, ("obs_sm_layer_depth", "0"): 0.2,
+           ("obs_sm_layer_top", "0"): 0.0}
+    for i, f in enumerate([0.3, 0.2, 0, 0, 0, 0, 0.5]):
+        row["sfr_surf", f"({i},)"] = f
+        if i < 2:
+            row["soildepth", f"({i},)"] = 200
+            row["soilstorecap_surf", f"({i},)"] = [100, 50][i]
+            row["soil_field_capacity", f"({i},)"] = 0.6
+    result = pd.DataFrame([row], index=[1], dtype=float)
+    result.columns = pd.MultiIndex.from_tuples(result.columns)
+    return result
 
 
-def _select_integration_forcing_window(df_forcing, *, start: str, end: str):
-    """Select forcing window; optionally truncates to fail-fast timesteps."""
-    df_window = df_forcing.loc[start:end].copy()
-    requested_steps = _get_fail_fast_steps()
-    if requested_steps <= 0 or requested_steps >= len(df_window):
-        return df_window
-
-    # Start from first daytime point so evaporation diagnostics remain meaningful.
-    daytime_positions = np.flatnonzero((df_window["kdown"] > 100).values)
-    start_pos = int(daytime_positions[0]) if len(daytime_positions) else 0
-    end_pos = min(start_pos + requested_steps, len(df_window))
-    return df_window.iloc[start_pos:end_pos].copy()
+def forcing(values):
+    return pd.DataFrame({"sm": values}, index=pd.date_range("2024-07-01", periods=len(values), freq="h"))
 
 
-def _make_site_level_state(
-    smdmethod: int,
-    *,  # keyword-only for clarity
-    depth: float,
-    smcap: float,
-    soil_not_rocks: float,
-    bulk_density: float,
-):
-    """Create a df_state with site-level soil observation config.
+def test_independent_field_capacity_algebra_and_immutability():
+    df = forcing([0, 50, 80, 100, 120, 140])
+    original = df.copy()
+    with pytest.warns(UserWarning) as caught:
+        result = convert_observed_soil_moisture(df, state())
+    np.testing.assert_array_equal(result._soil_deficit, [80, 70, 40, 20, 0, 0])
+    pd.testing.assert_frame_equal(df, original)
+    assert len(caught) == 2
+    assert all("Count=" in str(w.message) and "maximum excess=" in str(w.message) for w in caught)
+    with pytest.warns(UserWarning):
+        pd.testing.assert_frame_equal(result, convert_observed_soil_moisture(df, state()))
 
-    Site-level config uses columns with index "0" instead of surface indices.
-    This is the approach for YAML-based configurations.
-    """
-    columns = [
-        ("smdmethod", "0"),
-        ("obs_sm_depth", "0"),
-        ("obs_sm_smcap", "0"),
-        ("obs_sm_soil_not_rocks", "0"),
-        ("obs_sm_bulk_density", "0"),
-    ]
-    data = [smdmethod, depth, smcap, soil_not_rocks, bulk_density]
 
-    multi_cols = pd.MultiIndex.from_tuples(columns)
-    df_state = pd.DataFrame(
-        [data], columns=multi_cols, index=pd.Index([1], name="grid")
+def test_interpolation_before_clamp():
+    df = forcing([140, 60])  # FC=120: deficits 0/60; midpoint must be 20, not 30.
+    target = pd.date_range(df.index[0], df.index[-1], freq="30min")
+    content = interpolate_soil_content(df.sm, target).to_frame()
+    with pytest.warns(UserWarning):
+        result = convert_observed_soil_moisture(content, state())
+    np.testing.assert_array_equal(result.sm, [140, 100, 60])
+    np.testing.assert_array_equal(result._soil_deficit, [0, 20, 60])
+
+
+@pytest.mark.parametrize("missing", [np.nan, -999])
+def test_missing_barriers_and_no_extrapolation(missing):
+    df = forcing([60, missing, 100])
+    target = pd.date_range(df.index[0] - pd.Timedelta("30min"), df.index[-1] + pd.Timedelta("30min"), freq="30min")
+    result = interpolate_soil_content(df.sm, target)
+    assert result.iloc[[0, 2, 3, 4, 6]].isna().all()
+    with pytest.raises(ValueError, match="contains missing values"):
+        convert_observed_soil_moisture(df, state())
+
+
+@pytest.mark.parametrize("bad", [-1, np.inf, -np.inf])
+@pytest.mark.parametrize("method", [0, 1])
+def test_malformed_content_rejected_in_both_modes(bad, method):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        convert_observed_soil_moisture(forcing([50, bad]), state(method))
+
+
+def test_modelled_mode_no_conversion_or_metadata_requirement():
+    df = forcing([np.nan, -999, 80])
+    result = convert_observed_soil_moisture(df, pd.DataFrame({("smdmethod", "0"): [0]}))
+    pd.testing.assert_frame_equal(df, result)
+    assert "_soil_deficit" not in result
+
+
+@pytest.mark.parametrize("column,value,message", [
+    (("obs_sm_layer_depth", "0"), 0.1, "full configured"),
+    (("obs_sm_layer_top", "0"), 0.01, "full configured"),
+    (("soil_field_capacity", "(0,)"), 0.1, "field-capacity content"),
+    (("soil_field_capacity", "(0,)"), np.nan, "soil_field_capacity"),
+    (("soildepth", "(0,)"), np.inf, "finite positive"),
+    (("soilstorecap_surf", "(0,)"), -1, "finite positive"),
+    (("sfr_surf", "(0,)"), -1, "valid surface fractions"),
+])
+def test_active_surface_validation(column, value, message):
+    initial = state()
+    initial.loc[1, column] = value
+    with pytest.raises(ValueError, match=message):
+        convert_observed_soil_moisture(forcing([70, 80]), initial)
+
+
+def test_all_water_and_shared_grid_rules():
+    initial = state()
+    initial.loc[1, ("sfr_surf", "(0,)")] = 0
+    initial.loc[1, ("sfr_surf", "(1,)")] = 0
+    with pytest.raises(ValueError, match="positive non-water area"):
+        convert_observed_soil_moisture(forcing([70, 80]), initial)
+    initial = pd.concat([state(), state().rename(index={1: 2})])
+    convert_observed_soil_moisture(forcing([70, 80]), initial)
+    initial.loc[2, ("soil_field_capacity", "(0,)")] = 0.7
+    with pytest.raises(ValueError, match="Shared forcing"):
+        convert_observed_soil_moisture(forcing([70, 80]), initial)
+
+
+@pytest.mark.parametrize("source_unit,values,kwargs,expected", [
+    ("m3 m-3", [0.25], {}, [50]),
+    ("m3 m-3", [0.25], {"soil_not_rocks": 0.8, "volume_basis": "fine_earth"}, [40]),
+    ("kg kg-1", [0.2], {"bulk_density": 1250}, [50]),
+    ("kg kg-1", [1.2], {"bulk_density": 1250}, [300]),
+    ("mm", [50], {}, [50]),
+])
+def test_conversion_routes_independent_algebra(source_unit, values, kwargs, expected):
+    result = soil_moisture_to_content(values, source_unit=source_unit, layer_depth=0.2, **kwargs)
+    np.testing.assert_allclose(result, expected, rtol=1e-14)
+    assert result.name == "sm"
+    assert result.attrs["layer_depth"] == pytest.approx(0.2)
+    assert result.attrs["unit"] == "kg m-2"
+
+
+@pytest.mark.parametrize("kwargs,message", [
+    ({"source_unit": "kg kg-1"}, "bulk_density"),
+    ({"soil_not_rocks": 0.8}, "fine_earth"),
+    ({"soil_not_rocks": 0}, "soil_not_rocks"),
+    ({"layer_depth": 0}, "layer_depth"),
+    ({"layer_top": -1}, "layer_top"),
+])
+def test_conversion_metadata_errors(kwargs, message):
+    options = {"source_unit": "m3 m-3", "layer_depth": 0.2}
+    options.update(kwargs)
+    with pytest.raises(ValueError, match=message):
+        soil_moisture_to_content([0.2], **options)
+
+
+def test_conversion_missing_values_and_range():
+    result = soil_moisture_to_content([np.nan, -999, 0.2], source_unit="m3 m-3", layer_depth=0.2)
+    assert result.iloc[:2].isna().all()
+    assert result.iloc[2] == 40
+    with pytest.raises(ValueError, match="Volumetric"):
+        soil_moisture_to_content([1.2], source_unit="m3 m-3", layer_depth=0.2)
+
+
+def test_retired_names_and_selector():
+    with pytest.raises(ValueError, match="Legacy"):
+        validate_soil_content(pd.DataFrame({"xsmd": [0.2]}))
+    with pytest.raises(ValueError, match="Both legacy"):
+        validate_soil_content(pd.DataFrame({"xsmd": [0.2], "sm": [50]}))
+    with pytest.raises(ValueError, match="Legacy"):
+        convert_observed_soil_moisture(forcing([50]), state(2))
+
+
+def test_kernel_handoff_is_deficit_and_raw_entry_is_refused():
+    df = forcing([50, 80])
+    with pytest.raises(ValueError, match="prepared deficits"):
+        _prepare_forcing_block(df, soil_moisture_method=1)
+    prepared = convert_observed_soil_moisture(df, state())
+    block = _prepare_forcing_block(prepared, soil_moisture_method=1)
+    np.testing.assert_array_equal(block[:, 19], [70, 40])
+    np.testing.assert_array_equal(df.sm, [50, 80])
+
+
+@pytest.mark.parametrize("conductance", [1, 2])
+def test_observed_simulation_unchecked_gate_and_kernel_run(short_sample_sim, conductance):
+    """Observed daytime execution works; bypass mode still rejects missing rows."""
+    sim = short_sample_sim()
+    data = sim.config.model_dump(mode="json")
+    data["model"]["physics"]["soil_moisture"] = "observed"
+    data["model"]["physics"]["surface_conductance"] = conductance
+    for site in data["sites"]:
+        props = site["properties"]
+        props["soil_observation"] = {"layer_depth": 0.2}
+        for name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+            props["land_cover"][name].update(
+                soil_depth=200.0, soil_store_capacity=80.0, soil_field_capacity=0.6,
+            )
+    config = SUEWSConfig.model_validate(data)
+    frame = sim.forcing.df.loc["2012-01-02 10:05":"2012-01-02 11:00"].copy()
+    frame["sm"] = 50.0  # FC=120, hence D=70 mm.
+    sim.update_config(config, auto_load_forcing=False)
+    sim._df_forcing = frame.copy()
+    sim._df_forcing.loc[frame.index[3], "sm"] = -999
+    with pytest.raises(ValueError, match="missing values"):
+        sim.run(start_date=frame.index[0], end_date=frame.index[-1], _validate_forcing=False)
+    sim._df_forcing = frame.copy()
+    first = sim.run(start_date=frame.index[0], end_date=frame.index[-1], _validate_forcing=False, n_jobs=1).df
+    second_sim = SUEWSSimulation.from_state(sim.state_init)
+    converted = frame.copy()
+    converted["sm"] = soil_moisture_to_content(
+        pd.Series(0.25, index=frame.index), source_unit="m3 m-3", layer_depth=0.2,
     )
-    return df_state
-
-
-def test_convert_observed_soil_moisture_volumetric():
-    df_state = _make_site_level_state(
-        smdmethod=1,
-        depth=200.0,
-        smcap=0.4,
-        soil_not_rocks=0.8,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [0.25, 0.35, -999.0]},
-        index=pd.date_range("2024-07-01", periods=3, freq="h"),
-    )
-
-    df_result = convert_observed_soil_moisture(df_forcing, df_state)
-
-    # Volumetric deficit = (smcap - xsmd) * depth * soil_not_rocks
-    # = (0.4 - 0.25) * 200 * 0.8 = 24.0
-    # = (0.4 - 0.35) * 200 * 0.8 = 8.0
-    expected = [24.0, 8.0, -999.0]
-    assert pytest.approx(df_result["xsmd"].tolist(), rel=1e-6) == expected
-
-
-def test_convert_observed_soil_moisture_gravimetric():
-    df_state = _make_site_level_state(
-        smdmethod=2,
-        depth=300.0,
-        smcap=0.5,
-        soil_not_rocks=0.9,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [0.3, 0.45]},
-        index=pd.date_range("2024-08-01", periods=2, freq="h"),
-    )
-
-    df_result = convert_observed_soil_moisture(df_forcing, df_state)
-
-    # Gravimetric deficit = (smcap - xsmd) * bulk_density * depth * soil_not_rocks
-    # = (0.5 - 0.3) * 1.2 * 300 * 0.9 = 64.8
-    # = (0.5 - 0.45) * 1.2 * 300 * 0.9 = 16.2
-    assert pytest.approx(df_result["xsmd"].tolist(), rel=1e-6) == [64.8, 16.2]
-
-
-def test_missing_metadata_raises_error():
-    """Test that missing metadata raises a clear error."""
-    # Only provide smdmethod, other required fields missing
-    columns = [
-        ("smdmethod", "0"),
-        ("obs_sm_depth", "0"),  # Only depth provided, others missing
-    ]
-    data = [1, 200.0]
-
-    multi_cols = pd.MultiIndex.from_tuples(columns)
-    df_state = pd.DataFrame(
-        [data], columns=multi_cols, index=pd.Index([1], name="grid")
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [0.25]},
-        index=pd.date_range("2024-09-01", periods=1, freq="h"),
-    )
-
-    with pytest.raises(ValueError, match="requires complete metadata"):
-        convert_observed_soil_moisture(df_forcing, df_state)
-
-
-def test_xsmd_with_nan_values():
-    """Test that NaN values in xsmd are preserved during conversion."""
-    df_state = _make_site_level_state(
-        smdmethod=1,
-        depth=300.0,
-        smcap=0.4,
-        soil_not_rocks=0.8,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [0.25, np.nan, 0.35, -999.0]},
-        index=pd.date_range("2024-10-01", periods=4, freq="h"),
-    )
-
-    df_result = convert_observed_soil_moisture(df_forcing, df_state)
-
-    # deficit = (0.4 - 0.25) * 300 * 0.8 = 36.0
-    # deficit = (0.4 - 0.35) * 300 * 0.8 = 12.0
-    assert pytest.approx(df_result["xsmd"].iloc[0], rel=1e-6) == 36.0
-    # NaN fails the `> MISSING_VALUE + 1` comparison (NaN comparisons return False),
-    # so it's excluded from mask_valid and remains unchanged in the output
-    assert pd.isna(df_result["xsmd"].iloc[1])
-    assert pytest.approx(df_result["xsmd"].iloc[2], rel=1e-6) == 12.0
-    assert (
-        pytest.approx(df_result["xsmd"].iloc[3], rel=1e-6) == -999.0
-    )  # Missing value preserved
-
-
-def test_xsmd_exceeding_smcap():
-    """Test that values exceeding smcap are clipped correctly."""
-    df_state = _make_site_level_state(
-        smdmethod=1,
-        depth=200.0,
-        smcap=0.4,
-        soil_not_rocks=1.0,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [0.5, 0.6, 0.4]},  # First two exceed smcap=0.4
-        index=pd.date_range("2024-11-01", periods=3, freq="h"),
-    )
-
-    df_result = convert_observed_soil_moisture(df_forcing, df_state)
-
-    # All values clipped to smcap => deficit = (0.4 - 0.4) * 200 * 1.0 = 0
-    assert pytest.approx(df_result["xsmd"].tolist(), rel=1e-6) == [0.0, 0.0, 0.0]
-
-
-def test_xsmd_negative_values():
-    """Test that negative values are clipped to zero."""
-    df_state = _make_site_level_state(
-        smdmethod=1,
-        depth=100.0,
-        smcap=0.3,
-        soil_not_rocks=1.0,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [-0.1, 0.0, 0.1]},
-        index=pd.date_range("2024-12-01", periods=3, freq="h"),
-    )
-
-    df_result = convert_observed_soil_moisture(df_forcing, df_state)
-
-    # -0.1 clipped to 0 => deficit = (0.3 - 0.0) * 100 * 1.0 = 30.0
-    # 0.0 => deficit = 30.0
-    # 0.1 => deficit = (0.3 - 0.1) * 100 * 1.0 = 20.0
-    assert pytest.approx(df_result["xsmd"].tolist(), rel=1e-6) == [30.0, 30.0, 20.0]
-
-
-def test_xsmd_all_missing():
-    """Test that when all xsmd values are missing, the series is returned unchanged."""
-    df_state = _make_site_level_state(
-        smdmethod=1,
-        depth=200.0,
-        smcap=0.4,
-        soil_not_rocks=0.8,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [-999.0, -999.0, -999.0]},
-        index=pd.date_range("2024-01-01", periods=3, freq="h"),
-    )
-
-    df_result = convert_observed_soil_moisture(df_forcing, df_state)
-
-    # All missing values should be preserved
-    assert df_result["xsmd"].tolist() == [-999.0, -999.0, -999.0]
-
-
-def test_smdmethod_zero_passthrough():
-    """Test that SMDMethod=0 passes through without conversion."""
-    df_state = _make_site_level_state(
-        smdmethod=0,
-        depth=200.0,
-        smcap=0.4,
-        soil_not_rocks=0.8,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"xsmd": [0.25, 0.35]},
-        index=pd.date_range("2024-07-01", periods=2, freq="h"),
-    )
-
-    df_result = convert_observed_soil_moisture(df_forcing, df_state)
-
-    # No conversion should happen
-    assert df_result["xsmd"].tolist() == [0.25, 0.35]
-
-
-def test_missing_xsmd_column_raises_error():
-    """Test that missing xsmd column raises a clear error when SMDMethod > 0."""
-    df_state = _make_site_level_state(
-        smdmethod=1,
-        depth=200.0,
-        smcap=0.4,
-        soil_not_rocks=0.8,
-        bulk_density=1.2,
-    )
-    df_forcing = pd.DataFrame(
-        {"other_col": [1.0, 2.0]},
-        index=pd.date_range("2024-07-01", periods=2, freq="h"),
-    )
-
-    with pytest.raises(ValueError, match="xsmd.*missing"):
-        convert_observed_soil_moisture(df_forcing, df_state)
-
-
-# =============================================================================
-# Integration Tests
-# =============================================================================
-
-
-class TestObservedSoilMoistureIntegration:
-    """End-to-end integration tests for observed soil moisture forcing.
-
-    These tests verify that:
-    1. The conversion pipeline integrates correctly with run_supy_ser()
-    2. The Fortran kernel responds to observed soil moisture values
-    3. Output physics (evaporation) is affected by soil moisture stress
-    """
-
-    def test_observed_soil_moisture_affects_evaporation(self):
-        """Verify that observed soil moisture affects latent heat flux (QE).
-
-        When soil is dry (high deficit), evaporation should be reduced due to
-        stomatal closure (g_smd factor in surface resistance calculation).
-
-        Note: The sample site (KCL London) is highly urbanised with only ~5%
-        vegetation, so the soil moisture effect on QE is small but measurable.
-        We increase vegetation fraction to better demonstrate the physics.
-        """
-
-        # Load sample data
-        df_state, df_forcing = load_sample_frames()
-
-        # Increase vegetation fraction (original KCL site is ~5% veg) to amplify
-        # the soil moisture effect on QE. Soil moisture stress only affects
-        # vegetated surfaces via stomatal conductance (g_smd factor).
-        # Original: 43% Paved, 38% Bldgs, 0% EveTr, 2% DecTr, 3% Grass, 0% BSoil, 14% Water
-        # Modified: 30% Paved, 30% Bldgs, 0% EveTr, 10% DecTr, 15% Grass, 0% BSoil, 15% Water
-        df_state[("sfr_surf", "(0,)")] = 0.30  # Paved
-        df_state[("sfr_surf", "(1,)")] = 0.30  # Bldgs
-        df_state[("sfr_surf", "(3,)")] = 0.10  # DecTr
-        df_state[("sfr_surf", "(4,)")] = 0.15  # Grass
-        df_state[("sfr_surf", "(6,)")] = 0.15  # Water
-
-        # Use summer period with high evaporative demand (daytime with solar radiation)
-        # Select a week in July 2012 to capture meaningful evaporation
-        start = "2012-07-01"
-        end = "2012-07-07"
-        df_forcing_period = _select_integration_forcing_window(
-            df_forcing, start=start, end=end
-        )
-
-        # === Run 1: Baseline with SMDMethod=0 (modelled soil moisture) ===
-        df_state_baseline = df_state.copy()
-        df_state_baseline[("smdmethod", "0")] = 0
-
-        df_output_baseline, _ = run_simulation(df_forcing_period, df_state_baseline)
-
-        # === Run 2: Observed soil moisture with DRY conditions ===
-        # Set up SMDMethod=1 (volumetric) with soil observation metadata
-        df_state_dry = df_state.copy()
-        df_state_dry[("smdmethod", "0")] = 1
-        df_state_dry[("obs_sm_depth", "0")] = 200.0  # 200mm sensor depth
-        df_state_dry[("obs_sm_smcap", "0")] = 0.4  # 40% saturation capacity
-        df_state_dry[("obs_sm_soil_not_rocks", "0")] = 0.9  # 90% soil
-        df_state_dry[("obs_sm_bulk_density", "0")] = 1.3  # g/cm³
-
-        # Set xsmd to DRY conditions (low volumetric moisture = high deficit)
-        # 0.05 volumetric = very dry; deficit = (0.4-0.05)*200*0.9 = 63mm
-        df_forcing_dry = df_forcing_period.copy()
-        df_forcing_dry["xsmd"] = 0.05  # Very dry soil
-
-        df_output_dry, _ = run_simulation(df_forcing_dry, df_state_dry)
-
-        # === Run 3: Observed soil moisture with WET conditions ===
-        df_state_wet = df_state_dry.copy()  # Same config
-        df_forcing_wet = df_forcing_period.copy()
-        df_forcing_wet["xsmd"] = (
-            0.38  # Near saturation; deficit = (0.4-0.38)*200*0.9 = 3.6mm
-        )
-
-        df_output_wet, _ = run_simulation(df_forcing_wet, df_state_wet)
-
-        # === Assertions ===
-        # Extract daytime QE (when evaporation is active, Kdown > 100 W/m²)
-        daytime_mask = df_forcing_period["kdown"] > 100
-
-        # Get QE for each run (grid 1) - output columns are MultiIndex (group, var)
-        qe_baseline = df_output_baseline.loc[(1, slice(None)), ("SUEWS", "QE")].values
-        qe_dry = df_output_dry.loc[(1, slice(None)), ("SUEWS", "QE")].values
-        qe_wet = df_output_wet.loc[(1, slice(None)), ("SUEWS", "QE")].values
-
-        # Align with daytime mask (output has same length as forcing)
-        daytime_idx = daytime_mask.values[: len(qe_baseline)]
-
-        qe_baseline_day = qe_baseline[daytime_idx]
-        qe_dry_day = qe_dry[daytime_idx]
-        qe_wet_day = qe_wet[daytime_idx]
-
-        # Mean daytime evaporation
-        mean_qe_baseline = np.nanmean(qe_baseline_day)
-        mean_qe_dry = np.nanmean(qe_dry_day)
-        mean_qe_wet = np.nanmean(qe_wet_day)
-
-        # Physics check 1: Dry soil should have LOWER evaporation than wet soil
-        # (stomatal closure due to soil moisture stress)
-        assert mean_qe_dry < mean_qe_wet, (
-            f"Physics error: dry soil (QE={mean_qe_dry:.1f}) should have "
-            f"lower evaporation than wet soil (QE={mean_qe_wet:.1f})"
-        )
-
-        # Physics check 2: The difference should be meaningful (at least 0.5 W/m²)
-        # Note: Urban sites show smaller effects due to limited vegetation cover
-        qe_difference = mean_qe_wet - mean_qe_dry
-        assert qe_difference > 0.5, (
-            f"Observed soil moisture has minimal effect on QE "
-            f"(difference={qe_difference:.1f} W/m²). "
-            "Expected meaningful soil moisture stress response."
-        )
-
-        # Log the results for debugging
-        print(f"\n=== Observed Soil Moisture Integration Test ===")
-        print(f"Mean daytime QE (baseline, SMDMethod=0): {mean_qe_baseline:.1f} W/m²")
-        print(f"Mean daytime QE (dry, xsmd=0.05):        {mean_qe_dry:.1f} W/m²")
-        print(f"Mean daytime QE (wet, xsmd=0.38):        {mean_qe_wet:.1f} W/m²")
-        print(f"QE difference (wet - dry):               {qe_difference:.1f} W/m²")
-
-    def test_smdmethod_config_propagates_to_kernel(self):
-        """Verify that SMDMethod setting propagates correctly through the pipeline."""
-
-        df_state, df_forcing = load_sample_frames()
-
-        # Short run for speed
-        df_forcing_short = df_forcing.iloc[:48].copy()  # 4 hours at 5-min resolution
-
-        # Configure for observed soil moisture
-        df_state_obs = df_state.copy()
-        df_state_obs[("smdmethod", "0")] = 1
-        df_state_obs[("obs_sm_depth", "0")] = 150.0
-        df_state_obs[("obs_sm_smcap", "0")] = 0.35
-        df_state_obs[("obs_sm_soil_not_rocks", "0")] = 0.85
-        df_state_obs[("obs_sm_bulk_density", "0")] = 1.2
-
-        # Provide observed soil moisture
-        df_forcing_short["xsmd"] = 0.20
-
-        # This should run without errors - proving the config propagates correctly
-        df_output, df_state_final = run_simulation(df_forcing_short, df_state_obs)
-
-        # Verify output is generated
-        assert df_output is not None
-        assert len(df_output) == len(df_forcing_short)
-
-        # Verify xsmd was converted (not raw 0.20 in the output)
-        # The conversion should have happened: deficit = (0.35-0.20)*150*0.85 = 19.125mm
-        # We can't easily check the internal xsmd, but we verified the run succeeded
-
-    def test_simulation_reads_renamed_smd_method(self, monkeypatch):
-        """Observed-soil-moisture preprocessing should still run after the rename."""
-        import supy as sp
-        import supy.suews_sim as simulation_module
-        import supy.util._forcing as forcing_module
-
-        df_state, df_forcing = load_sample_frames()
-        df_state_obs = df_state.copy()
-        df_state_obs[("smdmethod", "0")] = 1
-        df_state_obs[("obs_sm_depth", "0")] = 150.0
-        df_state_obs[("obs_sm_smcap", "0")] = 0.35
-        df_state_obs[("obs_sm_soil_not_rocks", "0")] = 0.85
-        df_state_obs[("obs_sm_bulk_density", "0")] = 1.2
-        df_forcing_short = df_forcing.iloc[:12].copy()
-        df_forcing_short["xsmd"] = 0.20
-
-        called = {"convert": False}
-
-        def fake_convert(df_forcing_in, df_state_in):
-            called["convert"] = True
-            return df_forcing_in
-
-        def fake_run_suews_rust_chunked(config, df_forcing, *args, **kwargs):
-            from supy._run_rust import KernelWarningLog
-
-            return pd.DataFrame(index=df_forcing.index), {}, KernelWarningLog()
-
-        monkeypatch.setattr(
-            forcing_module,
-            "convert_observed_soil_moisture",
-            fake_convert,
-        )
-        monkeypatch.setattr(
-            simulation_module,
-            "run_suews_rust_chunked",
-            fake_run_suews_rust_chunked,
-        )
-
-        simulation = sp.SUEWSSimulation.from_state(df_state_obs)
-        simulation.update_forcing(df_forcing_short)
-        simulation.run(n_jobs=1)
-
-        assert called["convert"] is True
+    second_sim.update_forcing(converted)
+    second = second_sim.run(start_date=frame.index[0], end_date=frame.index[-1], n_jobs=1).df
+    np.testing.assert_allclose(first["SUEWS", "SMD"], 70.0, rtol=0, atol=1e-12)
+    assert (first["SUEWS", "QE"] > 0).any()
+    pd.testing.assert_frame_equal(first, second)
+    pd.testing.assert_frame_equal(frame, sim.forcing.df)

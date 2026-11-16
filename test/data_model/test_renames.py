@@ -272,12 +272,12 @@ class TestBackwardCompat:
 
     def test_co2_metadata_matches_fortran_units(self):
         expected_units = {
-            "emission_co2_point_source": "kg C day^-1",
-            "emission_co2_metabolism_min": "umol cap^-1 s^-1",
-            "emission_co2_metabolism_max": "umol cap^-1 s^-1",
-            "emission_heat_metabolism_min": "W cap^-1",
-            "emission_heat_metabolism_max": "W cap^-1",
-            "type_traffic_rate": "dimensionless",
+            "emission_co2_point_source": "kg d-1",
+            "emission_co2_metabolism_min": "umol s-1",
+            "emission_co2_metabolism_max": "umol s-1",
+            "emission_heat_metabolism_min": "W",
+            "emission_heat_metabolism_max": "W",
+            "type_traffic_rate": None,
         }
 
         for field_name, expected_unit in expected_units.items():
@@ -404,7 +404,7 @@ class TestDeprecationWarnings:
             (ModelPhysics, "net_radiation_method", "net_radiation", 3),
             (ModelPhysics, "rsl_method", "roughness_sublayer", 2),
             (ModelPhysics, "gs_model", "surface_conductance", 2),
-            (ModelPhysics, "smd_method", "soil_moisture_deficit", 0),
+            (ModelPhysics, "smd_method", "soil_moisture", 0),
             # dev12 Column D: rcmethod / rc_method / dev11 outer_cap_fraction
             # all resolve to the final `capacitance` (gh#1392 follow-up).
             (ModelPhysics, "rc_method", "capacitance", 1),
@@ -1256,6 +1256,10 @@ class TestLegacyAnohmNames:
             # Kept out of the bridge-facing one-to-one registry on purpose.
             assert old not in ALL_FIELD_RENAMES
 
+    # The YAML path emits one warning per legacy name and surface, and
+    # pytest.warns re-emits those it does not match; Python 3.15 now attributes
+    # them to supy, where the pyproject gate would turn them into errors.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_yaml_path_accepts_legacy_names(self, tmp_path):
         expected = _sample_anohm_values()
         path_legacy = tmp_path / "legacy_anohm.yml"

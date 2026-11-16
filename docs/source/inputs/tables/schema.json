@@ -24,7 +24,7 @@
           "description": "Start of daylight savings time in decimal day of year",
           "display_name": "Daylight Saving Start",
           "title": "Startdls",
-          "unit": "DOY"
+          "unit": "1"
         },
         "enddls": {
           "anyOf": [
@@ -48,7 +48,7 @@
           "description": "End of daylight savings time in decimal day of year",
           "display_name": "Daylight Saving End",
           "title": "Enddls",
-          "unit": "DOY"
+          "unit": "1"
         },
         "heat": {
           "$ref": "#/$defs/AnthropogenicHeat",
@@ -82,28 +82,28 @@
           "$ref": "#/$defs/DayProfile",
           "description": "Base anthropogenic heat flux for buildings, equipment and urban metabolism",
           "display_name": "Base Energy Use QF",
-          "unit": "W m^-2"
+          "unit": "W m-2"
         },
         "qf_a": {
           "$ref": "#/$defs/DayProfile",
           "description": "Coefficient a for anthropogenic heat flux calculation",
           "display_name": "QF Coefficient A",
           "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "qf_b": {
           "$ref": "#/$defs/DayProfile",
           "description": "Coefficient b for anthropogenic heat flux calculation",
           "display_name": "QF Coefficient B",
           "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "qf_c": {
           "$ref": "#/$defs/DayProfile",
           "description": "Coefficient c for anthropogenic heat flux calculation",
           "display_name": "QF Coefficient C",
           "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "baset_cooling": {
           "$ref": "#/$defs/DayProfile",
@@ -124,33 +124,33 @@
           "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
           "description": "Minimum anthropogenic heat flux",
           "display_name": "Minimum Anthropogenic Heat",
-          "unit": "W m^-2"
+          "unit": "W m-2"
         },
         "ah_slope_cooling": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
           "description": "Slope of anthropogenic heat vs cooling degree days",
           "display_name": "Anthropogenic Heat Slope (Cooling)",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "ah_slope_heating": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
           "description": "Slope of anthropogenic heat vs heating degree days",
           "display_name": "Anthropogenic Heat Slope (Heating)",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "ahprof_24hr": {
           "$ref": "#/$defs/HourlyProfile",
           "description": "24-hour profile of anthropogenic heat flux",
           "display_name": "Anthropogenic Heat Profile (24hr)",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "popdensdaytime": {
           "$ref": "#/$defs/DayProfile",
           "description": "Daytime population density",
           "display_name": "Daytime Population Density",
-          "unit": "people ha^-1"
+          "unit": "ha-1"
         },
         "popdensnighttime": {
           "default": 10.0,
@@ -159,13 +159,13 @@
           "minimum": 0.0,
           "title": "Popdensnighttime",
           "type": "number",
-          "unit": "people ha^-1"
+          "unit": "ha-1"
         },
         "popprof_24hr": {
           "$ref": "#/$defs/HourlyProfile",
           "description": "24-hour profile of population density",
           "display_name": "Population Profile (24hr)",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -215,7 +215,7 @@
           "description": "Number of buildings of this archetype [-]",
           "display_name": "Building Count",
           "title": "Archetype Building Count",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "occupants": {
           "anyOf": [
@@ -238,7 +238,7 @@
           "description": "Number of occupants present in building [-]",
           "display_name": "Occupants",
           "title": "Occupants",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "archetype_height": {
           "anyOf": [
@@ -284,7 +284,7 @@
           "description": "Building footprint area. This should be consistent with building_height and wall_external_area. [m2]",
           "display_name": "Footprint Area",
           "title": "Area Footprint",
-          "unit": "m^2"
+          "unit": "m2"
         },
         "area_wall_external": {
           "anyOf": [
@@ -307,7 +307,7 @@
           "description": "External wall area (including window area). This should be consistent with building_height and footprint_area. [m2]",
           "display_name": "Wall External Area",
           "title": "Area Wall External",
-          "unit": "m^2"
+          "unit": "m2"
         },
         "ratio_internal_mass_volume": {
           "anyOf": [
@@ -331,7 +331,7 @@
           "description": "Ratio of internal mass volume to total building volume [-]",
           "display_name": "Ratio Internal Volume",
           "title": "Ratio Internal Mass Volume",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "area_internal_mass": {
           "anyOf": [
@@ -354,7 +354,7 @@
           "description": "Surface area of internal mass used for indoor heat exchange [m2]",
           "display_name": "Internal Mass Area",
           "title": "Area Internal Mass",
-          "unit": "m^2"
+          "unit": "m2"
         },
         "ratio_window_to_wall": {
           "anyOf": [
@@ -378,7 +378,7 @@
           "description": "window to wall ratio [-]",
           "display_name": "Window to Wall Ratio",
           "title": "Ratio Window To Wall",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "thickness_wall": {
           "anyOf": [
@@ -424,7 +424,7 @@
           "description": "Effective thermal conductivity of walls [W m-1 K-1]",
           "display_name": "Wall Effective Conductivity",
           "title": "Conductivity Wall",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "density_wall": {
           "anyOf": [
@@ -447,7 +447,7 @@
           "description": "Effective density of the walls [kg m-3]",
           "display_name": "Wall Density",
           "title": "Density Wall",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "specific_heat_capacity_wall": {
           "anyOf": [
@@ -514,7 +514,7 @@
           "description": "Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
           "display_name": "Wall External Effective Conductivity",
           "title": "Conductivity Wall Outer",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "density_wall_outer": {
           "anyOf": [
@@ -537,7 +537,7 @@
           "description": "Effective density of layers external to insulation in the walls [kg m-3]",
           "display_name": "Wall External Density",
           "title": "Density Wall Outer",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "specific_heat_capacity_wall_outer": {
           "anyOf": [
@@ -560,7 +560,7 @@
           "description": "Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
           "display_name": "Wall External Specific Heat",
           "title": "Specific Heat Capacity Wall Outer",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "fraction_heat_capacity_wall_external": {
           "anyOf": [
@@ -584,7 +584,7 @@
           "description": "Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Wall Outer Capacity Fraction",
           "title": "Fraction Heat Capacity Wall External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emissivity_wall_external": {
           "anyOf": [
@@ -608,7 +608,7 @@
           "description": "Emissivity of the external surface of walls [-]",
           "display_name": "Wall External Emissivity",
           "title": "Emissivity Wall External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emissivity_wall_internal": {
           "anyOf": [
@@ -632,7 +632,7 @@
           "description": "Emissivity of the internal surface of walls [-]",
           "display_name": "Wall Internal Emissivity",
           "title": "Emissivity Wall Internal",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "transmissivity_wall_external": {
           "anyOf": [
@@ -656,7 +656,7 @@
           "description": "Transmissivity of walls [-]",
           "display_name": "Wall Transmissivity",
           "title": "Transmissivity Wall External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "absorptivity_wall_external": {
           "anyOf": [
@@ -680,7 +680,7 @@
           "description": "Absorptivity of walls [-]",
           "display_name": "Wall Absorptivity",
           "title": "Absorptivity Wall External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "reflectivity_wall_external": {
           "anyOf": [
@@ -704,7 +704,7 @@
           "description": "Reflectivity of the external surface of walls [-]",
           "display_name": "Wall Reflectivity",
           "title": "Reflectivity Wall External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "thickness_roof": {
           "anyOf": [
@@ -750,7 +750,7 @@
           "description": "Effective thermal conductivity of roof [W m-1 K-1]",
           "display_name": "Roof Effective Conductivity",
           "title": "Conductivity Roof",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "density_roof": {
           "anyOf": [
@@ -773,7 +773,7 @@
           "description": "Effective density of the roof [kg m-3]",
           "display_name": "Roof Density",
           "title": "Density Roof",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "specific_heat_capacity_roof": {
           "anyOf": [
@@ -840,7 +840,7 @@
           "description": "Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
           "display_name": "Roof External Effective Conductivity",
           "title": "Conductivity Roof Outer",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "density_roof_outer": {
           "anyOf": [
@@ -863,7 +863,7 @@
           "description": "Effective density of layers external to insulation in the roof [kg m-3]",
           "display_name": "Roof External Density",
           "title": "Density Roof Outer",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "specific_heat_capacity_roof_outer": {
           "anyOf": [
@@ -886,7 +886,7 @@
           "description": "Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
           "display_name": "Roof External Specific Heat",
           "title": "Specific Heat Capacity Roof Outer",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "fraction_heat_capacity_roof_external": {
           "anyOf": [
@@ -910,7 +910,7 @@
           "description": "Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Roof Outer Capacity Fraction",
           "title": "Fraction Heat Capacity Roof External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emissivity_roof_external": {
           "anyOf": [
@@ -934,7 +934,7 @@
           "description": "Emissivity of the external surface of roof [-]",
           "display_name": "Roof External Emissivity",
           "title": "Emissivity Roof External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emissivity_roof_internal": {
           "anyOf": [
@@ -958,7 +958,7 @@
           "description": "Emissivity of the internal surface of roof [-]",
           "display_name": "Roof Internal Emissivity",
           "title": "Emissivity Roof Internal",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "transmissivity_roof_external": {
           "anyOf": [
@@ -982,7 +982,7 @@
           "description": "Transmissivity of roof [-]",
           "display_name": "Roof Transmissivity",
           "title": "Transmissivity Roof External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "absorptivity_roof_external": {
           "anyOf": [
@@ -1006,7 +1006,7 @@
           "description": "Absorptivity of roof [-]",
           "display_name": "Roof Absorptivity",
           "title": "Absorptivity Roof External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "reflectivity_roof_external": {
           "anyOf": [
@@ -1030,7 +1030,7 @@
           "description": "Reflectivity of the external surface of roof [-]",
           "display_name": "Roof Reflectivity",
           "title": "Reflectivity Roof External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "thickness_ground_floor": {
           "anyOf": [
@@ -1076,7 +1076,7 @@
           "description": "Effective thermal conductivity of ground floor [W m-1 K-1]",
           "display_name": "Ground Floor Effective Conductivity",
           "title": "Conductivity Ground Floor",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "density_ground_floor": {
           "anyOf": [
@@ -1099,7 +1099,7 @@
           "description": "Effective density of the ground floor [kg m-3]",
           "display_name": "Ground Floor Density",
           "title": "Density Ground Floor",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "specific_heat_capacity_ground_floor": {
           "anyOf": [
@@ -1122,7 +1122,7 @@
           "description": "Effective specific heat capacity of the ground floor [J kg-1 K-1]",
           "display_name": "Ground Floor Specific Heat",
           "title": "Specific Heat Capacity Ground Floor",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "thickness_window": {
           "anyOf": [
@@ -1168,7 +1168,7 @@
           "description": "Effective thermal conductivity of windows [W m-1 K-1]",
           "display_name": "Window Effective Conductivity",
           "title": "Conductivity Window",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "density_window": {
           "anyOf": [
@@ -1191,7 +1191,7 @@
           "description": "Effective density of the windows [kg m-3]",
           "display_name": "Window Density",
           "title": "Density Window",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "specific_heat_capacity_window": {
           "anyOf": [
@@ -1214,7 +1214,7 @@
           "description": "Effective specific heat capacity of windows [J kg-1 K-1]",
           "display_name": "Window Specific Heat",
           "title": "Specific Heat Capacity Window",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "emissivity_window_external": {
           "anyOf": [
@@ -1238,7 +1238,7 @@
           "description": "Emissivity of the external surface of windows [-]",
           "display_name": "Window External Emissivity",
           "title": "Emissivity Window External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emissivity_window_internal": {
           "anyOf": [
@@ -1262,7 +1262,7 @@
           "description": "Emissivity of the internal surface of windows [-]",
           "display_name": "Window Internal Emissivity",
           "title": "Emissivity Window Internal",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "transmissivity_window_external": {
           "anyOf": [
@@ -1286,7 +1286,7 @@
           "description": "Transmissivity of windows [-]",
           "display_name": "Window Transmissivity",
           "title": "Transmissivity Window External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "absorptivity_window_external": {
           "anyOf": [
@@ -1310,7 +1310,7 @@
           "description": "Absorptivity of windows [-]",
           "display_name": "Window Absorptivity",
           "title": "Absorptivity Window External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "reflectivity_window_external": {
           "anyOf": [
@@ -1334,7 +1334,7 @@
           "description": "Reflectivity of the external surface of windows [-]",
           "display_name": "Window Reflectivity",
           "title": "Reflectivity Window External",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "density_internal_mass": {
           "anyOf": [
@@ -1357,7 +1357,7 @@
           "description": "Effective density of the internal mass [kg m-3]",
           "display_name": "Internal Mass Density",
           "title": "Density Internal Mass",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "specific_heat_capacity_internal_mass": {
           "anyOf": [
@@ -1380,7 +1380,7 @@
           "description": "Effective specific heat capacity of internal mass [J kg-1 K-1]",
           "display_name": "Internal Mass Specific Heat",
           "title": "Specific Heat Capacity Internal Mass",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "emissivity_internal_mass": {
           "anyOf": [
@@ -1404,7 +1404,7 @@
           "description": "Emissivity of internal mass [-]",
           "display_name": "Internal Mass Emissivity",
           "title": "Emissivity Internal Mass",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "max_power_heating_system_air": {
           "anyOf": [
@@ -1450,7 +1450,7 @@
           "description": "Volume of water in hot water tank [m3]",
           "display_name": "Water Tank Water Volume",
           "title": "Volume Hot Water Tank",
-          "unit": "m^3"
+          "unit": "m3"
         },
         "max_power_heating_system_water": {
           "anyOf": [
@@ -1593,7 +1593,7 @@
           "ge": 0,
           "le": 1,
           "title": "Sfr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -1610,7 +1610,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -1646,7 +1646,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
           "display_name": "OHM Winter Dry Threshold",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -1676,6 +1676,30 @@
           "title": "Soil Depth",
           "unit": "mm"
         },
+        "soil_field_capacity": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0,
+              "le": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volumetric liquid-water content at field capacity",
+          "display_name": "Soil Field Capacity",
+          "title": "Soil Field Capacity",
+          "unit": "m3 m-3"
+        },
         "soil_store_capacity": {
           "anyOf": [
             {
@@ -1692,7 +1716,7 @@
           "description": "Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "state_limit": {
           "anyOf": [
@@ -1707,7 +1731,7 @@
           "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -1722,7 +1746,7 @@
           "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -1740,7 +1764,7 @@
           "description": "Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
           "display_name": "Saturated Hydraulic Conductivity",
           "title": "Saturated Hydraulic Conductivity",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "soil_density": {
           "anyOf": [
@@ -1758,7 +1782,7 @@
           "description": "Bulk soil density",
           "display_name": "Soil Density",
           "title": "Soil Density",
-          "unit": "g cm^-3"
+          "unit": "g cm-3"
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
@@ -1784,7 +1808,7 @@
           "description": "Limit of snow that can be held on surface",
           "display_name": "Snow Pack Limit",
           "title": "Snowpack Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -1806,7 +1830,7 @@
           "description": "Fraction of surface area that can be irrigated",
           "display_name": "Irrigation Fraction",
           "title": "Irrigation Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -1834,7 +1858,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "faibldg": {
           "anyOf": [
@@ -1857,7 +1881,7 @@
           "description": "Frontal area index of buildings",
           "display_name": "Building Frontal Area Index",
           "title": "Faibldg",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "bldgh": {
           "anyOf": [
@@ -1904,7 +1928,7 @@
           "ge": 0,
           "le": 1,
           "title": "Sfr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -1921,7 +1945,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -1957,7 +1981,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
           "display_name": "OHM Winter Dry Threshold",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -1987,6 +2011,30 @@
           "title": "Soil Depth",
           "unit": "mm"
         },
+        "soil_field_capacity": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0,
+              "le": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volumetric liquid-water content at field capacity",
+          "display_name": "Soil Field Capacity",
+          "title": "Soil Field Capacity",
+          "unit": "m3 m-3"
+        },
         "soil_store_capacity": {
           "anyOf": [
             {
@@ -2003,7 +2051,7 @@
           "description": "Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "state_limit": {
           "anyOf": [
@@ -2018,7 +2066,7 @@
           "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -2033,7 +2081,7 @@
           "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -2051,7 +2099,7 @@
           "description": "Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
           "display_name": "Saturated Hydraulic Conductivity",
           "title": "Saturated Hydraulic Conductivity",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "soil_density": {
           "anyOf": [
@@ -2069,7 +2117,7 @@
           "description": "Bulk soil density",
           "display_name": "Soil Density",
           "title": "Soil Density",
-          "unit": "g cm^-3"
+          "unit": "g cm-3"
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
@@ -2096,7 +2144,7 @@
           "description": "Limit of snow that can be held on surface",
           "display_name": "Snow Pack Limit",
           "title": "Snowpack Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -2118,7 +2166,7 @@
           "description": "Fraction of surface area that can be irrigated",
           "display_name": "Irrigation Fraction",
           "title": "Irrigation Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -2146,7 +2194,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb",
-          "unit": "dimensionless"
+          "unit": "1"
         }
       },
       "title": "Bare Soil",
@@ -2171,7 +2219,7 @@
           "description": "Whole-grid CO2 point-source emission expressed as carbon mass",
           "display_name": "CO2 Point Source",
           "title": "Emission Co2 Point Source",
-          "unit": "kg C day^-1"
+          "unit": "kg d-1"
         },
         "emission_factor_co2_fuel": {
           "anyOf": [
@@ -2190,7 +2238,7 @@
           "description": "CO2 emission factor per unit of fuel energy",
           "display_name": "Emission Factor (umol CO2/J)",
           "title": "Emission Factor Co2 Fuel",
-          "unit": "umol J^-1"
+          "unit": "umol J-1"
         },
         "emission_factor_energy_vehicle": {
           "anyOf": [
@@ -2209,7 +2257,7 @@
           "display_name": "Energy Emission Factor Vehicles",
           "range_description": "Sample range from benchmark/sample tables: 3.97e6-4.11e6 J km^-1; calibrate by site.",
           "title": "Emission Factor Energy Vehicle",
-          "unit": "J km^-1"
+          "unit": "J km-1"
         },
         "emission_factor_co2_vehicle": {
           "anyOf": [
@@ -2223,7 +2271,7 @@
           "default_description": "Sample benchmark value: 0.285 kg CO2 km^-1 (Ward et al. 2016, central London); calibrate by site.",
           "description": "Vehicle CO2 emission factor per unit distance",
           "display_name": "Fuel Carbon Emission Factor Vehicles",
-          "unit": "kg CO2 km^-1"
+          "unit": "kg km-1"
         },
         "fraction_fossil_fuel_heating": {
           "anyOf": [
@@ -2248,7 +2296,7 @@
           "display_name": "Fossil Fuel Fraction Heating",
           "range_description": "Sample range from benchmark/sample tables: 0.05-0.7 (depends on local energy mix).",
           "title": "Fraction Fossil Fuel Heating",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "fraction_fossil_fuel_non_heating": {
           "anyOf": [
@@ -2273,7 +2321,7 @@
           "display_name": "Fossil Fuel Fraction Non-Heating",
           "range_description": "Sample range from benchmark/sample tables: 0.0-0.7 (depends on local energy mix).",
           "title": "Fraction Fossil Fuel Non Heating",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emission_co2_metabolism_max": {
           "anyOf": [
@@ -2292,7 +2340,7 @@
           "description": "Maximum daytime metabolic CO2 emission per capita",
           "display_name": "Maximum Metabolic CO2 Flux",
           "title": "Emission Co2 Metabolism Max",
-          "unit": "umol cap^-1 s^-1"
+          "unit": "umol s-1"
         },
         "emission_heat_metabolism_max": {
           "anyOf": [
@@ -2311,7 +2359,7 @@
           "description": "Maximum daytime metabolic heat emission per capita",
           "display_name": "Maximum Metabolic Heat Flux",
           "title": "Emission Heat Metabolism Max",
-          "unit": "W cap^-1"
+          "unit": "W"
         },
         "emission_co2_metabolism_min": {
           "anyOf": [
@@ -2330,7 +2378,7 @@
           "description": "Minimum night-time metabolic CO2 emission per capita",
           "display_name": "Minimum Metabolic CO2 Flux",
           "title": "Emission Co2 Metabolism Min",
-          "unit": "umol cap^-1 s^-1"
+          "unit": "umol s-1"
         },
         "emission_heat_metabolism_min": {
           "anyOf": [
@@ -2349,7 +2397,7 @@
           "description": "Minimum night-time metabolic heat emission per capita",
           "display_name": "Minimum Metabolic Heat Flux",
           "title": "Emission Heat Metabolism Min",
-          "unit": "W cap^-1"
+          "unit": "W"
         },
         "traffic_rate": {
           "anyOf": [
@@ -2362,7 +2410,7 @@
           ],
           "description": "Mean traffic activity; basis selected by type_traffic_rate",
           "display_name": "Traffic Rate",
-          "unit": "vehicle km m^-2 day^-1 (type 1) or vehicle km cap^-1 day^-1 (type 2)"
+          "unit": "vehicle km m-2 day-1 (type 1) or vehicle km cap-1 day-1 (type 2)"
         },
         "type_traffic_rate": {
           "anyOf": [
@@ -2380,7 +2428,7 @@
           "description": "Traffic-rate basis: 1 for per area, 2 for per capita",
           "display_name": "Traffic Rate Type",
           "title": "Type Traffic Rate",
-          "unit": "dimensionless"
+          "unit": null
         },
         "profile_traffic_24hr": {
           "anyOf": [
@@ -2393,7 +2441,7 @@
           ],
           "description": "24-hour profile of traffic rate",
           "display_name": "Traffic Profile (24hr)",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "profile_human_activity_24hr": {
           "anyOf": [
@@ -2406,7 +2454,7 @@
           ],
           "description": "24-hour profile of human activity",
           "display_name": "Human Activity Profile (24hr)",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -2442,7 +2490,7 @@
           "description": "Maximum surface conductance for photosynthesis",
           "display_name": "Maximum Surface Conductance",
           "title": "G Max",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "g_k": {
           "anyOf": [
@@ -2460,7 +2508,7 @@
           "description": "Conductance parameter related to incoming solar radiation",
           "display_name": "Radiation Response Parameter",
           "title": "G K",
-          "unit": "W m^-2"
+          "unit": "W m-2"
         },
         "g_q_base": {
           "anyOf": [
@@ -2532,7 +2580,7 @@
           "description": "Conductance parameter related to soil moisture",
           "display_name": "Soil Moisture Response Parameter",
           "title": "G Sm",
-          "unit": "mm^-1"
+          "unit": "m2 kg-1"
         },
         "kmax": {
           "anyOf": [
@@ -2550,7 +2598,7 @@
           "description": "Maximum incoming shortwave radiation",
           "display_name": "Kmax",
           "title": "Kmax",
-          "unit": "W m^-2"
+          "unit": "W m-2"
         },
         "s1": {
           "anyOf": [
@@ -2568,7 +2616,7 @@
           "description": "Lower soil moisture threshold for conductance response",
           "display_name": "Lower Soil Moisture Threshold",
           "title": "S1",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "s2": {
           "anyOf": [
@@ -2586,7 +2634,7 @@
           "description": "Parameter related to soil moisture dependence",
           "display_name": "Soil Moisture Parameter",
           "title": "S2",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "tl": {
           "anyOf": [
@@ -2769,7 +2817,7 @@
           "ge": 0,
           "le": 1,
           "title": "Sfr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -2786,7 +2834,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -2822,7 +2870,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
           "display_name": "OHM Winter Dry Threshold",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -2852,6 +2900,30 @@
           "title": "Soil Depth",
           "unit": "mm"
         },
+        "soil_field_capacity": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0,
+              "le": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volumetric liquid-water content at field capacity",
+          "display_name": "Soil Field Capacity",
+          "title": "Soil Field Capacity",
+          "unit": "m3 m-3"
+        },
         "soil_store_capacity": {
           "anyOf": [
             {
@@ -2868,7 +2940,7 @@
           "description": "Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "state_limit": {
           "anyOf": [
@@ -2883,7 +2955,7 @@
           "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -2898,7 +2970,7 @@
           "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -2916,7 +2988,7 @@
           "description": "Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
           "display_name": "Saturated Hydraulic Conductivity",
           "title": "Saturated Hydraulic Conductivity",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "soil_density": {
           "anyOf": [
@@ -2934,7 +3006,7 @@
           "description": "Bulk soil density",
           "display_name": "Soil Density",
           "title": "Soil Density",
-          "unit": "g cm^-3"
+          "unit": "g cm-3"
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
@@ -2961,7 +3033,7 @@
           "description": "Limit of snow that can be held on surface",
           "display_name": "Snow Pack Limit",
           "title": "Snowpack Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -2983,7 +3055,7 @@
           "description": "Fraction of surface area that can be irrigated",
           "display_name": "Irrigation Fraction",
           "title": "Irrigation Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -3011,7 +3083,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb Min",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "alb_max": {
           "anyOf": [
@@ -3028,7 +3100,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb Max",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "beta_bio_co2": {
           "anyOf": [
@@ -3046,7 +3118,7 @@
           "description": "Light-saturated gross photosynthesis rate of the canopy",
           "display_name": "Biogenic CO2 Beta Coefficient",
           "title": "Beta Bio Co2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "beta_enh_bioco2": {
           "anyOf": [
@@ -3064,7 +3136,7 @@
           "description": "Enhanced photosynthesis coefficient related to vegetation fraction",
           "display_name": "Biogenic CO2 Enhanced Beta",
           "title": "Beta Enh Bioco2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "alpha_bio_co2": {
           "anyOf": [
@@ -3079,10 +3151,10 @@
             }
           ],
           "default": null,
-          "description": "Mean apparent ecosystem quantum yield (initial slope of light-response curve)",
+          "description": "Mean apparent ecosystem quantum yield (CO2 per photon; initial slope of light-response curve)",
           "display_name": "Biogenic CO2 Alpha Coefficient",
           "title": "Alpha Bio Co2",
-          "unit": "umol CO2 / umol photons"
+          "unit": "umol umol-1"
         },
         "alpha_enh_bioco2": {
           "anyOf": [
@@ -3097,10 +3169,10 @@
             }
           ],
           "default": 0.9,
-          "description": "Enhanced quantum yield coefficient related to vegetation fraction",
+          "description": "Enhanced quantum yield coefficient (CO2 per photon) related to vegetation fraction",
           "display_name": "Biogenic CO2 Enhanced Alpha",
           "title": "Alpha Enh Bioco2",
-          "unit": "umol CO2 / umol photons"
+          "unit": "umol umol-1"
         },
         "resp_a": {
           "anyOf": [
@@ -3118,7 +3190,7 @@
           "description": "Base respiration rate coefficient",
           "display_name": "Respiration Coefficient A",
           "title": "Resp A",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "resp_b": {
           "anyOf": [
@@ -3136,7 +3208,7 @@
           "description": "Respiration temperature sensitivity coefficient",
           "display_name": "Respiration Coefficient B",
           "title": "Resp B",
-          "unit": "K^-1"
+          "unit": "K-1"
         },
         "theta_bio_co2": {
           "anyOf": [
@@ -3154,7 +3226,7 @@
           "description": "Curvature parameter for non-rectangular hyperbola at light saturation",
           "display_name": "Biogenic CO2 Theta Parameter",
           "title": "Theta Bio Co2",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "max_conductance": {
           "anyOf": [
@@ -3169,7 +3241,7 @@
           "description": "Maximum surface conductance",
           "display_name": "Maximum Conductance",
           "title": "Max Conductance",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "min_res_bioco2": {
           "anyOf": [
@@ -3187,7 +3259,7 @@
           "description": "Minimum soil respiration rate for cold-temperature limit",
           "display_name": "Biogenic CO2 Minimum Respiration",
           "title": "Min Res Bioco2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "lai": {
           "$ref": "#/$defs/LAIParams",
@@ -3206,7 +3278,7 @@
           "description": "Irrigation efficiency coefficient-automatic",
           "display_name": "Automatic Irrigation Coefficient",
           "title": "Ie A",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ie_m": {
           "anyOf": [
@@ -3221,7 +3293,7 @@
           "description": "Irrigation efficiency coefficient-manual",
           "display_name": "Manual Irrigation Coefficient",
           "title": "Ie M",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "fai_deciduous_tree": {
           "anyOf": [
@@ -3239,7 +3311,7 @@
           "description": "Frontal area index of deciduous trees",
           "display_name": "Deciduous Tree Frontal Area Index",
           "title": "Fai Deciduous Tree",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "height_deciduous_tree": {
           "anyOf": [
@@ -3274,7 +3346,7 @@
           "ge": 0.1,
           "le": 0.9,
           "title": "Porosity Min Deciduous",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "porosity_max_deciduous": {
           "anyOf": [
@@ -3291,7 +3363,7 @@
           "ge": 0.1,
           "le": 0.9,
           "title": "Porosity Max Deciduous",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "capacity_max_deciduous": {
           "anyOf": [
@@ -3306,7 +3378,7 @@
           "description": "Maximum water capacity",
           "display_name": "Deciduous Maximum Capacity",
           "title": "Capacity Max Deciduous",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "capacity_min_deciduous": {
           "anyOf": [
@@ -3321,7 +3393,7 @@
           "description": "Minimum water capacity",
           "display_name": "Deciduous Minimum Capacity",
           "title": "Capacity Min Deciduous",
-          "unit": "mm"
+          "unit": "kg m-2"
         }
       },
       "title": "Deciduous Trees",
@@ -3383,7 +3455,7 @@
           "ge": 0,
           "le": 1,
           "title": "Sfr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -3400,7 +3472,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -3436,7 +3508,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
           "display_name": "OHM Winter Dry Threshold",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -3466,6 +3538,30 @@
           "title": "Soil Depth",
           "unit": "mm"
         },
+        "soil_field_capacity": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0,
+              "le": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volumetric liquid-water content at field capacity",
+          "display_name": "Soil Field Capacity",
+          "title": "Soil Field Capacity",
+          "unit": "m3 m-3"
+        },
         "soil_store_capacity": {
           "anyOf": [
             {
@@ -3482,7 +3578,7 @@
           "description": "Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "state_limit": {
           "anyOf": [
@@ -3497,7 +3593,7 @@
           "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -3512,7 +3608,7 @@
           "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -3530,7 +3626,7 @@
           "description": "Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
           "display_name": "Saturated Hydraulic Conductivity",
           "title": "Saturated Hydraulic Conductivity",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "soil_density": {
           "anyOf": [
@@ -3548,7 +3644,7 @@
           "description": "Bulk soil density",
           "display_name": "Soil Density",
           "title": "Soil Density",
-          "unit": "g cm^-3"
+          "unit": "g cm-3"
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
@@ -3575,7 +3671,7 @@
           "description": "Limit of snow that can be held on surface",
           "display_name": "Snow Pack Limit",
           "title": "Snowpack Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -3597,7 +3693,7 @@
           "description": "Fraction of surface area that can be irrigated",
           "display_name": "Irrigation Fraction",
           "title": "Irrigation Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -3625,7 +3721,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb Min",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "alb_max": {
           "anyOf": [
@@ -3642,7 +3738,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb Max",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "beta_bio_co2": {
           "anyOf": [
@@ -3660,7 +3756,7 @@
           "description": "Light-saturated gross photosynthesis rate of the canopy",
           "display_name": "Biogenic CO2 Beta Coefficient",
           "title": "Beta Bio Co2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "beta_enh_bioco2": {
           "anyOf": [
@@ -3678,7 +3774,7 @@
           "description": "Enhanced photosynthesis coefficient related to vegetation fraction",
           "display_name": "Biogenic CO2 Enhanced Beta",
           "title": "Beta Enh Bioco2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "alpha_bio_co2": {
           "anyOf": [
@@ -3693,10 +3789,10 @@
             }
           ],
           "default": null,
-          "description": "Mean apparent ecosystem quantum yield (initial slope of light-response curve)",
+          "description": "Mean apparent ecosystem quantum yield (CO2 per photon; initial slope of light-response curve)",
           "display_name": "Biogenic CO2 Alpha Coefficient",
           "title": "Alpha Bio Co2",
-          "unit": "umol CO2 / umol photons"
+          "unit": "umol umol-1"
         },
         "alpha_enh_bioco2": {
           "anyOf": [
@@ -3711,10 +3807,10 @@
             }
           ],
           "default": 0.9,
-          "description": "Enhanced quantum yield coefficient related to vegetation fraction",
+          "description": "Enhanced quantum yield coefficient (CO2 per photon) related to vegetation fraction",
           "display_name": "Biogenic CO2 Enhanced Alpha",
           "title": "Alpha Enh Bioco2",
-          "unit": "umol CO2 / umol photons"
+          "unit": "umol umol-1"
         },
         "resp_a": {
           "anyOf": [
@@ -3732,7 +3828,7 @@
           "description": "Base respiration rate coefficient",
           "display_name": "Respiration Coefficient A",
           "title": "Resp A",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "resp_b": {
           "anyOf": [
@@ -3750,7 +3846,7 @@
           "description": "Respiration temperature sensitivity coefficient",
           "display_name": "Respiration Coefficient B",
           "title": "Resp B",
-          "unit": "K^-1"
+          "unit": "K-1"
         },
         "theta_bio_co2": {
           "anyOf": [
@@ -3768,7 +3864,7 @@
           "description": "Curvature parameter for non-rectangular hyperbola at light saturation",
           "display_name": "Biogenic CO2 Theta Parameter",
           "title": "Theta Bio Co2",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "max_conductance": {
           "anyOf": [
@@ -3783,7 +3879,7 @@
           "description": "Maximum surface conductance",
           "display_name": "Maximum Conductance",
           "title": "Max Conductance",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "min_res_bioco2": {
           "anyOf": [
@@ -3801,7 +3897,7 @@
           "description": "Minimum soil respiration rate for cold-temperature limit",
           "display_name": "Biogenic CO2 Minimum Respiration",
           "title": "Min Res Bioco2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "lai": {
           "$ref": "#/$defs/LAIParams",
@@ -3820,7 +3916,7 @@
           "description": "Irrigation efficiency coefficient-automatic",
           "display_name": "Automatic Irrigation Coefficient",
           "title": "Ie A",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ie_m": {
           "anyOf": [
@@ -3835,7 +3931,7 @@
           "description": "Irrigation efficiency coefficient-manual",
           "display_name": "Manual Irrigation Coefficient",
           "title": "Ie M",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "fai_evergreen_tree": {
           "anyOf": [
@@ -3853,7 +3949,7 @@
           "description": "Frontal area index of evergreen trees",
           "display_name": "Evergreen Tree Frontal Area Index",
           "title": "Fai Evergreen Tree",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "height_evergreen_tree": {
           "anyOf": [
@@ -3905,10 +4001,13 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": "forcing.txt",
-          "description": "Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt']). When multiple files are provided, they are concatenated in chronological order. For details, see :ref:`met_input`.",
+          "description": "Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt']). When multiple files are provided, they are concatenated in chronological order. Set it explicitly to a bare ``null`` when forcing is supplied at runtime through ``SUEWSSimulation.update_forcing()`` instead of from a file: the validator then skips the forcing-file checks and warns that forcing must be supplied before ``run()``. Omitting the key is not the same as ``null`` and is still reported as an error. For details, see :ref:`met_input`.",
           "title": "File"
         },
         "timestamp_reference": {
@@ -3964,7 +4063,7 @@
           "ge": 0,
           "le": 1,
           "title": "Sfr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -3981,7 +4080,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -4017,7 +4116,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
           "display_name": "OHM Winter Dry Threshold",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -4047,6 +4146,30 @@
           "title": "Soil Depth",
           "unit": "mm"
         },
+        "soil_field_capacity": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0,
+              "le": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volumetric liquid-water content at field capacity",
+          "display_name": "Soil Field Capacity",
+          "title": "Soil Field Capacity",
+          "unit": "m3 m-3"
+        },
         "soil_store_capacity": {
           "anyOf": [
             {
@@ -4063,7 +4186,7 @@
           "description": "Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "state_limit": {
           "anyOf": [
@@ -4078,7 +4201,7 @@
           "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -4093,7 +4216,7 @@
           "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -4111,7 +4234,7 @@
           "description": "Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
           "display_name": "Saturated Hydraulic Conductivity",
           "title": "Saturated Hydraulic Conductivity",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "soil_density": {
           "anyOf": [
@@ -4129,7 +4252,7 @@
           "description": "Bulk soil density",
           "display_name": "Soil Density",
           "title": "Soil Density",
-          "unit": "g cm^-3"
+          "unit": "g cm-3"
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
@@ -4156,7 +4279,7 @@
           "description": "Limit of snow that can be held on surface",
           "display_name": "Snow Pack Limit",
           "title": "Snowpack Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -4178,7 +4301,7 @@
           "description": "Fraction of surface area that can be irrigated",
           "display_name": "Irrigation Fraction",
           "title": "Irrigation Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -4206,7 +4329,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb Min",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "alb_max": {
           "anyOf": [
@@ -4223,7 +4346,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb Max",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "beta_bio_co2": {
           "anyOf": [
@@ -4241,7 +4364,7 @@
           "description": "Light-saturated gross photosynthesis rate of the canopy",
           "display_name": "Biogenic CO2 Beta Coefficient",
           "title": "Beta Bio Co2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "beta_enh_bioco2": {
           "anyOf": [
@@ -4259,7 +4382,7 @@
           "description": "Enhanced photosynthesis coefficient related to vegetation fraction",
           "display_name": "Biogenic CO2 Enhanced Beta",
           "title": "Beta Enh Bioco2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "alpha_bio_co2": {
           "anyOf": [
@@ -4274,10 +4397,10 @@
             }
           ],
           "default": null,
-          "description": "Mean apparent ecosystem quantum yield (initial slope of light-response curve)",
+          "description": "Mean apparent ecosystem quantum yield (CO2 per photon; initial slope of light-response curve)",
           "display_name": "Biogenic CO2 Alpha Coefficient",
           "title": "Alpha Bio Co2",
-          "unit": "umol CO2 / umol photons"
+          "unit": "umol umol-1"
         },
         "alpha_enh_bioco2": {
           "anyOf": [
@@ -4292,10 +4415,10 @@
             }
           ],
           "default": 0.9,
-          "description": "Enhanced quantum yield coefficient related to vegetation fraction",
+          "description": "Enhanced quantum yield coefficient (CO2 per photon) related to vegetation fraction",
           "display_name": "Biogenic CO2 Enhanced Alpha",
           "title": "Alpha Enh Bioco2",
-          "unit": "umol CO2 / umol photons"
+          "unit": "umol umol-1"
         },
         "resp_a": {
           "anyOf": [
@@ -4313,7 +4436,7 @@
           "description": "Base respiration rate coefficient",
           "display_name": "Respiration Coefficient A",
           "title": "Resp A",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "resp_b": {
           "anyOf": [
@@ -4331,7 +4454,7 @@
           "description": "Respiration temperature sensitivity coefficient",
           "display_name": "Respiration Coefficient B",
           "title": "Resp B",
-          "unit": "K^-1"
+          "unit": "K-1"
         },
         "theta_bio_co2": {
           "anyOf": [
@@ -4349,7 +4472,7 @@
           "description": "Curvature parameter for non-rectangular hyperbola at light saturation",
           "display_name": "Biogenic CO2 Theta Parameter",
           "title": "Theta Bio Co2",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "max_conductance": {
           "anyOf": [
@@ -4364,7 +4487,7 @@
           "description": "Maximum surface conductance",
           "display_name": "Maximum Conductance",
           "title": "Max Conductance",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "min_res_bioco2": {
           "anyOf": [
@@ -4382,7 +4505,7 @@
           "description": "Minimum soil respiration rate for cold-temperature limit",
           "display_name": "Biogenic CO2 Minimum Respiration",
           "title": "Min Res Bioco2",
-          "unit": "umol m^-2 s^-1"
+          "unit": "umol m-2 s-1"
         },
         "lai": {
           "$ref": "#/$defs/LAIParams",
@@ -4401,7 +4524,7 @@
           "description": "Irrigation efficiency coefficient-automatic",
           "display_name": "Automatic Irrigation Coefficient",
           "title": "Ie A",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ie_m": {
           "anyOf": [
@@ -4416,7 +4539,7 @@
           "description": "Irrigation efficiency coefficient-manual",
           "display_name": "Manual Irrigation Coefficient",
           "title": "Ie M",
-          "unit": "dimensionless"
+          "unit": "1"
         }
       },
       "title": "Grass",
@@ -4505,7 +4628,7 @@
       "type": "object"
     },
     "HourlyProfile": {
-      "description": "24-hour profile for diurnal variations.",
+      "description": "24-hour profile for diurnal variations.\n\nHolds two sets of 24 hourly values, one for working days\n(``working_day``) and one for holidays (``holiday``). Each set is a\nmapping keyed by the hour, ``\"1\"`` to ``\"24\"``, where ``\"1\"`` is the\nfirst hour of the day, starting at 00:00; all 24 keys must be present.\nThe two sets are given together. A profile left out of the\nconfiguration takes a uniform 1/24 in both sets.\n\nUsed by the snow, irrigation, anthropogenic-heat, population, traffic\nand human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\nThe 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\nsubclasses instead.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -4584,7 +4707,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -4600,7 +4723,7 @@
           "display_name": "Initial Soil Store",
           "ge": 10,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -4624,7 +4747,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -4647,7 +4770,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -4671,7 +4794,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -4694,7 +4817,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -4717,7 +4840,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -4810,7 +4933,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -4826,7 +4949,7 @@
           "display_name": "Initial Soil Store",
           "ge": 10,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -4850,7 +4973,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -4873,7 +4996,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -4897,7 +5020,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -4920,7 +5043,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -4943,7 +5066,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -5037,7 +5160,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -5053,7 +5176,7 @@
           "display_name": "Initial Soil Store",
           "ge": 10,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -5077,7 +5200,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -5100,7 +5223,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -5124,7 +5247,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -5147,7 +5270,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -5170,7 +5293,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -5265,7 +5388,7 @@
           "description": "Albedo at the start of the model run. If not provided, it is computed from the LAI state and vegetation-specific albedo limits (alb_min, alb_max). Trees follow a direct LAI-albedo relationship (denser canopy -> higher albedo due to leaves being more reflective than bark), while grass follows a reversed relationship (denser grass -> lower albedo as soil is more reflective than grass blades).",
           "display_name": "Initial Albedo",
           "title": "Alb Id",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "lai_id": {
           "anyOf": [
@@ -5280,7 +5403,7 @@
           "description": "Leaf area index at the start of the model run.",
           "display_name": "Initial Leaf Area Index",
           "title": "Lai Id",
-          "unit": "m^2 m^-2"
+          "unit": "m2 m-2"
         },
         "gdd_id": {
           "anyOf": [
@@ -5295,7 +5418,7 @@
           "description": "Growing degree days at the start of the model run",
           "display_name": "Initial Growing Degree Days",
           "title": "Gdd Id",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "sdd_id": {
           "anyOf": [
@@ -5310,7 +5433,7 @@
           "description": "Senescence degree days at the start of the model run",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "wu": {
           "$ref": "#/$defs/WaterUse",
@@ -5331,7 +5454,7 @@
           "ge": 0,
           "le": 1,
           "title": "Porosity Id",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "decidcap_id": {
           "anyOf": [
@@ -5347,7 +5470,7 @@
           "display_name": "Initial Deciduous Capacity",
           "ge": 0,
           "title": "Decidcap Id",
-          "unit": "mm"
+          "unit": "kg m-2"
         }
       },
       "title": "Deciduous Tree Initial State",
@@ -5370,7 +5493,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -5386,7 +5509,7 @@
           "display_name": "Initial Soil Store",
           "ge": 10,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -5410,7 +5533,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -5433,7 +5556,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -5457,7 +5580,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -5480,7 +5603,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -5503,7 +5626,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -5598,7 +5721,7 @@
           "description": "Albedo at the start of the model run. If not provided, it is computed from the LAI state and vegetation-specific albedo limits (alb_min, alb_max). Trees follow a direct LAI-albedo relationship (denser canopy -> higher albedo due to leaves being more reflective than bark), while grass follows a reversed relationship (denser grass -> lower albedo as soil is more reflective than grass blades).",
           "display_name": "Initial Albedo",
           "title": "Alb Id",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "lai_id": {
           "anyOf": [
@@ -5613,7 +5736,7 @@
           "description": "Leaf area index at the start of the model run.",
           "display_name": "Initial Leaf Area Index",
           "title": "Lai Id",
-          "unit": "m^2 m^-2"
+          "unit": "m2 m-2"
         },
         "gdd_id": {
           "anyOf": [
@@ -5628,7 +5751,7 @@
           "description": "Growing degree days at the start of the model run",
           "display_name": "Initial Growing Degree Days",
           "title": "Gdd Id",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "sdd_id": {
           "anyOf": [
@@ -5643,7 +5766,7 @@
           "description": "Senescence degree days at the start of the model run",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "wu": {
           "$ref": "#/$defs/WaterUse",
@@ -5670,7 +5793,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -5686,7 +5809,7 @@
           "display_name": "Initial Soil Store",
           "ge": 10,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -5710,7 +5833,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -5733,7 +5856,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -5757,7 +5880,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -5780,7 +5903,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -5803,7 +5926,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -5898,7 +6021,7 @@
           "description": "Albedo at the start of the model run. If not provided, it is computed from the LAI state and vegetation-specific albedo limits (alb_min, alb_max). Trees follow a direct LAI-albedo relationship (denser canopy -> higher albedo due to leaves being more reflective than bark), while grass follows a reversed relationship (denser grass -> lower albedo as soil is more reflective than grass blades).",
           "display_name": "Initial Albedo",
           "title": "Alb Id",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "lai_id": {
           "anyOf": [
@@ -5913,7 +6036,7 @@
           "description": "Leaf area index at the start of the model run.",
           "display_name": "Initial Leaf Area Index",
           "title": "Lai Id",
-          "unit": "m^2 m^-2"
+          "unit": "m2 m-2"
         },
         "gdd_id": {
           "anyOf": [
@@ -5928,7 +6051,7 @@
           "description": "Growing degree days at the start of the model run",
           "display_name": "Initial Growing Degree Days",
           "title": "Gdd Id",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "sdd_id": {
           "anyOf": [
@@ -5943,7 +6066,7 @@
           "description": "Senescence degree days at the start of the model run",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "wu": {
           "$ref": "#/$defs/WaterUse",
@@ -5969,7 +6092,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -5985,7 +6108,7 @@
           "display_name": "Initial Soil Store",
           "ge": 10,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -6009,7 +6132,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -6032,7 +6155,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -6056,7 +6179,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -6079,7 +6202,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -6102,7 +6225,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -6195,7 +6318,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -6211,7 +6334,7 @@
           "display_name": "Initial Soil Store",
           "ge": 0,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -6235,7 +6358,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -6258,7 +6381,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -6282,7 +6405,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -6305,7 +6428,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -6328,7 +6451,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -6423,7 +6546,7 @@
           "ge": 0,
           "le": 1,
           "title": "Snowalb",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "paved": {
           "$ref": "#/$defs/InitialStatePaved",
@@ -6633,7 +6756,7 @@
           "description": "Water depth to maintain through irrigation",
           "display_name": "Maintain Height",
           "title": "H Maintain",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "faut": {
           "anyOf": [
@@ -6650,7 +6773,7 @@
           "ge": 0.0,
           "le": 1.0,
           "title": "Faut",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ie_start": {
           "anyOf": [
@@ -6668,7 +6791,7 @@
           "description": "Day of year when irrigation starts",
           "display_name": "Irrigation Start Day",
           "title": "Ie Start",
-          "unit": "DOY"
+          "unit": "1"
         },
         "ie_end": {
           "anyOf": [
@@ -6686,7 +6809,7 @@
           "description": "Day of year when irrigation ends",
           "display_name": "Irrigation End Day",
           "title": "Ie End",
-          "unit": "DOY"
+          "unit": "1"
         },
         "internalwateruse_h": {
           "anyOf": [
@@ -6704,27 +6827,29 @@
           "description": "Internal water use rate",
           "display_name": "Internal Water Use Rate",
           "title": "Internalwateruse H",
-          "unit": "mm h^-1"
+          "unit": "mm h-1"
         },
         "daywatper": {
           "$ref": "#/$defs/WeeklyProfile",
           "display_name": "Weekly Water Use Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "daywat": {
           "$ref": "#/$defs/WeeklyProfile",
           "display_name": "Weekly Water Use",
-          "unit": "dimensionless"
+          "unit": null
         },
         "wuprofa_24hr": {
           "$ref": "#/$defs/HourlyProfile",
+          "description": "24-hour profile of automatic irrigation water use",
           "display_name": "Water Use Profile Automatic (24hr)",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "wuprofm_24hr": {
           "$ref": "#/$defs/HourlyProfile",
+          "description": "24-hour profile of manual irrigation water use",
           "display_name": "Water Use Profile Manual (24hr)",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -6797,7 +6922,7 @@
           "description": "Growing degree days (GDD) needed for full capacity of LAI",
           "display_name": "Growing Degree Days for Full LAI",
           "title": "Gdd Full",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "base_temperature_senescence": {
           "anyOf": [
@@ -6833,7 +6958,7 @@
           "description": "Senescence degree days (SDD) needed to initiate leaf off",
           "display_name": "Senescence Degree Days for Leaf Off",
           "title": "Sdd Full",
-          "unit": "degC d"
+          "unit": "K d"
         },
         "lai_min": {
           "anyOf": [
@@ -6848,7 +6973,7 @@
           "description": "Leaf-off wintertime LAI value",
           "display_name": "Minimum LAI",
           "title": "Lai Min",
-          "unit": "m^2 m^-2"
+          "unit": "m2 m-2"
         },
         "lai_max": {
           "anyOf": [
@@ -6866,7 +6991,7 @@
           "description": "Full leaf-on summertime LAI value",
           "display_name": "Maximum LAI",
           "title": "Lai Max",
-          "unit": "m^2 m^-2"
+          "unit": "m2 m-2"
         },
         "lai_power": {
           "$ref": "#/$defs/LAIPowerCoefficients",
@@ -6885,7 +7010,7 @@
           "description": "LAI calculation choice (0: original, 1: new high latitude)",
           "display_name": "LAI Calculation Method",
           "title": "Lai Type",
-          "unit": "dimensionless"
+          "unit": null
         },
         "ref": {
           "anyOf": [
@@ -6921,7 +7046,7 @@
           "description": "Power coefficient for LAI in growth equation (LAIPower[1])",
           "display_name": "LAI Growth Power Coefficient",
           "title": "Growth Lai",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "growth_gdd": {
           "anyOf": [
@@ -6939,7 +7064,7 @@
           "description": "Power coefficient for GDD in growth equation (LAIPower[2])",
           "display_name": "GDD Growth Power Coefficient",
           "title": "Growth Gdd",
-          "unit": "K^-1 d^-1"
+          "unit": "K-1 d-1"
         },
         "senescence_lai": {
           "anyOf": [
@@ -6957,7 +7082,7 @@
           "description": "Power coefficient for LAI in senescence equation (LAIPower[3])",
           "display_name": "LAI Senescence Power Coefficient",
           "title": "Senescence Lai",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "senescence_sdd": {
           "anyOf": [
@@ -6975,7 +7100,7 @@
           "description": "Power coefficient for SDD in senescence equation (LAIPower[4])",
           "display_name": "SDD Senescence Power Coefficient",
           "title": "Senescence Sdd",
-          "unit": "K^-1 d^-1"
+          "unit": "K-1 d-1"
         },
         "ref": {
           "anyOf": [
@@ -7010,7 +7135,7 @@
           "ge": 0,
           "le": 1,
           "title": "Raincover",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "rainmaxres": {
           "anyOf": [
@@ -7027,7 +7152,7 @@
           "ge": 0,
           "le": 20,
           "title": "Rainmaxres",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "drainrt": {
           "anyOf": [
@@ -7044,7 +7169,7 @@
           "ge": 0,
           "le": 1,
           "title": "Drainrt",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "veg_type": {
           "anyOf": [
@@ -7059,7 +7184,7 @@
           "description": "Vegetation type selection",
           "display_name": "Veg Type",
           "title": "Veg Type",
-          "unit": "dimensionless"
+          "unit": null
         },
         "ref": {
           "anyOf": [
@@ -7222,7 +7347,7 @@
             "storage_heat"
           ],
           "title": "Net Radiation",
-          "unit": "dimensionless"
+          "unit": null
         },
         "kdown_split_method": {
           "anyOf": [
@@ -7240,7 +7365,7 @@
           "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (PEREZ) = Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction; 4 (REINDL) = Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
           "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
           "title": "Kdown Split Method",
-          "unit": "dimensionless"
+          "unit": null
         },
         "emissions": {
           "anyOf": [
@@ -7259,7 +7384,7 @@
             "energy_balance"
           ],
           "title": "Emissions",
-          "unit": "dimensionless"
+          "unit": null
         },
         "storage_heat": {
           "anyOf": [
@@ -7277,13 +7402,13 @@
             "snow_use",
             "stebbs"
           ],
-          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not recommended; 5 (EHC) = Uses all five material layers for conducting roof, wall, and land-cover facets; 6 (DyOHM) = Dynamic OHM using the outermost material layer of each SUEWS land-cover surface; 7 (STEBBS) = STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces; 8 (DyOHM_BUILDING) = DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
+          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not available: rejected at validation, because the YAML interface carries no surface-temperature input for it; use EHC (5) or DyOHM (6); 5 (EHC) = Uses all five material layers for conducting roof, wall, and land-cover facets; 6 (DyOHM) = Dynamic OHM using the outermost material layer of each SUEWS land-cover surface; 7 (STEBBS) = STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces; 8 (DyOHM_BUILDING) = DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
           "note": "EHC (5) uses all five material layers for its conducting roof, wall, and solid non-building land-cover facets. DyOHM (6) uses only the outermost material layer of each SUEWS land-cover surface, including land_cover.bldgs for buildings. Method 7 uses STEBBS for building storage heat and temperatures, does not use land_cover.bldgs material layers, and applies DyOHM to non-building surfaces; it requires SPARTACUS-Surface net radiation (1001--1003). Method 8 applies DyOHM only to the building surface and requires OhmIncQf=0.",
           "provides_to": [
             "energy_balance"
           ],
           "title": "Storage Heat",
-          "unit": "dimensionless"
+          "unit": null
         },
         "ohm_inc_qf": {
           "anyOf": [
@@ -7305,7 +7430,7 @@
             "storage_heat"
           ],
           "title": "Ohm Inc Qf",
-          "unit": "dimensionless"
+          "unit": null
         },
         "roughness_length_momentum": {
           "anyOf": [
@@ -7324,7 +7449,7 @@
             "stability"
           ],
           "title": "Roughness Length Momentum",
-          "unit": "dimensionless"
+          "unit": null
         },
         "roughness_length_heat": {
           "anyOf": [
@@ -7345,7 +7470,7 @@
             "stability"
           ],
           "title": "Roughness Length Heat",
-          "unit": "dimensionless"
+          "unit": null
         },
         "stability": {
           "anyOf": [
@@ -7357,7 +7482,7 @@
             }
           ],
           "default": 3,
-          "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 (NOT_USED) = Reserved; 1 (NOT_USED2) = Reserved; 2 (HOEGSTROM) = Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman (1998) formulations for both momentum and heat; 4 (BUSINGER_HOEGSTROM) = Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
+          "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 (NOT_USED) = Reserved; not available (rejected at validation); 1 (NOT_USED2) = Reserved; not available (rejected at validation); 2 (HOEGSTROM) = Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended). W16 in the kernel remains available with MOST (roughness_sublayer=0), but stops with error 108 when RSL requires its unimplemented phi functions, including roughness_sublayer=1 (RST) and roughness_sublayer=2 (variable) when site geometry selects RST. Use option 3 (recommended) or 4 for RSL.; 3 (CAMPBELL_NORMAN) = Campbell & Norman (1998) formulations for both momentum and heat; 4 (BUSINGER_HOEGSTROM) = Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
           "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
           "provides_to": [
             "roughness_length_momentum",
@@ -7365,9 +7490,9 @@
             "roughness_sublayer"
           ],
           "title": "Stability",
-          "unit": "dimensionless"
+          "unit": null
         },
-        "soil_moisture_deficit": {
+        "soil_moisture": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_SMDMethod_"
@@ -7377,9 +7502,9 @@
             }
           ],
           "default": 0,
-          "description": "Method for determining soil moisture deficit (SMD). Options: 0 (MODELLED) = SMD calculated from water balance using soil parameters; 1 (OBSERVED_VOLUMETRIC) = Uses observed volumetric soil moisture content (m\u00b3/m\u00b3) from forcing file; 2 (OBSERVED_GRAVIMETRIC) = Uses observed gravimetric soil moisture content (kg/kg) from forcing file",
-          "title": "Soil Moisture Deficit",
-          "unit": "dimensionless"
+          "description": "Soil moisture source: modelled water balance or observed liquid content.",
+          "title": "Soil Moisture",
+          "unit": null
         },
         "water_use": {
           "anyOf": [
@@ -7393,7 +7518,7 @@
           "default": 0,
           "description": "Method for determining external water use (irrigation). Options: 0 (MODELLED) = Water use calculated based on soil moisture deficit and irrigation parameters; 1 (OBSERVED) = Uses observed water use values from forcing file",
           "title": "Water Use",
-          "unit": "dimensionless"
+          "unit": null
         },
         "laimethod": {
           "anyOf": [
@@ -7408,7 +7533,7 @@
           "description": "Method for determining leaf area index (LAI). Options: 0 (OBSERVED) = Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.; 1 (MODELLED) = LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
           "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
           "title": "Laimethod",
-          "unit": "dimensionless"
+          "unit": null
         },
         "roughness_sublayer": {
           "anyOf": [
@@ -7423,13 +7548,13 @@
           "depends_on": [
             "stability"
           ],
-          "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). Options: 2 (VARIABLE) = Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+          "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). The two schemes report these diagnostics at different heights: RST at 2 m and 10 m above ground, MOST at 2 m and 10 m above the zero-plane displacement height plus the roughness length, which over a tall canopy is well above ground. See :ref:`reference heights of the near-surface diagnostics <rsl_diag_heights>`. Options: 0 (MOST) = Monin-Obukhov similarity theory, appropriate for relatively homogeneous, flat surfaces; 1 (RST) = Roughness sublayer theory following Theeuwes et al. (2019), appropriate for heterogeneous urban surfaces with tall roughness elements; 2 (VARIABLE) = Uses RST when the plan area index of buildings and trees is between 0.1 and 0.68 and the mean roughness-element height exceeds 2 m, otherwise MOST",
           "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
           "provides_to": [
             "roughness_sublayer_level"
           ],
           "title": "Roughness Sublayer",
-          "unit": "dimensionless"
+          "unit": null
         },
         "frontal_area_index": {
           "anyOf": [
@@ -7443,7 +7568,7 @@
           "default": 0,
           "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (OBSERVED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (MODELLED) = Calculate FAI using simple scheme based on surface fractions and heights",
           "title": "Frontal Area Index",
-          "unit": "dimensionless"
+          "unit": null
         },
         "roughness_sublayer_level": {
           "anyOf": [
@@ -7458,13 +7583,13 @@
           "depends_on": [
             "roughness_sublayer"
           ],
-          "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects. Options: 0 (NONE) = No local climate adjustments; use forcing file meteorology directly; 1 (BASIC) = Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days; 2 (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
-          "note": "Uses near-surface values from roughness_sublayer to modify vegetation processes",
+          "description": "Air temperature passed to the calculations that respond to near-surface conditions: the daily state (daily temperature statistics and degree days, which drive leaf area index phenology, modelled irrigation and degree-day anthropogenic heat), the modelled anthropogenic heat flux (QF), the surface conductance that controls the latent heat flux (QE), and biogenic CO2 when it is modelled. With a level above 0, a change in the diagnosed near-surface temperature therefore feeds into QF and QE. Options: 0 (NONE) = Forcing air temperature; 1 (BASIC) = Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme's reference height; 2 (DETAILED) = Air temperature at level 10 of the near-surface profile, which is half the effective canopy height (the mean roughness-element height, at least 2 m) when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used",
+          "note": "Selects the air temperature (forcing, diagnosed T2, or level-10 profile temperature) passed to the daily state, anthropogenic heat, surface conductance and biogenic CO2 calculations",
           "provides_to": [
             "surface_conductance"
           ],
           "title": "Roughness Sublayer Level",
-          "unit": "dimensionless"
+          "unit": null
         },
         "surface_conductance": {
           "anyOf": [
@@ -7482,7 +7607,7 @@
           "description": "Stomatal conductance parameterisation method for vegetation surfaces. Options: 1 (JARVI) = Original parameterisation (J\u00e4rvi et al. 2011) based on environmental controls; 2 (WARD) = Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
           "note": "Stomatal conductance model influenced by roughness_sublayer_level adjustments",
           "title": "Surface Conductance",
-          "unit": "dimensionless"
+          "unit": null
         },
         "snow_use": {
           "anyOf": [
@@ -7502,7 +7627,7 @@
             "roughness_sublayer_level"
           ],
           "title": "Snow Use",
-          "unit": "dimensionless"
+          "unit": null
         },
         "stebbs": {
           "$ref": "#/$defs/StebbsPhysics",
@@ -7581,7 +7706,7 @@
           "description": "OHM coefficient a1: dimensionless coefficient relating storage heat flux to net radiation",
           "display_name": "OHM Coefficient a1",
           "title": "A1",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "a2": {
           "anyOf": [
@@ -7617,7 +7742,7 @@
           "description": "OHM coefficient a3: constant offset term for storage heat flux",
           "display_name": "OHM Coefficient a3",
           "title": "A3",
-          "unit": "W m^-2"
+          "unit": "W m-2"
         },
         "ref": {
           "anyOf": [
@@ -7687,7 +7812,7 @@
         "format": {
           "$ref": "#/$defs/OutputFormat",
           "default": "txt",
-          "description": "Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data"
+          "description": "Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data (with 'stream_chunk', a folder holding one Parquet file per chunk)"
         },
         "freq": {
           "anyOf": [
@@ -7715,8 +7840,14 @@
             }
           ],
           "default": null,
-          "description": "List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
+          "description": "List of output groups to save (applies to txt format, and to parquet format when 'stream_chunk' is set; Parquet saved after an unstreamed run holds every group). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. Provisional groups ('BEERS', 'EHC', 'NHood', 'SPARTACUS', 'STEBBS') are saved only with 'include_provisional' set. If not specified, defaults to ['SUEWS', 'DailyState']",
           "title": "Groups"
+        },
+        "include_provisional": {
+          "default": false,
+          "description": "Allow 'groups' to save provisional output groups ('BEERS', 'EHC', 'NHood', 'SPARTACUS', 'STEBBS'), whose variables may still change between releases. Saving them emits a warning; without this setting, naming one in 'groups' stops the save with an error.",
+          "title": "Include Provisional",
+          "type": "boolean"
         },
         "dir": {
           "anyOf": [
@@ -7735,13 +7866,27 @@
           "$ref": "#/$defs/OutputTimestampReference",
           "default": "follow",
           "description": "Timestamp reference for saved output. 'follow' keeps the forcing timestamp reference, 'utc' and 'local_standard_time' select those fixed clocks explicitly, and 'daylight' adds the configured daylight-saving offset to local standard time inside the DLS window."
+        },
+        "stream_chunk": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stream the output to disk during the run in chunks of this many days (1 to 366), so memory no longer grows with run length. The run goes through each calendar year in consecutive chunks; each chunk's output is written to disk and then dropped from memory, keeping only the groups listed in 'groups'. Text files are written, or extended, exactly as a run followed by save would write them. Parquet output becomes a folder at the output file's path holding one file per chunk, read back together with pandas.read_parquet(folder): only the groups listed in 'groups' (unlike Parquet output saved after an unstreamed run, which holds every group), DailyState at its own daily rows as in text output rather than resampled, at full float64 precision; prefer it for streamed runs that will be read back for analysis. 30 (about a month) or 366 (a calendar year) are good choices. Limitations: peak memory is still about one chunk of the model's full output (all groups); values read back from text files carry four decimal places; groups not listed in 'groups' are not kept at all. The checkpoint file is replaced at the end of every calendar year, so a run that stops part-way continues from the start of the year it stopped in and writes that year's output again. The output returned to Python holds no rows: read the written files. Needs an output frequency that divides one day (86400 s) and output timestamps on the forcing clock ('timestamp_reference' of 'follow' or the forcing's own reference). Unset (the default) keeps the whole output in memory until it is saved.",
+          "title": "Stream Chunk",
+          "unit": "d"
         }
       },
       "title": "Output Control",
       "type": "object"
     },
     "OutputFormat": {
-      "description": "Output file format options.\n\nTXT: Traditional text files (one per year/grid/group)\nPARQUET: Single Parquet file containing all output data (efficient columnar format)",
+      "description": "Output file format options.\n\nTXT: Traditional text files (one per year/grid/group)\nPARQUET: Single Parquet file containing all output data (efficient columnar format);\n    with ``stream_chunk``, a folder holding one Parquet file per chunk",
       "enum": [
         "txt",
         "parquet"
@@ -7778,7 +7923,7 @@
           "ge": 0,
           "le": 1,
           "title": "Sfr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -7795,7 +7940,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -7831,7 +7976,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
           "display_name": "OHM Winter Dry Threshold",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -7861,6 +8006,30 @@
           "title": "Soil Depth",
           "unit": "mm"
         },
+        "soil_field_capacity": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0,
+              "le": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volumetric liquid-water content at field capacity",
+          "display_name": "Soil Field Capacity",
+          "title": "Soil Field Capacity",
+          "unit": "m3 m-3"
+        },
         "soil_store_capacity": {
           "anyOf": [
             {
@@ -7877,7 +8046,7 @@
           "description": "Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "state_limit": {
           "anyOf": [
@@ -7892,7 +8061,7 @@
           "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -7907,7 +8076,7 @@
           "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -7925,7 +8094,7 @@
           "description": "Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
           "display_name": "Saturated Hydraulic Conductivity",
           "title": "Saturated Hydraulic Conductivity",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "soil_density": {
           "anyOf": [
@@ -7943,7 +8112,7 @@
           "description": "Bulk soil density",
           "display_name": "Soil Density",
           "title": "Soil Density",
-          "unit": "g cm^-3"
+          "unit": "g cm-3"
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
@@ -7970,7 +8139,7 @@
           "description": "Limit of snow that can be held on surface",
           "display_name": "Snow Pack Limit",
           "title": "Snowpack Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -7992,7 +8161,7 @@
           "description": "Fraction of surface area that can be irrigated",
           "display_name": "Irrigation Fraction",
           "title": "Irrigation Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -8020,7 +8189,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb",
-          "unit": "dimensionless"
+          "unit": "1"
         }
       },
       "title": "Paved Surfaces",
@@ -8037,7 +8206,7 @@
       "type": "integer"
     },
     "RSLLevel": {
-      "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.\n\n0: NONE - No local climate adjustments; use forcing file meteorology directly\n1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days\n2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
+      "description": "Air temperature passed to the calculations that respond to near-surface conditions: the daily state (daily temperature statistics and degree days, which drive leaf area index phenology, modelled irrigation and degree-day anthropogenic heat), the modelled anthropogenic heat flux (QF), the surface conductance that controls the latent heat flux (QE), and biogenic CO2 when it is modelled.\nWith a level above 0, a change in the diagnosed near-surface temperature therefore feeds into QF and QE.\n\n0: NONE - Forcing air temperature\n1: BASIC - Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme's reference height\n2: DETAILED - Air temperature at level 10 of the near-surface profile, which is half the effective canopy height (the mean roughness-element height, at least 2 m) when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used",
       "enum": [
         0,
         1,
@@ -8047,7 +8216,7 @@
       "type": "integer"
     },
     "RSLMethod": {
-      "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).\n\n0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces\n1: RST (Roughness Sublayer Theory; Theeuwes et al. 2019) - Appropriate for heterogeneous urban surfaces with tall roughness elements\n2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+      "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).\nThe two schemes report these diagnostics at different heights: RST at 2 m and 10 m above ground, MOST at 2 m and 10 m above the zero-plane displacement height plus the roughness length, which over a tall canopy is well above ground.\nSee :ref:`reference heights of the near-surface diagnostics <rsl_diag_heights>`.\n\n0: MOST - Monin-Obukhov similarity theory, appropriate for relatively homogeneous, flat surfaces\n1: RST - Roughness sublayer theory following Theeuwes et al. (2019), appropriate for heterogeneous urban surfaces with tall roughness elements\n2: VARIABLE - Uses RST when the plan area index of buildings and trees is between 0.1 and 0.68 and the mean roughness-element height exceeds 2 m, otherwise MOST",
       "enum": [
         0,
         1,
@@ -9212,7 +9381,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -9229,7 +9398,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -9248,7 +9417,7 @@
           "description": "Minimum water storage capacity for state change",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soil_store_capacity": {
           "anyOf": [
@@ -9266,7 +9435,7 @@
           "description": "Maximum water storage capacity of soil",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -9281,7 +9450,7 @@
           "description": "Surface wetness threshold for OHM calculations",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "roof_albedo_dir_mult_fact": {
           "anyOf": [
@@ -9304,7 +9473,7 @@
           "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
           "display_name": "Roof Albedo Direct Multiplier",
           "title": "Roof Albedo Dir Mult Fact",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "wall_specular_frac": {
           "anyOf": [
@@ -9322,7 +9491,7 @@
           "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
           "display_name": "Wall Specular Fraction",
           "title": "Wall Specular Frac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -9340,11 +9509,10 @@
       "type": "object"
     },
     "SMDMethod": {
-      "description": "Method for determining soil moisture deficit (SMD).\n\n0: MODELLED - SMD calculated from water balance using soil parameters\n1: OBSERVED_VOLUMETRIC - Uses observed volumetric soil moisture content (m\u00b3/m\u00b3) from forcing file\n2: OBSERVED_GRAVIMETRIC - Uses observed gravimetric soil moisture content (kg/kg) from forcing file",
+      "description": "Soil moisture source: modelled water balance or observed liquid content.",
       "enum": [
         0,
-        1,
-        2
+        1
       ],
       "title": "SMDMethod",
       "type": "integer"
@@ -9365,7 +9533,7 @@
           "description": "Air extinction coefficient for longwave radiation",
           "display_name": "Air Ext Lw",
           "title": "Air Ext Lw",
-          "unit": "m^-1"
+          "unit": "m-1"
         },
         "air_ext_sw": {
           "anyOf": [
@@ -9380,7 +9548,7 @@
           "description": "Air extinction coefficient for shortwave radiation",
           "display_name": "Air Ext Sw",
           "title": "Air Ext Sw",
-          "unit": "m^-1"
+          "unit": "m-1"
         },
         "air_ssa_lw": {
           "anyOf": [
@@ -9397,7 +9565,7 @@
           "ge": 0.0,
           "le": 1.0,
           "title": "Air Ssa Lw",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "air_ssa_sw": {
           "anyOf": [
@@ -9414,7 +9582,7 @@
           "ge": 0.0,
           "le": 1.0,
           "title": "Air Ssa Sw",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ground_albedo_dir_mult_fact": {
           "anyOf": [
@@ -9430,7 +9598,7 @@
           "display_name": "Ground Albedo Dir Mult Fact",
           "ge": 0.0,
           "title": "Ground Albedo Dir Mult Fact",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "n_stream_lw_urban": {
           "anyOf": [
@@ -9445,7 +9613,7 @@
           "description": "Number of streams for longwave radiation in urban areas",
           "display_name": "N Stream Lw Urban",
           "title": "N Stream Lw Urban",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "n_stream_sw_urban": {
           "anyOf": [
@@ -9460,7 +9628,7 @@
           "description": "Number of streams for shortwave radiation in urban areas",
           "display_name": "N Stream Sw Urban",
           "title": "N Stream Sw Urban",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "n_stream_lw_forest": {
           "anyOf": [
@@ -9475,7 +9643,7 @@
           "description": "Number of streams for longwave radiation in forest columns",
           "display_name": "N Stream Lw Forest",
           "title": "N Stream Lw Forest",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "n_stream_sw_forest": {
           "anyOf": [
@@ -9490,7 +9658,7 @@
           "description": "Number of streams for shortwave radiation in forest columns",
           "display_name": "N Stream Sw Forest",
           "title": "N Stream Sw Forest",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "n_vegetation_region_urban": {
           "anyOf": [
@@ -9505,7 +9673,7 @@
           "description": "Number of vegetation regions in urban areas",
           "display_name": "N Vegetation Region Urban",
           "title": "N Vegetation Region Urban",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "n_vegetation_region_forest": {
           "anyOf": [
@@ -9520,7 +9688,7 @@
           "description": "Number of vegetation regions in forest columns",
           "display_name": "N Vegetation Region Forest",
           "title": "N Vegetation Region Forest",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "use_sw_direct_albedo": {
           "anyOf": [
@@ -9535,7 +9703,7 @@
           "description": "Flag to use direct albedo for shortwave radiation",
           "display_name": "Use Sw Direct Albedo",
           "title": "Use Sw Direct Albedo",
-          "unit": "dimensionless"
+          "unit": null
         },
         "veg_contact_fraction_const": {
           "anyOf": [
@@ -9550,7 +9718,7 @@
           "description": "Constant vegetation contact fraction",
           "display_name": "Veg Contact Fraction Const",
           "title": "Veg Contact Fraction Const",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "veg_fsd_const": {
           "anyOf": [
@@ -9565,7 +9733,7 @@
           "description": "Constant vegetation fractional standard deviation",
           "display_name": "Veg Fsd Const",
           "title": "Veg Fsd Const",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "veg_ssa_lw": {
           "anyOf": [
@@ -9582,7 +9750,7 @@
           "ge": 0.0,
           "le": 1.0,
           "title": "Veg Ssa Lw",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "veg_ssa_sw": {
           "anyOf": [
@@ -9599,7 +9767,7 @@
           "ge": 0.0,
           "le": 1.0,
           "title": "Veg Ssa Sw",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -9708,7 +9876,7 @@
           "ge": -90,
           "le": 90,
           "title": "Lat",
-          "unit": "degrees"
+          "unit": "degree"
         },
         "lng": {
           "anyOf": [
@@ -9725,7 +9893,7 @@
           "ge": -180,
           "le": 180,
           "title": "Lng",
-          "unit": "degrees"
+          "unit": "degree"
         },
         "alt": {
           "anyOf": [
@@ -9775,7 +9943,7 @@
           "display_name": "Surface area",
           "gt": 0,
           "title": "Surfacearea",
-          "unit": "m^2"
+          "unit": "m2"
         },
         "z": {
           "anyOf": [
@@ -9839,7 +10007,7 @@
           "display_name": "Pipe capacity - Maximum drainage rate",
           "gt": 0,
           "title": "Pipecapacity",
-          "unit": "mm h^-1"
+          "unit": "mm h-1"
         },
         "runofftowater": {
           "anyOf": [
@@ -9856,7 +10024,7 @@
           "ge": 0,
           "le": 1,
           "title": "Runofftowater",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "narp_trans_site": {
           "anyOf": [
@@ -9871,7 +10039,7 @@
           "description": "Site-specific NARP transmission coefficient",
           "display_name": "Narp Trans Site",
           "title": "Narp Trans Site",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "lumps": {
           "$ref": "#/$defs/LUMPSParams",
@@ -9938,7 +10106,7 @@
           "description": "Number of buildings in the site",
           "display_name": "N Buildings",
           "title": "N Buildings",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "h_std": {
           "anyOf": [
@@ -9969,7 +10137,7 @@
           "display_name": "Lambda C",
           "ge": 0,
           "title": "Lambda C",
-          "unit": "m^2 m^-2"
+          "unit": "m2 m-2"
         },
         "ref": {
           "anyOf": [
@@ -10001,7 +10169,7 @@
           "description": "Maximum water holding capacity of snow",
           "display_name": "Maximum Water Retention Capacity",
           "title": "Water Holding Capacity Max",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "water_holding_capacity_min": {
           "anyOf": [
@@ -10016,7 +10184,7 @@
           "description": "Minimum water holding capacity of snow",
           "display_name": "Minimum Water Retention Capacity",
           "title": "Water Holding Capacity Min",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "narp_emissivity_snow": {
           "anyOf": [
@@ -10033,7 +10201,7 @@
           "ge": 0.0,
           "le": 1.0,
           "title": "Narp Emissivity Snow",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "temperature_rain_snow_threshold": {
           "anyOf": [
@@ -10082,7 +10250,7 @@
           "description": "Maximum snow albedo",
           "display_name": "Maximum Snow Albedo",
           "title": "Snow Albedo Max",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snow_albedo_min": {
           "anyOf": [
@@ -10097,7 +10265,7 @@
           "description": "Minimum snow albedo",
           "display_name": "Minimum Snow Albedo",
           "title": "Snow Albedo Min",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snow_density_min": {
           "anyOf": [
@@ -10115,7 +10283,7 @@
           "description": "Minimum snow density",
           "display_name": "Minimum Snow Density",
           "title": "Snow Density Min",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "snow_density_max": {
           "anyOf": [
@@ -10133,7 +10301,7 @@
           "description": "Maximum snow density",
           "display_name": "Maximum Snow Density",
           "title": "Snow Density Max",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "snow_depth_limit_building": {
           "anyOf": [
@@ -10182,7 +10350,7 @@
           "description": "Time constant for snow albedo aging in cold snow",
           "display_name": "Snow Albedo Ageing Time (Cold)",
           "title": "Tau Cold Snow",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "tau_melting_snow": {
           "anyOf": [
@@ -10197,7 +10365,7 @@
           "description": "Time constant for snow albedo aging in melting snow",
           "display_name": "Snow Albedo Ageing Time (Melting)",
           "title": "Tau Melting Snow",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "tau_refreezing_snow": {
           "anyOf": [
@@ -10212,7 +10380,7 @@
           "description": "Time constant for snow albedo aging in refreezing snow",
           "display_name": "Snow Albedo Ageing Time (Refreezing)",
           "title": "Tau Refreezing Snow",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "temperature_melt_factor": {
           "anyOf": [
@@ -10227,7 +10395,7 @@
           "description": "Hourly temperature melt factor of snow",
           "display_name": "Temperature Melt Factor",
           "title": "Temperature Melt Factor",
-          "unit": "mm K^-1 h^-1"
+          "unit": "mm K-1 h-1"
         },
         "radiation_melt_factor": {
           "anyOf": [
@@ -10242,7 +10410,7 @@
           "description": "Hourly radiation melt factor of snow",
           "display_name": "Radiation Melt Factor",
           "title": "Radiation Melt Factor",
-          "unit": "mm W^-1 m^2 h^-1"
+          "unit": "mm W-1 m2 h-1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -10278,7 +10446,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied to the snow surface",
           "display_name": "OHM Wet/Dry Threshold (Snow)",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -10317,9 +10485,10 @@
       "type": "integer"
     },
     "SoilObservationConfig": {
-      "description": "Configuration for observed soil moisture measurements.\n\nRequired when SMDMethod = 1 (volumetric) or 2 (gravimetric).\nThese parameters describe the sensor installation and measurement setup,\nnot the physical soil properties used by the SUEWS water balance model.\n\nNote:\n    - `depth`: Where the sensor is installed, not SUEWS's modelled soil depth\n    - `smcap`: Maximum observable moisture, not SUEWS's soil storage capacity\n    - `bulk_density`: Only used for gravimetric (SMDMethod=2) conversion",
+      "additionalProperties": false,
+      "description": "Bounds of a whole-store liquid-water observation and conversion metadata.\n\nDensity and fine-earth fraction are provenance for upstream conversion;\ncanonical content must not be multiplied by either at runtime.",
       "properties": {
-        "depth": {
+        "layer_depth": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10328,13 +10497,12 @@
               "type": "number"
             }
           ],
-          "description": "Depth of the soil moisture sensor installation",
-          "display_name": "Observation Depth",
+          "description": "Thickness of the represented soil layer",
           "gt": 0,
-          "title": "Depth",
-          "unit": "mm"
+          "title": "Layer Depth",
+          "unit": "m"
         },
-        "smcap": {
+        "layer_top": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10343,11 +10511,33 @@
               "type": "number"
             }
           ],
-          "description": "Maximum observable soil moisture (saturated \u03b8 or w at sensor location). For volumetric (SMDMethod=1), this is typically \u22641.0 (m\u00b3/m\u00b3). For gravimetric (SMDMethod=2), values >1.0 are possible (g water/g dry soil).",
-          "display_name": "Saturation Capacity",
-          "gt": 0,
-          "title": "Smcap",
-          "unit": "fraction or g/g"
+          "default": 0.0,
+          "description": "Upper layer boundary below local ground, positive downwards",
+          "ge": 0,
+          "title": "Layer Top",
+          "unit": "m"
+        },
+        "bulk_density": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Dry fine-earth bulk density, used only for source conversion",
+          "title": "Bulk Density",
+          "unit": "kg m-3"
         },
         "soil_not_rocks": {
           "anyOf": [
@@ -10358,27 +10548,12 @@
               "type": "number"
             }
           ],
-          "description": "Fraction of the measured soil volume that is soil (not rocks)",
-          "display_name": "Soil Fraction",
+          "default": 1.0,
+          "description": "Fine-earth volume divided by total layer volume",
           "gt": 0,
           "le": 1,
           "title": "Soil Not Rocks",
-          "unit": "dimensionless"
-        },
-        "bulk_density": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "description": "Soil bulk density at the measurement point (used for gravimetric conversion)",
-          "display_name": "Bulk Density",
-          "gt": 0,
-          "title": "Bulk Density",
-          "unit": "g cm^-3"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -10393,16 +10568,13 @@
         }
       },
       "required": [
-        "depth",
-        "smcap",
-        "soil_not_rocks",
-        "bulk_density"
+        "layer_depth"
       ],
       "title": "Soil Observation Configuration",
       "type": "object"
     },
     "StabilityMethod": {
-      "description": "Atmospheric stability correction functions for momentum and heat fluxes.\n\n0: NOT_USED - Reserved\n1: NOT_USED2 - Reserved\n2: HOEGSTROM - Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)\n3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat\n4: BUSINGER_HOEGSTROM - Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
+      "description": "Atmospheric stability correction functions for momentum and heat fluxes.\n\n0: NOT_USED - Reserved; not available (rejected at validation)\n1: NOT_USED2 - Reserved; not available (rejected at validation)\n2: HOEGSTROM - Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended). W16 in the kernel remains available with MOST (roughness_sublayer=0), but stops with error 108 when RSL requires its unimplemented phi functions, including roughness_sublayer=1 (RST) and roughness_sublayer=2 (variable) when site geometry selects RST. Use option 3 (recommended) or 4 for RSL.\n3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat\n4: BUSINGER_HOEGSTROM - Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
       "enum": [
         0,
         1,
@@ -10441,7 +10613,7 @@
             "stebbs.capacitance"
           ],
           "title": "Enabled",
-          "unit": "dimensionless"
+          "unit": null
         },
         "parameters": {
           "anyOf": [
@@ -10455,7 +10627,7 @@
           "default": 1,
           "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``). Options: 1 (DEFAULT) = STEBBS uses default parameters; 2 (PROVIDED) = STEBBS uses user-specified parameters",
           "title": "Parameters",
-          "unit": "dimensionless"
+          "unit": null
         },
         "capacitance": {
           "anyOf": [
@@ -10473,7 +10645,7 @@
           "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
           "note": "Only meaningful when STEBBS is enabled; controls building-envelope heat-capacity splitting.",
           "title": "Capacitance",
-          "unit": "dimensionless"
+          "unit": null
         },
         "setpoint": {
           "anyOf": [
@@ -10487,7 +10659,7 @@
           "default": 0,
           "description": "Method to determine the approach of space heating/cooling setpoints in STEBBS. Options: 0 (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.; 1 (Dependent) = Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.; 2 (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.",
           "title": "Setpoint",
-          "unit": "dimensionless"
+          "unit": null
         },
         "same_albedo_wall": {
           "anyOf": [
@@ -10501,7 +10673,7 @@
           "default": 0,
           "description": "Controls assumption of same albedoes for walls.",
           "title": "Same Albedo Wall",
-          "unit": "dimensionless"
+          "unit": null
         },
         "same_albedo_roof": {
           "anyOf": [
@@ -10515,7 +10687,7 @@
           "default": 0,
           "description": "Controls assumption of same albedoes for roofs.",
           "title": "Same Albedo Roof",
-          "unit": "dimensionless"
+          "unit": null
         },
         "same_emissivity_wall": {
           "anyOf": [
@@ -10529,7 +10701,7 @@
           "default": 0,
           "description": "Controls assumption of same emissivities for walls.",
           "title": "Same Emissivity Wall",
-          "unit": "dimensionless"
+          "unit": null
         },
         "same_emissivity_roof": {
           "anyOf": [
@@ -10543,7 +10715,7 @@
           "default": 0,
           "description": "Controls assumption of same emissivities for roofs.",
           "title": "Same Emissivity Roof",
-          "unit": "dimensionless"
+          "unit": null
         },
         "ref": {
           "anyOf": [
@@ -10586,7 +10758,7 @@
           "display_name": "Wall Internal Convection Coefficient",
           "range_description": "Value must be greater than zero.",
           "title": "Convection Coefficient Wall Internal",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_roof_internal": {
           "anyOf": [
@@ -10609,7 +10781,7 @@
           "description": "Internal convection coefficient of roof [W m-2 K-1]",
           "display_name": "Roof Internal Convection Coefficient",
           "title": "Convection Coefficient Roof Internal",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_internal_mass": {
           "anyOf": [
@@ -10632,7 +10804,7 @@
           "description": "Convection coefficient of internal mass [W m-2 K-1]",
           "display_name": "Internal Mass Convection Coefficient",
           "title": "Convection Coefficient Internal Mass",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_ground_floor_internal": {
           "anyOf": [
@@ -10655,7 +10827,7 @@
           "description": "Internal convection coefficient of ground floor [W m-2 K-1]",
           "display_name": "Floor Internal Convection Coefficient",
           "title": "Convection Coefficient Ground Floor Internal",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_window_internal": {
           "anyOf": [
@@ -10678,7 +10850,7 @@
           "description": "Internal convection coefficient of windows [W m-2 K-1]",
           "display_name": "Window Internal Convection Coefficient",
           "title": "Convection Coefficient Window Internal",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_wall_external": {
           "anyOf": [
@@ -10701,7 +10873,7 @@
           "description": "Initial external convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wall External Convection Coefficient",
           "title": "Convection Coefficient Wall External",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_roof_external": {
           "anyOf": [
@@ -10724,7 +10896,7 @@
           "description": "Initial external convection coefficient of roof [W m-2 K-1]",
           "display_name": "Roof External Convection Coefficient",
           "title": "Convection Coefficient Roof External",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_window_external": {
           "anyOf": [
@@ -10747,7 +10919,7 @@
           "description": "Initial external convection coefficient of windows [W m-2 K-1]",
           "display_name": "Window External Convection Coefficient",
           "title": "Convection Coefficient Window External",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "depth_ground": {
           "anyOf": [
@@ -10793,7 +10965,7 @@
           "description": "External ground thermal conductivity",
           "display_name": "External Ground Conductivity",
           "title": "Thermal Conductivity Ground",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "threshold_metabolism": {
           "anyOf": [
@@ -10840,7 +11012,7 @@
           "description": "Latent-to-sensible ratio of metabolic energy release of occupants [-]",
           "display_name": "Latent Sensible Ratio",
           "title": "Ratio Latent Sensible",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "daylight_control": {
           "anyOf": [
@@ -10858,7 +11030,7 @@
           "description": "Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
           "display_name": "Daylight Control",
           "title": "Daylight Control",
-          "unit": "dimensionless"
+          "unit": null
         },
         "internal_shading": {
           "anyOf": [
@@ -10881,7 +11053,7 @@
           "description": "Internal window shading mode (0 = off, 1 = always active, 2 = temperature-and-radiation controlled)",
           "display_name": "Internal Shading",
           "title": "Internal Shading",
-          "unit": "dimensionless"
+          "unit": null
         },
         "reduction_factor_shading": {
           "anyOf": [
@@ -10905,7 +11077,7 @@
           "description": "Effective multiplier of window-transmitted solar heat gain when internal shading is active [-] (1 = unchanged, 0 = no retained gain). Retained gain is applied to indoor thermal mass. The excluded fraction is not separately modelled as blind absorption, reflection or indoor heat release; this is not a blind optical transmittance. Shading does not modify the daylight factor for lighting control.",
           "display_name": "Internal Shading Reduction Factor",
           "title": "Reduction Factor Shading",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "temperature_threshold_shading": {
           "anyOf": [
@@ -10951,7 +11123,7 @@
           "description": "Wall/window incident shortwave-radiation threshold for controlled internal shading [W m-2]",
           "display_name": "Internal Shading Radiation Threshold",
           "title": "Radiation Threshold Shading",
-          "unit": "W m^-2"
+          "unit": "W m-2"
         },
         "threshold_lighting_illuminance": {
           "anyOf": [
@@ -10998,7 +11170,7 @@
           "description": "Efficiency of space heating system [-]",
           "display_name": "Heating System Efficiency",
           "title": "Efficiency Heating System Air",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "destination_waste_heat": {
           "anyOf": [
@@ -11020,7 +11192,7 @@
           "description": "Destination of waste heat from the space-heating system (0 = indoor air, 1 = outdoor air)",
           "display_name": "Space-Heating Waste-Heat Destination",
           "title": "Destination Waste Heat",
-          "unit": "dimensionless"
+          "unit": null
         },
         "fraction_convective_heating": {
           "anyOf": [
@@ -11044,7 +11216,7 @@
           "description": "Fraction of useful space-heating output convected to indoor air; the remainder is split equally between indoor mass and the internal wall surface. If no opaque wall is present, its share goes to indoor mass [-]",
           "display_name": "Space-Heating Convective Fraction",
           "title": "Fraction Convective Heating",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "max_power_cooling_system_air": {
           "anyOf": [
@@ -11090,7 +11262,7 @@
           "description": "Coefficient of performance of cooling system [-]",
           "display_name": "Cooling System COP",
           "title": "Efficiency Cooling System Air",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "rate_ventilation": {
           "anyOf": [
@@ -11113,7 +11285,7 @@
           "description": "Ventilation rate (air changes per hour, ACH) [h-1]",
           "display_name": "Ventilation Rate",
           "title": "Rate Ventilation",
-          "unit": "h^-1"
+          "unit": "h-1"
         },
         "temperature_air_outdoor_initial": {
           "anyOf": [
@@ -11254,7 +11426,7 @@
           "description": "Surface area of hot water tank cylinder [m2]",
           "display_name": "Water Tank Surface Area",
           "title": "Surface Area Hot Water Tank",
-          "unit": "m^2"
+          "unit": "m2"
         },
         "setpoint_temperature_heating_water": {
           "anyOf": [
@@ -11301,7 +11473,7 @@
           "description": "Effective external wall emissivity of the hot water tank [-]",
           "display_name": "Hot Water Tank Wall Emissivity",
           "title": "Emissivity Hot Water Tank Wall",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "thickness_hot_water_vessel_wall": {
           "anyOf": [
@@ -11349,7 +11521,7 @@
           "display_name": "Hot Water Volume",
           "range_description": "Missing range explanation.",
           "title": "Volume Hot Water",
-          "unit": "m^3"
+          "unit": "m3"
         },
         "surface_area_hot_water": {
           "anyOf": [
@@ -11372,7 +11544,7 @@
           "description": "Surface area of hot water in vessels in building [m2]",
           "display_name": "Hot Water Surface Area",
           "title": "Surface Area Hot Water",
-          "unit": "m^2"
+          "unit": "m2"
         },
         "rate_flow_hot_water": {
           "anyOf": [
@@ -11395,7 +11567,7 @@
           "description": "Hot water flow rate from tank to vessel [m3 s-1]",
           "display_name": "Hot Water Flow Rate",
           "title": "Rate Flow Hot Water",
-          "unit": "m^3 s^-1"
+          "unit": "m3 s-1"
         },
         "profile_flow_hot_water": {
           "anyOf": [
@@ -11408,7 +11580,7 @@
           ],
           "description": "Profile of hot water flow rate from tank to vessel [m3 s-1]",
           "display_name": "Hot Water Flow Profile",
-          "unit": "m^3 s^-1"
+          "unit": "m3 s-1"
         },
         "specific_heat_capacity_hot_water": {
           "anyOf": [
@@ -11431,7 +11603,7 @@
           "description": "Specific heat capacity of hot water [J kg-1 K-1]",
           "display_name": "Hot Water Specific Heat Capacity",
           "title": "Specific Heat Capacity Hot Water",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "specific_heat_capacity_hot_water_tank_wall": {
           "anyOf": [
@@ -11454,7 +11626,7 @@
           "description": "Specific heat capacity of hot water tank wall [J kg-1 K-1]",
           "display_name": "Hot Water Tank Specific Heat Capacity",
           "title": "Specific Heat Capacity Hot Water Tank Wall",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "specific_heat_capacity_hot_water_vessel_wall": {
           "anyOf": [
@@ -11477,7 +11649,7 @@
           "description": "Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
           "display_name": "Hot Water Vessel Specific Heat Capacity",
           "title": "Specific Heat Capacity Hot Water Vessel Wall",
-          "unit": "J kg^-1 K^-1"
+          "unit": "J kg-1 K-1"
         },
         "density_hot_water": {
           "anyOf": [
@@ -11500,7 +11672,7 @@
           "description": "Density of hot water in use [kg m-3]",
           "display_name": "Hot Water Density",
           "title": "Density Hot Water",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "density_hot_water_tank_wall": {
           "anyOf": [
@@ -11523,7 +11695,7 @@
           "description": "Density of hot water tank wall [kg m-3]",
           "display_name": "Hot Water Tank Wall Density",
           "title": "Density Hot Water Tank Wall",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "density_hot_water_vessel_wall": {
           "anyOf": [
@@ -11546,7 +11718,7 @@
           "description": "Density of vessels containing hot water in use [kg m-3]",
           "display_name": "Hot Water Vessel Density",
           "title": "Density Hot Water Vessel Wall",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "conductivity_hot_water_tank_wall": {
           "anyOf": [
@@ -11569,7 +11741,7 @@
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Hot Water Tank Wall Conductivity",
           "title": "Conductivity Hot Water Tank Wall",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "convection_coefficient_hot_water_tank_wall_internal": {
           "anyOf": [
@@ -11592,7 +11764,7 @@
           "description": "Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
           "title": "Convection Coefficient Hot Water Tank Wall Internal",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_hot_water_tank_wall_external": {
           "anyOf": [
@@ -11615,7 +11787,7 @@
           "description": "Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank External Wall Convection Coefficient",
           "title": "Convection Coefficient Hot Water Tank Wall External",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "conductivity_hot_water_vessel_wall": {
           "anyOf": [
@@ -11638,7 +11810,7 @@
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Hot Water Vessel Wall Conductivity",
           "title": "Conductivity Hot Water Vessel Wall",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "convection_coefficient_hot_water_tank_vessel_internal": {
           "anyOf": [
@@ -11661,7 +11833,7 @@
           "description": "Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel Internal Wall Convection Coefficient",
           "title": "Convection Coefficient Hot Water Tank Vessel Internal",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "convection_coefficient_hot_water_tank_vessel_external": {
           "anyOf": [
@@ -11684,7 +11856,7 @@
           "description": "Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel External Wall Convection Coefficient",
           "title": "Convection Coefficient Hot Water Tank Vessel External",
-          "unit": "W m^-2 K^-1"
+          "unit": "W m-2 K-1"
         },
         "emissivity_hot_water_vessel_wall": {
           "anyOf": [
@@ -11708,7 +11880,7 @@
           "description": "Effective external wall emissivity of hot water being used within building [-]",
           "display_name": "Hot Water Vessel Wall Emissivity",
           "title": "Emissivity Hot Water Vessel Wall",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "efficiency_heating_system_water": {
           "anyOf": [
@@ -11732,7 +11904,7 @@
           "description": "Efficiency of hot water system [-]",
           "display_name": "Hot Water Heating Efficiency",
           "title": "Efficiency Heating System Water",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "profile_appliance": {
           "anyOf": [
@@ -11745,7 +11917,7 @@
           ],
           "description": "10-minute profile of appliance usage factor in building [-]",
           "display_name": "Appliance Profile",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "power_density_lighting": {
           "anyOf": [
@@ -11768,7 +11940,7 @@
           "description": "Lighting power per building floor area [W m-2]",
           "display_name": "Lighting Power Density",
           "title": "Power Density Lighting",
-          "unit": "W m^-2"
+          "unit": "W m-2"
         },
         "ref": {
           "anyOf": [
@@ -11802,7 +11974,7 @@
           "display_name": "Minimum Storage",
           "ge": 0,
           "title": "Store Min",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "store_max": {
           "anyOf": [
@@ -11825,7 +11997,7 @@
           "description": "Maximum water storage capacity",
           "display_name": "Maximum Storage",
           "title": "Store Max",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "store_cap": {
           "anyOf": [
@@ -11848,7 +12020,7 @@
           "description": "Current surface/interception water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html.",
           "display_name": "Storage Capacity",
           "title": "Store Cap",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "drain_eq": {
           "anyOf": [
@@ -11863,7 +12035,7 @@
           "description": "Drainage equation selection (1: threshold power law; 2: modified Rutter exponential equation; 3: power law). The default 0 is an unset placeholder and should be replaced for configured surfaces",
           "display_name": "Drainage Equation",
           "title": "Drain Eq",
-          "unit": "dimensionless"
+          "unit": null
         },
         "drain_coef_1": {
           "anyOf": [
@@ -11917,7 +12089,7 @@
       "type": "object"
     },
     "StorageHeatMethod": {
-      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets\n6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface\n7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces\n8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
+      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not available: rejected at validation, because the YAML interface carries no surface-temperature input for it; use EHC (5) or DyOHM (6)\n5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets\n6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface\n7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces\n8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
       "enum": [
         0,
         1,
@@ -11948,7 +12120,7 @@
           "display_name": "Initial Surface Water State",
           "ge": 0,
           "title": "State",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soilstore": {
           "anyOf": [
@@ -11964,7 +12136,7 @@
           "display_name": "Initial Soil Store",
           "ge": 10,
           "title": "Soilstore",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowfrac": {
           "anyOf": [
@@ -11988,7 +12160,7 @@
           "description": "Snow fraction",
           "display_name": "Snow Fraction",
           "title": "Snowfrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowpack": {
           "anyOf": [
@@ -12011,7 +12183,7 @@
           "description": "Snow pack",
           "display_name": "Snow Pack",
           "title": "Snowpack",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "icefrac": {
           "anyOf": [
@@ -12035,7 +12207,7 @@
           "description": "Ice fraction",
           "display_name": "Ice Fraction",
           "title": "Icefrac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "snowwater": {
           "anyOf": [
@@ -12058,7 +12230,7 @@
           "description": "Snow water",
           "display_name": "Snow Water",
           "title": "Snowwater",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "snowdens": {
           "anyOf": [
@@ -12081,7 +12253,7 @@
           "description": "Snow density",
           "display_name": "Snow Density",
           "title": "Snowdens",
-          "unit": "kg m^-3"
+          "unit": "kg m-3"
         },
         "temperature": {
           "anyOf": [
@@ -12279,7 +12451,7 @@
           "description": "Thermal conductivity of each of the five material layers, in the same exposed-surface-to-interior order as dz",
           "display_name": "Thermal Conductivity",
           "title": "K",
-          "unit": "W m^-1 K^-1"
+          "unit": "W m-1 K-1"
         },
         "rho_cp": {
           "anyOf": [
@@ -12307,7 +12479,7 @@
           "description": "Volumetric heat capacity of each of the five material layers, in the same exposed-surface-to-interior order as dz",
           "display_name": "Volumetric Heat Capacity",
           "title": "Rho Cp",
-          "unit": "J m^-3 K^-1"
+          "unit": "J m-3 K-1"
         },
         "ref": {
           "anyOf": [
@@ -12388,7 +12560,7 @@
           "ge": 1,
           "le": 15,
           "title": "Nlayer",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "height": {
           "anyOf": [
@@ -12433,7 +12605,7 @@
           "description": "Fraction of vegetation obstruction in each vertical layer, length must be nlayer. The lowest layer value may represent trunk or near-ground obstruction and is not required to equal total tree land-cover fraction.",
           "display_name": "Vegetation Fraction",
           "title": "Veg Frac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "veg_scale": {
           "anyOf": [
@@ -12455,7 +12627,7 @@
           "description": "Scaling factor for vegetation in each SPARTACUS vertical layer; length must be nlayer",
           "display_name": "Vegetation Scale",
           "title": "Veg Scale",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "veg_ext": {
           "anyOf": [
@@ -12499,7 +12671,7 @@
           "description": "Cumulative grid building fraction at each SPARTACUS vertical layer, decreasing with height; length must be nlayer",
           "display_name": "Building Fraction",
           "title": "Building Frac",
-          "unit": "-"
+          "unit": "1"
         },
         "building_scale": {
           "anyOf": [
@@ -12574,7 +12746,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -12591,7 +12763,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -12610,7 +12782,7 @@
           "description": "Minimum water storage capacity for state change",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "soil_store_capacity": {
           "anyOf": [
@@ -12628,7 +12800,7 @@
           "description": "Maximum water storage capacity of soil",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -12643,7 +12815,7 @@
           "description": "Surface wetness threshold for OHM calculations",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "roof_albedo_dir_mult_fact": {
           "anyOf": [
@@ -12666,7 +12838,7 @@
           "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
           "display_name": "Roof Albedo Direct Multiplier",
           "title": "Roof Albedo Dir Mult Fact",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "wall_specular_frac": {
           "anyOf": [
@@ -12684,7 +12856,7 @@
           "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
           "display_name": "Wall Specular Fraction",
           "title": "Wall Specular Frac",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -12726,7 +12898,7 @@
           "description": "Fraction of water redistributed to paved surfaces within the grid",
           "display_name": "To Paved",
           "title": "To Paved",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_bldgs": {
           "anyOf": [
@@ -12750,7 +12922,7 @@
           "description": "Fraction of water redistributed to building surfaces within the grid",
           "display_name": "To Buildings",
           "title": "To Bldgs",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_dectr": {
           "anyOf": [
@@ -12774,7 +12946,7 @@
           "description": "Fraction of water redistributed to deciduous tree surfaces within the grid",
           "display_name": "To Deciduous Trees",
           "title": "To Dectr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_evetr": {
           "anyOf": [
@@ -12798,7 +12970,7 @@
           "description": "Fraction of water redistributed to evergreen tree surfaces within the grid",
           "display_name": "To Evergreen Trees",
           "title": "To Evetr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_grass": {
           "anyOf": [
@@ -12822,7 +12994,7 @@
           "description": "Fraction of water redistributed to grass surfaces within the grid",
           "display_name": "To Grass",
           "title": "To Grass",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_bsoil": {
           "anyOf": [
@@ -12846,7 +13018,7 @@
           "description": "Fraction of water redistributed to bare soil surfaces within the grid",
           "display_name": "To Bare Soil",
           "title": "To Bsoil",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_water": {
           "anyOf": [
@@ -12870,7 +13042,7 @@
           "description": "Fraction of water redistributed to water surfaces within the grid",
           "display_name": "To Water",
           "title": "To Water",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_runoff": {
           "anyOf": [
@@ -12894,7 +13066,7 @@
           "description": "Fraction of water going to surface runoff (for impervious surfaces: paved and buildings)",
           "display_name": "To Runoff",
           "title": "To Runoff",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "to_soilstore": {
           "anyOf": [
@@ -12918,7 +13090,7 @@
           "description": "Fraction of water going to subsurface soil storage (for pervious surfaces: vegetation and bare soil)",
           "display_name": "To Soil Store",
           "title": "To Soilstore",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -12953,7 +13125,7 @@
           "ge": 0,
           "le": 1,
           "title": "Sfr",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "emis": {
           "anyOf": [
@@ -12970,7 +13142,7 @@
           "ge": 0,
           "le": 1,
           "title": "Emis",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_threshold_summer_winter": {
           "anyOf": [
@@ -13006,7 +13178,7 @@
           "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
           "display_name": "OHM Winter Dry Threshold",
           "title": "Ohm Threshold Wet Dry",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ohm_coef": {
           "anyOf": [
@@ -13036,6 +13208,30 @@
           "title": "Soil Depth",
           "unit": "mm"
         },
+        "soil_field_capacity": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0,
+              "le": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volumetric liquid-water content at field capacity",
+          "display_name": "Soil Field Capacity",
+          "title": "Soil Field Capacity",
+          "unit": "m3 m-3"
+        },
         "soil_store_capacity": {
           "anyOf": [
             {
@@ -13052,7 +13248,7 @@
           "description": "Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
           "display_name": "Soil Store Capacity",
           "title": "Soil Store Capacity",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "state_limit": {
           "anyOf": [
@@ -13067,7 +13263,7 @@
           "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "wet_threshold": {
           "anyOf": [
@@ -13082,7 +13278,7 @@
           "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -13100,7 +13296,7 @@
           "description": "Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
           "display_name": "Saturated Hydraulic Conductivity",
           "title": "Saturated Hydraulic Conductivity",
-          "unit": "mm s^-1"
+          "unit": "mm s-1"
         },
         "soil_density": {
           "anyOf": [
@@ -13118,7 +13314,7 @@
           "description": "Bulk soil density",
           "display_name": "Soil Density",
           "title": "Soil Density",
-          "unit": "g cm^-3"
+          "unit": "g cm-3"
         },
         "waterdist": {
           "anyOf": [
@@ -13152,7 +13348,7 @@
           "description": "Limit of snow that can be held on surface",
           "display_name": "Snow Pack Limit",
           "title": "Snowpack Limit",
-          "unit": "mm"
+          "unit": "kg m-2"
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
@@ -13174,7 +13370,7 @@
           "description": "Fraction of surface area that can be irrigated",
           "display_name": "Irrigation Fraction",
           "title": "Irrigation Fraction",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "ref": {
           "anyOf": [
@@ -13202,7 +13398,7 @@
           "ge": 0,
           "le": 1,
           "title": "Alb",
-          "unit": "dimensionless"
+          "unit": "1"
         },
         "flowchange": {
           "anyOf": [
@@ -13217,7 +13413,7 @@
           "description": "Change in water flow for water bodies",
           "display_name": "Flow Change",
           "title": "Flowchange",
-          "unit": "mm h^-1"
+          "unit": "mm h-1"
         }
       },
       "title": "Water Surfaces",
@@ -13402,7 +13598,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev5. Development schema renaming the model.physics.kdown_split_method text selector from epw to perez (#1832). The migration rewrites bare and RefValue-wrapped selectors while preserving reference metadata. Numeric option 3 and its default calculation are unchanged. The optional reindl selector (option 4) adds no required inputs.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev9. Observed soil-water configuration (#1422): soil_moisture source selector, explicit whole-store layer bounds in metres, optional SI density and surface field capacity; retire sensor saturation capacity. Active legacy observations require confirmed bounds and a completed forcing manifest.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13455,20 +13651,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev5",
+  "title": "SUEWS Configuration Schema v2026.6.dev9",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev5.json",
-  "version": "2026.6.dev5",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev9.json",
+  "version": "2026.6.dev9",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev5"
+    "schema_version": "2026.6.dev9"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev5",
+      "schema_version": "2026.6.dev9",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

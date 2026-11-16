@@ -46,7 +46,7 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
 
 Every SUEWS release produces **one cp312-abi3 wheel per (OS, arch)** from a single git tag. That wheel installs and runs on:
 
-- CPython 3.12 through 3.14 (Rust bridge via PyO3 `abi3-py312`)
+- CPython 3.12 through 3.15 (Rust bridge via PyO3 `abi3-py312`)
 - NumPy 1.22+ (including QGIS 3 LTR's NumPy 1.26.4) through NumPy 2.x
 
 ### pip Install Behaviour

@@ -13,6 +13,7 @@ py.install_sources(
         '_run_rust.py',
         '_run_output.py',
         '_save.py',
+        '_output_metadata.py',
         '_supy_module.py',
         '_var_metadata.py',
         '_version.py',
@@ -21,6 +22,7 @@ py.install_sources(
         'suews_forcing.py',
         'suews_output.py',
         'suews_sim.py',
+        'units.py',
         'validation.py',
         'code2file.json',
         'checker_rules_indiv.json',
@@ -96,6 +98,7 @@ py.install_sources(
             'util/converter/table/rules.csv',
             'util/converter/yaml.py',
             'util/converter/yaml_upgrade.py',
+            'util/converter/soil_forcing.py',
         ],
         [
             'sample_data/sample_config.yml',

@@ -70,7 +70,7 @@ MODULE SUEWS_Driver
    USE module_ctrl_error_state, ONLY: supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN, &
                                        reset_supy_error, set_supy_error
    USE module_ctrl_error, ONLY: ErrorHint
-
+   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day
    IMPLICIT NONE
 
    ! Make error state accessors public for the C-ABI driver
@@ -6479,7 +6479,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: tair_av_next
 
-      REAL(KIND(1D0)), PARAMETER :: len_day_s = 24*3600 ! day length in seconds
+      REAL(KIND(1D0)), PARAMETER :: len_day_s = sec_per_day ! day length in seconds
       REAL(KIND(1D0)) :: len_cal_s ! length of average period in seconds
       REAL(KIND(1D0)) :: temp_k ! temp in K
 
@@ -6491,7 +6491,7 @@ CONTAINS
          ! if simulation has been running less than one day
          len_cal_s = dt_since_start + tstep
       END IF
-      temp_k = temp_c + 273.15
+      temp_k = temp_c + C2K
       tair_av_next = tair_av_prev*(len_cal_s - tstep*1.)/len_cal_s + temp_k*tstep/len_cal_s
 
    END FUNCTION cal_tair_av

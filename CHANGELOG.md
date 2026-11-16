@@ -54,6 +54,121 @@ EXAMPLES:
 
 ## 2026
 
+### 15 Nov 2026
+
+- [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead
+- [doc] Add a "Supported platforms" section to the installation guide, stating how far each published platform is tested
+- [maintenance] Run the api tests of a `full` manual dispatch and of a tag release on the nightly platform set, without macOS Intel, whose api lanes run past the 45-minute job timeout and would fail the wheel build that publishing waits on; the macOS Intel wheel is still built and runs its build-step tests
+- [maintenance] Merge master into the `units-cf` integration branch ahead of its merge to master. Both lines had claimed YAML schema `2026.6.dev6`, so the observed soil-water schema from `units-cf` (#1422) becomes `2026.6.dev9`, after master's `dev6` to `dev8`; its migration now runs after the `dev8` step, the soil-schema boundary in the loader moves to `dev9`, and the sample configurations, fixtures, tests and schema documentation follow
+- [maintenance] Build each stream-chunk test simulation with one configuration update instead of up to three, so the initial state frame is rebuilt from the configuration once per simulation; the state the tests run from is unchanged
+- [maintenance] Remove the `@claude` agent workflows (`claude.yml`, `claude-code-review.yml`, `claude-dispatch.yml`), which are no longer used, and the instructions for their secrets
+- [maintenance] Measure Python line and branch coverage of supy and suews_mcp nightly, as a recording job that never gates; configuration in `pyproject.toml` (#2036)
+- [maintenance] Mark the stream-chunk test cases by their measured cost: in nightly run 43544098140 the cases at 30 CPU-s or more on the Linux cp312 api lane become `slow` and those at 20 to 30 `medium`, keeping at least one case of each test in the pre-merge tier, so 31 cases (about 28% of the lane's summed test time) leave the standard tier and still run nightly; with these markers the cost-marker check reports no drift on that run's artefacts (#2034)
+- [maintenance] Report cost-marker drift in the nightly report's summary and, for the test files a pull request changes, in its CI summary comment; it never gates (#2035)
+
+### 13 Nov 2026
+
+- [maintenance] Name the maintainers and module owners in one file, `MAINTAINERS.md`; other instruction files refer to roles, `dev-ref/SCIENTIFIC_REVIEWERS.md` is folded into it and `dev-ref/REVIEW_PROCESS.md`, and the validator fails when a listed person is named elsewhere (#2032)
+- [maintenance] Restate the five articles in `AGENTS.md` as three core principles (intellectual honesty, accountable authority, bounded responsibility), define evidence, and add the procedure for what an observation shows to `.claude/rules/autonomous-workflow.md` (#2033)
+
+### 12 Nov 2026
+
+- [maintenance] Add a five-article constitution to `AGENTS.md`, binding people and agents alike: evidence decides what it can, a named person answers where it cannot, and each change is one concern; the procedure for carrying it out is in `.claude/rules/autonomous-workflow.md` (#2029)
+- [maintenance] Slim `AGENTS.md` to the constitution and the rule index: the quick start moves to `.claude/rules/00-project-essentials.md`, the skills list stays in `.claude/README.md`, and the validator now requires the constitution and the rule index (#2030)
+
+### 10 Nov 2026
+
+- [bugfix] Forcing unit declarations: a unit of the wrong dimension for a water rate (for example `{"rain": "W m-2"}`) now reports that the dimensions differ instead of asking for a time unit, and the time coordinates `iy`, `id`, `it`, `imin` refuse a declaration when it is made instead of failing later as non-integer timestamps
+- [bugfix] Calendar resampling (`W`, `MS`, `ME`, `YE`) now puts every output group of one period in one row: DailyState totals were labelled one period early (with `ME`, January's `P_day` sat under 2011-12-31 while January's `Rain` sat under 2012-01-31), and with `W`, `ME` and `YE` the step stamped 00:00 that closes a period was counted in the next period. Resampling in two steps (for example `output.resample("D").resample("ME")`) now gives the same rows as resampling directly. Fixed-frequency resampling, including DailyState's start-of-day label at `D`, is unchanged
+- [bugfix] Saving resampled output: output resampled to a fixed frequency (for example `D`) is saved at that interval, with file names and `interval` metadata to match (daily rows were described as `1 hour`), also when the rows are wrapped again (`SUEWSOutput(output.resample("D").df, state)`) or reloaded from Parquet; calendar-resampled output is refused with a message naming the alternatives instead of crashing (`ME`, `MS`) or writing mislabelled files (`W`, `YE`); DailyState rows resampled to more than one day (for example `2D`, or Parquet output saved at a frequency longer than one day) are refused, because the files describe each DailyState row as one day
+- [bugfix] An explicit `freq_s` on save now overrides `model.control.output.freq` (it was ignored when the configuration set a frequency) and must be a positive whole multiple of the interval the rows hold, as the configuration already requires of `output.freq`: `freq_s=420` on five-minute output is refused instead of writing rows of alternately five and ten minutes
+- [bugfix] `SUEWSOutput.save(groups=[...])` now writes the requested text-output groups instead of ignoring the argument in favour of the configured groups; an unknown group is refused
+- [doc] Units migration guide, output sections: `save_tstep` is not part of the save methods (the paragraph now describes calendar saves); the save methods return the checkpoint and provenance JSON as well as the data files; a run ending part-way through a day writes no DailyState row for that day; why `to_units({"Rain": "mm"})` is refused although `output.units` reports `mm`
+
+### 9 Nov 2026
+
+- [doc] Describe the Hourly Profile format in the configuration reference: the working-day and holiday sets, hour keys "1" to "24" from 00:00 with all 24 required, the uniform 1/24 default, and the fields that use it; give `wuprofa_24hr` and `wuprofm_24hr` the descriptions they lacked (#1950, #2017)
+
+### 6 Nov 2026
+
+- [change][experimental] `suews validate --science-fixes apply` no longer writes `initial_states.snowalb: null` for a site whose run starts in summer or in the tropics: it removes the key, so the documented default (0.5) applies, and `snowalb` now rejects `{value: null}` with an error naming the field, like `flowchange` and `sdd_id`. A null used to reach the Rust bridge as its own 0.0. Schema bumped to `2026.6.dev8`: its migration drops a null `snowalb`, so a YAML written by an earlier `--science-fixes apply` run loads again after `suews convert` and takes 0.5; without the upgrade it stops with an error naming the field. With no initial snowpack, the model resets snow albedo to zero and the sample output is unchanged. With non-zero initial snowpack, the new 0.5 initial albedo changes snow-albedo output even with snow disabled, and can change radiation and energy fluxes with snow enabled; the separate snow-off leak remains tracked in #2010. The same dev8 migration writes the former effective 0.0 explicitly for null vegetation `sdd_id` and water `flowchange`, including files from the old vegetation-free converter (#2001)
+- [bugfix] Reject non-finite water flow changes at the required scalar reader, including bare and wrapped YAML values; optional scalar NaN and infinity values pass through unchanged (#1991, #1995)
+- [bugfix] Reject non-finite required CO2 point sources and carry unused absence as NaN; verify unchanged outputs for emissions methods 0-6 and the active point-source mass-to-flux conversion; optional scalar NaN and infinity values pass through unchanged (#1991, #1993)
+- [bugfix] Reject non-finite numeric-list entries and incomplete thermal and initial-temperature arrays required by the selected storage scheme, with YAML paths and lengths; retain DyOHM outermost-layer requirements; optional scalar NaN and infinity values pass through unchanged (#1991, #1992)
+- [doc] Distinguish the resolved-input caller contract from pending engine-boundary enforcement and legacy fallbacks (#1991, #2009)
+- [doc] State where YAML is resolved: `suews run` validates a configuration through the data model and hands the engine a resolved configuration, while the bundled `suews-engine` binary is a developer and test tool that expects resolved YAML; the engine's help and its config errors now point to `suews run` (#2004)
+- [maintenance] `make bridge` now builds the engine with its `run` command, and the sample-output check feeds the engine the resolved configuration `suews run` would send, through a shared `config_to_engine_yaml` helper (#2004)
+- [maintenance] Define shared Rust bridge responsibility and audit rules, connect them to agent instructions and PR review, and record the current boundary audit with existing follow-ups (#1989, #1991)
+- [doc] Add the Rust bridge design and data-flow guide, refresh the crate overview, and clarify source comments and the distinction between model defaults and representation initialisers (#1989)
+- [doc] Correct the bridge parameter guide to enumerate actual nested land-cover parents before updating layouts and schema versions (#1996)
+
+### 5 Nov 2026
+
+- [maintenance] The data model now emits the STEBBS values the Rust bridge used to fill in itself: `stebbs.deep_soil_temperature`, a computed field always equal to `temperature_air_annual_mean` (the value the bridge fell back to; giving a different value is an error), and the `building_archetype` occupancy descriptors `hhs0` and `age_0_4` to `age_65plus`, which no physics uses yet, with zero defaults. All are internal fields, hidden from the published schema; the computed deep soil temperature is never written to YAML, so a later change to the annual mean cannot leave a stale copy behind. `SUEWSSimulation.update_config` now merges with `round_trip=True` for the same reason. No run output changes (#2001)
+- [change][experimental] A configuration loaded from YAML whose emissions method is a biogenic CO2 method (11-16, 21-26, 31-36, 41-46) must now give `anthropogenic_emissions.co2.emission_co2_point_source`, `0` for a site without one; leaving it out stops with an error naming the site. A missing value used to reach the model as the Rust bridge's own 0. Methods 0-6 do not use the point source and are unaffected. Schema bumped to `2026.6.dev7`; its migration writes that 0.0 into older configurations, so upgraded runs are unchanged (#2001)
+- [bugfix] `flowchange` on the water surface and the vegetation `sdd_id` initial states now reject `{value: null}` with an error naming the field, instead of passing the null to the Rust bridge, which replaced it with its own 0; omitting the field still gives its documented default, and `suews validate` no longer writes a null placeholder for the omitted field. The legacy table converter no longer writes `sdd_id: null` (or a NaN growing-degree-day start) for a site with no vegetation: it starts both counters at 0, the value the bridge used, so no run output changes (#2001)
+- [bugfix] Rust bridge: a missing or short `vertical_layers.building_frac`, a missing or short `vertical_layers.roofs` or `walls` list, or a roof or wall layer without a finite `emis` when SPARTACUS is on (`net_radiation` above 1000), is now an error naming the YAML path and the length `nlayer` needs. The bridge used to pad the gap with the building land-cover fraction and emissivity, and because it padded before land cover was read, the kernel actually received zeros. supy runs are unaffected (the data model always supplies full-length layer lists); the change matters for hand-written YAML run with `suews-engine`. Without SPARTACUS a missing layer emissivity is carried as absent (NaN), since the kernel does not read it; a non-SPARTACUS run with absent layer emissivities gives output identical to one that supplies them (#1991, #1994)
+- [maintenance] The data model now emits the run switches the Rust bridge used to fill in itself: `model.control.diag_qs` and `flag_test` (0), `model.physics.evapmethod` (2, Shuttleworth) and `vertical_layers.ndepth` (5, the kernel's fixed number of material layers per facet). All four are internal fields with documented defaults equal to what the bridge substituted, hidden from exported YAML, so no run output changes; the bridge's own fallbacks for them can now be removed (#1991)
+- [bugfix] Rust bridge: the water-body flow change is now read from `properties.land_cover.water.flowchange`, where supy writes it, into the site-level flow change that the kernel's water balance uses. The bridge filled that term from a flat `properties.flowchange` key that no schema writes, so any non-zero flow change reached the water balance as zero; the flat key is no longer read. When the water block or its `flowchange` is missing or null, the run now stops with an error naming it instead of using zero (#1991)
+- [bugfix] Rust bridge: the CO2 point source is now read from `properties.anthropogenic_emissions.co2.emission_co2_point_source`, where supy writes it. The bridge read a flat `properties.CO2PointSource` key that no schema writes, so any non-zero point source reached the kernel as zero and was missing from the anthropogenic CO2 flux; the flat key is no longer read. When `emissionsmethod` is a CO2 method whose flux includes the point source (11-16, 21-26, 31-36, 41-46; the kernel zeroes every CO2 flux for 0-6) and the key is missing or null, the run now stops with an error naming it instead of using zero (#1998)
+- [bugfix] Rust bridge: a numeric YAML list with an element that is not a number (a `null`, which the data model allows in the thermal-layer `dz`, `k` and `rho_cp` lists and which supy writes for a NaN, or a string) is now an error naming the list's YAML path and the element's index, for example `sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.dz: element [1] is null` (the site is named by its `gridiv`). Previously the whole list was silently ignored, so every slot it should have filled kept a zero default (#1991)
+- [maintenance] Document the Rust bridge for developers adding parameters: module and item doc comments in `codec.rs`, `yaml_config.rs`, `stebbs_prm.rs`, `lc_evetr_prm.rs` and `sim.rs`, annotations in the `stebbs_prm` and driver C-API facades, and a new developer guide, `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`, walking the eight steps, the places a mistake fails silently, and a checklist. The docs state the bridge's pass-through rule: a value the kernel needs and the YAML does not give is an error naming its YAML path, and defaults live only in the supy data model, never in Rust or the C-API shadow types. No behaviour change (#1991).
+
+### 3 Nov 2026
+
+- [feature][experimental] Declared and tested Python 3.15 support: added the 3.15 classifier, put cp315 into the CI candidate window (so PR api lanes now test the cp312 and cp315 bookends, the merge queue keeps the cp312 floor, and cp313 and cp314 run in the nightly and release matrix) and a `py315` dispatch toggle, required pyarrow>=26 on 3.15 (its first cp315 wheels), installed setuptools in `make dev` so sdist-only dependencies such as numexpr build on 3.15, adapted two tests to 3.15's `importlib.metadata` and `warnings.warn_explicit` behaviour, and ran the dependency audit on 3.15 as well as 3.13. The cp312-abi3 wheel is unchanged (#1988)
+- [doc] Add a 36 s film to the suews.io landing page, "From Code to Climate Policy": SUEWS code fills the logo, then the energy and water fluxes, the papers it grew from (1986 to 2019), Arup's UHeat (2023) and the UK's fourth climate risk assessment (2026), before the hero logo takes over from the film's end card. Clicking the hero logo plays it with sound, and a `?film` link opens the page on it; the page never plays it on its own. Pure HTML, CSS and Web Audio, following the light and dark themes (#1981, #1985, #1986, #1987)
+
+### 1 Nov 2026
+
+- [bugfix] Honour `SUEWSOutput.save(groups=...)` for TXT output, which the method previously ignored, and accept BEERS in configured output groups; default TXT groups and full-group non-streaming Parquet output are unchanged (#1974).
+- [change][experimental] Saving provisional output groups (BEERS, EHC, NHood, SPARTACUS, STEBBS, as classed by the output contract) to TXT or streamed output now needs an explicit opt-in, `model.control.output.include_provisional: true` or `save(..., include_provisional=True)` for in-memory output, and emits a warning; naming one without the opt-in warns when the configuration is validated and stops the save with an error (#1974).
+  - Enforce the opt-in in the shared TXT writer as well as streamed runs, and report provisional warnings at the user call site.
+  - Schema `2026.6.dev6` adds the default-backed `include_provisional` field; the migration from `2026.6.dev5` preserves content and leaves the switch off.
+- [maintenance] Make the schema-version rule and the schema-migration-checker agent treat a change that makes an existing valid YAML behave differently, such as a new default-backed field that changes what it saves, as a bump trigger; an optional field is exempt only when its default leaves every existing YAML unchanged (#1974).
+
+### 29 Oct 2026
+
+- [change][experimental] Breaking: units at the edges of SUEWS. Forcing contract 2.1.0 and output contract 2.0.0 declare, check and convert units where data enters and leaves SuPy, in the CF (UDUNITS-2) notation of a new unit vocabulary; the kernel still computes in its own units. Upgrade notes for forcing files and saved output are in the "Upgrading Across the Units Change" documentation page (#1903)
+- [change][experimental] Breaking: saved water fluxes are written as interval-mean rates in `kg m-2 s-1` (output contract 2.0.0) instead of amounts in mm per output interval: precipitation, irrigation, evaporation, runoff, drainage, water use, storage change, snowmelt, refreezing and snow removal, including the per-surface `snow` and `debug` columns (71 variables) (#1903)
+  - Multiply a written rate by the written interval in seconds to recover mm per interval (1 kg m-2 of liquid water is 1 mm), or save with `units={"Rain": "mm h-1"}`; requesting an amount unit such as `mm` for a water flux raises an error
+  - Each rate divides the water accumulated in an output bin by the seconds that bin actually covers, so trailing partial bins (kept for every variable) and calendar bins (`W`, `MS`, `ME`, `YE`) are not diluted; resampling a rate again weights by coverage
+  - Text output writes water rates in scientific notation so light rain does not round to zero
+  - Output held in memory keeps the kernel's native amounts (mm per timestep), and `SUEWSOutput.units` reports the unit actually held
+  - `MeltWater`, the per-surface refreezing amounts `frMelt_*` and debug `wu_*`, `ev0_*`, `ev_*`, `drain_*` now sum when resampled instead of being averaged
+  - Water stores, deficits and snow water equivalent keep their amounts, now labelled `kg m-2` with unchanged values
+- [change][experimental] Breaking: forcing contract 2.0.0 replaces observed `xsmd` with `sm`, the instantaneous liquid-water content of a specified soil layer in `kg m-2` (#1422)
+  - After validating the whole-store layer and interpolating content to model timestamps, SuPy derives `D = rho_w * theta_fc * d - sm`, clamped to `[0, AWC]`. The bulk store uses non-water area-weighted field-capacity content and available water capacity; `soil_store_capacity` remains AWC.
+  - YAML schema `2026.6.dev9` introduces `soil_moisture`, explicit observation layer bounds and optional `soil_field_capacity` (`m3 m-3`), required on each positive-area non-water surface in observed mode. Modelled runs do not require field capacity and retain their existing calculation.
+  - Legacy volumetric (SMDMethod 1) and gravimetric (SMDMethod 2, `kg kg-1`) observations require coordinated YAML and forcing conversion with confirmed layer geometry; changing a header is insufficient. The converter preserves inputs and references, records hashes and supports a dry-run report.
+  - An `xsmd` column that is entirely missing, as most existing forcing files carry, is still read as missing `sm` for modelled runs with a `FutureWarning`; observed runs and any `xsmd` with values are refused. The allowance ends at forcing contract 3.0.0.
+  - Sensor `smcap` is retired, so migrated observed runs may produce different deficits. Contents above field capacity or below the implied wilting reference are retained with warnings; only the derived deficit is clamped.
+  - Observed `sm` must be gap-free over the run and is interpolated only between valid observations, never extrapolated; earlier releases filled sensor gaps silently. A refusal names the missing timestamps and, at the start or end of the run, the first and last times a run can use.
+  - The converter reports each refusal with the CLI flags that resolve it, lists the surfaces whose `soil_field_capacity` is missing or too small with the minimum value, validates as strictly as the loader (site-completeness checks included), and records a discarded legacy `depth` in the manifest. `suews validate` no longer reports `soil_observation` or `soil_field_capacity` as extra parameters (a misspelt key inside them still is), and directs legacy observed YAMLs to the coordinated conversion instead of renaming the selector. A YAML counts as legacy observed from its observation block, a gravimetric method or its schema version, not from the selector's spelling, since `smdmethod` and the other legacy names remain accepted aliases; numeric selectors such as `1.0` are read by value. A YAML that mixes legacy `depth`/`smcap` or method 2 with canonical `layer_top`/`layer_depth`, at one site or across sites, keeps its selector and is reported by `suews validate` and the loader as a mix of contracts, naming the sites and keys to remove, instead of being renamed as current.
+- [feature][experimental] Forcing files can declare their units: `SUEWSForcing.from_file`, `supy.util.read_forcing`, `load_forcing_grid` and `SUEWSSimulation(config, units=...)` (also `update_config` and file-based `update_forcing`) take a mapping such as `{"Tair": "K", "pres": "hPa"}`, and declared columns are converted on load to the forcing registry's units before validation; undeclared columns load exactly as before and the YAML schema does not change (#1903)
+  - Rain, bulk and per-surface water use must be declared as rates (`kg m-2 s-1`, `mm h-1`, `mm d-1`), converted to the amount per forcing interval; a bare amount such as `mm` is refused, and forcing contract 2.1.0 records the rate unit (#1903)
+  - Unknown, absent or duplicated columns, unparseable units and dimension mismatches raise errors naming the column; in-memory forcing refuses a declaration
+- [feature][experimental] Output can be written in requested units: `SUEWSOutput.to_units`, `SUEWSOutput.save(units=...)` and `SUEWSSimulation.save(units=...)` take per-variable target units (for example `{"QE": "kW m-2", "T2": "K"}`), converted once after the run through `supy.units.convert`; output without a request keeps its values (#1903)
+  - Temperature differences convert by scale only and on-scale temperatures with their offset; a unit of the wrong dimension, an unknown or ambiguous variable, or a variable without a unit is refused
+  - Streamed runs cannot be converted after writing, and say so
+- [feature][experimental] Saved output carries its units: each text file gets a `<file>.units.json` sidecar, Parquet output carries per-field metadata and the output contract version, and `SUEWSOutput.units` maps each column to its unit with CF `cell_methods`, `interval` and `units_metadata` in `.metadata` (#1903)
+  - `cell_methods` names the written interval, for example `time: mean (interval: 1 hour)`; point values carry none
+  - Columns outside the output registry are marked `status: unknown`, with no inferred unit
+  - Parquet output keeps the written units, held interval and partial-bin coverage when read back with `pandas.read_parquet`, including later streamed parts; only SuPy-owned attributes are stored
+- [feature][experimental] DailyState `P_day`, `WU_EveTr1-3`, `WU_DecTr1-3` and `WU_Grass1-3` stay daily totals in mm with unchanged values, now marked `time: sum` over the covered day: partial first and last days keep their raw totals, the seconds each day covers are recorded as information (`daily_coverage_s` in text sidecars), amount units (`mm`, `m`, `kg m-2`) are accepted and rate units refused, and resampling across days sums them instead of taking the last day (#1903)
+- [feature][experimental] Output contract 1.1.9 writes every catalogue unit in CF notation (signed integer exponents, `1` for ratios, water stores in `kg m-2`) and gives each entry CF `cell_methods` (`time: mean`, `sum`, `point`, `minimum` or `maximum`) and `units_metadata` (`temperature: on_scale` or `temperature: difference`); values, names, groups and layouts are unchanged, and a test parses every unit string in the input data model and output catalogue (#1903)
+  - The time base follows each variable's aggregation code, with explicit overrides for DailyState means, totals and extrema
+  - Temperature differences (for example BEERS `Tg` and `Tw`, `TStar`, degree-day indices) are marked as such; every other `degC` or `K` variable is on-scale
+  - The conductance soil-moisture parameter `g_sm` is labelled `m2 kg-1` instead of `mm-1`; values are unchanged because 1 mm of water is 1 kg m-2
+- [bugfix] Calendar-resampled output saved with `save_tstep=True` now raises an error asking for the native output to be saved before resampling (#1903)
+- [bugfix] `supy.util` saturation vapour pressure (`cal_vap_sat`, and through it the dry-air and vapour density helpers) now converts pressure from hPa to kPa for DataFrame (2-D) input as it already did for Series, array and scalar input; the 2-D fallback branch used the hPa value directly, which overstated the pressure term of the enhancement factor tenfold (about 0.3 % in the result at surface pressure) (#1887)
+- [feature][internal] New `supy.units` module: the SUEWS unit vocabulary, a strict subset of CF (UDUNITS-2) syntax with a dimension, scale and offset for each symbol, `parse_unit`, a `Unit` type, a `NO_UNIT` marker for flags and selectors, and `convert` for boundary conversions; the unit strings of the input data model and output catalogue are checked against it (#1903)
+  - `scripts/lint/report_unit_strings.py` lists registry unit strings the vocabulary rejects
+- [maintenance] The file loader, range-check message, UMEP-to-EPW converter and forcing writer apply the pressure unit boundary through helpers in the forcing registry (kPa in a forcing file, hPa in memory and in the kernel); loaded values and the kernel input are unchanged (#1547)
+  - An out-of-range `pres` now reports both units, `[680, 1300] hPa in memory, which is [68, 130] kPa in a forcing file`, instead of a kPa range against hPa values, and the error for a kPa-looking DataFrame says which unit each entry point expects
+- [maintenance] Fortran physical-constant and unit-conversion literals are named: Celsius-Kelvin offsets (`C2K`), pi, Stefan-Boltzmann, degree-radian factors, latent heat, the specific heat of air, reference pressure and time conversions (`sec_per_hour`, `sec_per_day`, `min_per_day` and companions), each at the literal's own precision; the compiled code and read-only data of every touched object are identical before and after on Linux release builds (#1939, #1941, #1942, #1943, #1944, #1946, #1947, #1948, #1949)
+  - CI fails when a Fortran source gains such a literal: `scripts/lint/check_fortran_literals.py` compares per-file counts with a committed baseline, which clean-up PRs lower (#1888)
+
 ### 28 Oct 2026
 
 - [change][experimental] Remove the 120 s m-1 upper cap on aerodynamic resistance and replace the 0.001 m s-1 friction-velocity floor with a 1e-12 m s-1 division guard, leaving the (z-d)/L clip as the physical stability constraint (#1956).
@@ -492,7 +607,6 @@ EXAMPLES:
   - Fixed mixed evergreen/deciduous RSL temperature sampling to use weighted half-tree height (from RSL).
   - Guarded non-urban/forest-only SPARTACUS paths so direct-albedo and longwave fallback logic no longer touch urban-only roof/wall arrays.
   - Added tests for mixed-tree RSL sampling height and non-urban direct-albedo SPARTACUS runs.
-
 
 ### 20 Jun 2026
 
@@ -2354,7 +2468,6 @@ EXAMPLES:
   - Ensured consistent output types for error handling
   - Removed DAVE-specific parameters from STEBBS
 
-
 ## 2024
 
 ### 20 Dec 2024
@@ -2497,7 +2610,6 @@ EXAMPLES:
 ### 31 Jan 2024
 - [bugfix] Fixed GCC and M1 environment compatibility issues
 
-
 ## 2023
 
 ### 19 Dec 2023
@@ -2571,7 +2683,6 @@ EXAMPLES:
 ### 27 Jan 2023
 - [feature] Added EPW (EnergyPlus Weather) file header support (#69)
 - [bugfix] Fixed various test and CI pipeline issues (#75, #76)
-
 
 ## 2022
 
@@ -2668,7 +2779,6 @@ EXAMPLES:
 ### 17 Jan 2022
 - [maintenance] Moved SPARTACUS-specific output files to output section (#77)
 
-
 ## 2021
 
 ### 11 Dec 2021
@@ -2721,7 +2831,6 @@ EXAMPLES:
   - Improved RSL computational stability
   - Added comprehensive test suite for 2021a
 
-
 ## 2020
 
 ### 8 Dec 2020
@@ -2770,7 +2879,6 @@ EXAMPLES:
 - [bugfix] Fixed ERA5 data file location issues
 - [maintenance] Enhanced testing with pytest integration
 
-
 ## 2019
 
 ### 15 Nov 2019
@@ -2807,7 +2915,6 @@ EXAMPLES:
 - [maintenance] Trimmed unnecessary output groups
 - [doc] Major documentation improvements and restructuring
 
-
 ## 2018
 
 ### 28 Dec 2018
@@ -2843,7 +2950,6 @@ EXAMPLES:
   - Restructured physics scheme layout
   - Improved output file alignment
 - [maintenance] Removed AnthropCO2Method from RunControl.nml
-
 
 ## 2017
 

@@ -60,7 +60,8 @@ user-provided values:
 
 - ``suggest`` (default): report CRU-derived initial temperatures, annual/monthly
   temperature metrics, DLS/timezone, deciduous LAI seasonality, vegetation albedo,
-  snow albedo nullification, CO2/STEBBS nullification, setpoint/profile cleanup,
+  removal of the initial snow albedo for a snow-free start (its default 0.5 then
+  applies), CO2/STEBBS nullification, setpoint/profile cleanup,
   WWR-dependent nullification, and small land-cover fraction normalisation as
   suggested updates. They are not written to YAML.
 - ``apply``: apply the same transformations to the output YAML and record each

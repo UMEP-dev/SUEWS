@@ -5,6 +5,8 @@ Transitioning to YAML-based Configuration
 
 As of 2025, SUEWS has adopted a new YAML-based format for input files to enhance readability, maintainability, and user experience. To help users migrate their existing table-based input files to this new format, a transition tool is provided.
 
+Forcing files and saved output have their own upgrade notes in :ref:`units_migration_guide`.
+
 This guide explains how to use the ``suews convert`` command (formerly ``suews-convert``, which still works as a deprecated alias) to automate the conversion process.
 
 ``suews convert`` always produces a single YAML file in the current schema. When the input is a legacy table set, the process involves two main steps:
@@ -214,6 +216,146 @@ reason so you can reconstruct intent if needed.
 The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
+
+.. _schema_dev9_soil_migration:
+
+Upgrading to Schema 2026.6.dev9
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``soil_moisture_deficit`` becomes ``soil_moisture`` with ``modelled`` (0)
+and ``observed`` (1); method 2 is no longer a current-schema option.
+For modelled configurations, run:
+
+.. code-block:: bash
+
+   suews convert -i old.yml -o new.yml --from 2026.6.dev8
+
+Alternatively use ``suews-schema migrate`` with target version
+``2026.6.dev9``. Inactive legacy observation blocks are removed with a logged
+reason. Current observation blocks are preserved. A second upgrade is a no-op.
+
+Active legacy observations (method 1 or 2) are converted together with their
+``xsmd`` forcing, by the same command with ``--forcing``:
+
+.. code-block:: bash
+
+   suews convert -i old.yml -o new/config.yml \
+       --forcing old_forcing.txt --forcing-output new/forcing.txt \
+       --manifest new/conversion.json --layer-top 0 --layer-depth <metres> --dry-run
+
+The YAML must first carry ``soil_field_capacity`` on every contributing
+surface (see below), and the observed series must be gap-free; the steps are in
+:ref:`units_migration_observed_soil`. Without ``--forcing`` the upgrade fails
+before writing an output configuration and prints this command. Historical
+``depth`` is not assumed to be a layer thickness: it is replaced by
+``--layer-depth`` (recorded in the manifest) unless
+``--legacy-depth-is-thickness`` confirms it, in which case its millimetres
+convert to metres. Density converts from grams to kilograms per corresponding
+cubic unit (factor 1000). References are retained. The Python API is
+``supy.util.converter.yaml_upgrade.upgrade_soil_observation``.
+
+``smcap`` is retired because deficits use the configured model soil store.
+``soil_store_capacity`` is available water capacity, while the new per-surface
+``soil_field_capacity`` specifies volumetric water content at field capacity.
+For each positive-area non-water surface, require
+:math:`1000\,\theta_{fc}\,d \ge C`, with depth in metres and capacity in
+kilograms per square metre. Observation top must be zero and thickness must
+match every contributing soil depth within an absolute tolerance of one
+micrometre. Modelled runs require no observation metadata or field capacity.
+
+.. _schema_dev8_snowalb_null:
+
+Upgrading to Schema 2026.6.dev8
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev8`` no longer accepts a null initial snow albedo. A
+configuration with
+
+.. code-block:: yaml
+
+   initial_states:
+     snowalb:
+       value: null
+
+(or ``snowalb: null``) stops loading with an error naming the field. Leave
+``snowalb`` out to use its default, 0.5.
+
+Earlier ``suews validate --science-fixes apply`` runs wrote that null for a
+site whose run starts in summer or in the tropics; validation now removes the
+key instead. The migration from ``2026.6.dev7`` drops a null ``snowalb`` and
+keeps any value you gave, so such a file loads again after
+``suews convert``. This changes the initial albedo from the former effective
+0.0 to the documented default 0.5. With no initial snowpack, the model resets
+albedo to zero and the short sample output is unchanged. With non-zero initial
+snowpack, albedo evolves from the new starting value: radiation and energy
+fluxes can change with snow enabled. Snow-albedo output can also change with
+snow disabled, because the albedo update checks snowpack rather than the snow
+switch. The separate snow-off behaviour is not repaired by this migration.
+
+The same migration replaces a null vegetation ``sdd_id`` or water
+``flowchange`` with an explicit 0.0, preserving their former effective values.
+This also repairs vegetation-free files emitted by the older table converter.
+Non-null values and reference metadata are retained.
+
+.. _schema_dev7_co2_point_source:
+
+Upgrading to Schema 2026.6.dev7
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev7`` requires the CO2 point source whenever the emissions
+method adds it to the CO2 flux: a biogenic CO2 method, ``11``-``16``,
+``21``-``26``, ``31``-``36`` or ``41``-``46`` under
+``model.physics.emissions``. Give ``0`` for a site without a point source:
+
+.. code-block:: yaml
+
+   sites:
+     - properties:
+         anthropogenic_emissions:
+           co2:
+             emission_co2_point_source:
+               value: 0.0
+
+A configuration loaded from YAML that leaves it out now stops with an error
+naming the site. Methods ``0`` to ``6`` do not use the point source, because
+the model discards the CO2 flux they compute, so it stays optional there.
+
+Before this schema a missing point source reached the model as 0. The
+migration from ``2026.6.dev6`` writes that ``0.0`` explicitly wherever the
+point source is absent or null and keeps any value you gave, so an upgraded
+configuration produces the same output. Upgrade with ``suews convert``.
+
+.. _schema_dev6_provisional_output:
+
+Upgrading to Schema 2026.6.dev6
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev6`` adds ``include_provisional`` under
+``model.control.output``. Output groups whose variables may still change
+between releases (``BEERS``, ``EHC``, ``NHood``, ``SPARTACUS`` and
+``STEBBS``) are now written to text or streamed output only when it is
+``true``:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       output:
+         groups: [SUEWS, DailyState, BEERS]
+         include_provisional: true
+
+Saving such a group emits a warning. A configuration that lists one of these
+groups without the switch still loads, with a warning, but saving that group
+stops with an error. For an in-memory run, pass ``include_provisional=True``
+to :meth:`~supy.SUEWSOutput.save` or :meth:`~supy.SUEWSSimulation.save` instead.
+For streamed output, set the configuration switch before calling
+:meth:`~supy.SUEWSSimulation.run`, because that call writes the files.
+
+The migration from ``2026.6.dev5`` stamps ``schema_version: '2026.6.dev6'``
+without changing content and does not turn the switch on; add it yourself
+if you rely on one of these groups. Earlier schemas still undergo their
+registered content migrations when upgraded with ``suews convert``.
+Default output groups and non-streaming Parquet output are unchanged.
 
 .. _schema_dev5_shortwave_migration:
 
@@ -662,3 +804,12 @@ families, so the orthogonal form rejects unsupported "CO2-only"
 combinations rather than assigning misleading semantics. Non-biogenic
 flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
 but their CO2 fluxes are discarded by the driver.
+
+Forcing and output units
+------------------------
+
+This page covers YAML configuration only. Forcing contract 2.1.0 (declared
+rain and water-use rates) and output contract 2.0.0 (water fluxes written as
+interval-mean rates in kg |m^-2| |s^-1|, units sidecars and DailyState water
+totals) change forcing files and saved output instead; see
+:ref:`units_migration_guide`.

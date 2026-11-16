@@ -24,6 +24,7 @@ from .beers_vars import BEERS_VARIABLES as BEERS_VARIABLES
 from .bl_vars import BL_VARIABLES as BL_VARIABLES
 from .contract import (
     OUTPUT_GROUP_SCOPES,
+    PROVISIONAL_OUTPUT_GROUPS,
     OutputContractScope,
     output_contract_json_schema,
 )
@@ -52,6 +53,7 @@ from .variables import (
 __all__ = [
     "OUTPUT_GROUP_SCOPES",
     "OUTPUT_REGISTRY",
+    "PROVISIONAL_OUTPUT_GROUPS",
     "AggregationMethod",
     "OutputContractScope",
     "OutputGroup",

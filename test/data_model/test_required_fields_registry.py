@@ -16,6 +16,7 @@ import yaml
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.human_activity import (
     AnthropogenicEmissions,
+    CO2Params,
     IrrigationParams,
 )
 from supy.data_model.core.hydro import WaterDistribution
@@ -30,6 +31,7 @@ from supy.data_model.core.surface import BldgsProperties, ThermalLayers
 from supy.data_model.validation.required_fields import (
     BUILDING_REQUIRED,
     BUILDING_REQUIRED_PROVIDED_FAI,
+    CO2_POINT_SOURCE_REQUIRED,
     CONDUCTANCE_REQUIRED,
     DECIDUOUS_REQUIRED,
     DECIDUOUS_REQUIRED_PROVIDED_FAI,
@@ -54,6 +56,7 @@ MODELS = {
     "EvetrProperties": EvetrProperties,
     "DectrProperties": DectrProperties,
     "AnthropogenicEmissions": AnthropogenicEmissions,
+    "CO2Params": CO2Params,
     "ThermalLayers": ThermalLayers,
     "StebbsProperties": StebbsProperties,
     "IrrigationParams": IrrigationParams,
@@ -81,6 +84,7 @@ ALL_TABLES = (
     EVERGREEN_REQUIRED_PROVIDED_FAI,
     DECIDUOUS_REQUIRED,
     DECIDUOUS_REQUIRED_PROVIDED_FAI,
+    CO2_POINT_SOURCE_REQUIRED,
 )
 
 EXPECTED_TABLES = {
@@ -190,6 +194,12 @@ EXPECTED_TABLES = {
             "Add deciduous tree frontal area index",
         ),
     },
+    "CO2_POINT_SOURCE_REQUIRED": {
+        "emission_co2_point_source": (
+            "CO2 point source is required when the emissions method uses it",
+            "Add the whole-grid CO2 point source in kg C per day (0 if there is none)",
+        ),
+    },
 }
 
 
@@ -241,6 +251,7 @@ def test_every_physics_rule_field_has_a_documented_condition() -> None:
         ("BldgsProperties", "faibldg", "``model.physics.roughness_sublayer``"),
         ("ThermalLayers", "dz", "``model.physics.storage_heat``"),
         ("StebbsProperties", "reduction_factor_shading", "``internal_shading``"),
+        ("CO2Params", "emission_co2_point_source", "``model.physics.emissions``"),
     ],
 )
 def test_physics_conditions_name_their_option(
@@ -285,6 +296,7 @@ def test_message_strings_are_frozen() -> None:
         "EVERGREEN_REQUIRED_PROVIDED_FAI": EVERGREEN_REQUIRED_PROVIDED_FAI,
         "DECIDUOUS_REQUIRED": DECIDUOUS_REQUIRED,
         "DECIDUOUS_REQUIRED_PROVIDED_FAI": DECIDUOUS_REQUIRED_PROVIDED_FAI,
+        "CO2_POINT_SOURCE_REQUIRED": CO2_POINT_SOURCE_REQUIRED,
     }
 
     # ACT / ASSERT

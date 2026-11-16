@@ -47,7 +47,8 @@ CONTAINS
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
-      USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
+      USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom, neut_limit, exp1979_init, &
+                                          exp1979_wmin, exp1979_wmin_all, exp1979_racap
       USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
@@ -80,10 +81,13 @@ CONTAINS
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
       REAL(KIND(1D0)) :: wind_eff ! wind speed with the free-convection velocity added [m s-1]
+      REAL(KIND(1D0)) :: wsq ! EXPERIMENTAL #1979: squared velocity scales added to U [m2 s-2]
+      LOGICAL :: exp_stable ! EXPERIMENTAL #1979: stable or neutral step
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
 
+      CALL exp1979_init()
       ! Minimum wind speed to prevent division by zero
       AVU1_use = MAX(AVU1, 0.01D0)
 
@@ -102,11 +106,20 @@ CONTAINS
          psim = stab_psi_mom(StabilityMethod, zzd/L_mod) - stab_psi_mom(StabilityMethod, z0m/L_mod)
          psih = stab_psi_heat(StabilityMethod, ZZD/L_mod) - stab_psi_heat(StabilityMethod, z0v/L_mod)
 
+         exp_stable = ZZD/L_mod > -neut_limit
          IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
             RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1_use) !Use neutral equation
+            IF (exp1979_wmin > 0) RA_h = RA_h*AVU1_use/SQRT(AVU1_use**2 + exp1979_wmin**2)
          ELSE
             RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
             ! RA = AVU1/UStar**2
+            ! EXPERIMENTAL #1979 (option A): minimum velocity scale w_min on stable
+            ! and neutral steps (and, with SUEWS1979_WMIN_ALL, on unstable steps
+            ! in quadrature with w_f), through the same effective-wind structure.
+            wsq = 0.0D0
+            IF (exp1979_wmin > 0 .AND. (exp_stable .OR. exp1979_wmin_all)) wsq = exp1979_wmin**2
+            IF (ZZD/L_mod < 0 .AND. w_f > 0) wsq = wsq + w_f**2
+            IF (wsq > 0 .AND. .NOT. (ZZD/L_mod < 0 .AND. w_f > 0)) RA_h = RA_h*AVU1_use/SQRT(AVU1_use**2 + wsq)
             IF (ZZD/L_mod < 0 .AND. w_f > 0) THEN
                ! Free convection (unstable only). Light mean wind understates the
                ! exchange that convective eddies keep up, so RA uses the effective
@@ -115,7 +128,11 @@ CONTAINS
                ! u* wind_eff/U, with no further w_f added to u*. z0V (Kawai kB-1)
                ! keeps the original UStar, and UStar itself is unchanged for the
                ! rest of the model.
-               wind_eff = SQRT(AVU1_use**2 + w_f**2)
+               IF (wsq > w_f**2) THEN
+                  wind_eff = SQRT(AVU1_use**2 + wsq)
+               ELSE
+                  wind_eff = SQRT(AVU1_use**2 + w_f**2)
+               END IF
                RA_h = RA_h*AVU1_use/wind_eff
             END IF
          END IF
@@ -123,6 +140,11 @@ CONTAINS
          !3) Thom and Oliver (1977)
       ELSEIF (AerodynamicResistanceMethod == 3) THEN
          RA_h = (4.72*LOG(ZZD/z0m)**2)/(1 + 0.54*AVU1_use)
+      END IF
+
+      ! EXPERIMENTAL #1979 (option C): cap on stable and neutral steps only
+      IF (exp1979_racap > 0 .AND. AerodynamicResistanceMethod == 2) THEN
+         IF (exp_stable) RA_h = MIN(RA_h, exp1979_racap)
       END IF
 
       ! Lower limit only (was also a hard cap at 120 s m-1, earlier 175)

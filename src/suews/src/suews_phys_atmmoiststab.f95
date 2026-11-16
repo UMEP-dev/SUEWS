@@ -14,7 +14,15 @@ MODULE module_phys_atmmoiststab
    REAL(KIND(1D0)), PARAMETER :: ZL_RELAX_DECAY = 0.7D0 ! per-pass decay after that [-]
 
    ! (z-d)/L solve in cal_Stab (#1962)
-   REAL(KIND(1D0)), PARAMETER :: ZL_STABLE_MAX = 0.5D0 ! stable clip [-]
+   REAL(KIND(1D0)) :: ZL_STABLE_MAX = 0.5D0 ! stable clip [-]; EXPERIMENTAL #1979: SUEWS1979_ZLMAX
+
+   ! EXPERIMENTAL (#1979 evidence only, not for merge): run-time switches,
+   ! read once from the environment by exp1979_init. Unset = master behaviour.
+   LOGICAL :: exp1979_ready = .FALSE.
+   REAL(KIND(1D0)) :: exp1979_wmin = 0.0D0 ! minimum velocity scale, stable/neutral [m s-1]
+   LOGICAL :: exp1979_wmin_all = .FALSE. ! also on unstable steps (with w_f)
+   LOGICAL :: exp1979_cb05 = .FALSE. ! CB05 stable branch for method 3 (K75)
+   REAL(KIND(1D0)) :: exp1979_racap = 0.0D0 ! stable/neutral-only RA cap [s m-1]; 0 = none
    REAL(KIND(1D0)), PARAMETER :: ZL_UNSTABLE_MIN = -2.0D0 ! unstable clip [-]
    REAL(KIND(1D0)), PARAMETER :: ZL_SCAN_MIN = 1.0D-9 ! smallest |(z-d)/L| scanned [-]
    INTEGER, PARAMETER :: N_ZL_SCAN = 60 ! geometric scan points up to the clip
@@ -28,6 +36,30 @@ MODULE module_phys_atmmoiststab
    INTEGER, PARAMETER :: B71 = 4 ! Businger et al (1971) modifed  Hogstrom (1988)
    INTEGER, PARAMETER :: J12 = 5 ! Cheng and Brutsaert (2005)
 CONTAINS
+   SUBROUTINE exp1979_init()
+      ! EXPERIMENTAL (#1979): read the switches once.
+      CHARACTER(LEN=64) :: buf
+      INTEGER :: n, st, flag
+      IF (exp1979_ready) RETURN
+      CALL GET_ENVIRONMENT_VARIABLE('SUEWS1979_WMIN', buf, n, st)
+      IF (st == 0 .AND. n > 0) READ (buf, *) exp1979_wmin
+      CALL GET_ENVIRONMENT_VARIABLE('SUEWS1979_WMIN_ALL', buf, n, st)
+      IF (st == 0 .AND. n > 0) THEN
+         READ (buf, *) flag
+         exp1979_wmin_all = flag == 1
+      END IF
+      CALL GET_ENVIRONMENT_VARIABLE('SUEWS1979_CB05', buf, n, st)
+      IF (st == 0 .AND. n > 0) THEN
+         READ (buf, *) flag
+         exp1979_cb05 = flag == 1
+      END IF
+      CALL GET_ENVIRONMENT_VARIABLE('SUEWS1979_ZLMAX', buf, n, st)
+      IF (st == 0 .AND. n > 0) READ (buf, *) ZL_STABLE_MAX
+      CALL GET_ENVIRONMENT_VARIABLE('SUEWS1979_RACAP', buf, n, st)
+      IF (st == 0 .AND. n > 0) READ (buf, *) exp1979_racap
+      exp1979_ready = .TRUE.
+   END SUBROUTINE exp1979_init
+
    PURE FUNCTION relax_zl(zl_prev, zl_new, i_pass) RESULT(zl_relaxed)
       ! Under-relaxed (z-d)/L for the next outer surface-temperature pass.
       ! Fed straight back, the flux -> (z-d)/L -> RA -> QE -> residual QH map can
@@ -326,6 +358,7 @@ CONTAINS
          IF (supy_error_flag()) RETURN
       END IF
 
+      CALL exp1979_init()
       H = H_init
       IF (ABS(H) <= eps_fp) THEN
          zL = 0.0D0
@@ -945,7 +978,11 @@ CONTAINS
       ELSEIF (zL < -neut_limit) THEN
          phim = 1/(1 - 16*zl)**.25
       ELSEIF (zL > neut_limit) THEN
-         phim = 1 + 6*zl/(1 + zL)
+         IF (exp1979_cb05) THEN
+            phim = phi_mom_CB05(zL)
+         ELSE
+            phim = 1 + 6*zl/(1 + zL)
+         END IF
       END IF
 
    END FUNCTION
@@ -959,7 +996,11 @@ CONTAINS
       ELSEIF (zL < -neut_limit) THEN
          phih = phi_mom_K75(zl)**2
       ELSEIF (zL > neut_limit) THEN
-         phih = phi_mom_K75(ZL)
+         IF (exp1979_cb05) THEN
+            phih = phi_heat_CB05(ZL)
+         ELSE
+            phih = phi_mom_K75(ZL)
+         END IF
       END IF
 
    END FUNCTION
@@ -973,7 +1014,11 @@ CONTAINS
       ELSEIF (zL < -neut_limit) THEN
          psim = 0.6*psi_heat_K75(ZL)
       ELSEIF (zL > neut_limit) THEN
-         psim = psi_heat_K75(ZL)
+         IF (exp1979_cb05) THEN
+            psim = psi_mom_CB05(ZL)
+         ELSE
+            psim = psi_heat_K75(ZL)
+         END IF
       END IF
 
    END FUNCTION
@@ -987,7 +1032,11 @@ CONTAINS
       ELSEIF (zL < -neut_limit) THEN
          psih = (2)*LOG((1 + (1 - 16*zl)**0.5)/2)
       ELSEIF (zL > neut_limit) THEN
-         psih = (-6)*LOG(1 + zl)
+         IF (exp1979_cb05) THEN
+            psih = psi_heat_CB05(ZL)
+         ELSE
+            psih = (-6)*LOG(1 + zl)
+         END IF
       END IF
 
    END FUNCTION

@@ -296,7 +296,7 @@ class AnthropogenicHeat(
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "W m-2",
-            "display_name": "Base Anthropogenic Heat (L11)",
+            "display_name": "Base Anthropogenic Heat",
             "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
         },
     )

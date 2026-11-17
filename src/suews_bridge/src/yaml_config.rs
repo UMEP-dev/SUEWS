@@ -3223,8 +3223,17 @@ fn resize_state_variable_arrays(state: &mut SuewsState, nlayer: usize, ndepth: u
 }
 
 #[cfg(test)]
+pub(crate) fn stebbs_fixture_yaml() -> &'static str {
+    include_str!("../../../test/fixtures/bridge/stebbs_resolved.yml")
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_fixture_yaml() -> &'static str {
+        include_str!("../../../test/fixtures/bridge/sample_resolved.yml")
+    }
 
     fn get_path_mut<'a>(root: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> {
         let mut current = root;
@@ -3285,7 +3294,7 @@ mod tests {
 
     #[test]
     fn load_run_config_reports_null_forcing_file() {
-        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        let yaml = sample_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml).unwrap();
         root["model"]["control"]["forcing"]["file"] = Value::Null;
         let dir = std::env::temp_dir().join(format!("suews_gh1722_{}", std::process::id()));
@@ -3303,7 +3312,7 @@ mod tests {
 
     #[test]
     fn parses_shortwave_split_methods() {
-        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        let yaml = sample_fixture_yaml();
         for (selector, code) in [
             ("perez", 3),
             ("{value: perez}", 3),
@@ -3322,8 +3331,7 @@ mod tests {
 
     #[test]
     fn parses_stebbs_and_building_archetype_sections() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
@@ -3361,8 +3369,7 @@ mod tests {
 
     #[test]
     fn parses_internal_shading_controls() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain one site");
         *get_path_mut(site, &["properties", "stebbs"])
@@ -3382,7 +3389,7 @@ mod tests {
     #[test]
     fn parses_destination_waste_heat_and_defaults_to_indoor() {
         let mut explicit_root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let explicit_site =
             first_site_mut(&mut explicit_root).expect("fixture should contain one site");
         *get_path_mut(
@@ -3396,7 +3403,7 @@ mod tests {
         assert_eq!(explicit.site.stebbs.destination_waste_heat, 1.0);
 
         let mut omitted_root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let omitted_site =
             first_site_mut(&mut omitted_root).expect("fixture should contain one site");
         let Value::Mapping(stebbs) = get_path_mut(omitted_site, &["properties", "stebbs"])
@@ -3414,7 +3421,7 @@ mod tests {
     #[test]
     fn parses_fraction_convective_heating_and_defaults_to_air() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain one site");
         let Value::Mapping(stebbs) = get_path_mut(site, &["properties", "stebbs"])
             .expect("fixture should define STEBBS properties")
@@ -3452,7 +3459,7 @@ mod tests {
     #[test]
     fn forcing_timestamp_reference_defaults_to_local_standard_time() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         assert_eq!(run_cfg.config.forcing_timestamp_reference, 0);
@@ -3461,7 +3468,7 @@ mod tests {
     #[test]
     fn forcing_timestamp_reference_accepts_utc_and_rejects_civil_time() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
         *get_path_mut(&mut root, &["model", "control", "forcing"])
             .expect("fixture should define forcing") = serde_yaml::from_str(
             "file:\n  value: test_2017_data_15_mp.txt\ntimestamp_reference:\n  value: utc\n",
@@ -3496,8 +3503,7 @@ mod tests {
         // appliance demand profile through the Rust loader. It aliases to the
         // fused `applianceprofile`, which earlier slipped past the override
         // matcher and silently left the profile at its zero default.
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
         let max_appliance = run_cfg
@@ -3516,8 +3522,7 @@ mod tests {
 
     #[test]
     fn parses_ohm_legacy_surface_field_names() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = raw_stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
@@ -3529,8 +3534,7 @@ mod tests {
 
     #[test]
     fn maps_vertical_layer_thermal_parameters_into_ehc() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
@@ -3568,8 +3572,7 @@ mod tests {
 
     #[test]
     fn zero_layer_ehc_yaml_layout_keeps_empty_surface_contract() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
         *get_path_mut(site, &["properties", "vertical_layers", "nlayer", "value"])
@@ -3587,11 +3590,10 @@ mod tests {
 
     #[test]
     fn rejects_incomplete_setpoint_profiles() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
-        // The raw fixture key is the canonical dev12 name (gh#1459); the
+        // The fixture key is the canonical dev12 name (gh#1459); the
         // validator's error label is the normalised internal name
         // (`HeatingSetpointTemperatureProfile`, via `profile_label`), so the
         // navigation key and the asserted label intentionally differ.
@@ -3619,11 +3621,10 @@ mod tests {
 
     #[test]
     fn rejects_out_of_range_setpoint_profile_steps() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
-        // Raw fixture key is the canonical dev12 name (gh#1459); the error
+        // Fixture key is the canonical dev12 name (gh#1459); the error
         // label below stays the normalised internal name (`profile_label`).
         let working_day = get_path_mut(
             site,
@@ -3661,13 +3662,15 @@ mod tests {
     // #1308, STEBBS/archetype since gh#1459); the legacy variant is produced
     // by running `normalize_field_names` on a cloned tree first.
 
-    const FIXTURE_NEW_NAMES: &str =
-        include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+    // Raw input is intentional: exercise alias/family folding before resolution.
+    fn raw_stebbs_fixture_yaml() -> &'static str {
+        include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml")
+    }
 
     #[test]
     fn load_run_config_accepts_new_names() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root)
             .expect("new-spelling YAML should parse without error");
 
@@ -3698,7 +3701,7 @@ mod tests {
         // preprocessor run idempotently at the top of
         // `load_run_config_from_value`.
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
         normalize_field_names(&mut root).expect("fixture should normalise to legacy keys");
 
         let run_cfg = load_run_config_from_value(&mut root)
@@ -3715,7 +3718,7 @@ mod tests {
         // gh#1858: the site-level SPARTACUS switch must reach the kernel's
         // run configuration, not only the SPARTACUS parameter block.
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root.clone())
             .expect("fixture YAML should parse without error");
         assert!(!run_cfg.config.use_sw_direct_albedo);
@@ -3739,7 +3742,7 @@ mod tests {
     #[test]
     fn load_run_config_accepts_mixed_names() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
 
         // Hand-rename a handful of keys to their legacy spellings so the
         // tree ends up mixed. The preprocessor must leave the legacy ones
@@ -3769,7 +3772,7 @@ mod tests {
     #[test]
     fn load_run_config_accepts_2026_5_intermediate_names() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
 
         let physics = get_path_mut(&mut root, &["model", "physics"])
             .expect("fixture should contain model.physics");
@@ -3796,9 +3799,9 @@ mod tests {
     #[test]
     fn load_run_config_new_and_old_parse_identically() {
         let mut root_new: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let mut root_old: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
         normalize_field_names(&mut root_old).expect("fixture should normalise to legacy keys");
 
         let cfg_new = load_run_config_from_value(&mut root_new).expect("parse new-spelling");
@@ -3844,9 +3847,9 @@ mod tests {
         // enabled=true+parameters=1, plus flat `outer_cap_fraction` /
         // `setpoint` / `same_*` siblings).
         let mut root_nested: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let mut root_flat: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
 
         let physics = get_path_mut(&mut root_flat, &["model", "physics"])
             .expect("fixture should contain model.physics");
@@ -3898,7 +3901,7 @@ mod tests {
     #[test]
     fn load_run_config_rejects_duplicate_old_and_new_names() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
 
         let physics = get_path_mut(&mut root, &["model", "physics"])
             .expect("fixture should contain model.physics");
@@ -3925,7 +3928,7 @@ mod tests {
         // form through the full parse path — equivalent to the legacy
         // flat test above, with the input re-wrapped under `spartacus`.
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
 
         let physics = get_path_mut(&mut root, &["model", "physics"])
             .expect("fixture should contain model.physics");
@@ -3955,8 +3958,7 @@ mod tests {
     }
 
     fn stebbs_fixture_root() -> Value {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         serde_yaml::from_str(yaml_str).expect("fixture YAML should parse")
     }
 
@@ -4055,7 +4057,7 @@ mod tests {
             ("-.inf", f64::NEG_INFINITY),
         ] {
             for value in [number.to_string(), format!("{{value: {number}}}")] {
-                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
                 let site = first_site_mut(&mut root).unwrap();
                 *get_path_mut(site, &["properties", "z"]).unwrap() =
                     serde_yaml::from_str(&value).unwrap();
@@ -4074,8 +4076,7 @@ mod tests {
     }
 
     fn run_config_with_co2_point_source(key: &str, value: f64) -> RunConfig {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
         let co2 = get_path_mut(site, &["properties", "anthropogenic_emissions", "co2"])
@@ -4107,8 +4108,7 @@ mod tests {
     }
 
     fn run_config_without_co2_point_source(emissions_method: i64) -> Result<RunConfig, String> {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let emissions = get_path_mut(&mut root, &["model", "physics", "emissions"])
             .expect("fixture should define model.physics.emissions");
@@ -4176,7 +4176,7 @@ mod tests {
                 "{value: .inf}",
                 "{value: -.inf}",
             ] {
-                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
                 *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
                     serde_yaml::from_str(&format!("{{value: {method}}}")).unwrap();
                 let site = first_site_mut(&mut root).unwrap();
@@ -4213,7 +4213,7 @@ mod tests {
     fn load_run_config_rejects_wrong_family_code() {
         // gh#972: a spartacus code (1003) inside the narp family must fail loud.
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
 
         let physics = get_path_mut(&mut root, &["model", "physics"])
             .expect("fixture should contain model.physics");
@@ -4237,7 +4237,7 @@ mod tests {
     #[test]
     fn load_run_config_accepts_nested_family_form_under_legacy_outer_keys() {
         let mut root: Value =
-            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+            serde_yaml::from_str(raw_stebbs_fixture_yaml()).expect("fixture YAML should parse");
 
         let physics = get_path_mut(&mut root, &["model", "physics"])
             .expect("fixture should contain model.physics");
@@ -4276,8 +4276,7 @@ mod tests {
         // storage heat method 5 with SPARTACUS as in this fixture, reads every
         // facet layer) the bridge must refuse it, naming the list and the
         // index, rather than stand in a value for it.
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
             serde_yaml::from_str("{value: 5}").unwrap();
@@ -4385,7 +4384,7 @@ mod tests {
         storage_heat: i32,
         edit: impl FnOnce(&mut Value),
     ) -> Result<RunConfig, String> {
-        let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+        let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
         *get_path_mut(&mut root, &["model", "physics", "net_radiation"]).unwrap() =
             serde_yaml::from_str(&format!("{{value: {net_radiation}}}")).unwrap();
         *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
@@ -4522,8 +4521,7 @@ mod tests {
         edit: impl FnOnce(&mut Value),
     ) -> Result<RunConfig, String> {
         // SPARTACUS on (net_radiation 1003), nlayer 3.
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
         let layers = get_path_mut(site, &["properties", "vertical_layers"])
@@ -4581,8 +4579,7 @@ mod tests {
 
     #[test]
     fn missing_layer_emissivity_is_carried_as_absent_without_spartacus() {
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let netrad = get_path_mut(&mut root, &["model", "physics", "net_radiation"])
             .expect("fixture should define model.physics.net_radiation");
@@ -4666,8 +4663,7 @@ mod tests {
         edit: impl FnOnce(&mut Value),
     ) -> Result<RunConfig, String> {
         // SPARTACUS on (net_radiation 1003), nlayer 3.
-        let yaml_str =
-            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
             serde_yaml::from_str(&format!("{{value: {storage_heat}}}")).unwrap();

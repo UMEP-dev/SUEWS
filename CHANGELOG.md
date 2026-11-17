@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 17 Nov 2026
+
+- [maintenance] Generate resolved engine YAML fixtures for Rust bridge tests through the shared supy resolver and check their freshness in the Python suite (#1991)
+
 ### 15 Nov 2026
 
 - [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead

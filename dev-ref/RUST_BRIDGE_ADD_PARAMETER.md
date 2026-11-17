@@ -41,6 +41,22 @@ Much of the existing reader still keeps defaults for absent keys; that is being 
 The mappings below are hand-written. `build.rs` generates `output_cols.rs` for
 output widths; it does not generate parameter pack/unpack mappings.
 
+## Refreshing the bridge test inputs
+
+After a schema or data-model change, regenerate the resolved engine YAML fixtures
+with the project venv active, from the repository root:
+
+```bash
+python scripts/suews/gen_bridge_fixtures.py
+```
+
+The generator uses `SUEWSConfig.from_dict` (as in the sample-output check) and the shared
+`config_to_engine_yaml` hand-off used by `suews run`.
+Commit the generated files in `test/fixtures/bridge/` separately from code changes.
+`make test` checks them byte for byte against an in-memory regeneration and names
+this command if either fixture is stale.
+Raw alias and malformed-input tests retain their deliberate inputs.
+
 ## The eight steps
 
 ### 1. Kernel type (Fortran)

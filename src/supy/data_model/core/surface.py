@@ -315,8 +315,9 @@ class SurfaceProperties(BaseModel):
         default=10.0,
         description=(
             "Snow water equivalent at and above which the surface is fully snow "
-            "covered; below it the snow-covered fraction follows the snow depletion "
-            "curve. It does not cap the snowpack. Not used for the water surface."
+            "covered; below it, while snow is melting, the snow-covered fraction "
+            "follows the snow depletion curve. It does not cap the snowpack. Not "
+            "used for the water surface."
         ),
         json_schema_extra={
             "unit": "kg m-2",

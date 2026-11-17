@@ -63,14 +63,9 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 `-- README.md              # This file
 ```
 
-## Authority Hierarchy and Rule-Authoring Principles
+## Rule-Authoring Principles
 
-When repository instructions or notes disagree, precedence runs from executable checks down to historical rationale:
-
-1. **Executable CI gates and lint scripts** (`scripts/lint/*`, `scripts/suews/*`, `.claude/scripts/validate-claude-md.py`, `.github/workflows/*`).
-2. **Standing rules** (`AGENTS.md` and `.claude/rules/**/*.md`).
-3. **Skills and review subagents** (`.claude/skills/**` and `.claude/agents/*.md`).
-4. **Developer reference notes** (`dev-ref/*.md`, including `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` for whole-repository sweeps and `dev-ref/RUST_BRIDGE_AUDIT.md` for dated seam ledgers).
+The authority order among instruction files, and what to do when two disagree, is stated once in `AGENTS.md` ("Authority and amendment"). Developer reference notes in `dev-ref/` include `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` for whole-repository sweeps and `dev-ref/RUST_BRIDGE_AUDIT.md` for dated seam ledgers.
 
 Follow five rules whenever adding or revising `.claude/` governance files:
 
@@ -108,9 +103,9 @@ Focused reviewers dispatched by `fix-issue` and `audit-pr`:
 
 Subagent frontmatter uses `color:` (never `colour:`) and omits `model:` so subagents inherit the caller's configured model tier.
 
-### Skills (On-Demand)
+### Available Skills
 
-Skills perform multi-step workflows or atomic checks when invoked via `/skill-name`:
+Skills run on demand and perform multi-step workflows or atomic checks when invoked via `/skill-name`:
 
 - **Workflow skills (orchestrators)**: `/fix-issue`, `/triage-issue`, `/triage-pr`, `/audit-pr`, `/split-pr`, `/queue-pr`, `/prep-release`, `/republish-docs`.
 - **Operation skills (building blocks)**: `/lint-code`, `/verify-build`, `/audit-docs`, `/log-changes`.

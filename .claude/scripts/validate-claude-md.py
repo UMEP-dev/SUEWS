@@ -99,11 +99,15 @@ def check_single_roster(root: Path) -> list[str]:
     if not roster.is_file():
         return [f"Missing {ROSTER_FILE}: roles must be tied to people in one file"]
     handles = set(
-        re.findall(r"`@([A-Za-z0-9][A-Za-z0-9-]{1,38})`", roster.read_text(encoding="utf-8"))
+        re.findall(
+            r"`@([A-Za-z0-9][A-Za-z0-9-]{1,38})`", roster.read_text(encoding="utf-8")
+        )
     ) | set(HANDLE_RE.findall(roster.read_text(encoding="utf-8")))
     if not handles:
         return [f"{ROSTER_FILE} names no one"]
-    pattern = re.compile(r"@(" + "|".join(sorted(re.escape(h) for h in handles)) + r")\b")
+    pattern = re.compile(
+        r"@(" + "|".join(sorted(re.escape(h) for h in handles)) + r")\b"
+    )
     files = [root / "AGENTS.md"]
     for folder in (".claude", "dev-ref"):
         base = root / folder

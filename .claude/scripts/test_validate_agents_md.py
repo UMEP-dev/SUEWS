@@ -134,25 +134,6 @@ class SharedInstructionValidation(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("names a person", result.stdout)
 
-    def test_principle_suffix_is_accepted(self):
-        """Index entries ending in `; Principle N` keep their scope globs."""
-        entries, warnings = VALIDATOR.parse_shared_rule_index(
-            "## Shared rule files\n\n"
-            "- [.claude/rules/a.md](.claude/rules/a.md) - all work; Principle 1, 2, 3.\n"
-            "- [.claude/rules/b.md](.claude/rules/b.md) - `x/**`, `y.md`; "
-            "also load when changing x; Principle 1.\n"
-        )
-        self.assertEqual(warnings, [])
-        self.assertEqual(entries, {".claude/rules/a.md": None, ".claude/rules/b.md": ["x/**", "y.md"]})
-
-    def test_malformed_principle_suffix_fails(self):
-        """A `; Principle` note that is not `Principle N[, N]` is reported."""
-        _, warnings = VALIDATOR.parse_shared_rule_index(
-            "## Shared rule files\n\n"
-            "- [.claude/rules/a.md](.claude/rules/a.md) - all work; Principle one.\n"
-        )
-        self.assertTrue(any("Malformed principle note" in w for w in warnings), warnings)
-
     def test_wrong_import_fails(self):
         """CLAUDE.md importing anything other than @AGENTS.md exits 1."""
         (self.root / "CLAUDE.md").write_text("@OTHER.md\n", encoding="utf-8")
@@ -261,6 +242,34 @@ class SharedInstructionValidation(unittest.TestCase):
         self.assertIn("Non-ASCII character detected", result.stdout)
         self.assertIn(
             "dev-ref/CODEBASE_AUDIT_PROTOCOL.md: Missing sections", result.stdout
+        )
+
+
+class SharedRuleIndexParsing(unittest.TestCase):
+    """Parse the `## Shared rule files` index without a fixture tree."""
+
+    def test_principle_suffix_is_accepted(self):
+        """Index entries ending in `; Principle N` keep their scope globs."""
+        entries, warnings = VALIDATOR.parse_shared_rule_index(
+            "## Shared rule files\n\n"
+            "- [.claude/rules/a.md](.claude/rules/a.md) - all work; Principle 1, 2, 3.\n"
+            "- [.claude/rules/b.md](.claude/rules/b.md) - `x/**`, `y.md`; "
+            "also load when changing x; Principle 1.\n"
+        )
+        self.assertEqual(warnings, [])
+        self.assertEqual(
+            entries,
+            {".claude/rules/a.md": None, ".claude/rules/b.md": ["x/**", "y.md"]},
+        )
+
+    def test_malformed_principle_suffix_fails(self):
+        """A `; Principle` note that is not `Principle N[, N]` is reported."""
+        _, warnings = VALIDATOR.parse_shared_rule_index(
+            "## Shared rule files\n\n"
+            "- [.claude/rules/a.md](.claude/rules/a.md) - all work; Principle one.\n"
+        )
+        self.assertTrue(
+            any("Malformed principle note" in w for w in warnings), warnings
         )
 
 

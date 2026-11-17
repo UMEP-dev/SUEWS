@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 17 Nov 2026
+
+- [change][experimental] Add a minimum velocity scale of 0.5 m s-1 to the stable and neutral aerodynamic resistance: on steps with (z-d)/L >= 0, r_a uses the effective wind sqrt(U^2 + w_min^2) in place of U, so at light wind it no longer grows as 1/U up to the (z-d)/L clip (#1979)
+  - The value is the globally constant subgrid velocity scale of Mahrt and Sun (1995), fitted to grid-averaged aircraft data; it is the stable counterpart of the free-convection velocity w_f of #1956, and the two never act on the same step, so unstable r_a and the friction velocity are unchanged
+  - Night-time and light-wind outputs and subsequent carried state change in all storage heat methods; across the 21 test sites of #1956 the largest stable r_a falls from 11,873 to 612 s m-1
+
 ### 15 Nov 2026
 
 - [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead

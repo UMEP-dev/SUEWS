@@ -6,6 +6,12 @@ MODULE module_phys_resist
 
    ! Numerical guard only [m s-1]: rb divides by UStar. Not a physical limit.
    REAL(KIND(1D0)), PARAMETER :: USTAR_GUARD = 1.0D-12
+   ! Minimum velocity scale for the stable and neutral aerodynamic resistance
+   ! [m s-1] (#1979): the counterpart of the free-convection velocity w_f, which
+   ! acts only on unstable steps. Mahrt and Sun (1995) give 0.5 m s-1 as a
+   ! globally constant subgrid velocity scale, fitted to grid-averaged aircraft
+   ! data.
+   REAL(KIND(1D0)), PARAMETER :: W_MIN_STABLE = 0.5D0
 
 CONTAINS
    SUBROUTINE AerodynamicResistance( &
@@ -44,6 +50,8 @@ CONTAINS
       !         L_mod = Obukhov length (m)
       !         UStar = Friction velocity (m s-1)
       !         w_f = Free-convection velocity scale (m s-1), used only when unstable
+      !         W_MIN_STABLE (module constant) = minimum velocity scale (m s-1),
+      !               used only when stable or neutral; never together with w_f
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
@@ -79,7 +87,7 @@ CONTAINS
       ! every grid thread, so one grid could read another grid's value (gh#1926)
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
-      REAL(KIND(1D0)) :: wind_eff ! wind speed with the free-convection velocity added [m s-1]
+      REAL(KIND(1D0)) :: wind_eff ! wind speed with w_f or W_MIN_STABLE added [m s-1]
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
@@ -118,6 +126,20 @@ CONTAINS
                wind_eff = SQRT(AVU1_use**2 + w_f**2)
                RA_h = RA_h*AVU1_use/wind_eff
             END IF
+         END IF
+
+         IF (ZZD/L_mod >= 0) THEN
+            ! Minimum velocity scale (stable and neutral only, #1979). Under a
+            ! stable stratification the mean wind at light wind understates the
+            ! exchange that unresolved motions (meandering, submeso motions)
+            ! keep up, so r_a would grow as 1/U up to the (z-d)/L clip. As on the
+            ! unstable branch, r_a uses an effective wind,
+            ! SQRT(U**2 + W_MIN_STABLE**2), in place of U, and every part of r_a
+            ! scales by U/U_e. The test is the sign test that keeps w_f off
+            ! these steps, so the two velocity scales never act together and
+            ! unstable r_a is unchanged. UStar is unchanged.
+            wind_eff = SQRT(AVU1_use**2 + W_MIN_STABLE**2)
+            RA_h = RA_h*AVU1_use/wind_eff
          END IF
 
          !3) Thom and Oliver (1977)

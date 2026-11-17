@@ -84,7 +84,7 @@ It applies in both modes; the sections below give the pipeline's detail.
   For a physics change, a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge.
   A structural schema or data-model migration is a design choice with no evidence to prepare first, so the wait is before implementation.
 - A change does not edit the checks that judge it.
-  A pull request that changes code (source, tests, scripts or configuration) does not, in the same pull request, loosen a tolerance, weaken or remove an assertion of an existing test, add a skip or xfail to an existing test, or change a file under `.claude/hooks/`, `.claude/rules/` or a required CI check.
+  A pull request that changes code does not, in the same pull request, loosen a tolerance, weaken or remove an assertion of an existing test, add a skip or xfail to an existing test, or change a file under `.claude/hooks/`, `.claude/rules/` or a required CI check.
   Such an edit goes in its own pull request that says why the check or rule should change.
   Exempt: tests added for the new behaviour, an assertion changed to the intended new behaviour with the reason stated in the PR body, an assertion removed together with the behaviour it tested, and a fixture or snapshot refresh carrying the evidence its owning rule requires (for physics fixtures, `physics-change-evidence.md`).
 - A reviewer judges the rest of a change against the rules on the base branch, not those on the change's own head; a change to the rules themselves is reviewed as a proposal, including its consistency with the other files on the head.

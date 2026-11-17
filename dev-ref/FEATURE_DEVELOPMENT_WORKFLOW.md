@@ -1,590 +1,155 @@
 # Feature Development Workflow
 
-> **Purpose**: Guide for managing large features through incremental PRs and effective branch strategies
-> 
-> **Audience**: Core developers and contributors working on substantial features
+> **Canonical Rules Notice**
 >
-> **Last Updated**: 28 October 2025
+> Active sizing, workflow, and code-design rules supersede this guide whenever an example drifts. Always read:
+> - Rules: [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/code-design.md`](../.claude/rules/code-design.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/labels.md`](../.claude/rules/labels.md)
+> - Skills: `/triage-issue` ([`.claude/skills/triage-issue/SKILL.md`](../.claude/skills/triage-issue/SKILL.md)), `/fix-issue` ([`.claude/skills/fix-issue/SKILL.md`](../.claude/skills/fix-issue/SKILL.md)), `/audit-pr` ([`.claude/skills/audit-pr/SKILL.md`](../.claude/skills/audit-pr/SKILL.md)), `/split-pr` ([`.claude/skills/split-pr/SKILL.md`](../.claude/skills/split-pr/SKILL.md)), and `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md))
 
 ## Overview
 
-This guide provides strategies for breaking down large features into manageable, reviewable PRs whilst maintaining code quality and scientific validity.
+This guide describes how to decompose substantial SUEWS features into focused, independently testable, and revertible pull requests while keeping `master` green through GitHub's merge queue.
 
-## When to Use Incremental PRs
+**Core Branch Rule**: Never push directly to `master`. Every slice -- preparatory refactor, schema bump, kernel change, or documentation update -- lands via a pull request reviewed and merged through the GitHub merge queue (see [`MERGE_QUEUE.md`](MERGE_QUEUE.md)).
 
-### Use Incremental Strategy When:
-- ✅ Feature requires >500 lines of code changes
-- ✅ Multiple independent components can be separated
-- ✅ Early feedback needed on architectural decisions
-- ✅ Feature spans multiple modules or subsystems
-- ✅ Implementation will take >1 week
-- ✅ Testing can be done incrementally
+## When to Split Work (`work-sizing.md`)
 
-### Single PR is Fine When:
-- Small, focused changes (<200 lines)
-- Bug fixes with clear scope
-- Documentation updates
-- Simple refactoring within one module
+### Decompose into Incremental PRs When:
+- `[OK]` The change exceeds a focused single-sitting review (roughly a few hundred lines of meaningful logic).
+- `[OK]` A preparatory refactor, formatting sweep, or schema version bump can land cleanly ahead of behaviour changes.
+- `[OK]` Multiple subsystems (`src/suews/`, `src/suews_bridge/`, `src/supy/data_model/`, `docs/`) can be staged safely or developed in parallel.
+- `[OK]` An issue has multiple separable deliverables (decompose into a parent umbrella issue + GitHub native sub-issues per `.claude/rules/work-sizing.md`).
 
-## Breaking Down Features: Strategies
+### Keep as a Single PR When:
+- One coherent bug fix, validator contract, or small feature (< ~200-300 lines) where code, tests, and docs belong together atomically.
+- Splitting would leave intermediate commits broken or untestable.
 
-### 1. Bottom-Up Approach (Recommended)
+If an existing branch has already grown too large, use `/split-pr` to carve it into a completeness-checked stack of small PRs.
 
-Build foundation first, then higher-level features:
+## Decomposition Strategies
 
-```
-PR1: Add low-level utility functions
-  ↓
-PR2: Implement core algorithm/physics
-  ↓
-PR3: Add configuration interface
-  ↓
-PR4: Integrate with existing modules
-  ↓
-PR5: Add user-facing API
+### 1. Preparatory Refactor First
+When fixing a bug or adding an option inside an oversized procedure or module, land a pure behaviour-preserving refactor PR first (proven bit-identical by tests), then land the behaviour change on top:
+
+```text
+PR1: Extract helper / consolidate module (bit-identical output, no schema bump)
+  |
+  v
+PR2: Implement new physics or validation behaviour + tests + docs
 ```
 
-**Example: Adding New Physics Module**
-```
-PR1: Add Fortran subroutines for new physics calculations
-PR2: Create Python wrapper for new module
-PR3: Add configuration schema and validation
-PR4: Update site configuration to support new parameters
-PR5: Add documentation and examples
-```
+### 2. Bottom-Up Layer Staging
+Build and verify foundations before exposing user-facing surface area:
 
-**Advantages:**
-- Each PR is independently testable
-- Earlier PRs can be used immediately
-- Easier to review (smaller, focused changes)
-- Safer rollback if issues discovered
-
-### 2. Horizontal Slice Approach
-
-Implement complete vertical slice for subset of functionality:
-
-```
-PR1: Implement feature for single surface type
-PR2: Extend to all surface types
-PR3: Add advanced options/variants
+```text
+PR1: Fortran kernel routine & derived-type components (src/suews/src/)
+  |  + Makefile.deps regenerated via scripts/suews/gen_fortran_deps.py
+  v
+PR2: C-ABI facade & Rust bridge wiring (src/suews_bridge/, src/supy/_run_rust.py)
+  |  (see dev-ref/RUST_BRIDGE_ADD_PARAMETER.md and .claude/rules/rust/bridge-contract.md)
+  v
+PR3: Pydantic data model, schema version bump & YAML upgrader (src/supy/data_model/)
+  |  (see .claude/rules/python/schema-versioning.md)
+  v
+PR4: User tutorials, docs, and CHANGELOG entry
 ```
 
-**Example: Improving Snow Module**
-```
-PR1: Enhanced snow physics for built surface only
-PR2: Extend to paved, vegetation surfaces
-PR3: Add optional detailed snow age tracking
-```
+*(Note: When a new parameter requires all eight bridge steps end-to-end to avoid dead/unwired fields, keep a single scalar parameter's kernel + bridge + Pydantic wiring together as one vertical slice, and split multiple parameter groups across separate PRs.)*
 
-### 3. Preparatory Refactoring
+### 3. Horizontal Slices
+Implement one complete vertical slice for a single scheme or option, then extend to remaining options in follow-up PRs.
 
-Clean up before adding new features:
+## Managing Stacked and Parallel PRs with `git worktree`
 
-```
-PR1: Refactor existing code for better structure
-  ↓
-PR2: Add new feature using improved structure
-```
+Using `git worktree` avoids rebuilding compiled Fortran and Rust artefacts on every branch switch and prevents cross-branch state accidents.
 
-**Example:**
-```
-PR1: Extract common resistance calculations to utility module
-PR2: Add new resistance scheme using extracted utilities
-```
+### Stacked PRs (Sequential Dependencies)
 
-## Managing Dependencies Between PRs
-
-### Stacked PRs Pattern
-
-When PRs depend on each other sequentially:
-
-#### Setup
-
-**Using Git Worktree:**
 ```bash
-# Create worktree for PR1
-git worktree add ../suews-step1 -b feat/step1-foundation
+# Worktree 1: Foundation PR targeting master
+git fetch origin
+git worktree add ../suews-step1 -b feat/step1-foundation origin/master
 cd ../suews-step1
-# Implement PR1
-git push origin feat/step1-foundation
-# Create PR1 targeting master
+# ... implement, run make dev && make test-smoke ...
+git push -u origin feat/step1-foundation
+gh pr create --base master --title "Refactor resistance helper"
 
-# Create worktree for PR2 (based on PR1)
-git worktree add ../suews-step2 -b feat/step2-core-logic feat/step1-foundation
+# Worktree 2: Dependent PR targeting feat/step1-foundation (NOT master yet)
+git worktree add ../suews-step2 -b feat/step2-scheme feat/step1-foundation
 cd ../suews-step2
-# Implement PR2 (depends on PR1)
-git push origin feat/step2-core-logic
-# Create PR2 targeting feat/step1-foundation (NOT master)
+# ... implement step 2 ...
+git push -u origin feat/step2-scheme
+gh pr create --base feat/step1-foundation --title "Add new resistance option"
 ```
 
-**Using Branch Switching (Single Directory):**
-```bash
-# Work on PR1
-git checkout -b feat/step1-foundation
-# Implement PR1
-git push origin feat/step1-foundation
-# Create PR1 targeting master
-
-# Work on PR2 (based on PR1)
-git checkout feat/step1-foundation
-git checkout -b feat/step2-core-logic
-# Implement PR2 (depends on PR1)
-git push origin feat/step2-core-logic
-# Create PR2 targeting feat/step1-foundation (NOT master)
-```
-
-#### Review Process
-1. PR1 reviewed and approved first
-2. PR2 reviewed (reviewers see only PR2 changes, not PR1)
-3. Merge PR1 to master
-4. Update PR2 to target master (GitHub does this automatically)
-5. Merge PR2 to master
-
-#### Keeping Stacked PRs in Sync
-```bash
-# If master updated whilst PR1 pending
-cd workspace1
-git checkout feat/step1-foundation
-git rebase master
-git push --force-with-lease
-
-# Update dependent PR2
-cd workspace2
-git checkout feat/step2-core-logic
-git rebase feat/step1-foundation
-git push --force-with-lease
-```
+#### Landing a Stack Safely
+1. Complete review on `PR1` (reviewers of `PR2` see only `PR2`'s incremental diff while its base is `feat/step1-foundation`).
+2. Enqueue **only `PR1`** into the GitHub merge queue (`gh pr merge <PR1> --auto --squash` or `/queue-pr`). Never enqueue `PR2` before `PR1` merges.
+3. Once `PR1` merges into `master`, GitHub retargets `PR2` to `master` automatically. Rebase `PR2` onto fresh `origin/master`, verify `make test-smoke`, push with `--force-with-lease`, wait for PR CI, and then enqueue `PR2`:
+   ```bash
+   cd ../suews-step2
+   git fetch origin master
+   git rebase origin/master
+   make test-smoke
+   git push --force-with-lease origin feat/step2-scheme
+   ```
 
 ### Parallel Independent PRs
 
-When components can be developed independently:
+When slices touch disjoint files (for example independent physics modules or isolated validator fixes), create separate worktrees directly from `origin/master` and coordinate merge-queue ordering with `/queue-pr`:
 
-**Using Git Worktree:**
 ```bash
-# Create worktree for component A
-git worktree add ../suews-component-a -b feat/component-a
-cd ../suews-component-a
-# Work on component A
+git worktree add ../suews-fix-a -b fix/issue-a origin/master
+git worktree add ../suews-fix-b -b fix/issue-b origin/master
 
-# Create worktree for component B (parallel)
-git worktree add ../suews-component-b -b feat/component-b
-cd ../suews-component-b
-# Work on component B
-
-# Both PRs target master independently
+# Clean up worktrees after PRs merge
+git worktree remove ../suews-fix-a
+git worktree remove ../suews-fix-b
 ```
 
-**Using Branch Switching:**
-```bash
-# Work on component A
-git checkout -b feat/component-a
-# Commit changes, push
-git checkout master
+## CI Matrix Awareness (`determine-matrix.sh`)
 
-# Work on component B
-git checkout -b feat/component-b
-# Commit changes, push
+Understanding how `.github/scripts/determine-matrix.sh` scales CI helps keep iteration fast:
+- **Python / util / tests / CI-only PRs** run on **`MINIMAL_PLATFORMS`** (`ubuntu-latest` `manylinux` `x86_64` only) during Draft (`smoke`) and Ready PR (`standard` or `smoke`) validation, saving macOS and Windows runner minutes.
+- **Fortran, Rust bridge, or build-system PRs** automatically widen to **`PR_PLATFORMS`** (Linux + macOS `arm64` + Windows `AMD64`) on Draft (`core` / `cfg`), Ready PR (`standard`), and Merge Queue runs.
+- **`0-physics:change` PRs** widen the physics axis to `physics-full` on Ready PRs and in the Merge Queue, and require a `## Scientific evidence` section, refreshed reference fixtures (`provenance.json` + shards), and subsystem-owner sign-off (see `.claude/rules/physics-change-evidence.md`).
+- **Nightly and Tag builds** run **`FULL_PLATFORMS`** (adding `macos-15-intel`) across the `all` test tier.
 
-# Switch between branches as needed
-```
+Isolating pure Python/schema/docs preparatory PRs from Fortran/Rust PRs therefore reduces CI turnaround time as well as review complexity.
 
-**Best for:**
-- Different physics modules
-- Documentation vs code
-- Tests for existing features
-- Independent bug fixes
+## Umbrella Tracking for Multi-PR Features
 
-## Parallel Workspace Development
-
-Working on multiple related PRs simultaneously is easier with separate workspaces. This can be achieved with:
-
-### Tools for Parallel Development
-
-**Git Worktree (Built-in, Recommended)**
-```bash
-# Create worktree for PR1
-git worktree add ../suews-foundation feat/step1-foundation
-
-# Create worktree for PR2
-git worktree add ../suews-integration feat/step2-integration
-
-# Work in each directory independently
-cd ../suews-foundation    # Work on PR1
-cd ../suews-integration   # Work on PR2
-
-# Clean up when done
-git worktree remove ../suews-foundation
-```
-
-**Alternative Tools:**
-- **Conductor**: Mac app with visual workspace management
-- **Separate clones**: Simple but uses more disk space
-- **Branch switching**: `git checkout` between branches (slower, single workspace)
-
-### Workspace Strategy Patterns
-
-**Pattern 1: Sequential Development**
-```
-Worktree/workspace 1 → PR1 (core implementation)
-Worktree/workspace 2 → PR2 (depends on PR1)
-Worktree/workspace 3 → PR3 (depends on PR2)
-```
-
-**Pattern 2: Parallel + Integration**
-```
-Worktree/workspace 1 → PR1 (physics changes)
-Worktree/workspace 2 → PR2 (configuration changes)
-Worktree/workspace 3 → PR3 (integrate PR1 + PR2)
-```
-
-**Pattern 3: Experimental + Production**
-```
-Worktree/workspace 1 → Try different approaches
-Worktree/workspace 2 → Final implementation
-```
-
-### Benefits of Parallel Workspaces
-- Work on multiple PRs simultaneously without branch switching
-- Test integration before merging dependent PRs
-- Maintain separate environments for conflicting experiments
-- Easy comparison between approaches
-- Each workspace can have its own virtual environment
-
-## PR Size Guidelines
-
-### Target Sizes
-- **Ideal**: 100-300 lines changed
-- **Acceptable**: 300-500 lines
-- **Large**: 500-800 lines (needs strong justification)
-- **Too Large**: >800 lines (break it down)
-
-**Lines exclude:**
-- Auto-generated files
-- Test fixtures/data
-- Documentation formatting
-
-### Measuring PR Size
-```bash
-# Count changes in current branch
-git diff master --shortstat
-
-# Detailed breakdown
-git diff master --stat
-```
-
-## Documentation Strategy
-
-### Document Incrementally
-Each PR should include relevant documentation:
-
-**PR1 (Core Implementation):**
-```markdown
-# In PR description
-## Partial Implementation
-This PR implements the foundation for [feature].
-Remaining work tracked in #XXX.
-
-## Documentation
-Added internal docstrings for new functions.
-User documentation will be added in final PR.
-```
-
-**Final PR (User-Facing):**
-- Complete user guide
-- API documentation
-- Examples and tutorials
-- CHANGELOG entry (comprehensive)
-
-### Maintaining Documentation Consistency
-- Use `<!-- TODO: Complete in PR#XXX -->` markers
-- Link related PRs in documentation
-- Update main docs only in final PR to avoid conflicts
-
-## Testing Strategy for Incremental PRs
-
-### Each PR Must:
-1. ✅ Pass all existing tests
-2. ✅ Add tests for new functionality
-3. ✅ Not break benchmark tests (or document expected changes)
-
-### Testing Levels
-
-**PR1 (Foundation):**
-```python
-# Unit tests for new utilities
-def test_new_calculation():
-    assert calculate_new_parameter(...) == expected
-```
-
-**PR2 (Integration):**
-```python
-# Integration tests
-def test_module_integration():
-    # Test PR1 + PR2 work together
-```
-
-**Final PR:**
-```python
-# End-to-end tests
-def test_complete_feature():
-    # Full workflow test
-```
-
-## Communication & Tracking
-
-### Creating the Feature Issue
-
-**Before starting**, create a tracking issue:
+Before starting a multi-PR feature, decompose the parent umbrella issue (human-gated via `/triage-issue`) using GitHub native sub-issues and wave checklists (`.claude/rules/work-sizing.md`):
 
 ```markdown
-## Feature: [Name]
+## Summary
+Implement [feature] across independent, reviewable waves.
 
-### Overview
-[Description of complete feature]
+## Waves
+### Wave 1 (no dependencies)
+- [ ] #101 Preparatory refactor of module X
+- [ ] #102 Schema field definitions and migration handler
 
-### Implementation Plan
-- [ ] PR1: Foundation (#link when created)
-- [ ] PR2: Core logic (#link)
-- [ ] PR3: Integration (#link)
-- [ ] PR4: Documentation (#link)
-
-### Dependencies
-- Depends on #XXX
-- Related to #YYY
-
-### Timeline
-Target completion: [Date or milestone]
+### Wave 2 (depends on Wave 1)
+- [ ] #103 Kernel + Rust bridge integration (pause for 4-needs-science review)
+- [ ] #104 User documentation, tutorial, and CHANGELOG
 ```
 
-### PR Descriptions for Incremental Work
+Label each child with the repository's four-tier labels (`1-*`, `2-*`, `3-*`, `4-*` per `.claude/rules/labels.md`).
 
-```markdown
-## Part X/N: [Component Name]
+## Pre-PR Checklist for Each Slice
 
-### Context
-This is PR X of N implementing [feature] (tracking issue #XXX)
-
-### This PR Adds
-- Specific change 1
-- Specific change 2
-
-### Not in This PR (Future Work)
-- Component Y (will be in PR#XXX)
-- Component Z (will be in PR#YYY)
-
-### Testing
-[How this partial implementation is tested]
-
-### Next Steps
-Next PR will add [brief description]
-```
-
-## Merge Strategies
-
-### For Stacked PRs
-
-**Option 1: Squash Each PR (Recommended)**
-```
-feat/step1 → squash merge to master (1 commit)
-feat/step2 → squash merge to master (1 commit)
-feat/step3 → squash merge to master (1 commit)
-```
-
-**Advantages:**
-- Clean history
-- Each PR becomes one atomic commit
-- Easy to revert if needed
-
-**Option 2: Rebase and Merge**
-```
-Preserves individual commits from each PR
-```
-
-**Use when:**
-- Commits have meaningful history
-- Scientific validation tied to specific commits
-
-### Resolving Conflicts
-
-**If master updated during PR development:**
-
-```bash
-# Update your branch
-git checkout feat/your-feature
-git fetch origin
-git rebase origin/master
-
-# Resolve conflicts
-git add resolved_files
-git rebase --continue
-
-# Force push (safe with --force-with-lease)
-git push --force-with-lease origin feat/your-feature
-```
-
-**For stacked PRs:**
-Must rebase in order (PR1, then PR2, then PR3)
-
-## Common Patterns & Examples
-
-### Pattern: New Physics Module
-
-**Full Feature:** Add SPARTACUS radiation module
-
-```
-PR1: suews_phys_spartacus.f95 (core calculations)
-  - Fortran implementation
-  - Unit tests for physics
-  - Scientific validation
-
-PR2: Python wrapper (src/supy/_spartacus.py)
-  - ctypes interface
-  - Python tests
-  - Integration with existing code
-
-PR3: Configuration schema
-  - Pydantic models
-  - YAML structure
-  - Validation rules
-
-PR4: Site configuration integration
-  - Update site config to include SPARTACUS params
-  - Migration logic if needed
-
-PR5: Documentation
-  - User guide
-  - Examples
-  - CHANGELOG
-```
-
-### Pattern: Major Refactoring
-
-**Full Feature:** Modernise configuration system
-
-```
-PR1: Add new configuration classes (no behaviour change)
-  - Pydantic models
-  - Tests for new classes
-  - Parallel to existing system
-
-PR2: Add migration path
-  - Functions to convert old → new
-  - Tests for migration
-  - Deprecation warnings
-
-PR3: Update internal code to use new system
-  - Refactor module by module
-  - Each module gets tests
-
-PR4: Remove old system
-  - Clean up deprecated code
-  - Update all documentation
-```
-
-### Pattern: Performance Optimisation
-
-```
-PR1: Add benchmarking infrastructure
-  - Benchmark tests
-  - Performance metrics
-
-PR2: Optimise hot path (component A)
-  - Implementation
-  - Verify no behaviour change
-  - Benchmark improvements
-
-PR3: Optimise component B
-  - Similar to PR2
-
-PR4: Documentation
-  - Performance guide
-  - Benchmark results
-```
-
-## Checklist for Feature Planning
-
-Before starting large feature:
-
-- [ ] Created tracking issue with implementation plan
-- [ ] Identified logical breakpoints for PRs
-- [ ] Each sub-PR can be tested independently
-- [ ] Each sub-PR adds value (not just scaffolding)
-- [ ] Considered review burden (each PR reviewable in <30 min)
-- [ ] Planned documentation strategy
-- [ ] Identified potential conflicts with ongoing work
-- [ ] Confirmed approach with maintainers (if major change)
-
-## Troubleshooting
-
-### "My stacked PRs have conflicts"
-
-**Solution:** Rebase in order
-```bash
-# Workspace 1 (PR1)
-git checkout feat/step1
-git rebase master
-git push --force-with-lease
-
-# Workspace 2 (PR2)
-git checkout feat/step2
-git rebase feat/step1
-git push --force-with-lease
-```
-
-### "Reviewers want changes in PR1 but PR2 depends on it"
-
-**Solution:**
-1. Make changes in PR1
-2. Update PR2 to incorporate changes:
-   ```bash
-   git checkout feat/step2
-   git rebase feat/step1
-   ```
-
-### "Master moved ahead, many conflicts"
-
-**Prevention:** Rebase regularly (daily for active features)
-
-**Solution:** Consider squashing intermediate commits before rebasing:
-```bash
-git rebase -i master
-# Squash related commits
-git push --force-with-lease
-```
-
-### "Final integration reveals issues between PRs"
-
-**Prevention:**
-- Create integration worktree/workspace to test all PRs together
-- Add integration tests early
-
-**Solution:**
-- Create final "integration" PR that fixes cross-PR issues
-- Or fix in last PR before merging
-
-## Best Practices Summary
-
-1. **Plan before coding**: Sketch out PR breakdown first
-2. **Bottom-up usually best**: Foundation before features
-3. **Independent is better**: Parallel PRs > stacked PRs when possible
-4. **Test incrementally**: Each PR fully tested
-5. **Communicate clearly**: Link PRs, update tracking issue
-6. **Review burden**: Keep PRs reviewable (<30 min each)
-7. **Document intent**: Explain what's NOT in each PR
-8. **Sync frequently**: Rebase daily during active development
-9. **Use parallel workspaces**: Git worktree for complex features
-10. **Scientific review**: Plan module-level review for physics PRs
+- [ ] Scoped to one logical concern (`git diff origin/master --stat` is focused and free of unrelated edits)
+- [ ] New files added to `meson.build`; `python scripts/suews/gen_fortran_deps.py` run if Fortran `USE` edges changed
+- [ ] Every new `test/**/*.py` file carries `pytestmark = pytest.mark.api` or `pytest.mark.physics`
+- [ ] `make format` and `make test-smoke` (plus `make test` where applicable) pass locally
+- [ ] `0-physics:change` + `## Scientific evidence` + fixture refresh included if any model output moved
+- [ ] Schema version bumped and upgrader registered if `src/supy/data_model/` changed structurally
 
 ## See Also
 
-- `REVIEW_PROCESS.md` - Scientific review workflow
-- `CODING_GUIDELINES.md` - Git and commit conventions
-- `RELEASE_MANUAL.md` - Hotfix branch strategy
-- `.claude/reference/maintenance-principles.md` - DRY principles
-
----
-
-*This guide helps manage complex feature development through incremental, reviewable PRs.*
-*Last updated: 28 October 2025*
-*Owner: SUEWS Development Team*
-*Location: `/dev-ref/FEATURE_DEVELOPMENT_WORKFLOW.md`*
+- [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md) - Issue and PR right-sizing and umbrella structure
+- [`.claude/rules/code-design.md`](../.claude/rules/code-design.md) - Layer ownership and design principles
+- [`RUST_BRIDGE_ADD_PARAMETER.md`](RUST_BRIDGE_ADD_PARAMETER.md) - End-to-end parameter checklist across Fortran, Rust, and Python
+- [`MERGE_QUEUE.md`](MERGE_QUEUE.md) - Merge queue behaviour and coordination
+- [`REVIEW_PROCESS.md`](REVIEW_PROCESS.md) - Governance and scientific review routing

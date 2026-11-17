@@ -7,12 +7,11 @@ Read this document on demand when auditing the repository or a subsystem; do not
 
 ## 1. Authority Hierarchy and Surface Separation
 
-When repository documents appear to conflict during an audit, resolve them in strict precedence order:
-
-1. **Executable CI gates and lint scripts** (`scripts/lint/*`, `scripts/suews/*`, `.claude/scripts/validate-claude-md.py`, `.github/workflows/*`).
-2. **Standing agent rules** (`AGENTS.md` and `.claude/rules/**/*.md`).
-3. **Operational skills and review subagents** (`.claude/skills/**` and `.claude/agents/*.md`).
-4. **Developer reference notes** (`dev-ref/*.md`), which capture architectural rationale, audit protocols, and dated subsystem ledgers.
+When repository documents appear to conflict during an audit, follow the authority order in `AGENTS.md`
+("Authority and amendment"); it is stated there and nowhere else.
+A required CI check or lint script is a gate under Principle 2: a finding that a gate disagrees with a rule is
+reported and escalated, never resolved by bypassing the gate.
+This protocol is a `dev-ref/` note, so it gives way to every rule, skill and agent file it contradicts.
 
 Three distinct review surfaces exist in SUEWS and must never have their vocabularies conflated:
 

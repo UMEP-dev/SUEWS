@@ -1,17 +1,16 @@
 """Free-convection and minimum velocity scales in the aerodynamic resistance.
 
-On the unstable branch, r_a uses a free-convection velocity
-w_f = (g/T H zzd)**(1/3) from the pass heat flux: the effective wind
-U_e = sqrt(U**2 + w_f**2) replaces U, so every part of r_a, the interfacial
-part ln(z0m/z0v)/(k u*) included, scales by U/U_e. On stable and neutral
-steps ((z-d)/L >= 0) the minimum velocity scale w_min takes the place of w_f
-in the same effective wind (#1979); the two never act in the same call, so
-the unstable resistance does not see w_min and the stable one does not see
-w_f. w_min ramps in linearly from zero at neutral to W_MIN_STABLE at
-(z-d)/L = ZL_WMIN_RAMP, so in the limit w_f -> 0 r_a is continuous where
-(z-d)/L changes sign; a retained, non-zero w_f can still make it differ. The
-neutral equation (zero (z-d)/L, or u* = 0, with L non-zero) takes no velocity
-scale. The routine does not modify u*. Between outer passes w_f is under-relaxed with
+On every step r_a uses an effective wind in place of U, so every part of
+r_a, the interfacial part ln(z0m/z0v)/(k u*) included, scales by U/U_e. U_e
+adds the minimum velocity scale W_MIN in quadrature to U on every branch, the
+neutral equation (zero (z-d)/L, or u* = 0, with L non-zero) included (#1979),
+and on the unstable branch also the free-convection velocity
+w_f = (g/T H zzd)**(1/3) from the pass heat flux:
+U_e = sqrt(U**2 + W_MIN**2 [+ w_f**2]). The stable resistance does not see
+w_f. With the same W_MIN on both sides, r_a is continuous where (z-d)/L
+changes sign in the limit w_f -> 0, and stable r_a is non-decreasing in
+(z-d)/L; a retained, non-zero w_f can still make r_a differ across the sign
+change. The routine does not modify u*. Between outer passes w_f is under-relaxed with
 the (z-d)/L schedule. The previous pass's value is a local of the timestep
 call that owns the outer loop, reset to zero at the start of every timestep:
 it is never in a saved local, a module variable or the carried state, so
@@ -44,8 +43,7 @@ ZL_RELAX_PASSES = 10  # passes at the full factor
 ZL_RELAX_DECAY = 0.7  # per-pass decay after that
 MAX_OUTER_PASSES = 60  # max_iter_default in the driver
 RA_FLOOR = 10.0  # retained lower limit [s m-1]
-W_MIN_STABLE = 0.5  # minimum velocity scale, stable and neutral steps [m s-1] (#1979)
-ZL_WMIN_RAMP = 0.1  # (z-d)/L at which w_min reaches W_MIN_STABLE [-] (#1979)
+W_MIN = 0.5  # minimum velocity scale, every step [m s-1] (#1979)
 U_FLOOR = 0.01  # AVU1_use lower limit in AerodynamicResistance [m s-1]
 ROUNDOFF_RTOL = 1e-12
 
@@ -181,44 +179,49 @@ def _pr_resistance(rows, out):
     return (np.log(ZZD / Z0M) - psim) * (np.log(ZZD / z0v) - psih) / (K2 * wind)
 
 
-def _min_velocity_factor(rows):
-    """U/U_e with the ramped minimum velocity scale on stable rows, U floored
-    as in the Fortran: w_min = W_MIN_STABLE min(1, (z-d)/L / ZL_WMIN_RAMP)."""
+def _velocity_factor(rows):
+    """U/U_e, U floored as in the Fortran: U_e**2 = U**2 + W_MIN**2, plus
+    w_f**2 on unstable rows that do not take the neutral equation."""
     wind = np.maximum(rows[:, 2].astype(float), U_FLOOR)
     z_over_l = rows[:, 0].astype(float) / rows[:, 3].astype(float)
-    w_min = W_MIN_STABLE * np.minimum(1.0, np.maximum(z_over_l, 0.0) / ZL_WMIN_RAMP)
-    return wind / np.sqrt(wind**2 + w_min**2)
+    w_f = rows[:, 5].astype(float)
+    ustar = rows[:, 4].astype(float)
+    unstable = (z_over_l < 0) & (w_f > 0) & (ustar != 0)
+    wind_eff2 = wind**2 + W_MIN**2
+    wind_eff2 = np.where(unstable, wind_eff2 + w_f**2, wind_eff2)
+    return wind / np.sqrt(wind_eff2)
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])
-def test_zero_free_convection_gives_the_formula_without_it(probe, method):
+def test_zero_free_convection_leaves_the_minimum_velocity_scale(probe, method):
     # ARRANGE: unstable (z-d)/L, including the near-neutral -1e-12
     rows = _resistance_cases([-2.0, -0.5, -0.05, -1e-12], [0.0], method)
 
     # ACT
     out = probe(3, rows)
 
-    # ASSERT: no velocity scale at all, so W_MIN_STABLE does not reach the
-    # unstable branch
+    # ASSERT: with w_f = 0 the unstable resistance scales by
+    # U/sqrt(U**2 + W_MIN**2) only
     assert out[:, 0].min() > RA_FLOOR
+    expected = _pr_resistance(rows, out) * _velocity_factor(rows)
+    np.testing.assert_allclose(out[:, 0], expected, rtol=ROUNDOFF_RTOL, atol=0)
+    wind = rows[:, 2].astype(float)
     np.testing.assert_allclose(
-        out[:, 0], _pr_resistance(rows, out), rtol=ROUNDOFF_RTOL, atol=0
+        _velocity_factor(rows), wind / np.sqrt(wind**2 + W_MIN**2), rtol=0, atol=0
     )
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])
 def test_stable_resistance_uses_the_minimum_velocity_scale(probe, method):
-    # ARRANGE: stable (z-d)/L from the near-neutral +1e-12 through the ramp
-    # (1e-3, 0.05) to its end (0.1) and the 0.5 clip, with and without a
-    # (stale) w_f, which the stable branch must ignore
+    # ARRANGE: stable (z-d)/L from the near-neutral +1e-12 to the 0.5 clip,
+    # with and without a (stale) w_f, which the stable branch must ignore
     rows = _resistance_cases([1e-12, 1e-3, 0.05, 0.1, 0.5], [0.0, 0.3], method)
 
     # ACT
     out = probe(3, rows)
 
-    # ASSERT: the whole resistance scales by U/sqrt(U**2 + w_min**2), with
-    # w_min ramped from zero at neutral to W_MIN_STABLE at ZL_WMIN_RAMP
-    expected = _pr_resistance(rows, out) * _min_velocity_factor(rows)
+    # ASSERT: the whole resistance scales by U/sqrt(U**2 + W_MIN**2)
+    expected = _pr_resistance(rows, out) * _velocity_factor(rows)
     np.testing.assert_allclose(
         out[:, 0], np.maximum(expected, RA_FLOOR), rtol=ROUNDOFF_RTOL, atol=0
     )
@@ -226,21 +229,24 @@ def test_stable_resistance_uses_the_minimum_velocity_scale(probe, method):
 
 @pytest.mark.parametrize("method", [2, 3, 4])
 def test_zero_friction_velocity_takes_the_neutral_equation(probe, method):
-    """u* = 0 with a finite, positive L selects the neutral equation, which
-    takes no velocity scale whatever (z-d)/L the caller passed. L = 0 is not
-    tested: the stability functions divide by L before that test, so the
-    routine requires a non-zero L."""
-    # ARRANGE: u* = 0 selects the neutral equation; (z-d)/L > 0, inside and
-    # beyond the ramp
-    rows = _resistance_cases([1e-12, 0.05, 0.1, 0.5], [0.0], method)
+    """u* = 0 with a finite, positive or negative L selects the neutral
+    equation, which takes W_MIN but never w_f, whatever (z-d)/L the caller
+    passed. L = 0 is not tested: the stability functions divide by L before
+    that test, so the routine requires a non-zero L."""
+    # ARRANGE: u* = 0 selects the neutral equation, on both sides of neutral,
+    # with a w_f that must be ignored
+    rows = _resistance_cases(
+        [-0.5, -1e-12, 1e-12, 0.05, 0.1, 0.5], [0.0, 0.3], method
+    )
     rows[:, 4] = 0.0
 
     # ACT
     out = probe(3, rows)
 
-    # ASSERT: ln(zzd/z0m) ln(zzd/z0v)/(k**2 U)
+    # ASSERT: ln(zzd/z0m) ln(zzd/z0v)/(k**2 U) times U/sqrt(U**2 + W_MIN**2)
     wind = rows[:, 2].astype(float)
     neutral = np.log(ZZD / Z0M) * np.log(ZZD / out[:, 1]) / (K2 * wind)
+    neutral = neutral * _velocity_factor(rows)
     np.testing.assert_allclose(
         out[:, 0], np.maximum(neutral, RA_FLOOR), rtol=ROUNDOFF_RTOL, atol=0
     )
@@ -251,7 +257,7 @@ def test_calm_stable_resistance_is_finite_and_bounded(probe, method):
     """At the stable clip and the wind floor, r_a without the minimum
     velocity scale grows as 1/U (thousands of s m-1 here); with it r_a is
     finite and below the wind-independent calm limit, the stable expression
-    times U/W_MIN_STABLE."""
+    times U/W_MIN."""
     # ARRANGE: the 0.5 clip at the wind floor and just above it
     rows = _resistance_cases([0.5], [0.0], method, winds=(U_FLOOR, 0.05))
 
@@ -262,7 +268,7 @@ def test_calm_stable_resistance_is_finite_and_bounded(probe, method):
     # ASSERT
     assert np.all(np.isfinite(ra))
     uncapped = _pr_resistance(rows, out)
-    calm_limit = uncapped * rows[:, 2].astype(float) / W_MIN_STABLE
+    calm_limit = uncapped * rows[:, 2].astype(float) / W_MIN
     assert np.all(ra <= calm_limit * (1 + ROUNDOFF_RTOL))
     # at the wind floor the scale cuts r_a by U_e/U, about fifty-fold
     assert ra[0] < uncapped[0] / 40
@@ -293,11 +299,11 @@ def test_stable_resistance_is_continuous_in_wind_and_stability(probe, method):
 def test_resistance_is_continuous_across_neutral_as_free_convection_vanishes(
     probe, method
 ):
-    """In the limit w_f -> 0 (w_f = 0 or 1e-9 here), with w_min ramping in
-    from zero on the stable side, r_a is continuous where (z-d)/L changes
-    sign, at every wind down to the floor. Without the ramp r_a would change
-    there by U_e/U, about fifty-fold at the wind floor (#1979). A retained,
-    non-zero w_f is covered by the test below."""
+    """In the limit w_f -> 0 (w_f = 0 or 1e-9 here), with the same W_MIN on
+    both sides, r_a is continuous where (z-d)/L changes sign, at every wind
+    down to the floor. A stable-only W_MIN would change r_a there by U_e/U,
+    about fifty-fold at the wind floor (#1979). A retained, non-zero w_f is
+    covered by the test below."""
     # ARRANGE: (z-d)/L = -+1e-12, where every psi is zero, and -+1e-6, at
     # w_f = 0 and a vanishing w_f, down to the wind floor
     winds = (U_FLOOR, 0.05, 0.3, 1.5)
@@ -309,8 +315,8 @@ def test_resistance_is_continuous_across_neutral_as_free_convection_vanishes(
         # ACT
         ra[zl] = (probe(3, unstable)[:, 0], probe(3, stable)[:, 0])
 
-    # ASSERT: equal at +-1e-12; within a part in 1e5 at +-1e-6, where
-    # w_min = 5e-6 m s-1 and psi is at most of order 1e-5
+    # ASSERT: equal at +-1e-12; within a part in 1e5 at +-1e-6, where psi is
+    # at most of order 1e-5
     for zl, rtol in ((1e-12, 1e-9), (1e-6, 1e-5)):
         ra_unstable, ra_stable = ra[zl]
         assert ra_stable.min() > RA_FLOOR
@@ -318,37 +324,32 @@ def test_resistance_is_continuous_across_neutral_as_free_convection_vanishes(
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])
-def test_minimum_velocity_scale_ramps_in_without_overshoot(probe, method):
-    """Over the ramp the factor U/U_e falls monotonically from 1 at neutral
-    to its full value at ZL_WMIN_RAMP and stays there up to the clip: inside
-    the ramp it lies strictly between the full factor and 1, and it tends to
-    1 as (z-d)/L goes to zero from above."""
-    # ARRANGE: (z-d)/L approaching neutral from above, then across the ramp
-    # and beyond, at a light wind
-    near_neutral = [1e-9, 1e-7, 1e-5]
-    z_over_l = near_neutral + list(np.linspace(1e-3, 0.5, 120))
-    rows = _resistance_cases(z_over_l, [0.0], method, winds=(0.3,))
+def test_stable_resistance_never_falls_as_stability_grows(probe, method):
+    """Stable r_a is non-decreasing in (z-d)/L from neutral to the clip at
+    every wind, because W_MIN does not depend on (z-d)/L (#1979). The only
+    allowed falls are the stability functions' own: their psi switch on at
+    |(z-d)/L| = 1e-4, so where z0m/L or z0v/L crosses that limit r_a can drop
+    by a few parts in 1e4 without the minimum velocity scale too."""
+    # ARRANGE: (z-d)/L from just above neutral to the clip, at winds from the
+    # floor upwards
+    z_over_l = list(np.geomspace(1e-9, 0.5, 400))
+    winds = (U_FLOOR, 0.05, 0.3, 1.0, 4.0)
+    rows = _resistance_cases(z_over_l, [0.0], method, winds=winds)
 
     # ACT
     out = probe(3, rows)
-    factor = out[:, 0] / _pr_resistance(rows, out)
+    ra = out[:, 0].reshape(len(winds), -1)
 
-    # ASSERT: monotone, and the full factor from the end of the ramp
-    assert np.all(np.diff(factor) <= ROUNDOFF_RTOL)
-    full = 0.3 / np.sqrt(0.3**2 + W_MIN_STABLE**2)
-    zl = np.array(z_over_l)
-    at_or_beyond = zl >= ZL_WMIN_RAMP
-    np.testing.assert_allclose(factor[at_or_beyond], full, rtol=1e-12, atol=0)
-    # strictly between the full factor and 1 inside the ramp, so a constant
-    # full-strength or absent scale fails
-    inside = (zl >= 1e-3) & (zl < ZL_WMIN_RAMP)
-    assert inside.sum() >= 10
-    assert np.all(factor[inside] > full * (1 + 1e-6))
-    assert np.all(factor[inside] < 1 - 1e-6)
-    # tends to 1 as (z-d)/L -> 0+: 1 - factor shrinks with (z-d)/L
-    gap = 1 - factor[: len(near_neutral)]
-    assert np.all(np.diff(gap) > 0)
-    np.testing.assert_allclose(factor[0], 1.0, rtol=1e-9, atol=0)
+    # ASSERT: non-decreasing up to the psi switch, with the full factor at
+    # every stability
+    rel_step = np.diff(ra, axis=1) / ra[:, :-1]
+    assert rel_step.min() > -1e-3
+    np.testing.assert_allclose(
+        out[:, 0],
+        _pr_resistance(rows, out) * _velocity_factor(rows),
+        rtol=ROUNDOFF_RTOL,
+        atol=0,
+    )
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])
@@ -356,9 +357,9 @@ def test_retained_free_convection_still_differs_across_neutral(probe, method):
     """Documents existing (#1956) behaviour, not a requirement of #1979: the
     outer iteration relaxes w_f separately from (z-d)/L, so a pass can reach
     (z-d)/L near zero with a non-zero w_f retained. Just below neutral r_a
-    then takes that w_f; just above it takes the ramped w_min, which is close
-    to zero. The two differ by U/sqrt(U**2 + w_f**2), about 0.707 at
-    U = w_f = 0.3 m s-1."""
+    then takes that w_f on top of W_MIN; just above it takes W_MIN only. The
+    two differ by sqrt(U**2 + W_MIN**2)/sqrt(U**2 + W_MIN**2 + w_f**2), about
+    0.89 at U = w_f = 0.3 m s-1."""
     # ARRANGE: (z-d)/L = -+1e-12, where every psi is zero, with w_f retained
     winds = (0.3, 1.5)
     retained_wf = 0.3
@@ -371,10 +372,12 @@ def test_retained_free_convection_still_differs_across_neutral(probe, method):
 
     # ASSERT
     wind = np.array(winds)
-    expected = wind / np.sqrt(wind**2 + retained_wf**2)
+    expected = np.sqrt(wind**2 + W_MIN**2) / np.sqrt(
+        wind**2 + W_MIN**2 + retained_wf**2
+    )
     assert ra_stable.min() > RA_FLOOR
     np.testing.assert_allclose(ra_unstable / ra_stable, expected, rtol=1e-9, atol=0)
-    assert ra_unstable[0] / ra_stable[0] < 0.75
+    assert ra_unstable[0] / ra_stable[0] < 0.9
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])
@@ -385,12 +388,9 @@ def test_free_convection_term_follows_its_equation(probe, method):
     # ACT
     out = probe(3, rows)
 
-    # ASSERT: the whole resistance scales by U/U_e, and z0v keeps the
-    # original u*
-    wind = rows[:, 2].astype(float)
-    w_f = rows[:, 5].astype(float)
-    wind_eff = np.sqrt(wind**2 + w_f**2)
-    expected = _pr_resistance(rows, out) * wind / wind_eff
+    # ASSERT: the whole resistance scales by U/U_e with
+    # U_e = sqrt(U**2 + W_MIN**2 + w_f**2), and z0v keeps the original u*
+    expected = _pr_resistance(rows, out) * _velocity_factor(rows)
     np.testing.assert_allclose(
         out[:, 0], np.maximum(expected, RA_FLOOR), rtol=ROUNDOFF_RTOL, atol=0
     )
@@ -421,8 +421,8 @@ def test_free_convection_lowers_unstable_resistance_and_vanishes_smoothly(
 
 @pytest.mark.parametrize("method", [2, 3, 4])
 def test_stable_and_neutral_resistance_ignore_free_convection(probe, method):
-    """w_f never acts on the stable side, whose velocity scale is
-    w_min (tested above)."""
+    """w_f never acts on the stable side or in the neutral equation, which
+    take W_MIN only (tested above)."""
     # ARRANGE: stable (z-d)/L, and the neutral equation (u* = 0)
     stable = _resistance_cases([1e-12, 0.1, 0.5], [0.0, 0.3, 1.0], method)
     neutral = stable.copy()

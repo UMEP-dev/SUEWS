@@ -68,6 +68,18 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
   dependency edges that keep `make -j` safe:
   `python scripts/suews/gen_fortran_deps.py` (writes `src/suews/Makefile.deps`;
   `test/core/test_fortran_deps.py` fails when it is stale)
+- **Record how a commit was verified.** End each agent-authored commit message
+  with a trailer
+  `Verified: <commands run and their result>`, for example
+  `Verified: make test-smoke (passed)`, or `Verified: none (<reason>)`.
+  `Verified: none` records a skipped check; it does not excuse a check this
+  section requires.
+  The trailer is a report, not a confirmation: CI or a reviewer confirms
+  (`AGENTS.md`, Principle 1). `git log --grep "Verified: none"` then lists
+  commits that carried no check.
+  This is a decision (Ting Sun, 17 Nov 2026): a commit does not show which checks
+  an agent actually ran; it is overturned if a hook or CI records the same
+  information automatically.
 
 ## Quick Start
 

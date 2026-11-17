@@ -31,6 +31,12 @@ It applies in both modes; the sections below give the pipeline's detail.
   The place kept is the one higher in the authority order in `AGENTS.md`; inside a change with another goal, the duplicate is reported instead.
 - Where two places contradict each other, follow the higher one for the task in hand and report the contradiction.
   Neither is silently picked, and neither is silently corrected.
+- A pull request that adds a rule states its origin in the PR body: the pull requests, issues or recorded incident it comes from, at least two or one recorded incident, or the named person whose decision it records.
+  The threshold is a decision (Ting Sun, 17 Nov 2026): rules written after a single occurrence keep growing the rule files; it is overturned if a lesson this threshold kept out later causes an incident.
+  A rule that comes from a review miss or an incident also says how it is recognised: from a diff, for a rule a reviewer applies, or from the agent's own actions, for a rule an agent applies while working.
+  A lesson that cannot be recognised either way belongs in the documentation, not in a rule.
+- Rules are pruned: a duplicate is replaced by a pointer, as above; a statement now enforced by CI or a hook, or whose reason no longer holds, is removed in its own pull request, which names the enforcing check or says why the reason lapsed.
+  Instruction files only grow if nobody removes anything.
 
 ### Evidence (Principle 1)
 
@@ -58,6 +64,11 @@ It applies in both modes; the sections below give the pipeline's detail.
 - Expected values (reference fixtures, snapshots) change only with the evidence the owning rule requires.
 - A claim that needs several steps (for example "this removed text has no other home") states the steps.
   Only a question for which no steps can be stated is a judgement under Principle 2, and it goes to a named person at once.
+- A fix loop on a failing check is bounded.
+  After three fix attempts on the same failure, the agent stops, records each attempt and its result in the pull request or report, and escalates to a named person.
+  The bound is a decision (Ting Sun, 17 Nov 2026): a loop still failing after three attempts is usually heading the wrong way rather than one attempt short; it is overturned if the record shows fourth or later attempts often succeed.
+  A fix attempt changes the code under test; editing the check instead is governed by "Gates", not by this bound.
+- A check that passes and fails on the same commit in the same environment is a defect to diagnose, not to route around (`tests/patterns.md`, "Flaky Tests").
 
 ### Gates (Principle 2)
 
@@ -75,6 +86,12 @@ It applies in both modes; the sections below give the pipeline's detail.
 - A change to model output values, or to what a user of the model can see (names, units, defaults and semantics of interfaces, YAML fields and output variables; runtime dependencies), is accepted by a named person.
   For a physics change, a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge.
   A structural schema or data-model migration is a design choice with no evidence to prepare first, so the wait is before implementation.
+- A change does not edit the checks that judge it.
+  A pull request that changes code does not, in the same pull request, loosen a tolerance, weaken or remove an assertion of an existing test, add a skip or xfail to an existing test, or change `AGENTS.md`, a file under `.claude/` or a required CI check.
+  Here code means everything except tests, `AGENTS.md`, `.claude/`, `dev-ref/`, the documentation and CI configuration.
+  Such an edit goes in its own pull request that says why the check or rule should change.
+  Exempt: tests added for the new behaviour, an assertion changed to the intended new behaviour with the reason stated in the PR body, an assertion removed together with the behaviour it tested, and a fixture or snapshot refresh carrying the evidence its owning rule requires (for physics fixtures, `physics-change-evidence.md`).
+- A reviewer judges the rest of a change against the rules on the base branch, not those on the change's own head; a change to the rules themselves is reviewed as a proposal, including its consistency with the other files on the head.
 
 ### Agents (Principles 1 and 3)
 

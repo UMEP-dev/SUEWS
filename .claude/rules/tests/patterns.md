@@ -642,6 +642,18 @@ A test that passes and fails on the same commit is a defect, in the test or in t
 - If the cause is not found, propose deleting the test in its own pull request, with the failure mode, the reproduction attempts and a tracking issue; a maintainer approves it.
 - Record the cause or the deletion reason where the next reader will look: the fix commit message or the test's docstring.
 
+## Differential and Property Tests
+
+Use these where the expected value cannot be written down by hand, or where the author of the code would also choose the cases.
+
+- **Differential**: when one implementation replaces another (Fortran to Rust, a rewritten converter, an optimised path), run both on the same inputs and compare variable by variable.
+  Any difference beyond the comparison's stated tolerance is a defect or an approved change; approved differences are listed in the test with a reason and an issue reference.
+  Normalise only what does not matter (column order, whitespace), and say so in the test.
+- **Property**: state what must hold for every input and let a generator (Hypothesis) produce the inputs.
+  Candidates: YAML to config object to YAML round-trip; converter idempotency (upgrading an already-current file changes nothing); state save and restore equal to an uninterrupted run; energy and water balance closure within the stated tolerance.
+  Make the generator deterministic in CI with a registered settings profile (`derandomize=True`, as in `test/physics/test_numerics_properties.py`), keep each property test under the tier's time budget, and record a failing example as an ordinary regression test.
+- A property or differential test that fails is handled like any other failure: fix the code or escalate; never narrow the generator to avoid the failing case without saying why in the test.
+
 ---
 
 ## Validation Edge Cases

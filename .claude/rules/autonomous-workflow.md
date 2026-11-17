@@ -31,6 +31,10 @@ It applies in both modes; the sections below give the pipeline's detail.
   The place kept is the one higher in the authority order in `AGENTS.md`; inside a change with another goal, the duplicate is reported instead.
 - Where two places contradict each other, follow the higher one for the task in hand and report the contradiction.
   Neither is silently picked, and neither is silently corrected.
+- A new rule that comes from a review miss or an incident names at least two pull requests or issues where the problem occurred, or one recorded incident, and says how a reviewer recognises it from a diff.
+  A lesson that cannot be recognised from a diff belongs in the documentation, not in a rule.
+- Rules are pruned: a statement that duplicates another, that is now enforced by CI or a hook, or whose reason no longer holds is removed in its own pull request, naming what replaces it.
+  Instruction files only grow if nobody removes anything.
 
 ### Evidence (Principle 1)
 

@@ -41,6 +41,10 @@ recommendation instead of spending the review on an unreviewable diff:
   judge the rest of the diff against the base version and review the rule change
   as its own finding; a code change bundled with an edit to its own checks is
   `[major]`.
+- **Regression checklist**: read `dev-ref/REGRESSION_CHECKLIST.md` from the base
+  branch, match each trigger against the diff, and report every matched item as
+  checked, not applicable (with the reason), or failed (`[major]`). Do not check
+  unmatched items.
 - **Size gate (first)**: see "Size Gate" above -- recommend a split before reviewing an oversized or bundled PR
 - **Code Style**: lint-code
 - **Scientific**: Physics validation (if applicable)

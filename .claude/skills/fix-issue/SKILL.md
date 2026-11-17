@@ -148,6 +148,8 @@ If validation is blocked by environment setup, record a public-safe description
 of the blocker in the PR body, with any absolute local paths, host names, or
 internal references replaced by neutral phrasing (e.g. "the editable build step
 failed in the local toolchain").
+Before committing, apply the matched items of `dev-ref/REGRESSION_CHECKLIST.md`,
+read from the base branch.
 
 ### 4. Commit And Open/Update PR
 

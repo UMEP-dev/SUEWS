@@ -93,7 +93,7 @@ gh pr edit <PR_NUMBER> --remove-from-merge-queue
 ## Best Practices
 
 ### Before Queueing
-1. **Confirm PR CI (`pr-gate`) and reviews are complete** -- including `/audit-pr` convergence and any required `0-physics:change` domain-owner sign-off (`@yiqing1021` for STEBBS; `@sunt05` default).
+1. **Confirm PR CI (`pr-gate`) and reviews are complete** -- including `/audit-pr` convergence and any required `0-physics:change` domain-owner sign-off (who signs off for each module is recorded in [`MAINTAINERS.md`](../MAINTAINERS.md)).
 2. **Update stale branches cleanly** (only on branches you own, or with explicit per-branch approval):
    ```bash
    git fetch origin master

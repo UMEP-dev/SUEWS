@@ -108,7 +108,7 @@ For parallel work across multiple issues or PRs, prefer `git worktree` rather th
 
 2. **Open a Pull Request**:
    - Open as a Draft PR early if you want CI feedback on reduced tiers; mark Ready for review once tests, docs, and `CHANGELOG.md` (if applicable) are complete.
-   - If the PR alters model physics or reference fixtures, apply `0-physics:change`, include a `## Scientific evidence` section, refresh moved fixtures in the same PR, and obtain required domain-owner sign-off (for example `@yiqing1021` for STEBBS; see `.claude/rules/physics-change-evidence.md` and [SCIENTIFIC_REVIEWERS.md](SCIENTIFIC_REVIEWERS.md)).
+   - If the PR alters model physics or reference fixtures, apply `0-physics:change`, include a `## Scientific evidence` section, refresh moved fixtures in the same PR, and obtain required domain-owner sign-off (the rule is `.claude/rules/physics-change-evidence.md`; who signs off for each module is recorded in [`MAINTAINERS.md`](../MAINTAINERS.md)).
 
 3. **Merge via the Merge Queue (Never Push Directly to `master`)**:
    - Branch protection prohibits direct pushes to `master`.

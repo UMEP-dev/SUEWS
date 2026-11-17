@@ -8,14 +8,13 @@
 
 ## Overview
 
-This document outlines how SUEWS connects issue triage, pull-request review, scientific evidence gates, and code-governance routing. SUEWS does not maintain a GitHub `CODEOWNERS` file; reviewer routing is documented here, in [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md), and in [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and enforced during review via `/audit-pr` and CI checks.
+This document outlines how SUEWS connects issue triage, pull-request review, scientific evidence gates, and code-governance routing. SUEWS does not maintain a GitHub `CODEOWNERS` file; who holds each role is recorded in [`MAINTAINERS.md`](../MAINTAINERS.md), reviewer routing is documented here and in [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and enforced during review via `/audit-pr` and CI checks.
 
 ## Review and Governance Panels
 
 ### Scientific Review and Domain-Owner Gates
 
-Scientific reviewer routing is maintained in [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md) alongside [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md):
-
+Domain-owner sign-off on `0-physics:change` PRs is governed by [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md).
 Scientific reviewers are listed in
 [`MAINTAINERS.md`](../MAINTAINERS.md). Use that file to identify
 reviewers for physics modules and request them manually when science review is
@@ -46,7 +45,7 @@ Open issues carry the four-tier label hierarchy defined in [`.claude/rules/label
 - **Type (`1-*`, pick one)**: `1-bug`, `1-feature`, `1-maintenance`, `1-question`
 - **Area (`2-*`, one or more)**: `2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`
 - **Priority (`3-*`, pick one)**: `3-P0`, `3-P1`, `3-P2`
-- **Status (`4-*`, pick one)**: `4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-needs-obs`, `4-deferred`
+- **Status (`4-*`, pick one)**: `4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-deferred`
 
 Assignees are set only when someone is expected to drive the issue. For module
 issues that need scientific input, use the relevant `2-module:*` label and
@@ -70,7 +69,7 @@ Per [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change
    - Which physical quantities change and the physical mechanism chain.
    - A before/after comparison (table or figure) of the affected outputs.
    - Expected sign and magnitude reasoning explaining why the new values are physically right.
-2. **Blocking domain-owner sign-off** where applicable (STEBBS -> `@yiqing1021`; otherwise maintainer `@sunt05`), plus manual requests to relevant advisory reviewers in [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md).
+2. **Domain-owner sign-off** where the rule requires it: the person in the "Sign-off required from" column of [`MAINTAINERS.md`](../MAINTAINERS.md), or the software maintainer for a module with no named owner, plus manual requests to the advisory reviewers listed there (see "Scientific Review Request" below).
 3. **Reference-fixture refresh in the same PR**, generated from the CI `reference-regenerated-cp312-manylinux-x86_64` artefact (`scripts/suews/gen_sample_output.py`, updating both the shards and `test/fixtures/data_test/provenance.json`).
 4. **Green `physics-full` CI tier** before merge (`determine-matrix.sh` automatically selects `test_tier=physics-full` on ready PRs and merge-queue runs carrying `0-physics:change`).
 

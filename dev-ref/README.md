@@ -2,14 +2,11 @@
 
 This directory contains internal documentation, architectural rationale, and audit ledgers for SUEWS core developers and coding agents.
 
-## Authority Hierarchy
+## Authority
 
-When guidance in this repository appears to conflict, follow this precedence order from highest to lowest:
-
-1. **Executable CI gates and lint scripts** (`scripts/lint/*`, `scripts/suews/*`, `.claude/scripts/validate-claude-md.py`, `.github/workflows/*`).
-2. **[`AGENTS.md`](../AGENTS.md) and `.claude/rules/**/*.md`** (standing rules and coding, documentation, and workflow contracts).
-3. **`.claude/skills/**` and `.claude/agents/*.md`** (operational workflows and review subagents).
-4. **`dev-ref/*.md`** (architectural rationale, whole-repository audit protocol, and dated subsystem ledgers; when a `dev-ref/` example drifts from `.claude/rules/`, `.claude/rules/` wins).
+These guides are the lowest authority among the repository's instruction files.
+The order is stated in [`AGENTS.md`](../AGENTS.md) ("Authority and amendment") and nowhere else;
+when a guide here disagrees with a rule, skill or agent file, follow the higher one and report the disagreement.
 
 ## Quick Navigation
 

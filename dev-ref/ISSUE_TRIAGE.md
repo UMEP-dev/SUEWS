@@ -16,7 +16,7 @@ Every open issue carries labels from the four tiers below, using **only** existi
 - **`1-*` Type (exactly one)**: `1-bug`, `1-feature`, `1-maintenance` (never `1-enhancement`), `1-question`
 - **`2-*` Area (one or more)**: `2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`
 - **`3-*` Priority (exactly one on an open issue)**: `3-P0`, `3-P1`, `3-P2`
-- **`4-*` Status (exactly one on an open issue)**: `4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-needs-obs`, `4-deferred`
+- **`4-*` Status (exactly one on an open issue)**: `4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-deferred`
 
 **`0-*` Automation and CI metadata labels** do not count towards the four tiers and are applied only where a rule or skill calls for them:
 - Issue automation / provenance: `0-auto:audited` (applied by `/triage-issue` after auditing an issue), `0-source:discourse` (imported from SUEWS Discourse)
@@ -67,7 +67,6 @@ What is the current execution state? (Never leave two 4-* labels on one issue)
 |-- Waiting on another issue, PR, or prerequisite  -> 4-needs-deps
 |-- Agenda item needing maintainer decision        -> 4-needs-discussion
 |-- Requires scientific input or model judgement   -> 4-needs-science
-|-- Requires observational data / evaluation       -> 4-needs-obs
 `-- Valid issue, not planned for near-term work    -> 4-deferred
 ```
 
@@ -140,7 +139,6 @@ Before marking an issue `4-ready`, verify that it represents a single, reviewabl
 - `4-needs-deps` - Blocked on another issue, PR, or upstream dependency
 - `4-needs-discussion` - Queued for the weekly dev catch-up meeting; remove once decided
 - `4-needs-science` - Needs scientific evidence, parameterisation choice, or domain sign-off
-- `4-needs-obs` - Needs observational dataset evaluation before proceeding
 - `4-deferred` - Valid issue parked outside near-term priorities
 
 *Note*: Untiered labels (such as `1-enhancement`, `design-sensitive`, `mechanical`, or `hard-gate`) are retired and must not be recreated.
@@ -159,10 +157,6 @@ Before marking an issue `4-ready`, verify that it represents a single, reviewabl
 **Issue**: "Decide deprecation timeline for legacy table converter flags"
 - `1-maintenance`, `2-infra:input`, `2-meta:governance`, `3-P2`, `4-needs-discussion`
 
-### Example 4: Observational Evaluation Needed
-**Issue**: "Calibrate new storage-heat coefficients against urban flux-tower observations"
-- `1-feature`, `2-module:ohm`, `3-P2`, `4-needs-obs`
-
 ## Useful GitHub Search Filters
 
 ```text
@@ -172,8 +166,8 @@ is:issue is:open label:3-P0,3-P1 label:4-ready
 # Weekly dev meeting agenda
 is:issue is:open label:4-needs-discussion
 
-# Issues awaiting scientific or observational input
-is:issue is:open label:4-needs-science,4-needs-obs
+# Issues awaiting scientific input
+is:issue is:open label:4-needs-science
 
 # Unaudited open issues (for /triage-issue batch sweeps)
 is:issue is:open -label:0-auto:audited
@@ -185,6 +179,6 @@ is:issue is:open -label:0-auto:audited
 - [ ] Set exactly one `1-*` type (`1-bug`, `1-feature`, `1-maintenance`, `1-question`)
 - [ ] Set one or more `2-*` area labels (`2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`)
 - [ ] Set exactly one `3-*` priority (`3-P0`, `3-P1`, `3-P2`)
-- [ ] Set exactly one `4-*` status (`4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-needs-obs`, `4-deferred`)
+- [ ] Set exactly one `4-*` status (`4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-deferred`)
 - [ ] Verify right-sizing (`work-sizing.md`) before marking `4-ready`
 - [ ] Close completed issues directly rather than inventing a "done" label

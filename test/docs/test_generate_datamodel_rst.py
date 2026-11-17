@@ -898,6 +898,7 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
     }
 
     # ASSERT
+    assert fields["Conductance"]["g_max"]["unit"] == "1"
     assert fields["Conductance"]["g_k"]["unit"] == "W m-2"
     assert fields["Conductance"]["g_sm"]["unit"] == "m2 kg-1"
     assert fields["Conductance"]["g_q_base"]["unit"] == "model-dependent"

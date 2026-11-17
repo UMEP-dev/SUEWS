@@ -6,17 +6,12 @@ MODULE module_phys_resist
 
    ! Numerical guard only [m s-1]: rb divides by UStar. Not a physical limit.
    REAL(KIND(1D0)), PARAMETER :: USTAR_GUARD = 1.0D-12
-   ! Minimum velocity scale for the stable and neutral aerodynamic resistance
-   ! [m s-1] (#1979): the counterpart of the free-convection velocity w_f, which
-   ! acts only on unstable steps. Mahrt and Sun (1995) give 0.5 m s-1 as a
-   ! globally constant subgrid velocity scale, from grid-averaged aircraft
-   ! data.
-   REAL(KIND(1D0)), PARAMETER :: W_MIN_STABLE = 0.5D0
-   ! (z-d)/L over which the minimum velocity scale ramps in linearly from zero
-   ! at neutral [-] (#1979). In the limit w_f -> 0, as (z-d)/L goes to zero
-   ! from below, the ramp keeps r_a continuous where (z-d)/L changes sign;
-   ! from this value up to the stable clip the full W_MIN_STABLE acts.
-   REAL(KIND(1D0)), PARAMETER :: ZL_WMIN_RAMP = 0.1D0
+   ! Minimum velocity scale for the aerodynamic resistance [m s-1] (#1979),
+   ! added in quadrature to the wind on every step, with the free-convection
+   ! velocity w_f on top on unstable steps. Mahrt and Sun (1995) give 0.5 m s-1
+   ! as a globally constant subgrid velocity scale, from grid-averaged
+   ! aircraft data.
+   REAL(KIND(1D0)), PARAMETER :: W_MIN = 0.5D0
 
 CONTAINS
    SUBROUTINE AerodynamicResistance( &
@@ -55,9 +50,9 @@ CONTAINS
       !         L_mod = Obukhov length (m)
       !         UStar = Friction velocity (m s-1)
       !         w_f = Free-convection velocity scale (m s-1), used only when unstable
-      !         W_MIN_STABLE (module constant) = minimum velocity scale (m s-1),
-      !               used only when stable or neutral; never together with w_f;
-      !               ramped in linearly over 0 <= (z-d)/L < ZL_WMIN_RAMP
+      !         W_MIN (module constant) = minimum velocity scale (m s-1), on
+      !               every step, neutral equation included; w_f is added to
+      !               it on unstable steps
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
@@ -94,7 +89,7 @@ CONTAINS
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
       REAL(KIND(1D0)) :: wind_eff ! wind speed with w_f or w_min added [m s-1]
-      REAL(KIND(1D0)) :: w_min ! minimum velocity scale after the neutral ramp [m s-1]
+      REAL(KIND(1D0)) :: wind_eff2 ! square of wind_eff [m2 s-2]
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
@@ -122,46 +117,31 @@ CONTAINS
          ELSE
             RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
             ! RA = AVU1/UStar**2
-            IF (ZZD/L_mod < 0 .AND. w_f > 0) THEN
-               ! Free convection (unstable only). Light mean wind understates the
-               ! exchange that convective eddies keep up, so RA uses the effective
-               ! wind wind_eff = SQRT(U**2 + w_f**2) in place of U. Every part of
-               ! RA scales alike: the interfacial part ln(z0m/z0V)/(k u*) takes
-               ! u* wind_eff/U, with no further w_f added to u*. z0V (Kawai kB-1)
-               ! keeps the original UStar, and UStar itself is unchanged for the
-               ! rest of the model.
-               wind_eff = SQRT(AVU1_use**2 + w_f**2)
-               RA_h = RA_h*AVU1_use/wind_eff
-            END IF
          END IF
 
-         IF (ZZD/L_mod >= 0) THEN
-            ! Minimum velocity scale (stable and neutral only, #1979). Under a
-            ! stable stratification the mean wind at light wind understates the
-            ! exchange that unresolved motions (meandering, submeso motions)
-            ! keep up, so r_a would grow as 1/U up to the (z-d)/L clip. As on the
-            ! unstable branch, r_a uses an effective wind, SQRT(U**2 + w_min**2),
-            ! in place of U, and every part of r_a scales by U/U_e. The test is
-            ! the sign test that keeps w_f off these steps, so the two velocity
-            ! scales never act together in one call and unstable r_a is
-            ! unchanged. UStar is not modified here. w_min ramps in linearly
-            ! from zero at neutral and reaches W_MIN_STABLE at ZL_WMIN_RAMP, so
-            ! r_a is continuous where (z-d)/L changes sign in the limit
-            ! w_f -> 0. A non-zero w_f retained by the between-pass relaxation
-            ! can still make r_a differ across the sign change (pre-existing
-            ! #1956 behaviour). The neutral equation (zero stability parameter
-            ! ZZD/L_mod, or UStar = 0) has w_min = 0. L_mod must be non-zero:
-            ! the stability functions above already divide by it.
-            IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
-               w_min = 0.0D0
-            ELSE
-               w_min = W_MIN_STABLE*MIN(1.0D0, (ZZD/L_mod)/ZL_WMIN_RAMP)
-            END IF
-            IF (w_min > 0) THEN
-               wind_eff = SQRT(AVU1_use**2 + w_min**2)
-               RA_h = RA_h*AVU1_use/wind_eff
-            END IF
-         END IF
+         ! Effective wind (#1979, #1956). r_a uses
+         ! wind_eff = SQRT(U**2 + W_MIN**2 [+ w_f**2]) in place of U, so every
+         ! part of r_a, the interfacial part ln(z0m/z0V)/(k u*) included, scales
+         ! by U/wind_eff. W_MIN acts on every step, neutral equation included:
+         ! at light wind the mean wind understates the exchange that unresolved
+         ! motions (meandering, submeso motions) keep up, and without it r_a
+         ! grows as 1/U, up to the (z-d)/L clip on stable steps. Because the
+         ! same W_MIN acts on both sides of neutral and does not depend on
+         ! (z-d)/L, r_a is continuous where (z-d)/L changes sign in the limit
+         ! w_f -> 0, and stable r_a is non-decreasing in (z-d)/L wherever the
+         ! stability functions are. On unstable steps the free-convection
+         ! velocity w_f is added as well: light mean wind understates the
+         ! exchange that convective eddies keep up. A non-zero w_f retained by
+         ! the between-pass relaxation can still make r_a differ across the
+         ! sign change (pre-existing #1956 behaviour). z0V (Kawai kB-1) keeps
+         ! the original UStar, and UStar itself is unchanged for the rest of
+         ! the model. L_mod must be non-zero: the stability functions above
+         ! already divide by it.
+         wind_eff2 = AVU1_use**2 + W_MIN**2
+         IF (ZZD/L_mod < 0 .AND. w_f > 0 .AND. .NOT. (Zzd/L_mod == 0 .OR. UStar == 0)) &
+            wind_eff2 = wind_eff2 + w_f**2
+         wind_eff = SQRT(wind_eff2)
+         RA_h = RA_h*AVU1_use/wind_eff
 
          !3) Thom and Oliver (1977)
       ELSEIF (AerodynamicResistanceMethod == 3) THEN

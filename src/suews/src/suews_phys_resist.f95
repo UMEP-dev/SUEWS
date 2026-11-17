@@ -13,9 +13,9 @@ MODULE module_phys_resist
    ! data.
    REAL(KIND(1D0)), PARAMETER :: W_MIN_STABLE = 0.5D0
    ! (z-d)/L over which the minimum velocity scale ramps in linearly from zero
-   ! at neutral [-] (#1979). w_f goes to zero as (z-d)/L goes to zero from
-   ! below, so the ramp keeps r_a continuous where (z-d)/L changes sign; from
-   ! this value up to the stable clip the full W_MIN_STABLE acts.
+   ! at neutral [-] (#1979). In the limit w_f -> 0, as (z-d)/L goes to zero
+   ! from below, the ramp keeps r_a continuous where (z-d)/L changes sign;
+   ! from this value up to the stable clip the full W_MIN_STABLE acts.
    REAL(KIND(1D0)), PARAMETER :: ZL_WMIN_RAMP = 0.1D0
 
 CONTAINS
@@ -143,12 +143,15 @@ CONTAINS
             ! unstable branch, r_a uses an effective wind, SQRT(U**2 + w_min**2),
             ! in place of U, and every part of r_a scales by U/U_e. The test is
             ! the sign test that keeps w_f off these steps, so the two velocity
-            ! scales never act together and unstable r_a is unchanged. UStar is
-            ! unchanged. w_f goes to zero as (z-d)/L goes to zero from below, so
-            ! w_min ramps in linearly from zero at neutral and reaches
-            ! W_MIN_STABLE at ZL_WMIN_RAMP: r_a is continuous where (z-d)/L
-            ! changes sign. The neutral equation (L or u* zero) is taken as
-            ! (z-d)/L = 0, where w_min is zero.
+            ! scales never act together in one call and unstable r_a is
+            ! unchanged. UStar is not modified here. w_min ramps in linearly
+            ! from zero at neutral and reaches W_MIN_STABLE at ZL_WMIN_RAMP, so
+            ! r_a is continuous where (z-d)/L changes sign in the limit
+            ! w_f -> 0. A non-zero w_f retained by the between-pass relaxation
+            ! can still make r_a differ across the sign change (pre-existing
+            ! #1956 behaviour). The neutral equation (zero stability parameter
+            ! ZZD/L_mod, or UStar = 0) has w_min = 0. L_mod must be non-zero:
+            ! the stability functions above already divide by it.
             IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
                w_min = 0.0D0
             ELSE

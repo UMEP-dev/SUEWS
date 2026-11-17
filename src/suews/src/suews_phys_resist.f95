@@ -9,7 +9,7 @@ MODULE module_phys_resist
    ! Minimum velocity scale for the stable and neutral aerodynamic resistance
    ! [m s-1] (#1979): the counterpart of the free-convection velocity w_f, which
    ! acts only on unstable steps. Mahrt and Sun (1995) give 0.5 m s-1 as a
-   ! globally constant subgrid velocity scale, fitted to grid-averaged aircraft
+   ! globally constant subgrid velocity scale, from grid-averaged aircraft
    ! data.
    REAL(KIND(1D0)), PARAMETER :: W_MIN_STABLE = 0.5D0
 

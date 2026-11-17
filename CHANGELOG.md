@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 17 Nov 2026
+
+- [doc] Add a temporal-profiles reference covering keys, timing, field uses and defaults, linked from the YAML guide and profile class pages (#1950)
+
 ### 15 Nov 2026
 
 - [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead

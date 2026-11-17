@@ -792,10 +792,23 @@ fn validate_checkpoint_ehc_temperatures(run_cfg: &RunConfig) -> Result<(), Bridg
     }
     let ndepth = usize::try_from(run_cfg.ndepth).unwrap_or(0);
     let nlayer = usize::try_from(run_cfg.nlayer).unwrap_or(0);
+    let heat = &run_cfg.state.heat_state;
+    // The checkpoint's heat-state arrays are laid out by the layer and depth
+    // counts it was written with; reading them by this configuration's counts
+    // would check the wrong entries and misname them, and the kernel would
+    // unpack them shifted.
+    if (heat.nlayer, heat.ndepth) != (nlayer, ndepth) {
+        return Err(simulation_error(format!(
+            "checkpoint heat state has nlayer = {}, ndepth = {}, but the configuration has \
+             nlayer = {nlayer}, ndepth = {ndepth}; storage heat method 5 (EHC) reads the \
+             checkpoint's initial temperatures by the configuration's layout, so the two \
+             must match",
+            heat.nlayer, heat.ndepth,
+        )));
+    }
     if ndepth == 0 {
         return Ok(());
     }
-    let heat = &run_cfg.state.heat_state;
     let checks: [(&str, &[f64], usize); 3] = [
         ("temp_surf", &heat.temp_surf, SURFACE_NAMES.len()),
         ("temp_roof", &heat.temp_roof, nlayer),
@@ -1413,6 +1426,7 @@ mod tests {
         BUILDING_SURFACE_INDEX, OUTPUT_GROUP_LAYOUT,
     };
     use crate::ffi;
+    use crate::heat_state::{heat_state_expected_flat_len, HeatState};
     use crate::yaml_config::load_run_config_from_str;
 
     fn fixture_run_config(storage_heat_method: i32) -> crate::yaml_config::RunConfig {
@@ -1455,14 +1469,37 @@ mod tests {
             error.contains("heat_state.temp_wall[0]") && error.contains("wall 1, depth 1"),
             "unexpected error: {error}"
         );
+    }
 
-        // Entries beyond the `nlayer` facets EHC reads are not checked.
+    /// A checkpoint written with more layers or depths than the resuming
+    /// configuration is rejected under EHC by its shape, before any entry is
+    /// read, even when the extra entries hold an unread NaN.
+    #[test]
+    fn resumed_ehc_checkpoint_must_match_the_configured_layout() {
         let mut run_cfg = fixture_run_config(5);
-        let read = run_cfg.nlayer as usize * ndepth;
-        run_cfg.state.heat_state.temp_roof.push(f64::NAN);
-        assert_eq!(run_cfg.state.heat_state.temp_roof.len(), read + 1);
+        let nlayer = run_cfg.nlayer as usize;
+        let ndepth = run_cfg.ndepth as usize;
+        let flat_len = heat_state_expected_flat_len(nlayer + 1, ndepth).expect("flat length");
+        let mut heat = HeatState::from_flat_with_dims(&vec![290.0; flat_len], nlayer + 1, ndepth)
+            .expect("a heat state with one extra layer should be well formed");
+        // An unread NaN in the extra roof layer, which a check by the
+        // configured layout would not reach.
+        heat.temp_roof[nlayer * ndepth] = f64::NAN;
+        heat.to_flat_checked()
+            .expect("the mismatched state is itself well formed");
+        run_cfg.state.heat_state = heat;
+        let error = validate_checkpoint_ehc_temperatures(&run_cfg)
+            .expect_err("a checkpoint with more layers than configured should be rejected")
+            .to_string();
+        assert!(
+            error.contains(&format!("nlayer = {}, ndepth = {ndepth}", nlayer + 1))
+                && error.contains(&format!("nlayer = {nlayer}, ndepth = {ndepth}")),
+            "unexpected error: {error}"
+        );
+
+        run_cfg.config.storage_heat_method = 1;
         validate_checkpoint_ehc_temperatures(&run_cfg)
-            .expect("entries EHC does not read should not be checked");
+            .expect("the layout is not checked outside EHC");
     }
 
     #[test]

@@ -136,3 +136,22 @@ def test_resume_under_ehc_rejects_an_unread_initial_temperature():
     message = str(exc.value)
     assert "heat_state.temp_surf[2]" in message
     assert "paved" in message
+
+
+def test_resume_under_ehc_accepts_a_checkpoint_written_under_ehc():
+    """Positive control for the resume check above: a checkpoint written by a
+    run under storage heat method 5, where EHC writes the temperatures it
+    reads, continues under the same configuration."""
+    sim = SUEWSSimulation.from_sample_data()
+    rust = _run_rust._check_rust_available()
+    forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:4])
+    config = sim.config.model_dump(exclude_none=True, mode="json")
+    config["model"]["physics"]["storage_heat"] = {"value": 5}
+    config_yaml = yaml.safe_dump(config)
+    _output, state_json, _length, _warnings = rust.run_suews(
+        config_yaml, forcing[:2].ravel(order="C").tolist(), 2
+    )
+    _output, _state, length, _warnings = rust.run_suews_with_state(
+        config_yaml, forcing[2:4].ravel(order="C").tolist(), 2, state_json
+    )
+    assert length == 2

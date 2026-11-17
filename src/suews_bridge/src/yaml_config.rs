@@ -866,8 +866,9 @@ fn facet_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
 /// fraction per layer is required as a whole list, and the entries the
 /// kernel reads in `height`, `building_frac` and `building_scale` must be
 /// finite; the vegetation lists are checked the same way only under
-/// SPARTACUS (`vegetation_layers_are_read`). A null in an entry the kernel
-/// does not read is carried as absent (`LAYER_VALUE_ABSENT`). A missing or
+/// SPARTACUS (`vegetation_layers_are_read`). A null or non-finite number in
+/// an entry the kernel does not read is carried as absent
+/// (`LAYER_VALUE_ABSENT`). A missing or
 /// short `height`, `building_scale` or vegetation list still leaves the
 /// allocated values in place; requiring those is left to the block-by-block
 /// conversion. Each roof and wall layer's `emis` is required when SPARTACUS

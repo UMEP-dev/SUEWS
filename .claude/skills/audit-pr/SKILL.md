@@ -36,16 +36,18 @@ recommendation instead of spending the review on an unreviewable diff:
 ## Workflow
 
 - **Context**: Gather files, classify changes
-- **Rule source**: Read rules and skills from the base branch
-  (`git show origin/master:<path>`), not the PR head. If the PR changes a rule,
-  judge the rest of the diff against the base version and review the rule change
-  as its own finding; a code change bundled with an edit to its own checks is
-  `[major]`.
+- **Size gate (first)**: see "Size Gate" above -- recommend a split before reviewing an oversized or bundled PR
+- **Rule source**: Read `AGENTS.md`, rules, skills and agents from the PR's base
+  branch (`git show origin/<base>:<path>`, after fetching it), not the PR head.
+  If the PR changes one of them, judge the rest of the diff against the base
+  version and review that change as its own finding; a code change bundled with
+  an edit that `.claude/rules/autonomous-workflow.md` ("Gates": a change does not
+  edit the checks that judge it) forbids is `[major]`.
 - **Regression checklist**: read `dev-ref/REGRESSION_CHECKLIST.md` from the base
   branch, match each trigger against the diff, and report every matched item as
-  checked, not applicable (with the reason), or failed (`[major]`). Do not check
-  unmatched items.
-- **Size gate (first)**: see "Size Gate" above -- recommend a split before reviewing an oversized or bundled PR
+  checked (with the command run or the lines inspected), not applicable (with
+  the reason), not verified (with what is missing), or failed (`[major]`). Do
+  not check unmatched items.
 - **Code Style**: lint-code
 - **Scientific**: Physics validation (if applicable)
 - **Testing**: Coverage, FIRST principles
@@ -94,8 +96,9 @@ cannot move. Every non-green check gets a diagnosis and a named remedy in the dr
    actionable part; state it. Remedies compound: gh#1642 needed
    `maintainer-gated -> re-trigger`, and neither half alone cleared the gate.
    Classify a failure as flake only with evidence that the same test passed and
-   failed on the same commit, and name the test; a flake on a required check is
-   reported with a tracking issue, not left to a rerun.
+   failed on the same commit in the same job and environment, and name the
+   test; for a flake on a required check, the draft cites an existing tracking
+   issue or proposes one, rather than leaving it to a rerun.
 
 3. **Report it as a finding** with a severity: red required or convention-blocking
    check -> `[blocking]`; a bypass label applied for a reason the diff does not

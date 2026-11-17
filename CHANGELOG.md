@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 17 Nov 2026
 
-- [maintenance] Bound a fix loop on one failing check to three attempts before escalation, keep a pull request from loosening the checks that judge it, and have reviewers read rules from the base branch, in `.claude/rules/autonomous-workflow.md` and the `fix-issue` and `audit-pr` skills; `.claude/rules/tests/patterns.md` gains a Flaky Tests section, and `audit-pr` classes a failure as flake only with same-commit evidence; a new `dev-ref/REGRESSION_CHECKLIST.md` lists past failures with triggers readable from the diff, which `audit-pr` and `fix-issue` check; `tests/patterns.md` gains a section on differential and property tests, pointed to from the Rust bridge contract; agent-authored commits end with a `Verified:` trailer; and rules from a review miss need two occurrences or a recorded incident, with duplicated or CI-enforced statements pruned
+- [maintenance] Bound a fix loop on one failing check to three attempts before escalation, keep a pull request from loosening the checks that judge it, and have reviewers read rules from the base branch, in `.claude/rules/autonomous-workflow.md` and the `fix-issue` and `audit-pr` skills; `.claude/rules/tests/patterns.md` gains a Flaky Tests section, and `audit-pr` classes a failure as flake only with same-commit evidence; a new `dev-ref/REGRESSION_CHECKLIST.md` lists past failures with triggers readable from the diff, which `audit-pr` and `fix-issue` check; `.claude/rules/tests/patterns.md` gains a section on differential and property tests, pointed to from the Rust bridge contract; agent-authored commits end with a `Verified:` trailer; and rules from a review miss need two occurrences or a recorded incident, with duplicated or CI-enforced statements pruned
 
 ### 15 Nov 2026
 

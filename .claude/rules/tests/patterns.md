@@ -338,7 +338,7 @@ Only `test/` is wired into the package's wheel-test machinery: [fact: git grep -
 
 So a test's *location* determines whether it is actually run and disciplined.
 A test for shipped `src/supy/**` code that lives under `benchmark/` is the
-canonical mistake: it tests core code but is invisible to wheel CI. Move it to
+canonical mistake: it tests core code but is invisible to wheel CI. [fact: git grep -n "pytest benchmark/tests" .github/workflows/benchmark-regression.yml] Move it to
 the matching `test/` subdirectory and give it a nature marker.
 
 If a fixture lives in a git tag or external source, **vendor a minimal,

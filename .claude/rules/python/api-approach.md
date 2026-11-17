@@ -14,7 +14,7 @@ Guidance on the modern OOP interface (`src/supy/suews_sim.py::SUEWSSimulation`) 
 
 **Use `SUEWSSimulation` for all new scripts and tutorials.**
 
-The class-based interface validates inputs through `SUEWSConfig`, wraps forcing and outputs in typed containers (`SUEWSForcing`, `SUEWSOutput`), and supports lossless typed checkpoint continuation (`SUEWSCheckpoint`). [fact: git grep -n -e "^class SUEWSForcing" -e "^class SUEWSOutput" -e "^class SUEWSCheckpoint" src/supy]
+The class-based interface validates inputs through `SUEWSConfig`, wraps forcing and outputs in typed containers (`SUEWSForcing`, `SUEWSOutput`), and supports lossless typed checkpoint continuation (`SUEWSCheckpoint`). [fact: git grep -n "^class SUEWSForcing" src/supy && git grep -n "^class SUEWSOutput" src/supy && git grep -n "^class SUEWSCheckpoint" src/supy]
 
 ---
 
@@ -43,7 +43,7 @@ sim_legacy = SUEWSSimulation.from_state("output/df_state.csv")
 
 ### Configuration and Forcing Updates
 
-`update_config()` accepts `str | Path | dict | SUEWSConfig` (never arbitrary `**kwargs`). Partial update dicts mirror the nested YAML hierarchy and are re-validated through `SUEWSConfig`: [fact: git grep -n "config: Union\[str, Path, dict, SUEWSConfig\]" src/supy/suews_sim.py]
+`update_config()` accepts `str | Path | dict | SUEWSConfig` (never arbitrary `**kwargs`). Partial update dicts mirror the nested YAML hierarchy and are re-validated through `SUEWSConfig`: [fact: git grep -n "config: Union\\[str, Path, dict, SUEWSConfig\\]" src/supy/suews_sim.py]
 
 ```python
 # Update nested config fields and forcing (supports method chaining)

@@ -82,7 +82,7 @@ Follow the existing pattern (e.g. `ohm_state.rs` or `heat_state.rs`):
 3. Add `#[pyclass]` and PyO3 methods if Python-visible (`to_dict`, `from_dict`, `to_values_payload`, `from_values_payload`)
 4. Register in `lib.rs` module list and Python module
 5. Add corresponding Fortran C API functions in `c_api/` if new physics calculations are needed
-6. Update `src/suews_bridge/build.rs` Fortran source list and `src/suews_bridge/bridge-manifest.json` (`python scripts/suews/check_bridge_manifest.py`) if new `.f95` facades or bridged types are added to `c_api/` [fact: git grep -n -e "c_api/" src/suews_bridge/build.rs src/suews_bridge/bridge-manifest.json]
+6. Update `src/suews_bridge/build.rs` Fortran source list if new `.f95` facades are added to `c_api/`, and the derived type's entry in `src/suews_bridge/bridge-manifest.json` (`python scripts/suews/check_bridge_manifest.py`) when a public Fortran type becomes bridged [fact: git grep -n c_api/driver.f95 src/suews_bridge/build.rs && git grep -n "\"status\": \"bridged\"" src/suews_bridge/bridge-manifest.json]
 
 ---
 

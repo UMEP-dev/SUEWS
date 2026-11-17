@@ -96,7 +96,7 @@ guidance, which loads with each language's conventions:
   `.github/workflows/rust-clippy.yml` gates PRs with `cargo clippy ... -- -D
   warnings` under `SUEWS_BRIDGE_LINT_ONLY=1`, while `src/suews_bridge/src/lib.rs`
   explicitly allows FFI-shaped lints such as `too_many_arguments` and
-  `type_complexity` so those remain informal size signals). [fact: git grep -n -e "D warnings" -e "SUEWS_BRIDGE_LINT_ONLY" -e "allow(clippy::too_many_arguments)" .github/workflows/rust-clippy.yml src/suews_bridge/src/lib.rs]
+  `type_complexity` so those remain informal size signals). [fact: git grep -n "D warnings" .github/workflows/rust-clippy.yml src/suews_bridge/src/lib.rs && git grep -n SUEWS_BRIDGE_LINT_ONLY .github/workflows/rust-clippy.yml && git grep -n "allow(clippy::too_many_arguments)" src/suews_bridge/src/lib.rs]
 
 If a fix only stays small by editing an oversized function or god-module, prefer a
 small preparatory refactor PR first, then the fix on top.

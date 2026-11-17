@@ -21,8 +21,8 @@ Both failures below shipped after 2026.6.5 despite passing every other gate.
 `docs/source/conf.py` adds a "Development Version" announcement banner to every
 page when the resolved version string contains `.dev`
 (`is_dev_version = ".dev" in git_version_string`). The version comes from
-`get_ver_git.py::get_version_from_git`, which honours the
-`SUEWS_DOCS_VERSION_REF` environment variable. [fact: git grep -n -e "def get_version_from_git" -e SUEWS_DOCS_VERSION_REF get_ver_git.py]
+`get_ver_git.py::get_version_from_git`, to which `docs/source/conf.py` passes
+the `SUEWS_DOCS_VERSION_REF` environment variable as the git ref. [fact: git grep -n "def get_version_from_git" get_ver_git.py && git grep -n "get_version_from_git(docs_version_ref)" docs/source/conf.py]
 
 - The rolling **`latest`** docs (the `rtd` branch, built by `docs-sync.yml`
   with `SUEWS_DOCS_VERSION_REF=origin/master`) **should** show the banner --

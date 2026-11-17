@@ -10,7 +10,7 @@ paths:
 
 Rules for entries in `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`.
 
-These `.bib` files drive `docs/source/related_publications.rst` and `docs/source/community_publications.rst`. During Sphinx builds, `docs/source/_ext/publications_topic_annotate.py` reads each entry's BibTeX `keywords` field and stamps rendered bibliography `<li>` elements with `pub-entry` plus `pub-kw-<slug>` CSS classes; at page load, `docs/source/_static/publications-filter.js` mounts interactive topic filter chips inside `#pub-filter-mount` and syncs active topics with `?topic=<slug>[,<slug>...]` URL query parameters for deep-linking (replacing the retired static `.. _pub-<slug>:` RST subsections). The `audit-docs` skill (`.claude/skills/audit-docs/`) enforces this convention and backfills missing metadata. [fact: git grep -n -e "pub-kw-" -e "pub-filter-mount" docs/source/_ext/publications_topic_annotate.py docs/source/_static/publications-filter.js]
+These `.bib` files drive `docs/source/related_publications.rst` and `docs/source/community_publications.rst`. During Sphinx builds, `docs/source/_ext/publications_topic_annotate.py` reads each entry's BibTeX `keywords` field and stamps rendered bibliography `<li>` elements with `pub-entry` plus `pub-kw-<slug>` CSS classes; at page load, `docs/source/_static/publications-filter.js` mounts interactive topic filter chips inside `#pub-filter-mount` and syncs active topics with `?topic=<slug>[,<slug>...]` URL query parameters for deep-linking (replacing the retired static `.. _pub-<slug>:` RST subsections). The `audit-docs` skill (`.claude/skills/audit-docs/`) enforces this convention and backfills missing metadata. [fact: git grep -n pub-kw- docs/source/_ext/publications_topic_annotate.py docs/source/_static/publications-filter.js && git grep -n pub-filter-mount docs/source/_static/publications-filter.js]
 
 ---
 
@@ -49,20 +49,20 @@ Slug format:
 - `building-energy` -- urban meteorology for building energy simulations (vertical profiles, uTMY).
 - `model-infrastructure` -- SUEWS and SuPy code, coupling with atmospheric models (WRF, CBL), reanalysis forcing workflows.
 
-Keep this list in sync across both `.bib` header comments, `VOCAB` in `.claude/skills/audit-docs/scripts/audit.py`, and `SLUG_LABELS` in `docs/source/_static/publications-filter.js`. [fact: git grep -n -e "^VOCAB" -e "SLUG_LABELS = " .claude/skills/audit-docs/scripts/audit.py docs/source/_static/publications-filter.js]
+Keep this list in sync across both `.bib` header comments, `VOCAB` in `.claude/skills/audit-docs/scripts/audit.py`, and `SLUG_LABELS` in `docs/source/_static/publications-filter.js`. [fact: git grep -n "^VOCAB" .claude/skills/audit-docs/scripts/audit.py && git grep -n "SLUG_LABELS = " docs/source/_static/publications-filter.js]
 
 ## Multi-topic policy
 
-Papers can (and should) carry multiple slugs when they substantively contribute across themes. In the client-side filter, an entry stays visible whenever any of its `pub-kw-<slug>` classes matches an active chip, without duplicating citations across static subsections. [fact: git grep -n "slugs.some" docs/source/_static/publications-filter.js] Target average is ~1.5-2 tags per paper; do not stretch to include themes the paper only mentions in passing.
+Papers can (and should) carry multiple slugs when they substantively contribute across themes. In the client-side filter, an entry stays visible whenever any of its `pub-kw-<slug>` classes matches an active chip, without duplicating citations across static subsections. [fact: git grep -n slugs.some docs/source/_static/publications-filter.js] Target average is ~1.5-2 tags per paper; do not stretch to include themes the paper only mentions in passing.
 
 ## Expanding the vocabulary
 
 When adding a new slug:
 
 1. Update the controlled vocabulary list above.
-2. Update the header comment of both `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`. [fact: git ls-files docs/source/assets/refs/refs-SUEWS.bib docs/source/assets/refs/refs-community.bib]
+2. Update the header comment of both `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`. [fact: git ls-files --error-unmatch docs/source/assets/refs/refs-SUEWS.bib docs/source/assets/refs/refs-community.bib]
 3. Update `VOCAB` in `.claude/skills/audit-docs/scripts/audit.py`.
 4. Add the matching human-readable chip label to `SLUG_LABELS` in `docs/source/_static/publications-filter.js`. [decision: software maintainer, 2026-11-17]
-5. Rerun `/audit-docs refs` (`.claude/skills/audit-docs/scripts/audit.py`) to confirm all entries pass. [fact: git ls-files .claude/skills/audit-docs/scripts/audit.py]
+5. Rerun `/audit-docs refs` (`.claude/skills/audit-docs/scripts/audit.py`) to confirm all entries pass. [fact: git ls-files --error-unmatch .claude/skills/audit-docs/scripts/audit.py]
 
-Run `/audit-docs refs` before committing any `.bib` change; the `check-bib-tags.sh` hook also runs `.claude/skills/audit-docs/scripts/audit.py` on edits. [fact: git grep -n "audit-docs/scripts/audit.py" .claude/hooks/check-bib-tags.sh] It checks the convention only; DOI-to-paper correctness is the user-level `refs-checker` skill's job.
+Run `/audit-docs refs` before committing any `.bib` change; the `check-bib-tags.sh` hook also runs `.claude/skills/audit-docs/scripts/audit.py` on edits. [fact: git grep -n audit-docs/scripts/audit.py .claude/hooks/check-bib-tags.sh] It checks the convention only; DOI-to-paper correctness is the user-level `refs-checker` skill's job.

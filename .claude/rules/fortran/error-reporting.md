@@ -17,7 +17,7 @@ SUEWS runs embedded inside Python via SuPy and the Rust bridge. A plain `STOP`
 terminates the entire host process, preventing SuPy from catching the failure
 and presenting a clean exception. Likewise, `WRITE(*, ...)` to stdout bypasses
 SuPy's logger -- users see garbled output on some platforms, and parallel runs
-interleave messages illegibly. [fact: git ls-files src/suews_bridge/c_api/driver.f95 src/supy/_run_rust.py]
+interleave messages illegibly. [fact: git ls-files --error-unmatch src/suews_bridge/c_api/driver.f95 src/supy/_run_rust.py]
 
 `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` was introduced in
 GH#1035 precisely to avoid this. [fact: git grep -n "^MODULE module_ctrl_error_state" src/suews/src/suews_ctrl_error.f95] Its header states:
@@ -74,13 +74,13 @@ Key points:
   since GH#1736, not a variable). The fatal store is thread-local
   (`src/suews/src/suews_ctrl_error_tls.c`): each grid run on a Rayon worker sees
   only its own error, so never cache the flag in module-level or implicitly
-  `SAVE`d variables. [fact: git ls-files src/suews/src/suews_ctrl_error_tls.c]
+  `SAVE`d variables. [fact: git ls-files --error-unmatch src/suews/src/suews_ctrl_error_tls.c]
 - **Never** call `STOP`, `ERROR STOP`, `CALL abort`, or `WRITE(*,...)`.
 
 Working examples:
 - `src/suews/src/suews_phys_stebbs.f95::calculate_x1` (STEBBS thermal-parameter guard, code `102`) [fact: git grep -n "set_supy_error(102" src/suews/src/suews_phys_stebbs.f95]
 - `src/suews/src/suews_phys_rslprof.f95::interp_z` (`interp_z` NaN/bounds guards, code `103`) [fact: git grep -n "set_supy_error(103" src/suews/src/suews_phys_rslprof.f95]
-- `src/suews/src/suews_phys_lai.f95::update_gddlai` (observed-LAI guard, code `105`, GH#1296) [fact: git grep -n -e "subroutine update_gddlai" -e "105, &" src/suews/src/suews_phys_lai.f95]
+- `src/suews/src/suews_phys_lai.f95::update_gddlai` (observed-LAI guard, code `105`, GH#1296) [fact: git grep -n "subroutine update_gddlai" src/suews/src/suews_phys_lai.f95 && git grep -n "105, &" src/suews/src/suews_phys_lai.f95]
 
 ---
 
@@ -143,7 +143,7 @@ introducing a new fatal error site:
   (`src/suews/src/suews_ctrl_error_tls.c`, `src/suews_bridge/c_api/driver.f95`,
   and `src/suews_bridge/c_api/error_state.f95`) into the Rust PyO3 bridge
   (`src/suews_bridge/src/error.rs`), becoming clean Python `RuntimeError` /
-  `ValueError` exceptions and `kernel_warnings` entries in SuPy. [fact: git ls-files src/suews/src/suews_ctrl_error_tls.c src/suews_bridge/c_api/error_state.f95 src/suews_bridge/src/error.rs]
+  `ValueError` exceptions and `kernel_warnings` entries in SuPy. [fact: git ls-files --error-unmatch src/suews/src/suews_ctrl_error_tls.c src/suews_bridge/c_api/driver.f95 src/suews_bridge/c_api/error_state.f95 && git grep -n "pub enum BridgeError" src/suews_bridge/src/error.rs && git grep -n PyRuntimeError::new_err src/suews_bridge/src/lib.rs && git grep -n kernel_warnings src/supy/_run_rust.py]
 
 When in doubt: **validate at the top, set the error state, assign safe
 defaults, and `RETURN`.** The driver handles the rest.

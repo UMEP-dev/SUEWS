@@ -29,8 +29,8 @@ redirects to `/stable/`.
 | `site/schemas/` | no | Exported JSON schemas generated for the static site [fact: git check-ignore -v site/schemas/x] |
 | `docs/source/data-structures/df_forcing.rst` | yes | `docs/generate_forcing_variable_rst.py`, from `FORCING_REGISTRY`; CI runs it with `--check` |
 | `docs/source/inputs/tables/schema.json` | yes | `suews schema export -o docs/source/inputs/tables/schema.json` |
-| `docs/source/inputs/tables/SUEWS_SiteInfo/csv-table/*.csv` | yes | Derived from `SUEWS_SiteInfo/Input_Options.rst` by `docs/source/conf.py::gen_csv_suews`, which runs on Read the Docs builds [fact: git grep -n -e "def gen_csv_suews" -e "Input_Options.rst" docs/source/conf.py] |
-| `docs/source/assets/img/ohm_coefficient_transitions.png` | yes | `python docs/plot_ohm_transitions.py` [fact: git ls-files docs/plot_ohm_transitions.py docs/source/assets/img/ohm_coefficient_transitions.png] |
+| `docs/source/inputs/tables/SUEWS_SiteInfo/csv-table/*.csv` | yes | Derived from `SUEWS_SiteInfo/Input_Options.rst` by `docs/source/conf.py::gen_csv_suews`, which runs on Read the Docs builds [fact: git grep -n "def gen_csv_suews" docs/source/conf.py && git grep -n Input_Options.rst docs/source/conf.py] |
+| `docs/source/assets/img/ohm_coefficient_transitions.png` | yes | `python docs/plot_ohm_transitions.py` [fact: git ls-files --error-unmatch docs/plot_ohm_transitions.py docs/source/assets/img/ohm_coefficient_transitions.png] |
 
 Untracked RST/Sphinx outputs rebuild during `make docs` (`make -C docs generate-rst`
 refreshes `config-reference/` and `outputs/variables/`). Committed generated
@@ -78,7 +78,7 @@ wrapper, never `supy`/`SUPY` in prose). First mention on a page: "SUEWS
 
 Tutorials use ``:class:`~supy.SUEWSSimulation` `` as the primary interface (full
 guidance: `rules/python/api-approach.md`). Quick-start tutorials are pure OOP;
-impact-study tutorials modify `sim.config` / `sim.update_config(...)`. [fact: git grep -n "sim.update_config" docs/source/tutorials] A tutorial
+impact-study tutorials modify `sim.config` / `sim.update_config(...)`. [fact: git grep -n sim.update_config docs/source/tutorials] A tutorial
 that extracts DataFrames states why in its module docstring:
 
 ```python

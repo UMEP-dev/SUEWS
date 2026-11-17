@@ -49,10 +49,12 @@ fi
 
 # Classify staged files
 PY_FILES=$(echo "$STAGED" | grep -E '\.py$' || true)
-F90_FILES=$(echo "$STAGED" | grep -E '\.(f95|f90)$' || true)
+PY_FMT_FILES=$(echo "$STAGED" | grep -E '^(src|test)/.*\.py$' || true)
+F90_FILES=$(echo "$STAGED" | grep -E '\.(f95|f90|F90)$' || true)
+F90_FMT_FILES=$(echo "$STAGED" | grep -E '^src/suews/src/.*\.f95$' || true)
 RST_FILES=$(echo "$STAGED" | grep -E '\.rst$' || true)
 CHANGELOG=$(echo "$STAGED" | grep -E '^CHANGELOG\.md$' || true)
-MESON=$(echo "$STAGED" | grep -E 'meson\.build$' || true)
+AGENT_FILES=$(echo "$STAGED" | grep -E '^(AGENTS\.md|CLAUDE\.md|dev-ref/CODEBASE_AUDIT_PROTOCOL\.md|\.claude/(README\.md|rules|agents|hooks|scripts|settings\.json))' || true)
 
 ERRORS=""
 PASS_COUNT=0
@@ -76,14 +78,13 @@ echo ""
 if [[ -n "$PY_FILES" ]]; then
     echo "-- Python files detected --"
 
-    # ruff check (xargs handles newline-separated filenames safely)
     if command -v ruff >/dev/null 2>&1; then
         RUFF_OUT=$(echo "$PY_FILES" | xargs ruff check 2>&1) && report_pass "ruff check" || report_fail "ruff check" "$RUFF_OUT"
     fi
 
-    # ruff format check (non-destructive)
-    if command -v ruff >/dev/null 2>&1; then
-        FMT_OUT=$(echo "$PY_FILES" | xargs ruff format --check 2>&1) && report_pass "ruff format" || report_fail "ruff format" "Files need formatting. Run: make format"
+    # ruff format check matches Makefile `make format` scope (src/ and test/)
+    if [[ -n "$PY_FMT_FILES" ]] && command -v ruff >/dev/null 2>&1; then
+        FMT_OUT=$(echo "$PY_FMT_FILES" | xargs ruff format --check 2>&1) && report_pass "ruff format" || report_fail "ruff format" "Files need formatting. Run: make format"
     fi
 fi
 
@@ -91,8 +92,8 @@ fi
 if [[ -n "$F90_FILES" ]]; then
     echo "-- Fortran files detected --"
 
-    # fprettify diff check
-    if command -v fprettify >/dev/null 2>&1 && [[ -f ".fprettify.rc" ]]; then
+    # fprettify diff check matches Makefile `make format` scope (src/suews/src/*.f95)
+    if [[ -n "$F90_FMT_FILES" ]] && command -v fprettify >/dev/null 2>&1 && [[ -f ".fprettify.rc" ]]; then
         while IFS= read -r f; do
             [[ -z "$f" ]] && continue
             if [[ -f "$f" ]]; then
@@ -103,19 +104,30 @@ if [[ -n "$F90_FILES" ]]; then
                     report_pass "fprettify ($f)"
                 fi
             fi
-        done <<< "$F90_FILES"
+        done <<< "$F90_FMT_FILES"
     fi
 
-    # Check new Fortran files are in meson.build
+    # Check newly added Fortran files are registered in the active build files
     while IFS= read -r f; do
         [[ -z "$f" ]] && continue
         BASENAME=$(basename "$f")
-        if [[ "$f" == src/suews/src/* ]] && ! git show HEAD:"$f" >/dev/null 2>&1; then
-            # New file -- check meson.build
-            if ! grep -q "$BASENAME" src/suews/src/meson.build 2>/dev/null; then
-                report_fail "meson.build" "New file $BASENAME not listed in src/suews/src/meson.build"
+        STEM="${BASENAME%.*}"
+        if [[ "$f" == src/suews/src/*.f95 ]] && [[ -f "$f" ]] && ! git show HEAD:"$f" >/dev/null 2>&1; then
+            if ! grep -q "$BASENAME" src/supy/meson.build 2>/dev/null; then
+                report_fail "src/supy/meson.build" "New file $BASENAME not listed in src/supy/meson.build"
             else
-                report_pass "meson.build ($BASENAME)"
+                report_pass "src/supy/meson.build ($BASENAME)"
+            fi
+            if ! grep -q "$STEM" src/suews/Makefile 2>/dev/null; then
+                report_fail "src/suews/Makefile" "New module $STEM not listed in src/suews/Makefile"
+            else
+                report_pass "src/suews/Makefile ($BASENAME)"
+            fi
+        elif [[ "$f" == src/suews_bridge/c_api/*.f95 ]] && [[ -f "$f" ]] && ! git show HEAD:"$f" >/dev/null 2>&1; then
+            if ! grep -q "$BASENAME" src/suews_bridge/build.rs 2>/dev/null; then
+                report_fail "src/suews_bridge/build.rs" "New C-API file $BASENAME not listed in src/suews_bridge/build.rs"
+            else
+                report_pass "src/suews_bridge/build.rs ($BASENAME)"
             fi
         fi
     done <<< "$F90_FILES"
@@ -125,10 +137,10 @@ fi
 if [[ -n "$RST_FILES" ]]; then
     echo "-- RST documentation detected --"
 
-    for f in $RST_FILES; do
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
         if [[ -f "$f" ]]; then
             # Check heading nesting depth (max 3 levels: =, -, ~)
-            HEADING_CHARS=$(grep -cE '^[=\-~^"]{3,}$' "$f" 2>/dev/null || echo "0")
             DEEP_HEADINGS=$(grep -cE '^[\^"]{3,}$' "$f" 2>/dev/null || echo "0")
             if [[ "$DEEP_HEADINGS" -gt 0 ]]; then
                 report_fail "RST headings ($f)" "More than 3 heading levels detected (max: =, -, ~)"
@@ -136,53 +148,42 @@ if [[ -n "$RST_FILES" ]]; then
                 report_pass "RST headings ($f)"
             fi
         fi
-    done
+    done <<< "$RST_FILES"
 fi
 
-# --- CHANGELOG checks ---
-if [[ -n "$CHANGELOG" ]]; then
+# --- CHANGELOG checks (inspect staged additions so legacy historical lines do not block commits) ---
+if [[ -n "$CHANGELOG" ]] && [[ -f "CHANGELOG.md" ]]; then
     echo "-- CHANGELOG.md detected --"
+    CHANGELOG_ADDED=$(git diff --cached -U0 -- CHANGELOG.md | grep -E '^\+[^+]' | sed 's/^\+//' || true)
 
-    # Check date format: DD Mon YYYY (e.g., 28 Jan 2026)
-    BAD_DATES=$(grep -nE '^## ' CHANGELOG.md | grep -vE '## [0-9]{1,2} [A-Z][a-z]{2} [0-9]{4}' | head -3 || true)
+    # Release/date headings use level 3: ### DD Mon YYYY (level 2 is ## YYYY / ## Table of Contents)
+    BAD_DATES=$(printf '%s\n' "$CHANGELOG_ADDED" | grep -E '^### ' | grep -vE '^### [0-9]{1,2} [A-Z][a-z]{2} [0-9]{4}$' | head -3 || true)
     if [[ -n "$BAD_DATES" ]]; then
-        report_fail "CHANGELOG dates" "Non-standard date format found. Expected: DD Mon YYYY"
+        report_fail "CHANGELOG dates" "Non-standard date heading found (expected: ### DD Mon YYYY): $BAD_DATES"
     else
         report_pass "CHANGELOG dates"
     fi
 
-    # Check category tags
-    BAD_CATS=$(grep -nE '^\- \[' CHANGELOG.md | grep -vE '\[(feature|bugfix|change|maintenance|doc)\]' | head -3 || true)
+    # Check category tags on top-level bullet entries while ignoring TOC links like `- [2026](#2026)` and indented sub-bullets
+    BAD_CATS=$(printf '%s\n' "$CHANGELOG_ADDED" | grep -E '^- \[[^]]+\]([^(\n]|$)' | grep -vE '^-\s+\[(feature|bugfix|change|maintenance|doc)\]' | head -3 || true)
     if [[ -n "$BAD_CATS" ]]; then
-        report_fail "CHANGELOG categories" "Unknown category tag. Use: [feature], [bugfix], [change], [maintenance], [doc]"
+        report_fail "CHANGELOG categories" "Unknown category tag (use [feature], [bugfix], [change], [maintenance], [doc]): $BAD_CATS"
     else
         report_pass "CHANGELOG categories"
     fi
 fi
 
-# --- meson.build checks ---
-if [[ -n "$MESON" ]]; then
-    echo "-- meson.build detected --"
-
-    # Verify all .f95 files in src/suews/src/ are listed
-    if [[ -f "src/suews/src/meson.build" ]]; then
-        MISSING=""
-        for f in src/suews/src/*.f95; do
-            BASENAME=$(basename "$f")
-            if ! grep -q "$BASENAME" src/suews/src/meson.build 2>/dev/null; then
-                MISSING="${MISSING} ${BASENAME}"
-            fi
-        done
-        if [[ -n "$MISSING" ]]; then
-            report_fail "meson.build sources" "Missing Fortran files:${MISSING}"
-        else
-            report_pass "meson.build sources"
-        fi
+# --- Shared agent instruction checks ---
+if [[ -n "$AGENT_FILES" ]]; then
+    echo "-- Agent governance files detected --"
+    PYTHON_BIN="$(command -v python3 || command -v python || true)"
+    if [[ -n "$PYTHON_BIN" ]] && [[ -f ".claude/scripts/validate-claude-md.py" ]]; then
+        VAL_OUT=$("$PYTHON_BIN" .claude/scripts/validate-claude-md.py 2>&1) && report_pass "validate-claude-md.py" || report_fail "validate-claude-md.py" "$VAL_OUT"
     fi
 fi
 
 # --- Smoke tests (only for Python/Fortran changes) ---
-if [[ -n "$PY_FILES" ]] || [[ -n "$F90_FILES" ]]; then
+if [[ -n "$PY_FMT_FILES" ]] || [[ -n "$F90_FILES" ]]; then
     echo ""
     echo "-- Running smoke tests --"
     SMOKE_LOG=$(mktemp)

@@ -93,8 +93,10 @@ guidance, which loads with each language's conventions:
 - Python: `python/conventions.md` (single-responsibility functions, cohesive
   modules).
 - Rust bridge: `rust/conventions.md` (one concern per module, small functions;
-  `cargo clippy`, run locally, warns on `too_many_arguments` by default -- clippy
-  is not wired into the Makefile or CI, so it is not an automated gate).
+  `.github/workflows/rust-clippy.yml` gates PRs with `cargo clippy ... -- -D
+  warnings` under `SUEWS_BRIDGE_LINT_ONLY=1`, while `src/suews_bridge/src/lib.rs`
+  explicitly allows FFI-shaped lints such as `too_many_arguments` and
+  `type_complexity` so those remain informal size signals).
 
 If a fix only stays small by editing an oversized function or god-module, prefer a
 small preparatory refactor PR first, then the fix on top.

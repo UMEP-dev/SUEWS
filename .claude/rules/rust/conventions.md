@@ -1,7 +1,9 @@
 ---
 paths:
   - src/suews_bridge/**/*.rs
+  - src/suews_bridge/c_api/**/*.f9*
   - src/suews_bridge/Cargo.toml
+  - src/suews_bridge/Cargo.lock
   - src/suews_bridge/build.rs
 ---
 
@@ -80,7 +82,7 @@ Follow the existing pattern (e.g. `ohm_state.rs` or `heat_state.rs`):
 3. Add `#[pyclass]` and PyO3 methods if Python-visible (`to_dict`, `from_dict`, `to_values_payload`, `from_values_payload`)
 4. Register in `lib.rs` module list and Python module
 5. Add corresponding Fortran C API functions in `c_api/` if new physics calculations are needed
-6. Update `build.rs` Fortran source list if new `.f95` files added to `c_api/`
+6. Update `src/suews_bridge/build.rs` Fortran source list and `src/suews_bridge/bridge-manifest.json` (`python scripts/suews/check_bridge_manifest.py`) if new `.f95` facades or bridged types are added to `c_api/`
 
 ---
 

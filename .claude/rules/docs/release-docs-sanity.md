@@ -21,11 +21,11 @@ Both failures below shipped after 2026.6.5 despite passing every other gate.
 `docs/source/conf.py` adds a "Development Version" announcement banner to every
 page when the resolved version string contains `.dev`
 (`is_dev_version = ".dev" in git_version_string`). The version comes from
-`get_ver_git.get_version_from_git()`, which honours the
+`get_ver_git.py::get_version_from_git`, which honours the
 `SUEWS_DOCS_VERSION_REF` environment variable.
 
 - The rolling **`latest`** docs (the `rtd` branch, built by `docs-sync.yml`
-  with `SUEWS_DOCS_VERSION_REF=origin/master`) **should** show the banner —
+  with `SUEWS_DOCS_VERSION_REF=origin/master`) **should** show the banner --
   they are a development build. That is correct.
 - The **`stable`** / numbered-release docs **must not**. Read the Docs labels a
   version by the git ref it builds; the release tag must point at a docs anchor
@@ -36,7 +36,7 @@ page when the resolved version string contains `.dev`
 (`workflow_dispatch`, input `release_tag`) rebuilds the HTML with the tag as the
 version ref, asserts the built HTML lacks the banner sentence,
 creates an off-master anchor commit, and force-moves the tag onto it. Do **not**
-point a release tag at the `rtd` branch HEAD directly — its HTML carries the
+point a release tag at the `rtd` branch HEAD directly -- its HTML carries the
 dev banner.
 
 **Manual check** (after RTD rebuilds the moved tag). Grep the banner-specific
@@ -83,20 +83,20 @@ dev cycle** is correct and must be kept:
   `docs/source/inputs/transition_guide.rst` legitimately say things like
   "collapsing the `2026.5.dev1`..`2026.5.dev14` development cycle".
 - `docs/source/installation.rst` TestPyPI examples use package `.dev0`/`.dev1`
-  versions — unrelated to the schema.
+  versions -- unrelated to the schema.
 - The generated `schema.json` description string also narrates the collapse
   ("Released schema for 2026.6.5 (collapsed from the 2026.5.dev1..dev14
-  cycle)") — that is the generator's own output and is correct.
+  cycle)") -- that is the generator's own output and is correct.
 
 Only fix a dev label that is presented as a **current, user-facing schema
 version** (a "since X" or the artefact's own `version`/`title`/`schema_version`
 fields).
 
-**Scan command** (flags stray labels, excludes legitimate narration):
+**Scan command** (flags stray labels across any `20XX.` year, excludes legitimate narration):
 
 ```bash
-grep -rn "schema 2026\.[0-9]*\.dev\|v2026\.[0-9]*\.dev[0-9]\|\"version\": \"2026\.[0-9]*\.dev" \
-  docs/source/ | grep -vi "collapsing\|development cycle\|dev1\.\.\|dev1.*dev14"
+grep -rnE 'schema 20[0-9]{2}\.[0-9]*\.dev|v20[0-9]{2}\.[0-9]*\.dev[0-9]|"version": "20[0-9]{2}\.[0-9]*\.dev' \
+  docs/source/ | grep -viE 'collapsing|development cycle|dev1\.\.|dev1.*dev14'
 ```
 
 Any line this prints is a stray dev label to fix.
@@ -108,10 +108,10 @@ release time, and `republish-docs` when revising an already-released version.
 
 ## Related
 
-- `.claude/rules/python/schema-versioning.md` — "Release-PR collapse step",
+- `.claude/rules/python/schema-versioning.md` -- "Release-PR collapse step",
   "Pre-release gate" (the constant-level collapse this check complements).
-- `dev-ref/RELEASE_MANUAL.md` — "Documentation on Read the Docs (release docs &
+- `dev-ref/RELEASE_MANUAL.md` -- "Documentation on Read the Docs (release docs &
   revisions)" (the RTD anchor model this automates).
-- `.github/workflows/release-docs-anchor.yml` — the automation.
-- `.github/workflows/docs-sync.yml` — the rolling `latest` build (dev banner
+- `.github/workflows/release-docs-anchor.yml` -- the automation.
+- `.github/workflows/docs-sync.yml` -- the rolling `latest` build (dev banner
   expected and correct there).

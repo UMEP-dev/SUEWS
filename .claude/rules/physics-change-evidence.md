@@ -1,10 +1,12 @@
 ---
 paths:
   - src/suews/src/suews_phys_*.f95
+  - src/suews/ext_lib/**/*
   - test/fixtures/data_test/sample_output_2012-*.csv
   - test/fixtures/data_test/provenance.json
   - test/fixtures/data_test/stebbs_test/**
   - test/fixtures/benchmark1/**
+  - test/fixtures/w16_most.csv
 ---
 
 # Recorded Scientific Evidence for Physics-Changing PRs
@@ -41,8 +43,9 @@ tests actually run before merge*.
 A PR is physics-changing -- and MUST be labelled `0-physics:change` (see below)
 -- when it does any of:
 
-- **Touches physics source.** Any `src/suews/src/suews_phys_*.f95`, or the Rust
-  physics backend under `src/suews_bridge/` behind the `physics` feature.
+- **Touches physics source.** Any `src/suews/src/suews_phys_*.f95`, embedded
+  external library source under `src/suews/ext_lib/**`, or the Rust physics
+  backend under `src/suews_bridge/` behind the `physics` feature.
 - **Moves a reference output.** Any change that alters a vendored reference
   fixture:
   - `test/fixtures/data_test/sample_output_2012-*.csv` (main SuPy reference

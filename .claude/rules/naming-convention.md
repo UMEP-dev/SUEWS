@@ -8,7 +8,7 @@ paths:
 
 # SUEWS Naming Convention
 
-Rules for naming user-facing identifiers in SUEWS — YAML parameters, YAML
+Rules for naming user-facing identifiers in SUEWS -- YAML parameters, YAML
 enum values, forcing column names, error-message field references, and
 the Python data-model field names that mirror them.
 
@@ -26,12 +26,13 @@ the Python data-model field names that mirror them.
 > follow the same ordering rules where practical, but their migrations
 > are tracked separately in gh#1324 / gh#1325 / gh#1326.
 
-> **Relationship to other rules**: Supersedes the *Identifier Naming
-> (Python)* and *Variant-Neutral Naming* sections of
-> `.claude/rules/00-project-essentials.md` for naming decisions; that
-> file remains the source of truth for British-English style, ASCII
-> output, and the rest of the project essentials. Schema-version bumps
-> that include a rename obey `.claude/rules/python/schema-versioning.md`.
+> **Relationship to other rules**: Single source of truth for SUEWS
+> variable, parameter, and YAML field naming, referenced from
+> `.claude/rules/00-project-essentials.md` and
+> `.claude/rules/python/conventions.md`. `.claude/rules/00-project-essentials.md`
+> remains the source of truth for British-English style, ASCII output,
+> and build registration. Schema-version bumps that include a rename
+> obey `.claude/rules/python/schema-versioning.md`.
 
 ---
 
@@ -67,7 +68,7 @@ Everything below is a consequence of these three.
 
 ---
 
-## Rule 1 — snake_case, every word separated
+## Rule 1 -- snake_case, every word separated
 
 Every meaningful word boundary gets exactly one underscore. Domain
 abbreviations (OHM, RSL, FAI, LAI, SMD, GDD, SDD) count as one
@@ -90,7 +91,7 @@ superscripts, no spaces.
 
 ---
 
-## Rule 2 — ordering: physical quantity → component/location → sub-class
+## Rule 2 -- ordering: physical quantity -> component/location -> sub-class
 
 When a field has a physical quantity (a thing you can measure or assign
 units to), the **physical quantity comes first**, then the part of the
@@ -99,19 +100,19 @@ system it applies to, then any sub-classification.
 This is the rule that lets users grep for "all temperatures" or "all
 thicknesses" by prefix.
 
-- `temperature_wall_internal` ✓ — physical quantity (`temperature`),
+- `temperature_wall_internal` [OK] -- physical quantity (`temperature`),
   component (`wall`), sub-class (`internal`).
-- `thickness_wall_outer` ✓ — quantity, component, layer.
-- `density_roof_outer` ✓.
-- `lai_evergreen_tree` ✓ — quantity (`lai`), land cover.
-- `temperature_paved` ✓.
+- `thickness_wall_outer` [OK] -- quantity, component, layer.
+- `density_roof_outer` [OK].
+- `lai_evergreen_tree` [OK] -- quantity (`lai`), land cover.
+- `temperature_paved` [OK].
 
 Wrong shapes (and what they should become):
 
-- `wall_external_thickness` → `thickness_wall_outer`
-  (also `external` → `outer`, see *Specific tokens* below).
-- `internal_wall_temperature` → `temperature_wall_internal`.
-- `building_height` → `height_building` (when not in archetype scope;
+- `wall_external_thickness` -> `thickness_wall_outer`
+  (also `external` -> `outer`, see *Specific tokens* below).
+- `internal_wall_temperature` -> `temperature_wall_internal`.
+- `building_height` -> `height_building` (when not in archetype scope;
   see archetype exception below).
 
 ### Non-physical-quantity fields
@@ -120,14 +121,14 @@ Some fields have no physical quantity to lead with: metadata, profiles,
 control flags, ratios, fractions, thresholds. For these, **the
 category noun leads**, drawn from the small controlled list below:
 
-- `name_*` — for human-readable names
-- `count_*` — for integer counts
-- `type_*` — for enum-typed classifiers
-- `profile_*` — for time-series of values (24-hour, weekly, monthly)
-- `control_*` — for boolean / mode switches
-- `flag_*` — for true/false markers
-- `ratio_*`, `fraction_*` — for dimensionless ratios
-- `threshold_*` — for trigger values
+- `name_*` -- for human-readable names
+- `count_*` -- for integer counts
+- `type_*` -- for enum-typed classifiers
+- `profile_*` -- for time-series of values (24-hour, weekly, monthly)
+- `control_*` -- for boolean / mode switches
+- `flag_*` -- for true/false markers
+- `ratio_*`, `fraction_*` -- for dimensionless ratios
+- `threshold_*` -- for trigger values
 
 Examples:
 
@@ -136,20 +137,20 @@ Examples:
 - `ratio_internal_volume` (was `internal_volume_ratio`).
 - `threshold_lighting_illuminance` (was `lighting_illuminance_threshold`).
 - (`control_*` has no current STEBBS instance: the one boolean switch,
-  `daylight_control`, keeps the Reading idiom rather than the prefix —
+  `daylight_control`, keeps the Reading idiom rather than the prefix --
   see Specific tokens.)
 
 Adding a new category prefix requires a convention amendment. The list
 above is closed; do not invent new prefixes inline.
 
-### Exception — namespace-bound fields keep the namespace prefix
+### Exception -- namespace-bound fields keep the namespace prefix
 
 When a field is permanently scoped to a single namespace and the
 namespace name carries meaning the rest of the system needs to see, the
 namespace prefix may lead even if there is a physical quantity in the
 name. The current list of allowed namespace prefixes:
 
-- `archetype_*` — fields that describe a STEBBS building archetype as
+- `archetype_*` -- fields that describe a STEBBS building archetype as
   a whole and only have meaning inside an archetype. Examples:
   - `archetype_name`
   - `archetype_count`
@@ -158,10 +159,10 @@ name. The current list of allowed namespace prefixes:
 
 This exception exists because `name_archetype` reads as *the name of
 the namespace itself*, not *a name field within an archetype*. New
-namespace prefixes require a convention amendment — they are not
+namespace prefixes require a convention amendment -- they are not
 added casually.
 
-### Exception — established compound nouns are kept intact
+### Exception -- established compound nouns are kept intact
 
 A small set of identifiers are recognised compound nouns or
 terms-of-art whose constituent words form a single conventional phrase.
@@ -179,7 +180,7 @@ aloud as a unit ("ventilation rate", "lighting power density"), and
 splitting the quantity off the front would read awkwardly
 (`rate_ventilation`, `power_density_lighting`). This list is closed;
 adding to it requires a convention amendment. When in doubt, apply
-Rule 2 (reorder) — this exception is deliberately narrow.
+Rule 2 (reorder) -- this exception is deliberately narrow.
 
 `month_mean_air_temperature_diffmax` is **not** in this list: it was
 reordered under Rule 2 to the canonical `temperature_air_month_mean_diffmax`
@@ -188,7 +189,7 @@ grep-ability argument applied and the compound-noun exception did not.
 
 ---
 
-## Rule 3 — methods are nested families, not flat tokens
+## Rule 3 -- methods are nested families, not flat tokens
 
 Method-style fields previously followed the pattern
 `<topic>method` (e.g. `netradiationmethod`, `storageheatmethod`). This
@@ -215,21 +216,21 @@ the schema-version bump that ships each rename.
 ### Numeric option codes
 
 Numeric option codes (`1`, `2`, `3`) are not accepted at the YAML
-surface — they were always a leaky abstraction over Fortran integer
+surface -- they were always a leaky abstraction over Fortran integer
 flags. Migration converts the integer to the corresponding enum
 string.
 
 ---
 
-## Rule 4 — logical name vs YAML leaf name
+## Rule 4 -- logical name vs YAML leaf name
 
 The convention has two related but distinct concepts:
 
-- **Logical name** — the canonical, fully-qualified identifier for a
+- **Logical name** -- the canonical, fully-qualified identifier for a
   field. Used in error messages, CLI lookups, the validator's
   reports, and developer docs. Always written as a dotted path:
   `stebbs.archetype.wall.outer.thickness`.
-- **YAML leaf name** — the short identifier that appears at the leaf
+- **YAML leaf name** -- the short identifier that appears at the leaf
   of a nested YAML structure. Disambiguated by the parent path:
 
   ```yaml
@@ -241,17 +242,16 @@ The convention has two related but distinct concepts:
             density: 1800
   ```
 
-The Python data model registers the **logical name** as canonical. The
-YAML loader's job is to map a nested YAML position to its logical name
-(and back, on dump). The mapping is unambiguous because the YAML schema
-is fixed.
+The nested Pydantic models under `src/supy/data_model/core/` define the
+hierarchy so each YAML leaf position maps unambiguously to its dotted
+logical path on load and dump.
 
 ### Why both exist
 
 - The grep test ("look down a column and find all heights") needs the
-  flat, fully-qualified logical name to exist as a single string —
+  flat, fully-qualified logical name to exist as a single string --
   `stebbs.archetype.wall.outer.thickness` lets you grep for
-  `\.thickness$` across the whole codebase.
+  `\.thickness$` across validation reports and docs.
 - Users writing YAML do not want to type `wall_outer_thickness` once
   per archetype-wall-outer field; nested YAML reads better.
 
@@ -261,60 +261,66 @@ is fixed.
   follow Rule 2 (physical quantity first, etc.).
 - When *citing a field in docs, error messages, or PR text*, use the
   logical name in dotted form.
-- When *grepping*, search either form — the data model exposes a
-  `field_to_logical_name()` lookup.
+- When *grepping*, search the leaf field name across
+  `src/supy/data_model/core/` and `src/supy/util/converter/yaml_upgrade.py`,
+  or search the dotted path directly across `docs/` and validation rules.
 
 ---
 
-## Rule 5 — forcing column names are aliases of long names
+## Rule 5 -- forcing column names and programmatic accessor aliases
 
-The forcing file uses short, urban-meteorology-community-conventional
-column names (`Tair`, `RH`, `kdown`, `rain`, `wuh`). These are not
-re-named to the long form: the community has used them for decades and
-external forcing files would break.
+External forcing files keep the community-conventional short column names
+(`Tair`, `RH`, `U`, `pres`, `rain`, `kdown`, `Wuh`, `lai`) so existing
+meteorological datasets continue to load unchanged.
 
-Instead, each canonical YAML parameter has an **alias** — a short
-forcing-column name registered in the schema:
+`FORCING_REGISTRY` (`src/supy/data_model/forcing/variables.py`) separates
+external file-header names (`name` + `file_aliases`) from programmatic Python
+`accessor_aliases`:
 
-- `tair` ↔ `temperature_air`
-- `rh` ↔ `relative_humidity`
-- `u` ↔ `wind_speed`
-- `kdown` ↔ `shortwave_radiation_downward`
-- `rain` ↔ `precipitation`
-- `lai` ↔ `lai_bulk`
-- (full list in the schema)
+- `Tair` (`file_aliases`: `temp_c`; `accessor_aliases`: `temperature`, `air_temperature`, `temp`, `t_air`, `ta`)
+- `RH` (`accessor_aliases`: `relative_humidity`, `humidity`, `rh`)
+- `U` (`accessor_aliases`: `wind_speed`, `wind`, `u`)
+- `pres` (`accessor_aliases`: `pressure`, `air_pressure`, `p`)
+- `rain` (`accessor_aliases`: `precipitation`, `rainfall`, `precip`)
+- `kdown` (`accessor_aliases`: `shortwave_down`, `solar_radiation`, `sw_down`, `k_down`)
+- `Wuh` (`file_aliases`: `wu_mm`; `accessor_aliases`: `water_use`, `external_water`, `wu_mm`)
+- `lai` (`accessor_aliases`: `leaf_area_index`)
+- (full inventory in `FORCING_REGISTRY` in `src/supy/data_model/forcing/variables.py`)
 
-Forcing-file aliases are case-insensitive on read (so existing files
-with `Tair` still match), but the canonical form in docs and schemas
-is lowercase to keep it consistent with snake_case rules.
+External forcing headers match `name` and `file_aliases` case-insensitively on
+read (`case_sensitive_headers=False`, stripping any leading `%` on `%iy`), while
+documentation and generated contracts preserve the canonical casing defined in
+`ForcingVariable.name` (`Tair`, `RH`, `U`, `Wuh`, `pres`, `kdown`). Programmatic
+`accessor_aliases` are for Python accessors only and are not admitted as file
+headers unless also listed in `file_aliases`.
 
-Per-land-cover forcing variables (introduced in gh#1372) use the long
-form (`lai_evergreen_tree`, `water_use_paved`, etc.) — there is no
-established short alias for these, and inventing one now would create
-a new namespace to maintain.
+Per-land-cover forcing columns (introduced in gh#1372) combine the forcing stem
+with the canonical surface token (`lai_evetr`, `lai_dectr`, `lai_grass`, and
+`wuh_paved`..`wuh_water`, with legacy `file_aliases` `wu_mm_paved`..`wu_mm_water`
+and `accessor_aliases` `leaf_area_index_evetr`..`leaf_area_index_grass`).
 
 ---
 
-## Rule 6 — small items
+## Rule 6 -- small items
 
 ### Enum / option values
 
 Use snake_case for all string-valued enum values:
 
-- `forcing_disaggregation: distribution_based` ✓
-- `forcing_disaggregation: DistributionBased` ✗
-- `net_radiation: narp_plus_spartacus` ✓
-- `net_radiation: NARP+SPARTACUS` ✗
+- `forcing_disaggregation: distribution_based` [OK]
+- `forcing_disaggregation: DistributionBased` [X]
+- `net_radiation: narp_plus_spartacus` [OK]
+- `net_radiation: NARP+SPARTACUS` [X]
 
 ### Units do not appear in field names
 
-Units are documented in the schema metadata and the field's docstring —
+Units are documented in the schema metadata and the field's docstring --
 not in the identifier.
 
-- `temperature_air` ✓ (unit is `°C`, in metadata)
-- `temperature_air_celsius` ✗
-- `precipitation` ✓ (unit is `mm h⁻¹`, in metadata)
-- `precipitation_mm_per_hour` ✗
+- `temperature_air` [OK] (unit is `degC`, in metadata)
+- `temperature_air_celsius` [X]
+- `precipitation` [OK] (unit is `mm h-1`, in metadata)
+- `precipitation_mm_per_hour` [X]
 
 ### Plurals and singulars
 
@@ -332,7 +338,7 @@ capitalised in prose:
 - Prose: "the OHM scheme", "LAI maximum", "RSL level".
 
 In particular, do **not** write `OHM_inc_qf` or `LAI_max` in
-identifiers — capitalisation triggers parser confusion and does not
+identifiers -- capitalisation triggers parser confusion and does not
 add information.
 
 ---
@@ -342,14 +348,14 @@ add information.
 A few words have multiple plausible spellings; these are the
 canonical choices.
 
-- **Layer vs. surface for walls / roofs / windows** — these are two
+- **Layer vs. surface for walls / roofs / windows** -- these are two
   distinct physical concepts, and the convention preserves both:
   - **`outer` / `inner`** for layer-resolved *bulk* properties of the
     multilayer construction (thickness, density, conductivity,
     specific heat capacity, heat capacity fraction). Examples:
     `thickness_wall_outer`, `density_wall_outer`,
     `conductivity_roof_inner`.
-  - **`external` / `internal`** for the *surface itself* — the
+  - **`external` / `internal`** for the *surface itself* -- the
     radiative or boundary-layer face of the wall, roof, or window
     (emissivity, transmissivity, absorptivity, reflectivity).
     Examples: `emissivity_wall_external`,
@@ -362,20 +368,20 @@ canonical choices.
     footprint* (e.g. `external_ground_conductivity` for the ground
     beyond the building). The wall / roof / window context
     disambiguates.
-- **Building floor at ground level** — `ground_floor` (two words),
+- **Building floor at ground level** -- `ground_floor` (two words),
   not `groundfloor`. Snake_case applies. The Reading STEBBS team's
   Column D (2026-05) proposed the fused `groundfloor`; we keep the
   two-word form because "ground floor" is two words in English
   (unlike `groundwater`, genuinely one word), and re-fusing it would
   reintroduce exactly the run-together token the de-fusing effort
-  (`soildepth` → `soil_depth`, `ground_depth`) set out to remove.
+  (`soildepth` -> `soil_depth`, `ground_depth`) set out to remove.
 - **Rated capacities and setpoints lead with the qualifier.** Rule 2
   trails a qualifier that *bounds* a varying quantity (`lai_max`,
-  `snow_density_max` — the seasonal peak of a quantity that changes
+  `snow_density_max` -- the seasonal peak of a quantity that changes
   over the run). But where the qualifier *names* the quantity itself
-  — a rated capacity ("maximum power") or a target ("setpoint
+  -- a rated capacity ("maximum power") or a target ("setpoint
   temperature"), both fixed parameters rather than bounds on a time
-  series — the qualifier+quantity compound leads as a unit. The
+  series -- the qualifier+quantity compound leads as a unit. The
   STEBBS heating/cooling fields take this shape, adopted from the
   Reading STEBBS team's Column D (D. Hertwig / S. Rognone, 2026-05):
   - Setpoint temperatures: `setpoint_temperature_heating_air`,
@@ -386,8 +392,8 @@ canonical choices.
   - Maximum powers: `max_power_heating_system_air`,
     `max_power_cooling_system_air`,
     `max_power_heating_system_water`.
-  - The `air` / `water` medium qualifier must stay explicit — here it
-    trails (`..._heating_system_air`) — because bare
+  - The `air` / `water` medium qualifier must stay explicit -- here it
+    trails (`..._heating_system_air`) -- because bare
     `setpoint_temperature_heating` is ambiguous between air-system
     and DHW-system control.
 - **DHW vessel convection coefficients** group under the hot-water
@@ -396,7 +402,7 @@ canonical choices.
   `convection_coefficient_hot_water_tank_wall_internal` / `..._external`
   (Reading Column D, 2026-05). The vessel is modelled as part of the
   tank system, hence the shared `hot_water_tank_` prefix.
-- **`effective_` qualifier** — drop it unless the partner parameters
+- **`effective_` qualifier** -- drop it unless the partner parameters
   for the same component (density, specific heat capacity) also use
   it. The current STEBBS use of `effective_conductivity` next to
   plain `density` is inconsistent and resolves to plain
@@ -410,12 +416,12 @@ This convention does not try to rename everything in one go. The
 practical approach:
 
 1. **One PR per logical group** (STEBBS archetype, OHM family,
-   forcing aliases, …). Each PR cites this convention and updates the
+   forcing aliases, ...). Each PR cites this convention and updates the
    `_HANDLERS` registry in
    `src/supy/util/converter/yaml_upgrade.py` for the schema bump.
 2. The migration handler must record renames as
-   `legacy_name → new_name` so that an older YAML still loads.
-3. **Drops** require an explicit `reason` in the handler — Pydantic's
+   `legacy_name -> new_name` so that an older YAML still loads.
+3. **Drops** require an explicit `reason` in the handler -- Pydantic's
    default `extra="ignore"` will otherwise swallow user values
    silently.
 4. The CHANGELOG and the relevant
@@ -431,9 +437,9 @@ The schema-versioning rule
 
 ---
 
-## Open question — pending decisions
+## Open question -- pending decisions
 
-- **Soil moisture units** — mass-based vs volume-based. The
+- **Soil moisture units** -- mass-based vs volume-based. The
   convention reserves `soil_moisture` as the canonical name; the unit
   decision affects the validator's accepted range and the
   bulk-density input requirement, not the field name itself. Pending
@@ -444,7 +450,7 @@ open an issue with the `2-doc:naming` label and reference this page.
 
 ---
 
-## Appendix — worked example
+## Appendix -- worked example
 
 How a STEBBS archetype block transforms under this convention.
 Left = current; right = under this convention.
@@ -500,26 +506,26 @@ Notes on the diff:
 
 - `building_name` / `building_count` / `stebbs_height` use the
   `archetype_*` namespace exception (Rule 2).
-- `wall_external_*` (bulk-material rows) → `*_wall_outer`
-  (Rule 2 + Specific tokens — `outer` for layer, distinct from
+- `wall_external_*` (bulk-material rows) -> `*_wall_outer`
+  (Rule 2 + Specific tokens -- `outer` for layer, distinct from
   `external` for surface).
-- `wall_external_emissivity` → `emissivity_wall_external` (Rule 2
-  alone — surface property keeps `external`).
-- `effective_conductivity` → `conductivity` (Specific tokens).
-- `heating_setpoint_temperature` →
+- `wall_external_emissivity` -> `emissivity_wall_external` (Rule 2
+  alone -- surface property keeps `external`).
+- `effective_conductivity` -> `conductivity` (Specific tokens).
+- `heating_setpoint_temperature` ->
   `setpoint_temperature_heating_air`. "Setpoint temperature" is a
   named target quantity, so the `setpoint` qualifier leads as a unit
   (Rated-capacities-and-setpoints rule); the `air` medium qualifier
   trails to disambiguate from DHW
   (`setpoint_temperature_heating_water`).
-- `max_heating_power` → `max_power_heating_system_air`. "Maximum
+- `max_heating_power` -> `max_power_heating_system_air`. "Maximum
   power" is a rated capacity, so the `max` qualifier leads; the
   `air` medium trails.
-- `appliance_profile` → `profile_appliance` (Rule 2 —
+- `appliance_profile` -> `profile_appliance` (Rule 2 --
   non-physical-quantity, category leads).
-- `daylight_control` — kept as the Reading idiom (the `control_`
+- `daylight_control` -- kept as the Reading idiom (the `control_`
   category prefix is not applied to this flag).
-- `internal_volume_ratio` → `ratio_internal_volume` (Rule 2 —
+- `internal_volume_ratio` -> `ratio_internal_volume` (Rule 2 --
   non-physical-quantity, category leads).
 
 The forcing file under this convention (using aliases per Rule 5):
@@ -530,5 +536,5 @@ year doy hour minute  tair  rh  u  pres  kdown  rain  wuh  lai
 2026  120  10  0      18.5  72  3.1 1013  640    0.0  0.0  3.2
 ```
 
-— with `tair ↔ temperature_air`, `rh ↔ relative_humidity`, etc.,
-registered in the forcing-schema alias table.
+With `tair <-> temperature_air`, `rh <-> relative_humidity`, etc.,
+registered in `FORCING_REGISTRY`.

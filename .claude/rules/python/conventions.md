@@ -1,46 +1,36 @@
 ---
 paths:
   - src/supy/**/*.py
+  - mcp/**/*.py
+  - scripts/**/*.py
+  - .github/scripts/**/*.py
+  - benchmark/**/*.py
+  - docs/**/*.py
 ---
 
 # Python Conventions
 
-SUEWS-specific Python conventions. Complements ruff for standard linting.
-
----
-
-## Variable Prefixes
-
-| Data Type | Prefix | Example |
-|-----------|--------|---------|
-| DataFrame | `df_` | `df_forcing`, `df_state` |
-| Dictionary | `dict_` | `dict_state`, `dict_grid` |
-| List | `list_` | `list_grids`, `list_years` |
-| Series | `ser_` | `ser_var`, `ser_output` |
-| Path | `path_` | `path_runcontrol` |
+SUEWS-specific Python conventions. Complements ruff (`.ruff.toml`) for standard linting.
 
 ---
 
 ## Critical Rules
 
-1. **Python 3.9 compatibility**: Use `Optional[X]` not `X | None` for union types
+1. **Modern Python 3.12+ typing**: Prefer PEP 604 unions (`X | None`, `X | Y`) and built-in generics (`list[str]`, `dict[str, float]`) over legacy `typing.Optional`, `typing.Union`, `typing.List`, and `typing.Dict`
    ```python
-   from typing import Optional, Union
+   # BAD: Legacy Python 3.9 typing imports
+   from typing import Dict, List, Optional
 
-   # BAD: PEP 604 syntax requires Python 3.10+
-   def foo(x: str | None = None): ...
-   def bar(items: list[int] | None): ...
 
-   # GOOD: Works on Python 3.9+
-   def foo(x: Optional[str] = None): ...
-   def bar(items: Optional[list[int]]): ...
+   def foo(x: Optional[str] = None) -> Dict[str, List[int]]: ...
+
+
+   # GOOD: Python 3.12+ native syntax
+   def foo(x: str | None = None) -> dict[str, list[int]]: ...
    ```
-   **Why**: PEP 604 union syntax (`X | Y`) requires Python 3.10+. Pydantic evaluates
-   type hints at runtime, so `from __future__ import annotations` is not a safe
-   workaround. Enforced by ruff rule `FA102` (configured in `.ruff.toml`), which is
-   marked `unfixable` there because its autofix would add the unsafe future import.
+   **Why**: SUEWS requires `Python >= 3.12` (`pyproject.toml` `requires-python = ">=3.12"`, `.ruff.toml` `target-version = "py312"` with `"UP"` pyupgrade rules). Avoid adding `from __future__ import annotations` on Pydantic model modules unless verified safe, because Pydantic evaluates annotations at runtime.
 
-2. **Config separation**: No config objects in low-level functions
+2. **Config separation**: No config objects in low-level functions (see `.claude/rules/python/config-patterns.md`)
    ```python
    # BAD: def save_backend(df_output, config): ...
    # GOOD: def save_backend(df_output, freq_s: int = 3600): ...
@@ -52,9 +42,9 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 5. **pathlib**: Use `Path` not `os.path`
 
-6. **UTF-8 encoding**: Always specify `encoding="utf-8"` for file operations
+6. **UTF-8 encoding**: Always specify `encoding="utf-8"` for text file operations
    ```python
-   # BAD: Windows default encoding (cp1252/cp1253) breaks Unicode
+   # BAD: Windows default encoding (cp1252/cp1253) breaks non-ASCII text
    with open(path, "w") as f:
        f.write(content)
    Path(output).write_text(content)
@@ -64,19 +54,19 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
        f.write(content)
    Path(output).write_text(content, encoding="utf-8")
    ```
-   **Why**: Windows uses locale-specific encodings by default (e.g., cp1252, cp1253).
-   Unicode characters like `→` cause `UnicodeEncodeError` and produce empty files.
-   See issue #1097 for details. This also covers `read_text`/`write_text` and
-   text-mode `tempfile.NamedTemporaryFile`.
+   **Why**: Windows uses locale-specific encodings by default (e.g. cp1252, cp1253).
+   Non-ASCII bytes (such as Unicode arrows `U+2192`) cause `UnicodeEncodeError` and
+   produce truncated or empty files (see issue #1097). This covers `open()`,
+   `Path.read_text` / `Path.write_text`, and text-mode `tempfile.NamedTemporaryFile`.
 
    **Enforced in CI**: `.github/workflows/encoding-audit.yml` runs two
    complementary checks over the repo on every PR touching a `.py` file:
-   - ruff `PLW1514` (`unspecified-encoding`) — covers builtin `open()`,
+   - ruff `PLW1514` (`unspecified-encoding`) -- covers builtin `open()`,
      text-mode `tempfile.NamedTemporaryFile`, and `read_text`/`write_text`
      whose receiver type ruff can resolve. The rule is preview-only, so
      the workflow passes `--preview` explicitly. Most violations autofix
      with `ruff check --preview --select PLW1514 --fix --unsafe-fixes .`.
-   - `scripts/lint/check_pathlib_encoding.py` — an AST check that flags
+   - `scripts/lint/check_pathlib_encoding.py` -- an AST check that flags
      `read_text`/`write_text`, and text-mode `Path.open()`, on *any*
      receiver (e.g. `p.write_text(...)` or `with p.open() as f:` where `p`
      is a plain variable), which PLW1514 silently skips because it cannot
@@ -90,21 +80,17 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 ---
 
-## Naming
+## Naming and Container Prefixes
 
-- **snake_case** for all Python identifiers (fields, variables, functions, methods)
-- **Underscore between every word**: `soil_depth` not `soildepth`, `lai_max` not `laimax`
-- **Domain abbreviations** are single tokens separated by underscores: `ohm_inc_qf`, `rsl_method`
-- **No redundant suffixes**: avoid appending `method`/`model` when the enum type already conveys this
-- **YAML surface is snake_case throughout** — the pre-gh#1334 STEBBS PascalCase exception is retired; cross-layer naming (Fortran TYPE members, Rust struct fields) is tracked in #1324/#1325/#1326
-- See `00-project-essentials.md` for full naming rules and legacy migration policy
+- **Canonical naming rules**: Follow `.claude/rules/naming-convention.md` (single source of truth for `snake_case` word separation, physical-quantity-first field ordering, domain abbreviations, and schema-backed renames) and `.claude/rules/00-project-essentials.md` (variant-neutral SUEWS verbs and legacy identifier policy).
+- **Local container prefixes**: Use `df_` for `DataFrame` (`df_forcing`, `df_state`), `ser_` for `Series` (`ser_output`), `dict_` for `dict` (`dict_state`), `list_` for `list` (`list_grids`), and `path_` for `Path` (`path_config`) where type clarity aids readability.
 
 ## Style Guidelines
 
-- **Type hints**: Complete for public functions
+- **Type hints**: Complete for public functions (`X | None`, `list[...]`, `dict[...]`)
 - **Docstrings**: NumPy style (not Google style)
-- **British English**: organise, analyse, colour, initialise
-- **Variant-neutral**: Avoid -ise/-ize spellings in identifiers (see project essentials)
+- **British English**: `organise`, `colour`, `behaviour`, `artefact` in prose, comments, and docstrings (preserving upstream numpy/scipy/pandas API spellings where required)
+- **Variant-neutral identifiers**: Avoid `-ise`/`-ize` spellings in SUEWS-owned identifiers (see `.claude/rules/00-project-essentials.md`)
 
 ---
 
@@ -118,8 +104,8 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 - **Modest argument counts.** Combined with the config-separation rule above,
   prefer small, explicit signatures; pass plain values, not config objects.
 - **Exemptions.** Pydantic data-model classes with long field enumerations and
-  generated files (`_suews_driver.py`, `_version.py`) are exempt from the
-  function/module-length heuristics.
+  version/SCM helper modules (`src/supy/_version.py`, `src/supy/_version_scm.py`)
+  are exempt from the function/module-length heuristics.
 - A fix that only stays small by editing an oversized function is a signal to
   split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
 
@@ -130,12 +116,12 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 ```python
 # BAD
 forcing = load_data(file)
-os.path.join(base, 'output')
+os.path.join(base, "output")
 print(f"Processing {file}")
 
 # GOOD
 df_forcing = load_data(path_file)
-path_base / 'output'
+path_base / "output"
 logger_supy.info("Processing %s", path_file)
 ```
 
@@ -143,9 +129,9 @@ logger_supy.info("Processing %s", path_file)
 
 ## Exceptions
 
-- CLI files (`cmd/`) may use `print()`
-- Test files have relaxed requirements
-- Generated files excluded: `_suews_driver.py`, `_version.py`
+- CLI files (`src/supy/cmd/`, `scripts/`) may use `print()` or `click.echo()`
+- Test files have relaxed container-prefix requirements
+- Version/SCM helper files (`src/supy/_version.py`, `src/supy/_version_scm.py`) follow build-system conventions
 
 ---
 
@@ -165,7 +151,7 @@ file: fix its docstrings, delete its line from that block, then confirm
 def calculate_flux(
     df_input: pd.DataFrame,
     site: str,
-    freq_s: int = 3600
+    freq_s: int = 3600,
 ) -> pd.DataFrame:
     """Calculate energy flux from input data.
 

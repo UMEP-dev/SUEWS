@@ -63,10 +63,12 @@ The free-convection term lowers :math:`r_a` most at light wind, which raises eva
 
 On the stable and neutral side, :math:`(z-d)/L \geq 0`, :math:`r_a` includes a minimum velocity scale :math:`w_{min}` instead.
 Under stable stratification the mean wind at light wind also understates the exchange that unresolved motions, such as meandering and submeso motions, keep up, and without it :math:`r_a` grows as :math:`1/U` until the stability clip is reached.
-The resistance uses the effective wind :math:`U_e = \sqrt{U^2 + w_{min}^2}` in place of :math:`U`, so the stable or neutral :math:`r_a` is the expression above multiplied by :math:`U/U_e`, with :math:`w_{min} = 0.5` m |s^-1|.
+The resistance uses the effective wind :math:`U_e = \sqrt{U^2 + w_{min}^2}` in place of :math:`U`, so the stable or neutral :math:`r_a` is the expression above multiplied by :math:`U/U_e`, with :math:`w_{min} = 0.5` m |s^-1| for :math:`(z-d)/L \geq 0.1`.
 This is the simplest form of the subgrid velocity scale of :cite:t:`MS95`, "a globally constant value", which comes from grid-averaged aircraft data; it is not a value derived for urban sites or for point measurements, and a forcing wind that is already scalar-averaged may contain part of the meandering it represents.
 :math:`w_{min}` acts only where :math:`w_f` cannot, so the two never act on the same step, unstable :math:`r_a` is unchanged, and the friction velocity is unchanged.
-Because :math:`w_f` vanishes as :math:`Q_H` approaches zero from above while :math:`w_{min}` does not, :math:`r_a` changes by the factor :math:`U_e/U` where :math:`(z-d)/L` changes sign; the step is largest at light wind.
+Because :math:`w_f` vanishes as :math:`Q_H` approaches zero from above, :math:`w_{min}` ramps in linearly from zero at neutral, :math:`w_{min} = 0.5 \min(1, ((z-d)/L)/0.1)` m |s^-1|, so :math:`r_a` is continuous where :math:`(z-d)/L` changes sign; without the ramp it would change there by :math:`U_e/U`, about fifty-fold at the 0.01 m |s^-1| wind floor.
+The ramp width, 0.1, is a numerical choice, not a measured one; light-wind stable steps mostly settle at the stability clip, well beyond it.
+The neutral equation, used when :math:`L` or :math:`u_*` is zero, is taken as :math:`(z-d)/L = 0` and has no velocity scale.
 At the stable clip the resistance at light wind tends to a finite value, the expression above times :math:`U/w_{min}`, rather than growing as :math:`1/U`.
 
 Net all-wave radiation, Q\*

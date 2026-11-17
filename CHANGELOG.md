@@ -58,6 +58,7 @@ EXAMPLES:
 
 - [change][experimental] Add a minimum velocity scale of 0.5 m s-1 to the stable and neutral aerodynamic resistance: on steps with (z-d)/L >= 0, r_a uses the effective wind sqrt(U^2 + w_min^2) in place of U, so at light wind it no longer grows as 1/U up to the (z-d)/L clip (#1979)
   - The value is the globally constant subgrid velocity scale of Mahrt and Sun (1995), from grid-averaged aircraft data; it is the stable counterpart of the free-convection velocity w_f of #1956, and the two never act on the same step, so unstable r_a and the friction velocity are unchanged
+  - w_min ramps in linearly from zero at neutral to 0.5 m s-1 at (z-d)/L = 0.1, so r_a is continuous where (z-d)/L changes sign; the neutral equation (L or u* zero) takes no velocity scale
   - Night-time and light-wind outputs and subsequent carried state change in all storage heat methods; across the 21 test sites of #1956 the largest stable r_a falls from 11,873 to 612 s m-1
 
 ### 15 Nov 2026

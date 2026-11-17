@@ -12,6 +12,11 @@ MODULE module_phys_resist
    ! globally constant subgrid velocity scale, from grid-averaged aircraft
    ! data.
    REAL(KIND(1D0)), PARAMETER :: W_MIN_STABLE = 0.5D0
+   ! (z-d)/L over which the minimum velocity scale ramps in linearly from zero
+   ! at neutral [-] (#1979). w_f goes to zero as (z-d)/L goes to zero from
+   ! below, so the ramp keeps r_a continuous where (z-d)/L changes sign; from
+   ! this value up to the stable clip the full W_MIN_STABLE acts.
+   REAL(KIND(1D0)), PARAMETER :: ZL_WMIN_RAMP = 0.1D0
 
 CONTAINS
    SUBROUTINE AerodynamicResistance( &
@@ -51,7 +56,8 @@ CONTAINS
       !         UStar = Friction velocity (m s-1)
       !         w_f = Free-convection velocity scale (m s-1), used only when unstable
       !         W_MIN_STABLE (module constant) = minimum velocity scale (m s-1),
-      !               used only when stable or neutral; never together with w_f
+      !               used only when stable or neutral; never together with w_f;
+      !               ramped in linearly over 0 <= (z-d)/L < ZL_WMIN_RAMP
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
@@ -87,7 +93,8 @@ CONTAINS
       ! every grid thread, so one grid could read another grid's value (gh#1926)
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
-      REAL(KIND(1D0)) :: wind_eff ! wind speed with w_f or W_MIN_STABLE added [m s-1]
+      REAL(KIND(1D0)) :: wind_eff ! wind speed with w_f or w_min added [m s-1]
+      REAL(KIND(1D0)) :: w_min ! minimum velocity scale after the neutral ramp [m s-1]
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
@@ -133,13 +140,24 @@ CONTAINS
             ! stable stratification the mean wind at light wind understates the
             ! exchange that unresolved motions (meandering, submeso motions)
             ! keep up, so r_a would grow as 1/U up to the (z-d)/L clip. As on the
-            ! unstable branch, r_a uses an effective wind,
-            ! SQRT(U**2 + W_MIN_STABLE**2), in place of U, and every part of r_a
-            ! scales by U/U_e. The test is the sign test that keeps w_f off
-            ! these steps, so the two velocity scales never act together and
-            ! unstable r_a is unchanged. UStar is unchanged.
-            wind_eff = SQRT(AVU1_use**2 + W_MIN_STABLE**2)
-            RA_h = RA_h*AVU1_use/wind_eff
+            ! unstable branch, r_a uses an effective wind, SQRT(U**2 + w_min**2),
+            ! in place of U, and every part of r_a scales by U/U_e. The test is
+            ! the sign test that keeps w_f off these steps, so the two velocity
+            ! scales never act together and unstable r_a is unchanged. UStar is
+            ! unchanged. w_f goes to zero as (z-d)/L goes to zero from below, so
+            ! w_min ramps in linearly from zero at neutral and reaches
+            ! W_MIN_STABLE at ZL_WMIN_RAMP: r_a is continuous where (z-d)/L
+            ! changes sign. The neutral equation (L or u* zero) is taken as
+            ! (z-d)/L = 0, where w_min is zero.
+            IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
+               w_min = 0.0D0
+            ELSE
+               w_min = W_MIN_STABLE*MIN(1.0D0, (ZZD/L_mod)/ZL_WMIN_RAMP)
+            END IF
+            IF (w_min > 0) THEN
+               wind_eff = SQRT(AVU1_use**2 + w_min**2)
+               RA_h = RA_h*AVU1_use/wind_eff
+            END IF
          END IF
 
          !3) Thom and Oliver (1977)

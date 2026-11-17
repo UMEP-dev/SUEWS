@@ -15,7 +15,14 @@ Keys and timing
   and ``holiday``; it is not a day-of-year series.
 * :doc:`config-reference/weeklyprofile` has seven scalar keys: ``monday``,
   ``tuesday``, ``wednesday``, ``thursday``, ``friday``, ``saturday``, ``sunday``.
-  This is also their storage order (indices 0--6 in the state DataFrame).
+  supy stores them in this order as indices 0--6 of the state DataFrame,
+  whereas the ``df_state`` reference and the legacy tables describe the same
+  indices Sunday first.
+  The irrigation reader currently looks these values up with a day number
+  that counts from Sunday, so the value given for ``monday`` is applied on
+  Sunday, ``tuesday`` on Monday, and so on to ``sunday`` on Saturday; see the
+  `weekly irrigation day-order report
+  <https://github.com/UMEP-dev/SUEWS/issues/2049>`_.
 * :doc:`config-reference/hourlyprofile` has ``working_day`` and ``holiday``
   mappings, each with all 24 keys ``"1"`` through ``"24"``.
   Key ``"1"`` starts at 00:00 and key ``"24"`` at 23:00; the corresponding
@@ -92,7 +99,7 @@ Former names are shown in brackets once.
      - 1 / 0
    * - ``heat.ah_min``
      - DayProfile
-     - Raw temperature-independent heat flux (W m-2).
+     - Raw temperature-independent heat flux (W |m^-2|).
      - 1 / 0
    * - ``heat.ah_slope_cooling``
      - DayProfile
@@ -133,7 +140,8 @@ Former names are shown in brackets once.
      - 1/24
    * - ``heat.popprof_24hr``
      - HourlyProfile
-     - Raw population transition in metabolic emissions: 1=night, 2=day.
+     - Raw population transition in metabolic emissions and, for the
+       detailed emission methods, building heat: 1=night, 2=day.
      - 1/24
    * - ``co2.profile_human_activity_24hr`` (``humactivity_24hr``)
      - HourlyProfile

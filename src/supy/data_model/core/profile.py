@@ -271,7 +271,7 @@ class HourlyProfile(BaseModel):
         return cls(working_day=working_day, holiday=holiday)
     
 class TenMinuteProfile(BaseModel):
-    """Two 10-minute mappings, ``working_day`` and ``holiday``, keyed 1--144.
+    """Two 10-minute mappings, ``working_day`` and ``holiday``, keyed ``"1"`` to ``"144"``.
 
     See :doc:`/inputs/yaml/temporal-profiles` for slot timing and field uses.
     """
@@ -369,7 +369,7 @@ class TenMinuteProfile(BaseModel):
 
 
 class HeatingSetpointProfile(TenMinuteProfile):
-    """Heating setpoints in two day-type mappings with 10-minute keys 1--144.
+    """Heating setpoints in two day-type mappings with 10-minute keys ``"1"`` to ``"144"``.
 
     See :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.
     """
@@ -384,7 +384,7 @@ class HeatingSetpointProfile(TenMinuteProfile):
 
 
 class CoolingSetpointProfile(TenMinuteProfile):
-    """Cooling setpoints in two day-type mappings with 10-minute keys 1--144.
+    """Cooling setpoints in two day-type mappings with 10-minute keys ``"1"`` to ``"144"``.
 
     See :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.
     """

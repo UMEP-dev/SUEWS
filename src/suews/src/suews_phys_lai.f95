@@ -97,7 +97,7 @@ CONTAINS
       LOGICAL :: stressed
       LOGICAL :: valid_observed_lai
 
-      !FA TODO: formula needs looking at (shodl wilting point be larger than theta_r?)
+      !FA TODO: formula needs looking at (wilting point should be larger than theta_r?)
       wilting_point = theta_r - (theta_r*soilmoisture_stress_limit)
 
       ! translate values of previous day to local variables
@@ -118,6 +118,9 @@ CONTAINS
 
       ! Determine N/S hemisphere parameters
       ! TODO: Move outside timestep loop as timestep independent
+
+      !FA TODO: need to double check whether id is from run start or not. If a run started mid year, current implementation doesn't allow 
+      ! for GDD accumulation until the solstice
       IF (lat >= 0) THEN
          ! sdd_reset_day = 140
          ! summer_day = 170
@@ -131,6 +134,7 @@ CONTAINS
          summer_day = 1
          winter_day = 182
          southern_hemisphere = .TRUE.
+         !FA day length is not used to gate when in southern hemisphere, need to make consistent later
          senescence_mode = SEN_SDD
       END IF
 
@@ -142,6 +146,7 @@ CONTAINS
                             stress_days=stress_days(iv) &
                             )
 
+! FA turning off LAI stress response for now
          CALL lai_stress_response_surf( &
             lai_id_prev=lai_id_prev(iv), &
             laimin=lai_min(iv), &
@@ -201,6 +206,11 @@ CONTAINS
                stress_days=stress_days(iv) &
                )
          END IF
+      
+      !FA check nans are a postprocessing artifact not something from the model
+      IF (ieee_is_nan(sdd_id(iv))) THEN
+         PRINT *, 'nans found in sdd'
+      END IF
 
       END DO !End of loop over veg surfaces
 
@@ -287,6 +297,7 @@ CONTAINS
 
       ! Calculate GDD and SDD
       IF ((lai_id_prev >= lai_max) .OR. (growth_state == 0)) THEN
+         !FA sholdn't be any need to cap delta_gdd after LAI peaking (no consequence of doing so and not physical)
          delta_gdd = 0.0D0
       ELSE
          delta_gdd = calc_delta_degree_days( &
@@ -300,6 +311,7 @@ CONTAINS
                      tmin_prev, tmax_prev, base_t_sdd)
       END IF
 
+      !FA can SDD/GDD reuce with time if conditions not right? if so, then below should not be necessary?
       ! SDD cannot be positive
       IF (delta_sdd > 0) delta_sdd = 0
 
@@ -624,6 +636,7 @@ CONTAINS
 
       IF (lai_id_next > lai_max) THEN
          lai_id_next = lai_max
+         !FA do we need to be resetting stress days just because the LAI is at a maximum?
          stress_days = 0
       ELSE IF (lai_id_next < lai_min) THEN
          lai_id_next = lai_min

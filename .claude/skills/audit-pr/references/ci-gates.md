@@ -121,22 +121,39 @@ is red *for this diff*, the remedy, and who can apply it.
 Workflow-to-remedy map for the gates that most often stop a SUEWS PR. Check names
 are the job display names as they appear in `gh pr checks` -- which is the job's
 `name:` where it has one, and the job *key* where it does not (see `validate`
-below). "Fires on" lists the principal trigger paths, not the exhaustive set; most
-gates also list their own workflow file and lint script, but not all do
-(`validate-claude-md.yml` omits its own workflow file, and lists its lint script
-under `pull_request` only). Read the workflow's `paths:` rather than assuming.
+below). "Fires on" lists the principal trigger paths (or notes unconditional
+`pull_request` workflows where the script itself filters paths). Read the
+workflow's `on:` / `paths:` rather than assuming.
 
 - **`Require schema version bump`** (`schema-version-audit.yml`)
-  - Fires on: `src/supy/data_model/**`, `sample_config.yml`, the two schema doc
-    pages, the lint script, the workflow itself.
-  - Enforces: a structural YAML-surface change moves `CURRENT_SCHEMA_VERSION`; and,
-    if the version did move, that the user-facing schema docs moved with it.
-  - Author-fixable when: the diff renames, removes, retypes, or requires a public
-    field, or restructures a nested section. Full checklist in
-    `.claude/rules/python/schema-versioning.md`.
-  - Maintainer-gated when: the `data_model` diff is genuinely non-structural
+  - Fires on: every `pull_request` (workflow runs unconditionally;
+    `scripts/lint/check_schema_version_bump.py` fast-skips unless YAML-owned
+    models under `src/supy/data_model/core/` -- excluding forcing validation and
+    DataFrame rename helpers -- or `src/supy/sample_data/sample_config.yml`
+    changed, or `CURRENT_SCHEMA_VERSION` moved).
+  - Enforces: a structural YAML-surface change under `src/supy/data_model/core/`
+    or `sample_config.yml` moves `CURRENT_SCHEMA_VERSION`; and, if the version
+    did move, that the user-facing schema docs (`schema_versioning.rst` or
+    `transition_guide.rst`) moved with it. Forcing and output contracts are
+    outside this gate (see `Validate data-interface version histories` below).
+  - Author-fixable when: the diff renames, removes, retypes, requires, or changes
+    the default behaviour of a public YAML field, or restructures a nested
+    section. Full checklist in `.claude/rules/python/schema-versioning.md`
+    (remember to regenerate `test/fixtures/sample_short/sample_config_short.yml`
+    via `python test/fixtures/sample_short/make_sample_short.py`).
+  - Maintainer-gated when: the `data_model/core/` diff is genuinely non-structural
     (docstrings, comments, validator-rule tightening, internal refactor). Label:
     `0-ci:schema-audit-ok`. Subject to the payload race below.
+- **`Validate data-interface version histories`** (`data-interface-version-audit.yml`)
+  - Fires on: every `pull_request` (unconditional).
+  - Enforces: append-only forcing/output semantic-version histories
+    (`scripts/lint/check_data_interface_version_history.py`), output contract
+    artefact parity (`scripts/lint/check_output_contract_artefacts.py`), and
+    forcing contract artefact + RST parity
+    (`scripts/lint/check_forcing_contract_artefacts.py`,
+    `docs/generate_forcing_variable_rst.py --check`).
+  - Author-fixable only (no bypass label): update the version history, regenerate
+    the contract artefacts, and/or run `python docs/generate_forcing_variable_rst.py`.
 - **`Require knowledge-pack rebuild`** (`knowledge-pack-audit.yml`)
   - Fires on: `src/supy/data_model/**`, `src/supy/cmd/**`, `src/supy/knowledge/**`.
   - Enforces: that a pack rebuild still succeeds and binds to the current git SHA.
@@ -154,17 +171,24 @@ under `pull_request` only). Read the workflow's `paths:` rather than assuming.
     `0-ci:knowledge-pack-audit-ok`. Subject to the payload race below.
 - **`Require explicit encoding on text I/O`** (`encoding-audit.yml`)
   - Fires on: any `**.py`.
-  - Enforces: `ruff PLW1514` plus a `read_text`/`write_text` sweep -- no implicit
-    locale encoding.
+  - Enforces: `ruff PLW1514` plus `scripts/lint/check_pathlib_encoding.py`
+    (`read_text`/`write_text` sweep) -- no implicit locale encoding.
   - Author-fixable: add `encoding="utf-8"`. This is nearly always the right fix.
   - Bypass label `0-ci:encoding-audit-ok` is referenced by the workflow but does not
     currently exist in the repository, so proposing it means asking a maintainer to
     create the label first. Prefer the code fix.
 - **`cargo clippy (suews_bridge)`** (`rust-clippy.yml`)
   - Fires on: `src/suews_bridge/**`.
-  - Enforces: clippy with warnings denied.
+  - Enforces: clippy with warnings denied (`SUEWS_BRIDGE_LINT_ONLY=1`).
   - Author-fixable: fix the lint, or justify a scoped `#[allow]`.
   - Bypass label `0-ci:clippy-ok` is likewise referenced but not yet created.
+- **`cargo test (suews_bridge)`** (`rust-test.yml`)
+  - Fires on: `src/suews_bridge/**`, `src/suews/src/**`, `src/suews/ext_lib/**`,
+    `src/suews/Makefile*`, `.github/workflows/rust-test.yml`.
+  - Enforces: builds SUEWS Fortran static libraries (`make -C src/suews all`) and
+    runs Rust unit/C-API tests (`cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics`).
+  - Author-fixable only -- no bypass label exists. Fix the Rust unit test, C-API
+    buffer/type mismatch, or Fortran dependency edge.
 - **`Require Rust/Python registry parity`** (`rust-yaml-aliases-audit.yml`)
   - Fires on: `field_renames.py`, `physics_families.py`, `field_renames.rs`.
   - Enforces three independent checks, each with its own remedy -- read the failure
@@ -194,20 +218,54 @@ under `pull_request` only). Read the workflow's `paths:` rather than assuming.
   - See `.claude/rules/dependency-safety.md`. A startup-hook hit is never a bypass
     case -- stop and escalate.
 - **`validate`** (`validate-claude-md.yml`; the job has no display name, so it
-  renders as `validate` under the "Validate CLAUDE.md" workflow)
-  - Fires on: `CLAUDE.md`, `.claude/rules/**`, and (on `pull_request` only) its own
-    lint script.
-  - Enforces: integrity plus a content-reduction guard. The guard fails only when
-    the reduction exceeds 20% **and** one or more of the required rule files is
-    missing; a large reduction with all rule files present is accepted as
-    intentional restructuring.
-  - Author-fixable: restore the removed content, or restore the missing rule files.
-    The job never reads the PR body, so "justify it in the PR" is not a remedy.
-- **`Check pytest marker axis`** (`build-publish_to_pypi.yml`)
-  - Enforces `scripts/lint/check_test_markers.py` -- physics/api marker coverage on
-    tests. It is a `needs:` of `PR build validation`, so a red one turns the single
-    ruleset-required check red too.
-  - Author-fixable: add the missing marker to the new or moved test.
+  renders as `validate` under the "Validate shared agent instructions" workflow)
+  - Fires on: `AGENTS.md`, `CLAUDE.md`, `.claude/README.md`,
+    `.claude/settings.json`, `.claude/scripts/**`, `.claude/hooks/**`,
+    `.claude/agents/**`, `.claude/rules/**`,
+    `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`, and `.github/workflows/validate-claude-md.yml`.
+  - Enforces: `.claude/scripts/test_validate_agents_md.py`,
+    `.claude/scripts/validate-claude-md.py`, plus a content-reduction guard on
+    `AGENTS.md` (failing only when the reduction exceeds 20% **and** one or more
+    required `.claude/rules/` files is missing).
+  - Author-fixable: fix the broken cross-reference / compatibility loader, restore
+    removed content, or restore missing rule files. The job never reads the PR
+    body, so "justify it in the PR" is not a remedy.
+- **`supply-proof`** and **`harness-and-history`** (`benchmark-regression.yml`,
+  "Benchmark regression")
+  - Fires on: `benchmark/**`, `.github/workflows/benchmark-regression.yml` (plus
+    nightly schedule and `workflow_dispatch`; `supply-proof` skips on fork PRs).
+  - Enforces: restricted Zenodo sandbox fetch (`benchmark/check_supply.py`),
+    benchmark harness unit tests (`pytest benchmark/tests`), and historical
+    sweep consistency across recorded releases (`benchmark/check_regression.py --sweep`).
+  - Author-fixable when: a `benchmark/**` edit broke harness tests or violated
+    `benchmark/regression_thresholds.json` sweep invariants; infrastructure when
+    Zenodo sandbox is unreachable.
+- **`Check pytest marker axis`** (`check_test_markers` in `build-publish_to_pypi.yml`)
+  - Enforces three standalone static lints (`needs:` of `PR build validation`):
+    `scripts/lint/check_test_markers.py` (physics/api marker coverage),
+    `scripts/lint/check_packaged_data_paths.py` (no `<module>.__file__` data
+    access), and `scripts/lint/check_saved_fortran_locals.py` (no implicit/explicit
+    Fortran `SAVE` locals).
+  - Author-fixable: add the missing pytest marker, switch to `importlib.resources`,
+    or split declaration-initialised Fortran locals into executable assignments.
+- **`Physics-change label`** (`check_physics_label` in `build-publish_to_pypi.yml`)
+  - Enforces `.claude/rules/physics-change-evidence.md` (`needs:` of `PR build validation`):
+    fails if stored reference outputs (`test/fixtures/data_test/sample_output_2012-*.csv`,
+    `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change
+    without the `0-physics:change` label, and warns on unlabelled `suews_phys_*.f9*`
+    edits.
+  - Maintainer-gated + author-fixable (no cosmetic bypass): add `## Scientific evidence`
+    to the PR body, have a maintainer apply `0-physics:change`, and re-trigger
+    (note: `check_physics_label` reads labels live via the API, whereas
+    `determine_matrix` on `pull_request` reads the event payload to select the
+    full `-m physics` tier -- push a commit or close/reopen so the full physics
+    tier runs).
+- **`Build MCP package`** (`build_mcp` in `build-publish_to_pypi.yml`)
+  - Enforces (`needs:` of `build_wheels` and `PR build validation`): runs
+    `python3 get_ver_git.py` and `python -m build mcp` to produce the
+    `suews-mcp-dist` artefact installed by the cross-CPython `api` test lane.
+  - Author-fixable: fix packaging metadata or imports under `mcp/` (`mcp/pyproject.toml`,
+    `mcp/src/suews_mcp/**`).
 - **`PR build validation`** and the wheel/test matrix
   (`build-publish_to_pypi.yml`, `build-wheels-reusable.yml`,
   `test-api-cross-python-reusable.yml`)

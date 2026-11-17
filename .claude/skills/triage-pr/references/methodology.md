@@ -41,33 +41,41 @@ live in `rubric.md`; this file covers the procedure for applying them.
    exactly one of the five verdicts: `advance`, `continue`, `defer`,
    `close`, or `escalate`.
 
-4. **Apply the auto-tier** (operations that run without human approval):
-   - **Upsert the marker comment** in place: find any existing
-     `<!-- triage-pr:verdict ts=... -->` comment on the PR and replace it;
-     if none exists, post a new one. The comment body contains the verdict
-     block (see below) with the updated timestamp.
-   - **Swap the `0-pr:*` label**: remove any existing `0-pr:*` label first
-     (these are mutually exclusive; never two at once), then apply the label
-     corresponding to the verdict:
-     - `advance` -> `0-pr:advance`
-     - `continue` -> `0-pr:continue`
-     - `defer` -> `0-pr:deferred`
-     - `close` -> `0-pr:close-proposed`
-     - `escalate` -> `0-pr:escalate`
-   - Apply the `0-auto:pr-audited` label if it does not already exist.
+4. **Check ownership and repository label inventory before any GitHub write**:
+   - Query the active operator/automation login once per run
+     (`gh api user --jq .login`) and the repository's existing labels
+     (`gh label list --repo UMEP-dev/SUEWS --limit 200 --json name --jq '.[].name'`).
+   - Per `.claude/rules/autonomous-workflow.md`, posting comments or editing
+     labels/metadata on a PR **not owned by the current operator/automation
+     account** is **ALWAYS human-gated**.
+   - In unattended mode:
+     - **Own PR** (`author == operator_login`): upsert the
+       `<!-- triage-pr:verdict ts=... -->` marker comment; swap the `0-pr:*`
+       label (`advance` -> `0-pr:advance`, `continue` -> `0-pr:continue`,
+       `defer` -> `0-pr:deferred`, `close` -> `0-pr:close-proposed`,
+       `escalate` -> `0-pr:escalate`) and apply `0-auto:pr-audited` (plus
+       `0-physics:change` when triggered), skipping any label missing from
+       `gh label list` so missing labels degrade gracefully without failing.
+     - **Third-party PR** (`author != operator_login`): perform **zero GitHub
+       writes** and emit the local `[triage-pr] verdict` block with
+       `Applied: none` and the human-gated maintainer action recorded in
+       `Reason:` / `Next:`.
+   - In interactive solo mode, present the draft comment/label changes and wait
+     for explicit human approval before writing to GitHub.
 
 5. **State the route and next step**:
-   - `advance` -> state the route (`prep-pr`, `split-pr`, or `queue-pr`) and
-     priority (P0/P1/P2) in the verdict block; the downstream skill can act.
+   - `advance` -> state the route (`prep-pr`, `split-pr`, or `queue-pr`; note
+     that `prep-pr` is a user-level skill whose portable repo-native fallback is
+     `audit-pr` + `queue-pr`) and priority (P0/P1/P2) in the verdict block.
    - `continue` -> note in the verdict block that the PR is live WIP; route
      is `fix-issue` or direct author notification.
    - `defer` -> record `Revisit-by:` or `Blocked-on:` in the verdict block;
      no further action until the trigger fires.
-   - `close` -> **HUMAN-GATED**: post `0-pr:close-proposed` label and present
-     the verdict block for maintainer review. The skill never closes a PR.
-   - `escalate` -> **HUMAN-GATED**: post `0-pr:escalate` label and state the
-     conflicting signals in the verdict block. The skill never resolves
-     ambiguity by guessing.
+   - `close` -> **HUMAN-GATED**: propose closure (and apply `0-pr:close-proposed`
+     only on an own PR or with explicit human approval). The skill never closes a PR.
+   - `escalate` -> **HUMAN-GATED**: state the conflicting signals in the verdict
+     block (and apply `0-pr:escalate` only on an own PR or with explicit human
+     approval). The skill never resolves ambiguity by guessing.
 
 Solo mode may pause for human approval before any human-gated action and
 resume after confirmation.
@@ -145,31 +153,32 @@ as the UTC instant of last substantive activity:
 last_activity_at = max(last_commit_at, last_human_comment_at)
 ```
 
-This is NEVER the raw `updatedAt` field from the GitHub API. The reason is a
-correctness trap: the triage skill's own label writes and comment upserts bump
-`updatedAt`. If `updatedAt` were used for staleness and idempotency, every
-triage run would reset the clock, making every PR appear "recently active" on
-the next run and defeating idempotency. The scanner already derives the correct
-substantive timestamp from commit data and filtered (non-bot) comment
-timestamps. Use the scanner's `last_activity_at` field for the absolute
-`<= marker_ts` comparison (it is null only when no commit, comment, or creation
-timestamp is available); the `AGE_D` column is the human-readable staleness
-signal in whole days and is NOT comparable to an absolute marker timestamp.
+where `last_human_comment_at` (`LAST_HUMAN` in `scan-prs.sh`) excludes both bot
+accounts and automation marker comments (`<!-- triage-pr:verdict` and
+`<!-- suews-merge-queue-coordinator:`), even when posted under an operator's
+human GitHub login. This is NEVER the raw `updatedAt` field from the GitHub API.
+The reason is a correctness trap: the triage skill's own label writes and
+comment upserts bump `updatedAt` (and would match a naive non-bot comment check).
+If `updatedAt` or marker comments were included, every triage run would reset
+the clock, making every PR appear "recently active" on the next run and breaking
+`last_activity_at <= marker_ts` idempotency. Use the scanner's
+`last_activity_at` field for the absolute `<= marker_ts` comparison (it is null
+only when no commit, comment, or creation timestamp is available); the `AGE_D`
+column is the human-readable staleness signal in whole days and is NOT
+comparable to an absolute marker timestamp.
 
-### Label transition
+### Label transition and graceful degradation
 
-The `0-pr:*` labels are mutually exclusive. Before applying any new
-`0-pr:<verdict>` label:
+Check `gh label list --repo <OWNER/REPO> --limit 200 --json name --jq '.[].name'`
+once per run before applying any label. On PRs owned by the operator/automation
+account (or with explicit human approval in interactive mode):
 
-1. Query the PR's current labels.
-2. Remove any label whose name begins with `0-pr:` (there should be at most
-   one, but remove all if more than one is present).
-3. Apply the new `0-pr:<verdict>` label.
-
-This prevents a PR from ever carrying two `0-pr:*` labels simultaneously.
-
-The `0-auto:pr-audited` label is additive: apply it once and leave it; do not
-remove it on a re-run.
+1. Inspect the PR's current labels (`labels` in `scan-prs.sh --json`).
+2. Remove any label whose name begins with `0-pr:`.
+3. If the target `0-pr:<verdict>` label exists in `gh label list`, apply it;
+   otherwise skip the label write gracefully and note the missing label.
+4. If `0-auto:pr-audited` exists in `gh label list`, apply it once and leave it
+   in place across re-runs.
 
 ---
 
@@ -198,15 +207,18 @@ Field rules:
 - `Priority` is P0/P1/P2 only for `Verdict: advance`; use `-` for all
   others.
 - `Route` names the downstream skill for `advance` (`prep-pr`, `split-pr`,
-  or `queue-pr`) and `fix-issue` for `continue`; use `-` for all other
-  verdicts.
+  or `queue-pr` -- when user-level `prep-pr` is unavailable, consumers fall
+  back to the portable repo-native `audit-pr` + `queue-pr` pair) and `fix-issue`
+  for `continue`; use `-` for all other verdicts.
 - `Revisit-by` and `Blocked-on` are populated only for `Verdict: defer`;
   both are `-` for all other verdicts. A defer verdict must carry at least
   one of them as a non-`-` value.
 - `Applied` is a comma-separated subset of the actions taken in this run:
   `comment` (marker comment posted or upserted), `label:<0-pr:...>` (the
-  specific label applied), `ready` (draft PR marked ready -- only if
-  applicable). Use `none` for no-op runs or when nothing was written.
+  specific label applied), or `ready` (draft PR marked ready -- only if
+  applicable). Use `none` for no-op runs or when unattended mode skips GitHub
+  writes on a third-party PR (recording the human-gated action in `Reason` /
+  `Next`).
 - `Next` states the actionable next step, or for human-gated verdicts the
   specific question the maintainer must answer.
 
@@ -234,47 +246,49 @@ The scanner emits a `Scope:` line before the candidate rows. Emit it
 verbatim in any batch output:
 
 ```
-Scope: repo=<OWNER/REPO>, drafts+stale-ready (stale>Nd); K fetched / T open; truncated: yes|no
+Scope: repo=<OWNER/REPO>, drafts+stale-ready (stale>Nd); fetched=K, candidates=M, fresh_ready_skipped=K-M, open=T; truncated: yes|no
 ```
 
-where `K` is the number of PRs fetched and `T` is the independently-obtained
-total open PR count. When `truncated: yes`, the backlog is NOT fully covered;
-the `(T - K)` PRs beyond the `--limit` remain unswept and a re-run with a
-higher limit (or pagination) is required for full coverage.
+where `K` is the number of open PRs fetched (`--limit`), `M` is the number of
+candidate PRs matching the draft / stale-ready / changes-requested filter,
+`K - M` (`fresh_ready_skipped`) is the count of fresh ready PRs excluded by the
+scanner filter, and `T` is the independently-obtained total open PR count. When
+`truncated: yes` (`K < T`), the backlog is NOT fully covered; the `(T - K)` PRs
+beyond `--limit` remain unswept and a re-run with a higher limit is required for
+full coverage.
 
-### Coverage equation
+### Coverage equations
 
-The returned set K partitions exactly into seven buckets. The equation below
-must hold; any other sum is a bug:
+The candidate set `M` partitions exactly into seven buckets, and together with
+`fresh_ready_skipped` accounts for all `K` fetched PRs:
 
 ```
-advance + continue + defer + close + escalate + noop + skipped = K
+advance + continue + defer + close + escalate + noop + skipped = M
+M + fresh_ready_skipped = K
 ```
 
 where:
 
-- `advance` -- PRs assigned the `advance` verdict.
-- `continue` -- PRs assigned the `continue` verdict.
-- `defer` -- PRs assigned the `defer` verdict.
-- `close` -- PRs assigned the `close` verdict (label `0-pr:close-proposed`).
-- `escalate` -- PRs assigned the `escalate` verdict.
-- `noop` -- PRs that were idempotency-skipped (already audited, no new
-  activity, deferred trigger not fired). A `noop` PR is NOT a `skipped` PR.
-- `skipped` -- PRs that could not be processed (fetch failure, parse error,
-  or explicitly excluded by the bound). A reason must be recorded; never
-  silently drop a PR.
+- `advance` -- candidate PRs assigned the `advance` verdict.
+- `continue` -- candidate PRs assigned the `continue` verdict.
+- `defer` -- candidate PRs assigned the `defer` verdict.
+- `close` -- candidate PRs assigned the `close` verdict (`0-pr:close-proposed`).
+- `escalate` -- candidate PRs assigned the `escalate` verdict.
+- `noop` -- candidate PRs that were idempotency-skipped (already audited, no new
+  substantive activity, deferred trigger not fired). A `noop` PR is NOT `skipped`.
+- `skipped` -- candidate PRs that could not be processed (fetch failure or parse
+  error). A reason must be recorded; never silently drop a candidate PR.
 
 ### Summary line
 
 After the per-PR verdict blocks, emit:
 
 ```
-Summary: K processed = <advance> advance, <continue> continue, <defer> defer,
-         <close> close-proposed, <escalate> escalate, <noop> noop, <skipped> skipped
+Summary: M candidates processed (fetched=K, fresh_ready_skipped=K-M) = <advance> advance, <continue> continue, <defer> defer, <close> close-proposed, <escalate> escalate, <noop> noop, <skipped> skipped
 ```
 
-The seven counts must sum to K, not to T. Full coverage of the open backlog
-is assertable only when `truncated: no`.
+The seven candidate counts must sum to `M` (and `M + fresh_ready_skipped = K`).
+Full coverage of the open backlog is assertable only when `truncated: no`.
 
 ### No silent drop
 

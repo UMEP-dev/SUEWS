@@ -633,6 +633,15 @@ Every `pytest.skip`, `@pytest.mark.skip`, `@pytest.mark.skipif`, and `pytest.imp
 - If a test has been permanently skipped for more than one release cycle with no tracking issue, delete it. Zombie tests are worse than missing tests — they imply coverage that doesn't exist.
 - If a test's only job is to `print(...)` and `assert True`, it is documentation, not a test. Delete it; put the concern in lint config or a dedicated check.
 
+## Flaky Tests
+
+A test that passes and fails on the same commit is a defect, in the test or in the code.
+
+- **Never** rerun until green (locally or with `gh run rerun`), add `sleep` or polling waits, add a retry loop or a rerun plugin, loosen a tolerance without a spread artefact (see "Tolerance Guidelines"), or add skip/xfail to get a green run.
+- **Do** reproduce it on the same commit (fixed seed, test order, `-x`, repeated runs) and find the cause: shared state, test order, timestamps, platform floating point, network or file-system races.
+- If the cause is not found, propose deleting the test in its own pull request, with the failure mode, the reproduction attempts and a tracking issue; a maintainer approves it.
+- Record the cause or the deletion reason where the next reader will look: the fix commit message or the test's docstring.
+
 ---
 
 ## Validation Edge Cases

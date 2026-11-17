@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 17 Nov 2026
+
+- [maintenance] Bound a fix loop on one failing check to three attempts before escalation, keep a pull request from loosening the checks that judge it, and have reviewers read rules from the base branch, in `.claude/rules/autonomous-workflow.md` and the `fix-issue` and `audit-pr` skills; `.claude/rules/tests/patterns.md` gains a Flaky Tests section, and `audit-pr` classes a failure as flake only with same-commit evidence
+
 ### 15 Nov 2026
 
 - [change][experimental] On macOS Intel, SuPy warns once per process, when a simulation first runs, that the platform is tested less than the others and asks for problems to be reported as issues; an x86_64 Python under Rosetta on an Apple Silicon Mac is told to use the arm64 build instead

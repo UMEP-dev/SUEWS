@@ -141,10 +141,13 @@ files, core physics modules, or `src/supy/data_model/` (per
 `.claude/rules/00-project-essentials.md`). Add targeted checks as needed:
 `pytest`, `ruff check`, `fprettify --diff`, the `docs-reviewer` agent,
 `verify-build`, or SUEWS validate/diagnose tools. If validation fails because
-of the fix, repair and rerun. If validation is blocked by environment setup,
-record a public-safe description of the blocker in the PR body, with any
-absolute local paths, host names, or internal references replaced by neutral
-phrasing (e.g. "the editable build step failed in the local toolchain").
+of the fix, repair and rerun, for at most three attempts on the same failure;
+then stop and report under `Remaining:` (`autonomous-workflow.md`, Checks).
+Never make a check pass by editing the check (`autonomous-workflow.md`, Gates).
+If validation is blocked by environment setup, record a public-safe description
+of the blocker in the PR body, with any absolute local paths, host names, or
+internal references replaced by neutral phrasing (e.g. "the editable build step
+failed in the local toolchain").
 
 ### 4. Commit And Open/Update PR
 

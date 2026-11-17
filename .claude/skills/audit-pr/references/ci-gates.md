@@ -219,17 +219,23 @@ workflow's `on:` / `paths:` rather than assuming.
     case -- stop and escalate.
 - **`validate`** (`validate-claude-md.yml`; the job has no display name, so it
   renders as `validate` under the "Validate shared agent instructions" workflow)
-  - Fires on: `AGENTS.md`, `CLAUDE.md`, `MAINTAINERS.md`, the validator and its
-    test (`.claude/scripts/validate-claude-md.py`,
-    `.claude/scripts/test_validate_agents_md.py`), `.claude/rules/**`,
-    `.claude/skills/**/*.md`, `.claude/agents/**`, `dev-ref/**/*.md`, and
+  - Fires on: `AGENTS.md`, `CLAUDE.md`, `MAINTAINERS.md`, `.claude/README.md`,
+    `.claude/settings.json`, the validator and its test
+    (`.claude/scripts/validate-claude-md.py`,
+    `.claude/scripts/test_validate_agents_md.py`), `.claude/scripts/*.sh`,
+    `.claude/hooks/**`, `.claude/agents/**`, `.claude/rules/**`,
+    `.claude/skills/**/*.md`, `dev-ref/**/*.md`, and
     `.github/workflows/validate-claude-md.yml`.
   - Enforces: `.claude/scripts/test_validate_agents_md.py`,
     `.claude/scripts/validate-claude-md.py`, plus a content-reduction guard on
     `AGENTS.md` (failing only when the reduction exceeds 20% **and** one or more
-    required `.claude/rules/` files is missing). The validator also fails when a
-    handle listed in `MAINTAINERS.md` appears in `AGENTS.md`, `.claude/**/*.md`
-    or `dev-ref/**/*.md`.
+    required `.claude/rules/` files is missing). The validator also fails when:
+    a `.claude/rules/**/*.md` file and its `AGENTS.md` "Shared rule files" entry
+    (including `paths:` scopes) are out of step; a path under `AGENTS.md`
+    "References" or a `.claude/settings.json` hook target does not exist; a
+    `.claude/agents/*.md` frontmatter key is wrong; a shared governance file has
+    a non-ASCII line; or a handle listed in `MAINTAINERS.md` appears in
+    `AGENTS.md`, `.claude/**/*.md` or `dev-ref/**/*.md`.
   - Author-fixable: fix the broken cross-reference / compatibility loader, restore
     removed content, restore missing rule files, or replace a named person with
     the role and a pointer to `MAINTAINERS.md`. The job never reads the PR

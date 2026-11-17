@@ -68,8 +68,9 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
   dependency edges that keep `make -j` safe:
   `python scripts/suews/gen_fortran_deps.py` (writes `src/suews/Makefile.deps`;
   `test/core/test_fortran_deps.py` fails when it is stale)
-- **Record how a commit was verified.** End each agent-authored commit message
-  with a trailer `Verified: <commands run and their result>`, for example
+- **Record how a commit was verified** (decision: Ting Sun, 17 Nov 2026). End
+  each agent-authored commit message with a trailer
+  `Verified: <commands run and their result>`, for example
   `Verified: make test-smoke (passed)`, or `Verified: none (<reason>)`.
   `Verified: none` records a skipped check; it does not excuse a check this
   section requires.

@@ -45,11 +45,12 @@ Open issues carry the four-tier label hierarchy defined in [`.claude/rules/label
 - **Type (`1-*`, pick one)**: `1-bug`, `1-feature`, `1-maintenance`, `1-question`
 - **Area (`2-*`, one or more)**: `2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`
 - **Priority (`3-*`, pick one)**: `3-P0`, `3-P1`, `3-P2`
-- **Status (`4-*`, pick one)**: `4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-deferred`
+- **Status (`4-*`, pick one)**: `4-ready`, `4-in-progress`, `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-needs-obs`, `4-deferred`
 
 Assignees are set only when someone is expected to drive the issue. For module
 issues that need scientific input, use the relevant `2-module:*` label and
-`4-needs-science`, then route the discussion to the panel owner listed in
+`4-needs-science` (or `4-needs-obs` when blocked on observational
+evaluation), then route the discussion to the panel owner listed in
 [`MAINTAINERS.md`](../MAINTAINERS.md).
 
 ### 2. PR Triage and Labelling (`/triage-pr`)

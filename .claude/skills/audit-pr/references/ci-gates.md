@@ -219,16 +219,20 @@ workflow's `on:` / `paths:` rather than assuming.
     case -- stop and escalate.
 - **`validate`** (`validate-claude-md.yml`; the job has no display name, so it
   renders as `validate` under the "Validate shared agent instructions" workflow)
-  - Fires on: `AGENTS.md`, `CLAUDE.md`, `.claude/README.md`,
-    `.claude/settings.json`, `.claude/scripts/**`, `.claude/hooks/**`,
-    `.claude/agents/**`, `.claude/rules/**`,
-    `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`, and `.github/workflows/validate-claude-md.yml`.
+  - Fires on: `AGENTS.md`, `CLAUDE.md`, `MAINTAINERS.md`, the validator and its
+    test (`.claude/scripts/validate-claude-md.py`,
+    `.claude/scripts/test_validate_agents_md.py`), `.claude/rules/**`,
+    `.claude/skills/**/*.md`, `.claude/agents/**`, `dev-ref/**/*.md`, and
+    `.github/workflows/validate-claude-md.yml`.
   - Enforces: `.claude/scripts/test_validate_agents_md.py`,
     `.claude/scripts/validate-claude-md.py`, plus a content-reduction guard on
     `AGENTS.md` (failing only when the reduction exceeds 20% **and** one or more
-    required `.claude/rules/` files is missing).
+    required `.claude/rules/` files is missing). The validator also fails when a
+    handle listed in `MAINTAINERS.md` appears in `AGENTS.md`, `.claude/**/*.md`
+    or `dev-ref/**/*.md`.
   - Author-fixable: fix the broken cross-reference / compatibility loader, restore
-    removed content, or restore missing rule files. The job never reads the PR
+    removed content, restore missing rule files, or replace a named person with
+    the role and a pointer to `MAINTAINERS.md`. The job never reads the PR
     body, so "justify it in the PR" is not a remedy.
 - **`supply-proof`** and **`harness-and-history`** (`benchmark-regression.yml`,
   "Benchmark regression")

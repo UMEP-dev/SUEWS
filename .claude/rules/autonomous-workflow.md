@@ -33,7 +33,7 @@ It applies in both modes; the sections below give the pipeline's detail.
   Neither is silently picked, and neither is silently corrected.
 - A new rule that comes from a review miss or an incident names at least two pull requests or issues where the problem occurred, or one recorded incident, and says how it is recognised: from a diff, for a rule a reviewer applies, or from the agent's own actions, for a rule an agent applies while working.
   A lesson that cannot be recognised either way belongs in the documentation, not in a rule.
-- Rules are pruned: a duplicate is replaced by a pointer, as above; a statement now enforced by CI or a hook, or whose reason no longer holds, is removed in its own pull request, or in the one that adds the enforcing check, and that pull request names the check or says why the reason lapsed.
+- Rules are pruned: a duplicate is replaced by a pointer, as above; a statement now enforced by CI or a hook, or whose reason no longer holds, is removed in its own pull request, which names the enforcing check or says why the reason lapsed.
   Instruction files only grow if nobody removes anything.
 
 ### Evidence (Principle 1)

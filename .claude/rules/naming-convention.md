@@ -32,7 +32,7 @@ the Python data-model field names that mirror them.
 > `.claude/rules/python/conventions.md`. `.claude/rules/00-project-essentials.md`
 > remains the source of truth for British-English style, ASCII output,
 > and build registration. Schema-version bumps that include a rename
-> obey `.claude/rules/python/schema-versioning.md`.
+> obey `.claude/rules/python/schema-versioning.md`. [fact: git grep -n "naming-convention.md" .claude/rules/00-project-essentials.md .claude/rules/python/conventions.md]
 
 ---
 
@@ -244,14 +244,14 @@ The convention has two related but distinct concepts:
 
 The nested Pydantic models under `src/supy/data_model/core/` define the
 hierarchy so each YAML leaf position maps unambiguously to its dotted
-logical path on load and dump.
+logical path on load and dump. [fact: git ls-files 'src/supy/data_model/core/*.py']
 
 ### Why both exist
 
 - The grep test ("look down a column and find all heights") needs the
   flat, fully-qualified logical name to exist as a single string --
   `stebbs.archetype.wall.outer.thickness` lets you grep for
-  `\.thickness$` across validation reports and docs.
+  `\.thickness$` across validation reports and docs. [decision: software maintainer, 2026-11-17]
 - Users writing YAML do not want to type `wall_outer_thickness` once
   per archetype-wall-outer field; nested YAML reads better.
 
@@ -263,7 +263,7 @@ logical path on load and dump.
   logical name in dotted form.
 - When *grepping*, search the leaf field name across
   `src/supy/data_model/core/` and `src/supy/util/converter/yaml_upgrade.py`,
-  or search the dotted path directly across `docs/` and validation rules.
+  or search the dotted path directly across `docs/` and validation rules. [decision: software maintainer, 2026-11-17]
 
 ---
 
@@ -271,11 +271,11 @@ logical path on load and dump.
 
 External forcing files keep the community-conventional short column names
 (`Tair`, `RH`, `U`, `pres`, `rain`, `kdown`, `Wuh`, `lai`) so existing
-meteorological datasets continue to load unchanged.
+meteorological datasets continue to load unchanged. [decision: software maintainer, 2026-11-17]
 
 `FORCING_REGISTRY` (`src/supy/data_model/forcing/variables.py`) separates
 external file-header names (`name` + `file_aliases`) from programmatic Python
-`accessor_aliases`:
+`accessor_aliases`: [fact: git grep -n -e "file_aliases:" -e "accessor_aliases:" src/supy/data_model/forcing/registry.py]
 
 - `Tair` (`file_aliases`: `temp_c`; `accessor_aliases`: `temperature`, `air_temperature`, `temp`, `t_air`, `ta`)
 - `RH` (`accessor_aliases`: `relative_humidity`, `humidity`, `rh`)
@@ -285,19 +285,19 @@ external file-header names (`name` + `file_aliases`) from programmatic Python
 - `kdown` (`accessor_aliases`: `shortwave_down`, `solar_radiation`, `sw_down`, `k_down`)
 - `Wuh` (`file_aliases`: `wu_mm`; `accessor_aliases`: `water_use`, `external_water`, `wu_mm`)
 - `lai` (`accessor_aliases`: `leaf_area_index`)
-- (full inventory in `FORCING_REGISTRY` in `src/supy/data_model/forcing/variables.py`)
+- (full inventory in `FORCING_REGISTRY` in `src/supy/data_model/forcing/variables.py`) [fact: git grep -n -e "file_aliases=" -e "accessor_aliases=" src/supy/data_model/forcing/variables.py]
 
 External forcing headers match `name` and `file_aliases` case-insensitively on
-read (`case_sensitive_headers=False`, stripping any leading `%` on `%iy`), while
+read (`case_sensitive_headers=False`, stripping any leading `%` on `%iy`), while [fact: git grep -n -e "case_sensitive_headers: bool = False" -e "stripped_header_prefixes" src/supy/data_model/forcing/registry.py]
 documentation and generated contracts preserve the canonical casing defined in
 `ForcingVariable.name` (`Tair`, `RH`, `U`, `Wuh`, `pres`, `kdown`). Programmatic
 `accessor_aliases` are for Python accessors only and are not admitted as file
-headers unless also listed in `file_aliases`.
+headers unless also listed in `file_aliases`. [fact: git grep -n "\"file_aliases\", self.case_sensitive_headers" src/supy/data_model/forcing/registry.py]
 
 Per-land-cover forcing columns (introduced in gh#1372) combine the forcing stem
 with the canonical surface token (`lai_evetr`, `lai_dectr`, `lai_grass`, and
 `wuh_paved`..`wuh_water`, with legacy `file_aliases` `wu_mm_paved`..`wu_mm_water`
-and `accessor_aliases` `leaf_area_index_evetr`..`leaf_area_index_grass`).
+and `accessor_aliases` `leaf_area_index_evetr`..`leaf_area_index_grass`). [fact: git grep -n -e "\"lai_evetr\"" -e "\"wuh_paved\"" -e "wu_mm_paved" src/supy/data_model/forcing/variables.py]
 
 ---
 
@@ -536,5 +536,5 @@ year doy hour minute  tair  rh  u  pres  kdown  rain  wuh  lai
 2026  120  10  0      18.5  72  3.1 1013  640    0.0  0.0  3.2
 ```
 
-With `tair <-> temperature_air`, `rh <-> relative_humidity`, etc.,
-registered in `FORCING_REGISTRY`.
+With `tair` matching `Tair` case-insensitively, and accessor aliases such as
+`air_temperature` and `relative_humidity` registered in `FORCING_REGISTRY`. [fact: git grep -n -e "\"air_temperature\"" -e "\"relative_humidity\"" src/supy/data_model/forcing/variables.py]

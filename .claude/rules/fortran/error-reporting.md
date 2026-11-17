@@ -17,10 +17,10 @@ SUEWS runs embedded inside Python via SuPy and the Rust bridge. A plain `STOP`
 terminates the entire host process, preventing SuPy from catching the failure
 and presenting a clean exception. Likewise, `WRITE(*, ...)` to stdout bypasses
 SuPy's logger -- users see garbled output on some platforms, and parallel runs
-interleave messages illegibly.
+interleave messages illegibly. [fact: git ls-files src/suews_bridge/c_api/driver.f95 src/supy/_run_rust.py]
 
 `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` was introduced in
-GH#1035 precisely to avoid this. Its header states:
+GH#1035 precisely to avoid this. [fact: git grep -n "^MODULE module_ctrl_error_state" src/suews/src/suews_ctrl_error.f95] Its header states:
 
 > Allows Python to detect Fortran errors without STOP terminating the
 > process.
@@ -69,18 +69,18 @@ Key points:
   arguments** before `RETURN` -- an unassigned intent-out is undefined
   behaviour under some compilers.
 - **`RETURN`** -- do not continue. The driver checks `supy_error_flag()`
-  between grids/timesteps and surfaces the error to Rust/Python.
+  between grids/timesteps and surfaces the error to Rust/Python. [fact: git grep -n "supy_error_flag()" src/suews/src/suews_ctrl_driver.f95]
 - **Guard later work with `IF (supy_error_flag()) RETURN`** (a function call
   since GH#1736, not a variable). The fatal store is thread-local
   (`src/suews/src/suews_ctrl_error_tls.c`): each grid run on a Rayon worker sees
   only its own error, so never cache the flag in module-level or implicitly
-  `SAVE`d variables.
+  `SAVE`d variables. [fact: git ls-files src/suews/src/suews_ctrl_error_tls.c]
 - **Never** call `STOP`, `ERROR STOP`, `CALL abort`, or `WRITE(*,...)`.
 
 Working examples:
-- `src/suews/src/suews_phys_stebbs.f95::calculate_x1` (STEBBS thermal-parameter guard, code `102`)
-- `src/suews/src/suews_phys_rslprof.f95::interp_z` (`interp_z` NaN/bounds guards, code `103`)
-- `src/suews/src/suews_phys_lai.f95::update_gddlai` (observed-LAI guard, code `105`, GH#1296)
+- `src/suews/src/suews_phys_stebbs.f95::calculate_x1` (STEBBS thermal-parameter guard, code `102`) [fact: git grep -n "set_supy_error(102" src/suews/src/suews_phys_stebbs.f95]
+- `src/suews/src/suews_phys_rslprof.f95::interp_z` (`interp_z` NaN/bounds guards, code `103`) [fact: git grep -n "set_supy_error(103" src/suews/src/suews_phys_rslprof.f95]
+- `src/suews/src/suews_phys_lai.f95::update_gddlai` (observed-LAI guard, code `105`, GH#1296) [fact: git grep -n -e "subroutine update_gddlai" -e "105, &" src/suews/src/suews_phys_lai.f95]
 
 ---
 
@@ -96,7 +96,7 @@ CALL ErrorHint(15, 'In compute_bar, input at lower bound', value, value2, notUse
 
 - `modState` is OPTIONAL -- pass it where available (it enables the
   thread-safe per-grid warning channel introduced in GH#1042).
-- Codes 1-99 map to hard-coded text in `src/suews/src/suews_ctrl_error.f95::ErrorHint`.
+- Codes 1-99 map to hard-coded text in `src/suews/src/suews_ctrl_error.f95::ErrorHint`. [fact: git grep -n -i "SUBROUTINE ErrorHint" src/suews/src/suews_ctrl_error.f95]
   Add a new code only with an accompanying change in that file.
 - For non-fatal warnings without a numbered code, report through the
   per-grid state so the message survives the timestep and reaches the user
@@ -121,13 +121,13 @@ CALL ErrorHint(15, 'In compute_bar, input at lower bound', value, value2, notUse
 ## Register new error codes
 
 `src/suews/src/suews_ctrl_error.f95` (`Error Codes (GH#1035):` header comment
-block) is the single authoritative registry for fatal codes `100+` (currently
-`100` through `109`; do not duplicate the code table elsewhere). When
+block) is the single authoritative registry for fatal codes `100+` (do not duplicate the code table
+elsewhere). [fact: git grep -n "Error Codes (GH#1035):" src/suews/src/suews_ctrl_error.f95] When
 introducing a new fatal error site:
 
 1. Read the `Error Codes (GH#1035):` header in `src/suews/src/suews_ctrl_error.f95`
-   and pick the next unallocated integer after the highest registered code.
-2. Add a one-line entry to that header block describing the subsystem and scope.
+   and pick the next unallocated integer after the highest registered code. [decision: software maintainer, 2026-11-17]
+2. Add a one-line entry to that header block describing the subsystem and scope. [decision: software maintainer, 2026-11-17]
 3. Reference the GitHub issue number so the history stays traceable.
 
 ---
@@ -143,7 +143,7 @@ introducing a new fatal error site:
   (`src/suews/src/suews_ctrl_error_tls.c`, `src/suews_bridge/c_api/driver.f95`,
   and `src/suews_bridge/c_api/error_state.f95`) into the Rust PyO3 bridge
   (`src/suews_bridge/src/error.rs`), becoming clean Python `RuntimeError` /
-  `ValueError` exceptions and `kernel_warnings` entries in SuPy.
+  `ValueError` exceptions and `kernel_warnings` entries in SuPy. [fact: git ls-files src/suews/src/suews_ctrl_error_tls.c src/suews_bridge/c_api/error_state.f95 src/suews_bridge/src/error.rs]
 
 When in doubt: **validate at the top, set the error state, assign safe
 defaults, and `RETURN`.** The driver handles the rest.

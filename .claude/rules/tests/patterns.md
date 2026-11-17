@@ -299,7 +299,7 @@ the top of the lint.
 **All tests for shipped `src/supy/**`, `mcp/**`, and documentation contracts
 live under `test/`.** Do not place `test_*.py` beside the source they exercise
 or in ad-hoc subdirectories. Pick the `test/` subdirectory by what the test
-exercises:
+exercises: [decision: software maintainer, 2026-11-17]
 
 ```
 test/
@@ -318,18 +318,18 @@ test/
 **Narrow standalone exceptions outside `test/`:**
 
 - `benchmark/tests/test_*.py` -- self-tests for the standalone `benchmark/`
-  evaluation harness only (never tests for shipped `src/supy/**` code).
+  evaluation harness only (never tests for shipped `src/supy/**` code). [decision: software maintainer, 2026-11-17]
 - `.claude/scripts/test_validate_agents_md.py` -- stdlib `unittest` checks for
-  the repository governance validator `.claude/scripts/validate-claude-md.py`.
+  the repository governance validator `.claude/scripts/validate-claude-md.py`. [decision: software maintainer, 2026-11-17]
 
 ### Why this is a hard rule, not a preference
 
-Only `test/` is wired into the package's wheel-test machinery:
+Only `test/` is wired into the package's wheel-test machinery: [fact: git grep -n "pytest_ci_metrics test" .github/workflows/test-api-cross-python-reusable.yml]
 
 - **Wheel CI runs `pytest test`** (the cross-CPython matrix in
   `test-api-cross-python-reusable.yml` and physics wheel tests). A `test_*.py`
   for `src/supy/**` placed outside `test/` runs in **no wheel CI job** -- it
-  silently provides zero package coverage, however green it looks locally.
+  silently provides zero package coverage, however green it looks locally. [fact: git grep -n "pytest_ci_metrics test" .github/workflows/test-api-cross-python-reusable.yml]
 - **The nature-marker gate** (`scripts/lint/check_test_markers.py` +
   `test/conftest.py`) only walks `test/`. Tests placed elsewhere escape the
   `api` / `physics` marker discipline entirely.

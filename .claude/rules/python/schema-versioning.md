@@ -123,7 +123,7 @@ the CI lint (which only checks that `CURRENT_SCHEMA_VERSION` moves
   shape.
 - Add the release-tag mapping to
   `src/supy/util/converter/yaml_upgrade.py::_PACKAGE_TO_SCHEMA` (e.g.
-  `"2026.5.0": "2026.5"`).
+  `"2026.5.0": "2026.5"`). [fact: git grep -n "^_PACKAGE_TO_SCHEMA" src/supy/util/converter/yaml_upgrade.py]
 
 **Rationale:**
 
@@ -141,7 +141,7 @@ the CI lint (which only checks that `CURRENT_SCHEMA_VERSION` moves
 **Caveat about `get_schema_compatibility_message`:** the float-parse
 path in `src/supy/data_model/configuration/version.py::get_schema_compatibility_message`
 raises `ValueError` on `"5.dev3"` and falls through to a generic message
-via `except (ValueError, IndexError):`. This degrades the "older vs
+via `except (ValueError, IndexError):`. [fact: git grep -n -e "def get_schema_compatibility_message" -e "except (ValueError, IndexError):" src/supy/data_model/configuration/version.py] This degrades the "older vs
 newer" judgement but does not crash. Fix is optional; if addressed,
 use `packaging.version.Version` for the comparison.
 
@@ -179,7 +179,7 @@ use `packaging.version.Version` for the comparison.
      compatible with the new one: `SchemaMigrator` pulls `_HANDLERS`
      into its registry at construction time, and
      `is_schema_compatible` consults that registry directly.
-4. If the bump coincides with a formal release (never on `.devN` bumps),
+4. If the bump coincides with a formal release (never on `.devN` bumps), [procedure: Principle 2]
    vendor a regression fixture under
    `test/fixtures/release_configs/<release-tag>.yml` capturing the
    outgoing shape. `test_release_compat.py` picks these up
@@ -199,7 +199,7 @@ use `packaging.version.Version` for the comparison.
      describing what users see change (renames, removals, profile
      splits) and the exact `suews convert` / `suews schema migrate`
      invocation that upgrades their YAML (never the deprecated
-     hyphenated `suews-convert` / `suews-schema` aliases).
+     hyphenated `suews-convert` / `suews-schema` aliases). [fact: git grep -n -e "name=\"convert\"" -e "name=\"schema\"" src/supy/cmd/suews_cli.py]
    - `docs/source/version-history/v<release-tag>.rst` -- when the bump
      ships in a formal release, list the migration chain under
      "Breaking Changes" and link to the transition guide anchor.

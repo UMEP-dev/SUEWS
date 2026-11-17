@@ -45,7 +45,7 @@ A PR is physics-changing -- and MUST be labelled `0-physics:change` (see below)
 
 - **Touches physics source.** Any `src/suews/src/suews_phys_*.f95`, embedded
   external library source under `src/suews/ext_lib/**`, or the Rust physics
-  backend under `src/suews_bridge/` behind the `physics` feature.
+  backend under `src/suews_bridge/` behind the `physics` feature. [decision: software maintainer, 2026-11-17]
 - **Moves a reference output.** Any change that alters a vendored reference
   fixture:
   - `test/fixtures/data_test/sample_output_2012-*.csv` (main SuPy reference

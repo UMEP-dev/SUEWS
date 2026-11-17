@@ -10,13 +10,13 @@ paths:
 
 # Python Conventions
 
-SUEWS-specific Python conventions. Complements ruff (`.ruff.toml`) for standard linting.
+SUEWS-specific Python conventions. Complements ruff (`.ruff.toml`) for standard linting. [fact: git ls-files .ruff.toml]
 
 ---
 
 ## Critical Rules
 
-1. **Modern Python 3.12+ typing**: Prefer PEP 604 unions (`X | None`, `X | Y`) and built-in generics (`list[str]`, `dict[str, float]`) over legacy `typing.Optional`, `typing.Union`, `typing.List`, and `typing.Dict`
+1. **Modern Python 3.12+ typing**: Prefer PEP 604 unions (`X | None`, `X | Y`) and built-in generics (`list[str]`, `dict[str, float]`) over legacy `typing.Optional`, `typing.Union`, `typing.List`, and `typing.Dict` [decision: software maintainer, 2026-11-17]
    ```python
    # BAD: Legacy Python 3.9 typing imports
    from typing import Dict, List, Optional
@@ -28,9 +28,9 @@ SUEWS-specific Python conventions. Complements ruff (`.ruff.toml`) for standard 
    # GOOD: Python 3.12+ native syntax
    def foo(x: str | None = None) -> dict[str, list[int]]: ...
    ```
-   **Why**: SUEWS requires `Python >= 3.12` (`pyproject.toml` `requires-python = ">=3.12"`, `.ruff.toml` `target-version = "py312"` with `"UP"` pyupgrade rules). Avoid adding `from __future__ import annotations` on Pydantic model modules unless verified safe, because Pydantic evaluates annotations at runtime.
+   **Why**: SUEWS requires `Python >= 3.12` (`pyproject.toml` `requires-python = ">=3.12"`, `.ruff.toml` `target-version = "py312"` with `"UP"` pyupgrade rules). Avoid adding `from __future__ import annotations` on Pydantic model modules unless verified safe, because Pydantic evaluates annotations at runtime. [fact: git grep -n -e "requires-python = \">=3.12\"" -e "target-version = \"py312\"" pyproject.toml .ruff.toml]
 
-2. **Config separation**: No config objects in low-level functions (see `.claude/rules/python/config-patterns.md`)
+2. **Config separation**: No config objects in low-level functions (see `.claude/rules/python/config-patterns.md`) [fact: git ls-files .claude/rules/python/config-patterns.md]
    ```python
    # BAD: def save_backend(df_output, config): ...
    # GOOD: def save_backend(df_output, freq_s: int = 3600): ...
@@ -42,7 +42,7 @@ SUEWS-specific Python conventions. Complements ruff (`.ruff.toml`) for standard 
 
 5. **pathlib**: Use `Path` not `os.path`
 
-6. **UTF-8 encoding**: Always specify `encoding="utf-8"` for text file operations
+6. **UTF-8 encoding**: Always specify `encoding="utf-8"` for text file operations [decision: software maintainer, 2026-11-17]
    ```python
    # BAD: Windows default encoding (cp1252/cp1253) breaks non-ASCII text
    with open(path, "w") as f:
@@ -82,15 +82,15 @@ SUEWS-specific Python conventions. Complements ruff (`.ruff.toml`) for standard 
 
 ## Naming and Container Prefixes
 
-- **Canonical naming rules**: Follow `.claude/rules/naming-convention.md` (single source of truth for `snake_case` word separation, physical-quantity-first field ordering, domain abbreviations, and schema-backed renames) and `.claude/rules/00-project-essentials.md` (variant-neutral SUEWS verbs and legacy identifier policy).
-- **Local container prefixes**: Use `df_` for `DataFrame` (`df_forcing`, `df_state`), `ser_` for `Series` (`ser_output`), `dict_` for `dict` (`dict_state`), `list_` for `list` (`list_grids`), and `path_` for `Path` (`path_config`) where type clarity aids readability.
+- **Canonical naming rules**: Follow `.claude/rules/naming-convention.md` (single source of truth for `snake_case` word separation, physical-quantity-first field ordering, domain abbreviations, and schema-backed renames) and `.claude/rules/00-project-essentials.md` (variant-neutral SUEWS verbs and legacy identifier policy). [fact: git grep -n -e "Variant-neutral SUEWS identifiers" -e "Protected legacy identifiers" .claude/rules/00-project-essentials.md]
+- **Local container prefixes**: Use `df_` for `DataFrame` (`df_forcing`, `df_state`), `ser_` for `Series` (`ser_output`), `dict_` for `dict` (`dict_state`), `list_` for `list` (`list_grids`), and `path_` for `Path` (`path_config`) where type clarity aids readability. [decision: software maintainer, 2026-11-17]
 
 ## Style Guidelines
 
-- **Type hints**: Complete for public functions (`X | None`, `list[...]`, `dict[...]`)
+- **Type hints**: Complete for public functions (`X | None`, `list[...]`, `dict[...]`) [decision: software maintainer, 2026-11-17]
 - **Docstrings**: NumPy style (not Google style)
-- **British English**: `organise`, `colour`, `behaviour`, `artefact` in prose, comments, and docstrings (preserving upstream numpy/scipy/pandas API spellings where required)
-- **Variant-neutral identifiers**: Avoid `-ise`/`-ize` spellings in SUEWS-owned identifiers (see `.claude/rules/00-project-essentials.md`)
+- **British English**: `organise`, `colour`, `behaviour`, `artefact` in prose, comments, and docstrings (preserving upstream numpy/scipy/pandas API spellings where required) [decision: software maintainer, 2026-11-17]
+- **Variant-neutral identifiers**: Avoid `-ise`/`-ize` spellings in SUEWS-owned identifiers (see `.claude/rules/00-project-essentials.md`) [fact: git grep -n "Variant-neutral SUEWS identifiers" .claude/rules/00-project-essentials.md]
 
 ---
 
@@ -105,7 +105,7 @@ SUEWS-specific Python conventions. Complements ruff (`.ruff.toml`) for standard 
   prefer small, explicit signatures; pass plain values, not config objects.
 - **Exemptions.** Pydantic data-model classes with long field enumerations and
   version/SCM helper modules (`src/supy/_version.py`, `src/supy/_version_scm.py`)
-  are exempt from the function/module-length heuristics.
+  are exempt from the function/module-length heuristics. [fact: git grep -n "_version_scm.py" get_ver_git.py]
 - A fix that only stays small by editing an oversized function is a signal to
   split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
 
@@ -129,9 +129,9 @@ logger_supy.info("Processing %s", path_file)
 
 ## Exceptions
 
-- CLI files (`src/supy/cmd/`, `scripts/`) may use `print()` or `click.echo()`
-- Test files have relaxed container-prefix requirements
-- Version/SCM helper files (`src/supy/_version.py`, `src/supy/_version_scm.py`) follow build-system conventions
+- CLI files (`src/supy/cmd/`, `scripts/`) may use `print()` or `click.echo()` [decision: software maintainer, 2026-11-17]
+- Test files have relaxed container-prefix requirements [decision: software maintainer, 2026-11-17]
+- Version/SCM helper files (`src/supy/_version.py`, `src/supy/_version_scm.py`) follow build-system conventions [fact: git ls-files src/supy/_version.py]
 
 ---
 

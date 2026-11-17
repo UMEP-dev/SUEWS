@@ -7,7 +7,7 @@ paths:
 
 # Fortran Conventions
 
-Conventions for SUEWS Fortran source files and C-API facades.
+Conventions for SUEWS Fortran source files and C-API facades. [decision: software maintainer, 2026-11-17]
 
 ---
 
@@ -22,7 +22,7 @@ Conventions for SUEWS Fortran source files and C-API facades.
 | Constant | UPPERCASE | `VON_KARMAN` |
 | Variable | lowercase_underscores | `air_temperature` |
 
-**Categories**: `ctrl`, `phys`, `type`, `util`
+**Categories**: `ctrl`, `phys`, `type`, `util` [fact: git ls-files 'src/suews/src/suews_type_*.f95']
 
 ---
 
@@ -55,7 +55,7 @@ Conventions for SUEWS Fortran source files and C-API facades.
 - **Prefer derived types over long argument lists.** Bundle related state into a
   `dts_*` type (or `suews_type_*.f95` state/parameter type) and pass that,
   instead of adding more positional arguments; flag procedures with very many
-  arguments for a derived-type refactor.
+  arguments for a derived-type refactor. [decision: software maintainer, 2026-11-17]
 - A change that only stays small by editing an oversized procedure is a signal to
   split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
 
@@ -96,22 +96,23 @@ END MODULE
 When investigating "stack smashing detected", ABI mismatches, or bounds errors:
 
 1. **Audit output packing and `ncolumnsDataOut*` widths**
-   - `src/suews/src/suews_ctrl_type.f95::output_line` bundles all output group arrays sized by `ncolumnsDataOut*` in `src/suews/src/suews_ctrl_const.f95`, and `src/suews/src/suews_ctrl_driver.f95::validate_outputline_layout` checks every group's runtime size against those constants before stepping (raising fatal code `104` on mismatch).
-   - Main SUEWS output packing in `src/suews/src/suews_ctrl_driver.f95::SUEWS_update_outputLine` packs sequentially via `push_scalar` / `push_vec` and verifies the final offset in `check_packed_size` / `raise_pack_overflow` (raising fatal code `104` if packed count disagrees with `ncolumnsDataOutSUEWS - 5`).
-   - Other group packers such as `src/suews/src/suews_ctrl_driver.f95::EHC_update_outputLine` and `src/suews/src/suews_phys_stebbs.f95::stebbsonlinecouple` must match their `ncolumnsDataOut*` constants in `src/suews/src/suews_ctrl_const.f95` and `OUTPUT_REGISTRY` (`test/io_tests/test_output_layout_parity.py`, `test/data_model/test_output_contract.py`, `test/data_model/test_output_contract_artefacts.py`).
+   - `src/suews/src/suews_ctrl_type.f95::output_line` bundles all output group arrays sized by `ncolumnsDataOut*` in `src/suews/src/suews_ctrl_const.f95`, and `src/suews/src/suews_ctrl_driver.f95::validate_outputline_layout` checks every group's runtime size against those constants before stepping (raising fatal code `104` on mismatch). [fact: git grep -n -e "TYPE, PUBLIC :: output_line" -e "SUBROUTINE validate_outputline_layout" -e "CALL validate_outputline_layout" src/suews/src/suews_ctrl_type.f95 src/suews/src/suews_ctrl_driver.f95]
+   - Main SUEWS output packing in `src/suews/src/suews_ctrl_driver.f95::SUEWS_update_outputLine` packs sequentially via `push_scalar` / `push_vec` and verifies the final offset in `check_packed_size` / `raise_pack_overflow` (raising fatal code `104` if packed count disagrees with `ncolumnsDataOutSUEWS - 5`). [fact: git grep -n -e "SUBROUTINE check_packed_size" -e "SUBROUTINE raise_pack_overflow" -e "set_supy_error(104" src/suews/src/suews_ctrl_driver.f95]
+   - Other group packers such as `src/suews/src/suews_ctrl_driver.f95::EHC_update_outputLine` and `src/suews/src/suews_phys_stebbs.f95::stebbsonlinecouple` must match their `ncolumnsDataOut*` constants in `src/suews/src/suews_ctrl_const.f95` and `OUTPUT_REGISTRY` (`test/io_tests/test_output_layout_parity.py`, `test/data_model/test_output_contract.py`, `test/data_model/test_output_contract_artefacts.py`). [fact: git ls-files test/io_tests/test_output_layout_parity.py test/data_model/test_output_contract.py test/data_model/test_output_contract_artefacts.py]
 
 2. **`git log` shows triggers, not root causes**
    - A pre-existing bug can be exposed by an unrelated change (e.g. stack layout shift from resizing an adjacent array).
    - Do not assume the regression is solely in the most recent commit; check code that predates the regression window.
 
 3. **GCC version matters**
-   - CI Linux builds use GCC 14 (`manylinux2014` image).
-   - Users may have GCC 15 (Arch, Fedora 42) with stricter stack-protector defaults; a "works in CI but crashes locally" report often means a latent overrun that GCC 15 catches.
+   - CI builds use GCC 14 (manylinux2014 image)
+   - Users may have GCC 15 (Arch, Fedora 42) which has stricter stack protector defaults
+   - A "works in CI but crashes locally" report often means a latent overrun that GCC 15 catches
 
 4. **Compiler flags and `SUEWS_BUILD_PROFILE` (`FCFLAGS` is NOT forwarded through `make dev`)**
-   - Kernel flags live in `src/suews/Makefile.gfortran` (invoked via `src/supy/run_make.py`) and C-API facade flags live in `src/suews_bridge/build.rs`, both controlled by `SUEWS_BUILD_PROFILE=release|checked`.
-   - Default `release` compiles the kernel with `-O3 -g -finit-real=zero` and C-API facades with `-O2 -finit-real=zero -finit-integer=0 -finit-logical=false` (preventing uninitialised scalar/derived-type descriptor crashes under gfortran 14+, while `ALLOCATABLE` arrays and pointers still require explicit initialisation).
-   - To enable `-O0 -fcheck=all` bounds/pointer/array-temp checks locally, run `SUEWS_BUILD_PROFILE=checked make dev` (or `make -C src/suews DEBUG=1` for the standalone kernel).
+   - Kernel flags live in `src/suews/Makefile.gfortran` (invoked via `src/supy/run_make.py`) and C-API facade flags live in `src/suews_bridge/build.rs`, both controlled by `SUEWS_BUILD_PROFILE=release|checked`. [fact: git grep -n SUEWS_BUILD_PROFILE src/supy/run_make.py src/suews_bridge/build.rs]
+   - Default `release` compiles the kernel with `-O3 -g -finit-real=zero` and C-API facades with `-O2 -finit-real=zero -finit-integer=0 -finit-logical=false` (preventing crashes from uninitialised derived-type descriptors under gfortran 14+). [fact: git grep -n -e "OPTFLAGS = -O3" -e "DEBUGFLAGS = -g -finit-real=zero" -e "finit-logical=false" src/suews/Makefile.gfortran src/suews_bridge/build.rs]
+   - To enable `-O0 -fcheck=all` bounds/pointer/array-temp checks locally, run `SUEWS_BUILD_PROFILE=checked make dev` (or `make -C src/suews DEBUG=1` for the standalone kernel). [fact: git grep -n -e "DEBUG ?=" -e "OPTFLAGS = -O0" src/suews/Makefile src/suews/Makefile.gfortran]
 
 ---
 

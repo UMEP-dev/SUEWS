@@ -68,4 +68,4 @@ that ends without stating the remainder reads as "all clean" when it may not be.
   (`work-sizing.md`).
 - This rule (`blocking | major | minor | nit`) governs iterative diff and
   artefact review loops, whereas pinned-SHA whole-repository or subsystem audits
-  follow `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`.
+  follow `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`. [decision: software maintainer, 2026-11-17]

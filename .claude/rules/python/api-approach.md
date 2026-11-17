@@ -6,7 +6,7 @@ paths:
 
 # API Approach: SUEWSSimulation vs DataFrames
 
-Guidance on the modern OOP interface (`src/supy/suews_sim.py::SUEWSSimulation`) versus legacy DataFrame patterns.
+Guidance on the modern OOP interface (`src/supy/suews_sim.py::SUEWSSimulation`) versus legacy DataFrame patterns. [fact: git grep -n "^class SUEWSSimulation" src/supy/suews_sim.py]
 
 ---
 
@@ -14,7 +14,7 @@ Guidance on the modern OOP interface (`src/supy/suews_sim.py::SUEWSSimulation`) 
 
 **Use `SUEWSSimulation` for all new scripts and tutorials.**
 
-The class-based interface validates inputs through `SUEWSConfig`, wraps forcing and outputs in typed containers (`SUEWSForcing`, `SUEWSOutput`), and supports lossless typed checkpoint continuation (`SUEWSCheckpoint`).
+The class-based interface validates inputs through `SUEWSConfig`, wraps forcing and outputs in typed containers (`SUEWSForcing`, `SUEWSOutput`), and supports lossless typed checkpoint continuation (`SUEWSCheckpoint`). [fact: git grep -n -e "^class SUEWSForcing" -e "^class SUEWSOutput" -e "^class SUEWSCheckpoint" src/supy]
 
 ---
 
@@ -43,7 +43,7 @@ sim_legacy = SUEWSSimulation.from_state("output/df_state.csv")
 
 ### Configuration and Forcing Updates
 
-`update_config()` accepts `str | Path | dict | SUEWSConfig` (never arbitrary `**kwargs`). Partial update dicts mirror the nested YAML hierarchy and are re-validated through `SUEWSConfig`:
+`update_config()` accepts `str | Path | dict | SUEWSConfig` (never arbitrary `**kwargs`). Partial update dicts mirror the nested YAML hierarchy and are re-validated through `SUEWSConfig`: [fact: git grep -n "config: Union\[str, Path, dict, SUEWSConfig\]" src/supy/suews_sim.py]
 
 ```python
 # Update nested config fields and forcing (supports method chaining)
@@ -51,13 +51,13 @@ sim.update_config({"model": {"control": {"tstep": 300}}})
 sim.update_forcing("forcing_2024.txt")
 
 # Inspect forcing via the SUEWSForcing wrapper
-sim.forcing.summary()
+sim.forcing.completeness()  # Percentage of non-missing values per column
 df_forcing = sim.forcing.df  # Underlying pandas DataFrame
 ```
 
 ### Execution and Results
 
-`sim.run()` returns a `SUEWSOutput` instance:
+`sim.run()` returns a `SUEWSOutput` instance: [fact: git grep -n ") -> SUEWSOutput:" src/supy/suews_sim.py]
 
 ```python
 # Run simulation and capture SUEWSOutput (preferred pattern)
@@ -88,7 +88,7 @@ output = sim.run()
 
 ## Hybrid Pattern (Scenario Building)
 
-For impact studies, sensitivity sweeps, and external model coupling, extracting DataFrames from a configured simulation is appropriate:
+For impact studies, sensitivity sweeps, and external model coupling, extracting DataFrames from a configured simulation is appropriate: [decision: software maintainer, 2026-11-17]
 
 ```python
 # Start with OOP interface
@@ -111,7 +111,7 @@ output_scenario = sim_scenario.run()
 
 Prefer `sim.update_config({...})` whenever the scenario modifies YAML-backed parameters; reserve `state_init` / `forcing.df` DataFrame extraction for:
 - Multi-scenario array sweeps over low-level state columns
-- External model coupling (programmatic timestep forcing synthesis)
+- External model coupling (programmatic timestep forcing synthesis) [decision: software maintainer, 2026-11-17]
 
 ---
 
@@ -119,12 +119,12 @@ Prefer `sim.update_config({...})` whenever the scenario modifies YAML-backed par
 
 | Tutorial Type | Approach | Notes |
 |---------------|----------|-------|
-| Quick start | Pure OOP | `SUEWSSimulation.from_sample_data()`, `output = sim.run()`, `output.SUEWS` |
-| Site setup | Pure OOP / YAML | `SUEWSSimulation("site_config.yaml")`, `sim.update_config({...})` |
-| Impact studies | Config-level OOP (or Hybrid) | `sim.update_config({...})` for scenario diffs; state DataFrame extraction only when needed |
-| External coupling | Hybrid | `sim.forcing.df` extraction and `sim.update_forcing(df_modified)` |
+| Quick start | Pure OOP | `SUEWSSimulation.from_sample_data()`, `output = sim.run()`, `output.SUEWS` [decision: software maintainer, 2026-11-17] |
+| Site setup | Pure OOP / YAML | `SUEWSSimulation("site_config.yaml")`, `sim.update_config({...})` [decision: software maintainer, 2026-11-17] |
+| Impact studies | Config-level OOP (or Hybrid) | `sim.update_config({...})` for scenario diffs; state DataFrame extraction only when needed [decision: software maintainer, 2026-11-17] |
+| External coupling | Hybrid | `sim.forcing.df` extraction and `sim.update_forcing(df_modified)` [decision: software maintainer, 2026-11-17] |
 
-Always include a module-docstring note explaining why DataFrame extraction is used whenever a tutorial adopts the hybrid pattern.
+Always include a module-docstring note explaining why DataFrame extraction is used whenever a tutorial adopts the hybrid pattern. [decision: software maintainer, 2026-11-17]
 
 ---
 
@@ -132,8 +132,8 @@ Always include a module-docstring note explaining why DataFrame extraction is us
 
 When updating existing scripts or tutorials:
 
-- [ ] Load YAML configs via `SUEWSSimulation("site_config.yaml")` or `SUEWSSimulation.from_sample_data()`
-- [ ] Pass nested dicts (`{"model": ...}`), paths, or `SUEWSConfig` to `sim.update_config(...)`
-- [ ] Capture `output = sim.run()` and read `output.SUEWS` / `output.df` / `output.state_final` instead of deprecated `sim.results`
-- [ ] Unwrap forcing DataFrames with `sim.forcing.df` when raw pandas operations are required
-- [ ] Use `SUEWSSimulation.from_output(output)` or `SUEWSSimulation.from_checkpoint(config, checkpoint)` for continuations (reserving `from_state(path)` for legacy saved `DFState` CSV/Parquet files)
+- [ ] Load YAML configs via `SUEWSSimulation("site_config.yaml")` or `SUEWSSimulation.from_sample_data()` [decision: software maintainer, 2026-11-17]
+- [ ] Pass nested dicts (`{"model": ...}`), paths, or `SUEWSConfig` to `sim.update_config(...)` [decision: software maintainer, 2026-11-17]
+- [ ] Capture `output = sim.run()` and read `output.SUEWS` / `output.df` / `output.state_final` instead of deprecated `sim.results` [decision: software maintainer, 2026-11-17]
+- [ ] Unwrap forcing DataFrames with `sim.forcing.df` when raw pandas operations are required [decision: software maintainer, 2026-11-17]
+- [ ] Use `SUEWSSimulation.from_output(output)` or `SUEWSSimulation.from_checkpoint(config, checkpoint)` for continuations (reserving `from_state(path)` for legacy saved `DFState` CSV/Parquet files) [decision: software maintainer, 2026-11-17]

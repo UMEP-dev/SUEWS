@@ -22,7 +22,7 @@ Both failures below shipped after 2026.6.5 despite passing every other gate.
 page when the resolved version string contains `.dev`
 (`is_dev_version = ".dev" in git_version_string`). The version comes from
 `get_ver_git.py::get_version_from_git`, which honours the
-`SUEWS_DOCS_VERSION_REF` environment variable.
+`SUEWS_DOCS_VERSION_REF` environment variable. [fact: git grep -n -e "def get_version_from_git" -e SUEWS_DOCS_VERSION_REF get_ver_git.py]
 
 - The rolling **`latest`** docs (the `rtd` branch, built by `docs-sync.yml`
   with `SUEWS_DOCS_VERSION_REF=origin/master`) **should** show the banner --
@@ -92,7 +92,7 @@ Only fix a dev label that is presented as a **current, user-facing schema
 version** (a "since X" or the artefact's own `version`/`title`/`schema_version`
 fields).
 
-**Scan command** (flags stray labels across any `20XX.` year, excludes legitimate narration):
+**Scan command** (flags stray labels across any `20XX.` year, excludes legitimate narration): [decision: software maintainer, 2026-11-17]
 
 ```bash
 grep -rnE 'schema 20[0-9]{2}\.[0-9]*\.dev|v20[0-9]{2}\.[0-9]*\.dev[0-9]|"version": "20[0-9]{2}\.[0-9]*\.dev' \

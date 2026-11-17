@@ -14,7 +14,8 @@ whitespace-delimited `.txt`, declared at `model.control.forcing.file`).
    - Conditional / optional columns: `ldown` (lowercase -- not `Ldown`), `fcld`,
      `qn` (legacy file alias `qn1_obs`), `qs` (legacy alias `qs_obs`), `qf`
      (legacy alias `qf_obs`), `snow` (legacy alias `snowfrac`), `Wuh` (legacy
-     aliases `wu_mm`, `wuh`), `xsmd`, `lai`, `kdiff`, `kdir`, `wdir`.
+     aliases `wu_mm`, `wuh`), `sm` (legacy `xsmd`: rename it if entirely missing,
+     otherwise convert with `suews convert --forcing`), `lai`, `kdiff`, `kdir`, `wdir`.
 2. **Time index regular** -- same delta between every row. No missing rows.
    Use `pandas.infer_freq` on the parsed index; it should return a fixed
    frequency string.

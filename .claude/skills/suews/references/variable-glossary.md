@@ -34,8 +34,10 @@ options consume them; missing values use `-999`):
 - `snow` -- observed snow-cover fraction, 0-1 (legacy file alias: `snowfrac`).
 - `Wuh` -- bulk external water use over the interval, mm (legacy file aliases:
   `wu_mm`, `wuh`; per-surface columns `wuh_paved`..`wuh_water` also accepted).
-- `xsmd` -- observed soil-moisture deficit (`m^3/m^3` or `kg/kg` depending on
-  `model.physics.soil_moisture_deficit`).
+- `sm` -- observed liquid water content of the soil layer per non-water area,
+  kg/m^2; required when `model.physics.soil_moisture` is `observed`. The legacy
+  column `xsmd` is deprecated: an entirely missing `xsmd` column can be renamed
+  to `sm`; one carrying values must be converted with `suews convert --forcing`.
 - `lai` -- bulk observed leaf area index, m^2/m^2 (or per-vegetation
   `lai_evetr`, `lai_dectr`, `lai_grass`).
 - `kdiff`, `kdir` -- diffuse and direct incoming shortwave components, W/m^2.

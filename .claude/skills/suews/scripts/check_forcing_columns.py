@@ -32,7 +32,7 @@ OPTIONAL = [
     "ldown",
     "fcld",
     "Wuh",
-    "xsmd",
+    "sm",
     "lai",
     "kdiff",
     "kdir",
@@ -51,6 +51,9 @@ OPTIONAL = [
 
 # Legacy file-header aliases accepted by src/supy/data_model/forcing/variables.py
 # (plus lowercase 'wuh' used in legacy 24-column sample text files).
+# The legacy soil column 'xsmd' is deliberately not an alias of 'sm': supy
+# accepts it only as an entirely missing placeholder, and values in it have a
+# different meaning and unit, so they must go through 'suews convert --forcing'.
 FILE_ALIASES: dict[str, tuple[str, ...]] = {
     "Tair": ("temp_c",),
     "qn": ("qn1_obs",),

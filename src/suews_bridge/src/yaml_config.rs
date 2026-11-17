@@ -3674,9 +3674,9 @@ mod tests {
     #[test]
     fn storage_drain_rows_follow_the_kernel_order() {
         // supy writes store_min, store_max and store_cap under
-        // land_cover.<surface>.storage_drain_params; the kernel reads
-        // StoreDrainPrm row 1 as store_min, row 5 as store_max and row 6 as
-        // the current storage capacity (store_cap). Index i of
+        // land_cover.<surface>.storage_drain_params; StoreDrainPrm holds
+        // store_min in row 1 and store_max in row 5, and the kernel reads
+        // row 6 as the current storage capacity (store_cap). Index i of
         // store_drain_prm reaches Fortran row i+1. Distinct values, none
         // equal to the fixture's 0.48, show each key lands in its own slot.
         let (store_min, store_max, store_cap) = (0.11, 2.2, 0.77);

@@ -48,7 +48,7 @@ def _run_paved_threshold_drainage(store_max: float, store_cap: Optional[float]):
     Returns the SUEWS output group for grid 1 and the forcing used.
     """
     sim = SUEWSSimulation.from_sample_data()
-    cfg = sim._config
+    cfg = sim.config.model_copy(deep=True)
     sdp = cfg.sites[0].properties.land_cover.paved.storage_drain_params
     sdp.drain_eq.value = 1
     sdp.drain_coef_1.value = 10.0
@@ -62,7 +62,7 @@ def _run_paved_threshold_drainage(store_max: float, store_cap: Optional[float]):
         )
     else:
         sdp.store_cap.value = store_cap
-    sim._df_state_init = cfg.to_df_state()
+    sim.update_config(cfg, auto_load_forcing=False)
 
     df_forcing = sim.forcing.df.copy().iloc[: TIMESTEPS_PER_DAY * N_DAYS]
     sim.update_forcing(df_forcing)

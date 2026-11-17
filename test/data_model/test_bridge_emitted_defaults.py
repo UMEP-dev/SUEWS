@@ -139,3 +139,27 @@ def test_internal_switches_stay_out_of_user_export(tmp_path):
     assert "flag_test" not in exported["model"]["control"]
     assert "evapmethod" not in exported["model"]["physics"]
     assert "ndepth" not in exported["sites"][0]["properties"]["vertical_layers"]
+
+
+def test_derived_store_cap_follows_an_updated_store_max():
+    """The resolved store_cap is not user input, so a partial update re-derives it.
+
+    SUEWSSimulation.update_config merges a patch onto
+    ``model_dump(exclude_unset=True)``; a store_cap pinned there would keep
+    the old store_max after the user changes store_max.
+    """
+    params = StorageDrainParams(store_max={"value": 1.5})
+    assert params.store_cap.value == pytest.approx(1.5)
+    assert "store_cap" not in params.model_fields_set
+    base = params.model_dump(exclude_unset=True, round_trip=True, mode="json")
+    assert "store_cap" not in base
+    base["store_max"] = {"value": 4.0}
+    assert StorageDrainParams(**base).store_cap.value == pytest.approx(4.0)
+
+
+def test_explicit_store_cap_stays_user_input():
+    params = StorageDrainParams(store_max={"value": 1.5}, store_cap={"value": 0.7})
+    assert "store_cap" in params.model_fields_set
+    base = params.model_dump(exclude_unset=True, round_trip=True, mode="json")
+    base["store_max"] = {"value": 4.0}
+    assert StorageDrainParams(**base).store_cap.value == pytest.approx(0.7)

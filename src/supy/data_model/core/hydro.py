@@ -353,7 +353,6 @@ class StorageDrainParams(BaseModel):
         json_schema_extra={
             "unit": "kg m-2",
             "display_name": "Storage Capacity",
-            "default_description": "store_max",
         },
     )
     drain_eq: FlexibleRefValue(int) = Field(
@@ -401,7 +400,12 @@ class StorageDrainParams(BaseModel):
             self.store_max.value if isinstance(self.store_max, RefValue) else self.store_max
         )
         if store_cap is None and store_max is not None:
-            self.store_cap = RefValue(store_max)
+            # A derived default, not user input: set it without recording
+            # store_cap in model_fields_set, so exclude_unset dumps (the
+            # partial-update merge in SUEWSSimulation.update_config) leave it
+            # out and re-derive it from an updated store_max.
+            object.__setattr__(self, "store_cap", RefValue(store_max))
+            self.__pydantic_fields_set__.discard("store_cap")
         return self
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:

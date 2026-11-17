@@ -53,6 +53,8 @@ def _null_unread_entry(site, case):
         ] = None
     elif case == "paved_temperature":
         _list_of(site["initial_states"]["paved"]["temperature"])[2] = None
+    elif case == "paved_temperature_inf":
+        _list_of(site["initial_states"]["paved"]["temperature"])[2] = float("inf")
     elif case == "roof_temperature":
         _list_of(site["initial_states"]["roofs"][0]["temperature"])[1] = None
     elif case == "no_building_frac":
@@ -67,6 +69,7 @@ def _null_unread_entry(site, case):
         "paved_dz",
         "paved_k",
         "paved_temperature",
+        "paved_temperature_inf",
         "roof_temperature",
         "no_building_frac",
     ],
@@ -78,9 +81,11 @@ def test_null_in_an_unread_entry_runs_and_leaves_output_unchanged(case):
     equality (not bitwise).
 
     Only the timestep output is compared. The returned state is not: an
-    unread null is carried as NaN in it (the heat state is packed
-    unconditionally), and a later run that selects an option reading the
-    entry rejects it at load."""
+    unread null or non-finite number is carried as NaN in it (the heat state
+    is packed unconditionally), which the checkpoint codec accepts, so the
+    run returns its state. A run that loads such an entry under an option
+    reading it rejects it at load; continuing the returned checkpoint under
+    such an option is rejected at resume (see the test below)."""
     sim = SUEWSSimulation.from_sample_data()
     rust = _run_rust._check_rust_available()
     forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:24])
@@ -103,3 +108,31 @@ def test_null_in_an_unread_entry_runs_and_leaves_output_unchanged(case):
     )
     assert new_nan_columns.size == 0, f"NaN only in edited run: {new_nan_columns}"
     np.testing.assert_array_equal(actual, expected)
+
+
+def test_resume_under_ehc_rejects_an_unread_initial_temperature():
+    """A null initial temperature that the first run did not read is carried
+    as NaN in its checkpoint. Continuing that checkpoint under storage heat
+    method 5, whose EHC reads it, fails at resume naming the entry, instead
+    of handing NaN to the kernel."""
+    sim = SUEWSSimulation.from_sample_data()
+    rust = _run_rust._check_rust_available()
+    forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:2])
+    first = sim.config.model_dump(exclude_none=True, mode="json")
+    _null_unread_entry(first["sites"][0], "paved_temperature")
+    _output, state_json, _length, _warnings = rust.run_suews(
+        yaml.safe_dump(first), forcing[:1].ravel(order="C").tolist(), 1
+    )
+
+    resumed = sim.config.model_dump(exclude_none=True, mode="json")
+    resumed["model"]["physics"]["storage_heat"] = {"value": 5}
+    with pytest.raises(RuntimeError) as exc:
+        rust.run_suews_with_state(
+            yaml.safe_dump(resumed),
+            forcing[1:2].ravel(order="C").tolist(),
+            1,
+            state_json,
+        )
+    message = str(exc.value)
+    assert "heat_state.temp_surf[2]" in message
+    assert "paved" in message

@@ -191,7 +191,7 @@ These are the standard moves; expand by reading the referenced files.
   the sample's site.
 - **New case from scratch (CLI form)**: `suews init --template simple-urban demo`
   (note positional `TARGET_DIR`, not `-o`), edit, then
-  `suews validate --dry-run --format json demo/config.yml`. See
+  `suews validate --dry-run --format json demo/sample_config.yml`. See
   `references/forcing-checklist.md` before adding forcing.
 - **Failed run**: `suews validate --dry-run --format json <config>` ->
   `suews inspect --format json <config>` -> `suews diagnose --format json <run_dir>`.

@@ -2,16 +2,19 @@
 
 > CLI: this reference uses unified `suews <subcommand>` syntax. If your install only has the legacy hyphenated entry points (`suews-validate`, `suews-inspect`, `suews-convert`, `suews-schema`, `suews-run`), substitute accordingly. See `../SKILL.md` for the rule.
 
-Before running, verify these eight properties of the forcing file (`.csv` or
-whitespace-delimited `.txt`, declared at `model.control.forcing.file`).
+Before running, verify these eight properties of the forcing file (space- or
+tab-delimited text, usually `.txt`, declared at `model.control.forcing.file`;
+comma-separated files are rejected by the loaders).
 
-1. **Required columns present** (case-sensitive canonical headers per
-   `src/supy/data_model/forcing/variables.py`):
+1. **Required columns present** (canonical headers per
+   `src/supy/data_model/forcing/variables.py`; file headers are matched
+   case-insensitively, but in-memory `pd.DataFrame` forcing needs the canonical
+   case):
    - Baseline time coordinates: `iy`, `id`, `it`, `imin` (interval-end timestamp).
    - Baseline meteorological drivers: `U`, `RH`, `Tair` (legacy file alias
-     `temp_c`), `pres` (lowercase -- not `Press`), `rain`, `kdown` (lowercase --
-     not `Kdown`).
-   - Conditional / optional columns: `ldown` (lowercase -- not `Ldown`), `fcld`,
+     `temp_c`), `pres` (spelled `pres` -- `Press` is rejected because of the
+     spelling, not the case), `rain`, `kdown`.
+   - Conditional / optional columns: `ldown`, `fcld`,
      `qn` (legacy file alias `qn1_obs`), `qs` (legacy alias `qs_obs`), `qf`
      (legacy alias `qf_obs`), `snow` (legacy alias `snowfrac`), `Wuh` (legacy
      aliases `wu_mm`, `wuh`), `sm` (legacy `xsmd`: rename it if entirely missing,
@@ -42,9 +45,14 @@ whitespace-delimited `.txt`, declared at `model.control.forcing.file`).
 Quick check from the command line:
 
 ```bash
-suews validate --dry-run --format json config.yml | jq '.warnings, .errors'
+suews validate --format json config.yml | jq '.warnings, .errors'
 suews inspect --format json config.yml | jq '.data.forcing_summary'
 ```
+
+Use the full `suews validate` here, not `--dry-run`: the dry-run path checks only
+the schema and the Pydantic model, never reads the forcing file, skips the
+Phase B science rules and never reports warnings. The full run writes a report
+and an updated YAML next to the config.
 
 Run `python .claude/skills/suews/scripts/check_forcing_columns.py <forcing>`
 (or `plugins/suews/skills/suews/scripts/check_forcing_columns.py` when installed

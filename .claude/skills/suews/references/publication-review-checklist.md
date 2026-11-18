@@ -21,9 +21,9 @@ Run through this before submitting a paper that uses SUEWS results.
 
 ## Validation
 
-- `suews validate --dry-run --format json config.yml` (or `suews validate
-  --format json config.yml`) returns `status` of `success` or `warning` (not
-  `error`).
+- `suews validate --format json config.yml` (the full run, not `--dry-run`,
+  which skips the forcing file and science checks and never reports warnings)
+  returns `status` of `success` or `warning` (not `error`).
 - All warnings have been read and judged acceptable; reasons are
   documented in the methods or supplement.
 - `suews diagnose --format json <run_dir>` shows zero `severity: fail`

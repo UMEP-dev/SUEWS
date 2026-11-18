@@ -9,11 +9,13 @@ all new work; convert old cases with `suews convert`.
 
 ```bash
 suews convert --format json -i RunControl.nml -o config.yml
-suews validate --dry-run --format json config.yml
+suews validate --format json config.yml
 ```
 
 The first command produces a current-schema YAML. The second confirms it
-parses and passes schema/science validation. Read both envelopes -- `warnings`
+parses and passes schema/science validation, including the forcing file (it
+writes a report and an updated YAML next to the config; `--dry-run` would check
+only the schema and Pydantic model). Read both envelopes -- `warnings`
 from `convert` often flag fields that received a default because the namelist
 did not provide them.
 
@@ -61,7 +63,7 @@ Refer to `docs/source/inputs/yaml/` for the canonical mapping.
    YAML location, not an absolute local path).
 4. Site `sites[*].properties.timezone` is populated (some old namelists omit
    UTC offset; there is no `Country` field in YAML).
-5. `suews validate --dry-run --format json config.yml` returns `status: success`
-   (warnings are OK if you accept them).
+5. `suews validate --format json config.yml` returns `status: success`, or
+   `status: warning` if you have read and accepted every warning.
 6. A fresh `suews run config.yml` reproduces qualitatively the old run's main
    fluxes.

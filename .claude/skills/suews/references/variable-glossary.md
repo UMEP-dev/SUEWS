@@ -1,8 +1,10 @@
 # SUEWS variable glossary
 
 Quick lookup for the variables you will see most often in SUEWS configs,
-forcing files, and outputs. Forcing column names are **case-sensitive** and
-defined in `src/supy/data_model/forcing/variables.py`; YAML fields follow
+forcing files, and outputs. Forcing column names are defined in
+`src/supy/data_model/forcing/variables.py`; file headers are matched
+case-insensitively, but an in-memory `pd.DataFrame` needs the canonical case
+shown here. YAML fields follow
 `snake_case`. Units are SI (with temperature in deg C and pressure in kPa).
 
 ## Forcing variables (baseline required)
@@ -18,15 +20,15 @@ Baseline meteorological drivers:
 
 - `Tair` -- air temperature, deg C (legacy file alias: `temp_c`).
 - `RH` -- relative humidity, %.
-- `pres` -- surface air pressure, kPa (lowercase `pres`, **not** `Press`).
+- `pres` -- surface air pressure, kPa (spelled `pres`; `Press` is rejected).
 - `U` -- wind speed at measurement height `sites[*].properties.z`, m/s.
-- `kdown` -- incoming shortwave radiation, W/m^2 (lowercase `kdown`, **not** `Kdown`).
+- `kdown` -- incoming shortwave radiation, W/m^2.
 - `rain` -- precipitation accumulated over the forcing interval, mm per timestep.
 
 Conditional / optional forcing columns (required only when selected physics
 options consume them; missing values use `-999`):
 
-- `ldown` -- incoming longwave radiation, W/m^2 (lowercase `ldown`, **not** `Ldown`).
+- `ldown` -- incoming longwave radiation, W/m^2.
 - `fcld` -- cloud fraction, 0-1.
 - `qn` -- observed net all-wave radiation, W/m^2 (legacy file alias: `qn1_obs`).
 - `qs` -- observed storage heat flux, W/m^2 (legacy file alias: `qs_obs`).

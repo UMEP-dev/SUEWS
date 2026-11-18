@@ -27,9 +27,9 @@ the fix.
   path is wrong, or the file is empty. Fix: confirm
   `model.control.forcing.file` resolves relative to the YAML file's directory.
 - **Missing required forcing column** -- the forcing header is missing one of
-  the case-sensitive baseline columns: time coordinates (`iy`, `id`, `it`,
-  `imin`) or meteorological drivers (`U`, `RH`, `Tair`, `pres`, `rain`,
-  `kdown`; note lowercase `pres` and `kdown`, not `Press` or `Kdown`). Fix:
+  the baseline columns (file headers match case-insensitively): time
+  coordinates (`iy`, `id`, `it`, `imin`) or meteorological drivers (`U`, `RH`,
+  `Tair`, `pres`, `rain`, `kdown`; note the spelling `pres`, not `Press`). Fix:
   rename or supply the missing column, then run
   `python .claude/skills/suews/scripts/check_forcing_columns.py <forcing>`
   (or `plugins/suews/skills/suews/scripts/check_forcing_columns.py` when

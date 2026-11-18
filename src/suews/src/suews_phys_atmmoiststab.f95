@@ -1026,7 +1026,6 @@ CONTAINS
 
    FUNCTION psi_mom_B71(ZL) RESULT(psim)
       ! integral form of phi_mom_B71
-      REAL(KIND(1D0)), PARAMETER :: PIOVER2 = ACOS(-1.)/2.
       REAL(KIND(1D0)) :: zl, psim, x, x2
 
       IF (ABS(zL) <= neut_limit) THEN
@@ -1034,7 +1033,7 @@ CONTAINS
       ELSEIF (zL < -neut_limit) THEN
          x = (1 - 19.3*zl)**(0.25)
          X2 = LOG((1 + (X**2.))/2.)
-         psim = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + PIOVER2
+         psim = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + pi/2.0D0
 
       ELSEIF (zL > neut_limit) THEN
          psim = (-6)*zl
@@ -1076,9 +1075,8 @@ CONTAINS
       IMPLICIT NONE
 
       ! REAL (KIND(1d0)), PARAMETER :: neut_limit = 1.E-4 ! Limit for neutral stability (Assumed from context)
-      REAL(KIND(1D0)) :: piover2, psym, zl, x, x2
+      REAL(KIND(1D0)) :: psym, zl, x, x2
 
-      PIOVER2 = ACOS(-1.)/2.
       !PRINT*,StabilityMethod,zl,"stab_fn_mom:" ! Original print statement commented out
       IF (ABS(zL) <= neut_limit) THEN
          psym = 0
@@ -1086,7 +1084,7 @@ CONTAINS
          !Dyer (1974)(1-16z/L)**.25' k=0.41  mod. Hogstrom (1988)v15.2
          X = (1.-(15.2*zl))**0.25
          X2 = LOG((1 + (X**2.))/2.)
-         PSYM = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + PIOVER2
+         PSYM = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + pi/2.0D0
 
       ELSEIF (zL > neut_limit) THEN !Stable
          !Van Ulden & Holtslag (1985) p 1206

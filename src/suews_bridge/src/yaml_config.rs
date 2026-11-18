@@ -933,6 +933,12 @@ fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) -> Result<
     if let Some(v) = read_i32(lc_root, &["lai", "laitype"]) {
         lai.lai_type = v;
     }
+    if let Some(v) = read_numeric(lc_root, &["lai", "gdd_base"]) {
+        lai.gdd_base = v;
+    }
+    if let Some(v) = read_numeric(lc_root, &["lai", "sdd_base"]) {
+        lai.sdd_base = v;
+    }
     Ok(())
 }
 

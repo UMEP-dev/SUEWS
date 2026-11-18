@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for heating setpoint profile parameters" name="description" />
 <meta content="SUEWS, YAML, heatingsetpointprofile, parameters, configuration" name="keywords" />
 
-    <title>4.6.15. Heating Setpoint Profile &#8212; SUEWS 2026.11.17.dev1 documentation</title>
+    <title>4.6.15. Heating Setpoint Profile &#8212; SUEWS 2026.11.17.dev5 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=a752b2fe"></script>
+    <script src="../../../_static/documentation_options.js?v=2533b049"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.14. Grass" href="grassproperties.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.17.dev1" />
+  <meta name="docsearch:version" content="2026.11.17.dev5" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.17.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0f09259f14d3a93ddc6f64587c609a5a4ec6c839" style="color: #31708f;">0f09259</a>).
+        (2026.11.17.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87a36f34da5eb5ab55a90b79956c279b301c0fa6" style="color: #31708f;">87a36f3</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.17.dev1 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.17.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.17.dev5 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.17.dev5 documentation - Home"/>
   
   
 </a></div>
@@ -184,7 +184,10 @@
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../../index.html">4. Input Files</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../index.html">4.1. YAML Configuration Format</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../temporal-profiles.html">4.1.4.1. Temporal Profiles</a></li>
+</ul>
+</details></li>
 <li class="toctree-l2"><a class="reference internal" href="../layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../forcing-data.html">4.3. Meteorological Forcing Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../timestamp-convention.html">4.4. Timestamp Convention</a></li>
@@ -567,7 +570,8 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </div>
 <section id="heating-setpoint-profile">
 <span id="index-0"></span><span id="heatingsetpointprofile"></span><h1><span class="section-number">4.6.15. </span>Heating Setpoint Profile<a class="headerlink" href="#heating-setpoint-profile" title="Link to this heading">#</a></h1>
-<p>10-minute profile for heating setpoints (default: off).</p>
+<p>Heating setpoints in two day-type mappings with 10-minute keys <code class="docutils literal notranslate"><span class="pre">&quot;1&quot;</span></code> to <code class="docutils literal notranslate"><span class="pre">&quot;144&quot;</span></code>.</p>
+<p>See <a class="reference internal" href="../temporal-profiles.html"><span class="doc">Temporal Profiles</span></a> for timing and the default values.</p>
 <dl class="input option" id="index-1">
 <dt class="sig sig-object input" id="input-option-working_day">
 <span class="sig-name descname"><span class="pre">working_day</span></span><a class="headerlink" href="#input-option-working_day" title="Link to this definition">#</a></dt>
@@ -665,8 +669,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.17.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0f09259f14d3a93ddc6f64587c609a5a4ec6c839">0f09259</a> |
+  <p>Version: 2026.11.17.dev5 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87a36f34da5eb5ab55a90b79956c279b301c0fa6">87a36f3</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-21T20:13:45+00:00" />
-    <title>4.1. YAML Configuration Format &#8212; SUEWS 2026.11.17.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-11-17T23:59:47+00:00" />
+    <title>4.1. YAML Configuration Format &#8212; SUEWS 2026.11.17.dev5 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=a752b2fe"></script>
+    <script src="../../_static/documentation_options.js?v=2533b049"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,12 +56,12 @@
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="4.2. Vertical and Material Layer Conventions" href="layer-conventions.html" />
+    <link rel="next" title="4.1.4.1. Temporal Profiles" href="temporal-profiles.html" />
     <link rel="prev" title="4. Input Files" href="../index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.17.dev1" />
-    <meta name="docbuild:last-update" content="2026-10-21"/>
+  <meta name="docsearch:version" content="2026.11.17.dev5" />
+    <meta name="docbuild:last-update" content="2026-11-17"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.17.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0f09259f14d3a93ddc6f64587c609a5a4ec6c839" style="color: #31708f;">0f09259</a>).
+        (2026.11.17.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87a36f34da5eb5ab55a90b79956c279b301c0fa6" style="color: #31708f;">87a36f3</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.17.dev1 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.17.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.17.dev5 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.17.dev5 documentation - Home"/>
   
   
 </a></div>
@@ -184,7 +184,10 @@
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../index.html">4. Input Files</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2 current active has-children"><a class="current reference internal" href="#">4.1. YAML Configuration Format</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="temporal-profiles.html">4.1.4.1. Temporal Profiles</a></li>
+</ul>
+</details></li>
 <li class="toctree-l2"><a class="reference internal" href="layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../forcing-data.html">4.3. Meteorological Forcing Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../timestamp-convention.html">4.4. Timestamp Convention</a></li>
@@ -779,6 +782,10 @@ forcing file.</p>
 <a class="reference internal" href="layer-conventions.html#layer-conventions"><span class="std std-ref">Vertical and Material Layer Conventions</span></a>. It defines the SPARTACUS vertical-layer geometry and,
 separately, the input structure for five material layers. It also identifies
 which storage-heat and radiation methods use each property.</p>
+<p>For profile keys, day selection, normalisation and defaults, read
+<a class="reference internal" href="temporal-profiles.html"><span class="doc">Temporal Profiles</span></a>.</p>
+<div class="toctree-wrapper compound">
+</div>
 <p><strong>Complete Parameter Reference:</strong></p>
 <p>The full documentation for all YAML parameters is available in the <a class="reference internal" href="config-reference/index.html"><span class="doc">YAML Configuration Reference</span></a>. This reference includes:</p>
 <ul class="simple">
@@ -977,11 +984,11 @@ suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> 
       </div>
     </a>
     <a class="right-next"
-       href="layer-conventions.html"
+       href="temporal-profiles.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">4.2. </span>Vertical and Material Layer Conventions</p>
+        <p class="prev-next-title"><span class="section-number">4.1.4.1. </span>Temporal Profiles</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1057,7 +1064,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-21.
+  Last updated on 2026-11-17.
   <br/>
 </p>
   </div>
@@ -1065,8 +1072,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.17.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0f09259f14d3a93ddc6f64587c609a5a4ec6c839">0f09259</a> |
+  <p>Version: 2026.11.17.dev5 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87a36f34da5eb5ab55a90b79956c279b301c0fa6">87a36f3</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

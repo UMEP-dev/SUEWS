@@ -64,7 +64,7 @@ do i = 1, n
     h = qh/rhocp
     lm = zzd/x
     us = max(1d-12, k*u/(log(zzd/z0m) - stab_psi_mom(meth, x) + stab_psi_mom(meth, z0m/lm)))
-    write(*, '(ES26.17E3)') -zzd*((grav/(t + 273.15))*k)*h/us**3 - x
+    write(*, '(ES26.17E3)') -zzd*((grav/(t + 273.15d0))*k)*h/us**3 - x
   end if
 end do
 end program

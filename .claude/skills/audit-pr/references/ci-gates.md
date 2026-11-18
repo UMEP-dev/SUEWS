@@ -219,10 +219,9 @@ workflow's `on:` / `paths:` rather than assuming.
     case -- stop and escalate.
 - **`validate`** (`validate-claude-md.yml`; the job has no display name, so it
   renders as `validate` under the "Validate shared agent instructions" workflow)
-  - Fires on: `AGENTS.md`, `CLAUDE.md`, `MAINTAINERS.md`, `.claude/README.md`,
-    `.claude/settings.json`, the validator and its test
-    (`.claude/scripts/validate-claude-md.py`,
-    `.claude/scripts/test_validate_agents_md.py`), `.claude/scripts/*.sh`,
+  - Fires on (pull requests and pushes to `master`): `AGENTS.md`, `CLAUDE.md`,
+    `MAINTAINERS.md`, `.impeccable.md`, `.claude/README.md`,
+    `.claude/settings.json`, `.claude/scripts/**`, `.claude/reference/**`,
     `.claude/hooks/**`, `.claude/agents/**`, `.claude/rules/**`,
     `.claude/skills/**/*.md`, `dev-ref/**/*.md`, and
     `.github/workflows/validate-claude-md.yml`.
@@ -232,10 +231,12 @@ workflow's `on:` / `paths:` rather than assuming.
     required `.claude/rules/` files is missing). The validator also fails when:
     a `.claude/rules/**/*.md` file and its `AGENTS.md` "Shared rule files" entry
     (including `paths:` scopes) are out of step; a path under `AGENTS.md`
-    "References" or a `.claude/settings.json` hook target does not exist; a
-    `.claude/agents/*.md` frontmatter key is wrong; a shared governance file has
-    a non-ASCII line; or a handle listed in `MAINTAINERS.md` appears in
-    `AGENTS.md`, `.claude/**/*.md` or `dev-ref/**/*.md`.
+    "References" or a `$CLAUDE_PROJECT_DIR` hook target in
+    `.claude/settings.json` does not exist; a `.claude/agents/*.md` file lacks
+    `name` or `description` in its frontmatter, sets `model:`, or uses `colour:`;
+    a shared governance file has a non-ASCII line; or a handle listed in
+    `MAINTAINERS.md` appears in `AGENTS.md`, `.claude/**/*.md` or
+    `dev-ref/**/*.md`.
   - Author-fixable: fix the broken cross-reference / compatibility loader, restore
     removed content, restore missing rule files, or replace a named person with
     the role and a pointer to `MAINTAINERS.md`. The job never reads the PR

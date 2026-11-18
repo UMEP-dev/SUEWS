@@ -9,7 +9,7 @@ MODULE module_phys_lai
       INTEGER, PARAMETER :: LAI_ORIGINAL = 0
 
       ! Enumeration parameters for senescence conditions
-      ! FA (TODO: use of day length only used for northern hemipshere which seems arbitrary? use base only for now?)
+      ! FA (TODO: use of day length only used for northern hemipshere which seems arbitrary? use gdd/sdd base only for now?)
       INTEGER, PARAMETER :: SEN_DAYLENGTH = 1
       INTEGER, PARAMETER :: SEN_SDD = 2
 
@@ -152,6 +152,8 @@ CONTAINS
             ! Now calculate LAI itself
             CALL calculate_lai( &
                senescence_mode=senescence_mode, &
+               growth_state=growth_state(iv), &
+               senescence_state=senescence_state(iv), &
                len_day_id_prev=len_day_id_prev, &
                delta_gdd=delta_gdd, &
                delta_sdd=delta_sdd, &
@@ -328,6 +330,7 @@ CONTAINS
 
    SUBROUTINE calculate_lai( &
          senescence_mode, &
+         growth_state, senescence_state, &
          delta_gdd, delta_sdd, gdd_id, sdd_id, &
          gdd_base, sdd_base, lai_power, lai_type, &
          len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
@@ -335,6 +338,8 @@ CONTAINS
       IMPLICIT NONE
 
       INTEGER, INTENT(IN) :: senescence_mode
+      INTEGER, INTENT(IN) :: growth_state
+      INTEGER, INTENT(IN) :: senescence_state
 
       REAL(KIND(1D0)), INTENT(IN) :: delta_gdd
       REAL(KIND(1D0)), INTENT(IN) :: delta_sdd
@@ -359,43 +364,51 @@ CONTAINS
 
       lai_id_next = lai_id_prev
 
-      IF (gdd_id >= gdd_base) THEN !Leaves can still grow
+      ! If in growing half of year, and GDD exceeds GDD base, leaves can grow
+      IF ((gdd_id >= gdd_base) .AND. (growth_state == 1)) THEN
          lai_id_next = calculate_gdd( &
             lai_id_prev=lai_id_prev, &
             lai_power=lai_power, &
             gdd=delta_gdd &
          )
       
-      ELSE IF (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
-         start_senescence = check_start_senescence( &
-            senescence_mode=senescence_mode, &
-            len_day_id_prev=len_day_id_prev, &
-            sdd_id=sdd_id, &
-            sdd_base=sdd_base &
-         )
-         IF (start_senescence) THEN !Start senescence
-            lai_id_next = calculate_sdd_type0( &
-               lai_id_prev=lai_id_prev, &
-               lai_power=lai_power, &
-               sdd=delta_sdd & 
-            )
-         END IF
+      ! If in senescing half of year, leaves can fall
+      ELSE IF (senescence_state == 1) THEN
 
-      ELSE
-         !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
-         start_senescence = check_start_senescence( &
-            senescence_mode=senescence_mode, &
-            len_day_id_prev=len_day_id_prev, &
-            sdd_id=sdd_id, &
-            sdd_base=sdd_base &
-         )
-
-         IF (start_senescence) THEN !Start senescence
-            lai_id_next = calculate_sdd_type1( &
-               lai_id_prev=lai_id_prev, &
-               lai_power=lai_power, &
-               sdd=delta_sdd &
+         ! incorporate extra check which allows for day length gate !FA - remove this for now?
+         IF (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
+            start_senescence = check_start_senescence( &
+               senescence_mode=senescence_mode, &
+               len_day_id_prev=len_day_id_prev, &
+               sdd_id=sdd_id, &
+               sdd_base=sdd_base &
             )
+            ! If SDD_base is exceeded and other conditions satisfied, compute resulting LAI decline
+            IF (start_senescence) THEN 
+               lai_id_next = calculate_sdd_type0( &
+                  lai_id_prev=lai_id_prev, &
+                  lai_power=lai_power, &
+                  sdd=delta_sdd & 
+               )
+            END IF
+
+         ELSE
+            !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
+            start_senescence = check_start_senescence( &
+               senescence_mode=senescence_mode, &
+               len_day_id_prev=len_day_id_prev, &
+               sdd_id=sdd_id, &
+               sdd_base=sdd_base &
+            )
+            !FA - type 1 option wiill produce wrong output when using delta_gdd/delta_sdd
+            IF (start_senescence) THEN !Start senescence
+               lai_id_next = calculate_sdd_type1( &
+                  lai_id_prev=lai_id_prev, &
+                  lai_power=lai_power, &
+                  sdd=delta_sdd &
+               )
+            END IF
+
          END IF
 
       END IF

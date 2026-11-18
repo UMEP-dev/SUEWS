@@ -86,8 +86,6 @@ contains
       integer :: senescence_mode
       logical :: southern_hemisphere
 
-      logical :: cold_spring
-
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
@@ -136,12 +134,6 @@ contains
             sdd_id=sdd_id(iv) &
          )
 
-         ! call limit_degree_days( &
-         !    gdd_full=gdd_full(iv), &
-         !    sdd_full=sdd_full(iv), &
-         !    gdd_id=gdd_id(iv), &
-         !    sdd_id=sdd_id(iv) &
-         ! )
 
          ! Now calculate LAI itself
          call reset_degree_days( &
@@ -155,15 +147,7 @@ contains
             sdd=sdd_id(iv), &
             gdd=gdd_id(iv) &
          )
-         ! call reset_degree_day_states( &
-         !    id=id, &
-         !    sdd_reset_day=sdd_reset_day, &
-         !    summer_day=summer_day, &
-         !    winter_day=winter_day, &
-         !    gdd_id=gdd_id(iv), &
-         !    sdd_id=sdd_id(iv), &
-         !    southern_hemisphere=southern_hemisphere &
-         ! )
+
 
          if (lai_calc_yes /= 0) then
             call calculate_lai( &
@@ -307,46 +291,6 @@ contains
 
       end function calc_delta_degree_days
 
-      ! subroutine limit_gdd_sdd( &
-      !       gdd_full, sdd_full, gdd_id, sdd_id)
-
-      !    implicit none
-
-      !    real(kind(1D0)), intent(in) :: gdd_full
-      !    real(kind(1D0)), intent(in) :: sdd_full
-      !    real(kind(1D0)), intent(inout) :: gdd_id
-      !    real(kind(1D0)), intent(inout) :: sdd_id
-
-      !    !Start senescence
-      !    if (gdd_id >= gdd_full) then
-      !       gdd_id = gdd_full !Leaves should not grow so delete yes from earlier
-      !       if (sdd_id < -CRIT_DAYS) gdd_id = 0
-      !    end if
-
-      !    !After senescence now start growing leaves
-      !    if (sdd_id <= sdd_full) then
-      !       sdd_id = sdd_full !Leaves off so add back earlier
-      !       if (gdd_id > CRIT_DAYS) sdd_id = 0
-      !    end if
-
-      !    ! With these limits SDD, GDD is set to zero
-      !    if (sdd_id < -CRIT_DAYS .AND. sdd_id > sdd_full) gdd_id = 0
-      !    if (gdd_id > CRIT_DAYS .AND. gdd_id < gdd_full) sdd_id = 0
-
-      ! end subroutine limit_gdd_sdd
-
-      ! subroutine limit_degree_days(gdd_full, sdd_full, gdd_id, sdd_id)
-         
-      !    implicit none
-
-      !    real(kind(1D0)), intent(in) :: gdd_full
-      !    real(kind(1D0)), intent(in) :: sdd_full
-      !    real(kind(1D0)), intent(inout) :: gdd_id
-      !    real(kind(1D0)), intent(inout) :: sdd_id
-
-      !    ! Limit GDD and SDD to their full values
-
-      ! end subroutine limit_degree_days
 
       subroutine calculate_lai( &
             senescence_mode, &
@@ -376,7 +320,6 @@ contains
 
          real(kind(1D0)), intent(out) :: lai_id_next
 
-         logical, intent(in) :: cold_spring
 
          logical :: start_senescence
 

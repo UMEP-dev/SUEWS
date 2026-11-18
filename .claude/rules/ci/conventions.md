@@ -331,7 +331,7 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 - `python` or `util`: `MINIMAL_PLATFORMS` (1), test tier **standard** [fact: git grep -n "Ready PR with python/util changes" .github/scripts/determine-matrix.sh]
 - `ci` or `tests` only: `MINIMAL_PLATFORMS` (1), test tier **smoke** [fact: git grep -n "Ready PR with ci/tests-only changes" .github/scripts/determine-matrix.sh]
 - Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
-- **`0-physics:change` / `0-numerics:change` label override (gh#1576)**: a ready PR carrying either label runs test tier **physics-full** instead, so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
+- **`0-physics:change` / `0-numerics:change` label override (gh#1576)**: a ready PR carrying either label forces `build_wheels` (even when `needs-build` is false) and runs test tier **physics-full**, requiring a green wheel build in `pr-gate` so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml]
 
 ### Merge queue (`merge_group`)
 
@@ -339,7 +339,7 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 - Tests-only or other non-package changes across the queued group: `MINIMAL_PLATFORMS` (1, Linux x86_64), the abi3 build floor (1 Python), test tier **standard** -- wheels are byte-for-byte identical to what `master` already validated across OS families, so one Linux build runs the new tests while the nightly still covers every platform. [fact: git grep -n "tests-only change, minimal platform" .github/scripts/determine-matrix.sh]
 - Ready-PR CI has already exercised both Python bookends; the queue repeats the combined tree on the abi3 floor only. [fact: git grep -n 'API_PYTHON="$BUILD_PYTHON"' .github/scripts/determine-matrix.sh]
 
-**Exception (gh#1576):** when the queued PR carries `0-physics:change` or `0-numerics:change`, the merge queue runs `PR_PLATFORMS` (3) with test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from the queue ref and validated before the label is queried; if it cannot be identified (e.g. a batched group), the queue fails safe to **physics-full**. [fact: git grep -n 'MERGE_PLATFORMS="$PR_PLATFORMS"' .github/scripts/determine-matrix.sh]
+**Exception (gh#1576):** when the queued PR carries `0-physics:change` or `0-numerics:change`, the merge queue forces `build_wheels` on `PR_PLATFORMS` (3) with test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from `gh-readonly-queue/<base>/pr-<n>-<sha>` when `<sha>` matches `merge_group.base_sha` (a single-PR queue diff); if the queue ref spans multiple PRs or cannot be parsed, the queue fails safe to **physics-full**. [fact: git grep -n 'MERGE_PLATFORMS="$PR_PLATFORMS"' .github/scripts/determine-matrix.sh && git grep -n "ref_base_sha" .github/workflows/build-publish_to_pypi.yml]
 
 ### Nightly schedule / tag push
 

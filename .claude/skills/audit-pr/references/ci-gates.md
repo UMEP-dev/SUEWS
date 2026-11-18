@@ -270,17 +270,18 @@ workflow's `on:` / `paths:` rather than assuming.
     `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change
     without **exactly one** of `0-physics:change` or `0-numerics:change`, fails if a PR
     carries both labels simultaneously or if a labelled ready PR / `merge_group` run did not
-    execute `test_tier=physics-full`, fails on an unresolved `merge_group` ref when
-    reference outputs changed, and warns on unlabelled `suews_phys_*.f9*` edits.
+    execute `test_tier=physics-full` (and `PR build validation` requires `build_wheels == success`
+    whenever either label is present), and warns on unlabelled `suews_phys_*.f9*` edits.
   - Maintainer-gated + author-fixable (no cosmetic bypass): for formulation, build-environment,
     or above-threshold changes, add `## Scientific evidence` to the PR body and have a
     maintainer apply `0-physics:change`; for constant precision, unit conversion, or
     floating-point representation changes strictly below `0.1%` relative and `0.5 W m-2`
     absolute flux difference, add the per-variable numerical change table and have a
     maintainer apply `0-numerics:change`. Both `determine_matrix` and `check_physics_label`
-    query live PR labels via the API, and `physics-label-rerun.yml` automatically re-runs
-    the full wheel workflow on same-repo PRs when either classification label changes
-    (on fork PRs, click "Re-run all jobs" -- never re-run `check_physics_label` alone).
+    query live PR labels via the API, and `build-publish_to_pypi.yml` does not trigger on
+    label events -- so after adding or changing either label, click "Re-run all jobs" (or push
+    a commit / close and reopen the PR) so `determine_matrix` and `build_wheels` run `physics-full`
+    (never re-run `check_physics_label` alone).
 - **`Build MCP package`** (`build_mcp` in `build-publish_to_pypi.yml`)
   - Enforces (`needs:` of `build_wheels` and `PR build validation`): runs
     `python3 get_ver_git.py` and `python -m build mcp` to produce the

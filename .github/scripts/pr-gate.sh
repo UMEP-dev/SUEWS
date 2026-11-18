@@ -13,12 +13,14 @@
 #   CHECK_MARKERS_RESULT  -- needs.check_test_markers.result
 #   PHYSICS_LABEL_RESULT  -- needs.check_physics_label.result
 #   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
+#   PHYSICS_CHANGE        -- needs.determine_matrix.outputs.physics_change (optional; defaults to false)
 
 set -euo pipefail
 
 CHECK_MARKERS_RESULT="${CHECK_MARKERS_RESULT:-skipped}"
 PHYSICS_LABEL_RESULT="${PHYSICS_LABEL_RESULT:-skipped}"
 BUILD_MCP_RESULT="${BUILD_MCP_RESULT:-skipped}"
+PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
 
 echo "=== Job Results ==="
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
@@ -28,6 +30,7 @@ echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "check_physics_label: ${PHYSICS_LABEL_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
+echo "physics_change: ${PHYSICS_CHANGE}"
 echo ""
 
 # Handle cancelled detect-changes (e.g. superseded by cancel-in-progress)
@@ -96,6 +99,22 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
   else
     echo "[X] API cross-CPython tests failed"
     echo "  api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
+    VALIDATION_PASSED=false
+  fi
+
+elif [[ "${PHYSICS_CHANGE}" == "true" ]]; then
+  echo "Classification label present without code-filter changes - validating wheel and physics build..."
+  if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+    echo "[OK] Wheel and physics build passed"
+  else
+    echo "[X] Classification label requires wheel and physics build"
+    echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+    VALIDATION_PASSED=false
+  fi
+
+  if [[ "${BUILD_MCP_RESULT}" != "success" ]] && [[ "${BUILD_MCP_RESULT}" != "skipped" ]]; then
+    echo "[X] MCP package build failed"
+    echo "  build_mcp: ${BUILD_MCP_RESULT}"
     VALIDATION_PASSED=false
   fi
 

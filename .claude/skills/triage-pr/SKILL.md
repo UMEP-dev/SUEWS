@@ -132,7 +132,9 @@ Independent of the disposition label, apply at most one classification label (if
 - `0-physics:change` when the PR changes process formulation (`suews_phys_*.f95`, `src/suews/ext_lib/**`, Rust physics backend), changes a physics-affecting data-model default, or moves any reference fixture (`sample_output_2012-*.csv` + `provenance.json`, `.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`, `test/fixtures/w16_most.csv`) without satisfying all conditions of `0-numerics:change` (including shifts at or above `0.1%` relative or `0.5 W m-2` absolute flux difference, or a reference-lane build-environment update). When applied, note in the marker comment that the PR needs `## Scientific evidence` and domain-owner sign-off (`MAINTAINERS.md`) before advancing.
 - `0-numerics:change` when the PR changes no process formulation -- only constant precision, unit conversions, or floating-point representation -- and moves all non-excluded reference outputs strictly below `0.1%` relative and `0.5 W m-2` absolute flux difference. When applied, note that the PR needs same-PR fixture refresh, a per-variable change table, and green `physics-full` CI (no `## Scientific evidence` or domain-owner sign-off).
 
-Both sit outside the `0-pr:*` state machine, are mutually exclusive with each other (`0-physics:change` wins if mixed or uncertain; remove the other classification label before applying one so CI never sees both), and select the `physics-full` CI tier.
+Both sit outside the `0-pr:*` state machine, are mutually exclusive with each other (`0-physics:change` wins if mixed or uncertain), and select the `physics-full` CI tier.
+Apply a missing classification label **only when neither `0-physics:change` nor `0-numerics:change` is already present** on the PR; never remove, replace, or downgrade an existing classification label automatically (`.claude/rules/physics-change-evidence.md`).
+If an existing classification label conflicts with the diff (or both labels are present), preserve the existing label(s) untouched and flag the proposed change in the marker comment and verdict `Reason` for a maintainer to decide and record.
 
 ### Priority
 
@@ -191,8 +193,10 @@ May run without human approval in autonomous mode:
 - Compute verdicts per `references/rubric.md` for every candidate PR.
 - **On PRs owned by the current operator/automation account ONLY**:
   - Post or upsert the marker comment (`<!-- triage-pr:verdict ts=... -->`).
-  - Swap the matching `0-pr:*` label and apply `0-auto:pr-audited` (and
-    `0-physics:change` or `0-numerics:change` when triggered), skipping any label missing from
+  - Swap the matching `0-pr:*` label and apply `0-auto:pr-audited` (plus
+    `0-physics:change` or `0-numerics:change` when triggered and neither
+    classification label is already on the PR; preserve existing classification
+    labels on conflict and flag for a maintainer), skipping any label missing from
     `gh label list`.
 
 ### Confidence-gated

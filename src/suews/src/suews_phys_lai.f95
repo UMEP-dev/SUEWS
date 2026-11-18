@@ -67,9 +67,9 @@ CONTAINS
       REAL(KIND(1D0)) :: delta_gdd ! change in gdd from previous day
       REAL(KIND(1D0)) :: delta_sdd ! change in gdd from previous day 
       
-      !FA TODO: currently the code is set up so growth always occurs first even if start a run in the senescence phase (could initialse elsewhere?)
-      INTEGER, DIMENSION(nvegsurf) :: growth_state = 0 !State of growth (0: dormant, 1: growing)
-      INTEGER, DIMENSION(nvegsurf) :: senescence_state = 0 !State of senescence (0: not senescing, 1: senescing)
+      !FA currently defined across all surface types but defined for all surfaces. leave for now (for later PRs that may alter this state)
+      INTEGER, DIMENSION(nvegsurf) :: growth_state  !State of growth (0: dormant, 1: growing)
+      INTEGER, DIMENSION(nvegsurf) :: senescence_state !State of senescence (0: not senescing, 1: senescing)
       
       INTEGER :: iv
 
@@ -111,6 +111,17 @@ CONTAINS
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
 
+         ! assign growth/senescence states
+         CALL update_growth_state( &
+         id=id, &
+         lat=lat, &
+         summer_day=summer_day, &
+         winter_day=winter_day, &
+         growth_state=growth_state(iv), &
+         senescence_state=senescence_state(iv) &
+         )
+
+         ! compute accumulated and change in GDD/SDD
          CALL calc_degree_days( &
             growth_state=growth_state(iv), &
             senescence_state=senescence_state(iv), &
@@ -132,8 +143,6 @@ CONTAINS
             id=id, &
             summer_reset_day=summer_day, &
             winter_reset_day=winter_day, &
-            growth_state=growth_state(iv), &
-            senescence_state=senescence_state(iv), &
             sdd=sdd_id(iv), &
             gdd=gdd_id(iv) &
          )
@@ -165,7 +174,7 @@ CONTAINS
 
    END SUBROUTINE update_gddlai
 
-   
+
       SUBROUTINE observed_lai( &
       lai_obs, lai_id_next, valid)
 
@@ -209,6 +218,45 @@ CONTAINS
       valid = .TRUE.
 
    END SUBROUTINE observed_lai
+
+
+   SUBROUTINE update_growth_state(&
+      id, lat, summer_day, winter_day, & ! input
+      growth_state, senescence_state) ! output
+   
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: id
+      INTEGER, INTENT(IN) :: summer_day
+      INTEGER, INTENT(IN) :: winter_day
+      REAL(KIND(1D0)), INTENT(IN) :: lat
+      
+      INTEGER, INTENT(INOUT) :: growth_state
+      INTEGER, INTENT(INOUT) :: senescence_state
+
+      ! northern and southern hemisphere need different logic owing to reversed growth/senescence periods
+      ! and year wraparound
+      IF (lat >= 0) THEN
+         IF ((id >= summer_day) .OR. (id < winter_day)) THEN
+            senescence_state = 1
+            growth_state = 0
+         ELSE
+            growth_state = 1
+            senescence_state = 0
+         END IF
+      ELSE
+         IF ((id >= summer_day) .AND. (id < winter_day)) THEN
+            senescence_state = 1
+            growth_state = 0
+         ELSE
+            growth_state = 1
+            senescence_state = 0
+         END IF
+
+      ENDIF
+
+   END SUBROUTINE update_growth_state
+
 
    SUBROUTINE calc_degree_days( &
          growth_state, senescence_state, &
@@ -365,7 +413,6 @@ CONTAINS
    SUBROUTINE reset_degree_days( &
       id, &
       summer_reset_day, winter_reset_day, &
-      growth_state, senescence_state, &
       sdd, gdd)
 
       IMPLICIT NONE
@@ -373,9 +420,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: id
       INTEGER, INTENT(IN) :: summer_reset_day
       INTEGER, INTENT(IN) :: winter_reset_day
-      
-      INTEGER, INTENT(INOUT) :: growth_state
-      INTEGER, INTENT(INOUT) :: senescence_state
 
       REAL(KIND(1D0)), INTENT(INOUT) :: gdd
       REAL(KIND(1D0)), INTENT(INOUT) :: sdd
@@ -383,13 +427,9 @@ CONTAINS
       IF (id == summer_reset_day) THEN
          sdd = 0.0D0
          gdd = 0.0D0
-         senescence_state = 1
-         growth_state = 0
       ELSE IF (id == winter_reset_day) THEN
          gdd = 0.0D0
          sdd = 0.0D0
-         growth_state = 1
-         senescence_state = 0
       END IF
 
    END SUBROUTINE reset_degree_days

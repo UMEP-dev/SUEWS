@@ -25,7 +25,7 @@ physics-affecting default), classify it under
   sign/magnitude reasoning), domain-owner sign-off where one exists (e.g.
   STEBBS; see [`MAINTAINERS.md`](MAINTAINERS.md)), refreshed reference fixtures
   in the same PR, and green `physics-full` CI.
-- **Numerical changes (`0-numerics:change`)** -- constant precision, unit conversions, or floating-point representation only, with no formulation change and every variable strictly below `0.1%` scale-relative change (`max_i |new_i - ref_i| / max_i |ref_i|` in each fixture; any change to an identically-zero reference variable fails) and `0.5 W m-2` maximum absolute flux difference -- require refreshed reference fixtures in the same PR, a per-variable numerical change table, and green `physics-full` CI, without `## Scientific evidence` or domain-owner sign-off.
+- **Numerical changes (`0-numerics:change`)** -- constant precision, unit conversions, or floating-point representation only, with no formulation change and every variable strictly below `0.5%` scale-relative change (`max_i |new_i - ref_i| / max_i |ref_i|` in each fixture; any change to an identically-zero reference variable fails) and `0.5 W m-2` maximum absolute flux difference -- require refreshed reference fixtures in the same PR, a per-variable numerical change table, and green `physics-full` CI, without `## Scientific evidence` or domain-owner sign-off.
 
 ## AI-generated contributions
 

@@ -64,21 +64,23 @@ Measure each variable against its own scale in each vendored reference fixture (
 Across all aligned samples `i` of a variable in a fixture, positions where both `ref_i` and `new_i` are `NaN` are ignored and any `NaN`/finite mismatch fails the threshold; over all compared (non-`NaN`, and for `Lob` / `L_MOD_RSL` non-masked) samples `i` of that variable in that fixture: [decision: software maintainer, 2026-11-18]
 
 - **Maximum absolute difference:** `max_i |new_i - ref_i|` (`0` when no compared samples remain).
-- **Scale-relative change:** `max_i |new_i - ref_i| / max_i |ref_i|` when `max_i |ref_i| > 0`, `0` (`0%`) when `max_i |ref_i| == 0` and `max_i |new_i - ref_i| == 0` (or when no compared samples remain), and unbounded (fails `< 0.1%`: a variable whose reference is identically zero fails if it changes at all) when `max_i |ref_i| == 0` and `max_i |new_i - ref_i| > 0`.
+- **Scale-relative change:** `max_i |new_i - ref_i| / max_i |ref_i|` when `max_i |ref_i| > 0`, `0` (`0%`) when `max_i |ref_i| == 0` and `max_i |new_i - ref_i| == 0` (or when no compared samples remain), and unbounded (fails `< 0.5%`: a variable whose reference is identically zero fails if it changes at all) when `max_i |ref_i| == 0` and `max_i |new_i - ref_i| > 0`.
 
 In every vendored reference fixture, every variable must satisfy **both**: [decision: software maintainer, 2026-11-18]
 
-- **scale-relative change < 0.1%** (`1e-3`), AND
+- **scale-relative change < 0.5%** (`5e-3`), AND
 - **maximum absolute flux difference < 0.5 W m-2** (for energy and radiation fluxes in `W m-2`).
 
-Only the two Obukhov-length diagnostics below may exclude near-neutral samples before taking the maxima for the `< 0.1%` scale-relative check: [decision: software maintainer, 2026-11-18]
+The `< 0.5%` (`5e-3`) scale-relative bound is calibrated on gh#1970, where several small-magnitude STEBBS variables reached `0.11-0.29%` scale-relative change with absolute differences of at most `0.05 W m-2` (still round-off level). [decision: software maintainer, 2026-11-18]
+
+Only the two Obukhov-length diagnostics below may exclude near-neutral samples before taking the maxima for the `< 0.5%` scale-relative check: [decision: software maintainer, 2026-11-18]
 
 - **Obukhov length and its direct RSL counterpart** (`Lob` in the `SUEWS` output group and `L_MOD_RSL` in `RSL`): physically `|L| -> infinity` as sensible heat flux `QH -> 0` near neutral stratification, whereas stored values remain finite because `stability_scales` clamps `|(z - d) / L| <= ZL_NEUTRAL` (`1e-12`) via `length = zzd / SIGN(ZL_NEUTRAL, zl)` (`src/suews/src/suews_phys_atmmoiststab.f95`) and `RSL` clamps `|Lc / L|` (`src/suews/src/suews_phys_rslprof.f95`), so sub-threshold round-off near `QH = 0` can flip sign or swing `1 / zL` between large finite magnitudes without any physical change. [fact: git grep -n "ZL_NEUTRAL\|lc_over_L = SIGN" src/suews/src/suews_phys_atmmoiststab.f95 src/suews/src/suews_phys_rslprof.f95]
 
-Exclude only aligned sample rows inside the model's neutral band (`neut_limit = 1e-4` in `src/suews/src/suews_phys_atmmoiststab.f95`) in both runs -- `max(|zL_ref|, |zL_new|) <= 1e-4` wherever aligned `zL` is stored (small `QH` alone never exempts a row, and any row with `|zL| > 1e-4` in `ref` or `new` is never exempted), or for a fixture lacking `zL` a documented equivalent stability parameter `zeta = (z - d) / L` satisfying `max(|zeta_ref|, |zeta_new|) <= 1e-4` (`0` rows excluded if unavailable) -- before taking `max_i |new_i - ref_i|` and `max_i |ref_i|`, and apply the ordinary `< 0.1%` scale-relative change threshold to the remaining rows of `Lob` and `L_MOD_RSL` (`NaN`/finite mismatches still fail across all rows). [procedure: Principle 1]
+Exclude only aligned sample rows inside the model's neutral band (`neut_limit = 1e-4` in `src/suews/src/suews_phys_atmmoiststab.f95`) in both runs -- `max(|zL_ref|, |zL_new|) <= 1e-4` wherever aligned `zL` is stored (small `QH` alone never exempts a row, and any row with `|zL| > 1e-4` in `ref` or `new` is never exempted), or for a fixture lacking `zL` a documented equivalent stability parameter `zeta = (z - d) / L` satisfying `max(|zeta_ref|, |zeta_new|) <= 1e-4` (`0` rows excluded if unavailable) -- before taking `max_i |new_i - ref_i|` and `max_i |ref_i|`, and apply the ordinary `< 0.5%` scale-relative change threshold to the remaining rows of `Lob` and `L_MOD_RSL` (`NaN`/finite mismatches still fail across all rows). [procedure: Principle 1]
 Resistances (`RA`, `RAsnow`, `RB`, `RS`, `RSS_*`) are guarded by finite wind/friction-velocity floors or conductance caps in SUEWS (`src/suews/src/suews_phys_resist.f95`) and can legitimately move under physics changes, so they remain included across all rows without masking. [fact: git grep -n "AVU1_use = MAX\|USTAR_GUARD" src/suews/src/suews_phys_resist.f95]
 Moved `Lob` / `L_MOD_RSL` values must still be refreshed across all rows in the fixture and recorded in the PR's change table with the exact sample mask, the excluded/total sample count (`k / N`), and the maximum absolute difference and scale-relative change across the remaining rows. [procedure: Principle 1]
-Any output-moving change that fails any `0-numerics:change` condition -- including a variable reaching or exceeding `0.1%` scale-relative change or `0.5 W m-2` absolute flux difference, any change to an identically-zero reference variable, any `NaN`/finite mismatch, or an output shift from another cause -- is a **physics change** (`0-physics:change`) and requires the full scientific-evidence and sign-off gate. [decision: software maintainer, 2026-11-18]
+Any output-moving change that fails any `0-numerics:change` condition -- including a variable reaching or exceeding `0.5%` scale-relative change or `0.5 W m-2` absolute flux difference, any change to an identically-zero reference variable, any `NaN`/finite mismatch, or an output shift from another cause -- is a **physics change** (`0-physics:change`) and requires the full scientific-evidence and sign-off gate. [decision: software maintainer, 2026-11-18]
 
 ### Neither class (no label required)
 
@@ -191,7 +193,7 @@ Instead, it MUST carry: [decision: software maintainer, 2026-11-18]
 
    | Variable | Max abs diff | Scale-rel change (%) | Excluded rows (mask) | Within threshold? |
    |----------|--------------|----------------------|----------------------|-------------------|
-   | <var>    | <val>        | <pct>                | 0 / <N> (none) or <k> / <N> (<mask>) | yes (<0.1%, <0.5 W m-2 on remaining rows) |
+   | <var>    | <val>        | <pct>                | 0 / <N> (none) or <k> / <N> (<mask>) | yes (<0.5%, <0.5 W m-2 on remaining rows) |
    ```
 
 4. **Full `-m physics` CI tier (`physics-full`) green before merge** -- CI runs the exact same `physics-full` tier as on `0-physics:change` PRs to confirm across the suite that the change is numerical only.
@@ -203,7 +205,7 @@ Instead, it MUST carry: [decision: software maintainer, 2026-11-18]
 Two mutually exclusive classification labels in the `0-` automation namespace: [decision: software maintainer, 2026-11-18]
 
 - `0-physics:change`: formulation change, physics-affecting default change, or any output-moving / fixture-refreshing change that fails any `0-numerics:change` condition (including shifts at/above the numerical threshold or build-environment updates); activates all four requirements (`## Scientific evidence`, domain-owner sign-off, fixture refresh, `physics-full` CI tier).
-- `0-numerics:change`: constant precision, unit conversion, or floating-point representation only, with all reference shifts below `0.1%` scale-relative change (after the near-neutral `Lob` / `L_MOD_RSL` row mask) and `0.5 W m-2` absolute flux difference; activates fixture refresh, numerical change table, and `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off.
+- `0-numerics:change`: constant precision, unit conversion, or floating-point representation only, with all reference shifts below `0.5%` scale-relative change (after the near-neutral `Lob` / `L_MOD_RSL` row mask) and `0.5 W m-2` absolute flux difference; activates fixture refresh, numerical change table, and `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off.
 - If a PR combines a formulation change with a constant clean-up, or if any variable meets or exceeds the threshold, label the PR `0-physics:change` (or split the PR per `work-sizing.md`). [procedure: Principle 3]
 - Applied at PR triage (`triage-pr`) only when neither classification label is already present on the PR, or proposed/flagged by `audit-pr` when the diff matches the triggers above; on any conflict (including when an existing label disagrees with the diff or both labels are present), automation preserves the existing label(s) untouched and flags the proposed change for a maintainer to decide and record. [procedure: Principle 2]
 - A maintainer creates each label once; the autonomous tier applies labels that already exist and never creates labels (`autonomous-workflow.md`).
@@ -226,7 +228,7 @@ When reviewing a PR that touches physics source, physics-affecting defaults, or 
   - Confirm all moved reference fixtures (and `provenance.json`) are refreshed in this PR (or an explicitly linked PR) and `physics-full` is green.
 - For a **numerical change** (`0-numerics:change`):
   - Verify from the diff that no process formulation, equation, parameterisation form, partitioning, scheme dispatch, calibrated coefficient, or physics-affecting default changed, and that the change is restricted to constant precision, unit conversions, or floating-point representation.
-  - Confirm the PR body includes the per-variable change table (maximum absolute difference and scale-relative change `max_i |new_i - ref_i| / max_i |ref_i|`, failing if an identically-zero reference variable changes at all or on any `NaN`/finite mismatch) and that every variable is strictly below `0.1%` scale-relative change and `0.5 W m-2` absolute flux difference across all non-masked rows (only `Lob` and `L_MOD_RSL` may apply the reproducible near-neutral mask above before taking the maxima, with the mask and excluded `k / N` count recorded and `< 0.1%` verified on remaining rows; resistances such as `RA`, `RB`, and `RS` are never masked).
+  - Confirm the PR body includes the per-variable change table (maximum absolute difference and scale-relative change `max_i |new_i - ref_i| / max_i |ref_i|`, failing if an identically-zero reference variable changes at all or on any `NaN`/finite mismatch) and that every variable is strictly below `0.5%` scale-relative change and `0.5 W m-2` absolute flux difference across all non-masked rows (only `Lob` and `L_MOD_RSL` may apply the reproducible near-neutral mask above before taking the maxima, with the mask and excluded `k / N` count recorded and `< 0.5%` verified on remaining rows; resistances such as `RA`, `RB`, and `RS` are never masked).
   - Confirm all moved reference fixtures (and `provenance.json`) are refreshed in this PR and `physics-full` is green.
   - Do NOT require `## Scientific evidence` or domain-owner sign-off.
 

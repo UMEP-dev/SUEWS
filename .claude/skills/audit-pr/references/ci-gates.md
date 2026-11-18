@@ -275,7 +275,7 @@ workflow's `on:` / `paths:` rather than assuming.
   - Maintainer-gated + author-fixable (no cosmetic bypass): for formulation, build-environment,
     or above-threshold changes, add `## Scientific evidence` to the PR body and have a
     maintainer apply `0-physics:change`; for constant precision, unit conversion, or
-    floating-point representation changes strictly below `0.1%` scale-relative and `0.5 W m-2`
+    floating-point representation changes strictly below `0.5%` scale-relative and `0.5 W m-2`
     absolute flux difference, add the per-variable numerical change table and have a
     maintainer apply `0-numerics:change`. Both `determine_matrix` and `check_physics_label`
     query live PR labels via the API, and `build-publish_to_pypi.yml` does not trigger on

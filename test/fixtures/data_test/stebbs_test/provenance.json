@@ -1,5 +1,7 @@
 {
   "source_ref": "UMEP-dev/SUEWS#1970",
+  "source_commit": null,
+  "source_tree": "234753da57c17031edb2f0a195e79ccd392580b2",
   "generator": "scripts/suews/gen_stebbs_output.py",
   "generated_date": "2026-11-18",
   "platform": "Linux x86_64",
@@ -10,8 +12,9 @@
   "validation": "2017-08-27",
   "rows": 288,
   "columns": 82,
+  "hash_format": "SHA-256 with CRLF folded to LF",
   "files": {
-    "sample_config.yml": "1d8c3a0f8154899f753283fae964c55333f6912c7679e302540f501622878feb",
+    "sample_config.yml": "bea3865a8f7b8be0abc3af1090265a5b83889f86f17366a15ff14e946d47c36c",
     "test_2017_data_15_mp.txt": "5ac3b182e090136cf2017ebf95b5696f4957c036a27ded1fbf75e316e0f60ba0",
     "sample_output_stebbs.csv": "897f50366913f53bf7931f0514c2bdc99392df657354f1cb82cae562a6201a76"
   }

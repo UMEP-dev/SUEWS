@@ -9,14 +9,15 @@
     },
     "fortran_build_profile": "release",
     "git_commit": null,
-    "supy_version": "2026.11.17.dev22",
-    "source_ref": "UMEP-dev/SUEWS#1970"
+    "source_ref": "UMEP-dev/SUEWS#1970",
+    "source_tree": "234753da57c17031edb2f0a195e79ccd392580b2",
+    "supy_version": "2026.11.17.dev27"
   },
   "column_names_sha256": "1f6b28f98506b531b5c6531dd353feb033ee62d67e879e6dd941b7a63b26bc31",
   "columns": 113,
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-11-18T07:13:58Z",
+  "generated_utc": "2026-11-18T08:24:18Z",
   "platform": {
     "libc": "glibc 2.17",
     "machine": "x86_64",

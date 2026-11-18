@@ -28,5 +28,6 @@
   "csv_format": "output.df['SUEWS'][['QH', 'QE', 'T2', 'U10']].to_csv(path, float_format='%.17g')",
   "sample_config_sha256": "048ffd08ca97bbed1568942400e5bcda09f46f1e350be4558c2bf053c14acf77",
   "hourly_forcing_sha256": "19e2d62d979574e5321ab086e54d3eecfff8001422f61b07ba8d6775760306f8",
-  "csv_sha256": "4fd720c9f0a58273cb06250011362f9bbcad88fcc5d608b093a3f5892eb4d5d0"
+  "csv_sha256": "4fd720c9f0a58273cb06250011362f9bbcad88fcc5d608b093a3f5892eb4d5d0",
+  "source_tree": "234753da57c17031edb2f0a195e79ccd392580b2"
 }

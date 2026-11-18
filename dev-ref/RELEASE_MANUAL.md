@@ -149,7 +149,7 @@ If a documentation fix or stale schema label needs to reach `/stable/` without c
 ### 4.2 Benchmark Gate (`benchmark/`)
 Before merging the release PR or pushing the release tag, evaluate the candidate build (from the `build-suews` CI wheel artefact or `make dev` -- **not** PyPI, where the new version does not yet exist) against the multi-version benchmark (`benchmark/REPRODUCE.md`):
 1. Dump a candidate-schema-valid config via `SUEWSSimulation(canonical).config.model_dump()`.
-2. Run `benchmark/run_benchmark.py` twice against the restricted Zenodo observation/forcing record (`ZENODO_TOKEN` in env, never printed or committed) and confirm a byte-identical output fingerprint.
+2. Fetch the restricted Zenodo observation/forcing record with `benchmark/data_supply.py` (`ZENODO_TOKEN` in env, never printed or committed), then run `benchmark/run_benchmark.py` once: it runs the simulation twice and asserts a byte-identical stats fingerprint.
 3. Run `python benchmark/check_regression.py --candidate <version>` and record the maintainer's review of full-period flux MAE/`|MBE|` and RSL air-temperature MAE vs the previous release on the `2-meta:release` tracking issue. Do **not** deposit a release with an unreviewed regression.
 
 ### 4.3 `CHANGELOG.md` and Public Release Notes Filtering

@@ -210,7 +210,7 @@ Format Fortran files with `make format` (which runs `fprettify` using the repo-r
 ### CI Gates and Audit Helpers
 - **Saved-locals gate (blocking in CI)**: `python scripts/lint/check_saved_fortran_locals.py` rejects any procedure-local declaration initialiser or `SAVE` local in `src/suews/`.
 - **Module dependency graph (blocking in CI)**: `python scripts/suews/gen_fortran_deps.py` regenerates `src/suews/Makefile.deps`; verified by `pytest test/core/test_fortran_deps.py`.
-- **Standalone naming audit script**: `python scripts/suews/check_naming_conventions.py [files...]` inspects file/module/procedure naming patterns during refactors.
+- **Standalone naming audit script**: `python scripts/suews/check_naming_conventions.py [files...]` inspects file/module/procedure naming patterns during refactors. It predates the `type` file category and the `module_<category>_<name>` module prefix, so it reports false errors on files that follow this guide; read its file and module findings with that in mind.
 
 ---
 

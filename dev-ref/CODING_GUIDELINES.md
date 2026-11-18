@@ -252,7 +252,7 @@ The Rust bridge (`src/suews_bridge/`) executes multi-grid simulations in paralle
 
 - **Layers**: PyO3 `#[pyclass]` bindings -> safe Rust codecs (`StateCodec` / `CompositeCodec`) and simulation driver -> `unsafe extern "C"` FFI over `ISO_C_BINDING` facades (`src/suews_bridge/c_api/`).
 - **Contract**: Follow `.claude/rules/rust/bridge-contract.md` (BR-01 through BR-10). Keep equations in Fortran, defaults and migrations in Python (`src/supy/data_model/`), and marshalling/shape validation in the bridge. Never invent silent numeric fallbacks in Rust for missing inputs.
-- **Linting**: `cargo fmt` and `cargo clippy --all-features --all-targets -- -D warnings` (enforced by `.github/workflows/rust-clippy.yml`).
+- **Linting**: run `cargo fmt` locally (no CI job checks it); `SUEWS_BRIDGE_LINT_ONLY=1 cargo clippy --all-features --all-targets -- -D warnings` is enforced on pull requests by `.github/workflows/rust-clippy.yml`.
 
 ## Documentation Standards
 
@@ -305,7 +305,9 @@ make test-qgis
 
 - `src/suews_bridge/src/lib.rs` exposes the active Rust entry points, and `src/suews_bridge/c_api/driver.f95::suews_cal_multitsteps_c` materialises `SUEWS_TIMER`, `SUEWS_CONFIG`, `SUEWS_SITE`, and `SUEWS_STATE` as call-local values.
 - `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` stores fatal error flags, codes, and messages in C11 thread-local storage (`src/suews/src/suews_ctrl_error_tls.c`, GH#1736), and `suews_cal_multitsteps_c` calls `reset_supy_error()` at every driver entry; non-fatal warnings accumulate per grid on `modState%errorstate` (GH#1737).
-- `src/suews/src/suews_phys_anohm.f95` still contains legacy `SAVE` module declarations, while AnOHM remains disabled outside the active multi-grid path; removing or moving that state into `SUEWS_STATE` is a gate for reactivating it.
+- Module-level variables remain in `src/suews/src/suews_ctrl_const.f95` (for example the allocatable arrays in `module_ctrl_const_allocate`) and in `src/suews/src/suews_phys_bluews.f95::module_phys_bluews_cbl` (state for the standalone CBL routines); new physics must not add to them, and keeps run state on `SUEWS_STATE` instead.
+- `python scripts/lint/check_saved_fortran_locals.py` fails on any implicitly `SAVE`d procedure local under `src/suews/src/`.
+- ESTM (`storage_heat = 4`) is out of the build because its run state lived in module variables; `dev-ref/ESTM_REACTIVATION.md` lists what must change before it returns.
 
 ## Version Control and CHANGELOG Practices
 
@@ -350,8 +352,9 @@ High-level classes (`SUEWSSimulation`) parse `SUEWSConfig` and unwrap `RefValue`
 ```python
 # Good: high-level class extracts concrete values
 def save_outputs(self, path_out: Path) -> None:
-    freq_s = self._config.output.freq.value if self._config else 3600
-    save_df_output(self._df_output, path_out=path_out, freq_s=int(freq_s))
+    output_cfg = self._config.model.control.output
+    freq_s = output_cfg.freq if output_cfg.freq is not None else 3600
+    save_df_output(self._df_output, freq_s=int(freq_s), path_dir_save=path_out)
 
 # Bad: passing config object into low-level helper
 def save_df_output(df_output: pd.DataFrame, config: SUEWSConfig) -> None: ...

@@ -55,7 +55,7 @@ The generator uses `SUEWSConfig.from_dict` (as in the sample-output check) and t
 Commit the generated files in `test/fixtures/bridge/` separately from code changes.
 `make test` checks them byte for byte against an in-memory regeneration and names
 this command if either fixture is stale.
-Raw alias and malformed-input tests retain their deliberate inputs.
+Rust tests start from these resolved fixtures and change only the construct under test (a legacy spelling, a family form, a removed or malformed key), so a required read added later does not fail them on an unrelated key.
 
 ## The eight steps
 

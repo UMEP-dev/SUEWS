@@ -184,8 +184,9 @@ def test_relax_zl_factor_decays_after_the_first_passes(probe):
 
 def test_stable_clip_resistance_exceeds_the_former_cap(probe):
     """The stability-corrected resistance, minimum velocity scale included,
-    is returned above the former cap of 120 s m-1 on calm stable steps: at
-    the (z-d)/L clip it tends to a finite value well above it (#1979)."""
+    is returned above the former cap of 120 s m-1 on light-wind stable steps:
+    at the (z-d)/L clip it stays finite and well above it at every wind up to
+    1 m s-1 (#1979). It is not monotone in U there, because z0v follows u*."""
     # ARRANGE: the stable clip at light winds, u* from the log profile
     zzd, z0m = 10.0, 1.0
     wind = np.geomspace(0.01, 1.0, 50)
@@ -195,10 +196,9 @@ def test_stable_clip_resistance_exceeds_the_former_cap(probe):
     # ACT
     ra = probe(4, rows)
 
-    # ASSERT: finite, above the former cap, and largest in the calmest air
+    # ASSERT: finite and above twice the former cap at every wind
     assert np.isfinite(ra).all()
-    assert ra.max() > 2 * RA_FORMER_CAP
-    assert ra.argmax() == 0
+    assert ra.min() > 2 * RA_FORMER_CAP
 
 
 def test_former_sign_flip_steps_converge_without_the_cap(sample_run_cached):

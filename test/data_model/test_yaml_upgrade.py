@@ -57,6 +57,26 @@ def signed_yaml(tmp_path: Path, release_yaml: Path) -> Path:
 
 
 @pytest.mark.cfg
+def test_dev9_upgrade_preserves_storage_capacity_inputs(sample_yaml_path, tmp_path):
+    payload = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+    payload["schema_version"] = "2026.6.dev9"
+    surfaces = payload["sites"][0]["properties"]["land_cover"]
+    paved = surfaces["paved"]["storage_drain_params"]
+    paved["store_max"] = {"value": 0.48, "ref": {"desc": "Maximum source"}}
+    paved["store_cap"] = {"value": 2.0, "ref": {"desc": "Capacity source"}}
+    surfaces["bldgs"]["storage_drain_params"]["store_cap"] = 0.0
+    del surfaces["grass"]["storage_drain_params"]["store_cap"]
+    source = tmp_path / "old.yml"
+    output = tmp_path / "upgraded.yml"
+    source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    upgrade_yaml(source, output)
+
+    payload["schema_version"] = CURRENT_SCHEMA_VERSION
+    assert yaml.safe_load(output.read_text(encoding="utf-8")) == payload
+
+
+@pytest.mark.cfg
 def test_dev5_upgrade_keeps_provisional_output_switch_off(
     sample_yaml_path: Path, tmp_path: Path
 ):
@@ -1142,16 +1162,18 @@ class TestSoilSchemaMigration:
         assert "Sensor saturation capacity is retired" in output.err + output.out
 
 
-def test_all_older_routes_refuse_active_method_two_transactionally():
+@pytest.mark.parametrize("destination", ["2026.6.dev9", CURRENT_SCHEMA_VERSION])
+def test_pre_dev9_routes_refuse_active_method_two_transactionally(destination):
     from copy import deepcopy
+    from packaging.version import Version
     from supy.data_model.configuration.migration import SchemaMigrator
     from supy.util.converter.yaml_upgrade import _HANDLERS, YamlUpgradeError, SOIL_MIGRATION_MESSAGE
     for source, target in _HANDLERS:
-        if target != CURRENT_SCHEMA_VERSION or source == target:
+        if target != CURRENT_SCHEMA_VERSION or Version(source) >= Version("2026.6.dev9"):
             continue
         cfg = {"schema_version": source, "model": {"physics": {
             "soil_moisture_deficit": {"value": 2}}}, "sites": []}
         before = deepcopy(cfg)
         with pytest.raises(YamlUpgradeError, match=SOIL_MIGRATION_MESSAGE):
-            SchemaMigrator().migrate(cfg)
+            SchemaMigrator().migrate(cfg, to_version=destination)
         assert cfg == before

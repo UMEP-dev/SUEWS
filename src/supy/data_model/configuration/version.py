@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev9"
+CURRENT_SCHEMA_VERSION = "2026.6.dev10"
 
 # Schema version history and descriptions.
 #
@@ -186,6 +186,11 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "explicit whole-store layer bounds in metres, optional SI density and "
         "surface field capacity; retire sensor saturation capacity. Active legacy "
         "observations require confirmed bounds and a completed forcing manifest."
+    ),
+    "2026.6.dev10": (
+        "Surface water storage (#2018). The model reads the current capacity "
+        "from store_cap and uses store_max when the capacity is omitted. "
+        "Upgrading preserves both explicit values and their references."
     ),
 }
 

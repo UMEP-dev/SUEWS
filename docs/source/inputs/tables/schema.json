@@ -11970,7 +11970,7 @@
             }
           ],
           "default": 0.0,
-          "description": "Minimum water storage capacity",
+          "description": "Minimum storage capacity, kept for compatibility with the legacy tables. The model does not read it.",
           "display_name": "Minimum Storage",
           "ge": 0,
           "title": "Store Min",
@@ -11994,7 +11994,7 @@
             }
           ],
           "default": null,
-          "description": "Maximum water storage capacity",
+          "description": "Interception storage capacity of the surface: the depth of water the surface can hold. It is the default for store_cap. The model does not read this value directly.",
           "display_name": "Maximum Storage",
           "title": "Store Max",
           "unit": "kg m-2"
@@ -12017,7 +12017,7 @@
             }
           ],
           "default": null,
-          "description": "Current surface/interception water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html.",
+          "description": "Storage capacity the model uses as the surface's current capacity: the drainage threshold when drain_eq is 1, and the capacity used by the Rutter evaporation option and the moisture terms that read it. Defaults to store_max when not given. For deciduous trees the model updates it daily with leaf state. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html.",
           "display_name": "Storage Capacity",
           "title": "Store Cap",
           "unit": "kg m-2"
@@ -13598,7 +13598,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev9. Observed soil-water configuration (#1422): soil_moisture source selector, explicit whole-store layer bounds in metres, optional SI density and surface field capacity; retire sensor saturation capacity. Active legacy observations require confirmed bounds and a completed forcing manifest.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev10. Surface water storage (#2018). The model reads the current capacity from store_cap and uses store_max when the capacity is omitted. Upgrading preserves both explicit values and their references.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13651,20 +13651,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev9",
+  "title": "SUEWS Configuration Schema v2026.6.dev10",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev9.json",
-  "version": "2026.6.dev9",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev10.json",
+  "version": "2026.6.dev10",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev9"
+    "schema_version": "2026.6.dev10"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev9",
+      "schema_version": "2026.6.dev10",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

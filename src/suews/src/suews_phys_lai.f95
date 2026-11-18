@@ -7,7 +7,6 @@ MODULE module_phys_lai
       
       ! Enumeration parameters for the LAI type
       INTEGER, PARAMETER :: LAI_ORIGINAL = 0
-      INTEGER, PARAMETER :: LAI_NEW = 1
 
       ! Enumeration parameters for senescence conditions
       ! FA (TODO: use of day length only used for northern hemipshere which seems arbitrary? use base only for now?)
@@ -80,7 +79,6 @@ CONTAINS
       INTEGER :: summer_day
       INTEGER :: winter_day
       INTEGER :: senescence_mode
-      LOGICAL :: southern_hemisphere
 
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -103,12 +101,10 @@ CONTAINS
       IF (lat >= 0) THEN
          summer_day = 182
          winter_day = 1
-         southern_hemisphere = .FALSE.
          senescence_mode = SEN_DAYLENGTH
       ELSE !! N.B. not identical to N hemisphere - return to later
          summer_day = 1
          winter_day = 182
-         southern_hemisphere = .TRUE.
          senescence_mode = SEN_SDD
       END IF
 

@@ -35,7 +35,7 @@ use crate::suews_site::SuewsSite;
 use crate::suews_state::SuewsState;
 use crate::surf_store::surf_store_prm_from_ordered_values;
 use crate::timer::{SuewsTimer, SUEWS_TIMER_FLAT_LEN};
-use crate::yaml_config::{load_run_config_from_str, RunConfig};
+use crate::yaml_config::{ehc_is_on, load_run_config_from_str, RunConfig};
 use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::os::raw::c_char;
@@ -778,6 +778,67 @@ fn fortran_weekday_from_ymd(year: i32, month: i32, day: i32) -> i32 {
     w + 1
 }
 
+/// Reject a resumed state whose EHC initial temperatures are not finite when
+/// the configuration selects EHC (storage heat method 5), which reads the
+/// first `ndepth` entries of each surface and of the `nlayer` roofs and
+/// walls. A run under another method carries an unread `null` initial
+/// temperature as NaN into its returned checkpoint (the heat state is packed
+/// unconditionally), and the checks on `initial_states` at load do not cover
+/// a resume, because the checkpoint state replaces it. Without this check
+/// such a checkpoint, continued under method 5, would hand NaN to the kernel.
+fn validate_checkpoint_ehc_temperatures(run_cfg: &RunConfig) -> Result<(), BridgeError> {
+    if !ehc_is_on(run_cfg.config.storage_heat_method) {
+        return Ok(());
+    }
+    let ndepth = usize::try_from(run_cfg.ndepth).unwrap_or(0);
+    let nlayer = usize::try_from(run_cfg.nlayer).unwrap_or(0);
+    let heat = &run_cfg.state.heat_state;
+    // The checkpoint's heat-state arrays are laid out by the layer and depth
+    // counts it was written with; reading them by this configuration's counts
+    // would check the wrong entries and misname them, and the kernel would
+    // unpack them shifted.
+    if (heat.nlayer, heat.ndepth) != (nlayer, ndepth) {
+        return Err(simulation_error(format!(
+            "checkpoint heat state has nlayer = {}, ndepth = {}, but the configuration has \
+             nlayer = {nlayer}, ndepth = {ndepth}; storage heat method 5 (EHC) reads the \
+             checkpoint's initial temperatures by the configuration's layout, so the two \
+             must match",
+            heat.nlayer, heat.ndepth,
+        )));
+    }
+    if ndepth == 0 {
+        return Ok(());
+    }
+    let checks: [(&str, &[f64], usize); 3] = [
+        ("temp_surf", &heat.temp_surf, SURFACE_NAMES.len()),
+        ("temp_roof", &heat.temp_roof, nlayer),
+        ("temp_wall", &heat.temp_wall, nlayer),
+    ];
+    for (field, values, rows) in checks {
+        let Some((index, value)) = values
+            .iter()
+            .take(rows * ndepth)
+            .enumerate()
+            .find(|(_, value)| !value.is_finite())
+        else {
+            continue;
+        };
+        let row = index / ndepth;
+        let owner = match field {
+            "temp_surf" => SURFACE_NAMES[row].to_string(),
+            "temp_roof" => format!("roof {}", row + 1),
+            _ => format!("wall {}", row + 1),
+        };
+        return Err(simulation_error(format!(
+            "checkpoint `heat_state.{field}[{index}]` ({owner}, depth {}) is {value}; storage \
+             heat method 5 (EHC) reads this initial temperature, so it must be finite. The \
+             checkpoint was likely written by a run whose options did not read it",
+            index % ndepth + 1,
+        )));
+    }
+    Ok(())
+}
+
 fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError> {
     let storage_heat_method = run_cfg.config.storage_heat_method;
     if !matches!(storage_heat_method, 6..=8) {
@@ -1075,6 +1136,7 @@ fn prepare_checkpoint_input(
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
     validate_dyohm_material_inputs(&run_cfg)?;
+    validate_checkpoint_ehc_temperatures(&run_cfg)?;
 
     let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
     let day_of_month = {
@@ -1359,8 +1421,12 @@ pub fn run_simulation_into(
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_dyohm_material_inputs, BUILDING_SURFACE_INDEX, OUTPUT_GROUP_LAYOUT};
+    use super::{
+        validate_checkpoint_ehc_temperatures, validate_dyohm_material_inputs,
+        BUILDING_SURFACE_INDEX, OUTPUT_GROUP_LAYOUT,
+    };
     use crate::ffi;
+    use crate::heat_state::{heat_state_expected_flat_len, HeatState};
     use crate::yaml_config::load_run_config_from_str;
 
     fn fixture_run_config(storage_heat_method: i32) -> crate::yaml_config::RunConfig {
@@ -1368,6 +1434,72 @@ mod tests {
         let mut run_cfg = load_run_config_from_str(yaml).expect("fixture config should parse");
         run_cfg.config.storage_heat_method = storage_heat_method;
         run_cfg
+    }
+
+    #[test]
+    fn resumed_ehc_temperatures_must_be_finite_only_under_ehc() {
+        let mut run_cfg = fixture_run_config(5);
+        let ndepth = run_cfg.ndepth as usize;
+        assert!(ndepth > 1 && run_cfg.nlayer > 0, "fixture needs layers");
+        validate_checkpoint_ehc_temperatures(&run_cfg)
+            .expect("finite resumed temperatures should pass under EHC");
+
+        run_cfg.state.heat_state.temp_surf[BUILDING_SURFACE_INDEX * ndepth + 1] = f64::NAN;
+        let error = validate_checkpoint_ehc_temperatures(&run_cfg)
+            .expect_err("a NaN surface temperature EHC reads should be rejected")
+            .to_string();
+        assert!(
+            error.contains(&format!(
+                "heat_state.temp_surf[{}]",
+                BUILDING_SURFACE_INDEX * ndepth + 1
+            )) && error.contains("bldg, depth 2"),
+            "unexpected error: {error}"
+        );
+
+        run_cfg.config.storage_heat_method = 1;
+        validate_checkpoint_ehc_temperatures(&run_cfg)
+            .expect("an unread resumed temperature may be NaN outside EHC");
+
+        let mut run_cfg = fixture_run_config(5);
+        run_cfg.state.heat_state.temp_wall[0] = f64::INFINITY;
+        let error = validate_checkpoint_ehc_temperatures(&run_cfg)
+            .expect_err("a non-finite wall temperature EHC reads should be rejected")
+            .to_string();
+        assert!(
+            error.contains("heat_state.temp_wall[0]") && error.contains("wall 1, depth 1"),
+            "unexpected error: {error}"
+        );
+    }
+
+    /// A checkpoint written with more layers or depths than the resuming
+    /// configuration is rejected under EHC by its shape, before any entry is
+    /// read, even when the extra entries hold an unread NaN.
+    #[test]
+    fn resumed_ehc_checkpoint_must_match_the_configured_layout() {
+        let mut run_cfg = fixture_run_config(5);
+        let nlayer = run_cfg.nlayer as usize;
+        let ndepth = run_cfg.ndepth as usize;
+        let flat_len = heat_state_expected_flat_len(nlayer + 1, ndepth).expect("flat length");
+        let mut heat = HeatState::from_flat_with_dims(&vec![290.0; flat_len], nlayer + 1, ndepth)
+            .expect("a heat state with one extra layer should be well formed");
+        // An unread NaN in the extra roof layer, which a check by the
+        // configured layout would not reach.
+        heat.temp_roof[nlayer * ndepth] = f64::NAN;
+        heat.to_flat_checked()
+            .expect("the mismatched state is itself well formed");
+        run_cfg.state.heat_state = heat;
+        let error = validate_checkpoint_ehc_temperatures(&run_cfg)
+            .expect_err("a checkpoint with more layers than configured should be rejected")
+            .to_string();
+        assert!(
+            error.contains(&format!("nlayer = {}, ndepth = {ndepth}", nlayer + 1))
+                && error.contains(&format!("nlayer = {nlayer}, ndepth = {ndepth}")),
+            "unexpected error: {error}"
+        );
+
+        run_cfg.config.storage_heat_method = 1;
+        validate_checkpoint_ehc_temperatures(&run_cfg)
+            .expect("the layout is not checked outside EHC");
     }
 
     #[test]

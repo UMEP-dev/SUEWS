@@ -239,7 +239,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: XLAT
       REAL(KIND(1D0)), INTENT(OUT) :: DEC, DAYL, SNDN, SNUP
       REAL(KIND(1D0)) :: SOC
-      REAL(KIND(1D0)), PARAMETER :: RAD = DEG2RAD
 
       !-----------------------------------------------------------------------
       !     Calculation of declination of sun (Eqn. 16). Amplitude= +/-23.45
@@ -247,7 +246,7 @@ CONTAINS
       DEC = -23.45*COS(2.0*PI*(DOY + 10.0)/365.0)
 
       !     Sun angles.  SOC limited for latitudes above polar circles.
-      SOC = TAN(RAD*DEC)*TAN(RAD*XLAT)
+      SOC = TAN(DEG2RAD*DEC)*TAN(DEG2RAD*XLAT)
       SOC = MIN(MAX(SOC, -1.0), 1.0)
 
       !     Calculate daylength, sunrise and sunset (Eqn. 17)

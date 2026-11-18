@@ -25,7 +25,7 @@ MODULE module_ctrl_const_physconst
    REAL(KIND(1D0)), PARAMETER :: C2K = 273.15D0 ! SI Celsius-to-Kelvin offset [K]
    REAL(KIND(1D0)), PARAMETER :: SBConst = 5.670374419D-8 ! CODATA Stefan-Boltzmann constant [W m-2 K-4]
    REAL(KIND(1D0)), PARAMETER :: JtoumolPAR = 4.6D0 ! Convert PAR from W m-2 to umol m-2 s-1
-   REAL(KIND(1D0)), PARAMETER :: KdntoPAR = 0.46 ! Conversion from Kdn to PAR, originally from Tsubo and Walker (2005), used in Bellucco et al. (2017)
+   REAL(KIND(1D0)), PARAMETER :: KdntoPAR = 0.46D0 ! Conversion from Kdn to PAR, originally from Tsubo and Walker (2005), used in Bellucco et al. (2017)
    REAL(KIND(1D0)), PARAMETER :: lv_bolton = 2501000.0D0 ! Bolton (1980) Lv intercept [J kg-1]; empirical intercept, distinct from AnOHM and wet-bulb formulae
    REAL(KIND(1D0)), PARAMETER :: lv_wetbulb = 2500.25D0 ! Wet-bulb Lv intercept [kJ kg-1]; differs from lv_bolton after unit conversion
    REAL(KIND(1D0)), PARAMETER :: cp_air = 1005.0D0 ! specific heat capacity of dry air [J kg-1 K-1]; dry-air intercept in the meteorological formula

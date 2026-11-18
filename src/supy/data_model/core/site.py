@@ -422,6 +422,7 @@ class LAIParams(BaseModel):
             "display_name": "Senescence Degree Days for Leaf Off",
         },
     )
+    # fa - lai min is not an optional parameter so does not need a default?
     lai_min: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Leaf-off wintertime LAI value",
@@ -442,6 +443,24 @@ class LAIParams(BaseModel):
         json_schema_extra={
             "unit": None,
             "display_name": "LAI Calculation Method",
+        },
+    )
+
+    gdd_base: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="GDD required to initiate leaf growth",
+        json_schema_extra={
+            "unit": "DegC",
+            "display name": "Growing degree days for leaf growth",
+        },
+    )
+
+    sdd_base: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="SDD required to initiate leaf off",
+        json_schema_extra={
+            "unit": "DegC",
+            "display name": "Senescence degree days for leaf off",
         },
     )
 
@@ -476,6 +495,8 @@ class LAIParams(BaseModel):
             "laimin": self.lai_min,
             "laimax": self.lai_max,
             "laitype": self.lai_type,
+            "gdd_base": self.gdd_base,
+            "sdd_base": self.sdd_base,
         }
 
         cols = {("gridiv", "0"): grid_id}
@@ -491,6 +512,8 @@ class LAIParams(BaseModel):
                     "sddfull": 100.0,
                     "laimax": self.LAIMAX_DF_DEFAULT,
                     "laitype": 0,
+                    "gdd_base": 0,
+                    "sdd_base": 0,
                 }
                 val = defaults.get(param, 0.0)
             cols[(param, f"({veg_idx},)")] = val
@@ -541,6 +564,8 @@ class LAIParams(BaseModel):
             "lai_min": get_df_value("laimin", (veg_idx,)),
             "lai_max": get_df_value("laimax", (veg_idx,)),
             "lai_type": int(get_df_value("laitype", (veg_idx,))),
+            "gdd_base": get_df_value("gdd_base", (veg_idx,)),
+            "sdd_base": get_df_value("sdd_base", (veg_idx,)),
         }
 
         # Convert scalar parameters to RefValue

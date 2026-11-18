@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 18 Nov 2026
 
-- [maintenance] Separate round-off numerical changes (`0-numerics:change`) from formulation physics changes (`0-physics:change`) in `.claude/rules/physics-change-evidence.md`, companion governance rules/docs/skills, and CI: constant-precision, unit-conversion, and floating-point-representation changes that move reference outputs strictly below `0.1%` relative and `0.5 W m-2` absolute flux difference refresh fixtures in the same PR with a per-variable change table and run the `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off, while CI enforces mutual exclusion and `physics-full` execution across both labels (#2064)
+- [maintenance] Separate round-off numerical changes (`0-numerics:change`) from formulation physics changes (`0-physics:change`) in `.claude/rules/physics-change-evidence.md`, companion governance rules/docs/skills, and CI: constant-precision, unit-conversion, and floating-point-representation changes that move reference outputs strictly below `0.1%` scale-relative and `0.5 W m-2` absolute flux difference refresh fixtures in the same PR with a per-variable change table and run the `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off, while CI enforces mutual exclusion and `physics-full` execution across both labels (#2064)
 - [maintenance] Rust bridge: every YAML apply function now returns a `Result` that its callers propagate, and add the required readers (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, `require_sequence`) whose errors name the YAML path in its data-model spelling; no read site uses them yet, and the blocks move to them one by one. No input or output changes (#1991, #2045)
 
 ### 17 Nov 2026

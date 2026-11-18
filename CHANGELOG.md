@@ -100,6 +100,7 @@ EXAMPLES:
 - [bugfix] `SUEWSOutput.save(groups=[...])` now writes the requested text-output groups instead of ignoring the argument in favour of the configured groups; an unknown group is refused
 - [doc] Units migration guide, output sections: `save_tstep` is not part of the save methods (the paragraph now describes calendar saves); the save methods return the checkpoint and provenance JSON as well as the data files; a run ending part-way through a day writes no DailyState row for that day; why `to_units({"Rain": "mm"})` is refused although `output.units` reports `mm`
 - [doc] Describe `snowpack_limit` as the snow depletion threshold: the snow water equivalent at and above which a surface is fully snow covered, below which, while snow is melting, the snow-covered fraction follows the depletion curve; it does not cap the snowpack and is not used for the water surface. No behaviour, default or schema field changes (#2020)
+- [doc] Describe `g_max` (legacy `G1`) as what the surface conductance formula uses it for: a fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (`max_conductance`), not a conductance in mm s-1. The data-model description, unit and display name, the legacy input tables, the `df_state` page, the Fortran comments and the labels supy prints for a missing or annotated `g_max` now say so; no field, type, default or model behaviour changes (#2027)
 
 ### 9 Nov 2026
 

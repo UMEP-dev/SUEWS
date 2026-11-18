@@ -401,7 +401,7 @@ def test_free_convection_term_follows_its_equation(probe, method):
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])
-def test_free_convection_lowers_unstable_resistance_and_vanishes_smoothly(
+def test_free_convection_lowers_unstable_resistance_only_above_minimum(
     probe, method
 ):
     # ARRANGE: w_f increasing within each (wind, (z-d)/L) block

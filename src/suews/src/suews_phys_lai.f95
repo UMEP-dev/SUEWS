@@ -23,7 +23,7 @@ CONTAINS
       gdd_base, sdd_base, &
       lai_min, lai_max, lai_power, lai_type, &
       lai_id_prev, &
-      gdd_id, sdd_id, & !input
+      gdd_id, sdd_id, & !output
       lai_id_next) !output
       
       IMPLICIT NONE

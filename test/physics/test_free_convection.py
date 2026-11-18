@@ -6,7 +6,7 @@ adds the minimum velocity scale W_MIN in quadrature to U on every stability
 branch of resistance method 2, the neutral equation (zero (z-d)/L, or u* = 0, with L non-zero) included (#1979),
 and on the unstable branch also the free-convection velocity
 w_f = (g/T H zzd)**(1/3) from the pass heat flux:
-U_e = sqrt(U**2 + W_MIN**2 [+ w_f**2]). The stable resistance does not see
+U_e = sqrt(U**2 + MAX(W_MIN, w_f)**2) (C5). The stable resistance does not see
 w_f. With the same W_MIN on both sides, r_a is continuous where (z-d)/L
 changes sign in the limit w_f -> 0, and at fixed wind and roughness W_MIN
 introduces no additional stable-side dip; a retained, non-zero w_f can still make r_a differ across the sign
@@ -180,15 +180,16 @@ def _pr_resistance(rows, out):
 
 
 def _velocity_factor(rows):
-    """U/U_e, U floored as in the Fortran: U_e**2 = U**2 + W_MIN**2, plus
-    w_f**2 on unstable rows that do not take the neutral equation."""
+    """U/U_e, U floored as in the Fortran: U_e**2 = U**2 + W_MIN**2, with
+    MAX(W_MIN, w_f) in place of W_MIN on unstable rows that do not take the
+    neutral equation (C5 sensitivity variant)."""
     wind = np.maximum(rows[:, 2].astype(float), U_FLOOR)
     z_over_l = rows[:, 0].astype(float) / rows[:, 3].astype(float)
     w_f = rows[:, 5].astype(float)
     ustar = rows[:, 4].astype(float)
     unstable = (z_over_l < 0) & (w_f > 0) & (ustar != 0)
     wind_eff2 = wind**2 + W_MIN**2
-    wind_eff2 = np.where(unstable, wind_eff2 + w_f**2, wind_eff2)
+    wind_eff2 = np.where(unstable, wind**2 + np.maximum(W_MIN, w_f) ** 2, wind_eff2)
     return wind / np.sqrt(wind_eff2)
 
 
@@ -362,12 +363,12 @@ def test_retained_free_convection_still_differs_across_neutral(probe, method):
     """Documents existing (#1956) behaviour, not a requirement of #1979: the
     outer iteration relaxes w_f separately from (z-d)/L, so a pass can reach
     (z-d)/L near zero with a non-zero w_f retained. Just below neutral r_a
-    then takes that w_f on top of W_MIN; just above it takes W_MIN only. The
-    two differ by sqrt(U**2 + W_MIN**2)/sqrt(U**2 + W_MIN**2 + w_f**2), about
-    0.89 at U = w_f = 0.3 m s-1."""
+    then takes MAX(W_MIN, w_f); just above it takes W_MIN only. The two
+    differ by sqrt(U**2 + W_MIN**2)/sqrt(U**2 + w_f**2) when w_f > W_MIN,
+    about 0.68 at U = 0.3 and w_f = 0.8 m s-1, and not at all below W_MIN."""
     # ARRANGE: (z-d)/L = -+1e-12, where every psi is zero, with w_f retained
     winds = (0.3, 1.5)
-    retained_wf = 0.3
+    retained_wf = 0.8
     unstable = _resistance_cases([-1e-12], [retained_wf], method, winds=winds)
     stable = _resistance_cases([1e-12], [retained_wf], method, winds=winds)
 
@@ -377,9 +378,7 @@ def test_retained_free_convection_still_differs_across_neutral(probe, method):
 
     # ASSERT
     wind = np.array(winds)
-    expected = np.sqrt(wind**2 + W_MIN**2) / np.sqrt(
-        wind**2 + W_MIN**2 + retained_wf**2
-    )
+    expected = np.sqrt(wind**2 + W_MIN**2) / np.sqrt(wind**2 + retained_wf**2)
     assert ra_stable.min() > RA_FLOOR
     np.testing.assert_allclose(ra_unstable / ra_stable, expected, rtol=1e-9, atol=0)
     assert ra_unstable[0] / ra_stable[0] < 0.9
@@ -394,7 +393,7 @@ def test_free_convection_term_follows_its_equation(probe, method):
     out = probe(3, rows)
 
     # ASSERT: the whole resistance scales by U/U_e with
-    # U_e = sqrt(U**2 + W_MIN**2 + w_f**2), and z0v keeps the original u*
+    # U_e = sqrt(U**2 + MAX(W_MIN, w_f)**2), and z0v keeps the original u*
     expected = _pr_resistance(rows, out) * _velocity_factor(rows)
     np.testing.assert_allclose(
         out[:, 0], np.maximum(expected, RA_FLOOR), rtol=ROUNDOFF_RTOL, atol=0
@@ -419,9 +418,11 @@ def test_free_convection_lowers_unstable_resistance_and_vanishes_smoothly(
     assert np.all(ra <= ra[:, :1] + roundoff)
     assert np.all(np.diff(ra, axis=1) <= roundoff)
     np.testing.assert_allclose(ra[:, 1], ra[:, 0], rtol=1e-14, atol=0)
-    above_floor = ra[:, 3] > RA_FLOOR
+    above_floor = ra[:, 4] > RA_FLOOR
     assert above_floor.sum() >= len(ra) // 2
-    assert np.all(ra[above_floor, 3] < ra[above_floor, 0])
+    assert np.all(ra[above_floor, 4] < ra[above_floor, 0])
+    # below W_MIN, w_f leaves the resistance unchanged
+    np.testing.assert_array_equal(ra[:, 3], ra[:, 0])
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])

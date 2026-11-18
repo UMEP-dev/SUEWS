@@ -58,14 +58,14 @@ else
   VALIDATION_PASSED=false
 fi
 
-# A changed stored reference must carry 0-physics:change; runs on every PR.
-echo "Validating physics-change label on reference changes..."
+# A changed stored reference must carry 0-physics:change or 0-numerics:change; runs on every PR.
+echo "Validating physics/numerics-change label on reference changes..."
 if [[ "${PHYSICS_LABEL_RESULT}" == "success" ]]; then
   echo "[OK] Reference changes are labelled (or none were made)"
 elif [[ "${PHYSICS_LABEL_RESULT}" == "skipped" ]]; then
   echo "[OK] Label check skipped (not a PR/merge-queue run)"
 else
-  echo "[X] Stored reference outputs changed without the 0-physics:change label"
+  echo "[X] Stored reference outputs changed without 0-physics:change or 0-numerics:change"
   echo "  check_physics_label: ${PHYSICS_LABEL_RESULT}"
   VALIDATION_PASSED=false
 fi

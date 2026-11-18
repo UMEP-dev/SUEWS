@@ -54,7 +54,7 @@ live in `rubric.md`; this file covers the procedure for applying them.
        label (`advance` -> `0-pr:advance`, `continue` -> `0-pr:continue`,
        `defer` -> `0-pr:deferred`, `close` -> `0-pr:close-proposed`,
        `escalate` -> `0-pr:escalate`) and apply `0-auto:pr-audited` (plus
-       `0-physics:change` when triggered), skipping any label missing from
+       `0-physics:change` or `0-numerics:change` when triggered), skipping any label missing from
        `gh label list` so missing labels degrade gracefully without failing.
      - **Third-party PR** (`author != operator_login`): perform **zero GitHub
        writes** and emit the local `[triage-pr] verdict` block with

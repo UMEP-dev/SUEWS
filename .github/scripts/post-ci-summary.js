@@ -35,7 +35,7 @@ const TIER_DESC = {
   'cfg': 'cfg (configuration + smoke)',
   'core': 'core (physics + smoke)',
   'standard': 'standard (non-slow + core physics regressions)',
-  'physics-full': 'physics-full (full physics tier incl. slow; 0-physics:change label)',
+  'physics-full': 'physics-full (full physics tier incl. slow; 0-physics:change / 0-numerics:change)',
   'all': 'all (full suite)',
 };
 
@@ -151,7 +151,7 @@ function buildBody(env, { isDraft, owner, repo }) {
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
   if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
   if (testsChanged) rationale.push('Test files changed -> validation build');
-  if (testTier === 'physics-full') rationale.push('0-physics:change label -> full physics tier (incl. slow) required before merge');
+  if (testTier === 'physics-full') rationale.push('0-physics:change or 0-numerics:change label -> full physics tier (incl. slow) required before merge');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
   const rationaleSection = rationale.map(r => `- ${r}`).join('\n');

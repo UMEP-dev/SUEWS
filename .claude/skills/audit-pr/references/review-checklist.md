@@ -218,7 +218,7 @@ block it anyway, and surfacing it in review saves a round trip.
       genuinely qualifies as non-structural or cosmetic
 - [ ] For `schema-version-audit` / `knowledge-pack-audit`, the re-trigger advice
       is "push a commit or close/reopen", never `gh run rerun`
-- [ ] No bypass proposed for a `0-physics:change` evidence gate (no bypass exists)
+- [ ] No bypass proposed for a `0-physics:change` / `0-numerics:change` gate, and `0-numerics:change` not used for formulation or above-threshold changes
 - [ ] Ref: `ci-gates.md`
 
 ---

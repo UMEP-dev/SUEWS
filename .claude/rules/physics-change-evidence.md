@@ -9,15 +9,13 @@ paths:
   - test/fixtures/w16_most.csv
 ---
 
-# Recorded Scientific Evidence for Physics-Changing PRs
+# Evidence and Fixture Rules for Physics and Numerical Changes
 
-Rules for any pull request that changes model physics or moves a reference
-output. Such a PR must carry recorded scientific evidence that the new numbers
-are correct, obtain domain-owner sign-off for the subsystem it touches, and run
-the full `-m physics` test tier (including `slow`) before merge -- not after, in
-the nightly.
+Rules for any pull request that changes model physics or moves a vendored reference output.
+Output-moving pull requests fall into two classes: **physics changes** (`0-physics:change`), which alter how a process is formulated or shift outputs at or beyond round-off, and **numerical changes** (`0-numerics:change`), which leave every process formulation intact and move reference outputs only at round-off level within a bounded threshold. [decision: software maintainer, 2026-11-18]
+Both classes refresh moved reference fixtures in the same PR and run the full `-m physics` CI tier (including `slow`) before merge; `0-physics:change` additionally requires a `## Scientific evidence` section and domain-owner sign-off. [decision: software maintainer, 2026-11-18]
 
-Motivated by the gap exposed around gh#1570 / gh#1575: the kdown direct/diffuse
+Motivated originally by the gap exposed around gh#1570 / gh#1575: the kdown direct/diffuse
 partition (#1570) was a legitimate physics improvement that shifted STEBBS
 building-energy outputs (indoor temperature +~0.5 K, cooling-load peak 28 W vs
 19 W), but two things went wrong:
@@ -31,52 +29,67 @@ building-energy outputs (indoor temperature +~0.5 K, cooling-load peak 28 W vs
   cooling) had to be reconstructed after the fact in #1575 to update the
   reference and get owner sign-off.
 
-We already refresh reference outputs when physics changes. This rule adds the
-three things that were missing: *evidence that the new output is scientifically
-correct*, a *domain-owner sign-off*, and a guarantee that *the relevant physics
-tests actually run before merge*.
+Separating `0-numerics:change` from `0-physics:change` keeps full scientific review and domain-owner sign-off focused on genuine formulation changes while still requiring round-off constant/precision clean-ups (such as unifying physical constants in `suews_ctrl_const.f95`) to refresh fixtures in the same PR, tabulate the numerical delta, and pass the full physics tier before merge. [decision: software maintainer, 2026-11-18]
 
 ---
 
-## What counts as a physics-changing PR
+## Classification: physics change vs numerical change
 
-A PR is physics-changing -- and MUST be labelled `0-physics:change` (see below)
--- when it does any of:
+Vendored reference fixtures governed by this rule:
 
-- **Touches physics source.** Any `src/suews/src/suews_phys_*.f95`, embedded
-  external library source under `src/suews/ext_lib/**`, or the Rust physics
-  backend under `src/suews_bridge/` behind the `physics` feature. [decision: software maintainer, 2026-11-17]
-- **Moves a reference output.** Any change that alters a vendored reference
-  fixture:
-  - `test/fixtures/data_test/sample_output_2012-*.csv` (main SuPy reference
-    run, twelve monthly shards),
-  - `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` (STEBBS
-    reference run),
-  - `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs),
-  - `test/fixtures/w16_most.csv` (W16 atmospheric-stability reference run). [fact: git grep -n "w16_most" .github/workflows/build-publish_to_pypi.yml test/physics/test_stability_guards.py]
-- **Changes a physics-affecting default or coefficient** in the data model
-  (`src/supy/data_model/`) such that an unchanged user config produces different
-  numbers (e.g. a changed default albedo, emissivity, or scheme selection).
+- `test/fixtures/data_test/sample_output_2012-*.csv` and `test/fixtures/data_test/provenance.json` (main SuPy reference run, twelve monthly shards),
+- `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` (STEBBS reference run),
+- `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs),
+- `test/fixtures/w16_most.csv` (W16 atmospheric-stability reference run). [fact: git grep -n "w16_most" .github/workflows/build-publish_to_pypi.yml test/physics/test_stability_guards.py]
 
-It is NOT physics-changing when it:
+### Physics change (`0-physics:change`)
 
-- Only refactors physics code with a proven bit-for-bit identical output (state
-  this explicitly; the `slow` physics tier passing unchanged is the proof).
-- Touches utility/control Fortran (`suews_util_*`, `suews_ctrl_*`) with no
-  numerical effect.
-- Adds an `Optional` data-model field with a default that does not alter any
-  existing run (see `python/schema-versioning.md` for the parallel schema test).
+A PR is a **physics change** -- and MUST carry `0-physics:change` -- when it does any of: [decision: software maintainer, 2026-11-18]
+
+- **Changes how a process is formulated** in `src/suews/src/suews_phys_*.f95`, embedded external library source under `src/suews/ext_lib/**`, or the Rust physics backend under `src/suews_bridge/` behind the `physics` feature -- equations, the form of a parameterisation, how a process is partitioned, scheme dispatch, or calibrated coefficients. [decision: software maintainer, 2026-11-18]
+- **Changes a physics-affecting default or coefficient** in `src/supy/data_model/` such that an unchanged user configuration produces different numbers (for example a changed default albedo, emissivity, or scheme selection). [decision: software maintainer, 2026-11-18]
+- **Moves any vendored reference output at or beyond the numerical threshold** below, regardless of how small the source edit looks. [decision: software maintainer, 2026-11-18]
+
+### Numerical change (`0-numerics:change`)
+
+A PR is a **numerical change** -- and MUST carry `0-numerics:change` (unless elevated to `0-physics:change`) -- when ALL of the following hold: [decision: software maintainer, 2026-11-18]
+
+- **No process formulation changes.** Equations, parameterisation forms, process partitioning, and calibrated coefficients are untouched.
+- **Only numerical representation changes:** constant precision, unit conversions, or floating-point representation (for example unifying the Stefan-Boltzmann constant, double-precision `pi`, or `C2K = 273.15D0`), or a reference-lane build-environment update (pinned container or compiler bump) with unchanged physics source.
+- **Reference outputs move only at round-off level**, strictly within the numerical threshold below across every vendored reference fixture.
+
+### Numerical threshold and excluded diagnostics
+
+A change qualifies as `0-numerics:change` only when, over all vendored reference outputs, every non-excluded variable satisfies **both**: [decision: software maintainer, 2026-11-18]
+
+- **maximum relative change < 0.1%** (`1e-3`), AND
+- **maximum absolute flux difference < 0.5 W m-2** (for energy and radiation fluxes in `W m-2`).
+
+Diagnostics that legitimately diverge because their denominator approaches zero are excluded from the threshold test: [decision: software maintainer, 2026-11-18]
+
+- **Obukhov length** (`Lob` in the `SUEWS` output group, `L_MOD_RSL` in `RSL`), which diverges (`-> +-infinity`) as sensible heat flux approaches zero near neutral stratification.
+- **Surface resistance** (`RS` in `SUEWS` and `debug`, `RSS_*` in `debug`), which approaches its closed-conductance cap (`10000 s m-1`) when stomatal or surface conductance approaches zero at night or on dry/frozen surfaces.
+- **Aerodynamic and boundary-layer resistances** (`RA` in `SUEWS` and `debug`, `RAsnow` and `RB` in `debug`) as wind and friction velocity approach zero (`UStar -> 0`).
+
+Excluded diagnostics that move must still be refreshed in the fixture and listed in the PR's change table (marked as excluded from the threshold). [procedure: Principle 1]
+If any non-excluded variable reaches or exceeds `0.1%` relative change or `0.5 W m-2` absolute flux difference, the PR is a **physics change** (`0-physics:change`) and requires the full scientific-evidence and sign-off gate. [decision: software maintainer, 2026-11-18]
+
+### Neither class (no label required)
+
+A PR is neither `0-physics:change` nor `0-numerics:change` when it:
+
+- Only refactors physics code with a proven bit-for-bit identical output (state this explicitly; `test_sample_output_exact.py` and the `slow` physics regressions passing unchanged are the proof).
+- Touches utility or control Fortran (`suews_util_*`, `suews_ctrl_*`) with no numerical effect on any output.
+- Adds an `Optional` data-model field with a default that does not alter any existing run (see `python/schema-versioning.md` for the parallel schema test).
 - Edits docs, comments, CI, or tests that do not regenerate a reference fixture.
 
-When unsure, check whether the `slow` physics tier still reproduces every
-vendored fixture after the change. If any fixture needs a refresh, the PR is
-physics-changing.
-
 ---
 
-## What a physics-changing PR MUST carry
+## Requirements by class
 
-### 1. A "Scientific evidence" section in the PR body
+### What a `0-physics:change` PR MUST carry
+
+#### 1. A "Scientific evidence" section in the PR body
 
 The PR description must include a section (heading `## Scientific evidence`)
 covering:
@@ -105,9 +118,9 @@ A copy-paste skeleton:
 **Domain owner sign-off:** <@handle> (<subsystem>)
 ```
 
-### 2. Domain-owner sign-off
+#### 2. Domain-owner sign-off
 
-When the change touches an owned subsystem, the owner must approve before merge.
+When a `0-physics:change` PR touches an owned subsystem, the owner must approve before merge.
 Current owned subsystems:
 
 - **STEBBS** (`suews_phys_stebbs.f95`, STEBBS data model, STEBBS fixtures) ->
@@ -127,10 +140,10 @@ Who to ask for a scientific view is listed in `MAINTAINERS.md`; how to request
 one is in `dev-ref/REVIEW_PROCESS.md`. The `audit-pr` gate records the required sign-off
 and blocks approval until it is present.
 
-### 3. The reference-fixture refresh travels with the change
+#### 3. Reference-fixture refresh in the same PR
 
 Any reference fixture the change moves must be refreshed in the **same PR** (or a
-PR explicitly linked from it). A physics change and its fixture update must not
+PR explicitly linked from it). A change and its fixture update must not
 drift across separate, unlinked PRs -- that is the exact failure #1575 had to
 repair after the fact.
 
@@ -151,52 +164,65 @@ The main reference is generated in the CI build that checks it exactly (see
 inside the same `manylinux2014` image; a refresh made on any other machine
 fails the exact check in CI.
 
-### 4. The full `-m physics` tier runs before merge
+#### 4. Full `-m physics` CI tier before merge
 
-The `slow` physics regression tests must run as a required check on a
-`0-physics:change` PR, so output shifts surface in the PR/merge-queue rather than
-in the nightly. The CI wiring landed with gh#1576 (see "CI gate" below); read
-"What `physics-full` adds over `standard`" for what the tier currently delivers.
+The `slow` physics regression tests must run as a required check before merge so output shifts surface in the PR and merge queue rather than in the nightly (gh#1576; see "CI gate" and "What `physics-full` adds over `standard`" below).
+
+### What a `0-numerics:change` PR MUST carry
+
+A `0-numerics:change` PR requires **no** `## Scientific evidence` section and **no** domain-owner sign-off. [decision: software maintainer, 2026-11-18]
+Instead, it MUST carry: [decision: software maintainer, 2026-11-18]
+
+1. **The `0-numerics:change` label** (and not `0-physics:change`).
+2. **Reference-fixture refresh in the same PR** -- identical provenance and CI reference-lane artefact rules as item 3 above (`sample_output_2012-*.csv` + `provenance.json`, `sample_output_stebbs.csv`, `benchmark1/*.pkl`, `w16_most.csv` as applicable).
+3. **A short numerical change table in the PR body** stating what constant, unit conversion, or floating-point representation changed, confirming no process formulation changed, and reporting per moved variable the maximum absolute and maximum relative difference against the previous reference (noting any excluded divergent diagnostic):
+
+   ```markdown
+   ## Numerical change
+
+   **Change:** <constant precision / unit conversion / representation, no formulation change>
+   **Reference fixtures refreshed in this PR:** <paths>
+
+   | Variable | Max abs diff | Max rel diff (%) | Within threshold? |
+   |----------|--------------|------------------|-------------------|
+   | <var>    | <val>        | <pct>            | yes (<0.1%, <0.5 W m-2) / excluded (<reason>) |
+   ```
+
+4. **Full `-m physics` CI tier (`physics-full`) green before merge** -- CI runs the exact same `physics-full` tier as on `0-physics:change` PRs to confirm across the suite that the change is numerical only.
 
 ---
 
-## The `0-physics:change` label
+## The `0-physics:change` and `0-numerics:change` labels
 
-A repo label in the `0-` automation namespace marking that a PR changes model
-physics or moves a reference output. It is the switch that activates this rule's
-three requirements (evidence section, owner sign-off, full physics CI tier).
+Two mutually exclusive classification labels in the `0-` automation namespace: [decision: software maintainer, 2026-11-18]
 
-- Applied at PR triage (`triage-pr`) or by `audit-pr` when the diff matches the
-  "What counts as a physics-changing PR" triggers above.
-- A maintainer creates the label once; the autonomous tier applies it if it
-  exists and never creates labels (consistent with the `0-` namespace policy in
-  `autonomous-workflow.md`).
-- Removing the label is a maintainer action and should be accompanied by a stated
-  reason (e.g. "refactor proven bit-identical; no output moved").
+- `0-physics:change`: formulation change or reference shift at/above the numerical threshold; activates all four requirements (`## Scientific evidence`, domain-owner sign-off, fixture refresh, `physics-full` CI tier).
+- `0-numerics:change`: constant precision, unit conversion, or floating-point representation only, with all non-excluded reference shifts below `0.1%` relative and `0.5 W m-2` absolute flux difference; activates fixture refresh, numerical change table, and `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off.
+- If a PR combines a formulation change with a constant clean-up, or if any non-excluded variable meets or exceeds the threshold, label the PR `0-physics:change` (or split the PR per `work-sizing.md`). [procedure: Principle 3]
+- Applied at PR triage (`triage-pr`) or by `audit-pr` when the diff matches the triggers above.
+- A maintainer creates each label once; the autonomous tier applies labels that already exist and never creates labels (`autonomous-workflow.md`).
+- Removing or downgrading a label (`0-physics:change` -> `0-numerics:change` or none) is a maintainer action and must state the verified reason (for example "refactor proven bit-identical" or "constant precision only; max flux delta 0.08 W m-2, max rel 0.09%"). [procedure: Principle 2]
 
-There is deliberately **no cosmetic bypass label** for this gate (unlike
-`0-ci:schema-audit-ok`): the gate is satisfied by *providing the evidence*, not
-by waiving it. A physics diff that genuinely moves no output satisfies the gate
-by saying so in the evidence section and by the `slow` physics tier reproducing
-every fixture unchanged.
+There is **no cosmetic bypass label** for reference-moving changes (unlike `0-ci:schema-audit-ok`): both labels require refreshing moved fixtures in the same PR and passing `physics-full`.
+A physics diff that genuinely moves no output needs neither label once `test_sample_output_exact.py` and the `slow` physics regressions pass unchanged.
 
 ---
 
 ## PR review gate (automated via audit-pr skill)
 
-When reviewing a PR whose diff matches the physics-change triggers:
+When reviewing a PR that touches physics source, physics-affecting defaults, or vendored reference fixtures: [procedure: Principle 1, 2]
 
-- Confirm the PR carries the `0-physics:change` label; if missing, apply it (or
-  flag for a maintainer) before continuing.
-- Confirm the PR body has a `## Scientific evidence` section with the three
-  required parts (quantities + mechanism, before/after, sign/magnitude
-  reasoning). A bare "outputs changed, fixture updated" is not sufficient -> flag
-  as blocking.
-- If the change touches an owned subsystem, confirm the owner's sign-off is
-  present (or request it) -> blocking until resolved.
-- Confirm any moved reference fixture is refreshed in this PR (or a linked PR).
-- Confirm the full `-m physics` tier (including `slow`) has run green: the
-  `physics-full` wheel-build checks on a labelled PR.
+- Classify the diff against the triggers above (`0-physics:change`, `0-numerics:change`, or bit-identical refactor).
+- For a **physics change** (`0-physics:change`):
+  - Confirm `0-physics:change` is present (propose/flag if missing; flag as `[blocking]` if `0-numerics:change` was applied to a formulation change or an above-threshold shift).
+  - Confirm `## Scientific evidence` covers quantities + mechanism, before/after comparison, and expected sign/magnitude reasoning (a bare "outputs changed, fixture updated" is `[blocking]`).
+  - Confirm domain-owner sign-off is present for any owned subsystem (`MAINTAINERS.md`) -> `[blocking]` until resolved.
+  - Confirm all moved reference fixtures (and `provenance.json`) are refreshed in this PR (or an explicitly linked PR) and `physics-full` is green.
+- For a **numerical change** (`0-numerics:change`):
+  - Verify from the diff that no process formulation, equation, parameterisation form, partitioning, or calibrated coefficient changed.
+  - Confirm the PR body includes the per-variable change table (max absolute and max relative difference) and that every non-excluded variable is strictly below `0.1%` relative and `0.5 W m-2` absolute flux difference (`Lob`, `L_MOD_RSL`, `RS`, `RSS_*`, `RA`, `RAsnow`, `RB` may be excluded where their denominator approaches zero, if noted).
+  - Confirm all moved reference fixtures (and `provenance.json`) are refreshed in this PR and `physics-full` is green.
+  - Do NOT require `## Scientific evidence` or domain-owner sign-off.
 
 ## CI gate (gh#1576)
 
@@ -205,10 +231,8 @@ When reviewing a PR whose diff matches the physics-change triggers:
 regressions while excluding non-core `slow` tests. Only `schedule` (nightly)
 and tag/full-dispatch use `test_tier=all`.
 
-When a PR carries `0-physics:change`, the same script selects
-`test_tier=physics-full` instead, in both contexts, so the `slow` physics tests
-run as a required check before merge. The physics axis then runs `-m physics`
-(`.github/actions/build-suews/action.yml`); the api axis is unchanged.
+When a PR carries `0-physics:change` or `0-numerics:change`, `determine_matrix` sets `PHYSICS_CHANGE=true` and `determine-matrix.sh` selects `test_tier=physics-full` in both ready-PR and `merge_group` contexts (and widens `merge_group` to `PR_PLATFORMS`), so the `slow` physics tests run as a required check before merge. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml && git grep -n "TIER=physics-full" .github/scripts/determine-matrix.sh]
+The physics axis then runs `-m physics` (`.github/actions/build-suews/action.yml`); the api axis is unchanged.
 
 ## Exact reference gate
 
@@ -229,25 +253,17 @@ label. `test/core/test_sample_output_exact.py` closes that gap:
 - A change to that lane's build environment (a cibuildwheel bump that moves
   the pinned `manylinux2014` image, or a different compiler in it) therefore
   fails the check until the reference is refreshed from the lane's
-  `reference-regenerated` artefact, even when no physics changed. Such a refresh
-  still carries `0-physics:change`, with an evidence section saying the stored
-  values moved only through the build environment.
+  `reference-regenerated` artefact, even when no physics changed. Such a refresh carries `0-numerics:change` (with the per-variable change table noting the build-environment bump) when all shifts sit within the numerical threshold, or `0-physics:change` if any shift reaches or exceeds it. [decision: software maintainer, 2026-11-18]
 - On a mismatch the lane uploads the regenerated shards and sidecar as the
   `reference-regenerated-cp312-manylinux-x86_64` artefact: the refresh for an
   intended change.
 - It is `core` and `medium`, so it runs on draft PRs as well as ready PRs and
   the merge queue.
-- The `Physics-change label` job fails a PR (through `pr-gate`) that changes a
-  stored reference (the sample-output shards or `provenance.json`, the STEBBS
-  and benchmark fixtures, `w16_most.csv`) without `0-physics:change`. It warns,
-  without failing, when `suews_phys_*.f95` changes without the label: a
-  bit-identical refactor legitimately carries none, and one that moves the
-  output already fails the exact check. Labels are read from the API, so
-  labelling the PR and re-running the job is enough.
+- The `Physics-change label` job (`check_physics_label`) fails a PR (through `pr-gate`) that changes a stored reference (the sample-output shards or `provenance.json`, the STEBBS and benchmark fixtures, `w16_most.csv`) without `0-physics:change` or `0-numerics:change`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
+  It warns, without failing, when `suews_phys_*.f95` changes without either label: a bit-identical refactor legitimately carries none, and one that moves the output already fails the exact check.
+  Labels are read from the API, so labelling the PR and re-running `check_physics_label` clears the label job (while `determine_matrix` on `pull_request` reads the event payload, so push a commit or close/reopen to trigger `physics-full` if the label was added after the PR opened).
 
-Together: an output-moving change cannot merge without a refresh, and a refresh
-cannot merge without the label, which in turn requires the evidence section
-and the `physics-full` tier above.
+Together: an output-moving change cannot merge without a refresh, and a refresh cannot merge without `0-physics:change` or `0-numerics:change`, both of which run `physics-full` while `audit-pr` and human review enforce the class-specific body and sign-off requirements.
 
 ## What `physics-full` adds over `standard`
 
@@ -286,11 +302,7 @@ collect with.
 
 ## Related
 
-- `.claude/rules/python/schema-versioning.md` -- the parallel gate for
-  data-model shape changes (its "do not bump" list mirrors the "NOT
-  physics-changing" list here).
-- `.claude/rules/ci/conventions.md` -- CI workflow conventions for the matrix
-  and required-check wiring.
-- `.claude/rules/autonomous-workflow.md` -- the `0-` automation label namespace
-  and gating model that `0-physics:change` joins.
+- `.claude/rules/python/schema-versioning.md` -- the parallel gate for data-model shape changes (its "do not bump" list mirrors the "Neither class" list here).
+- `.claude/rules/ci/conventions.md` -- CI workflow conventions for the matrix and required-check wiring.
+- `.claude/rules/autonomous-workflow.md` -- the `0-` automation label namespace and gating model that `0-physics:change` and `0-numerics:change` join.
 - gh#1570, gh#1575 -- the motivating case.

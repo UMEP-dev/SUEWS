@@ -1,39 +1,39 @@
-#!/bin/bash
-# Git pre-commit hook to validate CLAUDE.md integrity
-# 
+#!/usr/bin/env bash
+# Git pre-commit hook to validate shared agent instructions (AGENTS.md + CLAUDE.md + .claude/rules/)
+#
 # Installation:
 #   cp .claude/scripts/pre-commit-hook.sh .git/hooks/pre-commit
 #   chmod +x .git/hooks/pre-commit
 
-# Get the repository root (works for both regular repos and worktrees)
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Check if CLAUDE.md is being committed
-if git diff --cached --name-only | grep -q "CLAUDE.md"; then
-    echo "Validating CLAUDE.md integrity..."
-    
-    # Change to repo root and run validation script
-    cd "$REPO_ROOT"
-    python3 .claude/scripts/validate-claude-md.py
-    
+if git diff --cached --name-only | grep -qE '^(AGENTS\.md|CLAUDE\.md|MAINTAINERS\.md|dev-ref/.*\.md|\.claude/)'; then
+    echo "Validating AGENTS.md and shared agent governance..."
+
+    cd "$REPO_ROOT" || exit 1
+    if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+        PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
+    else
+        PYTHON_BIN="$(command -v python3 || command -v python || true)"
+    fi
+    if [ -z "$PYTHON_BIN" ]; then
+        echo "[WARN] No Python interpreter found; skipping shared agent instruction validation."
+        exit 0
+    fi
+    "$PYTHON_BIN" .claude/scripts/validate-claude-md.py
+
     if [ $? -ne 0 ]; then
         echo ""
-        echo "❌ CLAUDE.md validation failed!"
+        echo "[FAIL] Shared agent instruction validation failed."
+        echo "Review the warnings above and fix the issues before committing."
         echo ""
-        echo "The file appears to have placeholder text or missing content."
-        echo "Please review the warnings above and fix the issues."
-        echo ""
-        echo "To bypass this check (NOT recommended):"
-        echo "  git commit --no-verify"
-        echo ""
-        echo "To restore from backup:"
-        echo "  cp CLAUDE.md.backup CLAUDE.md"
+        echo "To restore from backup (if available):"
+        echo "  cp AGENTS.md.backup AGENTS.md"
         echo ""
         exit 1
     fi
-    
-    echo "✅ CLAUDE.md validation passed"
+
+    echo "[OK] Shared agent instruction validation passed."
 fi
 
-# Continue with commit
 exit 0

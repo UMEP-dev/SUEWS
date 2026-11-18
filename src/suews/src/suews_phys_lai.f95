@@ -124,9 +124,6 @@ CONTAINS
             base_t_sdd=base_t_sdd(iv), &
             gdd_id_prev=gdd_id_prev(iv), &
             sdd_id_prev=sdd_id_prev(iv), &
-            lai_id_prev=lai_id_prev(iv), &
-            lai_max=lai_max(iv), &
-            lai_min=lai_min(iv), &
             delta_gdd=delta_gdd, &
             delta_sdd=delta_sdd, &
             gdd_id=gdd_id(iv), &
@@ -221,7 +218,6 @@ CONTAINS
          growth_state, senescence_state, &
          tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
          gdd_id_prev, sdd_id_prev, &
-         lai_id_prev, lai_max, lai_min, &
          delta_gdd, delta_sdd, &
          gdd_id, sdd_id)
 
@@ -237,10 +233,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN)  :: gdd_id_prev
       REAL(KIND(1D0)), INTENT(IN)  :: sdd_id_prev
       
-      REAL(KIND(1D0)), INTENT(IN)  :: lai_id_prev
-      REAL(KIND(1D0)), INTENT(IN)  :: lai_max
-      REAL(KIND(1D0)), INTENT(IN)  :: lai_min
-
       REAL(KIND(1D0)), INTENT(OUT) :: delta_gdd
       REAL(KIND(1D0)), INTENT(OUT) :: delta_sdd
 

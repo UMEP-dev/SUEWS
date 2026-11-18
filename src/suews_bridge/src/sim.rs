@@ -1430,7 +1430,7 @@ mod tests {
     use crate::yaml_config::load_run_config_from_str;
 
     fn fixture_run_config(storage_heat_method: i32) -> crate::yaml_config::RunConfig {
-        let yaml = include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let yaml = crate::yaml_config::stebbs_fixture_yaml();
         let mut run_cfg = load_run_config_from_str(yaml).expect("fixture config should parse");
         run_cfg.config.storage_heat_method = storage_heat_method;
         run_cfg

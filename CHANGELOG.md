@@ -54,8 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 18 Nov 2026
+
+- [maintenance] Rust bridge: every YAML apply function now returns a `Result` that its callers propagate, and add the required readers (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, `require_sequence`) whose errors name the YAML path in its data-model spelling; no read site uses them yet, and the blocks move to them one by one. No input or output changes (#1991, #2045)
+
 ### 17 Nov 2026
 
+- [maintenance] Generate resolved engine YAML fixtures for Rust bridge tests through the shared supy resolver and check their freshness in the Python suite (#1991)
 - [doc] Add a temporal-profiles reference covering keys, timing, field uses and defaults, linked from the YAML guide and profile class pages (#1950)
 - [maintenance] Bound a fix loop on one failing check to three attempts before escalation, keep a pull request from loosening the checks that judge it, and have reviewers read rules from the base branch, in `.claude/rules/autonomous-workflow.md` and the `fix-issue` and `audit-pr` skills; `.claude/rules/tests/patterns.md` gains a Flaky Tests section, and `audit-pr` classes a failure as flake only with same-commit evidence; a new `dev-ref/REGRESSION_CHECKLIST.md` lists past failures with triggers readable from the diff, which `audit-pr` and `fix-issue` check; `.claude/rules/tests/patterns.md` gains a section on differential and property tests, pointed to from the Rust bridge contract; agent-authored commits end with a `Verified:` trailer; and rules from a review miss need two occurrences or a recorded incident, with duplicated or CI-enforced statements pruned
 - [doc] Stop crediting the `state_limit` example values to Järvi et al. (2014) or Ward et al. (2016), which do not report them (#1950)

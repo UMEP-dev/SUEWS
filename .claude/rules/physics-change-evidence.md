@@ -1,10 +1,12 @@
 ---
 paths:
   - src/suews/src/suews_phys_*.f95
+  - src/suews/ext_lib/**/*
   - test/fixtures/data_test/sample_output_2012-*.csv
   - test/fixtures/data_test/provenance.json
   - test/fixtures/data_test/stebbs_test/**
   - test/fixtures/benchmark1/**
+  - test/fixtures/w16_most.csv
 ---
 
 # Recorded Scientific Evidence for Physics-Changing PRs
@@ -41,15 +43,17 @@ tests actually run before merge*.
 A PR is physics-changing -- and MUST be labelled `0-physics:change` (see below)
 -- when it does any of:
 
-- **Touches physics source.** Any `src/suews/src/suews_phys_*.f95`, or the Rust
-  physics backend under `src/suews_bridge/` behind the `physics` feature.
+- **Touches physics source.** Any `src/suews/src/suews_phys_*.f95`, embedded
+  external library source under `src/suews/ext_lib/**`, or the Rust physics
+  backend under `src/suews_bridge/` behind the `physics` feature. [decision: software maintainer, 2026-11-17]
 - **Moves a reference output.** Any change that alters a vendored reference
   fixture:
   - `test/fixtures/data_test/sample_output_2012-*.csv` (main SuPy reference
     run, twelve monthly shards),
   - `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` (STEBBS
     reference run),
-  - `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs).
+  - `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs),
+  - `test/fixtures/w16_most.csv` (W16 atmospheric-stability reference run). [fact: git grep -n "w16_most" .github/workflows/build-publish_to_pypi.yml test/physics/test_stability_guards.py]
 - **Changes a physics-affecting default or coefficient** in the data model
   (`src/supy/data_model/`) such that an unchanged user config produces different
   numbers (e.g. a changed default albedo, emissivity, or scheme selection).

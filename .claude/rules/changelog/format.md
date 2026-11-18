@@ -26,10 +26,10 @@ Conventions for SUEWS CHANGELOG entries.
 - `[feature]` - New functionality
 - `[bugfix]` - Bug fixes (link issue)
 - `[change]` - User-facing/breaking changes
-- `[maintenance]` - Internal/dev tooling, CLAUDE.md
-- `[doc]` - User documentation (not CLAUDE.md)
+- `[maintenance]` - Internal/dev tooling, AGENTS.md [decision: software maintainer, 2026-11-17]
+- `[doc]` - User documentation (not AGENTS.md) [decision: software maintainer, 2026-11-17]
 
-**IMPORTANT**: CLAUDE.md updates are `[maintenance]`, not `[doc]`
+**IMPORTANT**: AGENTS.md updates are `[maintenance]`, not `[doc]` [decision: software maintainer, 2026-11-17]
 
 ---
 

@@ -642,6 +642,7 @@ temp_test.npz
 
 # CLAUDE.md protection
 CLAUDE.md.backup
+AGENTS.md.backup
 .claude/snapshots/
 
 # Generated JSON Schemas (published to GitHub Pages, not stored in repo)

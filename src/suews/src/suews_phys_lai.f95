@@ -4,9 +4,6 @@ module module_phys_lai
     use module_ctrl_error_state, only: set_supy_error, supy_error_flag
 
     implicit none
-
-      !Critical limit for GDD when GDD or SDD is set to zero
-      integer, parameter :: CRIT_DAYS = 50
       
       ! Enumeration parameters for the LAI type
       integer, parameter :: LAI_ORIGINAL = 0
@@ -75,14 +72,9 @@ contains
       
       integer :: iv
 
-      ! Option for gdd value in LAI calculation
-      integer, parameter :: GDD_ACCUMULATIVE = 0
-      integer, parameter :: GDD_CHANGE = 1
-
       logical :: valid_observed_lai
 
       ! Hemisphere specific parameters for LAI calculations
-      integer :: sdd_reset_day
       integer :: summer_day
       integer :: winter_day
       integer :: senescence_mode
@@ -100,7 +92,6 @@ contains
       ! Determine N/S hemisphere parameters
       ! TODO: Move outside timestep loop as timestep independent
       if (lat >= 0) then
-         sdd_reset_day = 140
          ! summer_day = 170
          ! winter_day = 170
          summer_day = 182
@@ -108,7 +99,6 @@ contains
          southern_hemisphere = .false.
          senescence_mode = SEN_DAYLENGTH
       else !! N.B. not identical to N hemisphere - return to later
-         sdd_reset_day = 300
          summer_day = 250
          winter_day = 250
          southern_hemisphere = .true.
@@ -377,43 +367,6 @@ contains
 
       end subroutine calculate_lai
 
-      subroutine reset_degree_day_states( &
-         id, sdd_reset_day, summer_day, winter_day, &
-         southern_hemisphere, sdd_id, gdd_id)
-
-         implicit none
-
-         integer, intent(in) :: id
-         integer, intent(in) :: sdd_reset_day
-         integer, intent(in) :: summer_day
-         integer, intent(in) :: winter_day
-         logical, intent(in) :: southern_hemisphere
-
-         real(kind(1D0)), intent(inout) :: sdd_id
-         real(kind(1D0)), intent(inout) :: gdd_id
-
-         ! if SDD is not zero by the transition day, force it
-         if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
-
-         if (southern_hemisphere) then
-
-            ! Set SDD to zero in southern summer
-            if (gdd_id > CRIT_DAYS .and. id > summer_day) sdd_id = 0
-
-            ! Set GDD zero in southern winter
-            if (sdd_id < -CRIT_DAYS .and. id < winter_day) gdd_id = 0
-
-         else
-
-            ! Set SDD to zero in northern summer
-            if (gdd_id > CRIT_DAYS .and. id < summer_day) sdd_id = 0
-
-            ! Set GDD zero in northern winter
-            if (sdd_id < -CRIT_DAYS .and. id > winter_day) gdd_id = 0
-
-         end if
-
-      end subroutine reset_degree_day_states
 
       subroutine reset_degree_days( &
          id, &

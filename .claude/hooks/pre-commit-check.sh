@@ -54,7 +54,7 @@ F90_FILES=$(echo "$STAGED" | grep -E '\.(f95|f90|F90)$' || true)
 F90_FMT_FILES=$(echo "$STAGED" | grep -E '^src/suews/src/.*\.f95$' || true)
 RST_FILES=$(echo "$STAGED" | grep -E '\.rst$' || true)
 CHANGELOG=$(echo "$STAGED" | grep -E '^CHANGELOG\.md$' || true)
-AGENT_FILES=$(echo "$STAGED" | grep -E '^(AGENTS\.md|CLAUDE\.md|dev-ref/CODEBASE_AUDIT_PROTOCOL\.md|\.claude/(README\.md|rules|agents|hooks|scripts|settings\.json))' || true)
+AGENT_FILES=$(echo "$STAGED" | grep -E '^(AGENTS\.md|CLAUDE\.md|MAINTAINERS\.md|dev-ref/.*\.md|\.claude/)' || true)
 
 ERRORS=""
 PASS_COUNT=0
@@ -78,13 +78,17 @@ echo ""
 if [[ -n "$PY_FILES" ]]; then
     echo "-- Python files detected --"
 
-    if command -v ruff >/dev/null 2>&1; then
-        RUFF_OUT=$(echo "$PY_FILES" | xargs ruff check 2>&1) && report_pass "ruff check" || report_fail "ruff check" "$RUFF_OUT"
+    # Lint only files present on disk: staged deletions have nothing to check
+    PY_LINT_FILES=$(while IFS= read -r f; do [[ -f "$f" ]] && echo "$f"; done <<< "$PY_FILES" || true)
+    PY_FMT_LINT_FILES=$(while IFS= read -r f; do [[ -f "$f" ]] && echo "$f"; done <<< "$PY_FMT_FILES" || true)
+
+    if [[ -n "$PY_LINT_FILES" ]] && command -v ruff >/dev/null 2>&1; then
+        RUFF_OUT=$(echo "$PY_LINT_FILES" | xargs ruff check 2>&1) && report_pass "ruff check" || report_fail "ruff check" "$RUFF_OUT"
     fi
 
     # ruff format check matches Makefile `make format` scope (src/ and test/)
-    if [[ -n "$PY_FMT_FILES" ]] && command -v ruff >/dev/null 2>&1; then
-        FMT_OUT=$(echo "$PY_FMT_FILES" | xargs ruff format --check 2>&1) && report_pass "ruff format" || report_fail "ruff format" "Files need formatting. Run: make format"
+    if [[ -n "$PY_FMT_LINT_FILES" ]] && command -v ruff >/dev/null 2>&1; then
+        FMT_OUT=$(echo "$PY_FMT_LINT_FILES" | xargs ruff format --check 2>&1) && report_pass "ruff format" || report_fail "ruff format" "Files need formatting. Run: make format"
     fi
 fi
 
@@ -157,15 +161,15 @@ if [[ -n "$CHANGELOG" ]] && [[ -f "CHANGELOG.md" ]]; then
     CHANGELOG_ADDED=$(git diff --cached -U0 -- CHANGELOG.md | grep -E '^\+[^+]' | sed 's/^\+//' || true)
 
     # Release/date headings use level 3: ### DD Mon YYYY (level 2 is ## YYYY / ## Table of Contents)
-    BAD_DATES=$(printf '%s\n' "$CHANGELOG_ADDED" | grep -E '^### ' | grep -vE '^### [0-9]{1,2} [A-Z][a-z]{2} [0-9]{4}$' | head -3 || true)
+    BAD_DATES=$(printf '%s\n' "$CHANGELOG_ADDED" | grep -E '^### ' | grep -vE '^### ([1-9]|[12][0-9]|3[01]) [A-Z][a-z]{2} [0-9]{4}$' | head -3 || true)
     if [[ -n "$BAD_DATES" ]]; then
         report_fail "CHANGELOG dates" "Non-standard date heading found (expected: ### DD Mon YYYY): $BAD_DATES"
     else
         report_pass "CHANGELOG dates"
     fi
 
-    # Check category tags on top-level bullet entries while ignoring TOC links like `- [2026](#2026)` and indented sub-bullets
-    BAD_CATS=$(printf '%s\n' "$CHANGELOG_ADDED" | grep -E '^- \[[^]]+\]([^(\n]|$)' | grep -vE '^-\s+\[(feature|bugfix|change|maintenance|doc)\]' | head -3 || true)
+    # Check category tags on every top-level bullet while ignoring TOC links like `- [2026](#2026)` and indented sub-bullets
+    BAD_CATS=$(printf '%s\n' "$CHANGELOG_ADDED" | grep -E '^- ' | grep -vE '^- \[[^]]+\]\(' | grep -vE '^- \[(feature|bugfix|change|maintenance|doc)\]($|\[| )' | head -3 || true)
     if [[ -n "$BAD_CATS" ]]; then
         report_fail "CHANGELOG categories" "Unknown category tag (use [feature], [bugfix], [change], [maintenance], [doc]): $BAD_CATS"
     else

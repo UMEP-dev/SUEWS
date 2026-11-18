@@ -52,7 +52,8 @@ A PR is physics-changing -- and MUST be labelled `0-physics:change` (see below)
     run, twelve monthly shards),
   - `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` (STEBBS
     reference run),
-  - `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs).
+  - `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs),
+  - `test/fixtures/w16_most.csv` (W16 atmospheric-stability reference run). [fact: git grep -n "w16_most" .github/workflows/build-publish_to_pypi.yml test/physics/test_stability_guards.py]
 - **Changes a physics-affecting default or coefficient** in the data model
   (`src/supy/data_model/`) such that an unchanged user config produces different
   numbers (e.g. a changed default albedo, emissivity, or scheme selection).

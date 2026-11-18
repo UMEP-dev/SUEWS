@@ -67,7 +67,7 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: &
          Qf_A, Qf_B, Qf_C, & !Qf coefficients
-         AH_MIN, & !Minimum anthropogenic heat flux
+         AH_MIN, & !Base (temperature-independent) anthropogenic heat flux, daily mean, L11 methods [W m-2]
          AH_SLOPE_Heating, & !Slope of the anthropogenic heat flux calculation
          AH_SLOPE_Cooling, &
          FcEF_v_kgkm, & !CO2 Emission factor

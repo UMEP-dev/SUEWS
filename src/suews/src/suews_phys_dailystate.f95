@@ -335,7 +335,7 @@ CONTAINS
                   ! This was revised and checked on 16 Feb 2014 by LJ
                   !------------------------------------------------------------------------------
                   IF (execute_subroutines) THEN
-                     CALL update_GDDLAI( &
+                     CALL update_gddlai( &
                         id, LAICalcYes, & !input
                         lat, [lai_evetr, lai_dectr, lai_grass], &
                         Tmin_id, Tmax_id, lenDay_id, &

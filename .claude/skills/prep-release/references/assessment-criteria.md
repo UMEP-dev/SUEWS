@@ -6,13 +6,13 @@
 - Security vulnerability patched
 - External deadline imminent (conference, teaching, collaborator request)
 
-## RELEASE RECOMMENDED (score ≥5)
+## RELEASE RECOMMENDED (score >=5)
 
 | Factor | Points |
 |--------|--------|
-| ≥1 feature commit | +3 |
-| ≥2 bugfix commits | +2 |
-| ≥1 user-facing change | +2 |
+| >=1 feature commit | +3 |
+| >=2 bugfix commits | +2 |
+| >=1 user-facing change | +2 |
 | >30 days since last release | +2 |
 | >60 days since last release | +3 |
 | User/collaborator request | +2 |

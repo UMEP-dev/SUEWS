@@ -1699,6 +1699,11 @@ def _migrate_2026_1_to_current(cfg: dict) -> dict:
     return _migrate_2026_4_to_current(cfg)
 
 
+def _migrate_2026_6_dev9_to_2026_6_dev10(cfg: dict) -> dict:
+    """Stamp the corrected storage-capacity semantics without rewriting user inputs."""
+    return cfg
+
+
 _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed.
@@ -1750,6 +1755,13 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, "2026.6.dev8")] = _handler
         _HANDLERS[(_source, _target)] = _with_soil_delta(_handler)
 _HANDLERS[("2026.6.dev8", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev8_to_2026_6_dev9
+
+# dev10 changes how the model reads the same inputs. The existing routes
+# to current therefore also produce valid dev9 content for callers pinning dev9.
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev9")] = _handler
+_HANDLERS[("2026.6.dev9", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev9_to_2026_6_dev10
 
 
 def apply_migration_handler(handler, cfg, *, migration_context=None):

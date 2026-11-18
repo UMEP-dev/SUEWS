@@ -217,6 +217,29 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev10_storage_capacity:
+
+Upgrading to Schema 2026.6.dev10
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In a surface's ``storage_drain_params``, the model now reads the current water
+storage capacity from ``store_cap``. Earlier versions read ``store_max`` even
+when a different capacity was supplied. For example, with ``store_max`` of
+0.48 mm and ``store_cap`` of 2.0 mm, threshold drainage (``drain_eq`` 1) now
+uses 2.0 mm. This change can also affect evaporation method 1, storage heat
+method 3 and the building surface under storage heat method 5 with facets.
+
+Run the converter to update the version recorded in the file:
+
+.. code-block:: bash
+
+   suews convert -i old.yml -o new.yml --from 2026.6.dev9
+
+The upgrade retains both explicit values, including zero, and their references.
+If the capacity was omitted, it stays omitted and follows the current maximum.
+To reproduce an earlier run that used unequal values, start from the configuration
+with ``store_cap`` set to the former ``store_max`` value.
+
 .. _schema_dev9_soil_migration:
 
 Upgrading to Schema 2026.6.dev9

@@ -97,6 +97,33 @@ def test_convert_content_and_provenance(tmp_path, method):
     assert (again / "new.txt").read_bytes() == paths[3].read_bytes()
 
 
+@pytest.mark.parametrize("schema", ["2026.6.dev9", "2026.6.dev10"])
+def test_canonical_observations_across_storage_schema_bump(tmp_path, schema):
+    raw = yaml.safe_load((FIXTURES / "canonical.yml").read_text(encoding="utf-8"))
+    raw["schema_version"] = schema
+    source = tmp_path / "input.yml"
+    source.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    forcing = FIXTURES / "canonical.txt"
+    output = tmp_path / "upgraded" / "config.yml"
+    output_forcing = output.with_name("canonical.txt")
+
+    result = CliRunner().invoke(convert_table_cmd, [
+        "-i", str(source), "-o", str(output),
+        "--forcing", str(forcing), "--forcing-output", str(output_forcing),
+        "--manifest", str(output.with_name("manifest.json")),
+    ])
+    assert result.exit_code == 0, result.output
+    raw["schema_version"] = CURRENT_SCHEMA_VERSION
+    assert yaml.safe_load(output.read_text(encoding="utf-8")) == raw
+    assert output_forcing.read_bytes() == forcing.read_bytes()
+
+    with pytest.raises(YamlUpgradeError, match="Both legacy and canonical"):
+        upgrade_soil_observation(
+            source, FIXTURES / "legacy_method1.txt", tmp_path / "mixed.yml",
+            tmp_path / "mixed.txt", tmp_path / "mixed.json",
+        )
+
+
 def test_dry_run_never_stamps_or_writes(tmp_path):
     report, paths = convert(tmp_path, dry_run=True, layer_depth=None, layer_top=None)
     assert "--layer-top and --layer-depth not given" in report["errors"][0]

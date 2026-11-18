@@ -14,6 +14,7 @@ import yaml
 from supy import SUEWSSimulation
 from supy.cmd.schema_cli import cli
 from supy.cmd.table_converter import convert_table_cmd
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.core.config import SUEWSConfig
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
@@ -61,7 +62,7 @@ def test_convert_content_and_provenance(tmp_path, method):
         )
     assert json.loads(paths[4].read_text(encoding="utf-8")) == report
     cfg = yaml.safe_load(paths[2].read_text(encoding="utf-8"))
-    assert cfg["schema_version"] == "2026.6.dev9"
+    assert cfg["schema_version"] == CURRENT_SCHEMA_VERSION
     obs = cfg["sites"][0]["properties"]["soil_observation"]
     assert obs["layer_depth"]["value"] == pytest.approx(0.2)
     assert obs["bulk_density"]["value"] == 1250

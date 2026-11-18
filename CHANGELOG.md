@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 18 Nov 2026
+
+- [maintenance] Rust bridge: every YAML apply function now returns a `Result` that its callers propagate, and add the required readers (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, `require_sequence`) whose errors name the YAML path in its data-model spelling; no read site uses them yet, and the blocks move to them one by one. No input or output changes (#1991, #2045)
+
 ### 17 Nov 2026
 
 - [doc] Add a temporal-profiles reference covering keys, timing, field uses and defaults, linked from the YAML guide and profile class pages (#1950)

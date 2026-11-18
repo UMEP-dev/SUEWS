@@ -73,3 +73,7 @@ Rust inspection is not an additional gate. Existing
 [schema migration](../python/schema-versioning.md) and release requirements
 still apply. A proposal needing a new scientific default, unit policy or state
 meaning must return to that owner rather than being decided inside the bridge.
+
+Fortran-to-Rust equivalence is tested differentially; how, and how an approved
+difference is recorded, is in [tests/patterns.md](../tests/patterns.md),
+"Differential and Property Tests".

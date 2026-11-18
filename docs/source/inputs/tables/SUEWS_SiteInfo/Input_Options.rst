@@ -82,7 +82,7 @@ Input Options
 .. option:: AHMin_WD
 
 	:Description:
-		Minimum QF on weekdays [W |m^-2|]
+		Base (temperature-independent) QF on weekdays as a daily mean scaled by the normalised AH profile; not a lower bound [W |m^-2|]
 
 	:Configuration:
 		.. csv-table::
@@ -95,7 +95,7 @@ Input Options
 .. option:: AHMin_WE
 
 	:Description:
-		Minimum QF on weekends [W |m^-2|]
+		Base (temperature-independent) QF on weekends as a daily mean scaled by the normalised AH profile; not a lower bound [W |m^-2|]
 
 	:Configuration:
 		.. csv-table::
@@ -1478,7 +1478,7 @@ Input Options
 .. option:: G1
 
 	:Description:
-		Related to maximum surface conductance [mm |s^-1|]
+		Fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (:option:`MaxConductance`) to the surface conductance; it is not itself a conductance [-]
 
 	:Configuration:
 		.. csv-table::

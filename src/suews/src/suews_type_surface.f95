@@ -97,7 +97,7 @@ module module_type_surface
    END TYPE OHM_STATE
 
    TYPE, PUBLIC :: CONDUCTANCE_PRM
-      REAL(KIND(1D0)) :: g_max = 0.0D0 !Fitted parameters related to surface res. calculations
+      REAL(KIND(1D0)) :: g_max = 0.0D0 !Dimensionless fitted coefficient: scales LAI-weighted max conductance to surface conductance [-]
       REAL(KIND(1D0)) :: g_k = 0.0D0
       REAL(KIND(1D0)) :: g_q_base = 0.0D0
       REAL(KIND(1D0)) :: g_q_shape = 0.0D0

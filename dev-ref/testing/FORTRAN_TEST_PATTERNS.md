@@ -67,20 +67,29 @@ from supy import SUEWSSimulation
 pytestmark = pytest.mark.physics
 
 
+def _run_loaded(sim):
+    """Run exactly the loaded forcing window (run() rejects a silent clip)."""
+    index = sim.forcing.index
+    return sim.run(start_date=index[0], end_date=index[-1])
+
+
 def test_split_run_matches_continuous_run():
-    """Verify splitting a run across two SUEWSSimulation steps matches an uninterrupted run."""
+    """Verify a checkpoint continuation matches an uninterrupted run."""
     sim_full = SUEWSSimulation.from_sample_data()
     df_forcing_short = sim_full.forcing.df.iloc[:576]  # 2 days at 5-min step
     sim_full.update_forcing(df_forcing_short)
-    out_full = sim_full.run()
+    out_full = _run_loaded(sim_full)
 
     sim_day1 = SUEWSSimulation.from_sample_data()
     sim_day1.update_forcing(df_forcing_short.iloc[:288])
-    sim_day1.run()
+    _run_loaded(sim_day1)
 
-    sim_day2 = SUEWSSimulation.from_state(sim_day1.state_final)
+    # The checkpoint carries the per-grid SUEWS_STATE JSON through the bridge
+    # (see test/core/test_checkpoint.py); from_state() is a deprecated
+    # DFState adapter and does not exercise it.
+    sim_day2 = SUEWSSimulation.from_checkpoint(sim_day1.config, sim_day1.checkpoint)
     sim_day2.update_forcing(df_forcing_short.iloc[288:])
-    out_day2 = sim_day2.run()
+    out_day2 = _run_loaded(sim_day2)
 
     np.testing.assert_allclose(
         out_day2.SUEWS["QH"].to_numpy(),
@@ -92,26 +101,34 @@ def test_split_run_matches_continuous_run():
 
 ### Pattern 3: Kernel Fatal-Error Guard Testing
 
-Verify that invalid inputs reaching Fortran trigger `set_supy_error` and surface as a clean Python exception rather than calling `STOP` or silently returning `0.0`:
+Verify that invalid inputs reaching Fortran trigger `set_supy_error` and surface as a clean Python exception rather than calling `STOP` or silently returning `0.0`. Python preflight validation normally rejects such inputs first (as `ValueError`), so a kernel-guard test must bypass it explicitly and say so. The pattern below follows `test_dailystate_lai_observed_invalid_fortran_guard` in `test/io_tests/test_dailystate_output.py`: the observed-LAI guard runs in the daily state update, so the forcing must cross a day boundary, and the kernel reports error code 105:
 
 ```python
 import pytest
-from supy import SUEWSSimulation
+import supy as sp
 
 pytestmark = pytest.mark.physics
 
 
-def test_disabled_or_invalid_kernel_option_raises_clean_error():
-    """Verify kernel-level error reporting surfaces cleanly to Python."""
-    sim = SUEWSSimulation.from_sample_data()
-    # Mutate forcing or state to exercise a kernel validation guard
-    df_forcing = sim.forcing.df.iloc[:12].copy()
-    df_forcing["lai"] = -999.0
-    sim.update_config({"model": {"physics": {"leaf_area_index": {"value": 0}}}})
+def test_observed_lai_kernel_guard_raises_clean_error(
+    sample_data_loaded, sample_yaml_path, monkeypatch
+):
+    """Invalid observed LAI reaching Fortran raises a clean RuntimeError."""
+    sim = sp.SUEWSSimulation(str(sample_yaml_path))
+    sim._config.model.physics.laimethod.value = 0
+    sim._df_state_init = sim._config.to_df_state()
+
+    _, df_forcing = sample_data_loaded
+    df_forcing = df_forcing.copy()
+    first_day = df_forcing.index.normalize() == df_forcing.index[0].normalize()
+    df_forcing.loc[first_day, "lai"] = -1.0
     sim.update_forcing(df_forcing)
 
-    with pytest.raises(RuntimeError, match="laimethod=0"):
-        sim.run()
+    # Bypass the Python preflight so the invalid value reaches the kernel.
+    monkeypatch.setattr(sp._check, "_check_observed_lai_nonneg", lambda *a, **k: False)
+
+    with pytest.raises(RuntimeError, match="code 105"):
+        sim.run(_validate_forcing=False)
 ```
 
 ---

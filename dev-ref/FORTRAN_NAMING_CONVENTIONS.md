@@ -186,7 +186,7 @@ TYPE :: dts_snow_state
    REAL(KIND(1D0)) :: depth = 0.0D0          ! [m]
    REAL(KIND(1D0)) :: density = 100.0D0      ! [kg m-3]
    REAL(KIND(1D0)) :: albedo = 0.8D0         ! [-]
-   REAL(KIND(1D0)) :: temperature = 273.15D0 ! [K]
+   REAL(KIND(1D0)) :: temperature = C2K      ! [K] (C2K from module_ctrl_const_physconst)
    INTEGER :: age_days = 0                   ! [days]
 END TYPE dts_snow_state
 

@@ -57,8 +57,8 @@ Each build produces **one `cp312-abi3` wheel per platform** (`manylinux` `x86_64
 | Trigger | Version Example | Test Matrix | Destination |
 |---------|-----------------|-------------|-------------|
 | **Nightly schedule** (`2 AM UTC`) | `2026.5.10.dev` (auto-tagged) | `FULL_PLATFORMS` (wheels) + `NIGHTLY_API_PLATFORMS` (`api`, `cp312..cp315`), `all` tier | **TestPyPI** (`deploy_testpypi`) |
-| **Manual `.dev` tag push** | `2026.5.10.dev` | `FULL_PLATFORMS`, `cp312..cp315`, `all` tier | **TestPyPI** (`deploy_testpypi`) |
-| **Formal release tag push** (no `.dev`) | `2026.5.10` or `2026.5.10.1` | `FULL_PLATFORMS`, `cp312..cp315`, `all` tier | **PyPI** (`deploy_pypi`) + GitHub Release + Zenodo DOI |
+| **Manual `.dev` tag push** | `2026.5.10.dev` | `FULL_PLATFORMS` (wheels) + `NIGHTLY_API_PLATFORMS` (`api`, `cp312..cp315`), `all` tier | **TestPyPI** (`deploy_testpypi`) |
+| **Formal release tag push** (no `.dev`) | `2026.5.10` or `2026.5.10.1` | `FULL_PLATFORMS` (wheels) + `NIGHTLY_API_PLATFORMS` (`api`, `cp312..cp315`), `all` tier | **PyPI** (`deploy_pypi`) + GitHub Release + Zenodo DOI |
 
 **All-Platform Gate**: Both `deploy_pypi` and `deploy_testpypi` require **every** platform wheel build, `build_mcp`, and the chained cross-CPython `api` test lanes to succeed (`needs.build_wheels.result == 'success'`). Partial platform uploads do not occur. (`suews-mcp` wheels are excluded from PyPI/TestPyPI upload because the MCP server ships via the git agent plugin.)
 

@@ -57,6 +57,7 @@ test/
 |-- cmd/            # CLI entry points (suews run, convert, validate, schema)
 |-- mcp/            # MCP server tools and plugin packaging manifests
 |-- docs/           # Documentation generation and RST sanity checks
+|-- knowledge/      # Source-evidence knowledge pack
 |-- umep/           # UMEP/QGIS compatibility contracts (auto-marked api + qgis)
 `-- fixtures/       # Vendored self-contained test fixtures and reference shards
 ```

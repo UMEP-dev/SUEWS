@@ -16,7 +16,7 @@ GitHub's merge queue tests each PR (or batch of PRs) against the latest `master`
 3. If `pr-gate` and all required checks pass, GitHub merges the PR automatically.
 4. If checks fail, GitHub removes the failing PR from the queue for diagnosis.
 
-**Human-Gated Terminal Rule (`autonomous-workflow.md`)**: Adding a PR to the merge queue (`gh pr merge --auto` / `--merge-queue` / `queue-ready-prs.sh --enqueue`) is **always human-gated**. Autonomous agents may scan, order, and preflight PRs, but never enqueue without explicit per-run human approval, and **never** pass `--admin` to bypass branch protection or the queue.
+**Human-Gated Terminal Rule (`autonomous-workflow.md`)**: Adding a PR to the merge queue (`gh pr merge --auto` / `queue-ready-prs.sh --enqueue`) is **always human-gated**. Autonomous agents may scan, order, and preflight PRs, but never enqueue without explicit per-run human approval, and **never** pass `--admin` to bypass branch protection or the queue.
 
 ## CI Matrix Selection (`.github/scripts/determine-matrix.sh`)
 
@@ -25,7 +25,7 @@ GitHub's merge queue tests each PR (or batch of PRs) against the latest `master`
 ### Platform Presets in `determine-matrix.sh`
 - **`MINIMAL_PLATFORMS`**: `ubuntu-latest` (`manylinux` `x86_64`) only.
 - **`PR_PLATFORMS`**: `ubuntu-latest` (`manylinux` `x86_64`), `macos-15` (`arm64`), and `windows-2025` (`AMD64`).
-- **`FULL_PLATFORMS`**: `PR_PLATFORMS` plus `macos-15-intel` (`x86_64`). (`NIGHTLY_API_PLATFORMS` drops `macos-15-intel` from nightly `api` cross-Python tests due to Intel runner scarcity while still building and gating the Intel wheel.)
+- **`FULL_PLATFORMS`**: `PR_PLATFORMS` plus `macos-15-intel` (`x86_64`). (`NIGHTLY_API_PLATFORMS` drops `macos-15-intel` from the `api` cross-Python tests on nightly runs, `full` manual dispatches, and tag pushes, because Intel runners are scarce and their `api` lanes run past the job timeout; the Intel wheel is still built and gated.)
 
 ### Matrix by Event and Change Scope
 
@@ -40,7 +40,7 @@ GitHub's merge queue tests each PR (or batch of PRs) against the latest `master`
 | **Merge Queue** (Fortran, Rust, Python, util, build, or CI changed) | `PR_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` (`physics-full` if `0-physics:change`) |
 | **Merge Queue** (tests or non-package files only) | `MINIMAL_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` |
 | **Nightly (`schedule`)** | `FULL_PLATFORMS` (wheels) / `NIGHTLY_API_PLATFORMS` (`api`) | All supported (`cp312..cp315`) | `all` (+ checked Fortran profile, tolerance spread, cost markers) |
-| **Release / `.dev` Tag Push** | `FULL_PLATFORMS` | All supported (`cp312..cp315`) | `all` |
+| **Release / `.dev` Tag Push** | `FULL_PLATFORMS` (wheels) / `NIGHTLY_API_PLATFORMS` (`api`) | All supported (`cp312..cp315`) | `all` |
 
 - **Documentation-only PRs**: `detect-changes` skips wheel builds when no code/test/build paths changed; `pr-gate` still runs and passes so docs PRs traverse the merge queue quickly.
 - **`0-physics:change` PRs**: Both Ready PR and Merge Queue runs automatically upgrade `test_tier` to `physics-full` (gh#1576) so all `-m physics` tests (including `slow`) run before merge.
@@ -67,8 +67,9 @@ git fetch origin
 ### Enqueuing a Single Approved PR
 
 ```bash
-# Enqueue with head-SHA guard (recommended -- enters merge queue when checks/reviews pass)
-gh pr merge <PR_NUMBER> --auto --squash --match-head-commit <HEAD_SHA>
+# Enqueue with head-SHA guard (recommended -- enters merge queue when checks/reviews pass;
+# the queue owns the merge strategy, so no --squash/--merge flag is passed)
+gh pr merge <PR_NUMBER> --auto --match-head-commit <HEAD_SHA>
 
 # Or via GitHub Web UI: click "Merge when ready" / "Add to merge queue"
 ```
@@ -86,8 +87,12 @@ gh pr checks <PR_NUMBER> --watch
 gh pr list --state open --json number,title,mergeStateStatus | \
   jq '.[] | select(.mergeStateStatus | contains("QUEUE"))'
 
-# Remove a failing or blocked PR from the merge queue
-gh pr edit <PR_NUMBER> --remove-from-merge-queue
+# Cancel a pending enqueue (auto-merge not yet fired)
+gh pr merge <PR_NUMBER> --disable-auto
+
+# Remove a PR already in the merge queue: use "Remove from queue" on the PR page,
+# or the GraphQL dequeuePullRequest mutation with the PR's node ID
+gh api graphql -f query='mutation { dequeuePullRequest(input: {id: "<PR_NODE_ID>"}) { clientMutationId } }'
 ```
 
 ## Best Practices

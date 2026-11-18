@@ -18,8 +18,9 @@ Before reading the historical UX exploration below, understand how SUEWS actuall
    - **Thread-local isolation**: Fatal error state lives in C11 thread-local storage (`suews_ctrl_error_tls.c`, GH#1736) so parallel multi-grid Rayon workers never clobber one another's error state.
    - **Non-fatal kernel warnings**: Route numbered messages via `CALL ErrorHint(..., modState)` or unnumbered warnings via `CALL modState%errorstate%report(message=..., location=..., is_fatal=.FALSE.)` (GH#1737), surfaced on `SUEWSSimulation.kernel_warnings`.
 2. **C-ABI and Rust Bridge (`src/suews_bridge/`)**:
-   - `ISO_C_BINDING` facades (`src/suews_bridge/c_api/`) inspect `supy_error_flag()` / `get_supy_error` and return integer status codes (`SUEWS_CAPI_OK`, `SUEWS_CAPI_KERNEL_ERROR`, `SUEWS_CAPI_BAD_BUFFER`, etc.).
-   - Rust converts non-zero C-ABI statuses and input-contract failures into `Result<T, BridgeError>`.
+   - `ISO_C_BINDING` codec and buffer facades (`src/suews_bridge/c_api/`) return integer status codes from `common.f95` (`SUEWS_CAPI_OK`, `SUEWS_CAPI_BAD_DT`, `SUEWS_CAPI_BAD_TIME`, `SUEWS_CAPI_BAD_BUFFER`, `SUEWS_CAPI_BAD_STATE`). These report bridge-contract failures, not kernel errors.
+   - Kernel errors travel separately: `suews_cal_multitsteps_c` (`c_api/driver.f95`) copies `state_local%errorState` into the out-parameters `sim_err_code` and `sim_err_message` while leaving `err = SUEWS_CAPI_OK`.
+   - Rust (`src/suews_bridge/src/sim.rs`) converts a non-zero C-ABI status or a non-zero `sim_err_code`, and any input-contract failure, into `Result<T, BridgeError>`; a kernel error becomes `BridgeError::SimulationError` carrying the code and message.
    - PyO3 maps `BridgeError` to standard Python exceptions (`RuntimeError`, `ValueError`), preserving the Fortran subroutine prefix and error code.
 3. **Python Configuration and I/O (`src/supy/`)**:
    - Configuration schema and physics-option checks run through Pydantic v2 (`pydantic.ValidationError` / `ValueError`) and the config validation pipeline.

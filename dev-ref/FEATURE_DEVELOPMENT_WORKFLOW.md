@@ -84,7 +84,7 @@ gh pr create --base feat/step1-foundation --title "Add new resistance option"
 
 #### Landing a Stack Safely
 1. Complete review on `PR1` (reviewers of `PR2` see only `PR2`'s incremental diff while its base is `feat/step1-foundation`).
-2. Enqueue **only `PR1`** into the GitHub merge queue (`gh pr merge <PR1> --auto --squash` or `/queue-pr`). Never enqueue `PR2` before `PR1` merges.
+2. Enqueue **only `PR1`** into the GitHub merge queue (`gh pr merge <PR1> --auto` or `/queue-pr`). Never enqueue `PR2` before `PR1` merges.
 3. Once `PR1` merges into `master`, GitHub retargets `PR2` to `master` automatically. Rebase `PR2` onto fresh `origin/master`, verify `make test-smoke`, push with `--force-with-lease`, wait for PR CI, and then enqueue `PR2`:
    ```bash
    cd ../suews-step2

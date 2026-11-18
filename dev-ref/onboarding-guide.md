@@ -112,7 +112,7 @@ For parallel work across multiple issues or PRs, prefer `git worktree` rather th
 
 3. **Merge via the Merge Queue (Never Push Directly to `master`)**:
    - Branch protection prohibits direct pushes to `master`.
-   - Once CI (`pr-gate`) and required reviews pass, enqueue the PR via GitHub's merge queue (`gh pr merge <PR> --auto --squash` or `/queue-pr`; see [MERGE_QUEUE.md](MERGE_QUEUE.md)).
+   - Once CI (`pr-gate`) and required reviews pass, enqueue the PR via GitHub's merge queue (`gh pr merge <PR> --auto` or `/queue-pr`; see [MERGE_QUEUE.md](MERGE_QUEUE.md)).
 
 ## Part 3: Onboarding Checklist
 

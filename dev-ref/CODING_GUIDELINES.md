@@ -63,7 +63,7 @@ import pandas as pd
 
 # 3. Local imports
 from ._env import logger_supy, trv_supy_module
-from ._suews_simulation import SUEWSSimulation
+from .suews_sim import SUEWSSimulation
 ```
 
 ### 2.2 Naming Conventions
@@ -89,7 +89,6 @@ from ._suews_simulation import SUEWSSimulation
 Target Python `>= 3.12` syntax (`X | None`, built-in generic collections `list[...]`, `dict[...]`, `tuple[...]`, and `Literal[...]`):
 ```python
 from pathlib import Path
-from typing import Literal
 import pandas as pd
 
 from supy import SUEWSSimulation
@@ -99,14 +98,13 @@ def run_site_window(
     path_config: Path,
     start_date: str | None = None,
     end_date: str | None = None,
-    output_format: Literal["parquet", "txt"] = "parquet",
 ) -> pd.DataFrame:
     """Run a SUEWSSimulation window and return the output DataFrame."""
     sim = SUEWSSimulation(path_config)
-    if start_date is not None or end_date is not None:
-        df_forcing = sim.forcing.df.loc[start_date:end_date]
-        sim.update_forcing(df_forcing)
-    output = sim.run()
+    # Pass the period to run() rather than slicing the forcing by hand:
+    # run() applies the interval-end period convention and falls back to
+    # model.control.start_time / end_time when a bound is None.
+    output = sim.run(start_date=start_date, end_date=end_date)
     return output.df
 ```
 
@@ -161,6 +159,7 @@ See **[FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md)** and [`.cl
 ```fortran
 ! File: src/suews/src/suews_phys_snow.f95
 MODULE module_phys_snow
+   USE module_ctrl_const_physconst, ONLY: C2K
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    IMPLICIT NONE
    PRIVATE
@@ -193,7 +192,7 @@ CONTAINS
          RETURN
       END IF
 
-      temp_val = temp_air - 273.15D0
+      temp_val = temp_air - C2K   ! named constant, never a bare 273.15 literal
       ! ... physics calculations ...
    END SUBROUTINE update_snow_state
 
@@ -281,6 +280,7 @@ test/
 |-- cmd/            # CLI entry points (suews run/convert/validate/schema)
 |-- mcp/            # MCP server and packaging manifests
 |-- docs/           # Documentation sanity checks
+|-- knowledge/      # Source-evidence knowledge pack
 |-- umep/           # UMEP/QGIS compatibility contracts
 `-- fixtures/       # Vendored test fixtures and reference outputs
 ```
@@ -410,7 +410,6 @@ In Claude Code or Codex sessions, invoke `/lint-code` to run `ruff`, `fprettify 
 
 ### 9.3 CI Enforcement
 
-Formatting, linting, and invariants are verified on pull requests and in the merge queue before code lands on `master`:
-- Python lint, formatting, and encoding checks (`ruff`, `.github/workflows/encoding-audit.yml`).
-- Rust clippy gate (`.github/workflows/rust-clippy.yml`).
-- Repository lint scripts under `scripts/lint/` (including `check_saved_fortran_locals.py`, `check_test_markers.py`, `check_packaged_data_paths.py`, and `check_schema_version_bump.py`).
+General `ruff check`, `ruff format`, and `fprettify` runs are local checks (`make format` or `/lint-code`); no CI workflow runs them over the whole tree. CI enforces the following:
+- On pull requests only: the encoding audit (`.github/workflows/encoding-audit.yml`: `ruff check --preview --select PLW1514` plus `scripts/lint/check_pathlib_encoding.py`), the Rust clippy gate (`.github/workflows/rust-clippy.yml`), and the schema-version audit (`.github/workflows/schema-version-audit.yml`, running `scripts/lint/check_schema_version_bump.py`).
+- On pull requests and in the merge queue: the `check_test_markers` job in `.github/workflows/build-publish_to_pypi.yml`, which runs `scripts/lint/check_test_markers.py`, `check_packaged_data_paths.py`, `check_saved_fortran_locals.py`, and `check_fortran_literals.py`.

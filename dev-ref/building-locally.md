@@ -90,7 +90,7 @@ SUEWS/
 |   |-- suews/          # Fortran physics engine (src/suews/src/*.f95)
 |   |-- suews_bridge/   # C-ABI facades (c_api/) + Rust PyO3 extension (suews_bridge)
 |   `-- supy/           # Python interface (SUEWSSimulation, Pydantic data_model, CLI)
-|-- test/               # Pytest suite (core, data_model, physics, io_tests, cmd, mcp, docs, umep)
+|-- test/               # Pytest suite (core, data_model, physics, io_tests, cmd, mcp, docs, knowledge, umep)
 |-- docs/               # User documentation (Sphinx)
 |-- dev-ref/            # Developer documentation, rationale, and audit ledgers
 `-- .claude/            # Active coding rules, skills, and review subagents

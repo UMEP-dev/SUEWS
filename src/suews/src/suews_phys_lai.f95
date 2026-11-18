@@ -139,8 +139,6 @@ CONTAINS
             id=id, &
             summer_reset_day=summer_day, &
             winter_reset_day=winter_day, &
-            gdd_base=gdd_base(iv), &
-            sdd_base=sdd_base(iv), &
             growth_state=growth_state(iv), &
             senescence_state=senescence_state(iv), &
             sdd=sdd_id(iv), &
@@ -378,7 +376,6 @@ CONTAINS
 
    SUBROUTINE reset_degree_days( &
       id, &
-      sdd_base, gdd_base, &
       summer_reset_day, winter_reset_day, &
       growth_state, senescence_state, &
       sdd, gdd)
@@ -388,9 +385,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: id
       INTEGER, INTENT(IN) :: summer_reset_day
       INTEGER, INTENT(IN) :: winter_reset_day
-      
-      REAL(KIND(1D0)), INTENT(IN) :: gdd_base
-      REAL(KIND(1D0)), INTENT(IN) :: sdd_base
       
       INTEGER, INTENT(INOUT) :: growth_state
       INTEGER, INTENT(INOUT) :: senescence_state

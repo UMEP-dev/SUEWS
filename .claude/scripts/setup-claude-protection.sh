@@ -23,8 +23,17 @@ if [ -f "$HOOK_SOURCE" ]; then
     mkdir -p "$(dirname "$HOOK_PATH")"
 
     if [ -f "$HOOK_PATH" ]; then
-        if grep -q "validate-claude-md.py" "$HOOK_PATH" 2>/dev/null; then
+        if grep -q "Shared agent instruction validation" "$HOOK_PATH" 2>/dev/null; then
             echo "[INFO] Pre-commit hook already installed"
+        elif head -n 2 "$HOOK_PATH" | grep -q "validate CLAUDE.md integrity"; then
+            # Standalone legacy CLAUDE.md-only hook: replace it with the current one
+            cp "$HOOK_PATH" "$HOOK_PATH.backup"
+            cp "$HOOK_SOURCE" "$HOOK_PATH"
+            chmod +x "$HOOK_PATH"
+            echo "[OK] Replaced legacy CLAUDE.md-only pre-commit hook (previous copy: $HOOK_PATH.backup)"
+        elif grep -q "validate-claude-md.py" "$HOOK_PATH" 2>/dev/null; then
+            echo "[WARN] $HOOK_PATH contains the legacy CLAUDE.md-only validation inside another hook."
+            echo "       Replace that block with the contents of $HOOK_SOURCE by hand."
         else
             cp "$HOOK_PATH" "$HOOK_PATH.backup"
             {
@@ -57,14 +66,13 @@ else
 fi
 
 # 5. Add to .gitignore if needed
-if [ -f ".gitignore" ] && ! grep -q "AGENTS.md.backup" .gitignore; then
-    {
-        echo ""
-        echo "# AGENTS.md protection"
-        echo "AGENTS.md.backup"
-        echo ".claude/snapshots/"
-    } >> .gitignore
-    echo "[OK] Added protection files to .gitignore"
+if [ -f ".gitignore" ]; then
+    for entry in "AGENTS.md.backup" ".claude/snapshots/"; do
+        if ! grep -qxF "$entry" .gitignore; then
+            echo "$entry" >> .gitignore
+            echo "[OK] Added $entry to .gitignore"
+        fi
+    done
 fi
 
 echo ""

@@ -15,11 +15,11 @@ if ! command -v gfortran >/dev/null 2>&1 || ! command -v meson >/dev/null 2>&1 |
   if [ "$(id -u)" -eq 0 ]; then
     apt-get update -qq
     apt-get install -y -qq gfortran meson ninja-build
-  elif command -v sudo >/dev/null 2>&1; then
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq gfortran meson ninja-build
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+    sudo -n apt-get update -qq
+    sudo -n apt-get install -y -qq gfortran meson ninja-build
   else
-    echo "WARNING: Missing gfortran/meson/ninja and root/sudo is unavailable."
+    echo "WARNING: Missing gfortran/meson/ninja and neither root nor passwordless sudo is available."
   fi
 fi
 

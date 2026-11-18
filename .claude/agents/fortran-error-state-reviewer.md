@@ -42,7 +42,7 @@ END IF
 
 Check each of:
 
-- `USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag` is at the module/subroutine header with an explicit `ONLY` list. (Note: external libraries under `src/suews/ext_lib/` compile before SUEWS modules and must use a `BIND(C)` bridge into `src/suews/src/suews_ctrl_error_tls.c` rather than `USE module_ctrl_error_state`.)
+- `USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag` is at the module header (not inside the subroutine) with an explicit `ONLY` list. (Note: vendored code under `src/suews/ext_lib/` does not use `module_ctrl_error_state`; its inputs and outputs are validated, and fatal errors raised, in the SUEWS wrapper that calls it, e.g. `src/suews/src/suews_phys_spartacus.f95`.)
 - The message is prefixed with the subroutine name so it is locatable from a Python traceback.
 - Every `INTENT(OUT)` argument is assigned a type-appropriate sentinel (`-999.0D0`, `0`, `.FALSE.`) before `RETURN`.
 - Control `RETURN`s immediately after `set_supy_error`, and callers check `IF (supy_error_flag()) RETURN` after invoking any subroutine that may set a fatal error so execution never continues into singular maths or unassigned outputs.
@@ -50,7 +50,7 @@ Check each of:
 ## Step 4 -- Non-fatal and numbered paths
 
 - Continuable conditions or numbered registry messages (codes 1-99) use `ErrorHint(code, msg, ...)`; pass the OPTIONAL `modState` argument wherever `modState` is in scope so warnings are recorded on the per-grid `modState%errorstate` log rather than dropped.
-- Unnumbered per-grid non-fatal warnings use `CALL modState%errorstate%report(message=..., location='subroutine_name', is_fatal=.FALSE.)` (`src/suews/src/suews_ctrl_error.f95`). Never propose the removed module-global `add_supy_warning` helper.
+- Unnumbered per-grid non-fatal warnings use `CALL modState%errorstate%report(message=..., location='subroutine_name', is_fatal=.FALSE.)` (`src/suews/src/suews_ctrl_type.f95::error_state`). Never propose the removed module-global `add_supy_warning` helper.
 
 ## Step 5 -- New error codes are registered
 

@@ -86,11 +86,13 @@ with pytest.raises(ValueError, match="must be positive"):
 
 ## Pytest Markers
 
-Markers sit on two orthogonal axes (gh#1300). Every new test file **must**
-declare the nature axis at module level; tier markers compose on top as
-per-test decorators.
+Markers sit on two orthogonal axes (gh#1300). Every new test file under
+`test/` **must** declare the nature axis at module level; tier markers compose
+on top as per-test decorators. The standalone exceptions outside `test/` (see
+"Test File Locations") are exempt: `benchmark/tests/` and the stdlib-only
+`.claude/scripts/test_*.py` carry no nature marker. [fact: git grep -n 'test_root = repo_root / "test"' scripts/lint/check_test_markers.py && git grep -n "python -m unittest discover -s .claude/scripts" .github/workflows/validate-claude-md.yml]
 
-### Nature axis -- REQUIRED on every file
+### Nature axis -- REQUIRED on every file under `test/`
 
 Pick exactly one (or both, rarely) and declare at module level:
 

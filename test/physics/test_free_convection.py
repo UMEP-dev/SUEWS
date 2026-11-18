@@ -2,14 +2,14 @@
 
 On every step r_a uses an effective wind in place of U, so every part of
 r_a, the interfacial part ln(z0m/z0v)/(k u*) included, scales by U/U_e. U_e
-adds the minimum velocity scale W_MIN in quadrature to U on every branch, the
-neutral equation (zero (z-d)/L, or u* = 0, with L non-zero) included (#1979),
+adds the minimum velocity scale W_MIN in quadrature to U on every stability
+branch of resistance method 2, the neutral equation (zero (z-d)/L, or u* = 0, with L non-zero) included (#1979),
 and on the unstable branch also the free-convection velocity
 w_f = (g/T H zzd)**(1/3) from the pass heat flux:
 U_e = sqrt(U**2 + W_MIN**2 [+ w_f**2]). The stable resistance does not see
 w_f. With the same W_MIN on both sides, r_a is continuous where (z-d)/L
-changes sign in the limit w_f -> 0, and stable r_a is non-decreasing in
-(z-d)/L; a retained, non-zero w_f can still make r_a differ across the sign
+changes sign in the limit w_f -> 0, and at fixed wind and roughness W_MIN
+introduces no additional stable-side dip; a retained, non-zero w_f can still make r_a differ across the sign
 change. The routine does not modify u*. Between outer passes w_f is under-relaxed with
 the (z-d)/L schedule. The previous pass's value is a local of the timestep
 call that owns the outer loop, reset to zero at the start of every timestep:
@@ -324,12 +324,15 @@ def test_resistance_is_continuous_across_neutral_as_free_convection_vanishes(
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])
-def test_stable_resistance_never_falls_as_stability_grows(probe, method):
-    """Stable r_a is non-decreasing in (z-d)/L from neutral to the clip at
-    every wind, because W_MIN does not depend on (z-d)/L (#1979). The only
-    allowed falls are the stability functions' own: their psi switch on at
-    |(z-d)/L| = 1e-4, so where z0m/L or z0v/L crosses that limit r_a can drop
-    by a few parts in 1e4 without the minimum velocity scale too."""
+def test_minimum_velocity_scale_adds_no_stable_dip_at_fixed_inputs(probe, method):
+    """At fixed wind, u* and roughness, W_MIN introduces no additional dip on
+    the stable side (#1979): the factor U/U_e does not depend on (z-d)/L, so
+    each relative step of stable r_a in (z-d)/L equals that of the resistance
+    without any velocity scale. That resistance has small falls of its own
+    (a few parts in 1e4, where the psi switch at |(z-d)/L| = 1e-4 acts on the
+    roughness-height terms), which W_MIN neither adds to nor removes. The
+    driver recomputes u* (and hence z0v) from the accepted stability, which
+    this fixed-input check does not cover."""
     # ARRANGE: (z-d)/L from just above neutral to the clip, at winds from the
     # floor upwards
     z_over_l = list(np.geomspace(1e-9, 0.5, 400))
@@ -339,11 +342,13 @@ def test_stable_resistance_never_falls_as_stability_grows(probe, method):
     # ACT
     out = probe(3, rows)
     ra = out[:, 0].reshape(len(winds), -1)
+    ra_plain = _pr_resistance(rows, out).reshape(len(winds), -1)
 
-    # ASSERT: non-decreasing up to the psi switch, with the full factor at
-    # every stability
-    rel_step = np.diff(ra, axis=1) / ra[:, :-1]
-    assert rel_step.min() > -1e-3
+    # ASSERT: the same relative steps as without W_MIN, and the full factor
+    # at every stability
+    step = np.diff(ra, axis=1) / ra[:, :-1]
+    step_plain = np.diff(ra_plain, axis=1) / ra_plain[:, :-1]
+    np.testing.assert_allclose(step, step_plain, rtol=0, atol=1e-10)
     np.testing.assert_allclose(
         out[:, 0],
         _pr_resistance(rows, out) * _velocity_factor(rows),

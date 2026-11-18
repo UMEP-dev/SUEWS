@@ -7,10 +7,13 @@ MODULE module_phys_resist
    ! Numerical guard only [m s-1]: rb divides by UStar. Not a physical limit.
    REAL(KIND(1D0)), PARAMETER :: USTAR_GUARD = 1.0D-12
    ! Minimum velocity scale for the aerodynamic resistance [m s-1] (#1979),
-   ! added in quadrature to the wind on every step, with the free-convection
-   ! velocity w_f on top on unstable steps. Mahrt and Sun (1995) give 0.5 m s-1
-   ! as a globally constant subgrid velocity scale, from grid-averaged
-   ! aircraft data.
+   ! added in quadrature to the wind on every stability branch of resistance
+   ! method 2, with the free-convection velocity w_f also added on unstable
+   ! steps. The quadrature form is the generalised velocity scale of Mahrt and
+   ! Sun (1995, MWR 123, Eqs. 20 and 22), <V>**2 = |<V>|**2 + w_fc**2 + V_sg**2;
+   ! the value is the globally constant V_sg = 0.5 m s-1 they suggest (p. 3040).
+   ! Their V_sg is a spatial subgrid velocity from 5-30 km aircraft averages
+   ! that grows with grid size; it is used here as a constant for a point model.
    REAL(KIND(1D0)), PARAMETER :: W_MIN = 0.5D0
 
 CONTAINS
@@ -51,8 +54,8 @@ CONTAINS
       !         UStar = Friction velocity (m s-1)
       !         w_f = Free-convection velocity scale (m s-1), used only when unstable
       !         W_MIN (module constant) = minimum velocity scale (m s-1), on
-      !               every step, neutral equation included; w_f is added to
-      !               it on unstable steps
+      !               every stability branch of method 2, neutral equation
+      !               included; w_f is added as well on unstable steps
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
@@ -88,7 +91,7 @@ CONTAINS
       ! every grid thread, so one grid could read another grid's value (gh#1926)
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
-      REAL(KIND(1D0)) :: wind_eff ! wind speed with w_f or w_min added [m s-1]
+      REAL(KIND(1D0)) :: wind_eff ! wind speed with W_MIN and, when unstable, w_f added [m s-1]
       REAL(KIND(1D0)) :: wind_eff2 ! square of wind_eff [m2 s-2]
 
       !Z0V roughness length for vapour
@@ -122,14 +125,15 @@ CONTAINS
          ! Effective wind (#1979, #1956). r_a uses
          ! wind_eff = SQRT(U**2 + W_MIN**2 [+ w_f**2]) in place of U, so every
          ! part of r_a, the interfacial part ln(z0m/z0V)/(k u*) included, scales
-         ! by U/wind_eff. W_MIN acts on every step, neutral equation included:
-         ! at light wind the mean wind understates the exchange that unresolved
-         ! motions (meandering, submeso motions) keep up, and without it r_a
-         ! grows as 1/U, up to the (z-d)/L clip on stable steps. Because the
-         ! same W_MIN acts on both sides of neutral and does not depend on
-         ! (z-d)/L, r_a is continuous where (z-d)/L changes sign in the limit
-         ! w_f -> 0, and stable r_a is non-decreasing in (z-d)/L wherever the
-         ! stability functions are. On unstable steps the free-convection
+         ! by U/wind_eff (Mahrt and Sun 1995, Eqs. 20 and 22). W_MIN acts on
+         ! every stability branch, neutral equation included: at light wind the
+         ! mean wind understates the exchange that unresolved motions
+         ! (meandering, submeso motions) keep up, and without it r_a grows as
+         ! 1/U, up to the (z-d)/L clip on stable steps. Because the same W_MIN
+         ! acts on both sides of neutral and does not depend on (z-d)/L, r_a is
+         ! continuous where (z-d)/L changes sign in the limit w_f -> 0, and at
+         ! fixed wind and roughness the factor introduces no additional dip on
+         ! the stable side. On unstable steps the free-convection
          ! velocity w_f is added as well: light mean wind understates the
          ! exchange that convective eddies keep up. A non-zero w_f retained by
          ! the between-pass relaxation can still make r_a differ across the
@@ -138,8 +142,7 @@ CONTAINS
          ! the model. L_mod must be non-zero: the stability functions above
          ! already divide by it.
          wind_eff2 = AVU1_use**2 + W_MIN**2
-         IF (ZZD/L_mod < 0 .AND. w_f > 0 .AND. .NOT. (Zzd/L_mod == 0 .OR. UStar == 0)) &
-            wind_eff2 = wind_eff2 + w_f**2
+         IF (ZZD/L_mod < 0 .AND. w_f > 0 .AND. UStar /= 0) wind_eff2 = wind_eff2 + w_f**2
          wind_eff = SQRT(wind_eff2)
          RA_h = RA_h*AVU1_use/wind_eff
 

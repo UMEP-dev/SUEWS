@@ -56,9 +56,9 @@ EXAMPLES:
 
 ### 17 Nov 2026
 
-- [change][experimental] Add a minimum velocity scale of 0.5 m s-1 to the aerodynamic resistance on every step: r_a uses the effective wind sqrt(U^2 + w_min^2) in place of U, with the free-convection velocity w_f of #1956 added in quadrature on unstable steps, so at light wind it no longer grows as 1/U, up to the (z-d)/L clip on stable steps (#1979)
-  - The value is the globally constant subgrid velocity scale of Mahrt and Sun (1995), from grid-averaged aircraft data; the friction-velocity calculation is unchanged
-  - The same w_min on both sides of neutral keeps r_a continuous where (z-d)/L changes sign in the limit w_f -> 0 (a non-zero w_f retained by the between-pass relaxation can still make it differ, as before), and stable r_a never falls as (z-d)/L grows
+- [change][experimental] Add a minimum velocity scale of 0.5 m s-1 to the aerodynamic resistance on every stability branch (resistance method 2; the legacy methods 1 and 3 are unchanged): r_a uses the effective wind sqrt(U^2 + w_min^2) in place of U, with the free-convection velocity w_f of #1956 added in quadrature on unstable steps, so at light wind it no longer grows as 1/U, up to the (z-d)/L clip on stable steps (#1979)
+  - The quadrature form is the generalised velocity scale of Mahrt and Sun (1995, Eqs. 20 and 22), and the value is the globally constant subgrid velocity scale of 0.5 m s-1 they suggest (p. 3040), a spatial scale from 5-30 km aircraft averages used here as a constant for a point model; the friction-velocity calculation is unchanged
+  - The same w_min on both sides of neutral keeps r_a continuous where (z-d)/L changes sign in the limit w_f -> 0 (a non-zero w_f retained by the between-pass relaxation can still make it differ, as before), and at fixed wind and roughness w_min introduces no additional stable-side dip
   - Light-wind outputs and subsequent carried state change in all storage heat methods, by day as well as by night; across the 21 test sites of #1956 the largest stable r_a falls from 11,873 to 612 s m-1, and daytime unstable r_a falls by about a quarter below 0.5 m s-1 wind
 
 ### 15 Nov 2026

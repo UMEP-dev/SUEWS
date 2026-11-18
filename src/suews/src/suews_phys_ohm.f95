@@ -9,7 +9,7 @@ MODULE module_phys_ohm
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
-   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_hour_sp
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour
    IMPLICIT NONE
 
    REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 0.25D0 ! [degC]
@@ -693,25 +693,24 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: dqndt_prev ! dQ* per dt for 60 min [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(out) :: qn1_av_next ! weighted average of qn1 [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! dQ* per dt for 60 min [W m-2 h-1]
-      REAL(KIND(1D0)), PARAMETER :: dt0_thresh = sec_per_hour ! threshold for period of dqndt0 [s]
       REAL(KIND(1D0)), PARAMETER :: window_hr = 2 ! window size for Difference calculation [hr]
 
       INTEGER :: dt0 ! period of dqndt0 [s]
 
       REAL(KIND(1D0)) :: qn1_av_0 !, qn1_av_start,qn1_av_end
 
-      ! if previous period shorter than dt0_thresh, expand the storage/memory period
-      IF (dt_since_start < dt0_thresh) THEN ! spinup period
+      ! if previous period shorter than sec_per_hour, expand the storage/memory period
+      IF (dt_since_start < sec_per_hour) THEN ! spinup period
          dt0 = dt_since_start + dt
 
       ELSE ! effective period
-         dt0 = dt0_thresh
+         dt0 = sec_per_hour
       END IF
 
       ! get weighted average at a previous time specified by `window_hr`
-      qn1_av_0 = qn1_av_prev - dqndt_prev*(window_hr - dt/sec_per_hour_sp)
+      qn1_av_0 = qn1_av_prev - dqndt_prev*(window_hr - dt/sec_per_hour)
 
-      ! averaged qn1 for previous period = dt0_thresh
+      ! averaged qn1 for previous period = sec_per_hour
       qn1_av_next = (qn1_av_prev*(dt0 - dt) + qn1*dt)/(dt0)
 
       ! do weighted average to calculate the difference by using the memory value and new forcing value

@@ -7,8 +7,8 @@ from supy import SUEWSSimulation
 
 pytestmark = [pytest.mark.physics, pytest.mark.core]
 
-# SPARTACUS radiation_constants.F90, in W m-2 K-4.
-STEFAN_BOLTZMANN = 5.67037321e-8
+# CODATA Stefan-Boltzmann constant [W m-2 K-4].
+STEFAN_BOLTZMANN = 5.670374419e-8
 
 # Flat grass tile: fixed optical properties and direct/diffuse split.
 FLAT_ALBEDO_DIFFUSE = 0.25
@@ -150,10 +150,8 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
                 spartacus[column], expected_shortwave, rtol=0, atol=1e-10
             )
         for column in ("LTopNet", "LNet_Grnd"):
-            # The kernel's single-precision 273.15 literal shifts emission
-            # by about 3e-5 W m-2 at these temperatures.
             np.testing.assert_allclose(
-                spartacus[column], expected_longwave, rtol=0, atol=1e-4
+                spartacus[column], expected_longwave, rtol=0, atol=1e-10
             )
 
 

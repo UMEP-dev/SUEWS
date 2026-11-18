@@ -16,6 +16,7 @@
 module radiation_constants
 
   use parkind1, only : jprb
+  use module_ctrl_const_physconst, only : StefanBoltzmann => SBConst
 !  use yomcst,   only : RPI, RSIGMA, RG, RD, RMV, RMO3, RHPLA
 
   implicit none
@@ -23,7 +24,6 @@ module radiation_constants
   ! Rename some constants from their cryptic IFS names
   real(jprb), parameter :: Pi                 = 3.14159265358979323846_jprb
   real(jprb), parameter :: AccelDueToGravity  = 9.80665_jprb! m s-2
-  real(jprb), parameter :: StefanBoltzmann    = 5.67037321e-8_jprb ! W m-2 K-4
   real(jprb), parameter :: DensityLiquidWater = 1000.0_jprb ! kg m-3
   real(jprb), parameter :: DensitySolidIce    = 916.7_jprb  ! kg m-3
   real(jprb), parameter :: GasConstantDryAir  = 287.058_jprb! J kg-1 K-1

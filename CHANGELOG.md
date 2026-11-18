@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 18 Nov 2026
 
+- [bugfix] Unify Stefan-Boltzmann radiation calculations on the CODATA constant, use shared double-precision angle conversions, and use the shared double-precision Kelvin offset and pi in SUEWS physics (#1953).
+  - Use double precision for both PAR conversion factors and remove local constant copies. Refresh the annual, STEBBS and W16 references and their provenance.
+
 - [maintenance] Rust bridge: every YAML apply function now returns a `Result` that its callers propagate, and add the required readers (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, `require_sequence`) whose errors name the YAML path in its data-model spelling; no read site uses them yet, and the blocks move to them one by one. No input or output changes (#1991, #2045)
 
 ### 17 Nov 2026

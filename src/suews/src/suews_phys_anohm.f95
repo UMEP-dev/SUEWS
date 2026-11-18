@@ -20,12 +20,13 @@
 !========================================================================================
 ! Main module following naming standard: matches filename
 MODULE module_phys_anohm
+   USE module_ctrl_const_mathconst, ONLY: pi
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
    USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst_567, C2K, cp_air_anohm_sp, lv_anohm_sp
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst, C2K, cp_air_anohm, lv_anohm
    IMPLICIT NONE
 CONTAINS
 
@@ -316,7 +317,6 @@ CONTAINS
          ATs, mTs, gamma !surface temperature related scales by AnOHM
 
       ! constant:
-      REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
       REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 
       SELECT CASE (sfc_typ)
@@ -377,8 +377,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: gamma !< phase difference between Ts and Sd [K]
 
       !   constant
-      REAL(KIND(1D0)), PARAMETER :: SIGMA = SBConst_567 ! Stefan-Boltzman
-      REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
       REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 
       !   local variables:
@@ -426,9 +424,9 @@ CONTAINS
       END IF
 
       ! PRINT*, 'beta:', beta
-      f = ((1 + beta)*xchWS + 4*SIGMA*xemis*mTa**3)
-      !     print*, 'xch',xch,'mTa',mTa,'dLu',4*SIGMA*xemis*mTa**3
-      fL = 4*SIGMA*xemis*mTa**3
+      f = ((1 + beta)*xchWS + 4*SBConst*xemis*mTa**3)
+      !     print*, 'xch',xch,'mTa',mTa,'dLu',4*SBConst*xemis*mTa**3
+      fL = 4*SBConst*xemis*mTa**3
       !     print*, 'fL',fL
       fT = (1 + beta)*xchWS
       !     print*, 'fT',fT
@@ -538,8 +536,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: gamma !< phase difference between Ts and Sd [K]
 
       !   constant
-      REAL(KIND(1D0)), PARAMETER :: SIGMA = SBConst_567 ! Stefan-Boltzman
-      REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
       REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 
       !   local variables:
@@ -575,8 +571,8 @@ CONTAINS
       ! mWS=SUM(WS, dim=1, mask=(WS>0))/SIZE(WS, dim=1)
       xchWS = xch*mWS
       beta = 1/xBo
-      f = ((1 + beta)*xchWS + 4*SIGMA*xemis*mTa**3)
-      fL = 4*SIGMA*xemis*mTa**3
+      f = ((1 + beta)*xchWS + 4*SBConst*xemis*mTa**3)
+      fL = 4*SBConst*xemis*mTa**3
       fT = (1 + beta)*xchWS
 
       calb = 1 - xalb
@@ -677,7 +673,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: mAH !< daily mean anthropogenic heat flux [W m-2]
 
       !   constant
-      REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
 
       !   local variables:
       REAL(KIND(1D0)), ALLOCATABLE :: tHrDay(:) ! daytime tHr when Sd>0
@@ -804,7 +799,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: mean !< average
       REAL(KIND(1D0)), INTENT(out) :: tpeak !< peaking time (h)
 
-      REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0D0)*4.0D0
       REAL(KIND(1D0)) :: omega, si, ci, det
       REAL(KIND(1D0)) :: c0, coefA, coefB, delta
       REAL(KIND(1D0)) :: s0, ss, sc, sss, ssc, scc, sy, ssy, scy
@@ -1079,8 +1073,6 @@ CONTAINS
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: qs ! Saturated specific humidity at surface,kg kg-1
 
       ! thermodynamic values at standard temperature (293.15 K) and pressure (101325 pascals):
-      REAL(kind=8), PARAMETER :: cp_air = cp_air_anohm_sp ! specific heat capacity of air, J kg-1 K-1
-      REAL(kind=8), PARAMETER :: Lv_air = lv_anohm_sp ! latent heat of vaporization of water, J kg-1
 
       INTEGER :: lenDay, i, err, nVar, nPrm
 
@@ -1202,13 +1194,13 @@ CONTAINS
             ! rho_air=1.293, air density, kg m-3
             ! RA=60, nominal aerodynamic resistence, s m-1
             ! PRINT*,''
-            ! PRINT*, 'QH:',SUM(cp_air*(Ts-Ta)*1.293/60)/lenDay
+            ! PRINT*, 'QH:',SUM(cp_air_anohm*(Ts-Ta)*1.293/60)/lenDay
             ! PRINT*, 'xSM:',xSM
-            ! PRINT*, 'QE:',SUM(xSM*Lv_air*(qs-qa)*1.293/60)/lenDay
+            ! PRINT*, 'QE:',SUM(xSM*lv_anohm*(qs-qa)*1.293/60)/lenDay
             ! PRINT*,''
 
-            xBo = SUM(cp_air*(Ts - Ta))/ & ! sum(QH)
-                  SUM(xSM*Lv_air*(qs - qa)) ! sum(QE)
+            xBo = SUM(cp_air_anohm*(Ts - Ta))/ & ! sum(QH)
+                  SUM(xSM*lv_anohm*(qs - qa)) ! sum(QE)
 
          END IF
 

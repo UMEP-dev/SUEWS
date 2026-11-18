@@ -17,9 +17,9 @@ Three distinct review surfaces exist in SUEWS and must never have their vocabula
 
 | Surface | Governing document | Target | Rating vocabulary | Pre-existing `master` defects |
 | :--- | :--- | :--- | :--- | :--- |
-| Pull-request review | `.claude/skills/audit-pr/SKILL.md` + `.claude/rules/review-convergence.md` | Branch diff (`origin/master...HEAD`) | `blocking \| major \| minor \| nit` (merge gate on this PR) | Capped at `minor` unless touched by the diff |
+| Pull-request review | `.claude/skills/audit-pr/SKILL.md` + `.claude/rules/review-convergence.md` | Branch diff (`origin/master...HEAD`) | `blocking \| major \| minor \| nit` (per `review-convergence.md`; merge gate on this PR) | Outside the review target (the diff); no general severity cap is defined |
 | Whole-repo / subsystem audit | `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` (this file) | Pinned commit tree (`git rev-parse HEAD`) | Impact Tier (`3-P0 \| 3-P1 \| 3-P2 \| hygiene`) x Reachability (`R1..R5`) | Primary subject of the audit |
-| Dated subsystem baseline | `dev-ref/<SUBSYSTEM>_AUDIT.md` (e.g. `dev-ref/RUST_BRIDGE_AUDIT.md`) | Historical snapshot of one seam | `open \| fixed \| deferred` ledger | Reconciled during Tier 0 so tracked items are not re-filed |
+| Dated subsystem baseline | `dev-ref/<SUBSYSTEM>_AUDIT.md` (e.g. `dev-ref/RUST_BRIDGE_AUDIT.md`) | Historical snapshot of one seam | Boundary status `checked \| violation \| not verified \| not applicable` (`.claude/rules/rust/bridge-contract.md`), finding severity `blocking \| major \| minor \| nit`, and a linked follow-up per finding | Reconciled during Tier 0 so tracked items are not re-filed |
 
 ---
 
@@ -100,7 +100,7 @@ When running on an authorised build host with compiled extensions up to date (in
 ```bash
 make dev && make test-smoke
 "$PY" scripts/lint/check_physics_tier_delta.py
-cargo test --manifest-path src/suews_bridge/Cargo.toml --no-default-features
+cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics
 pytest test/mcp/test_packaging_manifests.py
 ```
 
@@ -119,7 +119,7 @@ For deeper line-by-line sweeps, split `S5` into `S5a` (`src/supy/data_model/**`,
 | `S4` | Rust bridge and `suews-engine` | `src/suews_bridge/**` except `c_api/**` and `bridge-manifest.json` | Cross-read `src/supy/_run_rust.py`, `src/supy/data_model/core/*.py`, `src/supy/sample_data/sample_config.yml`; load `.claude/rules/rust/{conventions,bridge-contract}.md` |
 | `S5` | Python SuPy, data model, and CLI | `src/supy/**` except `src/supy/{meson.build,build_rust_bridge.py,run_make.py}` | Cross-read `pyproject.toml` and `src/supy/meson.build` (`py.install_sources`); load `.claude/rules/python/*.md`, `.claude/rules/naming-convention.md`, `.claude/rules/code-design.md` |
 | `S6` | MCP server, plugins, and edge worker | `mcp/**`, `plugins/**`, `scripts/cloudflare-worker/**`, `scripts/build_plugin.py`, `scripts/build_agent_plugin.py`, `.mcp.json`, `.claude-plugin/**`, `.codex-plugin/**` | Cross-read `src/supy/cmd/*.py` and `.claude/skills/suews/**`; load `.claude/rules/dependency-safety.md`, `.claude/rules/python/conventions.md` |
-| `S7` | Build, CI/CD, scripts, and agent constitution | `.github/**`, `.githooks/**`, `.claude/**`, `.agents/**`, `.conductor/**`, `scripts/{conductor,lint,security,suews}/**`, `scripts/profile_multi_grid.py`, `src/suews/Makefile*`, `src/supy/{meson.build,build_rust_bridge.py,run_make.py}`, `Makefile`, `meson.build`, `meson_options.txt`, `pyproject.toml`, `get_ver_git.py`, `.fprettify.rc`, `.ruff.toml`, `.gitignore`, `.gitattributes`, `.gitmodules`, `AGENTS.md`, `CLAUDE.md`, `CHANGELOG.md`, `LICENSE` | Cross-read `gh label list` and workflow targets; load `.claude/rules/ci/conventions.md`, `.claude/rules/dependency-safety.md`, `.claude/rules/labels.md`, `.claude/rules/autonomous-workflow.md`, `.claude/rules/review-convergence.md`, `.claude/rules/work-sizing.md`, `.claude/rules/changelog/format.md` |
+| `S7` | Build, CI/CD, scripts, and agent constitution | `.github/**`, `.githooks/**`, `.claude/**`, `.agents/**`, `.conductor/**`, `scripts/{conductor,lint,security,suews}/**`, `scripts/profile_multi_grid.py`, `src/suews/Makefile*`, `src/supy/{meson.build,build_rust_bridge.py,run_make.py}`, `Makefile`, `meson.build`, `meson_options.txt`, `pyproject.toml`, `get_ver_git.py`, `.fprettify.rc`, `.ruff.toml`, `.gitignore`, `.gitattributes`, `.gitmodules`, `AGENTS.md`, `CLAUDE.md`, `MAINTAINERS.md`, `CHANGELOG.md`, `LICENSE` | Cross-read `gh label list` and workflow targets; load `.claude/rules/ci/conventions.md`, `.claude/rules/dependency-safety.md`, `.claude/rules/labels.md`, `.claude/rules/autonomous-workflow.md`, `.claude/rules/review-convergence.md`, `.claude/rules/work-sizing.md`, `.claude/rules/changelog/format.md` |
 | `S8` | Docs, test suite, benchmarks, and site | `docs/**`, `test/**`, `benchmark/**`, `site/**`, `dev-ref/**`, `README.md`, `CONTRIBUTING.md`, `CITATION.cff`, `.zenodo.json`, `.readthedocs.yml`, `.impeccable.md`, `favicon.svg` | Audit doc **generators** (`docs/generate_*.py`), never generated RST tables; inventory binary/CSV fixtures without dumping blobs; load `.claude/rules/docs/*.md`, `.claude/rules/tests/*.md` |
 
 Run this partition check before dispatching seam workers (must exit `0`):
@@ -134,8 +134,8 @@ seams = {
   "S3": lambda f: f.startswith("src/suews_bridge/c_api/") or f == "src/suews_bridge/bridge-manifest.json",
   "S4": lambda f: f.startswith("src/suews_bridge/") and not f.startswith("src/suews_bridge/c_api/") and f != "src/suews_bridge/bridge-manifest.json",
   "S5": lambda f: f.startswith("src/supy/") and f not in ("src/supy/meson.build", "src/supy/build_rust_bridge.py", "src/supy/run_make.py"),
-  "S6": lambda f: f.startswith(("mcp/", "plugins/", "scripts/cloudflare-worker/")) or f in (".mcp.json", "scripts/build_plugin.py", "scripts/build_agent_plugin.py", ".claude-plugin/marketplace.json", ".codex-plugin/plugin.json"),
-  "S7": lambda f: f.startswith((".github/", ".githooks/", ".claude/", ".agents/", ".conductor/", "src/suews/Makefile")) or (f.startswith("scripts/") and not f.startswith("scripts/cloudflare-worker/") and f not in ("scripts/build_plugin.py", "scripts/build_agent_plugin.py")) or f in ("Makefile", "meson.build", "meson_options.txt", "pyproject.toml", "get_ver_git.py", "src/supy/meson.build", "src/supy/build_rust_bridge.py", "src/supy/run_make.py", ".fprettify.rc", ".ruff.toml", ".gitignore", ".gitattributes", ".gitmodules", "AGENTS.md", "CLAUDE.md", "CHANGELOG.md", "LICENSE"),
+  "S6": lambda f: f.startswith(("mcp/", "plugins/", "scripts/cloudflare-worker/", ".claude-plugin/", ".codex-plugin/")) or f in (".mcp.json", "scripts/build_plugin.py", "scripts/build_agent_plugin.py"),
+  "S7": lambda f: f.startswith((".github/", ".githooks/", ".claude/", ".agents/", ".conductor/", "src/suews/Makefile")) or (f.startswith("scripts/") and not f.startswith("scripts/cloudflare-worker/") and f not in ("scripts/build_plugin.py", "scripts/build_agent_plugin.py")) or f in ("Makefile", "meson.build", "meson_options.txt", "pyproject.toml", "get_ver_git.py", "src/supy/meson.build", "src/supy/build_rust_bridge.py", "src/supy/run_make.py", ".fprettify.rc", ".ruff.toml", ".gitignore", ".gitattributes", ".gitmodules", "AGENTS.md", "CLAUDE.md", "MAINTAINERS.md", "CHANGELOG.md", "LICENSE"),
   "S8": lambda f: f.startswith(("docs/", "test/", "benchmark/", "site/", "dev-ref/")) or f in ("README.md", "CONTRIBUTING.md", "CITATION.cff", ".zenodo.json", ".readthedocs.yml", ".impeccable.md", "favicon.svg"),
 }
 bad = [(f, [k for k, p in seams.items() if p(f)]) for f in files if len([k for k, p in seams.items() if p(f)]) != 1]

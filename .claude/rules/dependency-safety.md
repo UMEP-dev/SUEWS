@@ -1,7 +1,10 @@
 ---
 paths:
   - pyproject.toml
+  - mcp/pyproject.toml
+  - scripts/security/**/*
   - .github/workflows/**/*
+  - .github/actions/**/*
 ---
 
 # Dependency Safety
@@ -14,12 +17,12 @@ The LiteLLM PyPI compromise (24 March 2026) demonstrated that malicious packages
 
 ## When adding or upgrading dependencies
 
-1. **Run `make audit-deps` after any dependency change** — this checks:
-   - Known advisories via `pip-audit` against `pyproject.toml`
+1. **Run `make audit-deps` after any dependency change** -- this checks: [fact: git grep -n audit_python_startup Makefile && git grep -n pip_audit Makefile]
    - Unexpected startup hooks via `scripts/security/audit_python_startup.py`
+   - Known advisories via `pip-audit` against `pyproject.toml`
 2. **Prefer well-established packages** with active maintenance and security track records
 3. **Pin versions** in `pyproject.toml` where feasible; avoid unconstrained `>=` for non-core deps
-4. **Be especially cautious with dev/TestPyPI releases** — these bypass PyPI's malware scanning
+4. **Be especially cautious with dev/TestPyPI releases** -- these bypass PyPI's malware scanning
 
 ## When the audit flags something
 
@@ -29,5 +32,7 @@ The LiteLLM PyPI compromise (24 March 2026) demonstrated that malicious packages
 
 ## CI integration
 
-- The `dependency-audit.yml` workflow runs `pip-audit` and startup hook checks on PRs that modify `pyproject.toml`, once on Python 3.13 and once on the newest supported CPython (3.15), since markers resolve different pins on each
-- The `workflow-security.yml` workflow verifies GitHub Actions are pinned to commit SHAs
+- `.github/workflows/dependency-audit.yml` audits PRs that touch `pyproject.toml` or security/build plumbing on Python 3.13 and the newest supported CPython (3.15), since markers resolve different pins on each: [fact: git grep -n scripts/security .github/workflows/dependency-audit.yml && git grep -n "'3.13', '3.15'" .github/workflows/dependency-audit.yml]
+  - `scripts/security/audit_python_startup.py` is **hard-blocking** in CI (its step has no `continue-on-error`) [fact: git grep -n audit_python_startup .github/workflows/dependency-audit.yml && git grep -n continue-on-error .github/workflows/dependency-audit.yml]
+  - The PyPI advisory step (`python -m pip_audit`) currently runs with `continue-on-error: true` in CI (advisory visibility in the job summary so upstream transient advisories do not wedge unrelated PRs), whereas local `make audit-deps` fails non-zero on advisories [fact: git grep -n "continue-on-error: true" .github/workflows/dependency-audit.yml && git grep -n pip_audit .github/workflows/dependency-audit.yml]
+- `.github/workflows/workflow-security.yml` verifies GitHub Actions are pinned to commit SHAs [fact: git grep -n "Enforce SHA-pinned actions" .github/workflows/workflow-security.yml]

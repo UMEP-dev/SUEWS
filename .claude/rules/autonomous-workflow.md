@@ -127,11 +127,14 @@ issue backlog for readiness, triage-pr grooms the draft and stalled PR backlog f
 disposition. It is a router, not a reviewer: it assigns each PR one of five verdicts
 (`advance`, `continue`, `defer`, `close`, `escalate`) and routes live PRs into the
 existing stages -- `advance` -> audit-pr / split-pr / queue-pr (and the user-level
-prep-pr where applicable); `continue` -> fix-issue / author. `defer` parks the PR
-with a named revisit trigger; `close` and `escalate` are always human-gated. It
-never merges and never closes (terminates at "disposition assigned plus live PRs
-handed off"). The always-human-gated list in the Gating model section already
-covers its close and escalate terminals.
+`prep-pr` where installed; otherwise `audit-pr` + `queue-pr` is the portable
+repository-native path); `continue` -> fix-issue / author. [decision: software maintainer, 2026-11-17] `defer` parks the PR
+with a named revisit trigger; `close` and `escalate` are always human-gated.
+Unattended comment, ready-state, or label mutations in `triage-pr` apply only to
+PRs owned by the operator or automation account; third-party PR metadata edits and
+comments remain human-gated. [procedure: Principle 2] It never merges and never closes (terminates at
+"disposition assigned plus live PRs handed off"). The always-human-gated list in
+the Gating model section already covers its close and escalate terminals.
 
 ---
 
@@ -181,10 +184,14 @@ without reading prose:
   ```
 
   `Verdict: close` and `Verdict: escalate` are human terminals: labels
-  `0-pr:close-proposed` / `0-pr:escalate` are applied; no further automated
-  action. Downstream skills pick up `Verdict: advance` (via `Route:
-  prep-pr|split-pr|queue-pr`) and `Verdict: continue` (via `Route: fix-issue`)
-  without reading prose.
+  `0-pr:close-proposed` / `0-pr:escalate` are applied (on operator/automation-owned
+  PRs where those labels exist); no further automated action. [procedure: Principle 2] Downstream skills
+  pick up `Verdict: advance` (via `Route: prep-pr|split-pr|queue-pr`, falling back
+  to the portable repository-native `audit-pr` + `queue-pr` path when user-level
+  `prep-pr` is not installed) and `Verdict: continue` (via `Route: fix-issue`)
+  without reading prose. [decision: software maintainer, 2026-11-17] Unattended comment and label mutations apply only to PRs
+  owned by the operator/automation account; third-party PR comments and metadata
+  remain human-gated. [procedure: Principle 2]
 
 ---
 

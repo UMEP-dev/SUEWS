@@ -54,10 +54,16 @@ EXAMPLES:
 
 ## 2026
 
+### 18 Nov 2026
+
+- [maintenance] Rust bridge: every YAML apply function now returns a `Result` that its callers propagate, and add the required readers (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, `require_sequence`) whose errors name the YAML path in its data-model spelling; no read site uses them yet, and the blocks move to them one by one. No input or output changes (#1991, #2045)
+
 ### 17 Nov 2026
 
+- [maintenance] Generate resolved engine YAML fixtures for Rust bridge tests through the shared supy resolver and check their freshness in the Python suite (#1991)
 - [doc] Add a temporal-profiles reference covering keys, timing, field uses and defaults, linked from the YAML guide and profile class pages (#1950)
 - [maintenance] Bound a fix loop on one failing check to three attempts before escalation, keep a pull request from loosening the checks that judge it, and have reviewers read rules from the base branch, in `.claude/rules/autonomous-workflow.md` and the `fix-issue` and `audit-pr` skills; `.claude/rules/tests/patterns.md` gains a Flaky Tests section, and `audit-pr` classes a failure as flake only with same-commit evidence; a new `dev-ref/REGRESSION_CHECKLIST.md` lists past failures with triggers readable from the diff, which `audit-pr` and `fix-issue` check; `.claude/rules/tests/patterns.md` gains a section on differential and property tests, pointed to from the Rust bridge contract; agent-authored commits end with a `Verified:` trailer; and rules from a review miss need two occurrences or a recorded incident, with duplicated or CI-enforced statements pruned
+- [doc] Stop crediting the `state_limit` example values to Järvi et al. (2014) or Ward et al. (2016), which do not report them (#1950)
 
 ### 15 Nov 2026
 
@@ -100,6 +106,8 @@ EXAMPLES:
 - [doc] Units migration guide, output sections: `save_tstep` is not part of the save methods (the paragraph now describes calendar saves); the save methods return the checkpoint and provenance JSON as well as the data files; a run ending part-way through a day writes no DailyState row for that day; why `to_units({"Rain": "mm"})` is refused although `output.units` reports `mm`
 - [doc] Describe `snowpack_limit` as the snow depletion threshold: the snow water equivalent at and above which a surface is fully snow covered, below which, while snow is melting, the snow-covered fraction follows the depletion curve; it does not cap the snowpack and is not used for the water surface. No behaviour, default or schema field changes (#2020)
 - [bugfix] The Rust YAML loader now puts `store_max` and `store_cap` from `storage_drain_params` in the rows the kernel expects (row 5 and row 6), so the kernel takes a surface's current storage capacity from `store_cap` instead of `store_max`; results change only where `store_max` differs from `store_cap` on a surface that uses `drain_eq` 1, or under storage heat method 3, method 5 with building facets (buildings surface), or `evapmethod` 1. `store_cap` now defaults to `store_max` in the data model when a configuration does not give it, so such configurations keep the capacity they ran with before; the `store_min`, `store_max` and `store_cap` descriptions say which of them the model reads (#2018)
+- [doc] Describe `g_max` (legacy `G1`) as what the surface conductance formula uses it for: a fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (`max_conductance`), not a conductance in mm s-1. The data-model description, unit and display name, the legacy input tables, the `df_state` page, the Fortran comments and the labels supy prints for a missing or annotated `g_max` now say so; no field, type, default or model behaviour changes (#2027)
+- [bugfix] Check vertical-layer, thermal-layer and initial-temperature list entries in the Rust bridge only where the selected options make the kernel read them: building `height`, `building_frac` and `building_scale` under storage heat method 5 or SPARTACUS, the vegetation lists under SPARTACUS only, roof and wall materials only when EHC resolves the facets (method 5 with SPARTACUS), and initial temperatures under method 5, up to nlayer and ndepth. `building_frac` is now required as a whole list only under method 5 or SPARTACUS; an explicit null or non-finite number in an entry the kernel does not read loads as absent (NaN) instead of stopping the run. Continuing a checkpoint under storage heat method 5 is refused, with a message naming the entry, when an initial temperature EHC reads is not finite (as when the checkpoint was written by a run that did not read it), and when the checkpoint's nlayer or ndepth differ from the configuration's. Other missing or short lists still keep their allocated values, and whole-list absence of thermal or temperature lists stays optional. supy sends complete lists, so this affects hand-written engine YAML and unread nulls in thermal-layer lists (#1991)
 
 ### 9 Nov 2026
 

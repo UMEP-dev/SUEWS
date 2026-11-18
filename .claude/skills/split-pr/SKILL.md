@@ -77,8 +77,8 @@ downstream coordination of the resulting stack.
    `<base>`, no logical dependency) or stacked (off its parent child). Shared
    build/schema/docs edits do not get their own shape term here; they become a
    dedicated high-risk child (step 6 and "SUEWS high-risk files"), which is this
-   skill's form of `queue-pr`'s integration PR. `queue-pr`'s `serial` shape has no
-   analogue: a carved child's dependency is fixed by how it is carved.
+   skill's form of `queue-pr`'s integration PR. `queue-pr`'s `serial-or-review`
+   shape has no analogue: a carved child's dependency is fixed by how it is carved.
 4. Propose the split plan: which files/commits go in which child, the order, and
    independent-vs-stacked. Present it for approval before any surgery.
 
@@ -207,6 +207,8 @@ After approval, push the child branches and open the PRs:
 
 Carve these into their own child PR rather than scattering them across children:
 schema/public API and sample configuration, `meson.build` / `src/supy/meson.build`,
+`src/suews/Makefile*`, `src/suews_bridge/Cargo.toml` / `src/suews_bridge/Cargo.lock` /
+`src/suews_bridge/build.rs`, `pyproject.toml` / `mcp/pyproject.toml`,
 `.github/workflows/*`, `CHANGELOG.md`, dependency/lock files, generated docs
 indexes, and shared test fixtures/baselines. See the full list in `queue-pr`.
 

@@ -51,7 +51,9 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 - `.claude/README.md` - The workspace: available skills, hooks, and how rules and skills relate
 - `.claude/skills/` - Skill procedures
 - `.claude/agents/` - Review subagents
+- `dev-ref/REGRESSION_CHECKLIST.md` - Lessons from past failures, each with a trigger readable from the diff; read by `audit-pr` and `fix-issue`
 - `.impeccable.md` - Design direction for SUEWS-facing surfaces (site/, landing, docs)
+- `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` - How to audit the whole repository or one subsystem at a pinned commit
 
 ## Shared rule files
 
@@ -60,25 +62,25 @@ Read the unscoped rules below before making changes. Read scoped rules before wo
 - [.claude/rules/00-project-essentials.md](.claude/rules/00-project-essentials.md) - all work.
 - [.claude/rules/autonomous-workflow.md](.claude/rules/autonomous-workflow.md) - all work; Principle 1, 2, 3.
 - [.claude/rules/changelog/format.md](.claude/rules/changelog/format.md) - `CHANGELOG.md`.
-- [.claude/rules/ci/conventions.md](.claude/rules/ci/conventions.md) - `.github/workflows/**/*.yml`, `.github/workflows/**/*.yaml`; Principle 1.
+- [.claude/rules/ci/conventions.md](.claude/rules/ci/conventions.md) - `.github/workflows/**/*.yml`, `.github/workflows/**/*.yaml`, `.github/actions/**/*`, `.github/scripts/**/*`, `.github/path-filters.yml`, `.github/ci-metrics-needs.json`; Principle 1.
 - [.claude/rules/code-design.md](.claude/rules/code-design.md) - all work.
-- [.claude/rules/dependency-safety.md](.claude/rules/dependency-safety.md) - `pyproject.toml`, `.github/workflows/**/*`.
-- [.claude/rules/docs/bib-topic-tags.md](.claude/rules/docs/bib-topic-tags.md) - `docs/source/assets/refs/*.bib`, `docs/**/*`.
+- [.claude/rules/dependency-safety.md](.claude/rules/dependency-safety.md) - `pyproject.toml`, `mcp/pyproject.toml`, `scripts/security/**/*`, `.github/workflows/**/*`, `.github/actions/**/*`.
+- [.claude/rules/docs/bib-topic-tags.md](.claude/rules/docs/bib-topic-tags.md) - `docs/source/assets/refs/*.bib`, `docs/source/*publications*.rst`, `docs/source/_ext/publications_topic_annotate.py`, `docs/source/_static/publications-filter.js`.
 - [.claude/rules/docs/conventions.md](.claude/rules/docs/conventions.md) - `docs/**/*`, `site/**/*`, `README.md`.
 - [.claude/rules/docs/release-docs-sanity.md](.claude/rules/docs/release-docs-sanity.md) - `docs/**/*`.
-- [.claude/rules/fortran/conventions.md](.claude/rules/fortran/conventions.md) - `src/suews/**/*.f9*`, `src/suews/**/*.f90`, `src/suews/**/*.f95`.
-- [.claude/rules/fortran/error-reporting.md](.claude/rules/fortran/error-reporting.md) - `src/suews/**/*.f9*`.
+- [.claude/rules/fortran/conventions.md](.claude/rules/fortran/conventions.md) - `src/suews/**/*.f9*`, `src/suews/**/*.F90`, `src/suews_bridge/c_api/**/*.f9*`.
+- [.claude/rules/fortran/error-reporting.md](.claude/rules/fortran/error-reporting.md) - `src/suews/**/*.f9*`, `src/suews/**/*.F90`, `src/suews_bridge/c_api/**/*.f9*`.
 - [.claude/rules/labels.md](.claude/rules/labels.md) - all work.
 - [.claude/rules/naming-convention.md](.claude/rules/naming-convention.md) - `src/supy/**/*.py`, `src/supy/**/*.yml`, `src/supy/**/*.yaml`, `docs/**/*`.
-- [.claude/rules/physics-change-evidence.md](.claude/rules/physics-change-evidence.md) - `src/suews/src/suews_phys_*.f95`, `test/fixtures/data_test/sample_output_2012-*.csv`, `test/fixtures/data_test/provenance.json`, `test/fixtures/data_test/stebbs_test/**`, `test/fixtures/benchmark1/**`; Principle 1, 2.
+- [.claude/rules/physics-change-evidence.md](.claude/rules/physics-change-evidence.md) - `src/suews/src/suews_phys_*.f95`, `src/suews/ext_lib/**/*`, `test/fixtures/data_test/sample_output_2012-*.csv`, `test/fixtures/data_test/provenance.json`, `test/fixtures/data_test/stebbs_test/**`, `test/fixtures/benchmark1/**`, `test/fixtures/w16_most.csv`; Principle 1, 2.
 - [.claude/rules/python/api-approach.md](.claude/rules/python/api-approach.md) - `src/supy/**/*.py`, `docs/source/tutorials/**/*.py`.
 - [.claude/rules/python/config-patterns.md](.claude/rules/python/config-patterns.md) - `src/supy/**/*.py`.
-- [.claude/rules/python/conventions.md](.claude/rules/python/conventions.md) - `src/supy/**/*.py`.
+- [.claude/rules/python/conventions.md](.claude/rules/python/conventions.md) - `src/supy/**/*.py`, `mcp/**/*.py`, `scripts/**/*.py`, `.github/scripts/**/*.py`, `benchmark/**/*.py`, `docs/**/*.py`.
 - [.claude/rules/python/deprecation.md](.claude/rules/python/deprecation.md) - `src/supy/**/*.py`.
-- [.claude/rules/python/schema-versioning.md](.claude/rules/python/schema-versioning.md) - `src/supy/data_model/**/*`, `src/supy/util/converter/**/*`, `src/supy/sample_data/**/*`, `docs/**/*`; Principle 2.
+- [.claude/rules/python/schema-versioning.md](.claude/rules/python/schema-versioning.md) - `src/supy/data_model/**/*`, `src/supy/util/converter/**/*`, `src/supy/sample_data/**/*`, `test/fixtures/release_configs/**/*`, `test/fixtures/sample_short/**/*`, `docs/source/contributing/schema/schema_versioning.rst`, `docs/source/inputs/transition_guide.rst`, `docs/source/version-history/**/*`; Principle 2.
 - [.claude/rules/review-convergence.md](.claude/rules/review-convergence.md) - all work; Principle 1, 2.
-- [.claude/rules/rust/bridge-contract.md](.claude/rules/rust/bridge-contract.md) - `src/suews_bridge/**`, `src/supy/_run_rust.py`, `dev-ref/RUST_BRIDGE*.md`; also load when changing either side of a bridge contract; Principle 1, 2.
-- [.claude/rules/rust/conventions.md](.claude/rules/rust/conventions.md) - `src/suews_bridge/**/*.rs`, `src/suews_bridge/Cargo.toml`, `src/suews_bridge/build.rs`.
-- [.claude/rules/tests/patterns.md](.claude/rules/tests/patterns.md) - `test/**/*.py`, `tests/**/*.py`.
-- [.claude/rules/tests/verification-methodology.md](.claude/rules/tests/verification-methodology.md) - `test/**/*.py`; Principle 1.
+- [.claude/rules/rust/bridge-contract.md](.claude/rules/rust/bridge-contract.md) - `src/suews_bridge/**`, `src/supy/_run_rust.py`, `src/supy/cmd/rust_bridge.py`, `src/supy/suews_checkpoint.py`, `src/supy/build_rust_bridge.py`, `src/suews/src/suews_type_*.f95`, `src/suews/src/suews_ctrl_type.f95`, `src/suews/src/suews_ctrl_const.f95`, `dev-ref/RUST_BRIDGE*.md`; also load when changing either side of a bridge contract; Principle 1, 2.
+- [.claude/rules/rust/conventions.md](.claude/rules/rust/conventions.md) - `src/suews_bridge/**/*.rs`, `src/suews_bridge/c_api/**/*.f9*`, `src/suews_bridge/Cargo.toml`, `src/suews_bridge/Cargo.lock`, `src/suews_bridge/build.rs`.
+- [.claude/rules/tests/patterns.md](.claude/rules/tests/patterns.md) - `test/**/*.py`, `benchmark/tests/**/*.py`, `.claude/scripts/test_*.py`.
+- [.claude/rules/tests/verification-methodology.md](.claude/rules/tests/verification-methodology.md) - `test/**/*.py`, `benchmark/tests/**/*.py`; Principle 1.
 - [.claude/rules/work-sizing.md](.claude/rules/work-sizing.md) - all work; Principle 3.

@@ -24,6 +24,8 @@ on:
       - 'src/suews/Makefile'
       - 'src/suews/Makefile.deps'
       - 'src/suews/Makefile.gfortran'
+      # The Rust tests compile these resolved fixtures in with include_str!.
+      - 'test/fixtures/bridge/**'
       - '.github/workflows/rust-test.yml'
 
 permissions:

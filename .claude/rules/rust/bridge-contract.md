@@ -2,6 +2,12 @@
 paths:
   - src/suews_bridge/**
   - src/supy/_run_rust.py
+  - src/supy/cmd/rust_bridge.py
+  - src/supy/suews_checkpoint.py
+  - src/supy/build_rust_bridge.py
+  - src/suews/src/suews_type_*.f95
+  - src/suews/src/suews_ctrl_type.f95
+  - src/suews/src/suews_ctrl_const.f95
   - dev-ref/RUST_BRIDGE*.md
 ---
 
@@ -67,3 +73,7 @@ Rust inspection is not an additional gate. Existing
 [schema migration](../python/schema-versioning.md) and release requirements
 still apply. A proposal needing a new scientific default, unit policy or state
 meaning must return to that owner rather than being decided inside the bridge.
+
+Fortran-to-Rust equivalence is tested differentially; how, and how an approved
+difference is recorded, is in [tests/patterns.md](../tests/patterns.md),
+"Differential and Property Tests".

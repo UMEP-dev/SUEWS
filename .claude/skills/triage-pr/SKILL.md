@@ -19,7 +19,7 @@ stay with their owners:
 
 Verdict routes:
 
-- `advance` -> route to `prep-pr`, `split-pr`, or `queue-pr`
+- `advance` -> route to `prep-pr` (user-level skill; portable repo-native fallback when `prep-pr` is unavailable: `audit-pr` + `queue-pr`), `split-pr`, or `queue-pr`
 - `continue` -> route to `fix-issue` or author
 - `defer` -> parked with a named revisit trigger
 - `close` -> **human-gated**: propose, never act
@@ -157,9 +157,7 @@ Create these six labels once in the repository:
 0-pr:escalate
 ```
 
-`triage-pr` applies labels that already exist and NEVER creates them. If a label is
-absent, the verdict is recorded in the marker comment and handoff block only, with a
-note that the label is missing.
+`triage-pr` queries existing repository labels first (`gh label list --repo UMEP-dev/SUEWS --limit 200 --json name --jq '.[].name'`), applies only labels present in that inventory, and NEVER creates labels. If `0-auto:pr-audited`, `0-physics:change`, or a `0-pr:*` label is absent from the repository, degrade gracefully: skip that `gh pr edit --add-label` call and record the missing label note in the verdict output rather than failing.
 
 ---
 
@@ -185,43 +183,53 @@ This operationalises "Privacy is a hard invariant on every outward write" from
 
 ## Gating Model -- Three Tiers
 
-### Auto-applicable (additive, reversible, or self-scoped)
+Per `.claude/rules/autonomous-workflow.md`, **posting comments or editing
+labels/metadata on any PR not owned by the current operator/automation account
+is ALWAYS human-gated**. Determine the active operator login once per run
+(`gh api user --jq .login`) and compare it against each PR's `author`.
 
-May run without human approval:
+### Auto-applicable (additive, reversible, or self-scoped; own PRs only for GitHub writes)
 
-- Run the read-only scanner (`scan-prs.sh`).
-- Compute verdicts per `references/rubric.md`.
-- Post or upsert the marker comment on each PR (idempotent: replace an existing
-  `<!-- triage-pr:verdict ts=... -->` comment rather than duplicating it).
-- Apply the matching `0-pr:*` label using the mutual-exclusion swap described above,
-  if that label exists in the repo.
-- Apply the `0-auto:pr-audited` label if it exists in the repo.
+May run without human approval in autonomous mode:
+
+- Run the read-only scanner (`scan-prs.sh`) and query the repo label inventory
+  (`gh label list --repo <OWNER/REPO> --limit 200 --json name`).
+- Compute verdicts per `references/rubric.md` for every candidate PR.
+- **On PRs owned by the current operator/automation account ONLY**:
+  - Post or upsert the marker comment (`<!-- triage-pr:verdict ts=... -->`).
+  - Swap the matching `0-pr:*` label and apply `0-auto:pr-audited` (and
+    `0-physics:change` when triggered), skipping any label missing from
+    `gh label list`.
 
 ### Confidence-gated
 
 Applied without human approval only when all stated gates hold; escalated otherwise:
 
 - Flipping a draft PR to "ready for review" -- only when ALL advance gates in
-  `references/rubric.md` (Part A) hold AND the PR is one the agent created this run
-  (not a third-party PR).
+  `references/rubric.md` (Part A) hold AND the PR is owned by the current
+  operator/automation account and created/managed in this workflow (never a
+  third-party PR).
 
 ### Human-gated (always escalate; never auto-apply)
 
 - Closing or superseding a PR.
 - Any merge or queue-entry (`queue-pr --enqueue` or `gh pr merge`).
-- Posting to, marking ready, or force-pushing a PR the agent does not own.
-- Editing the body or metadata of a PR the agent does not own.
+- **Any GitHub write on a third-party PR** (a PR not owned by the current
+  operator/automation account): posting or editing comments, adding/removing
+  labels, marking ready, editing body/metadata, or pushing/force-pushing.
 
 ### The verdict-vs-action split
 
 **A verdict is a disposition; enacting it is a separate tiered action.**
 
-An `advance` verdict on a third-party PR still gets the `0-pr:advance` label (auto)
-and the recommendation in the marker comment, but the ready-flip and downstream
-handoff are human-gated. The `Next:` field in the verdict block says "recommend
-marking ready / hand to `<route>`". The verdict is NOT downgraded to `escalate`
-because the enacting action is human-gated -- only the action waits; the verdict
-is recorded immediately.
+On a third-party PR in unattended/batch mode, `triage-pr` still computes the
+true disposition verdict (`advance | continue | defer | close | escalate` --
+never downgraded to `escalate` merely because writes are gated), performs **zero
+GitHub writes**, and emits the local `[triage-pr] verdict` block with
+`Applied: none (third-party PR; human-gated)` and the recommended maintainer
+action in `Next:` (e.g. "recommend maintainer apply `0-pr:advance` / mark ready
+/ hand to `<route>`"). In interactive solo mode, draft the proposed action and
+wait for explicit human approval before writing.
 
 ---
 
@@ -229,17 +237,24 @@ is recorded immediately.
 
 Read `references/methodology.md` for the full step-by-step procedure. The summary is:
 
-1. Run `scan-prs.sh` to collect the candidate set and the `Scope:` line.
-2. For each candidate PR, check idempotency (already audited with no new activity
-   and no fired revisit trigger -> record as `noop`, stop).
+1. Run `scan-prs.sh` to collect the candidate set (`M` candidates out of `K`
+   fetched, with `K - M` fresh ready PRs pre-filtered) and the `Scope:` line;
+   fetch `gh api user --jq .login` and `gh label list`.
+2. For each candidate PR, check idempotency (already audited with no new human
+   or commit activity and no fired revisit trigger -> record as `noop`, stop).
 3. Compute the verdict using `references/rubric.md`.
-4. Apply the auto-tier: upsert the marker comment; swap the `0-pr:*` label; apply
-   `0-auto:pr-audited`.
+4. If the PR is owned by the current operator/automation account (or after
+   explicit human approval in interactive mode), apply the write tier: upsert
+   the marker comment; swap the `0-pr:*` label (if present in `gh label list`);
+   apply `0-auto:pr-audited`. On a third-party PR in unattended mode, skip all
+   GitHub writes and record `Applied: none (third-party PR; human-gated)`.
 5. State the route and next step in the verdict block:
-   - `advance` -> route to `prep-pr`, `split-pr`, or `queue-pr`; record priority.
+   - `advance` -> route to `prep-pr` (portable repo-native fallback when
+     user-level `prep-pr` is unavailable: `audit-pr` + `queue-pr`), `split-pr`,
+     or `queue-pr`; record priority.
    - `continue` -> note live WIP; route is `fix-issue` or author notification.
    - `defer` -> record `Revisit-by:` or `Blocked-on:` in the verdict block.
-   - `close` -> present `0-pr:close-proposed` for maintainer decision; no further
+   - `close` -> propose `0-pr:close-proposed` for maintainer decision; no further
      action.
    - `escalate` -> state conflicting signals explicitly; present for maintainer
      resolution.
@@ -253,23 +268,29 @@ before any write. Autonomous mode is an opt-in contract for unattended orchestra
 (a scheduled backlog sweep or an upstream orchestrator). It never asks a human
 mid-run.
 
-Opt-in standing approval covers ONLY the auto-applicable tier. The human-gated tier
-(close, merge/enqueue, third-party PR edits) always escalates in autonomous mode;
+Opt-in standing approval covers ONLY the auto-applicable tier (read-only scan +
+verdict computation on all candidates, and marker-comment/label writes on own
+PRs only). The human-gated tier (close, merge/enqueue, and ANY comment/label/metadata
+write on a third-party PR) always skips outward GitHub writes in autonomous mode;
 there is no standing approval for those actions.
 
 In autonomous batch mode:
 
 - Bound the input set explicitly with `--limit`. Emit the scanner's `Scope:` line
-  verbatim so a silent cap is never read as full coverage.
-- Apply the idempotency check per PR before computing a verdict. A `noop` PR (already
-  audited, no new activity) is counted as `noop` in coverage, never as `skipped`.
-- Accumulate verdict counts across the batch and emit a `Summary:` line at the end.
-- A PR that cannot be fetched or processed is recorded as `skipped` with a reason in
-  the `Next:` field. Never silently drop a PR.
-- Coverage equation (must hold exactly):
-  `advance + continue + defer + close + escalate + noop + skipped = K`
-  where K is the fetched set size. Full coverage of the open backlog is assertable
-  only when `truncated: no`.
+  verbatim (`fetched=K, candidates=M, fresh_ready_skipped=K-M, open=T`) so a
+  silent cap is never read as full coverage.
+- Apply the idempotency check per candidate PR before computing a verdict. A `noop`
+  PR (already audited, no new activity) is counted as `noop` in coverage, never as
+  `skipped`.
+- Accumulate verdict counts across the `M` candidates and emit a `Summary:` line
+  at the end.
+- A candidate PR that cannot be processed is recorded as `skipped` with a reason
+  in the `Next:` field. Never silently drop a PR.
+- Coverage equations (must hold exactly):
+  `advance + continue + defer + close + escalate + noop + skipped = M`
+  `M + fresh_ready_skipped = K`
+  where `K` is `fetched` and `M` is `candidates`. Full coverage of the open
+  backlog is assertable only when `truncated: no`.
 
 Any review -> revise loop inside a batch run follows `.claude/rules/review-convergence.md`
 (round cap + oscillation guard). A single PR must not consume the batch; escalate and
@@ -296,7 +317,10 @@ Applied: comment | label:<0-pr:...> | ready | none
 Next: <downstream action / the human question>
 ```
 
-Downstream skills (`prep-pr`, `split-pr`, `queue-pr`, `fix-issue`) branch on `Verdict`
+On third-party PRs in unattended/autonomous runs, emit `Applied: none` and record
+the human-gated action in `Reason:` / `Next:`.
+
+Downstream skills (`prep-pr` -- or its portable repo-native fallback `audit-pr` + `queue-pr` when `prep-pr` is not installed -- `split-pr`, `queue-pr`, `fix-issue`) branch on `Verdict`
 and `Route`. They do NOT need to parse prose.
 
 ---

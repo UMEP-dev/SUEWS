@@ -30,7 +30,7 @@
 .. option:: ah_min
 
     :Description:
-        Minimum QF values.
+        Base (temperature-independent) QF in the L11 methods, as a daily mean scaled by the normalised anthropogenic heat profile; not a lower bound [W |m^-2|]
     :Dimensionality:
         (2,)
     :Dimensionality Remarks:
@@ -764,7 +764,7 @@
 .. option:: g1
 
     :Description:
-        Related to maximum surface conductance [mm |s^-1|]
+        Fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances to the surface conductance; it is not itself a conductance [-]
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -1470,7 +1470,7 @@
 .. option:: qf0_beu
 
     :Description:
-        Building energy use [W |m^-2|]
+        Fraction of the base QF that comes from building energy use [-]
     :Dimensionality:
         (2,)
     :Dimensionality Remarks:
@@ -1482,7 +1482,7 @@
 .. option:: qf_a
 
     :Description:
-        Base value for QF calculation.
+        Base value for QF per unit population density [W |m^-2| (Cap |ha^-1| |)^-1|]
     :Dimensionality:
         (2,)
     :Dimensionality Remarks:
@@ -1494,7 +1494,7 @@
 .. option:: qf_b
 
     :Description:
-        Parameter related to heating degree days.
+        Parameter related to cooling degree days.
     :Dimensionality:
         (2,)
     :Dimensionality Remarks:

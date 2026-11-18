@@ -654,8 +654,8 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
     sheets = {example["source"]["sheet"] for example in examples}
 
     # ASSERT
-    assert len(index) == 108
-    assert len(examples) == 554
+    assert len(index) == 101
+    assert len(examples) == 546
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -671,14 +671,13 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
         "SnowLimPatch",
         "Soil",
         "Vegetation Growth",
-        "Water State",
         "Water Storage",
     }
     assert len(get_parameter_examples("Conductance", "g_max")) == 3
     assert len(get_parameter_examples("SnowParams", "radiation_melt_factor")) == 1
     assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 9
     assert len(get_parameter_examples("PavedProperties", "snowpack_limit")) == 1
-    assert len(get_parameter_examples("WaterProperties", "state_limit")) == 2
+    assert get_parameter_examples("WaterProperties", "state_limit") == []
     assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 8
 
 
@@ -716,6 +715,29 @@ def test_parameter_example_catalogue_excludes_unreliable_references() -> None:
         "90240991",
         "90241000",
         "99240099",
+    }
+
+
+def test_parameter_example_catalogue_excludes_uncited_state_limits() -> None:
+    """Legacy state limits absent from the cited papers never reach docs."""
+    # ACT
+    record_ids = {
+        record_id
+        for field_examples in get_all_parameter_examples().values()
+        for example in field_examples
+        for record_id in example["source"]["record_ids"]
+    }
+
+    # ASSERT
+    assert not record_ids & {
+        42240000,
+        42240041,
+        42240042,
+        42240043,
+        42240044,
+        42240045,
+        42240046,
+        42240057,
     }
 
 
@@ -898,6 +920,7 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
     }
 
     # ASSERT
+    assert fields["Conductance"]["g_max"]["unit"] == "1"
     assert fields["Conductance"]["g_k"]["unit"] == "W m-2"
     assert fields["Conductance"]["g_sm"]["unit"] == "m2 kg-1"
     assert fields["Conductance"]["g_q_base"]["unit"] == "model-dependent"

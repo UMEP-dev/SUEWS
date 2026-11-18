@@ -1,6 +1,6 @@
 No.,Column Name,Use,Description
 1,`Code`,`L`,Code linking to a corresponding look-up table.
-2,`G1`,`MD`,Maximum surface conductance parameter. Controls the upper limit of stomatal/surface conductance under optimal conditions [mm |s^-1|]
+2,`G1`,`MD`,Fitted dimensionless coefficient that scales the LAI-weighted sum of the per-surface maximum conductances (:option:`MaxConductance`) to the surface conductance; it is not itself a conductance [-]
 3,`G2`,`MD`,Radiation response parameter. Controls how surface conductance responds to incoming shortwave radiation (Kdown) [W |m^-2|]
 4,`G3`,`MD`,Vapour pressure deficit (VPD) response parameter 1. Controls conductance sensitivity to atmospheric dryness [units depend on `gsModel`]
 5,`G4`,`MD`,Vapour pressure deficit (VPD) response parameter 2. Additional VPD sensitivity parameter for non-linear responses [units depend on `gsModel`]

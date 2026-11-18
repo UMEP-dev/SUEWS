@@ -247,14 +247,14 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: sdd_id
 
       ! Calculate GDD and SDD
-      IF ((lai_id_prev >= lai_max) .OR. (growth_state == 0)) THEN
+      IF (growth_state == 0) THEN
          delta_gdd = 0.0D0
       ELSE
          delta_gdd = calc_delta_degree_days( &
             tmin_prev, tmax_prev, base_t_gdd)
       END IF
 
-      IF ((lai_id_prev <= lai_min) .OR. (senescence_state == 0)) THEN
+      IF (senescence_state == 0) THEN
          delta_sdd = 0.0D0
       ELSE
          delta_sdd = calc_delta_degree_days( &

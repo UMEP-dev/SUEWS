@@ -128,7 +128,7 @@ introducing a new fatal error site:
 1. Read the `Error Codes (GH#1035):` header in `src/suews/src/suews_ctrl_error.f95`
    and pick the next unallocated integer after the highest registered code. [decision: software maintainer, 2026-11-17]
 2. Add a one-line entry to that header block describing the subsystem and scope. [decision: software maintainer, 2026-11-17]
-3. Reference the GitHub issue number so the history stays traceable.
+3. Reference the GitHub issue number so the history stays traceable. [decision: software maintainer, 2026-11-17]
 
 ---
 
@@ -140,10 +140,11 @@ introducing a new fatal error site:
 - `WRITE(*,...)` is not captured by pytest under some configurations,
   and is interleaved unpredictably in parallel runs.
 - Fatal errors and per-grid warnings cross the C-ABI boundary
-  (`src/suews/src/suews_ctrl_error_tls.c`, `src/suews_bridge/c_api/driver.f95`,
-  and `src/suews_bridge/c_api/error_state.f95`) into the Rust PyO3 bridge
-  (`src/suews_bridge/src/error.rs`), becoming clean Python `RuntimeError` /
-  `ValueError` exceptions and `kernel_warnings` entries in SuPy. [fact: git ls-files --error-unmatch src/suews/src/suews_ctrl_error_tls.c src/suews_bridge/c_api/driver.f95 src/suews_bridge/c_api/error_state.f95 && git grep -n "pub enum BridgeError" src/suews_bridge/src/error.rs && git grep -n PyRuntimeError::new_err src/suews_bridge/src/lib.rs && git grep -n kernel_warnings src/supy/_run_rust.py]
+  (`src/suews/src/suews_ctrl_error_tls.c` and `src/suews_bridge/c_api/driver.f95`)
+  into the Rust PyO3 bridge (`src/suews_bridge/src/sim.rs`), where a fatal error
+  becomes `BridgeError::SimulationError` (`src/suews_bridge/src/error.rs`) and
+  then a clean Python `RuntimeError` (`src/suews_bridge/src/lib.rs`), and
+  warnings become `kernel_warnings` entries in SuPy. [fact: git ls-files --error-unmatch src/suews/src/suews_ctrl_error_tls.c src/suews_bridge/c_api/driver.f95 && git grep -n "subroutine pack_kernel_warnings" src/suews_bridge/c_api/driver.f95 && git grep -n "SimulationError {" src/suews_bridge/src/error.rs src/suews_bridge/src/sim.rs && git grep -n "PyRuntimeError::new_err(err.to_string())" src/suews_bridge/src/lib.rs && git grep -n kernel_warnings src/supy/_run_rust.py]
 
 When in doubt: **validate at the top, set the error state, assign safe
 defaults, and `RETURN`.** The driver handles the rest.

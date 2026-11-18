@@ -113,6 +113,7 @@ When investigating "stack smashing detected", ABI mismatches, or bounds errors: 
    - Kernel flags live in `src/suews/Makefile.gfortran` (invoked via `src/supy/run_make.py`) and C-API facade flags live in `src/suews_bridge/build.rs`, both controlled by `SUEWS_BUILD_PROFILE=release|checked`. [fact: git grep -n SUEWS_BUILD_PROFILE src/supy/run_make.py src/suews_bridge/build.rs]
    - Default `release` compiles the kernel with `-O3 -g -finit-real=zero` and C-API facades with `-O2 -finit-real=zero -finit-integer=0 -finit-logical=false` (preventing crashes from uninitialised derived-type descriptors under gfortran 14+). [fact: git grep -n "OPTFLAGS = -O3" src/suews/Makefile.gfortran && git grep -n "DEBUGFLAGS = -g -finit-real=zero" src/suews/Makefile.gfortran && git grep -n finit-logical=false src/suews_bridge/build.rs]
    - To enable `-O0 -fcheck=all` bounds/pointer/array-temp checks locally, run `SUEWS_BUILD_PROFILE=checked make dev` (or `make -C src/suews DEBUG=1` for the standalone kernel). [fact: git grep -n "DEBUG ?=" src/suews/Makefile && git grep -n "OPTFLAGS = -O0" src/suews/Makefile.gfortran]
+   - Under `checked` the C-API facades keep `-O2` and add `-fcheck=all`; only the kernel drops to `-O0`. [fact: git grep -n '"-O2",' src/suews_bridge/build.rs && git grep -n 'gfortran_cmd.arg("-fcheck=all")' src/suews_bridge/build.rs]
 
 ---
 

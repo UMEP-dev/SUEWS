@@ -62,7 +62,7 @@ Check each of these is present in the SAME diff. A missing required artefact is 
    - `docs/source/inputs/transition_guide.rst`
 5. **Formal release PRs only** (never `.devN` development bumps; see `test/fixtures/release_configs/README.md`):
    - `test/fixtures/release_configs/<tag>.yml` vendored to capture the newly cut release shape (`test_release_compat.py`).
-   - `_PACKAGE_TO_SCHEMA` in `yaml_upgrade.py` updated with the release-tag -> schema mapping, `.devN` entries collapsed into the release label, and `docs/source/version-history/v<tag>.rst` updated.
+   - The release-tag -> schema mapping reaches `_PACKAGE_TO_SCHEMA` in `yaml_upgrade.py`, which is derived from `src/supy/_model_registry/registry.yaml`: the new release entry there carries its `schema_version`, and the literal `_PACKAGE_TO_SCHEMA_FALLBACK` in `yaml_upgrade.py` and `HISTORICAL` in `test/core/test_package_to_schema_derived.py` gain the same entry. `.devN` entries are collapsed into the release label, and `docs/source/version-history/v<tag>.rst` is updated.
 
 ## Step 4 -- Cross-check the CI gates and tests
 

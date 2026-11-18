@@ -193,8 +193,11 @@ const ALL_ENTRIES: usize = usize::MAX;
 /// stands in for a missing one. supy can send such nulls (the thermal-layer
 /// lists are `List[Optional[float]]`, and `model_dump(mode="json")` writes a
 /// NaN element as `null`), so this must not be silently dropped. An entry the
-/// kernel does not read may be `null` or non-finite: a `null` is carried as
-/// `LAYER_VALUE_ABSENT` (NaN) and a non-finite number as given. This covers
+/// kernel does not read may be `null` or non-finite, and is carried as
+/// `LAYER_VALUE_ABSENT` (NaN): an unread `.inf` kept as given would survive
+/// to the returned state (initial temperatures are packed into the heat state
+/// unconditionally) and fail the checkpoint codec, which accepts NaN as its
+/// inactive-state marker but rejects an infinity. This covers
 /// explicit entries only; how a missing or short list is filled is the
 /// caller's business. Any other kind (a string, a boolean) is malformed
 /// wherever it sits.
@@ -203,6 +206,7 @@ fn parse_numeric_sequence(value: &Value, read: usize) -> Result<Option<Vec<f64>>
         match item {
             Value::Number(n) if !is_read => n
                 .as_f64()
+                .map(|v| if v.is_finite() { v } else { LAYER_VALUE_ABSENT })
                 .ok_or_else(|| format!("element {at} must be a number")),
             Value::Null if !is_read => Ok(LAYER_VALUE_ABSENT),
             Value::Number(_) => read_finite_numeric(item, &[])
@@ -688,9 +692,10 @@ fn ensure_len_with_default(values: &mut Vec<f64>, len: usize, default_value: f64
 /// Marks a value the kernel does not read under the selected options: the
 /// per-layer building fraction when not given outside SPARTACUS and storage
 /// heat method 5, roof and wall emissivity when not given without SPARTACUS,
-/// and any list entry given as `null` that the kernel does not read. Other
-/// missing or short lists still keep their allocated values. It is "absent",
-/// not a substitute: any use would show as NaN.
+/// and any list entry given as `null` or as a non-finite number that the
+/// kernel does not read. Other missing or short lists still keep their
+/// allocated values. It is "absent", not a substitute: any use would show as
+/// NaN.
 const LAYER_VALUE_ABSENT: f64 = f64::NAN;
 
 fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
@@ -1011,7 +1016,7 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<
 
 /// Whether the kernel reads the building layer geometry (`height`,
 /// `building_frac`, `building_scale`): under storage heat method 5 (EHC) or
-/// SPARTACUS. `SUEWS_cal_surf` (`suews_ctrl_driver.f95`) derives the roof and
+/// SPARTACUS. `SUEWS_cal_surf` (`suews_ctrl_type.f95`) derives the roof and
 /// wall fractions from them only under
 /// `StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000`, and `SPARTACUS`
 /// reads them directly.
@@ -1031,7 +1036,7 @@ fn vegetation_layers_are_read(spartacus_on: bool) -> bool {
 /// then reads the surface thermal layers, the initial temperatures of the
 /// surfaces and of the nlayer roofs and walls (copied to its output arrays in
 /// both of its branches), and the surface inner boundary temperatures.
-fn ehc_is_on(storage_heat_method: i32) -> bool {
+pub(crate) fn ehc_is_on(storage_heat_method: i32) -> bool {
     storage_heat_method == 5
 }
 
@@ -1050,8 +1055,9 @@ fn facet_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
 /// fraction per layer is required as a whole list, and the entries the
 /// kernel reads in `height`, `building_frac` and `building_scale` must be
 /// finite; the vegetation lists are checked the same way only under
-/// SPARTACUS (`vegetation_layers_are_read`). A null in an entry the kernel
-/// does not read is carried as absent (`LAYER_VALUE_ABSENT`). A missing or
+/// SPARTACUS (`vegetation_layers_are_read`). A null or non-finite number in
+/// an entry the kernel does not read is carried as absent
+/// (`LAYER_VALUE_ABSENT`). A missing or
 /// short `height`, `building_scale` or vegetation list still leaves the
 /// allocated values in place; requiring those is left to the block-by-block
 /// conversion. Each roof and wall layer's `emis` is required when SPARTACUS
@@ -4334,10 +4340,15 @@ mod tests {
         let values = parse_numeric_sequence(&list, 2).unwrap().unwrap();
         assert_eq!(&values[..2], &[1.0, 2.0]);
         assert!(values[2].is_nan(), "an unread null is absent: {values:?}");
+        assert!(
+            values[3].is_nan(),
+            "an unread non-finite number is absent: {values:?}"
+        );
+        let unread_finite: Value = serde_yaml::from_str("[1.0, 2.5]").unwrap();
         assert_eq!(
-            values[3],
-            f64::INFINITY,
-            "an unread number is carried as given"
+            parse_numeric_sequence(&unread_finite, 0).unwrap().unwrap(),
+            vec![1.0, 2.5],
+            "an unread finite number is carried as given"
         );
         let err = parse_numeric_sequence(&list, 3).unwrap_err();
         assert!(err.contains("[2]") && err.contains("null"), "{err}");

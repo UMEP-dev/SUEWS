@@ -21,7 +21,15 @@
     "excluded_record_ids": [
       23240040,
       41240048,
+      42240000,
+      42240041,
+      42240042,
+      42240043,
+      42240044,
+      42240045,
+      42240046,
       42240047,
+      42240057,
       50240017,
       50240024,
       50240043
@@ -1572,144 +1580,7 @@
       "field_map": {
         "StateLimit": "state_limit"
       },
-      "records": [
-        {
-          "origin": "Helsinki",
-          "surfaces": [
-            "water"
-          ],
-          "source_record_ids": [
-            42240000
-          ],
-          "reference_id": "90240015",
-          "values": {
-            "StateLimit": 2000
-          },
-          "models": [
-            "WaterProperties"
-          ],
-          "description": "Open water"
-        },
-        {
-          "origin": "SE England",
-          "surfaces": [
-            "paved"
-          ],
-          "source_record_ids": [
-            42240041
-          ],
-          "reference_id": "90240002",
-          "values": {
-            "StateLimit": 0.48
-          },
-          "models": [
-            "PavedProperties"
-          ],
-          "description": "Paved"
-        },
-        {
-          "origin": "SE England",
-          "surfaces": [
-            "buildings"
-          ],
-          "source_record_ids": [
-            42240042
-          ],
-          "reference_id": "90240002",
-          "values": {
-            "StateLimit": 0.25
-          },
-          "models": [
-            "BldgsProperties"
-          ],
-          "description": "Buildings"
-        },
-        {
-          "origin": "SE England",
-          "surfaces": [
-            "bare soil"
-          ],
-          "source_record_ids": [
-            42240043
-          ],
-          "reference_id": "90240002",
-          "values": {
-            "StateLimit": 0.8
-          },
-          "models": [
-            "BsoilProperties"
-          ],
-          "description": "Bare Soil"
-        },
-        {
-          "origin": "SE England",
-          "surfaces": [
-            "evergreen tree"
-          ],
-          "source_record_ids": [
-            42240044
-          ],
-          "reference_id": "90240002",
-          "values": {
-            "StateLimit": 1.3
-          },
-          "models": [
-            "EvetrProperties"
-          ],
-          "description": "Evergreen Tree"
-        },
-        {
-          "origin": "SE England",
-          "surfaces": [
-            "deciduous tree"
-          ],
-          "source_record_ids": [
-            42240045
-          ],
-          "reference_id": "90240002",
-          "values": {
-            "StateLimit": 0.8
-          },
-          "models": [
-            "DectrProperties"
-          ],
-          "description": "Deciduous Tree"
-        },
-        {
-          "origin": "SE England",
-          "surfaces": [
-            "grass"
-          ],
-          "source_record_ids": [
-            42240046
-          ],
-          "reference_id": "90240002",
-          "values": {
-            "StateLimit": 1.9
-          },
-          "models": [
-            "GrassProperties"
-          ],
-          "description": "Grass"
-        },
-        {
-          "origin": "London (River Thames)",
-          "surfaces": [
-            "water"
-          ],
-          "source_record_ids": [
-            42240057
-          ],
-          "reference_id": "90240002",
-          "values": {
-            "StateLimit": 30000
-          },
-          "models": [
-            "WaterProperties"
-          ],
-          "description": "River Thames"
-        }
-      ]
+      "records": []
     },
     {
       "sheet": "Drainage",

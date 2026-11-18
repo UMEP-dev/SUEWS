@@ -120,7 +120,7 @@ LAI_CALCULATED_ONLY_REQUIRED: RequirementTable = {
 
 CONDUCTANCE_REQUIRED: RequirementTable = {
     "g_max": (
-        "Maximum surface conductance is required for active vegetation",
+        "Surface conductance scaling coefficient is required for active vegetation",
         "Add g_max for evapotranspiration calculations",
     ),
     "g_k": (

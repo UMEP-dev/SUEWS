@@ -10,6 +10,7 @@ MODULE module_phys_lai
       INTEGER, PARAMETER :: LAI_NEW = 1
 
       ! Enumeration parameters for senescence conditions
+      ! FA (TODO: use of day length only used for northern hemipshere which seems arbitrary? use base only for now?)
       INTEGER, PARAMETER :: SEN_DAYLENGTH = 1
       INTEGER, PARAMETER :: SEN_SDD = 2
 
@@ -67,6 +68,7 @@ CONTAINS
       REAL(KIND(1D0)) :: delta_gdd ! change in gdd from previous day
       REAL(KIND(1D0)) :: delta_sdd ! change in gdd from previous day 
       
+      !FA TODO: currently the code is set up so growth always occurs first even if start a run in the senescence phase (could initialse elsewhere?)
       INTEGER, DIMENSION(nvegsurf) :: growth_state = 0 !State of growth (0: dormant, 1: growing)
       INTEGER, DIMENSION(nvegsurf) :: senescence_state = 0 !State of senescence (0: not senescing, 1: senescing)
       
@@ -96,17 +98,16 @@ CONTAINS
 
       
       ! Determine N/S hemisphere parameters
-      ! TODO: Move outside timestep loop as timestep independent
+      ! TODO: Move outside timestep loop as timestep independent (and delay reset days slightly further?)
+      ! FA note how location on equator uses N.hem resets. should we even be senescing in equatorial locations? 
       IF (lat >= 0) THEN
-         ! summer_day = 170
-         ! winter_day = 170
          summer_day = 182
          winter_day = 1
          southern_hemisphere = .FALSE.
          senescence_mode = SEN_DAYLENGTH
       ELSE !! N.B. not identical to N hemisphere - return to later
-         summer_day = 250
-         winter_day = 250
+         summer_day = 1
+         winter_day = 182
          southern_hemisphere = .TRUE.
          senescence_mode = SEN_SDD
       END IF

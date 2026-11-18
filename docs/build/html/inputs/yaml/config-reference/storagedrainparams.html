@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for drainage parameters parameters" name="description" />
 <meta content="SUEWS, YAML, storagedrainparams, parameters, configuration" name="keywords" />
 
-    <title>4.6.48. Drainage Parameters &#8212; SUEWS 2026.11.18.dev9 documentation</title>
+    <title>4.6.48. Drainage Parameters &#8212; SUEWS 2026.11.18.dev11 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=0d6308ee"></script>
+    <script src="../../../_static/documentation_options.js?v=9e86d2dc"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.47. STEBBS" href="stebbsproperties.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.18.dev9" />
+  <meta name="docsearch:version" content="2026.11.18.dev11" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.18.dev9, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d2486091a879032b398453026c9a7dcdd3f3cd00" style="color: #31708f;">d248609</a>).
+        (2026.11.18.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f0a2ad58ef88e6776d45467001840ae2a3fef6a3" style="color: #31708f;">f0a2ad5</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.18.dev9 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.18.dev9 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.18.dev11 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.18.dev11 documentation - Home"/>
   
   
 </a></div>
@@ -578,7 +578,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-1">
 <dt class="sig sig-object input" id="input-option-store_min">
 <span class="sig-name descname"><span class="pre">store_min</span></span><a class="headerlink" href="#input-option-store_min" title="Link to this definition">#</a></dt>
-<dd><p>Minimum water storage capacity</p>
+<dd><p>Minimum storage capacity, kept for compatibility with the legacy tables. The model does not read it.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>kg m<sup>-2</sup></p>
@@ -648,7 +648,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-2">
 <dt class="sig sig-object input" id="input-option-store_max">
 <span class="sig-name descname"><span class="pre">store_max</span></span><a class="headerlink" href="#input-option-store_max" title="Link to this definition">#</a></dt>
-<dd><p>Maximum water storage capacity</p>
+<dd><p>Interception storage capacity of the surface: the depth of water the surface can hold. It is the default for store_cap. The model does not read this value directly.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>kg m<sup>-2</sup></p>
@@ -715,7 +715,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-3">
 <dt class="sig sig-object input" id="input-option-store_cap">
 <span class="sig-name descname"><span class="pre">store_cap</span></span><a class="headerlink" href="#input-option-store_cap" title="Link to this definition">#</a></dt>
-<dd><p>Current surface/interception water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: <a class="reference external" href="https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html">https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html</a>.</p>
+<dd><p>Storage capacity the model uses as the surface’s current capacity: the drainage threshold when drain_eq is 1, and the capacity used by the Rutter evaporation option and the moisture terms that read it. Defaults to store_max when not given. For deciduous trees the model updates it daily with leaf state. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: <a class="reference external" href="https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html">https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html</a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>kg m<sup>-2</sup></p>
@@ -1100,8 +1100,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.18.dev9 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d2486091a879032b398453026c9a7dcdd3f3cd00">d248609</a> |
+  <p>Version: 2026.11.18.dev11 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f0a2ad58ef88e6776d45467001840ae2a3fef6a3">f0a2ad5</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

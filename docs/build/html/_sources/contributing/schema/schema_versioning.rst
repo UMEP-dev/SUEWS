@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev9"`` describes the shape of the configuration
+``schema_version: "2026.6.dev10"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev9"
+   schema_version: "2026.6.dev10"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -116,7 +116,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev9 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev10 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -125,13 +125,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev9.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev10.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev9.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev10.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -181,7 +181,12 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev9** (current; development)
+**Schema 2026.6.dev10** (current; development)
+   The model uses an explicit surface storage capacity (``store_cap``) even when
+   it differs from the maximum (``store_max``). An omitted capacity still takes
+   its value from the maximum. See :ref:`schema_dev10_storage_capacity`.
+
+**Schema 2026.6.dev9** (development)
    Observed soil water (#1422): the source selector is
    ``model.physics.soil_moisture`` (``modelled`` or ``observed``), observations
    describe a whole-store layer in metres, and sensor ``smcap`` is retired.

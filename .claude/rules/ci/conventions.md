@@ -323,14 +323,14 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 - `fortran` or `rust` changes: `PR_PLATFORMS` (3), test tier **core** [fact: git grep -n "Draft PR with fortran/rust changes" .github/scripts/determine-matrix.sh]
 - `build`-system changes: `PR_PLATFORMS` (3), test tier **cfg** [fact: git grep -n "Draft PR with build-system changes" .github/scripts/determine-matrix.sh]
 - `python` / `util` / `ci` / `tests`: `MINIMAL_PLATFORMS` (1), test tier **smoke** [fact: git grep -n "Draft PR with python/util/ci/tests changes" .github/scripts/determine-matrix.sh]
-- Python versions (`api_python`): `BOOKEND` (2)
+- Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
 
 ### Ready (non-draft) pull requests
 
 - `fortran`, `rust`, or `build`-system: `PR_PLATFORMS` (3), test tier **standard** [fact: git grep -n "Ready PR with fortran/build changes" .github/scripts/determine-matrix.sh]
 - `python` or `util`: `MINIMAL_PLATFORMS` (1), test tier **standard** [fact: git grep -n "Ready PR with python/util changes" .github/scripts/determine-matrix.sh]
 - `ci` or `tests` only: `MINIMAL_PLATFORMS` (1), test tier **smoke** [fact: git grep -n "Ready PR with ci/tests-only changes" .github/scripts/determine-matrix.sh]
-- Python versions (`api_python`): `BOOKEND` (2)
+- Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
 - **`0-physics:change` label override (gh#1576)**: a ready PR carrying this label runs test tier **physics-full** instead, so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python.
 
 ### Merge queue (`merge_group`)

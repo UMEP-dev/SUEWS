@@ -60,11 +60,11 @@ The available skills are listed in `.claude/README.md` ("Available Skills").
 ## Build System Notes
 
 - `FCFLAGS` env var is NOT forwarded through `make dev` -> meson-python pipeline
-  - Fortran compiler flags live in `src/suews/Makefile.gfortran` (kernel) and
-    `src/suews_bridge/build.rs` (C-API facades), selected by the build profile:
-    `SUEWS_BUILD_PROFILE=release` (`-O3`, no runtime checks, the default) or
-    `checked` (`-O0 -fcheck=all`; the nightly physics tier builds it too).
-    `src/supy/run_make.py` and `src/suews_bridge/build.rs` read the same variable [fact: git grep -n fcheck=all src/suews/Makefile.gfortran src/suews_bridge/build.rs src/supy/run_make.py && git grep -n SUEWS_BUILD_PROFILE src/suews/Makefile.gfortran src/suews_bridge/build.rs src/supy/run_make.py]
+  - Compiler flags are set per build profile (`SUEWS_BUILD_PROFILE=release`, the
+    default, or `checked`, which the nightly physics tier also builds); the
+    per-surface flags for the kernel and the C-API facades are stated in
+    `.claude/rules/fortran/conventions.md` ("Compiler flags and
+    `SUEWS_BUILD_PROFILE`") [fact: git grep -n "Compiler flags and .SUEWS_BUILD_PROFILE." .claude/rules/fortran/conventions.md && git grep -n SUEWS_BUILD_PROFILE src/suews/Makefile.gfortran src/suews_bridge/build.rs src/supy/run_make.py]
   - Checked build locally, for debugging physics: `SUEWS_BUILD_PROFILE=checked make dev`
 - `make clean` removes `build/` but meson-python may cache compiled extensions elsewhere
   - For a truly clean rebuild: `make clean && pip cache purge && make dev`

@@ -7,11 +7,19 @@
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
-if git diff --cached --name-only | grep -qE '^(AGENTS\.md|CLAUDE\.md|dev-ref/CODEBASE_AUDIT_PROTOCOL\.md|\.claude/(README\.md|rules|agents|hooks|scripts|settings\.json))'; then
+if git diff --cached --name-only | grep -qE '^(AGENTS\.md|CLAUDE\.md|MAINTAINERS\.md|dev-ref/.*\.md|\.claude/)'; then
     echo "Validating AGENTS.md and shared agent governance..."
 
     cd "$REPO_ROOT" || exit 1
-    PYTHON_BIN="$(command -v python3 || command -v python)"
+    if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+        PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
+    else
+        PYTHON_BIN="$(command -v python3 || command -v python || true)"
+    fi
+    if [ -z "$PYTHON_BIN" ]; then
+        echo "[WARN] No Python interpreter found; skipping shared agent instruction validation."
+        exit 0
+    fi
     "$PYTHON_BIN" .claude/scripts/validate-claude-md.py
 
     if [ $? -ne 0 ]; then

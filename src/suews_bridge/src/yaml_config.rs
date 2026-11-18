@@ -193,8 +193,11 @@ const ALL_ENTRIES: usize = usize::MAX;
 /// stands in for a missing one. supy can send such nulls (the thermal-layer
 /// lists are `List[Optional[float]]`, and `model_dump(mode="json")` writes a
 /// NaN element as `null`), so this must not be silently dropped. An entry the
-/// kernel does not read may be `null` or non-finite: a `null` is carried as
-/// `LAYER_VALUE_ABSENT` (NaN) and a non-finite number as given. This covers
+/// kernel does not read may be `null` or non-finite, and is carried as
+/// `LAYER_VALUE_ABSENT` (NaN): an unread `.inf` kept as given would survive
+/// to the returned state (initial temperatures are packed into the heat state
+/// unconditionally) and fail the checkpoint codec, which accepts NaN as its
+/// inactive-state marker but rejects an infinity. This covers
 /// explicit entries only; how a missing or short list is filled is the
 /// caller's business. Any other kind (a string, a boolean) is malformed
 /// wherever it sits.
@@ -203,6 +206,7 @@ fn parse_numeric_sequence(value: &Value, read: usize) -> Result<Option<Vec<f64>>
         match item {
             Value::Number(n) if !is_read => n
                 .as_f64()
+                .map(|v| if v.is_finite() { v } else { LAYER_VALUE_ABSENT })
                 .ok_or_else(|| format!("element {at} must be a number")),
             Value::Null if !is_read => Ok(LAYER_VALUE_ABSENT),
             Value::Number(_) => read_finite_numeric(item, &[])
@@ -319,11 +323,37 @@ fn site_yaml_at(site_root: &Value) -> String {
 // move to them block by block (#1991), so outside tests they are unused
 // until then.
 
+/// The given value of a YAML node, unwrapping the RefValue form
+/// (`{value: x}`), or `None` when it is not given. supy writes a RefValue
+/// whose value is None as `{value: null}` (with its `ref`, if any), which is
+/// returned as `null` so the caller can say it is null. A mapping with no
+/// `value` and nothing but a `ref` (`{ref: ...}`, or `{}`), which only a
+/// hand-written YAML has, carries no value, so it is not given. Any other
+/// mapping is returned as it is, so the caller can say it is a mapping.
+fn given_value(value: &Value) -> Option<&Value> {
+    match value {
+        Value::Mapping(map) => match map.get("value") {
+            Some(inner) => Some(inner),
+            None if map.keys().all(|key| key.as_str() == Some("ref")) => None,
+            None => Some(value),
+        },
+        other => Some(other),
+    }
+}
+
 /// The YAML path of `path` below `at`, for an error message. Each key is
 /// shown in its current data-model spelling where `normalize_field_names`
 /// renamed it from one (e.g. `soilstorecap` -> `soil_store_capacity`), so the
 /// message names the key as the user's file has it. A fused spelling that
 /// several current names fold to is shown as it is.
+///
+/// Only `FIELD_RENAMES` is consulted. Where a fused key's current data-model
+/// name is carried in `FIELD_COMPAT_ALIASES` instead (the STEBBS and
+/// `ArchetypeProperties` names reordered at dev12, e.g. `depth_ground` ->
+/// `GroundDepth`), this shows the `FIELD_RENAMES` name, which is a superseded
+/// spelling (`ground_depth`). The Rust tables do not record which of the
+/// names is current, so the read sites for those blocks, when they move to
+/// the required readers (#1991), must name such keys themselves.
 #[cfg_attr(not(test), allow(dead_code))]
 fn yaml_path_display(at: &str, path: &[&str]) -> String {
     let keys = path.iter().map(|key| {
@@ -345,9 +375,9 @@ fn yaml_path_display(at: &str, path: &[&str]) -> String {
 
 /// The value at `path` below `root` (`at` is the YAML path of `root`),
 /// unwrapping the RefValue form (`{value: x}`), or an error naming the YAML
-/// path when it is not given. A RefValue that kept only its `ref` (its value
-/// was None) is not given. A given `null` is returned as such, so the caller
-/// can say it is null.
+/// path when it is not given (`given_value`). A given `null` or a mapping
+/// that is not a RefValue is returned as such, so the caller can say what it
+/// is.
 #[cfg_attr(not(test), allow(dead_code))]
 fn require_value<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a Value, String> {
     let missing = || {
@@ -356,29 +386,28 @@ fn require_value<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a Val
             yaml_path_display(at, path)
         )
     };
-    let value = get_path(root, path).ok_or_else(missing)?;
-    match value {
-        Value::Mapping(_) => get_path(value, &["value"]).ok_or_else(missing),
-        other => Ok(other),
-    }
+    get_path(root, path)
+        .and_then(given_value)
+        .ok_or_else(missing)
 }
 
 /// The required form of `read_finite_numeric`: a finite number at `path`.
 /// Missing, null, non-numeric, NaN and infinite values are errors naming the
-/// YAML path.
+/// YAML path. The RefValue form is unwrapped once only.
 #[cfg_attr(not(test), allow(dead_code))]
 fn require_numeric(root: &Value, path: &[&str], at: &str) -> Result<f64, String> {
-    let value = require_value(root, path, at)?;
-    match read_finite_numeric(value, &[]) {
-        Ok(Some(v)) => Ok(v),
-        Err(reason) => Err(format!(
-            "`{}` is {reason}; it must be a finite number",
-            yaml_path_display(at, path)
-        )),
-        Ok(None) => Err(format!(
+    match require_value(root, path, at)? {
+        Value::Number(n) => match n.as_f64() {
+            Some(v) if v.is_finite() => Ok(v),
+            _ => Err(format!(
+                "`{}` is non-finite; it must be a finite number",
+                yaml_path_display(at, path)
+            )),
+        },
+        other => Err(format!(
             "`{}` is {}; it must be a number",
             yaml_path_display(at, path),
-            yaml_kind(value)
+            yaml_kind(other)
         )),
     }
 }
@@ -420,8 +449,12 @@ fn require_string(root: &Value, path: &[&str], at: &str) -> Result<String, Strin
 /// number (entries beyond `required` follow `parse_numeric_sequence`). It
 /// makes the same reads, but every error, for a null or non-finite entry and
 /// for a short list as well as for a missing one, names the YAML path in its
-/// data-model spelling (`yaml_path_display`). When none is given, the error
-/// names the first path.
+/// data-model spelling (`yaml_path_display`). A path that is given but holds
+/// no list (`null`, a string, a boolean), under any of `paths`, is an error
+/// naming that path and its kind; a mapping of named entries is read as a
+/// list (`parse_numeric_sequence`). The next spelling is read only when one
+/// is not given (`given_value`). When none is given, the error names the first
+/// path.
 #[cfg_attr(not(test), allow(dead_code))]
 fn require_sized_numeric_sequence(
     root: &Value,
@@ -430,29 +463,28 @@ fn require_sized_numeric_sequence(
     required: usize,
 ) -> Result<Vec<f64>, String> {
     for path in paths {
-        let Some(value) = get_path(root, path) else {
+        let Some(value) = get_path(root, path).and_then(given_value) else {
             continue;
         };
         let shown = yaml_path_display(at, path);
-        if let Some(values) =
-            parse_numeric_sequence(value, required).map_err(|e| format!("`{shown}`: {e}"))?
-        {
-            require_list_length(values.len(), required, &shown)?;
-            return Ok(values);
+        match parse_numeric_sequence(value, required).map_err(|e| format!("`{shown}`: {e}"))? {
+            Some(values) => {
+                require_list_length(values.len(), required, &shown)?;
+                return Ok(values);
+            }
+            None => {
+                return Err(format!(
+                    "`{shown}` is {}; it must be a list of {required} numbers",
+                    yaml_kind(value)
+                ))
+            }
         }
     }
     let first = paths.first().copied().unwrap_or(&[]);
-    Err(match get_path(root, first) {
-        Some(value) if !matches!(value, Value::Mapping(_)) => format!(
-            "`{}` is {}; it must be a list of {required} numbers",
-            yaml_path_display(at, first),
-            yaml_kind(value)
-        ),
-        _ => format!(
-            "`{}` is missing; it must be a list of {required} numbers",
-            yaml_path_display(at, first)
-        ),
-    })
+    Err(format!(
+        "`{}` is missing; it must be a list of {required} numbers",
+        yaml_path_display(at, first)
+    ))
 }
 
 /// The required form of `read_sequence` (a list of mappings such as
@@ -467,16 +499,21 @@ fn require_sequence<'a>(
     at: &str,
     required: usize,
 ) -> Result<&'a [Value], String> {
-    let items = read_sequence(root, path).ok_or_else(|| {
-        let shown = yaml_path_display(at, path);
-        match get_path(root, path) {
-            Some(value) if !matches!(value, Value::Mapping(_)) => {
-                format!("`{shown}` is {}; it must be a list", yaml_kind(value))
-            }
-            _ => format!("`{shown}` is missing; it must be a list of {required} items"),
-        }
-    })?;
     let shown = yaml_path_display(at, path);
+    let items = match get_path(root, path).and_then(given_value) {
+        Some(Value::Sequence(items)) => items.as_slice(),
+        Some(other) => {
+            return Err(format!(
+                "`{shown}` is {}; it must be a list",
+                yaml_kind(other)
+            ))
+        }
+        None => {
+            return Err(format!(
+                "`{shown}` is missing; it must be a list of {required} items"
+            ))
+        }
+    };
     require_list_length(items.len(), required, &shown)?;
     for (i, item) in items.iter().take(required).enumerate() {
         if !matches!(item, Value::Mapping(_)) {
@@ -688,9 +725,10 @@ fn ensure_len_with_default(values: &mut Vec<f64>, len: usize, default_value: f64
 /// Marks a value the kernel does not read under the selected options: the
 /// per-layer building fraction when not given outside SPARTACUS and storage
 /// heat method 5, roof and wall emissivity when not given without SPARTACUS,
-/// and any list entry given as `null` that the kernel does not read. Other
-/// missing or short lists still keep their allocated values. It is "absent",
-/// not a substitute: any use would show as NaN.
+/// and any list entry given as `null` or as a non-finite number that the
+/// kernel does not read. Other missing or short lists still keep their
+/// allocated values. It is "absent", not a substitute: any use would show as
+/// NaN.
 const LAYER_VALUE_ABSENT: f64 = f64::NAN;
 
 fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
@@ -1011,7 +1049,7 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<
 
 /// Whether the kernel reads the building layer geometry (`height`,
 /// `building_frac`, `building_scale`): under storage heat method 5 (EHC) or
-/// SPARTACUS. `SUEWS_cal_surf` (`suews_ctrl_driver.f95`) derives the roof and
+/// SPARTACUS. `SUEWS_cal_surf` (`suews_ctrl_type.f95`) derives the roof and
 /// wall fractions from them only under
 /// `StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000`, and `SPARTACUS`
 /// reads them directly.
@@ -1031,7 +1069,7 @@ fn vegetation_layers_are_read(spartacus_on: bool) -> bool {
 /// then reads the surface thermal layers, the initial temperatures of the
 /// surfaces and of the nlayer roofs and walls (copied to its output arrays in
 /// both of its branches), and the surface inner boundary temperatures.
-fn ehc_is_on(storage_heat_method: i32) -> bool {
+pub(crate) fn ehc_is_on(storage_heat_method: i32) -> bool {
     storage_heat_method == 5
 }
 
@@ -1050,8 +1088,9 @@ fn facet_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
 /// fraction per layer is required as a whole list, and the entries the
 /// kernel reads in `height`, `building_frac` and `building_scale` must be
 /// finite; the vegetation lists are checked the same way only under
-/// SPARTACUS (`vegetation_layers_are_read`). A null in an entry the kernel
-/// does not read is carried as absent (`LAYER_VALUE_ABSENT`). A missing or
+/// SPARTACUS (`vegetation_layers_are_read`). A null or non-finite number in
+/// an entry the kernel does not read is carried as absent
+/// (`LAYER_VALUE_ABSENT`). A missing or
 /// short `height`, `building_scale` or vegetation list still leaves the
 /// allocated values in place; requiring those is left to the block-by-block
 /// conversion. Each roof and wall layer's `emis` is required when SPARTACUS
@@ -4333,10 +4372,15 @@ mod tests {
         let values = parse_numeric_sequence(&list, 2).unwrap().unwrap();
         assert_eq!(&values[..2], &[1.0, 2.0]);
         assert!(values[2].is_nan(), "an unread null is absent: {values:?}");
+        assert!(
+            values[3].is_nan(),
+            "an unread non-finite number is absent: {values:?}"
+        );
+        let unread_finite: Value = serde_yaml::from_str("[1.0, 2.5]").unwrap();
         assert_eq!(
-            values[3],
-            f64::INFINITY,
-            "an unread number is carried as given"
+            parse_numeric_sequence(&unread_finite, 0).unwrap().unwrap(),
+            vec![1.0, 2.5],
+            "an unread finite number is carried as given"
         );
         let err = parse_numeric_sequence(&list, 3).unwrap_err();
         assert!(err.contains("[2]") && err.contains("null"), "{err}");
@@ -5076,6 +5120,25 @@ mod tests {
     }
 
     #[test]
+    fn require_numeric_reports_bare_mappings_and_unwraps_once() {
+        // Only a RefValue without its value is "not given": `{ref: ...}` or,
+        // when it had no `ref` either, `{}`. Any other mapping is a mapping,
+        // and the RefValue form is unwrapped once only.
+        let root: Value = serde_yaml::from_str(
+            "{e: {}, m: {working_day: 1.0, holiday: 2.0}, dbl: {value: {value: 1.5}}}",
+        )
+        .unwrap();
+        let err = require_numeric(&root, &["e"], "x").unwrap_err();
+        assert!(err.contains("`x.e` is missing"), "{err}");
+        let err = require_numeric(&root, &["m"], "x").unwrap_err();
+        assert!(err.contains("`x.m` is a mapping"), "{err}");
+        let err = require_numeric(&root, &["dbl"], "x").unwrap_err();
+        assert!(err.contains("`x.dbl` is a mapping"), "{err}");
+        let err = require_string(&root, &["m"], "x").unwrap_err();
+        assert!(err.contains("`x.m` is a mapping"), "{err}");
+    }
+
+    #[test]
     fn require_i32_rejects_fractional_and_out_of_range_values() {
         let root: Value = serde_yaml::from_str(
             "{a: 300, b: {value: 2.0}, c: 300.5, d: 1.0e12, e: .nan, f: 1.0000000005}",
@@ -5153,6 +5216,40 @@ mod tests {
     }
 
     #[test]
+    fn require_sized_numeric_sequence_reports_a_given_value_that_is_no_list() {
+        let root: Value = serde_yaml::from_str(
+            "{wn: {value: null}, ws: {value: abc}, m: {foo: x}, r: {ref: {desc: x}}, \
+             e: {}, cp: abc, cpn: null, ok: [1.0, 2.0]}",
+        )
+        .unwrap();
+        let at = "s";
+        for (key, expected) in [("wn", "`s.wn` is null"), ("ws", "`s.ws` is a string")] {
+            let err = require_sized_numeric_sequence(&root, &[&[key]], at, 2).expect_err(key);
+            assert!(err.contains(expected), "{key}: {err}");
+            assert!(err.contains("must be a list of 2 numbers"), "{err}");
+        }
+        // A mapping of named entries is a list (as `hdd_id` is), read entry
+        // by entry.
+        let err = require_sized_numeric_sequence(&root, &[&["m"]], at, 2).unwrap_err();
+        assert!(err.contains("`s.m`: element `foo` is a string"), "{err}");
+        // A RefValue without its value is not given, so the next spelling is
+        // read, and the error for none names the first.
+        assert_eq!(
+            require_sized_numeric_sequence(&root, &[&["r"], &["e"], &["ok"]], at, 2),
+            Ok(vec![1.0, 2.0])
+        );
+        let err = require_sized_numeric_sequence(&root, &[&["r"], &["e"]], at, 2).unwrap_err();
+        assert!(err.contains("`s.r` is missing"), "{err}");
+        // A malformed value under a later spelling names that spelling, not
+        // the first as missing.
+        for (alias, expected) in [("cp", "`s.cp` is a string"), ("cpn", "`s.cpn` is null")] {
+            let err = require_sized_numeric_sequence(&root, &[&["absent"], &[alias]], at, 2)
+                .expect_err(alias);
+            assert!(err.contains(expected), "{alias}: {err}");
+        }
+    }
+
+    #[test]
     fn require_sized_numeric_sequence_names_a_renamed_key_in_data_model_spelling() {
         // After `normalize_field_names` the key is `laipower`; the user's file
         // has `lai_power`, and every error must say so.
@@ -5189,6 +5286,27 @@ mod tests {
         assert!(err.contains("is a number"), "{err}");
         let err = require_sequence(&root, &["absent"], at, 1).unwrap_err();
         assert!(err.contains("is missing"), "{err}");
+    }
+
+    #[test]
+    fn require_sequence_reports_a_given_value_that_is_no_list() {
+        let root: Value = serde_yaml::from_str(
+            "{wn: {value: null}, w1: {value: 1}, m: {foo: 1}, r: {ref: {desc: x}}, e: {}}",
+        )
+        .unwrap();
+        for (key, expected) in [
+            ("wn", "`v.wn` is null"),
+            ("w1", "`v.w1` is a number"),
+            ("m", "`v.m` is a mapping"),
+        ] {
+            let err = require_sequence(&root, &[key], "v", 1).expect_err(key);
+            assert!(err.contains(expected), "{key}: {err}");
+            assert!(err.contains("it must be a list"), "{err}");
+        }
+        for key in ["r", "e"] {
+            let err = require_sequence(&root, &[key], "v", 1).expect_err(key);
+            assert!(err.contains(&format!("`v.{key}` is missing")), "{err}");
+        }
     }
 
     #[test]

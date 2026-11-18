@@ -57,7 +57,7 @@ CONTAINS
       !         w_f = Free-convection velocity scale (m s-1), used only when unstable
       !         W_MIN (module constant) = minimum velocity scale (m s-1), on
       !               every stability branch of method 2, neutral equation
-      !               included; w_f is added as well on unstable steps
+      !               included; MAX(W_MIN, w_f) replaces W_MIN on unstable steps
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 

@@ -216,7 +216,7 @@ def test_zero_free_convection_leaves_the_minimum_velocity_scale(probe, method):
 def test_stable_resistance_uses_the_minimum_velocity_scale(probe, method):
     # ARRANGE: stable (z-d)/L from the near-neutral +1e-12 to the 0.5 clip,
     # with and without a (stale) w_f, which the stable branch must ignore
-    rows = _resistance_cases([1e-12, 1e-3, 0.05, 0.1, 0.5], [0.0, 0.3], method)
+    rows = _resistance_cases([1e-12, 1e-3, 0.05, 0.1, 0.5], [0.0, 0.3, 1.0], method)
 
     # ACT
     out = probe(3, rows)
@@ -235,9 +235,9 @@ def test_zero_friction_velocity_takes_the_neutral_equation(probe, method):
     passed. L = 0 is not tested: the stability functions divide by L before
     that test, so the routine requires a non-zero L."""
     # ARRANGE: u* = 0 selects the neutral equation, on both sides of neutral,
-    # with a w_f that must be ignored
+    # with a w_f that must be ignored, below and above W_MIN
     rows = _resistance_cases(
-        [-0.5, -1e-12, 1e-12, 0.05, 0.1, 0.5], [0.0, 0.3], method
+        [-0.5, -1e-12, 1e-12, 0.05, 0.1, 0.5], [0.0, 0.3, 1.0], method
     )
     rows[:, 4] = 0.0
 
@@ -300,7 +300,7 @@ def test_stable_resistance_is_continuous_in_wind_and_stability(probe, method):
 def test_resistance_is_continuous_across_neutral_as_free_convection_vanishes(
     probe, method
 ):
-    """Whenever w_f <= W_MIN (w_f = 0, 1e-9 or 0.3 here), with the same W_MIN
+    """Whenever w_f <= W_MIN (w_f = 0, 1e-9, 0.3 or W_MIN here), with the same W_MIN
     on both sides, r_a is continuous where (z-d)/L changes sign, at every wind
     down to the floor. A stable-only W_MIN would change r_a there by U_e/U,
     about fifty-fold at the wind floor (#1979). A retained w_f above W_MIN is
@@ -310,8 +310,9 @@ def test_resistance_is_continuous_across_neutral_as_free_convection_vanishes(
     winds = (U_FLOOR, 0.05, 0.3, 1.5)
     ra = {}
     for zl in (1e-12, 1e-6):
-        unstable = _resistance_cases([-zl], [0.0, 1e-9, 0.3], method, winds=winds)
-        stable = _resistance_cases([zl], [0.0, 1e-9, 0.3], method, winds=winds)
+        w_f = [0.0, 1e-9, 0.3, W_MIN]
+        unstable = _resistance_cases([-zl], w_f, method, winds=winds)
+        stable = _resistance_cases([zl], w_f, method, winds=winds)
 
         # ACT
         ra[zl] = (probe(3, unstable)[:, 0], probe(3, stable)[:, 0])
@@ -404,8 +405,9 @@ def test_free_convection_term_follows_its_equation(probe, method):
 def test_free_convection_lowers_unstable_resistance_only_above_minimum(
     probe, method
 ):
-    # ARRANGE: w_f increasing within each (wind, (z-d)/L) block
-    w_f = [0.0, 1e-9, 0.05, 0.3, 1.0]
+    # ARRANGE: w_f increasing within each (wind, (z-d)/L) block, through
+    # W_MIN and its one-sided neighbours
+    w_f = [0.0, 1e-9, 0.05, 0.3, W_MIN * (1 - 1e-6), W_MIN, W_MIN * (1 + 1e-6), 1.0]
     rows = _resistance_cases([-2.0, -0.5, -0.05, -1e-12], w_f, method)
 
     # ACT
@@ -417,11 +419,17 @@ def test_free_convection_lowers_unstable_resistance_only_above_minimum(
     assert np.all(ra <= ra[:, :1] + roundoff)
     assert np.all(np.diff(ra, axis=1) <= roundoff)
     np.testing.assert_allclose(ra[:, 1], ra[:, 0], rtol=1e-14, atol=0)
-    above_floor = ra[:, 4] > RA_FLOOR
+    above_floor = ra[:, 7] > RA_FLOOR
     assert above_floor.sum() >= len(ra) // 2
-    assert np.all(ra[above_floor, 4] < ra[above_floor, 0])
-    # below W_MIN, w_f leaves the resistance unchanged
-    np.testing.assert_array_equal(ra[:, 3], ra[:, 0])
+    assert np.all(ra[above_floor, 7] < ra[above_floor, 0])
+    # up to and at W_MIN, w_f leaves the resistance unchanged
+    np.testing.assert_array_equal(ra[:, 1:6], np.repeat(ra[:, :1], 5, axis=1))
+    # just above W_MIN r_a falls continuously, by about one part in 1e6 at
+    # most: a slope break, not a jump
+    near = ra[:, 6] > RA_FLOOR
+    assert near.sum() >= len(ra) // 2
+    step = (ra[near, 5] - ra[near, 6]) / ra[near, 5]
+    assert np.all(step > 0) and np.all(step < 1.1e-6)
 
 
 @pytest.mark.parametrize("method", [2, 3, 4])

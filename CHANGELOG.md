@@ -54,7 +54,7 @@ EXAMPLES:
 
 ## 2026
 
-### 17 Nov 2026
+### 18 Nov 2026
 
 - [change][experimental] Add a minimum velocity scale of 0.5 m s-1 to the aerodynamic resistance on every stability branch (resistance method 2; the legacy methods 1 and 3 are unchanged): r_a uses the effective wind sqrt(U^2 + w_min^2) in place of U, with the larger of w_min and the free-convection velocity w_f of #1956 in place of w_min on unstable steps, so at light wind it no longer grows as 1/U, up to the (z-d)/L clip on stable steps (#1979)
   - The quadrature form follows the generalised velocity scale of Mahrt and Sun (1995, Eqs. 20 and 22), and the value is the globally constant subgrid velocity scale of 0.5 m s-1 they suggest (p. 3040), a spatial scale from 5-30 km aircraft averages used here as a constant for a point model; the friction-velocity calculation is unchanged

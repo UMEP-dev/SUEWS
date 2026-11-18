@@ -8,7 +8,7 @@
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "eb0035a",
+    "git_commit": "UMEP-dev/SUEWS#2042",
     "supy_version": "2026.11.17.dev14"
   },
   "column_names_sha256": "1f6b28f98506b531b5c6531dd353feb033ee62d67e879e6dd941b7a63b26bc31",

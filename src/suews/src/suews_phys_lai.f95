@@ -23,7 +23,7 @@ CONTAINS
       gdd_base, sdd_base, &
       lai_min, lai_max, lai_power, lai_type, &
       lai_id_prev, &
-      gdd_id, sdd_id, & !inout
+      gdd_id, sdd_id, & !input
       lai_id_next) !output
       
       IMPLICIT NONE
@@ -46,28 +46,28 @@ CONTAINS
       ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: base_t_gdd !Base temperature for growing degree days [degC]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: base_t_sdd !Base temperature for senescence degree days [degC]
-      !FA update to using new base parameters rather than full for gdd and sdd
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: gdd_base !Growing degree days needed to initiate leaf growth [degC]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: sdd_base !Senescence degree days needed to initiate leaf off [degC]
+
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: gdd_base !Growing degree days needed to initiate LAI growth [degC]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: sdd_base !Senescence degree days needed to initiate LAI decline [degC]
    
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_min !Min LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_max !Max LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(4, nvegsurf), INTENT(IN) :: lai_power !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
-      !! N.B. currently DecTr only, although input provided for all veg types
+
       INTEGER, DIMENSION(nvegsurf), INTENT(IN) :: lai_type !LAI equation to use: original (0) or new (1)
 
       REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
       REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_id_prev ! LAI of previous day
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(OUT) :: lai_id_next !LAI for each veg surface [m2 m-2]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_id_prev ! LAI of previous day [m2 m-2]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(OUT) :: lai_id_next ! updated LAI for each veg surface [m2 m-2]
       
-      REAL(KIND(1D0)) :: delta_gdd !Switches and checks for GDD
-      REAL(KIND(1D0)) :: delta_sdd !Switches and checks for GDD 
-
       REAL(KIND(1D0)), DIMENSION(3) :: gdd_id_prev ! GDD of previous day
       REAL(KIND(1D0)), DIMENSION(3) :: sdd_id_prev ! SDD of previous day
+
+      REAL(KIND(1D0)) :: delta_gdd ! change in gdd from previous day
+      REAL(KIND(1D0)) :: delta_sdd ! change in gdd from previous day 
       
-      INTEGER, DIMENSION(nvegsurf) :: growth_state = 0 !State of growth (0: dormant, 1: growing, 2: senescing)
+      INTEGER, DIMENSION(nvegsurf) :: growth_state = 0 !State of growth (0: dormant, 1: growing)
       INTEGER, DIMENSION(nvegsurf) :: senescence_state = 0 !State of senescence (0: not senescing, 1: senescing)
       
       INTEGER :: iv
@@ -84,6 +84,7 @@ CONTAINS
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
 
+      ! Where observed LAI is supplied, use this
       IF (lai_calc_yes == 0) THEN
          CALL observed_lai( &
             lai_obs=lai_obs, &
@@ -132,7 +133,7 @@ CONTAINS
          )
 
 
-         ! Now calculate LAI itself
+         ! check and apply reset conditions to SDD/GDD 
          CALL reset_degree_days( &
             id=id, &
             summer_reset_day=summer_day, &
@@ -147,6 +148,7 @@ CONTAINS
 
 
          IF (lai_calc_yes /= 0) THEN
+            ! Now calculate LAI itself
             CALL calculate_lai( &
                senescence_mode=senescence_mode, &
                len_day_id_prev=len_day_id_prev, &
@@ -246,7 +248,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: gdd_id
       REAL(KIND(1D0)), INTENT(OUT) :: sdd_id
 
-      ! Calculate GDD and SDD
+      ! Calculate change in GDD if in leaf growth portion of year
       IF (growth_state == 0) THEN
          delta_gdd = 0.0D0
       ELSE
@@ -254,6 +256,7 @@ CONTAINS
             tmin_prev, tmax_prev, base_t_gdd)
       END IF
 
+      ! Calculate change in SDD if in senescence portion of year
       IF (senescence_state == 0) THEN
          delta_sdd = 0.0D0
       ELSE
@@ -261,13 +264,11 @@ CONTAINS
             tmin_prev, tmax_prev, base_t_sdd)
       END IF
 
-      ! SDD cannot be positive
+      ! delta_SDD cannot be positive
       IF (delta_sdd > 0) delta_sdd = 0
 
-      ! GDD cannot be negative
-      IF (delta_gdd < 0) THEN
-         delta_gdd = 0
-      END IF
+      ! delta_GDD cannot be negative
+      IF (delta_gdd < 0) delta_gdd = 0
 
       ! Calculate cumulative growing and senescence degree days
       gdd_id = gdd_id_prev + delta_gdd

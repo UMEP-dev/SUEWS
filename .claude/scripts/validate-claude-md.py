@@ -417,6 +417,29 @@ def check_agents_dir(root: Path) -> list[str]:
     return warnings
 
 
+def _check_hook_command(event_name: str, cmd: str, root: Path) -> list[str]:
+    """Check the `$CLAUDE_PROJECT_DIR` paths named in one hook command."""
+    warnings: list[str] = []
+    for match in HOOK_SCRIPT_RE.finditer(cmd.strip()):
+        rel_target = match.group("path")
+        target_path = root / rel_target
+        if match.group("lead") is None:
+            # An argument (script for an interpreter, or a directory).
+            if not target_path.exists():
+                warnings.append(
+                    f".claude/settings.json ({event_name}): Missing hook path {rel_target}"
+                )
+        elif not target_path.is_file():
+            warnings.append(
+                f".claude/settings.json ({event_name}): Missing hook script {rel_target}"
+            )
+        elif not os.access(target_path, os.X_OK):
+            warnings.append(
+                f".claude/settings.json ({event_name}): Hook script not executable: {rel_target}"
+            )
+    return warnings
+
+
 def _check_settings_hook_commands(settings: dict, root: Path) -> list[str]:
     """Verify every `$CLAUDE_PROJECT_DIR/...` hook script exists and is executable."""
     warnings: list[str] = []
@@ -436,19 +459,7 @@ def _check_settings_hook_commands(settings: dict, root: Path) -> list[str]:
                 cmd = hook.get("command", "") if isinstance(hook, dict) else ""
                 if not isinstance(cmd, str):
                     continue
-                for match in HOOK_SCRIPT_RE.finditer(cmd.strip()):
-                    rel_target = match.group("path")
-                    target_path = root / rel_target
-                    if not target_path.is_file():
-                        warnings.append(
-                            f".claude/settings.json ({event_name}): Missing hook script {rel_target}"
-                        )
-                    elif match.group("lead") is not None and not os.access(
-                        target_path, os.X_OK
-                    ):
-                        warnings.append(
-                            f".claude/settings.json ({event_name}): Hook script not executable: {rel_target}"
-                        )
+                warnings.extend(_check_hook_command(event_name, cmd, root))
     return warnings
 
 

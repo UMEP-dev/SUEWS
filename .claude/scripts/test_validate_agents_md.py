@@ -321,8 +321,21 @@ class GovernanceEdgeCaseValidation(GovernanceFixture):
         )
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
-        for name in ("a", "b", "c", "d"):
+        for name in ("a", "b", "c"):
             self.assertIn(f"Missing hook script .claude/hooks/{name}.sh", result.stdout)
+        self.assertIn("Missing hook path .claude/hooks/d.sh", result.stdout)
+
+    def test_directory_argument_in_hook_command_passes(self):
+        """A `$CLAUDE_PROJECT_DIR/<dir>` argument only has to exist."""
+        self.write_hook_script("run.sh", 0o755)
+        self.write_settings(
+            hook_settings(
+                'cd "$CLAUDE_PROJECT_DIR/.claude" && '
+                "$CLAUDE_PROJECT_DIR/.claude/hooks/run.sh"
+            )
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_malformed_settings_shape_fails_without_traceback(self):
         """A non-object settings root or `hooks` value is reported, not raised."""

@@ -52,7 +52,7 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 |   `-- suews/             # User-facing simulation skill (bundled into plugins/suews/)
 |
 |-- reference/
-|   `-- templates/         # Commit message and review templates
+|   `-- templates/         # Commit message and feature-plan templates
 |
 |-- scripts/               # Instruction-integrity validation and local git hook helpers
 |   |-- validate-claude-md.py
@@ -140,7 +140,7 @@ pre-commit-check.sh (PreToolUse on git commit)
   |-- build-registration check         (new .f95 in src/supy/meson.build, src/suews/Makefile, build.rs)
   |-- RST heading depth check          (staged .rst)
   |-- CHANGELOG ### DD Mon YYYY + tag  (staged CHANGELOG.md additions)
-  |-- validate-claude-md.py            (staged AGENTS.md / CLAUDE.md / .claude / audit protocol)
+  |-- validate-claude-md.py            (staged AGENTS.md / CLAUDE.md / MAINTAINERS.md / .claude / dev-ref)
   `-- make test-smoke                  (staged Python or Fortran)
 ```
 
@@ -157,7 +157,7 @@ Configured in `.claude/settings.json`:
 
 ## Validation
 
-Run the shared instruction validator locally after editing `AGENTS.md`, `CLAUDE.md`, `.claude/`, or `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`:
+Run the shared instruction validator locally after editing `AGENTS.md`, `CLAUDE.md`, `MAINTAINERS.md`, `.claude/`, or `dev-ref/`:
 
 ```bash
 python -m unittest discover -s .claude/scripts -p test_validate_agents_md.py

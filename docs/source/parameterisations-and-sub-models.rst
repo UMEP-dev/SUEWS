@@ -43,6 +43,15 @@ The decaying factor can still end the iteration on these tests without reaching 
 Passing these tests does not establish a vanishing unrelaxed stability residual or bound differences from the unrelaxed model.
 After the loop, any required flux-sign reconciliation uses the unrelaxed solve and recomputes its dependent scales.
 
+With resistance method 2, the stability-corrected resistance before any velocity scale is added is
+
+.. math::
+
+   r_{a,0} = \frac{\left[\ln\left(\frac{z-d}{z_{0m}}\right) - \psi_m\right]\left[\ln\left(\frac{z-d}{z_{0v}}\right) - \psi_h\right]}{k^2 U},
+
+where :math:`\psi_m` and :math:`\psi_h` are the stability functions for momentum and heat at :math:`(z-d)/L` less their values at :math:`z_{0m}/L` and :math:`z_{0v}/L`.
+The neutral equation, used when :math:`(z-d)/L` is zero or :math:`u_* = 0`, takes :math:`\psi_m = \psi_h = 0`.
+
 On the unstable branch, :math:`r_a` includes a free-convection velocity scale.
 At light wind, the mean wind :math:`U` understates the exchange that convective eddies maintain, so stability alone would let :math:`r_a` grow as :math:`1/U`.
 The velocity scale is
@@ -52,14 +61,28 @@ The velocity scale is
    w_f = \left(\frac{g}{T_a}\,H\,(z-d)\right)^{1/3}, \qquad H = \frac{Q_H}{\rho c_p},
 
 with :math:`Q_H` the sensible heat flux of the current pass and :math:`w_f = 0` when :math:`Q_H \leq 0`.
-The resistance uses the effective wind :math:`U_e = \sqrt{U^2 + w_f^2}` in place of :math:`U`, so :math:`r_a` is the expression above multiplied by :math:`U/U_e`.
+The resistance uses the effective wind :math:`U_e = \sqrt{U^2 + \max(w_{min}, w_f)^2}` in place of :math:`U`, where :math:`w_{min}` is the minimum velocity scale described below, so :math:`r_a` is :math:`r_{a,0}` multiplied by :math:`U/U_e`.
 The interfacial part, :math:`\ln(z_{0m}/z_{0v})/(k u_*)`, scales the same way, through :math:`u_* U_e/U`; no further convective velocity is added to :math:`u_*`.
 The roughness length for heat, :math:`z_{0v}`, keeps the original :math:`u_*`, and the friction velocity used elsewhere in the model is unchanged.
-Stable and neutral steps are unchanged, and with :math:`w_f = 0` the resistance is the expression above.
-Because :math:`w_f` responds to :math:`Q_H^{1/3}`, whose slope is unbounded as :math:`Q_H` approaches zero from above, feeding it straight back can make the outer iteration alternate across :math:`Q_H = 0`.
+While :math:`w_f \leq w_{min}` the unstable resistance is :math:`r_{a,0}` multiplied by :math:`U/\sqrt{U^2 + w_{min}^2}`, and :math:`w_f` does not change it.
+Because :math:`w_f` responds to :math:`Q_H^{1/3}`, feeding it straight back can make the outer iteration alternate; the unbounded slope as :math:`Q_H` approaches zero from above no longer reaches :math:`r_a`, since a :math:`w_f` below :math:`w_{min}` leaves it unchanged, but the slope break at :math:`w_f = w_{min}` and the response above it remain.
 :math:`w_f` is therefore under-relaxed between passes with the same factor :math:`\alpha_n` as :math:`(z-d)/L`; the first pass and the post-loop reconciliation take the value from the current heat flux.
 The EHC storage heat method recomputes the resistance from the residual sensible heat flux within a pass; that call relaxes both :math:`(z-d)/L` and :math:`w_f` against the values accepted before the pass, so each pass applies one damping step, from the latest heat flux.
-The free-convection term lowers :math:`r_a` most at light wind, which raises evaporation from wet and open-water surfaces.
+Once :math:`w_f` exceeds :math:`w_{min}`, the free-convection term lowers :math:`r_a` further, most at light wind, which raises evaporation from wet and open-water surfaces.
+
+On every stability branch of the resistance, stable, neutral and unstable, :math:`r_a` also includes a minimum velocity scale :math:`w_{min} = 0.5` m |s^-1|; the legacy resistance methods without stability functions (Monteith 1965 and Thom and Oliver 1977) are unchanged.
+At light wind the mean wind understates the exchange that unresolved motions, such as meandering and submeso motions, keep up, and without it :math:`r_a` grows as :math:`1/U`, on the stable side until the stability clip is reached.
+The resistance uses the effective wind :math:`U_e = \sqrt{U^2 + w_{min}^2}` in place of :math:`U` on stable steps and in the neutral equation, and :math:`U_e = \sqrt{U^2 + \max(w_{min}, w_f)^2}` on unstable steps, so :math:`r_a` is :math:`r_{a,0}` multiplied by :math:`U/U_e`; no velocity scale is added to :math:`u_*`, and the friction-velocity calculation is unchanged.
+The quadrature form follows the generalised velocity scale of :cite:t:`MS95` (their Eqs. 20 and 22), :math:`\langle V \rangle^2 = |\langle \mathbf{V} \rangle|^2 + w_{fc}^2 + V_{sg}^2`, in which the subgrid velocity scale :math:`V_{sg}` is added at every stability and the convective velocity is zero when the heat flux is downward.
+On unstable steps SUEWS departs from their form: it adds the larger of :math:`w_{min}` and :math:`w_f`, not both, so wherever :math:`w_f \geq w_{min}` the resistance is that of the free-convection term alone, and only the light-wind steps with weaker convection take :math:`w_{min}`.
+Across 21 urban flux sites, adding both cut daytime unstable :math:`r_a` below 0.5 m |s^-1| wind by about a quarter, with surface-temperature changes of up to 8 K, and did not improve the observed sensible or latent heat fluxes on those hours; taking the larger roughly halves the cut and limits the daytime surface cooling there to about 3 K.
+:math:`r_a` has a slope break, not a jump, where :math:`w_f` crosses :math:`w_{min}`.
+The value is the globally constant :math:`V_{sg} = 0.5` m |s^-1| they suggest as the simplest model (p. 3040), close to what they found where surface heterogeneity is weak.
+Their :math:`V_{sg}` is a spatial, grid-scale velocity from aircraft averages over 5 to 30 km that grows with the grid size; here it is used as a constant for a point model, it is not derived for urban sites, and a forcing wind that is already scalar-averaged may contain part of the meandering it represents.
+Because the same :math:`w_{min}` acts on both sides of neutral and does not depend on :math:`(z-d)/L`, :math:`r_a` is continuous where :math:`(z-d)/L` changes sign whenever :math:`w_f \leq w_{min}`, and at fixed wind and roughness :math:`w_{min}` introduces no additional dip on the stable side: stable :math:`r_a` follows the stability functions, which themselves fall by a few parts in :math:`10^4` where their switch at :math:`|(z-d)/L| = 10^{-4}` acts on the roughness-height terms; a :math:`w_{min}` applied on the stable side only would either change :math:`r_a` at neutral by :math:`U_e/U`, about fifty-fold at the 0.01 m |s^-1| wind floor, or, if faded in from neutral, make :math:`r_a` fall as stability grows at light wind.
+A :math:`w_f` above :math:`w_{min}` retained by the between-pass relaxation can still make :math:`r_a` differ across the sign change, as a non-zero :math:`w_f` did before :math:`w_{min}` was added.
+The neutral equation is used when the stability parameter :math:`(z-d)/L` is zero or :math:`u_* = 0`; :math:`L` itself must be non-zero, because the stability functions divide by it.
+At the stable clip the resistance at light wind tends to a finite value, :math:`r_{a,0}` times :math:`U/w_{min}`, rather than growing as :math:`1/U`.
 
 Net all-wave radiation, Q\*
 ---------------------------

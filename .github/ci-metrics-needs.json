@@ -34,6 +34,9 @@
   "Determine build matrix": [
     "Detect code changes"
   ],
+  "Physics-change label": [
+    "Determine build matrix"
+  ],
   "Post CI summary comment": [
     "Detect code changes",
     "Determine build matrix"
@@ -42,7 +45,8 @@
     "Build and test (*) / *",
     "Build MCP package",
     "Check pytest marker axis",
-    "Detect code changes"
+    "Detect code changes",
+    "Physics-change label"
   ],
   "Tolerance spread / *": [
     "Determine build matrix",

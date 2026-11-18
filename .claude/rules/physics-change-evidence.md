@@ -48,31 +48,35 @@ A PR is a **physics change** -- and MUST carry `0-physics:change` -- when it doe
 
 - **Changes how a process is formulated** in `src/suews/src/suews_phys_*.f95`, embedded external library source under `src/suews/ext_lib/**`, or the Rust physics backend under `src/suews_bridge/` behind the `physics` feature -- equations, the form of a parameterisation, how a process is partitioned, scheme dispatch, or calibrated coefficients. [decision: software maintainer, 2026-11-18]
 - **Changes a physics-affecting default or coefficient** in `src/supy/data_model/` such that an unchanged user configuration produces different numbers (for example a changed default albedo, emissivity, or scheme selection). [decision: software maintainer, 2026-11-18]
-- **Moves any vendored reference output at or beyond the numerical threshold** below, regardless of how small the source edit looks. [decision: software maintainer, 2026-11-18]
+- **Moves any model output or refreshes any vendored reference fixture without satisfying all conditions of `0-numerics:change` below** -- including any shift at or above the numerical threshold, any zero-to-nonzero shift, or any output-moving cause outside the three numerical operations (for example a reference-lane build-environment update). [decision: software maintainer, 2026-11-18]
 
 ### Numerical change (`0-numerics:change`)
 
 A PR is a **numerical change** -- and MUST carry `0-numerics:change` (unless elevated to `0-physics:change`) -- when ALL of the following hold: [decision: software maintainer, 2026-11-18]
 
-- **No process formulation changes.** Equations, parameterisation forms, process partitioning, and calibrated coefficients are untouched.
-- **Only numerical representation changes:** constant precision, unit conversions, or floating-point representation (for example unifying the Stefan-Boltzmann constant, double-precision `pi`, or `C2K = 273.15D0`), or a reference-lane build-environment update (pinned container or compiler bump) with unchanged physics source.
+- **No process formulation changes.** Equations, parameterisation forms, process partitioning, scheme dispatch, calibrated coefficients, and physics-affecting defaults are untouched.
+- **Only numerical representation changes:** restricted to **constant precision, unit conversions, or floating-point representation** (for example unifying the Stefan-Boltzmann constant, double-precision `pi`, or `C2K = 273.15D0`).
 - **Reference outputs move only at round-off level**, strictly within the numerical threshold below across every vendored reference fixture.
 
 ### Numerical threshold and excluded diagnostics
 
-A change qualifies as `0-numerics:change` only when, over all vendored reference outputs, every non-excluded variable satisfies **both**: [decision: software maintainer, 2026-11-18]
+Compute differences pointwise against the previous reference (`ref` vs `new` at each sample; positions where both `ref` and `new` are `NaN` are ignored, and any `NaN`/finite mismatch fails the threshold): [decision: software maintainer, 2026-11-18]
+
+- **Pointwise absolute difference:** `|new - ref|`.
+- **Pointwise relative change:** `|new - ref| / |ref|` when `ref != 0`, `0` (`0%`) when `ref == 0` and `new == 0`, and unbounded (fails `< 0.1%`, with no sample dropping or denominator floor) when `ref == 0` and `new != 0`.
+
+Taking the maximum over all compared samples in every vendored reference fixture, every non-excluded variable must satisfy **both**: [decision: software maintainer, 2026-11-18]
 
 - **maximum relative change < 0.1%** (`1e-3`), AND
 - **maximum absolute flux difference < 0.5 W m-2** (for energy and radiation fluxes in `W m-2`).
 
-Diagnostics that legitimately diverge because their denominator approaches zero are excluded from the threshold test: [decision: software maintainer, 2026-11-18]
+Only diagnostics that genuinely diverge near neutral stratification (`QH -> 0`) are excluded from the threshold test on samples affected by that near-neutral singularity: [decision: software maintainer, 2026-11-18]
 
-- **Obukhov length** (`Lob` in the `SUEWS` output group, `L_MOD_RSL` in `RSL`), which diverges (`-> +-infinity`) as sensible heat flux approaches zero near neutral stratification.
-- **Surface resistance** (`RS` in `SUEWS` and `debug`, `RSS_*` in `debug`), which approaches its closed-conductance cap (`10000 s m-1`) when stomatal or surface conductance approaches zero at night or on dry/frozen surfaces.
-- **Aerodynamic and boundary-layer resistances** (`RA` in `SUEWS` and `debug`, `RAsnow` and `RB` in `debug`) as wind and friction velocity approach zero (`UStar -> 0`).
+- **Obukhov length and its direct RSL counterpart** (`Lob` in the `SUEWS` output group and `L_MOD_RSL` in `RSL`), which diverge (`-> +-infinity`) as sensible heat flux approaches zero near neutral stratification.
 
-Excluded diagnostics that move must still be refreshed in the fixture and listed in the PR's change table (marked as excluded from the threshold). [procedure: Principle 1]
-If any non-excluded variable reaches or exceeds `0.1%` relative change or `0.5 W m-2` absolute flux difference, the PR is a **physics change** (`0-physics:change`) and requires the full scientific-evidence and sign-off gate. [decision: software maintainer, 2026-11-18]
+Resistances (`RA`, `RAsnow`, `RB`, `RS`, `RSS_*`) are guarded by finite wind/friction-velocity floors or conductance caps in SUEWS (`src/suews/src/suews_phys_resist.f95`) and can legitimately move under physics changes, so they remain included in the threshold calculation. [fact: git grep -n "AVU1_use = MAX\|USTAR_GUARD" src/suews/src/suews_phys_resist.f95]
+Excluded diagnostics that move must still be refreshed in the fixture and listed in the PR's change table (marked as excluded near neutral stratification). [procedure: Principle 1]
+Any output-moving change that fails any `0-numerics:change` condition -- including a non-excluded variable reaching or exceeding `0.1%` relative change or `0.5 W m-2` absolute flux difference, a zero-to-nonzero shift, or an output shift from another cause -- is a **physics change** (`0-physics:change`) and requires the full scientific-evidence and sign-off gate. [decision: software maintainer, 2026-11-18]
 
 ### Neither class (no label required)
 
@@ -196,7 +200,7 @@ Instead, it MUST carry: [decision: software maintainer, 2026-11-18]
 
 Two mutually exclusive classification labels in the `0-` automation namespace: [decision: software maintainer, 2026-11-18]
 
-- `0-physics:change`: formulation change or reference shift at/above the numerical threshold; activates all four requirements (`## Scientific evidence`, domain-owner sign-off, fixture refresh, `physics-full` CI tier).
+- `0-physics:change`: formulation change, physics-affecting default change, or any output-moving / fixture-refreshing change that fails any `0-numerics:change` condition (including shifts at/above the numerical threshold or build-environment updates); activates all four requirements (`## Scientific evidence`, domain-owner sign-off, fixture refresh, `physics-full` CI tier).
 - `0-numerics:change`: constant precision, unit conversion, or floating-point representation only, with all non-excluded reference shifts below `0.1%` relative and `0.5 W m-2` absolute flux difference; activates fixture refresh, numerical change table, and `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off.
 - If a PR combines a formulation change with a constant clean-up, or if any non-excluded variable meets or exceeds the threshold, label the PR `0-physics:change` (or split the PR per `work-sizing.md`). [procedure: Principle 3]
 - Applied at PR triage (`triage-pr`) or by `audit-pr` when the diff matches the triggers above.
@@ -204,7 +208,7 @@ Two mutually exclusive classification labels in the `0-` automation namespace: [
 - Removing or downgrading a label (`0-physics:change` -> `0-numerics:change` or none) is a maintainer action and must state the verified reason (for example "refactor proven bit-identical" or "constant precision only; max flux delta 0.08 W m-2, max rel 0.09%"). [procedure: Principle 2]
 
 There is **no cosmetic bypass label** for reference-moving changes (unlike `0-ci:schema-audit-ok`): both labels require refreshing moved fixtures in the same PR and passing `physics-full`.
-A physics diff that genuinely moves no output needs neither label once `test_sample_output_exact.py` and the `slow` physics regressions pass unchanged.
+Only a verified formulation-preserving refactor with bit-for-bit identical output (see "Neither class" above; `test_sample_output_exact.py` and the `slow` physics regressions passing unchanged) carries neither label; a formulation change in an unexercised scheme still requires `0-physics:change`. [decision: software maintainer, 2026-11-18]
 
 ---
 
@@ -212,15 +216,15 @@ A physics diff that genuinely moves no output needs neither label once `test_sam
 
 When reviewing a PR that touches physics source, physics-affecting defaults, or vendored reference fixtures: [procedure: Principle 1, 2]
 
-- Classify the diff against the triggers above (`0-physics:change`, `0-numerics:change`, or bit-identical refactor).
+- Classify the diff against the triggers above (`0-physics:change`, `0-numerics:change`, or verified formulation-preserving bit-identical refactor).
 - For a **physics change** (`0-physics:change`):
-  - Confirm `0-physics:change` is present (propose/flag if missing; flag as `[blocking]` if `0-numerics:change` was applied to a formulation change or an above-threshold shift).
+  - Confirm `0-physics:change` is present alone (propose/flag if missing; flag as `[blocking]` if `0-numerics:change` was applied to a formulation, build-environment, or above-threshold change, or if both labels are present).
   - Confirm `## Scientific evidence` covers quantities + mechanism, before/after comparison, and expected sign/magnitude reasoning (a bare "outputs changed, fixture updated" is `[blocking]`).
   - Confirm domain-owner sign-off is present for any owned subsystem (`MAINTAINERS.md`) -> `[blocking]` until resolved.
   - Confirm all moved reference fixtures (and `provenance.json`) are refreshed in this PR (or an explicitly linked PR) and `physics-full` is green.
 - For a **numerical change** (`0-numerics:change`):
-  - Verify from the diff that no process formulation, equation, parameterisation form, partitioning, or calibrated coefficient changed.
-  - Confirm the PR body includes the per-variable change table (max absolute and max relative difference) and that every non-excluded variable is strictly below `0.1%` relative and `0.5 W m-2` absolute flux difference (`Lob`, `L_MOD_RSL`, `RS`, `RSS_*`, `RA`, `RAsnow`, `RB` may be excluded where their denominator approaches zero, if noted).
+  - Verify from the diff that no process formulation, equation, parameterisation form, partitioning, scheme dispatch, calibrated coefficient, or physics-affecting default changed, and that the change is restricted to constant precision, unit conversions, or floating-point representation.
+  - Confirm the PR body includes the per-variable change table (max absolute and max relative difference using the pointwise zero-reference rule above) and that every non-excluded variable is strictly below `0.1%` relative and `0.5 W m-2` absolute flux difference (only `Lob` and `L_MOD_RSL` on near-neutral divergent samples may be excluded, if noted; resistances such as `RA`, `RB`, and `RS` are not excluded).
   - Confirm all moved reference fixtures (and `provenance.json`) are refreshed in this PR and `physics-full` is green.
   - Do NOT require `## Scientific evidence` or domain-owner sign-off.
 
@@ -253,17 +257,19 @@ label. `test/core/test_sample_output_exact.py` closes that gap:
 - A change to that lane's build environment (a cibuildwheel bump that moves
   the pinned `manylinux2014` image, or a different compiler in it) therefore
   fails the check until the reference is refreshed from the lane's
-  `reference-regenerated` artefact, even when no physics changed. Such a refresh carries `0-numerics:change` (with the per-variable change table noting the build-environment bump) when all shifts sit within the numerical threshold, or `0-physics:change` if any shift reaches or exceeds it. [decision: software maintainer, 2026-11-18]
+  `reference-regenerated` artefact, even when no physics changed. Such a refresh
+  still carries `0-physics:change`, with a `## Scientific evidence` section saying the stored
+  values moved only through the build environment.
 - On a mismatch the lane uploads the regenerated shards and sidecar as the
   `reference-regenerated-cp312-manylinux-x86_64` artefact: the refresh for an
   intended change.
 - It is `core` and `medium`, so it runs on draft PRs as well as ready PRs and
   the merge queue.
-- The `Physics-change label` job (`check_physics_label`) fails a PR (through `pr-gate`) that changes a stored reference (the sample-output shards or `provenance.json`, the STEBBS and benchmark fixtures, `w16_most.csv`) without `0-physics:change` or `0-numerics:change`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
-  It warns, without failing, when `suews_phys_*.f95` changes without either label: a bit-identical refactor legitimately carries none, and one that moves the output already fails the exact check.
-  Labels are read from the API, so labelling the PR and re-running `check_physics_label` clears the label job (while `determine_matrix` on `pull_request` reads the event payload, so push a commit or close/reopen to trigger `physics-full` if the label was added after the PR opened).
+- The `Physics-change label` job (`check_physics_label`) fails a PR or `merge_group` run (through `pr-gate`) when stored references (`sample_output_2012-*.csv`, `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change without **exactly one** of `0-physics:change` or `0-numerics:change`, when a PR carries both labels simultaneously, when a constituent `merge_group` PR cannot be resolved for a reference change, or when a labelled ready PR / `merge_group` run did not execute `test_tier=physics-full`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
+  It warns, without failing, when `suews_phys_*.f95` changes without either label: a verified formulation-preserving refactor with bit-identical output legitimately carries none, and one that moves reference output already fails the exact check.
+  Both `determine_matrix` and `check_physics_label` query live PR labels via the GitHub API, and `.github/workflows/physics-label-rerun.yml` automatically re-runs the full wheel workflow on same-repo PRs when either classification label changes after `determine_matrix` has started (for fork PRs, a maintainer clicks "Re-run all jobs").
 
-Together: an output-moving change cannot merge without a refresh, and a refresh cannot merge without `0-physics:change` or `0-numerics:change`, both of which run `physics-full` while `audit-pr` and human review enforce the class-specific body and sign-off requirements.
+Together: an output-moving change cannot merge without a refresh, and a refresh cannot merge without carrying **exactly one** of `0-physics:change` or `0-numerics:change` on a green `physics-full` run while `audit-pr` and human review enforce the class-specific body and sign-off requirements.
 
 ## What `physics-full` adds over `standard`
 

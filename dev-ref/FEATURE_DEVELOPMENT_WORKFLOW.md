@@ -112,7 +112,7 @@ git worktree remove ../suews-fix-b
 Understanding how `.github/scripts/determine-matrix.sh` scales CI helps keep iteration fast:
 - **Python / util / tests / CI-only PRs** run on **`MINIMAL_PLATFORMS`** (`ubuntu-latest` `manylinux` `x86_64` only) during Draft (`smoke`) and Ready PR (`standard` or `smoke`) validation, saving macOS and Windows runner minutes.
 - **Fortran, Rust bridge, or build-system PRs** automatically widen to **`PR_PLATFORMS`** (Linux + macOS `arm64` + Windows `AMD64`) on Draft (`core` / `cfg`), Ready PR (`standard`), and Merge Queue runs.
-- **`0-physics:change` PRs** widen the physics axis to `physics-full` on Ready PRs and in the Merge Queue, and require a `## Scientific evidence` section, refreshed reference fixtures (`provenance.json` + shards), and subsystem-owner sign-off (see `.claude/rules/physics-change-evidence.md`).
+- **`0-physics:change` and `0-numerics:change` PRs** widen the physics axis to `physics-full` on Ready PRs and in the Merge Queue, and refresh moved reference fixtures (`provenance.json` + shards) in the same PR; `0-physics:change` requires `## Scientific evidence` and subsystem-owner sign-off, whereas `0-numerics:change` requires a per-variable numerical change table within threshold (see `.claude/rules/physics-change-evidence.md`).
 - **Nightly and Tag builds** build wheels on **`FULL_PLATFORMS`** (adding `macos-15-intel`) and run the `api` lanes on `NIGHTLY_API_PLATFORMS` (without `macos-15-intel`), across the `all` test tier.
 
 Isolating pure Python/schema/docs preparatory PRs from Fortran/Rust PRs therefore reduces CI turnaround time as well as review complexity.
@@ -143,7 +143,7 @@ Label each child with the repository's four-tier labels (`1-*`, `2-*`, `3-*`, `4
 - [ ] New files added to `meson.build`; `python scripts/suews/gen_fortran_deps.py` run if Fortran `USE` edges changed
 - [ ] Every new `test/**/*.py` file carries `pytestmark = pytest.mark.api` or `pytest.mark.physics`
 - [ ] `make format` and `make test-smoke` (plus `make test` where applicable) pass locally
-- [ ] `0-physics:change` + `## Scientific evidence` + fixture refresh included if any model output moved
+- [ ] Classification label (`0-physics:change` or `0-numerics:change`), matching PR-body section (`## Scientific evidence` or numerical change table), and same-PR fixture refresh included if model physics or reference outputs moved (`.claude/rules/physics-change-evidence.md`)
 - [ ] Schema version bumped and upgrader registered if `src/supy/data_model/` changed structurally
 
 ## See Also

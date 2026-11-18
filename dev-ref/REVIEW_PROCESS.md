@@ -59,20 +59,19 @@ Every PR carries:
 1. Exactly one `1-*` type label (`1-bug`, `1-feature`, `1-maintenance`, or `1-question`).
 2. One or more `2-*` area labels covering the touched subsystems.
 3. Any required `0-*` automation/classification labels:
-   - **`0-physics:change` (mandatory when physics or reference outputs move)**: Required whenever a PR touches physics source with numerical effect, alters a physics-affecting default/coefficient, or refreshes a reference fixture (`sample_output_2012-*.csv` + `provenance.json`, `sample_output_stebbs.csv`, `benchmark1/*.pkl`, `w16_most.csv`). CI's `Physics-change label` job fails PRs that modify reference fixtures without `0-physics:change`.
+   - **`0-physics:change` or `0-numerics:change` (mutually exclusive; mandatory when physics or reference outputs move)**: Classified per [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md). Any PR that alters process formulation, changes a physics-affecting default, or moves outputs outside the round-off numerical class carries `0-physics:change`; a constant-precision, unit-conversion, or floating-point-representation change strictly within `< 0.1%` relative and `< 0.5 W m-2` absolute flux difference carries `0-numerics:change`. CI's `Physics-change label` job fails PRs that modify reference fixtures (`sample_output_2012-*.csv` + `provenance.json`, `sample_output_stebbs.csv`, `benchmark1/*.pkl`, `w16_most.csv`) without **exactly one** of these labels.
    - **`0-pr:*` disposition labels** (`0-pr:advance`, `0-pr:continue`, `0-pr:deferred`, `0-pr:close-proposed`, `0-pr:escalate`) when triaged by `/triage-pr`.
    - Priority (`3-*`) and status (`4-*`) labels stay on the linked issue, not on the PR.
 
-### 3. Physics-Change Evidence Gate (`0-physics:change`)
+### 3. Physics and Numerical Change Gates (`0-physics:change` / `0-numerics:change`)
 
-Per [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), every `0-physics:change` PR MUST include:
-1. **A `## Scientific evidence` section in the PR body** documenting:
-   - Which physical quantities change and the physical mechanism chain.
-   - A before/after comparison (table or figure) of the affected outputs.
-   - Expected sign and magnitude reasoning explaining why the new values are physically right.
-2. **Domain-owner sign-off** where the rule requires it: the person in the "Sign-off required from" column of [`MAINTAINERS.md`](../MAINTAINERS.md), or the software maintainer for a module with no named owner, plus manual requests to the advisory reviewers listed there (see "Scientific Review Request" below).
-3. **Reference-fixture refresh in the same PR**, generated from the CI `reference-regenerated-cp312-manylinux-x86_64` artefact (`scripts/suews/gen_sample_output.py`, updating both the shards and `test/fixtures/data_test/provenance.json`).
-4. **Green `physics-full` CI tier** before merge (`determine-matrix.sh` automatically selects `test_tier=physics-full` on ready PRs and merge-queue runs carrying `0-physics:change`).
+Per [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md):
+- **Every `0-physics:change` PR** MUST include:
+  1. **A `## Scientific evidence` section in the PR body** documenting which physical quantities change and the physical mechanism chain, a before/after comparison (table or figure), and expected sign and magnitude reasoning.
+  2. **Domain-owner sign-off** where the rule requires it: the person in the "Sign-off required from" column of [`MAINTAINERS.md`](../MAINTAINERS.md), or the software maintainer for a module with no named owner, plus manual requests to the advisory reviewers listed there (see "Scientific Review Request" below).
+  3. **Reference-fixture refresh in the same PR**, generated from the CI `reference-regenerated-cp312-manylinux-x86_64` artefact (`scripts/suews/gen_sample_output.py`, updating both the shards and `test/fixtures/data_test/provenance.json`).
+  4. **Green `physics-full` CI tier** before merge (`determine-matrix.sh` automatically selects `test_tier=physics-full` on ready PRs and merge-queue runs carrying `0-physics:change` or `0-numerics:change`).
+- **Every `0-numerics:change` PR** (no process-formulation change; constant precision, unit conversions, or floating-point representation strictly within the threshold in [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md)) MUST include same-PR fixture refresh, a per-variable numerical change table in the PR body, and green `physics-full` CI, without requiring `## Scientific evidence` or domain-owner sign-off.
 
 ### 4. Scientific Review Request
 
@@ -115,7 +114,7 @@ Reviewers (human maintainers, domain experts, and `/audit-pr`) check:
 ### 6. Merge Criteria (`/queue-pr`)
 
 PRs enter the GitHub merge queue (always human-gated; never pushed directly to `master`) when:
-- Required CI gates (`pr-gate`, including `physics-full` when `0-physics:change` is present) are green.
+- Required CI gates (`pr-gate`, including `physics-full` when `0-physics:change` or `0-numerics:change` is present) are green.
 - Code review is approved and all review threads have converged (`.claude/rules/review-convergence.md`).
 - Required domain-owner sign-off is recorded for any `0-physics:change` PR.
 - Documentation and `CHANGELOG.md` (where applicable) are updated.
@@ -124,7 +123,7 @@ PRs enter the GitHub merge queue (always human-gated; never pushed directly to `
 
 For PRs authored or reviewed with coding agents:
 1. Agents follow `.claude/rules/autonomous-workflow.md`: merging/enqueuing, closing issues, force-pushing unowned branches, and posting onto third-party PRs are **always human-gated**.
-2. `0-physics:change` PRs always require human domain-owner / maintainer sign-off; there is no cosmetic bypass label for the physics evidence gate.
+2. `0-physics:change` PRs always require human domain-owner / maintainer sign-off, and neither `0-physics:change` nor `0-numerics:change` has a cosmetic bypass label.
 3. Verify physical mechanisms and numerical evidence directly rather than trusting plausible prose.
 
 ## Physics Module Labels (`2-module:*`)

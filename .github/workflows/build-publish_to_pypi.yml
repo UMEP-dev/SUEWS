@@ -333,44 +333,60 @@ jobs:
 
       # gh#1576: detect 0-physics:change or 0-numerics:change so the matrix runs
       # the full -m physics tier (incl. slow) before merge rather than only in the
-      # nightly. On a PR the labels are in the event payload; in the merge queue
-      # the queue ref (gh-readonly-queue/<base>/pr-<n>-<sha>) carries the PR
-      # number, which we validate before querying the API.
+      # nightly. Query live PR labels from the API in both pull_request and
+      # merge_group contexts so determine_matrix and check_physics_label always
+      # see the same label state, including on workflow reruns after a late label.
       - name: Detect physics or numerics change label
         id: physics-label
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          PR_LABELS_JSON: ${{ github.event_name == 'pull_request' && toJSON(github.event.pull_request.labels.*.name) || '[]' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
           REPO: ${{ github.repository }}
           LABELS_JSON: '["0-physics:change", "0-numerics:change"]'
         run: |
           set -euo pipefail
           found=false
           matched=""
+          pr_nums=""
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            # Labels arrive as a JSON array; match exact names via jq (label names
-            # may contain spaces or colons, so avoid newline/word splitting).
-            matched="$(printf '%s' "$PR_LABELS_JSON" | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
-            if [[ -n "$matched" ]]; then
-              found=true
+            if [[ "${PR_NUMBER:-}" =~ ^[0-9]+$ ]]; then
+              pr_nums="$PR_NUMBER"
             fi
           elif [[ "$EVENT_NAME" == "merge_group" ]]; then
-            pr_num="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
-            if [[ "$pr_num" =~ ^[0-9]+$ ]]; then
-              matched="$(gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]' \
-                | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
-              if [[ -n "$matched" ]]; then
-                found=true
-              fi
-            else
-              # Could not identify the queued PR (e.g. a batched group). Fail
-              # safe: run the full physics tier rather than risk missing a shift.
-              echo "::notice::merge_group PR number not parsed from queue ref; running full physics tier as a safe default"
-              found=true
+            parsed_pr="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            if [[ "$parsed_pr" =~ ^[0-9]+$ ]]; then
+              pr_nums="$parsed_pr"
+            elif [[ -n "${MERGE_BASE_SHA:-}" && -n "${MERGE_HEAD_SHA:-}" ]]; then
+              shas="$(gh api "repos/${REPO}/compare/${MERGE_BASE_SHA}...${MERGE_HEAD_SHA}" --jq '.commits[].sha' || true)"
+              raw_prs=""
+              for sha in $shas; do
+                pulls="$(gh api "repos/${REPO}/commits/${sha}/pulls" --jq '.[].number' || true)"
+                raw_prs="${raw_prs}"$'\n'"${pulls}"
+              done
+              pr_nums="$(printf '%s\n' "$raw_prs" | grep -E '^[0-9]+$' | sort -u | tr '\n' ' ' | sed 's/ *$//' || true)"
             fi
+          fi
+
+          if [[ -n "$pr_nums" ]]; then
+            for num in $pr_nums; do
+              m="$(gh api "repos/${REPO}/issues/${num}/labels" --jq '[.[].name]' \
+                | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
+              if [[ -n "$m" ]]; then
+                found=true
+                matched="${matched:+${matched}; }#${num}: ${m}"
+              fi
+            done
+          elif [[ "$EVENT_NAME" == "merge_group" ]]; then
+            # Could not identify the queued PR(s). Fail safe for matrix selection:
+            # run the full physics tier rather than risk missing a shift;
+            # check_physics_label still enforces fixture classification.
+            echo "::notice::merge_group PR number(s) not resolved from queue ref; running full physics tier as a safe default"
+            found=true
           fi
           echo "found=$found" >> "$GITHUB_OUTPUT"
           echo "physics/numerics-change label present: $found (${matched:-none})"
@@ -941,20 +957,21 @@ jobs:
   # or numerical change (.claude/rules/physics-change-evidence.md). The exact
   # sample-output check (test/core/test_sample_output_exact.py) fails any PR
   # whose run moves a stored value, so the only way to land such a change is to
-  # refresh the reference in the same PR; this job then requires 0-physics:change
-  # or 0-numerics:change on that refresh. A physics source change without either
-  # label is only a warning: a bit-identical refactor legitimately carries no
-  # label, and one that moves the output is already caught by the exact check.
+  # refresh the reference in the same PR; this job then requires exactly one of
+  # 0-physics:change or 0-numerics:change on that refresh, rejects both together,
+  # resolves constituent PRs on batched merge_group refs (failing if reference
+  # outputs changed on an unresolved ref), and verifies that determine_matrix
+  # actually selected test_tier=physics-full on ready PRs and merge_group runs.
   #
-  # Labels are read from the API, not from the event payload: a re-run reuses
-  # the original payload, so labelling the PR and re-running this job would
-  # otherwise still see the old labels. The PR number of a merge-queue entry
-  # comes from its queue ref, as in determine_matrix. Job id and display name
-  # stay unchanged so pr-gate and branch-protection references do not break.
+  # Both determine_matrix and this job read live PR labels from the API, and
+  # physics-label-rerun.yml re-triggers the full workflow when either label
+  # changes. Job id and display name stay unchanged so pr-gate and
+  # branch-protection references do not break.
   check_physics_label:
     name: Physics-change label
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    needs: [determine_matrix]
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     steps:
       - name: Check reference and physics changes against the label
         env:
@@ -962,49 +979,131 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          DETERMINE_MATRIX_RESULT: ${{ needs.determine_matrix.result }}
+          TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
           MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
           LABELS_JSON: '["0-physics:change", "0-numerics:change"]'
         run: |
           set -euo pipefail
+          ref_regex='^test/fixtures/(data_test/(sample_output_2012-[0-9]{2}\.csv|provenance\.json|stebbs_test/.+)|benchmark1/.+|w16_most\.csv)$'
+          phys_regex='^src/suews/src/suews_phys_[^/]+\.f9[05]$'
+
+          if [[ "${DETERMINE_MATRIX_RESULT:-}" != "success" ]]; then
+            echo "::error::determine_matrix did not succeed (result=${DETERMINE_MATRIX_RESULT:-unset}); cannot verify physics-full tier alignment."
+            exit 1
+          fi
+
+          pr_nums=""
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            pr_num="$PR_NUMBER"
-            files="$(gh api --paginate "repos/${REPO}/pulls/${pr_num}/files" --jq '.[].filename')"
+            pr_nums="$PR_NUMBER"
+            files="$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files" --jq '.[].filename')"
           else
-            pr_num="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
             files="$(gh api "repos/${REPO}/compare/${MERGE_BASE_SHA}...${MERGE_HEAD_SHA}" --jq '.files[].filename')"
-          fi
-
-          found=false
-          matched=""
-          if [[ "$pr_num" =~ ^[0-9]+$ ]]; then
-            matched="$(gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]' \
-              | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
-            if [[ -n "$matched" ]]; then
-              found=true
+            parsed_pr="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            if [[ "$parsed_pr" =~ ^[0-9]+$ ]]; then
+              pr_nums="$parsed_pr"
+            elif [[ -n "${MERGE_BASE_SHA:-}" && -n "${MERGE_HEAD_SHA:-}" ]]; then
+              shas="$(gh api "repos/${REPO}/compare/${MERGE_BASE_SHA}...${MERGE_HEAD_SHA}" --jq '.commits[].sha' || true)"
+              raw_prs=""
+              for sha in $shas; do
+                pulls="$(gh api "repos/${REPO}/commits/${sha}/pulls" --jq '.[].number' || true)"
+                raw_prs="${raw_prs}"$'\n'"${pulls}"
+              done
+              pr_nums="$(printf '%s\n' "$raw_prs" | grep -E '^[0-9]+$' | sort -u | tr '\n' ' ' | sed 's/ *$//' || true)"
             fi
-          else
-            echo "::notice::merge_group PR number not parsed from queue ref; label check passed as a safe default"
-            found=true
           fi
-          echo "reference-change label present: ${found} (${matched:-none})"
 
-          reference="$(printf '%s\n' "$files" | grep -E '^test/fixtures/(data_test/(sample_output_2012-[0-9]{2}\.csv|provenance\.json|stebbs_test/.+)|benchmark1/.+|w16_most\.csv)$' || true)"
-          physics="$(printf '%s\n' "$files" | grep -E '^src/suews/src/suews_phys_[^/]+\.f9[05]$' || true)"
+          reference="$(printf '%s\n' "$files" | grep -E "$ref_regex" || true)"
+          physics="$(printf '%s\n' "$files" | grep -E "$phys_regex" || true)"
 
           status=0
-          if [[ -n "$reference" && "$found" != "true" ]]; then
-            echo "::error::This PR changes stored reference outputs without 0-physics:change or 0-numerics:change. Add the appropriate label and PR-body section (.claude/rules/physics-change-evidence.md), then re-run this job."
-            printf '  %s\n' $reference
-            status=1
+          any_label=false
+          matched_summary=""
+          covered_refs=""
+
+          if [[ -z "$pr_nums" ]]; then
+            if [[ -n "$reference" ]]; then
+              echo "::error::merge_group PR number(s) could not be resolved from ${MERGE_HEAD_REF}, so classification labels on changed reference outputs cannot be verified."
+              printf '  %s\n' $reference
+              exit 1
+            fi
+            echo "::notice::merge_group PR number(s) not resolved from queue ref; no stored reference outputs changed"
+            echo "[OK] No reference outputs changed on unresolved queue ref"
+            exit 0
           fi
-          if [[ -n "$physics" && "$found" != "true" ]]; then
-            echo "::warning::This PR touches physics source without 0-physics:change or 0-numerics:change. Fine for a bit-identical refactor (the exact sample-output check confirms it); otherwise label it and refresh the reference."
-            printf '  %s\n' $physics
+
+          pr_count="$(printf '%s\n' $pr_nums | wc -l | tr -d ' ')"
+          for num in $pr_nums; do
+            labels_json="$(gh api "repos/${REPO}/issues/${num}/labels" --jq '[.[].name]')"
+            matched="$(printf '%s' "$labels_json" | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
+            count="$(printf '%s' "$labels_json" | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | length')"
+
+            if [[ "$pr_count" -eq 1 ]]; then
+              pr_files="$files"
+            else
+              pr_files="$(gh api --paginate "repos/${REPO}/pulls/${num}/files" --jq '.[].filename')"
+            fi
+            pr_ref="$(printf '%s\n' "$pr_files" | grep -E "$ref_regex" || true)"
+            pr_phys="$(printf '%s\n' "$pr_files" | grep -E "$phys_regex" || true)"
+
+            echo "PR #${num} classification label(s): ${matched:-none} (count=${count})"
+
+            if [[ "$count" -gt 1 ]]; then
+              echo "::error::PR #${num} carries both 0-physics:change and 0-numerics:change (${matched}). These labels are mutually exclusive (.claude/rules/physics-change-evidence.md); keep only one."
+              status=1
+            elif [[ "$count" -eq 1 ]]; then
+              any_label=true
+              matched_summary="${matched_summary:+${matched_summary}; }#${num}: ${matched}"
+              if [[ -n "$pr_ref" ]]; then
+                covered_refs="${covered_refs}"$'\n'"${pr_ref}"
+              fi
+            else
+              if [[ -n "$pr_ref" ]]; then
+                echo "::error::PR #${num} changes stored reference outputs without 0-physics:change or 0-numerics:change. Add exactly one label with the matching PR-body section (.claude/rules/physics-change-evidence.md), then re-run all jobs in this workflow so determine_matrix selects physics-full."
+                printf '  %s\n' $pr_ref
+                status=1
+              fi
+              if [[ -n "$pr_phys" ]]; then
+                echo "::warning::PR #${num} touches physics source without 0-physics:change or 0-numerics:change. Fine only for a verified formulation-preserving refactor with bit-identical output (confirmed by the exact sample-output check); any formulation change or output shift must carry the appropriate label."
+                printf '  %s\n' $pr_phys
+              fi
+            fi
+          done
+
+          if [[ -n "$reference" ]]; then
+            uncovered="$(jq -rn --arg ref "$reference" --arg cov "$covered_refs" '
+              ($cov | split("\n") | map(select(length > 0))) as $c
+              | $ref | split("\n") | map(select(length > 0 and (. as $f | ($c | index($f)) == null)))
+              | join("\n")
+            ')"
+            if [[ -n "$uncovered" && "$status" -eq 0 ]]; then
+              echo "::error::Changed stored reference outputs in merge_group are not covered by a constituent PR carrying 0-physics:change or 0-numerics:change:"
+              printf '  %s\n' $uncovered
+              status=1
+            fi
           fi
-          [[ "$found" == "true" && ( -n "$reference" || -n "$physics" ) ]] && echo "[OK] Reference and physics changes carry ${matched:-a qualifying label}"
-          [[ -z "$reference" && -z "$physics" ]] && echo "[OK] No reference outputs or physics source changed"
+
+          if [[ "$any_label" == "true" ]]; then
+            if [[ "$EVENT_NAME" == "merge_group" || "${IS_DRAFT:-false}" != "true" ]]; then
+              if [[ "${TEST_TIER:-}" != "physics-full" ]]; then
+                echo "::error::Classification label present (${matched_summary}), which requires test_tier=physics-full, but this workflow run used test_tier=${TEST_TIER:-unset} because the label was added after determine_matrix ran. Re-run all jobs in this workflow (not just this job), or push/reopen, so determine_matrix and build_wheels run physics-full."
+                status=1
+              fi
+            fi
+          fi
+
+          if [[ "$status" -eq 0 ]]; then
+            if [[ "$any_label" == "true" && ( -n "$reference" || -n "$physics" ) ]]; then
+              echo "[OK] Reference and physics changes carry ${matched_summary}"
+            elif [[ "$any_label" == "true" ]]; then
+              echo "[OK] Classification label verified (${matched_summary})"
+            elif [[ -z "$reference" && -z "$physics" ]]; then
+              echo "[OK] No reference outputs or physics source changed"
+            fi
+          fi
           exit $status
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)

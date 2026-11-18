@@ -909,13 +909,50 @@ def _write_gh_stub(bin_dir: Path) -> None:
     stub = bin_dir / "gh"
     stub.write_text(
         "#!/usr/bin/env python3\n"
+        "import json\n"
         "import os\n"
+        "import re\n"
         "import sys\n"
+        "from pathlib import Path\n"
         "args = ' '.join(sys.argv[1:])\n"
-        "if '/labels' in args:\n"
-        "    sys.stdout.write(os.environ.get('FAKE_GH_LABELS_JSON', '[]') + '\\n')\n"
-        "elif '/files' in args or '/compare/' in args:\n"
-        "    sys.stdout.write(os.environ.get('FAKE_GH_FILES', '') + '\\n')\n"
+        "log_path = os.environ.get('FAKE_GH_CALL_LOG')\n"
+        "if log_path:\n"
+        "    with Path(log_path).open('a', encoding='utf-8') as fh:\n"
+        "        fh.write(args + '\\n')\n"
+        "m_lbl = re.search(r'/issues/(\\d+)/labels', args)\n"
+        "m_pr_files = re.search(r'/pulls/(\\d+)/files', args)\n"
+        "m_commit_pulls = re.search(r'/commits/([^/]+)/pulls', args)\n"
+        "if m_lbl:\n"
+        "    by_pr = json.loads(os.environ.get('FAKE_GH_LABELS_BY_PR', '{}'))\n"
+        "    pr = m_lbl.group(1)\n"
+        "    if pr in by_pr:\n"
+        "        sys.stdout.write(json.dumps(by_pr[pr]) + '\\n')\n"
+        "    else:\n"
+        "        sys.stdout.write(os.environ.get('FAKE_GH_LABELS_JSON', '[]') + '\\n')\n"
+        "elif m_pr_files:\n"
+        "    by_pr = json.loads(os.environ.get('FAKE_GH_FILES_BY_PR', '{}'))\n"
+        "    pr = m_pr_files.group(1)\n"
+        "    if pr in by_pr:\n"
+        "        sys.stdout.write('\\n'.join(by_pr[pr]) + '\\n')\n"
+        "    else:\n"
+        "        sys.stdout.write(os.environ.get('FAKE_GH_FILES', '') + '\\n')\n"
+        "elif '/compare/' in args:\n"
+        "    if '.commits[].sha' in args:\n"
+        "        sys.stdout.write(os.environ.get('FAKE_GH_COMPARE_SHAS', '') + '\\n')\n"
+        "    else:\n"
+        "        sys.stdout.write(os.environ.get('FAKE_GH_FILES', '') + '\\n')\n"
+        "elif m_commit_pulls:\n"
+        "    by_sha = json.loads(os.environ.get('FAKE_GH_COMMIT_PULLS', '{}'))\n"
+        "    nums = by_sha.get(m_commit_pulls.group(1), [])\n"
+        "    sys.stdout.write('\\n'.join(str(n) for n in nums) + ('\\n' if nums else ''))\n"
+        "elif '/actions/workflows/build-publish_to_pypi.yml/runs' in args:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_GH_RUNS_JSON', '{\"workflow_runs\": []}') + '\\n')\n"
+        "elif re.search(r'/actions/runs/\\d+/jobs', args):\n"
+        "    sys.stdout.write(os.environ.get('FAKE_GH_JOBS_JSON', '{\"jobs\": []}') + '\\n')\n"
+        "elif re.search(r'-X POST .*/actions/runs/\\d+/(cancel|rerun)$', args):\n"
+        "    sys.stdout.write('{}\\n')\n"
+        "elif re.search(r'/actions/runs/\\d+', args) and '.status' in args:\n"
+        "    sys.stdout.write('completed\\n')\n"
         "else:\n"
         "    sys.exit(f'unexpected gh call: {args}')\n",
         encoding="utf-8",
@@ -931,39 +968,57 @@ def _write_gh_stub(bin_dir: Path) -> None:
     reason="Workflow shell steps run under bash + jq on Linux CI",
 )
 @pytest.mark.parametrize(
-    ("event_name", "labels", "head_ref", "expected"),
+    ("event_name", "api_labels", "head_ref", "commit_pulls", "expected"),
     [
-        ("pull_request", ["0-physics:change"], "", "true"),
-        ("pull_request", ["1-maintenance", "0-numerics:change"], "", "true"),
-        ("pull_request", ["1-maintenance", "2-meta:governance"], "", "false"),
+        ("pull_request", ["0-physics:change"], "", {}, "true"),
+        ("pull_request", ["1-maintenance", "0-numerics:change"], "", {}, "true"),
+        ("pull_request", ["1-maintenance", "2-meta:governance"], "", {}, "false"),
         (
             "merge_group",
             ["0-numerics:change"],
             "refs/heads/gh-readonly-queue/master/pr-42-deadbeef",
+            {},
             "true",
         ),
         (
             "merge_group",
             ["1-maintenance"],
             "refs/heads/gh-readonly-queue/master/pr-42-deadbeef",
+            {},
+            "false",
+        ),
+        (
+            "merge_group",
+            ["0-numerics:change"],
+            "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+            {"sha1": [42]},
+            "true",
+        ),
+        (
+            "merge_group",
+            ["1-maintenance"],
+            "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+            {"sha1": [42]},
             "false",
         ),
         (
             "merge_group",
             [],
             "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+            {},
             "true",
         ),
     ],
 )
-def test_determine_matrix_label_step_accepts_physics_and_numerics_labels(
+def test_determine_matrix_label_step_reads_live_api_labels(
     tmp_path: Path,
     event_name: str,
-    labels: list[str],
+    api_labels: list[str],
     head_ref: str,
+    commit_pulls: dict[str, list[int]],
     expected: str,
 ) -> None:
-    """Both 0-physics:change and 0-numerics:change trigger the physics-full flag."""
+    """Live API labels drive physics-full selection across PR and merge_group contexts."""
     # ARRANGE
     root = Path(__file__).resolve().parents[2]
     workflow = yaml.safe_load(
@@ -976,6 +1031,7 @@ def test_determine_matrix_label_step_accepts_physics_and_numerics_labels(
         for s in workflow["jobs"]["determine_matrix"]["steps"]
         if s.get("id") == "physics-label"
     )
+    assert "PR_LABELS_JSON" not in step["env"]
     assert json.loads(step["env"]["LABELS_JSON"]) == [
         "0-physics:change",
         "0-numerics:change",
@@ -992,9 +1048,13 @@ def test_determine_matrix_label_step_accepts_physics_and_numerics_labels(
         "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
         "GITHUB_OUTPUT": str(gh_out),
         "EVENT_NAME": event_name,
-        "PR_LABELS_JSON": json.dumps(labels),
-        "FAKE_GH_LABELS_JSON": json.dumps(labels),
+        "PR_NUMBER": "42",
+        "FAKE_GH_LABELS_JSON": json.dumps(api_labels),
+        "FAKE_GH_COMPARE_SHAS": "\n".join(commit_pulls),
+        "FAKE_GH_COMMIT_PULLS": json.dumps(commit_pulls),
         "MERGE_HEAD_REF": head_ref,
+        "MERGE_BASE_SHA": "base000" if commit_pulls else "",
+        "MERGE_HEAD_SHA": "head111" if commit_pulls else "",
         "REPO": "UMEP-dev/SUEWS",
         "LABELS_JSON": step["env"]["LABELS_JSON"],
     }
@@ -1025,43 +1085,205 @@ def test_determine_matrix_label_step_accepts_physics_and_numerics_labels(
     reason="Workflow shell steps run under bash + jq on Linux CI",
 )
 @pytest.mark.parametrize(
-    ("files", "labels", "expected_rc", "expected_substring"),
+    "case",
     [
-        (
-            "test/fixtures/data_test/sample_output_2012-01.csv",
-            ["1-maintenance"],
-            1,
-            "without 0-physics:change or 0-numerics:change",
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels_by_pr": {"42": ["1-maintenance"]},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 1,
+                "expected_substring": "without 0-physics:change or 0-numerics:change",
+            },
+            id="pr-unlabelled-ref-fails",
         ),
-        (
-            "test/fixtures/data_test/sample_output_2012-01.csv\n"
-            "test/fixtures/data_test/provenance.json",
-            ["1-maintenance", "0-numerics:change"],
-            0,
-            "[OK] Reference and physics changes carry 0-numerics:change",
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "files": (
+                    "test/fixtures/data_test/sample_output_2012-01.csv\n"
+                    "test/fixtures/data_test/provenance.json"
+                ),
+                "labels_by_pr": {"42": ["1-maintenance", "0-numerics:change"]},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="pr-numerics-physics-full-passes",
         ),
-        (
-            "test/fixtures/w16_most.csv",
-            ["1-bug", "0-physics:change"],
-            0,
-            "[OK] Reference and physics changes carry 0-physics:change",
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels_by_pr": {"42": ["1-bug", "0-physics:change"]},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-physics:change"
+                ),
+            },
+            id="pr-physics-physics-full-passes",
         ),
-        (
-            "src/suews/src/suews_phys_ohm.f95",
-            ["1-maintenance"],
-            0,
-            "::warning::This PR touches physics source without 0-physics:change or 0-numerics:change",
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels_by_pr": {"42": ["1-maintenance", "0-numerics:change"]},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 1,
+                "expected_substring": (
+                    "requires test_tier=physics-full, but this workflow run used test_tier=smoke"
+                ),
+            },
+            id="pr-late-label-without-physics-full-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "true",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels_by_pr": {"42": ["1-maintenance", "0-numerics:change"]},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="draft-pr-numerics-smoke-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels_by_pr": {"42": ["0-physics:change", "0-numerics:change"]},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="pr-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "files": "src/suews/src/suews_phys_ohm.f95",
+                "labels_by_pr": {"42": ["1-maintenance"]},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 0,
+                "expected_substring": (
+                    "::warning::PR #42 touches physics source without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="pr-unlabelled-physics-warns",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+                "files": "README.md\ntest/fixtures/w16_most.csv",
+                "labels_by_pr": {"41": ["1-maintenance"], "42": ["0-numerics:change"]},
+                "files_by_pr": {
+                    "41": ["README.md"],
+                    "42": ["test/fixtures/w16_most.csv"],
+                },
+                "commit_pulls": {"sha1": [41], "sha2": [42]},
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="mq-batch-resolved-labelled-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+                "files": "README.md\ntest/fixtures/w16_most.csv",
+                "labels_by_pr": {"41": ["0-numerics:change"], "42": ["1-maintenance"]},
+                "files_by_pr": {
+                    "41": ["README.md"],
+                    "42": ["test/fixtures/w16_most.csv"],
+                },
+                "commit_pulls": {"sha1": [41], "sha2": [42]},
+                "expected_rc": 1,
+                "expected_substring": (
+                    "PR #42 changes stored reference outputs without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="mq-batch-resolved-unlabelled-fixture-pr-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+                "files": "test/fixtures/w16_most.csv",
+                "labels_by_pr": {},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 1,
+                "expected_substring": "merge_group PR number(s) could not be resolved",
+            },
+            id="mq-unresolved-ref-with-fixture-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+                "files": "README.md",
+                "labels_by_pr": {},
+                "files_by_pr": {},
+                "commit_pulls": {},
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] No reference outputs changed on unresolved queue ref"
+                ),
+            },
+            id="mq-unresolved-ref-without-fixture-passes",
         ),
     ],
 )
-def test_check_physics_label_gate_accepts_either_classification_label(
+def test_check_physics_label_gate_enforces_exclusivity_tier_and_queue_refs(
     tmp_path: Path,
-    files: str,
-    labels: list[str],
-    expected_rc: int,
-    expected_substring: str,
+    case: dict[str, object],
 ) -> None:
-    """Reference refreshes pass with 0-physics:change or 0-numerics:change and fail unlabelled."""
+    """Fixture refreshes require exactly one classification label and a physics-full run."""
     # ARRANGE
     root = Path(__file__).resolve().parents[2]
     workflow = yaml.safe_load(
@@ -1069,7 +1291,9 @@ def test_check_physics_label_gate_accepts_either_classification_label(
             encoding="utf-8"
         )
     )
-    step = workflow["jobs"]["check_physics_label"]["steps"][0]
+    job = workflow["jobs"]["check_physics_label"]
+    assert job["needs"] == ["determine_matrix"]
+    step = job["steps"][0]
     assert json.loads(step["env"]["LABELS_JSON"]) == [
         "0-physics:change",
         "0-numerics:change",
@@ -1079,18 +1303,27 @@ def test_check_physics_label_gate_accepts_either_classification_label(
     bin_dir.mkdir()
     _write_gh_stub(bin_dir)
 
+    event_name = str(case["event_name"])
+    commit_pulls = case["commit_pulls"]
+    assert isinstance(commit_pulls, dict)
     env = {
         **os.environ,
         "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
-        "EVENT_NAME": "pull_request",
+        "EVENT_NAME": event_name,
         "REPO": "UMEP-dev/SUEWS",
         "PR_NUMBER": "42",
-        "MERGE_HEAD_REF": "",
-        "MERGE_BASE_SHA": "",
-        "MERGE_HEAD_SHA": "",
+        "IS_DRAFT": str(case["is_draft"]),
+        "DETERMINE_MATRIX_RESULT": "success",
+        "TEST_TIER": str(case["test_tier"]),
+        "MERGE_HEAD_REF": str(case["head_ref"]),
+        "MERGE_BASE_SHA": "base000" if event_name == "merge_group" else "",
+        "MERGE_HEAD_SHA": "head111" if event_name == "merge_group" else "",
         "LABELS_JSON": step["env"]["LABELS_JSON"],
-        "FAKE_GH_FILES": files,
-        "FAKE_GH_LABELS_JSON": json.dumps(labels),
+        "FAKE_GH_FILES": str(case["files"]),
+        "FAKE_GH_LABELS_BY_PR": json.dumps(case["labels_by_pr"]),
+        "FAKE_GH_FILES_BY_PR": json.dumps(case["files_by_pr"]),
+        "FAKE_GH_COMPARE_SHAS": "\n".join(commit_pulls),
+        "FAKE_GH_COMMIT_PULLS": json.dumps(commit_pulls),
     }
 
     # ACT
@@ -1103,8 +1336,102 @@ def test_check_physics_label_gate_accepts_either_classification_label(
     )
 
     # ASSERT
-    assert result.returncode == expected_rc, result.stdout + result.stderr
-    assert expected_substring in result.stdout
+    assert result.returncode == case["expected_rc"], result.stdout + result.stderr
+    assert str(case["expected_substring"]) in result.stdout
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(
+    sys.platform == "win32"
+    or shutil.which("bash") is None
+    or shutil.which("jq") is None,
+    reason="Workflow shell steps run under bash + jq on Linux CI",
+)
+def test_physics_label_rerun_workflow_retriggers_late_label_changes(
+    tmp_path: Path,
+) -> None:
+    """Late classification-label changes re-run build-publish_to_pypi.yml cleanly."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/physics-label-rerun.yml").read_text(encoding="utf-8")
+    )
+    path_filters = (root / ".github/path-filters.yml").read_text(encoding="utf-8")
+    assert "- '.github/workflows/physics-label-rerun.yml'" in path_filters
+    assert workflow[True]["pull_request"]["types"] == ["labeled", "unlabeled"]
+
+    job = workflow["jobs"]["retrigger-wheel-ci"]
+    assert "0-physics:change" in job["if"]
+    assert "0-numerics:change" in job["if"]
+    step = job["steps"][0]
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _write_gh_stub(bin_dir)
+    call_log = tmp_path / "gh_calls.log"
+
+    base_env = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
+        "FAKE_GH_CALL_LOG": str(call_log),
+        "REPO": "UMEP-dev/SUEWS",
+        "HEAD_REPO": "UMEP-dev/SUEWS",
+        "HEAD_SHA": "abc1234",
+        "ACTION": "labeled",
+        "LABEL_NAME": "0-numerics:change",
+    }
+
+    # ACT 1: completed run is re-triggered via /rerun
+    call_log.write_text("", encoding="utf-8")
+    done_res = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env={
+            **base_env,
+            "FAKE_GH_RUNS_JSON": json.dumps({
+                "workflow_runs": [{"id": 9001, "status": "completed"}]
+            }),
+            "FAKE_GH_JOBS_JSON": json.dumps({
+                "jobs": [{"name": "Determine build matrix", "status": "completed"}]
+            }),
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "[OK] Re-triggered run 9001" in done_res.stdout
+    assert "/actions/runs/9001/rerun" in call_log.read_text(encoding="utf-8")
+
+    # ACT 2: run whose Determine build matrix is still queued is left alone
+    call_log.write_text("", encoding="utf-8")
+    queued_res = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env={
+            **base_env,
+            "FAKE_GH_RUNS_JSON": json.dumps({
+                "workflow_runs": [{"id": 9002, "status": "in_progress"}]
+            }),
+            "FAKE_GH_JOBS_JSON": json.dumps({
+                "jobs": [{"name": "Determine build matrix", "status": "queued"}]
+            }),
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "will query live labels directly" in queued_res.stdout
+    assert "/rerun" not in call_log.read_text(encoding="utf-8")
+
+    # ACT 3: fork PR emits notice without calling /rerun
+    call_log.write_text("", encoding="utf-8")
+    fork_res = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env={**base_env, "HEAD_REPO": "fork-user/SUEWS"},
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "::notice::PR is from a fork" in fork_res.stdout
+    assert not call_log.read_text(encoding="utf-8")
 
 
 @pytest.mark.smoke

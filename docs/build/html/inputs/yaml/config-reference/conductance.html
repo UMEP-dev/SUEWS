@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for conductance parameters" name="description" />
 <meta content="SUEWS, YAML, conductance, parameters, configuration" name="keywords" />
 
-    <title>4.6.8. Conductance &#8212; SUEWS 2026.11.17.dev5 documentation</title>
+    <title>4.6.8. Conductance &#8212; SUEWS 2026.11.17.dev7 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=2533b049"></script>
+    <script src="../../../_static/documentation_options.js?v=89bbb232"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.7. CO2 Emissions" href="co2params.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.17.dev5" />
+  <meta name="docsearch:version" content="2026.11.17.dev7" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.17.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87a36f34da5eb5ab55a90b79956c279b301c0fa6" style="color: #31708f;">87a36f3</a>).
+        (2026.11.17.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e79b92b00aff728be963557c5c88e1fc11d90c26" style="color: #31708f;">e79b92b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.17.dev5 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.17.dev5 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.17.dev7 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.17.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -580,10 +580,10 @@ which is critical for calculating evapotranspiration rates.</p>
 <dl class="input option" id="index-1">
 <dt class="sig sig-object input" id="input-option-g_max">
 <span class="sig-name descname"><span class="pre">g_max</span></span><a class="headerlink" href="#input-option-g_max" title="Link to this definition">#</a></dt>
-<dd><p>Maximum surface conductance for photosynthesis</p>
+<dd><p>Fitted scaling coefficient for surface conductance: it multiplies the product of the environmental response functions and the LAI-weighted sum of the per-surface maximum conductances (max_conductance). It is not itself a conductance.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm s<sup>-1</sup></p>
+<dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>Required when a vegetated surface using these parameters is present (<code class="docutils literal notranslate"><span class="pre">sfr</span></code> above zero for <code class="docutils literal notranslate"><span class="pre">grass</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code> or <code class="docutils literal notranslate"><span class="pre">evetr</span></code>)</p>
@@ -603,15 +603,15 @@ which is critical for calculating evapotranspiration rates.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">16.4764</span></code> mm s<sup>-1</sup></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">16.4764</span></code> 1</p></td>
 <td><p>Unspecified; vegetation; Jarvi et al. (2011) default; gs_model=1</p></td>
 <td><p><span class="bibtex-citation" id="id2">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3.5</span></code> mm s<sup>-1</sup></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3.5</span></code> 1</p></td>
 <td><p>Unspecified; vegetation; Ward et al. (2016) sample run; gs_model=2</p></td>
 <td><p><span class="bibtex-citation" id="id3">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">23.53</span></code> mm s<sup>-1</sup></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">23.53</span></code> 1</p></td>
 <td><p>Unspecified; vegetation; pine forest; gs_model=1</p></td>
 <td><p><span class="bibtex-citation" id="id4">Stewart [<a class="reference internal" href="../../../references.html#id111" title="Stewart, J. B. Modelling surface conductance of pine forest. Agricultural and Forest Meteorology, 43(1):19–35, June 1988. doi:10.1016/0168-1923(88)90003-2.">1988</a>]</span></p></td>
 </tr>
@@ -1127,8 +1127,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.17.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87a36f34da5eb5ab55a90b79956c279b301c0fa6">87a36f3</a> |
+  <p>Version: 2026.11.17.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e79b92b00aff728be963557c5c88e1fc11d90c26">e79b92b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

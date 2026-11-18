@@ -132,6 +132,14 @@ Before configuring height-dependent roof and wall properties, read
 separately, the input structure for five material layers. It also identifies
 which storage-heat and radiation methods use each property.
 
+For profile keys, day selection, normalisation and defaults, read
+:doc:`temporal-profiles`.
+
+.. toctree::
+   :hidden:
+
+   temporal-profiles
+
 **Complete Parameter Reference:**
 
 The full documentation for all YAML parameters is available in the :doc:`config-reference/index`. This reference includes:

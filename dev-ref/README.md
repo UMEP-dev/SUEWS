@@ -43,6 +43,9 @@ when a guide here disagrees with a rule, skill or agent file, follow the higher 
   - Code governance, `0-physics:change` evidence gates, and review workflow
   - Manual maintainer routing for governance and process changes
 
+- **[Regression Checklist](REGRESSION_CHECKLIST.md)** - Lessons from past failures, each with a trigger readable from the diff
+  - Read by the `audit-pr` and `fix-issue` skills from the base branch
+
 - **[Maintainers](../MAINTAINERS.md)** - Who holds each role
   - The maintainers, and the owners and reviewers of each module
 

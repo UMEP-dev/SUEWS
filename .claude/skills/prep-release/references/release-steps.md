@@ -113,17 +113,26 @@ If any structural schema bump occurred during the cycle (`.dev1` .. `.devN`), pe
 
 Run the multi-version regression gate (`benchmark/REPRODUCE.md`) **before** merging the release PR or pushing the tag:
 
-1. **Build the candidate** from the `build-suews` CI wheel artefact or `make dev` in a clean venv (do NOT install from PyPI -- `${VERSION}` is not published yet). Save `freeze.txt`.
+1. **Build the candidate** from the `build-suews` CI wheel artefact or `make dev` in a clean venv (do NOT install from PyPI -- `${VERSION}` is not published yet). Save its `pip freeze` as `benchmark/results/${VERSION}/freeze.txt`.
 2. **Generate a per-release config** valid in the candidate's own schema via a load -> dump round-trip (`SUEWSSimulation(canonical).config.model_dump()` -> `benchmark/inputs/config_${VERSION}.yml`).
-3. **Run twice for reproducibility** against the restricted Zenodo forcing/obs record (`ZENODO_TOKEN` via env; never print or commit obs/forcing):
+3. **Run twice for reproducibility** against the restricted Zenodo forcing/obs record fetched into `benchmark/results/_zsupply/` (`ZENODO_TOKEN` via env; never print or commit obs/forcing). From `benchmark/`, with the flags `run_benchmark.py` requires (as in `benchmark/REPRODUCE.md`):
    ```bash
-   python benchmark/run_benchmark.py --version "$VERSION"
+   cd benchmark
+   mkdir -p "results/$VERSION"
+   python run_benchmark.py \
+     --version "$VERSION" \
+     --config  "inputs/config_$VERSION.yml" \
+     --forcing results/_zsupply/Kc1_forcing_canonical.txt \
+     --obs     results/_zsupply/Kc1_Obs.csv \
+     --rsl-obs results/_zsupply/df_Ta_comb.h5 \
+     --freeze  "results/$VERSION/freeze.txt" \
+     --outdir  "results/$VERSION"
    ```
-   Require a byte-identical fingerprint across both runs.
-4. **Evaluate regression**:
+   `run_benchmark.py` runs the model twice and requires a byte-identical fingerprint across both runs.
+4. **Evaluate regression** (still in `benchmark/`: `assemble_index.py` reads `results/` relative to the working directory). First add `"$VERSION"` to `VERSIONS` in `benchmark/assemble_index.py`, then:
    ```bash
-   python benchmark/assemble_index.py
-   python benchmark/check_regression.py --candidate "$VERSION"
+   python assemble_index.py
+   python check_regression.py --candidate "$VERSION"
    ```
    - Exit `1`: regression beyond tolerances or lost metric coverage -> **HARD STOP** (do not deposit).
    - Exit `3`: within proposed tolerances, awaiting recorded maintainer review on the release issue.
@@ -183,8 +192,8 @@ Regenerate the tracked JSON Schema artefact so its `version`, `title`, `$id`, an
 ```bash
 suews schema export -o docs/source/inputs/tables/schema.json
 
-grep -rn "schema 2026\.[0-9]*\.dev\|v2026\.[0-9]*\.dev[0-9]\|\"version\": \"2026\.[0-9]*\.dev" \
-  docs/source/ | grep -vi "collapsing\|development cycle\|dev1\.\.\|dev1.*dev14"
+grep -rnE 'schema 20[0-9]{2}\.[0-9]*\.dev|v20[0-9]{2}\.[0-9]*\.dev[0-9]|"version": "20[0-9]{2}\.[0-9]*\.dev' \
+  docs/source/ | grep -viE 'collapsing|development cycle|dev1\.\.|dev1.*dev14'
 ```
 
 Any line printed by the scan is a stray `.dev` label to fix before opening the release PR (or dispatch the `docs-reviewer` agent in release mode).
@@ -284,7 +293,7 @@ Note: RTD `stable` rebuilds automatically when the tag moves, whereas the number
 
 Publish the derived benchmark statistics for `${VERSION}` (never commit raw observations or forcing):
 
-1. Ensure `benchmark/inputs/config_${VERSION}.yml` and the updated `benchmark/results/index.json` (`python benchmark/assemble_index.py`) are committed on a post-release PR, along with `site/benchmark/` updates.
+1. Ensure `benchmark/inputs/config_${VERSION}.yml` and the updated `benchmark/results/index.json` (`cd benchmark && python assemble_index.py`, with `${VERSION}` in its `VERSIONS` list) are committed on a post-release PR, along with `site/benchmark/` updates.
 2. Upload the new version to the restricted Zenodo reproducibility stack.
 
 ---

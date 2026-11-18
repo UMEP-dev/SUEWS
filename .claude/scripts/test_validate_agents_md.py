@@ -15,8 +15,8 @@ VALIDATOR = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VALIDATOR)
 
 
-class SharedInstructionValidation(unittest.TestCase):
-    """Verify validate-claude-md.py catches drift across shared agent governance files."""
+class GovernanceFixture(unittest.TestCase):
+    """Build a minimal valid governance tree in a temporary directory."""
 
     def setUp(self):
         """Create a minimal valid governance fixture tree mirroring AGENTS.md."""
@@ -82,6 +82,29 @@ class SharedInstructionValidation(unittest.TestCase):
             encoding="utf-8",
             check=False,
         )
+
+    def write_settings(self, settings):
+        """Write ``settings`` as the fixture's .claude/settings.json."""
+        path = self.root / ".claude/settings.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(settings), encoding="utf-8")
+
+    def write_hook_script(self, name: str, mode: int) -> None:
+        """Create .claude/hooks/<name> with file mode ``mode``."""
+        script = self.root / ".claude/hooks" / name
+        script.parent.mkdir(parents=True, exist_ok=True)
+        script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        script.chmod(mode)
+
+
+def hook_settings(*commands: str) -> dict:
+    """Return a settings object with one SessionStart hook per command."""
+    hooks = [{"type": "command", "command": c} for c in commands]
+    return {"hooks": {"SessionStart": [{"hooks": hooks}]}}
+
+
+class SharedInstructionValidation(GovernanceFixture):
+    """Verify validate-claude-md.py catches drift across shared agent governance files."""
 
     def test_valid_shared_instructions_and_loader(self):
         """Synthetic valid governance tree passes with exit code 0."""
@@ -189,7 +212,7 @@ class SharedInstructionValidation(unittest.TestCase):
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
         self.assertIn("Use `color:` frontmatter key", result.stdout)
-        self.assertIn("Do not pin `model: sonnet`", result.stdout)
+        self.assertIn("Do not pin `model:`", result.stdout)
 
     def test_missing_settings_hook_target_fails(self):
         """Non-existent hook target in .claude/settings.json exits 1."""
@@ -245,6 +268,102 @@ class SharedInstructionValidation(unittest.TestCase):
         )
 
 
+class GovernanceEdgeCaseValidation(GovernanceFixture):
+    """Edge cases in rule parity, hook commands and agent frontmatter."""
+
+    def test_indexed_rule_missing_on_disk_fails(self):
+        """A rule listed in AGENTS.md but absent from .claude/rules/ exits 1."""
+        (self.root / ".claude/rules/code-design.md").unlink()
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "AGENTS.md indexes missing rule file: .claude/rules/code-design.md",
+            result.stdout,
+        )
+
+    def test_malformed_rule_frontmatter_fails(self):
+        """A rule frontmatter line without a key, or an unknown key, exits 1."""
+        rule = self.root / ".claude/rules/changelog/format.md"
+        rule.write_text("---\nnot a key\nscope: x\n---\n\n# Bad\n", encoding="utf-8")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Malformed frontmatter line", result.stdout)
+        self.assertIn("Unexpected frontmatter key 'scope'", result.stdout)
+
+    def test_non_executable_hook_script_fails(self):
+        """A hook script run directly but lacking the executable bit exits 1."""
+        self.write_hook_script("plain.sh", 0o644)
+        self.write_settings(hook_settings("$CLAUDE_PROJECT_DIR/.claude/hooks/plain.sh"))
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "Hook script not executable: .claude/hooks/plain.sh", result.stdout
+        )
+
+    def test_interpreter_hook_script_need_not_be_executable(self):
+        """A script passed to an interpreter only has to exist."""
+        self.write_hook_script("plain.sh", 0o644)
+        self.write_settings(
+            hook_settings("bash $CLAUDE_PROJECT_DIR/.claude/hooks/plain.sh")
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_quoted_and_braced_hook_targets_are_checked(self):
+        """Quoted, braced and interpreter-prefixed hook paths are all resolved."""
+        self.write_settings(
+            hook_settings(
+                '"$CLAUDE_PROJECT_DIR"/.claude/hooks/a.sh',
+                '"$CLAUDE_PROJECT_DIR/.claude/hooks/b.sh"',
+                "${CLAUDE_PROJECT_DIR}/.claude/hooks/c.sh",
+                "bash $CLAUDE_PROJECT_DIR/.claude/hooks/d.sh",
+            )
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        for name in ("a", "b", "c", "d"):
+            self.assertIn(f"Missing hook script .claude/hooks/{name}.sh", result.stdout)
+
+    def test_malformed_settings_shape_fails_without_traceback(self):
+        """A non-object settings root or `hooks` value is reported, not raised."""
+        for settings in ([], {"hooks": []}):
+            self.write_settings(settings)
+            result = self.run_validator()
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(".claude/settings.json", result.stdout)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_null_hooks_passes(self):
+        """`"hooks": null` means no hooks and passes."""
+        self.write_settings({"hooks": None})
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_agent_frontmatter_model_and_required_keys(self):
+        """Any top-level `model:` or a missing description exits 1."""
+        agents_dir = self.root / ".claude/agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        (agents_dir / "pinned.md").write_text(
+            '---\nname: pinned\nmodel: "opus"\n---\n\nBody\n', encoding="utf-8"
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(".claude/agents/pinned.md: Do not pin `model:`", result.stdout)
+        self.assertIn("Missing required frontmatter keys: description", result.stdout)
+
+    def test_agent_frontmatter_ignores_indented_and_comment_lines(self):
+        """Indented continuations and comments are not read as top-level keys."""
+        agents_dir = self.root / ".claude/agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        (agents_dir / "ok.md").write_text(
+            "---\nname: ok\ndescription: |\n  model: sonnet\n  colour: red\n"
+            "# model: haiku\ncolor: blue\n---\n\nBody\n",
+            encoding="utf-8",
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 class SharedRuleIndexParsing(unittest.TestCase):
     """Parse the `## Shared rule files` index without a fixture tree."""
 
@@ -271,6 +390,27 @@ class SharedRuleIndexParsing(unittest.TestCase):
         self.assertTrue(
             any("Malformed principle note" in w for w in warnings), warnings
         )
+
+    def test_demoted_heading_is_not_the_index(self):
+        """Only a whole-line `## Shared rule files` heading starts the index."""
+        entries, _ = VALIDATOR.parse_shared_rule_index(
+            "See `## Shared rule files` below.\n\n### Shared rule files\n\n"
+            "- [.claude/rules/a.md](.claude/rules/a.md) - all work.\n"
+        )
+        self.assertEqual(entries, {})
+
+    def test_unindented_paths_list_and_trailing_comment(self):
+        """`paths: # note` followed by unindented `- glob` items parses cleanly."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rule = root / "rule.md"
+            rule.write_text(
+                "---\npaths: # scoped\n- a/**\n- 'b.md'\n---\n\n# Rule\n",
+                encoding="utf-8",
+            )
+            paths, warnings = VALIDATOR.parse_rule_frontmatter_paths(rule, root)
+        self.assertEqual(warnings, [])
+        self.assertEqual(paths, ["a/**", "b.md"])
 
 
 if __name__ == "__main__":

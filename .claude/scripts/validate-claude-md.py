@@ -7,7 +7,8 @@ Enforces:
 2. Thin @AGENTS.md compatibility import in CLAUDE.md.
 3. Bidirectional 1:1 parity between .claude/rules/**/*.md (including YAML `paths:`
    frontmatter) and the `## Shared rule files` index in AGENTS.md.
-4. Valid frontmatter keys in .claude/agents/*.md (`color:`, no `colour:` or `model: sonnet`).
+4. Frontmatter in .claude/agents/*.md: `name:` and `description:` present,
+   `color:` not `colour:`, and no `model:` (subagents inherit the caller's model).
 5. Hook target existence in .claude/settings.json and referenced files in AGENTS.md.
 6. Plain-ASCII hygiene across shared governance files.
 7. A single roster: handles listed in MAINTAINERS.md appear in no other
@@ -76,6 +77,12 @@ SHARED_RULE_LINE_RE = re.compile(
     r"^- \[(?P<label>\.claude/rules/[^\]]+\.md)\]\((?P<target>[^)]+)\) - (?P<scope>.+)\.$"
 )
 PRINCIPLE_NOTE_RE = re.compile(r"^Principles? [1-9](, [1-9])*$")
+AGENT_REQUIRED_KEYS = ("name", "description")
+# A hook command names a repository script as `$CLAUDE_PROJECT_DIR/<path>`, with
+# or without braces and quotes, possibly after an interpreter such as `bash`.
+HOOK_SCRIPT_RE = re.compile(
+    r"""(?P<lead>^["']?)?\$(?:CLAUDE_PROJECT_DIR|\{CLAUDE_PROJECT_DIR\})["']?/(?P<path>[^\s"';&|]+)"""
+)
 REFERENCE_LINE_RE = re.compile(r"^- `(?P<path>[^`]+)` - .+$")
 AUDIT_PROTOCOL_SECTIONS = (
     "## 1. Authority Hierarchy and Surface Separation",
@@ -86,6 +93,11 @@ AUDIT_PROTOCOL_SECTIONS = (
     "## 6. Mandatory Cross-Model Skeptic Falsification Pass",
     "## 7. Post-Audit Routing Discipline",
 )
+
+
+def find_heading(content: str, heading: str) -> re.Match | None:
+    """Return the match for ``heading`` as a whole line, ignoring inline mentions."""
+    return re.search(rf"^{re.escape(heading)}[ \t]*$", content, flags=re.MULTILINE)
 
 
 def check_single_roster(root: Path) -> list[str]:
@@ -164,14 +176,16 @@ def parse_rule_frontmatter_paths(
         stripped = raw.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        if not raw.startswith((" ", "\t")):
+        if not raw.startswith((" ", "\t")) and not (
+            in_paths and stripped.startswith("- ")
+        ):
             key, sep, rest = stripped.partition(":")
             if not sep:
                 warnings.append(f"{rel}: Malformed frontmatter line: {raw!r}")
                 continue
             if key == "paths":
                 in_paths = True
-                inline = rest.strip()
+                inline = rest.split("#", 1)[0].strip()
                 if inline:
                     warnings.append(
                         f"{rel}: Use block list items under `paths:` rather than inline {inline!r}"
@@ -207,12 +221,11 @@ def parse_shared_rule_index(
     warnings: list[str] = []
     entries: dict[str, list[str] | None] = {}
 
-    marker = "## Shared rule files"
-    idx = content.find(marker)
-    if idx == -1:
+    heading = find_heading(content, "## Shared rule files")
+    if heading is None:
         return entries, warnings
 
-    tail = content[idx + len(marker) :]
+    tail = content[heading.end() :]
     next_sec = re.search(r"^## ", tail, flags=re.MULTILINE)
     section_body = tail[: next_sec.start()] if next_sec else tail
 
@@ -267,12 +280,11 @@ def parse_references_section(content: str) -> tuple[list[str], list[str]]:
     warnings: list[str] = []
     refs: list[str] = []
 
-    marker = "## References"
-    idx = content.find(marker)
-    if idx == -1:
+    heading = find_heading(content, "## References")
+    if heading is None:
         return refs, warnings
 
-    tail = content[idx + len(marker) :]
+    tail = content[heading.end() :]
     next_sec = re.search(r"^## ", tail, flags=re.MULTILINE)
     section_body = tail[: next_sec.start()] if next_sec else tail
 
@@ -312,7 +324,9 @@ def check_references(root: Path, referenced_paths: list[str]) -> list[str]:
     protocol = root / "dev-ref" / "CODEBASE_AUDIT_PROTOCOL.md"
     if protocol.is_file():
         proto_text = protocol.read_text(encoding="utf-8")
-        missing_proto = [s for s in AUDIT_PROTOCOL_SECTIONS if s not in proto_text]
+        missing_proto = [
+            s for s in AUDIT_PROTOCOL_SECTIONS if find_heading(proto_text, s) is None
+        ]
         if missing_proto:
             warnings.append(
                 "dev-ref/CODEBASE_AUDIT_PROTOCOL.md: Missing sections: "
@@ -379,47 +393,62 @@ def check_agents_dir(root: Path) -> list[str]:
         if end_idx == -1:
             warnings.append(f"{rel}: Unterminated YAML frontmatter")
             continue
-        fm = text[4:end_idx]
-        for line in fm.splitlines():
-            key, sep, val = line.partition(":")
-            if not sep:
+        keys: set[str] = set()
+        for line in text[4:end_idx].splitlines():
+            # Top-level keys only: skip blanks, comments and indented continuations.
+            if not line.strip() or line.startswith((" ", "\t", "#")):
                 continue
-            k = key.strip()
-            v = val.strip()
-            if k == "colour":
-                warnings.append(
-                    f"{rel}: Use `color:` frontmatter key, not British `colour:`"
-                )
-            if k == "model" and v in {"sonnet", "haiku"}:
-                warnings.append(
-                    f"{rel}: Do not pin `model: {v}` in subagent frontmatter (omit `model:` to inherit)"
-                )
+            key, sep, _ = line.partition(":")
+            if sep:
+                keys.add(key.strip())
+        if "colour" in keys:
+            warnings.append(
+                f"{rel}: Use `color:` frontmatter key, not British `colour:`"
+            )
+        if "model" in keys:
+            warnings.append(
+                f"{rel}: Do not pin `model:` in subagent frontmatter (omit it to inherit)"
+            )
+        missing = [k for k in AGENT_REQUIRED_KEYS if k not in keys]
+        if missing:
+            warnings.append(
+                f"{rel}: Missing required frontmatter keys: {', '.join(missing)}"
+            )
     return warnings
 
 
 def _check_settings_hook_commands(settings: dict, root: Path) -> list[str]:
     """Verify every `$CLAUDE_PROJECT_DIR/...` hook script exists and is executable."""
     warnings: list[str] = []
-    prefix = "$CLAUDE_PROJECT_DIR/"
-    hooks = settings.get("hooks", {})
+    if not isinstance(settings, dict):
+        return [".claude/settings.json: Top-level value must be an object"]
+    hooks = settings.get("hooks")
+    if hooks is None:
+        return warnings
+    if not isinstance(hooks, dict):
+        return [".claude/settings.json: `hooks` must be an object"]
     for event_name, groups in hooks.items():
         if not isinstance(groups, list):
             continue
         for group in groups:
-            for hook in group.get("hooks", []):
-                cmd = hook.get("command", "")
-                if not cmd.startswith(prefix):
+            entries = group.get("hooks", []) if isinstance(group, dict) else []
+            for hook in entries if isinstance(entries, list) else []:
+                cmd = hook.get("command", "") if isinstance(hook, dict) else ""
+                if not isinstance(cmd, str):
                     continue
-                rel_target = cmd[len(prefix) :].split()[0]
-                target_path = root / rel_target
-                if not target_path.is_file():
-                    warnings.append(
-                        f".claude/settings.json ({event_name}): Missing hook script {rel_target}"
-                    )
-                elif not os.access(target_path, os.X_OK):
-                    warnings.append(
-                        f".claude/settings.json ({event_name}): Hook script not executable: {rel_target}"
-                    )
+                for match in HOOK_SCRIPT_RE.finditer(cmd.strip()):
+                    rel_target = match.group("path")
+                    target_path = root / rel_target
+                    if not target_path.is_file():
+                        warnings.append(
+                            f".claude/settings.json ({event_name}): Missing hook script {rel_target}"
+                        )
+                    elif match.group("lead") is not None and not os.access(
+                        target_path, os.X_OK
+                    ):
+                        warnings.append(
+                            f".claude/settings.json ({event_name}): Hook script not executable: {rel_target}"
+                        )
     return warnings
 
 
@@ -482,7 +511,9 @@ def check_file_integrity(filepath: Path) -> dict:
                 )
 
     # Check for critical sections
-    missing_sections = [s for s in CRITICAL_SECTIONS if s not in content]
+    missing_sections = [
+        s for s in CRITICAL_SECTIONS if find_heading(content, s) is None
+    ]
     if missing_sections:
         warnings.append(f"Missing critical sections: {', '.join(missing_sections)}")
 
@@ -499,13 +530,13 @@ def check_file_integrity(filepath: Path) -> dict:
     # Check `## References` existence and audit-protocol integrity
     referenced_paths, ref_warnings = parse_references_section(content)
     warnings.extend(ref_warnings)
-    if "## References" in content:
+    if find_heading(content, "## References"):
         warnings.extend(check_references(root, referenced_paths))
 
     # Check `## Shared rule files` 1:1 parity against `.claude/rules/`
     indexed_rules, index_warnings = parse_shared_rule_index(content)
     warnings.extend(index_warnings)
-    if "## Shared rule files" in content:
+    if find_heading(content, "## Shared rule files"):
         warnings.extend(check_rules_sync(root, indexed_rules))
 
     # Check `.claude/agents/`, `.claude/hooks/`, `.claude/scripts/`, and `.claude/settings.json`

@@ -3,13 +3,13 @@
 On every step r_a uses an effective wind in place of U, so every part of
 r_a, the interfacial part ln(z0m/z0v)/(k u*) included, scales by U/U_e. U_e
 adds the minimum velocity scale W_MIN in quadrature to U on every stability
-branch of resistance method 2, the neutral equation (zero (z-d)/L, or u* = 0, with L non-zero) included (#1979),
-and on the unstable branch also the free-convection velocity
-w_f = (g/T H zzd)**(1/3) from the pass heat flux:
-U_e = sqrt(U**2 + MAX(W_MIN, w_f)**2) (C5). The stable resistance does not see
+branch of resistance method 2, the neutral equation (zero (z-d)/L, or u* = 0, with L non-zero) included (#1979);
+on the unstable branch the larger of W_MIN and the free-convection velocity
+w_f = (g/T H zzd)**(1/3) from the pass heat flux takes its place:
+U_e = sqrt(U**2 + MAX(W_MIN, w_f)**2). The stable resistance does not see
 w_f. With the same W_MIN on both sides, r_a is continuous where (z-d)/L
-changes sign in the limit w_f -> 0, and at fixed wind and roughness W_MIN
-introduces no additional stable-side dip; a retained, non-zero w_f can still make r_a differ across the sign
+changes sign whenever w_f <= W_MIN, and at fixed wind and roughness W_MIN
+introduces no additional stable-side dip; a retained w_f above W_MIN can still make r_a differ across the sign
 change. The routine does not modify u*. Between outer passes w_f is under-relaxed with
 the (z-d)/L schedule. The previous pass's value is a local of the timestep
 call that owns the outer loop, reset to zero at the start of every timestep:
@@ -182,7 +182,7 @@ def _pr_resistance(rows, out):
 def _velocity_factor(rows):
     """U/U_e, U floored as in the Fortran: U_e**2 = U**2 + W_MIN**2, with
     MAX(W_MIN, w_f) in place of W_MIN on unstable rows that do not take the
-    neutral equation (C5 sensitivity variant)."""
+    neutral equation."""
     wind = np.maximum(rows[:, 2].astype(float), U_FLOOR)
     z_over_l = rows[:, 0].astype(float) / rows[:, 3].astype(float)
     w_f = rows[:, 5].astype(float)
@@ -300,18 +300,18 @@ def test_stable_resistance_is_continuous_in_wind_and_stability(probe, method):
 def test_resistance_is_continuous_across_neutral_as_free_convection_vanishes(
     probe, method
 ):
-    """In the limit w_f -> 0 (w_f = 0 or 1e-9 here), with the same W_MIN on
-    both sides, r_a is continuous where (z-d)/L changes sign, at every wind
+    """Whenever w_f <= W_MIN (w_f = 0, 1e-9 or 0.3 here), with the same W_MIN
+    on both sides, r_a is continuous where (z-d)/L changes sign, at every wind
     down to the floor. A stable-only W_MIN would change r_a there by U_e/U,
-    about fifty-fold at the wind floor (#1979). A retained, non-zero w_f is
+    about fifty-fold at the wind floor (#1979). A retained w_f above W_MIN is
     covered by the test below."""
     # ARRANGE: (z-d)/L = -+1e-12, where every psi is zero, and -+1e-6, at
-    # w_f = 0 and a vanishing w_f, down to the wind floor
+    # w_f = 0, a vanishing w_f and a w_f below W_MIN, down to the wind floor
     winds = (U_FLOOR, 0.05, 0.3, 1.5)
     ra = {}
     for zl in (1e-12, 1e-6):
-        unstable = _resistance_cases([-zl], [0.0, 1e-9], method, winds=winds)
-        stable = _resistance_cases([zl], [0.0, 1e-9], method, winds=winds)
+        unstable = _resistance_cases([-zl], [0.0, 1e-9, 0.3], method, winds=winds)
+        stable = _resistance_cases([zl], [0.0, 1e-9, 0.3], method, winds=winds)
 
         # ACT
         ra[zl] = (probe(3, unstable)[:, 0], probe(3, stable)[:, 0])
@@ -412,8 +412,7 @@ def test_free_convection_lowers_unstable_resistance_and_vanishes_smoothly(
     ra = probe(3, rows)[:, 0].reshape(-1, len(w_f))
 
     # ASSERT: never above the resistance without it, non-increasing in w_f,
-    # and continuous as w_f -> 0 (the change is second order in w_f); the
-    # tolerance admits round-off only
+    # and unchanged while w_f <= W_MIN; the tolerance admits round-off only
     roundoff = 1e-14 * ra[:, :1]
     assert np.all(ra <= ra[:, :1] + roundoff)
     assert np.all(np.diff(ra, axis=1) <= roundoff)

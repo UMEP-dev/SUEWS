@@ -8,12 +8,14 @@ MODULE module_phys_resist
    REAL(KIND(1D0)), PARAMETER :: USTAR_GUARD = 1.0D-12
    ! Minimum velocity scale for the aerodynamic resistance [m s-1] (#1979),
    ! added in quadrature to the wind on every stability branch of resistance
-   ! method 2, with the free-convection velocity w_f also added on unstable
-   ! steps. The quadrature form is the generalised velocity scale of Mahrt and
-   ! Sun (1995, MWR 123, Eqs. 20 and 22), <V>**2 = |<V>|**2 + w_fc**2 + V_sg**2;
-   ! the value is the globally constant V_sg = 0.5 m s-1 they suggest (p. 3040).
-   ! Their V_sg is a spatial subgrid velocity from 5-30 km aircraft averages
-   ! that grows with grid size; it is used here as a constant for a point model.
+   ! method 2; on unstable steps the larger of it and the free-convection
+   ! velocity w_f is added instead. The quadrature form follows the
+   ! generalised velocity scale of Mahrt and Sun (1995, MWR 123, Eqs. 20 and
+   ! 22), <V>**2 = |<V>|**2 + w_fc**2 + V_sg**2; the value is the globally
+   ! constant V_sg = 0.5 m s-1 they suggest (p. 3040). Their V_sg is a spatial
+   ! subgrid velocity from 5-30 km aircraft averages that grows with grid size;
+   ! it is used here as a constant for a point model. Taking the larger of the
+   ! two on unstable steps, rather than their sum, departs from Mahrt and Sun.
    REAL(KIND(1D0)), PARAMETER :: W_MIN = 0.5D0
 
 CONTAINS
@@ -91,7 +93,7 @@ CONTAINS
       ! every grid thread, so one grid could read another grid's value (gh#1926)
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
-      REAL(KIND(1D0)) :: wind_eff ! wind speed with W_MIN or, when unstable, MAX(W_MIN, w_f) added [m s-1]
+      REAL(KIND(1D0)) :: wind_eff ! wind speed with W_MIN, or when unstable MAX(W_MIN, w_f), added [m s-1]
       REAL(KIND(1D0)) :: wind_eff2 ! square of wind_eff [m2 s-2]
 
       !Z0V roughness length for vapour
@@ -123,27 +125,29 @@ CONTAINS
          END IF
 
          ! Effective wind (#1979, #1956). r_a uses
-         ! wind_eff = SQRT(U**2 + W_MIN**2 [+ w_f**2]) in place of U, so every
-         ! part of r_a, the interfacial part ln(z0m/z0V)/(k u*) included, scales
-         ! by U/wind_eff (Mahrt and Sun 1995, Eqs. 20 and 22). W_MIN acts on
-         ! every stability branch, neutral equation included: at light wind the
-         ! mean wind understates the exchange that unresolved motions
+         ! wind_eff = SQRT(U**2 + W_MIN**2) in place of U, with MAX(W_MIN, w_f)
+         ! in place of W_MIN on unstable steps, so every part of r_a, the
+         ! interfacial part ln(z0m/z0V)/(k u*) included, scales by U/wind_eff
+         ! (quadrature form after Mahrt and Sun 1995, Eqs. 20 and 22). W_MIN
+         ! acts on every stability branch, neutral equation included: at light
+         ! wind the mean wind understates the exchange that unresolved motions
          ! (meandering, submeso motions) keep up, and without it r_a grows as
          ! 1/U, up to the (z-d)/L clip on stable steps. Because the same W_MIN
          ! acts on both sides of neutral and does not depend on (z-d)/L, r_a is
-         ! continuous where (z-d)/L changes sign in the limit w_f -> 0, and at
+         ! continuous where (z-d)/L changes sign whenever w_f <= W_MIN, and at
          ! fixed wind and roughness the factor introduces no additional dip on
-         ! the stable side. On unstable steps the free-convection
-         ! velocity w_f is added as well: light mean wind understates the
-         ! exchange that convective eddies keep up. A non-zero w_f retained by
-         ! the between-pass relaxation can still make r_a differ across the
-         ! sign change (pre-existing #1956 behaviour). z0V (Kawai kB-1) keeps
-         ! the original UStar, and UStar itself is unchanged for the rest of
-         ! the model. L_mod must be non-zero: the stability functions above
+         ! the stable side. On unstable steps the free-convection velocity w_f
+         ! takes the place of W_MIN once it is the larger: convective eddies
+         ! then keep up the exchange, and the #1956 resistance is unchanged.
+         ! Taking the larger rather than the sum roughly halves the daytime cut
+         ! in r_a at light wind across the #1956 test sites; r_a has a slope
+         ! break, not a jump, where w_f crosses W_MIN. A w_f above W_MIN retained by the
+         ! between-pass relaxation can still make r_a differ across the sign
+         ! change (pre-existing #1956 behaviour). z0V (Kawai kB-1) keeps the
+         ! original UStar, and UStar itself is unchanged for the rest of the
+         ! model. L_mod must be non-zero: the stability functions above
          ! already divide by it.
          wind_eff2 = AVU1_use**2 + W_MIN**2
-         ! C5 sensitivity variant (local only): on unstable steps the larger of
-         ! W_MIN and w_f is added, so #1956 is unchanged wherever w_f >= W_MIN
          IF (ZZD/L_mod < 0 .AND. w_f > 0 .AND. UStar /= 0) wind_eff2 = AVU1_use**2 + MAX(W_MIN, w_f)**2
          wind_eff = SQRT(wind_eff2)
          RA_h = RA_h*AVU1_use/wind_eff

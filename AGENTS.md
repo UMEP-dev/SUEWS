@@ -51,6 +51,7 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 - `.claude/README.md` - The workspace: available skills, hooks, and how rules and skills relate
 - `.claude/skills/` - Skill procedures
 - `.claude/agents/` - Review subagents
+- `dev-ref/REGRESSION_CHECKLIST.md` - Lessons from past failures, each with a trigger readable from the diff; read by `audit-pr` and `fix-issue`
 - `.impeccable.md` - Design direction for SUEWS-facing surfaces (site/, landing, docs)
 - `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` - How to audit the whole repository or one subsystem at a pinned commit
 

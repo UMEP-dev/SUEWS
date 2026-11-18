@@ -647,6 +647,29 @@ Every `pytest.skip`, `@pytest.mark.skip`, `@pytest.mark.skipif`, and `pytest.imp
 - If a test has been permanently skipped for more than one release cycle with no tracking issue, delete it. Zombie tests are worse than missing tests -- they imply coverage that doesn't exist.
 - If a test's only job is to `print(...)` and `assert True`, it is documentation, not a test. Delete it; put the concern in lint config or a dedicated check.
 
+## Flaky Tests
+
+A test that passes and fails on the same commit in the same job and environment is a defect, in the test or in the code.
+A test that fails on one platform or Python version and passes on another is not flaky; it is an ordinary failure on that platform.
+
+- **Never** rerun until green (locally or with `gh run rerun`), add `sleep` or polling waits, add a retry loop or a rerun plugin, loosen a tolerance without a spread artefact (see "Tolerance Guidelines (Scientific Basis)"), or add skip/xfail to get a green run.
+- **Do** reproduce it on the same commit (fixed seed, test order, `-x`, repeated runs) and find the cause: shared state, test order, timestamps, platform floating point, network or file-system races.
+- If the cause is not found, propose deleting the test in its own pull request, with the failure mode, the reproduction attempts and a tracking issue; a maintainer approves it.
+- Record the cause or the deletion reason where the next reader will look: the fix commit message or the test's docstring.
+
+## Differential and Property Tests
+
+Use these where the expected value cannot be written down by hand, or where hand-picked example cases would leave out inputs the code must handle.
+
+- **Differential**: when one implementation replaces another (Fortran to Rust, a rewritten converter, an optimised path), run both on the same inputs and compare variable by variable.
+  Any difference beyond the comparison's stated tolerance is a defect or an approved change; approved differences are listed in the test with a reason and an issue reference.
+  Normalise only what does not matter (column order, whitespace), and say so in the test.
+- **Property**: state what must hold for every input and let a generator (Hypothesis) produce the inputs.
+  Candidates: YAML to config object to YAML round-trip; converter idempotency (upgrading an already-current file changes nothing); state save and restore equal to an uninterrupted run; energy and water balance closure within the stated tolerance.
+  Make the generator deterministic in CI with a registered settings profile (`derandomize=True`, as in `test/physics/test_numerics_properties.py`), keep each property test under the tier's time budget, and record a failing example as an ordinary regression test.
+- A property or differential test that fails is handled like any other failure: fix the code or escalate.
+  Never narrow the generator to exclude a failing case; a generator may exclude only inputs outside the code's stated contract, and the test says which.
+
 ---
 
 ## Validation Edge Cases

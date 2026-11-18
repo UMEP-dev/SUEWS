@@ -47,6 +47,18 @@ Rules that apply to all coding-agent sessions in this repository. [decision: sof
   - Fortran C-API facade files (`.f95`) under `src/suews_bridge/c_api/`: add to `src/suews_bridge/build.rs` [fact: git grep -n c_api/driver.f95 src/suews_bridge/build.rs]
   - A new `TYPE, PUBLIC` derived type in `src/suews/src/*.f95`: add it to `src/suews_bridge/bridge-manifest.json` (`python scripts/suews/check_bridge_manifest.py` checks coverage) [fact: git grep -n "TYPE_PUBLIC_RE = " scripts/suews/check_bridge_manifest.py]
 - After adding or modifying any Fortran `USE` statement, rerun `python scripts/suews/gen_fortran_deps.py` so `make -j` module edges stay accurate [fact: git grep -n Makefile.deps scripts/suews/gen_fortran_deps.py]
+- **Record how a commit was verified.** End each agent-authored commit message
+  with a trailer
+  `Verified: <commands run and their result>`, for example
+  `Verified: make test-smoke (passed)`, or `Verified: none (<reason>)`.
+  `Verified: none` records a skipped check; it does not excuse a check this
+  section requires.
+  The trailer is a report, not a confirmation: CI or a reviewer confirms
+  (`AGENTS.md`, Principle 1). `git log --grep "Verified: none"` then lists
+  commits that carried no check.
+  This is a decision (Ting Sun, 17 Nov 2026): a commit does not show which checks
+  an agent actually ran; it is overturned if a hook or CI records the same
+  information automatically.
 
 ## Quick Start
 

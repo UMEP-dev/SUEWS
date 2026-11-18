@@ -1080,6 +1080,15 @@ class WaterProperties(NonVegetatedSurfaceProperties):
 
     model_config = ConfigDict(title="Water Surfaces")
     _surface_type: Literal[SurfaceType.WATER] = SurfaceType.WATER
+    state_limit: FlexibleRefValue(float) = Field(
+        default=10.0,
+        description=(
+            "Maximum depth of water the water body can store in this grid cell "
+            "(1 kg m-2 of water equals 1 mm of depth). Water above this limit "
+            "contributes to runoff."
+        ),
+        json_schema_extra={"unit": "kg m-2", "display_name": "State Limit"},
+    )
     flowchange: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Change in water flow for water bodies",

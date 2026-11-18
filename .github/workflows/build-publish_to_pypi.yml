@@ -369,8 +369,8 @@ jobs:
           fi
 
           if [[ -n "$pr_num" ]]; then
-            matched="$(gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]' \
-              | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
+            matched="$(gh api --paginate "repos/${REPO}/issues/${pr_num}/labels?per_page=100" --jq '[.[].name]' \
+              | jq -rs --argjson wanted "$LABELS_JSON" '[(add // [])[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
             if [[ -n "$matched" ]]; then
               found=true
             fi
@@ -1013,7 +1013,7 @@ jobs:
             exit 0
           fi
 
-          labels_json="$(gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]')"
+          labels_json="$(gh api --paginate "repos/${REPO}/issues/${pr_num}/labels?per_page=100" --jq '[.[].name]' | jq -cs 'add // []')"
           matched="$(printf '%s' "$labels_json" | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | join(", ")')"
           count="$(printf '%s' "$labels_json" | jq -r --argjson wanted "$LABELS_JSON" '[.[] | select(. as $l | any($wanted[]; . == $l))] | length')"
           echo "PR #${pr_num} classification label(s): ${matched:-none} (count=${count})"

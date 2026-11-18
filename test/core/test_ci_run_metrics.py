@@ -913,16 +913,23 @@ def _write_gh_stub(bin_dir: Path) -> None:
         "import os\n"
         "import re\n"
         "import sys\n"
-        "args = ' '.join(sys.argv[1:])\n"
+        "argv = sys.argv[1:]\n"
+        "args = ' '.join(argv)\n"
+        "paginate = '--paginate' in argv\n"
         "m_lbl = re.search(r'/issues/(\\d+)/labels', args)\n"
         "m_pr_files = re.search(r'/pulls/(\\d+)/files', args)\n"
         "if m_lbl:\n"
         "    by_pr = json.loads(os.environ.get('FAKE_GH_LABELS_BY_PR', '{}'))\n"
         "    pr = m_lbl.group(1)\n"
-        "    if pr in by_pr:\n"
-        "        sys.stdout.write(json.dumps(by_pr[pr]) + '\\n')\n"
-        "    else:\n"
-        "        sys.stdout.write(os.environ.get('FAKE_GH_LABELS_JSON', '[]') + '\\n')\n"
+        "    raw = (\n"
+        "        by_pr[pr]\n"
+        "        if pr in by_pr\n"
+        "        else json.loads(os.environ.get('FAKE_GH_LABELS_JSON', '[]'))\n"
+        "    )\n"
+        "    pages = raw if (raw and isinstance(raw[0], list)) else [raw]\n"
+        "    shown = pages if paginate else pages[:1]\n"
+        "    for page in shown:\n"
+        "        sys.stdout.write(json.dumps(page) + '\\n')\n"
         "elif m_pr_files or '/compare/' in args:\n"
         "    sys.stdout.write(os.environ.get('FAKE_GH_FILES', '') + '\\n')\n"
         "else:\n"
@@ -944,10 +951,31 @@ def _write_gh_stub(bin_dir: Path) -> None:
     [
         ("pull_request", ["0-physics:change"], "", "", "true"),
         ("pull_request", ["1-maintenance", "0-numerics:change"], "", "", "true"),
+        (
+            "pull_request",
+            [["1-maintenance"], ["0-numerics:change"]],
+            "",
+            "",
+            "true",
+        ),
+        (
+            "pull_request",
+            [["0-physics:change"], ["0-numerics:change"]],
+            "",
+            "",
+            "true",
+        ),
         ("pull_request", ["1-maintenance", "2-meta:governance"], "", "", "false"),
         (
             "merge_group",
             ["0-numerics:change"],
+            "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+            "ba5e000",
+            "true",
+        ),
+        (
+            "merge_group",
+            [["1-maintenance"], ["0-numerics:change"]],
             "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
             "ba5e000",
             "true",
@@ -978,7 +1006,7 @@ def _write_gh_stub(bin_dir: Path) -> None:
 def test_determine_matrix_label_step_reads_live_api_labels(
     tmp_path: Path,
     event_name: str,
-    api_labels: list[str],
+    api_labels: list[str] | list[list[str]],
     head_ref: str,
     base_sha: str,
     expected: str,
@@ -1022,7 +1050,7 @@ def test_determine_matrix_label_step_reads_live_api_labels(
     }
 
     # ACT
-    subprocess.run(
+    result = subprocess.run(
         ["bash", "-c", step["run"]],
         env=env,
         check=True,
@@ -1037,6 +1065,8 @@ def test_determine_matrix_label_step_reads_live_api_labels(
         if "=" in line
     )
     assert outputs["found"] == expected
+    if api_labels == [["0-physics:change"], ["0-numerics:change"]]:
+        assert "(0-physics:change, 0-numerics:change)" in result.stdout
 
 
 @pytest.mark.smoke
@@ -1143,6 +1173,39 @@ def test_determine_matrix_label_step_reads_live_api_labels(
                 "expected_substring": "mutually exclusive",
             },
             id="pr-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": [
+                    ["1-maintenance", "0-physics:change"],
+                    ["2-infra:ci", "0-numerics:change"],
+                ],
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="pr-split-pages-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": [["1-maintenance"], ["0-numerics:change"]],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="pr-split-pages-second-page-label-passes",
         ),
         pytest.param(
             {

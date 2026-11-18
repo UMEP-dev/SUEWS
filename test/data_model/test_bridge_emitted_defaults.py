@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 import yaml
 
+from supy._run_rust import config_to_engine_yaml
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.hydro import StorageDrainParams
 from supy.data_model.core.model import ModelControl, ModelPhysics
@@ -47,8 +48,8 @@ def test_storage_capacity_default_and_state_roundtrip(store_max, absent_cap):
     """Resolve absent capacities without borrowing the maximum's reference."""
     params = StorageDrainParams(store_max=store_max, **absent_cap)
     expected = _unwrap(store_max)
-    assert params.store_cap.value == pytest.approx(expected)
-    assert params.store_cap.ref is None
+    emitted = params.model_dump(mode="json", exclude_none=True)["store_cap"]
+    assert emitted == {"value": pytest.approx(expected)}
     df_state = params.to_df_state(grid_id=1, surf_idx=0)
     assert df_state.loc[1, ("storedrainprm", "(5, 0)")] == pytest.approx(expected)
     restored = StorageDrainParams.from_df_state(df_state, grid_id=1, surf_idx=0)
@@ -78,17 +79,27 @@ def test_storage_capacity_stays_absent_without_maximum(absent_max):
     assert params.store_cap.value is None
 
 
-def test_bridge_yaml_contains_resolved_storage_capacity():
+def test_bridge_yaml_contains_resolved_storage_capacity(tmp_path):
     data = _sample_dump()
     storage = data["sites"][0]["properties"]["land_cover"]["paved"]["storage_drain_params"]
     storage.pop("store_cap", None)
-    storage["store_max"] = 2.0
+    storage["store_max"] = {"value": 2.0}
     config = SUEWSConfig(**data)
-    emitted = yaml.safe_load(
-        yaml.safe_dump(config.model_dump(exclude_none=True, mode="json"))
-    )
+    params = config.sites[0].properties.land_cover.paved.storage_drain_params
+    params.store_max.value = 4.0
+    assert params.to_df_state(1, 0).loc[1, ("storedrainprm", "(5, 0)")] == 4.0
+
+    path = tmp_path / "config.yml"
+    config.to_yaml(str(path))
+    saved = yaml.safe_load(path.read_text(encoding="utf-8"))
+    paved = saved["sites"][0]["properties"]["land_cover"]["paved"]
+    assert "store_cap" not in paved["storage_drain_params"]
+    reloaded = SUEWSConfig.from_yaml(str(path))
+    params = reloaded.sites[0].properties.land_cover.paved.storage_drain_params
+    params.store_max.value = 5.0
+    emitted = yaml.safe_load(config_to_engine_yaml(reloaded))
     storage = emitted["sites"][0]["properties"]["land_cover"]["paved"]["storage_drain_params"]
-    assert _unwrap(storage["store_cap"]) == pytest.approx(2.0)
+    assert _unwrap(storage["store_cap"]) == pytest.approx(5.0)
 
 
 @pytest.mark.parametrize(
@@ -149,12 +160,13 @@ def test_derived_store_cap_follows_an_updated_store_max():
     the old store_max after the user changes store_max.
     """
     params = StorageDrainParams(store_max={"value": 1.5})
-    assert params.store_cap.value == pytest.approx(1.5)
+    assert _unwrap(params.model_dump(mode="json")["store_cap"]) == pytest.approx(1.5)
     assert "store_cap" not in params.model_fields_set
     base = params.model_dump(exclude_unset=True, round_trip=True, mode="json")
     assert "store_cap" not in base
     base["store_max"] = {"value": 4.0}
-    assert StorageDrainParams(**base).store_cap.value == pytest.approx(4.0)
+    updated = StorageDrainParams(**base).model_dump(mode="json")
+    assert _unwrap(updated["store_cap"]) == pytest.approx(4.0)
 
 
 def test_explicit_store_cap_stays_user_input():

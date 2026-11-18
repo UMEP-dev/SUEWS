@@ -1,4 +1,6 @@
-from pydantic import ConfigDict, BaseModel, Field, PrivateAttr, model_validator
+from pydantic import (
+    BaseModel, ConfigDict, Field, PrivateAttr, model_serializer, model_validator,
+)
 from typing import Optional
 import pandas as pd
 from .type import RefValue, Reference, SurfaceType, FlexibleRefValue
@@ -390,23 +392,26 @@ class StorageDrainParams(BaseModel):
 
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def resolve_store_cap(self) -> "StorageDrainParams":
-        """Use the interception capacity when no current capacity is given."""
-        store_cap = (
-            self.store_cap.value if isinstance(self.store_cap, RefValue) else self.store_cap
-        )
-        store_max = (
-            self.store_max.value if isinstance(self.store_max, RefValue) else self.store_max
-        )
-        if store_cap is None and store_max is not None:
-            # A derived default, not user input: set it without recording
-            # store_cap in model_fields_set, so exclude_unset dumps (the
-            # partial-update merge in SUEWSSimulation.update_config) leave it
-            # out and re-derive it from an updated store_max.
-            object.__setattr__(self, "store_cap", RefValue(store_max))
-            self.__pydantic_fields_set__.discard("store_cap")
-        return self
+    def _current_store_cap(self):
+        """Resolve the capacity from the current inputs without changing them."""
+        capacity = self.store_cap
+        if (capacity.value if isinstance(capacity, RefValue) else capacity) is None:
+            maximum = self.store_max
+            value = maximum.value if isinstance(maximum, RefValue) else maximum
+            if value is not None:
+                return RefValue(value)
+        return capacity
+
+    @model_serializer(mode="wrap")
+    def _dump_storage(self, handler, info):
+        # Saved YAML and partial updates must preserve the original input.
+        # A resolved engine dump needs the capacity even when it was omitted.
+        if info.round_trip or info.exclude_unset:
+            return handler(self)
+        capacity = self._current_store_cap()
+        if capacity is self.store_cap:
+            return handler(self)
+        return handler(self.model_copy(update={"store_cap": capacity}))
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert storage and drain parameters to DataFrame state format.
@@ -448,7 +453,9 @@ class StorageDrainParams(BaseModel):
             "store_max",
             "store_cap",
         ]):
-            field_val = getattr(self, var)
+            field_val = (
+                self._current_store_cap() if var == "store_cap" else getattr(self, var)
+            )
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:

@@ -397,13 +397,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(INOUT) :: gdd
       REAL(KIND(1D0)), INTENT(INOUT) :: sdd
 
-      IF (gdd >= gdd_base) THEN
-         growth_state = 2
-      END IF
-      IF (sdd <= sdd_base) THEN
-         senescence_state = 2
-      END IF
-
       IF (id == summer_reset_day) THEN
          sdd = 0.0D0
          gdd = 0.0D0

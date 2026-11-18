@@ -113,7 +113,7 @@ Understanding how `.github/scripts/determine-matrix.sh` scales CI helps keep ite
 - **Python / util / tests / CI-only PRs** run on **`MINIMAL_PLATFORMS`** (`ubuntu-latest` `manylinux` `x86_64` only) during Draft (`smoke`) and Ready PR (`standard` or `smoke`) validation, saving macOS and Windows runner minutes.
 - **Fortran, Rust bridge, or build-system PRs** automatically widen to **`PR_PLATFORMS`** (Linux + macOS `arm64` + Windows `AMD64`) on Draft (`core` / `cfg`), Ready PR (`standard`), and Merge Queue runs.
 - **`0-physics:change` PRs** widen the physics axis to `physics-full` on Ready PRs and in the Merge Queue, and require a `## Scientific evidence` section, refreshed reference fixtures (`provenance.json` + shards), and subsystem-owner sign-off (see `.claude/rules/physics-change-evidence.md`).
-- **Nightly and Tag builds** run **`FULL_PLATFORMS`** (adding `macos-15-intel`) across the `all` test tier.
+- **Nightly and Tag builds** build wheels on **`FULL_PLATFORMS`** (adding `macos-15-intel`) and run the `api` lanes on `NIGHTLY_API_PLATFORMS` (without `macos-15-intel`), across the `all` test tier.
 
 Isolating pure Python/schema/docs preparatory PRs from Fortran/Rust PRs therefore reduces CI turnaround time as well as review complexity.
 

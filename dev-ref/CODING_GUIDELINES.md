@@ -410,6 +410,6 @@ In Claude Code or Codex sessions, invoke `/lint-code` to run `ruff`, `fprettify 
 
 ### 9.3 CI Enforcement
 
-General `ruff check`, `ruff format`, and `fprettify` runs are local checks (`make format` or `/lint-code`); no CI workflow runs them over the whole tree. CI enforces the following:
+General `ruff check`, `ruff format`, and `fprettify` runs are local checks: `make format` runs `ruff format` and `fprettify`, and `/lint-code` also runs `ruff check`. No CI workflow runs them over the whole tree. CI enforces the following:
 - On pull requests only: the encoding audit (`.github/workflows/encoding-audit.yml`: `ruff check --preview --select PLW1514` plus `scripts/lint/check_pathlib_encoding.py`), the Rust clippy gate (`.github/workflows/rust-clippy.yml`), and the schema-version audit (`.github/workflows/schema-version-audit.yml`, running `scripts/lint/check_schema_version_bump.py`).
 - On pull requests and in the merge queue: the `check_test_markers` job in `.github/workflows/build-publish_to_pypi.yml`, which runs `scripts/lint/check_test_markers.py`, `check_packaged_data_paths.py`, `check_saved_fortran_locals.py`, and `check_fortran_literals.py`.

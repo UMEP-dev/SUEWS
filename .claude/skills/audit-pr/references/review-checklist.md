@@ -40,7 +40,7 @@ Detailed checklist for comprehensive PR review.
 
 - CLI files (`cmd/`) may use `print()`
 - Test files have relaxed requirements
-- Generated version files excluded (`_version.py`, `_version_scm.py`)
+- Version/SCM helper files excluded (`_version.py`, `_version_scm.py`)
 
 ### Specialist Review Agents
 

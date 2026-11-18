@@ -4,7 +4,7 @@
 
 ### 1. Source Inclusion and Fortran Dependency Graph
 
-- Every `.f95` / `.f90` file in `src/suews/src/` (and compiled `src/suews/ext_lib/` objects) must be listed in `src/supy/meson.build` (`src_f95_all`) and `src/suews/Makefile` (`src/suews/meson.build` does not exist).
+- Every `.f95` kernel file in `src/suews/src/` must be listed in `src/suews/Makefile`, which compiles it (together with the SPARTACUS `.F90` sources under `src/suews/ext_lib/`, which only the Makefile lists). A new kernel file is also added to `src_f95_all` in `src/supy/meson.build` (per `.claude/rules/00-project-essentials.md`); that list only feeds `depend_files` (rebuild triggers) and is not a complete source list. `src/suews/meson.build` does not exist. Fortran C-API facades under `src/suews_bridge/c_api/` are registered in `src/suews_bridge/build.rs`.
 - Every shipped `.py` file (and non-Python package resource) under `src/supy/` must be installed via `py.install_sources` in `src/supy/meson.build`.
 - After adding a Fortran file or `USE` statement, `src/suews/Makefile.deps` must be up to date so parallel `make -j` builds succeed:
 

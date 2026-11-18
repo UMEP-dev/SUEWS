@@ -251,13 +251,18 @@ workflow's `on:` / `paths:` rather than assuming.
     `benchmark/regression_thresholds.json` sweep invariants; infrastructure when
     Zenodo sandbox is unreachable.
 - **`Check pytest marker axis`** (`check_test_markers` in `build-publish_to_pypi.yml`)
-  - Enforces three standalone static lints (`needs:` of `PR build validation`):
+  - Enforces four standalone static lints (`needs:` of `PR build validation`):
     `scripts/lint/check_test_markers.py` (physics/api marker coverage),
     `scripts/lint/check_packaged_data_paths.py` (no `<module>.__file__` data
-    access), and `scripts/lint/check_saved_fortran_locals.py` (no implicit/explicit
-    Fortran `SAVE` locals).
+    access), `scripts/lint/check_saved_fortran_locals.py` (no implicit/explicit
+    Fortran `SAVE` locals), and `scripts/lint/check_fortran_literals.py`
+    (per-file physical-constant literal counts equal
+    `scripts/lint/fortran_literals_baseline.json`).
   - Author-fixable: add the missing pytest marker, switch to `importlib.resources`,
-    or split declaration-initialised Fortran locals into executable assignments.
+    split declaration-initialised Fortran locals into executable assignments, or
+    replace a new constant literal with a named `PARAMETER` in
+    `suews_ctrl_const.f95` (lower the baseline with `--write-baseline` when a
+    count drops; `.claude/rules/fortran/conventions.md`).
 - **`Physics-change label`** (`check_physics_label` in `build-publish_to_pypi.yml`)
   - Enforces `.claude/rules/physics-change-evidence.md` (`needs:` of `PR build validation`):
     fails if stored reference outputs (`test/fixtures/data_test/sample_output_2012-*.csv`,

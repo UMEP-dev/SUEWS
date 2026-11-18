@@ -30,6 +30,7 @@ static and contract linters under `scripts/lint/`, `scripts/suews/`, and
    python scripts/lint/check_saved_fortran_locals.py
    python scripts/lint/check_test_markers.py
    python scripts/lint/check_packaged_data_paths.py
+   python scripts/lint/check_fortran_literals.py
    # Requires a built supy .venv (runs pytest --collect-only via test/conftest.py):
    python scripts/lint/check_physics_tier_delta.py
    ```

@@ -51,6 +51,7 @@ SUEWS_BRIDGE_LINT_ONLY=1 cargo clippy --manifest-path src/suews_bridge/Cargo.tom
 python scripts/lint/check_saved_fortran_locals.py
 python scripts/lint/check_test_markers.py
 python scripts/lint/check_packaged_data_paths.py
+python scripts/lint/check_fortran_literals.py
 
 # Built-venv check (invokes pytest --collect-only, importing supy via test/conftest.py):
 python scripts/lint/check_physics_tier_delta.py

@@ -181,7 +181,8 @@ Invariants an orchestrator can rely on:
   reason in `Blocking question`/`Next` and applies nothing.
 - Privacy: a scrub-gate hit in model-authored distilled text is redacted; a hit
   in verbatim preserved content forces `needs-discussion` (never posted).
-- Confidence-gated rewrites (`needs-summary` and `misframed`): when all
+- Confidence-gated rewrites (`misframed` only; `needs-summary` posts the
+  auto-applicable maintainer-summary comment instead): when all
   confidence gates in `SKILL.md` / `.claude/rules/autonomous-workflow.md` hold
   and the verbatim privacy check passes, `body-rewrite` (and `title` when
   accompanying a confident reframe) is auto-applied and the issue lands in

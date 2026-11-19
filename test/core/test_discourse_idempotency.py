@@ -19,7 +19,7 @@ pytestmark = [
 ]
 
 ROOT = Path(__file__).resolve().parents[2]
-WORKFLOW = yaml.safe_load((ROOT / ".github/workflows/discourse-to-issue.yml").read_text())
+WORKFLOW = yaml.safe_load((ROOT / ".github/workflows/discourse-to-issue.yml").read_text(encoding="utf-8"))
 STEPS = {s["name"]: s["run"] for s in WORKFLOW["jobs"]["create-issue"]["steps"] if "run" in s}
 URL = "https://github.com/UMEP-dev/SUEWS/issues/9"
 MARKER = "<!-- suews-discourse-topic: https://community.suews.io/t/123 -->"
@@ -28,11 +28,11 @@ import json, os, sys
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 path = Path(os.environ['STUB_STATE'])
-s = json.loads(path.read_text())
+s = json.loads(path.read_text(encoding="utf-8"))
 a = sys.argv[1:]
 s.setdefault('calls', []).append([Path(sys.argv[0]).name, a])
 def finish(value, code=0):
-    path.write_text(json.dumps(s))
+    path.write_text(json.dumps(s), encoding="utf-8")
     print(json.dumps(value))
     sys.exit(code)
 if Path(sys.argv[0]).name == 'gh':
@@ -61,8 +61,8 @@ if '-X' in a and a[a.index('-X') + 1] == 'PUT':
     assert data['tags'] == ['github-issue-created', 'keep']
     s['tag_attempts'] = s.get('tag_attempts', 0) + 1
     failed = s.pop('tag_fail', False)
-    path.write_text(json.dumps(s))
-    Path(a[a.index('-o') + 1]).write_text('{}')
+    path.write_text(json.dumps(s), encoding="utf-8")
+    Path(a[a.index('-o') + 1]).write_text('{}', encoding="utf-8")
     print('500' if failed else '200')
     sys.exit(0)
 if '-X' in a:
@@ -90,14 +90,14 @@ class RetryTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.directory = Path(temporary.name)
         self.state = self.directory / "state.json"
-        self.state.write_text("{}")
+        self.state.write_text("{}", encoding="utf-8")
         for name in ("gh", "curl"):
             executable = self.directory / name
-            executable.write_text(STUB)
+            executable.write_text(STUB, encoding="utf-8")
             executable.chmod(0o755)
         self.output = self.directory / "output"
         self.output.touch()
-        (self.directory / "issue-body.md").write_text("Forum content\n")
+        (self.directory / "issue-body.md").write_text("Forum content\n", encoding="utf-8")
         self.env = {
             **os.environ,
             "PATH": f"{self.directory}:{os.environ['PATH']}",
@@ -122,10 +122,10 @@ class RetryTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode == 0, ok, result.stderr)
-        return json.loads(self.state.read_text())
+        return json.loads(self.state.read_text(encoding="utf-8"))
 
     def seed(self, **data):
-        self.state.write_text(json.dumps(data))
+        self.state.write_text(json.dumps(data), encoding="utf-8")
 
     def test_duplicate_dispatch_reuses_issue_and_reply(self):
         for _ in range(2):
@@ -134,16 +134,16 @@ class RetryTests(unittest.TestCase):
         self.assertEqual(state["creates"], 1)
         self.assertEqual(state["replies"], 1)
         self.assertTrue(state["pages"][0][0]["body"].endswith(MARKER + "\n"))
-        self.assertEqual(self.output.read_text(), f"issue_url={URL}\n" * 2)
+        self.assertEqual(self.output.read_text(encoding="utf-8"), f"issue_url={URL}\n" * 2)
 
     def test_failed_or_ambiguous_create_is_not_retried_in_run(self):
         for failure in ("create_lost", "create_bad"):
             with self.subTest(failure=failure):
                 self.seed(**{failure: True})
-                self.output.write_text("")
+                self.output.write_text("", encoding="utf-8")
                 state = self.run_step("Create GitHub issue", ok=False)
                 self.assertEqual(state["creates"], 1)
-                self.assertEqual(self.output.read_text(), "")
+                self.assertEqual(self.output.read_text(encoding="utf-8"), "")
                 state = self.run_step("Create GitHub issue")
                 self.assertEqual(state["creates"], 1)
 
@@ -159,7 +159,7 @@ class RetryTests(unittest.TestCase):
         self.seed(pages=[[{**issue, "number": 1, "pull_request": {}}], [issue]])
         state = self.run_step("Create GitHub issue")
         self.assertNotIn("creates", state)
-        self.assertEqual(self.output.read_text(), f"issue_url={URL}\n")
+        self.assertEqual(self.output.read_text(encoding="utf-8"), f"issue_url={URL}\n")
 
     def test_forged_embedded_marker_and_prefix_id_do_not_match(self):
         self.seed(
@@ -220,7 +220,7 @@ class RetryTests(unittest.TestCase):
             WORKFLOW["concurrency"], {"group": "discourse-issue-sync", "queue": "max", "cancel-in-progress": False}
         )
         for event in ("repository_dispatch", "workflow_dispatch"):
-            self.output.write_text("")
+            self.output.write_text("", encoding="utf-8")
             self.env.update(
                 EVENT_NAME=event,
                 CLIENT_TOPIC_ID="000123",
@@ -229,7 +229,7 @@ class RetryTests(unittest.TestCase):
                 DEFAULT_REPO="UMEP-dev/SUEWS",
             )
             self.run_step("Resolve inputs")
-            self.assertIn("topic_id=123\n", self.output.read_text())
+            self.assertIn("topic_id=123\n", self.output.read_text(encoding="utf-8"))
 
     def test_tag_failure_retry_preserves_issue_and_reply(self):
         self.env["DISCOURSE_HOST"] = "https://community.suews.io"

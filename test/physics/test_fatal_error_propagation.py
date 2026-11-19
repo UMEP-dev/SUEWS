@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 import ctypes
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -184,13 +185,18 @@ call radiation_abort('thread-local radiation failure')
 end subroutine
 """, encoding="ascii",
     )
-    library_path = tmp_path / "threads.so"
+    library_path = tmp_path / ("threads.dll" if os.name == "nt" else "threads.so")
     subprocess.run(
         [compiler, "-shared", "-fPIC", str(source), "-I", str(suews / "mod"),
          "-L", str(suews / "lib"), "-lspartacus", "-o", str(library_path)],
         check=True, capture_output=True, text=True,
     )
-    library = ctypes.CDLL(str(library_path))
+    if os.name == "nt":
+        # ctypes needs the MinGW runtime DLLs beside the compiler when loading the probe.
+        with os.add_dll_directory(str(Path(compiler).resolve().parent)):
+            library = ctypes.CDLL(str(library_path))
+    else:
+        library = ctypes.CDLL(str(library_path))
     library.native_abort.restype = None
     library.suews_tls_error_reset.restype = None
     library.suews_tls_error_code.restype = ctypes.c_int

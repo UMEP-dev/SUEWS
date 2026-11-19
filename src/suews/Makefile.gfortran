@@ -80,7 +80,8 @@ else
 			STATICLIB =
 			SUEWS_build_dir = $(addprefix $(SUEWS_build_base), macOS_arm64)
 		else
-			STATICLIB = $(shell $(FC) -print-file-name=libquadmath.a) # link the archive without modifying the compiler installation
+			# gfortran also requests the shared library. Drop its unused load command.
+			STATICLIB = $(shell $(FC) -print-file-name=libquadmath.a) -Wl,-dead_strip_dylibs
 			SUEWS_build_dir = $(addprefix $(SUEWS_build_base), macOS_x64)
 		endif
 	endif

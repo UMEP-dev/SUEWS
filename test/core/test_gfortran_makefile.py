@@ -41,5 +41,5 @@ class MakefileTests(unittest.TestCase):
                  "OS=", "UNAME_S=Darwin", "UNAME_m=x86_64", f"FC={compiler}"],
                 env=os.environ, capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout.strip(), str(archive))
+            self.assertEqual(result.stdout.strip(), f"{archive} -Wl,-dead_strip_dylibs")
             self.assertEqual(dylib.read_text(encoding="utf-8"), "compiler-owned sentinel")

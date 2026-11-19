@@ -15,6 +15,8 @@
 
 module spartacus_surface_read_input
 
+  use radiation_io, only : radiation_error
+
 contains
 
   subroutine read_input(file, config, driver_config, ncol, ntotlay, &
@@ -57,6 +59,7 @@ contains
     call lw_spectral_props%deallocate()
 
     call file%get('nlayer', canopy_props%nlay)
+    if (radiation_error()) return
 
     ncol = size(canopy_props%nlay)
     
@@ -70,6 +73,7 @@ contains
         end if
       else
         call file%get('cos_solar_zenith_angle', canopy_props%cos_sza)
+        if (radiation_error()) return
       end if
     end if
 
@@ -79,6 +83,7 @@ contains
     ntotlay = canopy_props%ntotlay
 
     call file%get('height', height)
+    if (radiation_error()) return
     allocate(canopy_props%dz(canopy_props%ntotlay))
     allocate(canopy_props%istartlay(ncol))
 
@@ -92,16 +97,20 @@ contains
     end do
 
     call file%get('surface_type', canopy_props%i_representation)
+    if (radiation_error()) return
 
     ! Read canopy geometry
     if (config%do_urban) then
       call read_packed_1d(file, 'building_fraction', canopy_props%nlay, &
            &              canopy_props%building_fraction)
+      if (radiation_error()) return
       call read_packed_1d(file, 'building_scale', canopy_props%nlay, &
            &              canopy_props%building_scale)
+      if (radiation_error()) return
       if (file%exists('veg_contact_fraction')) then
         call read_packed_1d(file, 'veg_contact_fraction', canopy_props%nlay, &
              &              canopy_props%veg_contact_fraction)
+        if (radiation_error()) return
       else
         allocate(canopy_props%veg_contact_fraction(ntotlay))
         canopy_props%veg_contact_fraction = 0.0_jprb
@@ -114,9 +123,11 @@ contains
       else
         call read_packed_1d(file, 'veg_fraction', canopy_props%nlay, &
              &              canopy_props%veg_fraction)
+        if (radiation_error()) return
       end if
       call read_packed_1d(file, 'veg_extinction', canopy_props%nlay, &
            &  canopy_props%veg_ext)
+      if (radiation_error()) return
       if (driver_config%vegetation_extinction >= 0.0) then
         if  (driver_config%iverbose >= 2) then
           write(nulout,'(a,g10.3)') '  Overriding vegetation extinction with ', &
@@ -126,12 +137,14 @@ contains
       end if
       call read_packed_1d(file, 'veg_scale', canopy_props%nlay, &
            &              canopy_props%veg_scale)
+      if (radiation_error()) return
       if (driver_config%vegetation_fsd >= 0.0_jprb) then
         allocate(canopy_props%veg_fsd(ntotlay))
         canopy_props%veg_fsd = driver_config%vegetation_fsd
       else
         call read_packed_1d(file, 'veg_fsd', canopy_props%nlay, &
              &              canopy_props%veg_fsd)
+        if (radiation_error()) return
       end if
     end if
 
@@ -139,14 +152,18 @@ contains
       ! Read ground properties needed for longwave calculations
       
       call file%get('ground_temperature', canopy_props%ground_temperature)
+      if (radiation_error()) return
       if (config%do_urban) then
         call read_packed_1d(file, 'roof_temperature', canopy_props%nlay, &
              &              canopy_props%roof_temperature)
+        if (radiation_error()) return
         call read_packed_1d(file, 'wall_temperature', canopy_props%nlay, &
              &              canopy_props%wall_temperature)
+        if (radiation_error()) return
       end if
 
       call read_2d(file, 'ground_lw_emissivity', lw_spectral_props%ground_emissivity)
+      if (radiation_error()) return
       if (driver_config%ground_lw_emissivity >= 0.0) then
         if  (driver_config%iverbose >= 2) then
           write(nulout,'(a,g10.3)') '  Overriding ground longwave emissivity with ', &
@@ -159,6 +176,7 @@ contains
         ! Read urban properties needed for longwave calculations
         
         call read_packed_2d(file, 'roof_lw_emissivity', canopy_props%nlay, lw_spectral_props%roof_emissivity)
+        if (radiation_error()) return
         if (driver_config%roof_lw_emissivity >= 0.0) then
           if  (driver_config%iverbose >= 2) then
             write(nulout,'(a,g10.3)') '  Overriding roof longwave emissivity with ', &
@@ -169,6 +187,7 @@ contains
 
         call read_packed_2d(file, 'wall_lw_emissivity', canopy_props%nlay, &
              &              lw_spectral_props%wall_emissivity)
+        if (radiation_error()) return
         if (driver_config%wall_lw_emissivity >= 0.0) then
           if  (driver_config%iverbose >= 2) then
             write(nulout,'(a,g10.3)') '  Overriding wall longwave emissivity with ', &
@@ -182,6 +201,7 @@ contains
         ! Read vegetation properties needed for longwave calculations
         call read_packed_2d(file, 'veg_lw_ssa', canopy_props%nlay, &
              &  lw_spectral_props%veg_ssa)
+        if (radiation_error()) return
         if (driver_config%vegetation_lw_ssa >= 0.0) then
           if  (driver_config%iverbose >= 2) then
             write(nulout,'(a,g10.3)') '  Overriding vegetation longwave single-scattering albedo with ', &
@@ -195,13 +215,16 @@ contains
         if (file%exists('clear_air_temperature')) then
           call read_packed_1d(file, 'clear_air_temperature', canopy_props%nlay, &
                &  canopy_props%clear_air_temperature)
+          if (radiation_error()) return
           if (config%do_vegetation) then
             call read_packed_1d(file, 'veg_air_temperature', canopy_props%nlay, &
                  &  canopy_props%veg_air_temperature)
+            if (radiation_error()) return
           end if
         else
           call read_packed_1d(file, 'air_temperature', canopy_props%nlay, &
                &  canopy_props%clear_air_temperature)
+          if (radiation_error()) return
           if (config%do_vegetation) then
             if  (driver_config%iverbose >= 2) then
               write(nulout,'(a,g10.3)') '  Setting temperature of clear-air and air in vegetation to air_temperature'
@@ -214,6 +237,7 @@ contains
           if (file%exists('veg_temperature')) then
             call read_packed_1d(file, 'veg_temperature', canopy_props%nlay, &
                  &  canopy_props%veg_temperature)
+            if (radiation_error()) return
           else
             if  (driver_config%iverbose >= 2) then
               write(nulout,'(a,g10.3)') '  Setting vegetation temperature equal to air temperature'
@@ -239,10 +263,12 @@ contains
       ! Get the top-of-canopy fluxes
       if (file%exists('top_flux_lw_sw')) then
         call read_2d(file, 'top_flux_dn_lw', top_flux_dn_lw)
+        if (radiation_error()) return
       else
         ! Spectral fluxes not provided; check for sky temperature
         ! which can provide a broadband longwave flux
         call read_2d(file, 'sky_temperature', top_flux_dn_lw)
+        if (radiation_error()) return
         top_flux_dn_lw = StefanBoltzmann * top_flux_dn_lw**4
       end if
 
@@ -251,6 +277,7 @@ contains
     if (config%do_sw) then
       ! Read ground properties needed for shortwave calculations
       call read_2d(file, 'ground_sw_albedo', sw_spectral_props%ground_albedo)
+      if (radiation_error()) return
       if (driver_config%ground_sw_albedo >= 0.0) then
         if  (driver_config%iverbose >= 2) then
           write(nulout,'(a,g10.3)') '  Overriding ground shortwave albedo with ', &
@@ -261,12 +288,14 @@ contains
 
       if (file%exists('ground_sw_albedo_direct')) then
         call read_2d(file, 'ground_sw_albedo_direct', sw_spectral_props%ground_albedo_dir)
+        if (radiation_error()) return
       end if
 
       if (config%do_urban) then
         ! Read urban properties needed for shortwave calculations
         call read_packed_2d(file, 'roof_sw_albedo', canopy_props%nlay, &
              &              sw_spectral_props%roof_albedo)
+        if (radiation_error()) return
         if (driver_config%roof_sw_albedo >= 0.0) then
           if  (driver_config%iverbose >= 2) then
             write(nulout,'(a,g10.3)') '  Overriding roof shortwave albedo with ', &
@@ -278,6 +307,7 @@ contains
         if (file%exists('roof_sw_albedo_direct')) then
           call read_packed_2d(file, 'roof_sw_albedo_direct', canopy_props%nlay, &
                &              sw_spectral_props%roof_albedo_dir)
+          if (radiation_error()) return
         else
           if  (driver_config%iverbose >= 2) then
             write(nulout,'(a)') '  Assuming roof albedo to direct albedo is the same as to diffuse'
@@ -291,6 +321,7 @@ contains
         end if
 
         call read_packed_2d(file, 'wall_sw_albedo', canopy_props%nlay, sw_spectral_props%wall_albedo)
+        if (radiation_error()) return
         if (driver_config%wall_sw_albedo >= 0.0) then
           if  (driver_config%iverbose >= 2) then
             write(nulout,'(a,g10.3)') '  Overriding wall shortwave albedo with ', &
@@ -302,6 +333,7 @@ contains
         if (file%exists('wall_sw_specular_fraction')) then
           call read_packed_2d(file, 'wall_sw_specular_fraction', canopy_props%nlay, &
                &              sw_spectral_props%wall_specular_frac)
+          if (radiation_error()) return
         else
           allocate(sw_spectral_props%wall_specular_frac(ubound(sw_spectral_props%roof_albedo,1),ntotlay))
           sw_spectral_props%wall_specular_frac = 0.0_jprb
@@ -316,6 +348,7 @@ contains
         ! Read vegetation properties needed for shortwave calculations
         call read_packed_2d(file, 'veg_sw_ssa', canopy_props%nlay, &
              &  sw_spectral_props%veg_ssa)
+        if (radiation_error()) return
         if (driver_config%vegetation_sw_ssa >= 0.0) then
           if  (driver_config%iverbose >= 2) then
             write(nulout,'(a,g10.3)') '  Overriding vegetation shortwave single-scattering albedo with ', &
@@ -338,12 +371,14 @@ contains
         top_flux_dn_sw = driver_config%top_flux_dn_sw
       else
         call read_2d(file, 'top_flux_dn_sw', top_flux_dn_sw)
+        if (radiation_error()) return
       end if
       if (driver_config%top_flux_dn_direct_sw >= 0.0_jprb) then
         allocate(top_flux_dn_direct_sw(config%nsw, ncol))
         top_flux_dn_direct_sw = driver_config%top_flux_dn_direct_sw
       else
         call read_2d(file, 'top_flux_dn_direct_sw', top_flux_dn_direct_sw)
+        if (radiation_error()) return
       end if
 
     end if
@@ -367,16 +402,20 @@ contains
     if (allocated(var)) deallocate(var)
     
     if (file%get_rank(varname) == 1) then
+      if (radiation_error()) return
       ! No spectral variation of the albedo/emissivity being read
       ! in: use a singleton first dimension
       call file%get(varname, var_1d)
+      if (radiation_error()) return
       allocate(var(1,size(var_1d)))
       var(1,:) = var_1d
       deallocate(var_1d)
     else
+      if (radiation_error()) return
       ! The first dimension of the input and output arrays is
       ! spectral band
       call file%get(varname, var)
+      if (radiation_error()) return
     end if
     
   end subroutine read_2d
@@ -399,6 +438,7 @@ contains
     ntotlay = sum(nlay)
     
     call file%get(varname, var_unpacked)
+    if (radiation_error()) return
     
     if (allocated(var)) deallocate(var)
       
@@ -436,9 +476,11 @@ contains
     if (allocated(var)) deallocate(var)
     
     if (file%get_rank(varname) == 2) then
+      if (radiation_error()) return
       ! No spectral variation of the albedo/emissivity being read
       ! in: use a singleton first dimension
       call file%get(varname, var_unpacked_2d)
+      if (radiation_error()) return
       allocate(var(1,ntotlay))
       ilay = 1
       do jcol = 1,size(nlay)
@@ -447,9 +489,11 @@ contains
       end do
       deallocate(var_unpacked_2d)
     else
+      if (radiation_error()) return
       ! The first dimension of the input and output arrays is
       ! spectral band
       call file%get(varname, var_unpacked_3d)
+      if (radiation_error()) return
       nband = size(var_unpacked_3d,1)
       allocate(var(nband,ntotlay))
       ilay = 1

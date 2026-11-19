@@ -124,10 +124,11 @@ def assess_readiness(
     run for my site?"). It complements ``validate_config`` (which checks the
     config is structurally valid) by checking it is *yours*, not the sample's.
     """
-    root = ProjectRoot(project_root)
     try:
+        root = ProjectRoot(project_root)
         path = root.resolve(config_path)
-    except SUEWSMCPSandboxError as exc:
+        root.check_config(path)
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(str(exc), command=f"assess_readiness {config_path}")
 
     try:

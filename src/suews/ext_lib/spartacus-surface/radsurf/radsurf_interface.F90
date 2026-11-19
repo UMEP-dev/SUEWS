@@ -26,7 +26,7 @@ contains
 
     use parkind1,                   only : jpim, jprb
     use yomhook,                    only : lhook, dr_hook
-    use radiation_io,               only : nulout
+    use radiation_io,               only : nulout, radiation_error
     use radsurf_config,             only : config_type
     use radsurf_canopy_properties,  only : ITileFlat,  ITileForest, &
          &                                 ITileUrban, ITileVegetatedUrban, &
@@ -219,6 +219,7 @@ contains
                  &              ground_sw_albedo_dir(:,jcol), &
                  &  bc_out%sw_albedo(:,jcol), bc_out%sw_albedo_dir(:,jcol), &
                  &  sw_norm_dir, sw_norm_diff)
+            if (radiation_error()) return
           end if
         end if
         if (config%do_lw) then
@@ -230,6 +231,7 @@ contains
                &  config%lg_lw_urban, canopy_props, lw_spectral_props, &
                &  bc_out%lw_emissivity(:,jcol), bc_out%lw_emission(:,jcol), &
                &  lw_internal, lw_norm)
+          if (radiation_error()) return
         end if
         
       case (ITileVegetatedUrban)
@@ -250,6 +252,7 @@ contains
                  &                    ground_sw_albedo_dir(:,jcol), &
                  &  bc_out%sw_albedo(:,jcol), bc_out%sw_albedo_dir(:,jcol), &
                  &  sw_norm_dir, sw_norm_diff)
+            if (radiation_error()) return
           else
             call sw_norm_dir%zero(jcol,ilay1,ilay2)
             call sw_norm_diff%zero(jcol,ilay1,ilay2)
@@ -262,6 +265,7 @@ contains
                &  config%lg_lw_urban, canopy_props, lw_spectral_props, &
                &  bc_out%lw_emissivity(:,jcol), bc_out%lw_emission(:,jcol), &
                &  lw_internal, lw_norm)
+          if (radiation_error()) return
         end if
 
       end select

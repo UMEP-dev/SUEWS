@@ -34,7 +34,7 @@ def test_convert_passes_input_and_output(
     from suews_mcp.tools import convert_config
 
     src = tmp_path / "RunControl.nml"
-    src.write_text("&runcontrol", encoding="utf-8")
+    src.write_text("&runcontrol\n fileinputpath='Input'\n/\n", encoding="utf-8")
     dst = tmp_path / "out.yml"
 
     captured: dict = {}

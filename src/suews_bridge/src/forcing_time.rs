@@ -46,6 +46,9 @@ pub fn to_seconds(iy: i32, id: i32, it: i32, imin: i32, base_year: i32) -> i64 {
     for y in base_year..iy {
         days += days_in_year(y);
     }
+    for y in iy..base_year {
+        days -= days_in_year(y);
+    }
     days += (id - 1) as i64; // id is 1-based
     days * 86400 + it as i64 * 3600 + imin as i64 * 60
 }
@@ -54,6 +57,10 @@ pub fn to_seconds(iy: i32, id: i32, it: i32, imin: i32, base_year: i32) -> i64 {
 pub fn from_seconds(total_sec: i64, base_year: i32) -> (i32, i32, i32, i32) {
     let mut remaining = total_sec;
     let mut year = base_year;
+    while remaining < 0 {
+        year -= 1;
+        remaining += days_in_year(year) * 86400;
+    }
     loop {
         let year_sec = days_in_year(year) * 86400;
         if remaining < year_sec {
@@ -62,10 +69,52 @@ pub fn from_seconds(total_sec: i64, base_year: i32) -> (i32, i32, i32, i32) {
         remaining -= year_sec;
         year += 1;
     }
-    let day_of_year = (remaining / 86400) as i32 + 1; // 1-based
-    remaining %= 86400;
+    let day_of_year = remaining.div_euclid(86400) as i32 + 1; // 1-based
+    remaining = remaining.rem_euclid(86400);
     let hour = (remaining / 3600) as i32;
     remaining %= 3600;
     let minute = (remaining / 60) as i32;
     (year, day_of_year, hour, minute)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signed_seconds_cross_year_and_leap_boundaries() {
+        for (seconds, base, expected) in [
+            (-1, 2012, (2011, 365, 23, 59)),
+            (-60, 2012, (2011, 365, 23, 59)),
+            (-3900, 2012, (2011, 365, 22, 55)),
+            (-86400, 2013, (2012, 366, 0, 0)),
+            (-366 * 86400, 2013, (2012, 1, 0, 0)),
+            (59 * 86400, 2012, (2012, 60, 0, 0)),
+            (366 * 86400, 2012, (2013, 1, 0, 0)),
+            (0, 2012, (2012, 1, 0, 0)),
+            (3900, 2012, (2012, 1, 1, 5)),
+        ] {
+            assert_eq!(from_seconds(seconds, base), expected);
+            let (iy, id, it, imin) = expected;
+            assert_eq!(
+                to_seconds(iy, id, it, imin, base),
+                seconds.div_euclid(60) * 60
+            );
+        }
+    }
+
+    #[test]
+    fn dates_round_trip_on_both_sides_of_base_year() {
+        for base in [1900, 2000, 2012, 2100] {
+            for year in (base - 4)..=(base + 4) {
+                for day in [1, 59, 60, 61, days_in_year(year) as i32] {
+                    let date = (year, day, 23, 55);
+                    assert_eq!(
+                        from_seconds(to_seconds(year, day, 23, 55, base), base),
+                        date
+                    );
+                }
+            }
+        }
+    }
 }

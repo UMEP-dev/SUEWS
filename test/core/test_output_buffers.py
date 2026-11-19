@@ -223,6 +223,33 @@ def test_grids_sharing_a_buffer_are_refused(native_inputs):
         )
 
 
+@pytest.mark.parametrize("multi", [False, True])
+def test_output_stride_overflow_is_refused(native_inputs, multi):
+    """A crafted stride must fail before any access to its fictitious columns."""
+    ar_data, ar_datetime = _alloc_output_buffers(native_inputs["len_sim"])
+    stride = np.iinfo(np.intp).max // ar_data.itemsize * ar_data.itemsize
+    ar_data = np.lib.stride_tricks.as_strided(
+        ar_data, shape=ar_data.shape, strides=(ar_data.itemsize, stride)
+    )
+    with pytest.raises(ValueError, match="arithmetic overflow"):
+        if multi:
+            native_inputs["rust"].run_suews_multi_into(
+                [native_inputs["config_json"]],
+                native_inputs["forcing_block"],
+                native_inputs["len_sim"],
+                [ar_data],
+                [ar_datetime],
+            )
+        else:
+            native_inputs["rust"].run_suews_into(
+                native_inputs["config_json"],
+                native_inputs["forcing_block"],
+                native_inputs["len_sim"],
+                ar_data,
+                ar_datetime,
+            )
+
+
 def test_read_only_forcing_is_accepted(native_inputs):
     """The bridge copies the forcing for the kernel, so it may be read-only."""
     forcing_block = native_inputs["forcing_block"].copy()

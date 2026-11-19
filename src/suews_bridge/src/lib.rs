@@ -4460,10 +4460,18 @@ mod python_bindings {
         let mut runs: Vec<(usize, usize)> = Vec::new();
         for table in tables.iter().filter(|t| t.nrows > 0) {
             let start = table.buffer.buf_ptr() as usize;
-            runs.extend((0..table.ncols).map(|col| {
-                let run_start = start + col * table.ld * item;
-                (run_start, run_start + table.nrows * item)
-            }));
+            let overflow =
+                || PyValueError::new_err("output buffer address/stride arithmetic overflow");
+            let run_bytes = table.nrows.checked_mul(item).ok_or_else(overflow)?;
+            for col in 0..table.ncols {
+                let run_start = col
+                    .checked_mul(table.ld)
+                    .and_then(|offset| offset.checked_mul(item))
+                    .and_then(|offset| start.checked_add(offset))
+                    .ok_or_else(overflow)?;
+                let run_end = run_start.checked_add(run_bytes).ok_or_else(overflow)?;
+                runs.push((run_start, run_end));
+            }
         }
         runs.sort_unstable();
         if runs.windows(2).any(|w| w[1].0 < w[0].1) {

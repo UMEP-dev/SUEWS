@@ -421,32 +421,32 @@ impl HeatState {
             ..Self::default()
         };
 
-        for i in 0..NSURF {
-            state.qs_surf[i] = flat[idx];
+        for slot in &mut state.qs_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qn_surf[i] = flat[idx];
+        for slot in &mut state.qn_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qe0_surf[i] = flat[idx];
+        for slot in &mut state.qe0_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qe_surf[i] = flat[idx];
+        for slot in &mut state.qe_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qh_surf[i] = flat[idx];
+        for slot in &mut state.qh_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qh_resist_surf[i] = flat[idx];
+        for slot in &mut state.qh_resist_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.tsurf_ind[i] = flat[idx];
+        for slot in &mut state.tsurf_ind {
+            *slot = flat[idx];
             idx += 1;
         }
 
@@ -487,20 +487,20 @@ impl HeatState {
         state.qh_init = flat[idx];
         idx += 1;
 
-        for i in 0..RADIATION_BIN_COUNT {
-            state.roof_in_sw_spc[i] = flat[idx];
+        for slot in &mut state.roof_in_sw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..RADIATION_BIN_COUNT {
-            state.roof_in_lw_spc[i] = flat[idx];
+        for slot in &mut state.roof_in_lw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..RADIATION_BIN_COUNT {
-            state.wall_in_sw_spc[i] = flat[idx];
+        for slot in &mut state.wall_in_sw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..RADIATION_BIN_COUNT {
-            state.wall_in_lw_spc[i] = flat[idx];
+        for slot in &mut state.wall_in_lw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
 

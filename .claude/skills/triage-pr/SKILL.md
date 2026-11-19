@@ -125,20 +125,16 @@ It is additive: apply it once and leave it. Do not remove it on a re-run.
 It enables idempotency: batch re-runs skip PRs carrying this label whose
 last substantive activity predates the previous audit timestamp.
 
-### Classification label: `0-physics:change`
+### Classification labels: `0-physics:change` and `0-numerics:change`
 
-Independent of the disposition label, apply `0-physics:change` (if it exists in
-the repo) when the PR diff touches physics source (`suews_phys_*.f95`, the Rust
-physics backend), moves a reference fixture
-(`test/fixtures/data_test/sample_output_2012-*.csv` and its `provenance.json`
-sidecar, `.../stebbs_test/sample_output_stebbs.csv`,
-`test/fixtures/benchmark1/*.pkl`), or
-changes a physics-affecting data-model default. It is additive (not part of the
-mutually-exclusive `0-pr:*` family) and activates the evidence requirements in
-`.claude/rules/physics-change-evidence.md`: a `## Scientific evidence` PR-body
-section, domain-owner sign-off, and the full `-m physics` CI tier. When you apply
-it, note in the marker comment that the PR needs the evidence section and owner
-sign-off (owners are named in `MAINTAINERS.md`) before it can advance.
+Independent of the disposition label, apply at most one classification label (if present in the repository) per `.claude/rules/physics-change-evidence.md`:
+
+- `0-physics:change` when the PR changes process formulation (`suews_phys_*.f95`, `src/suews/ext_lib/**`, Rust physics backend), changes a physics-affecting data-model default, or moves any reference fixture (`sample_output_2012-*.csv` + `provenance.json`, `.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`, `test/fixtures/w16_most.csv`) without satisfying all conditions of `0-numerics:change` (including shifts at or above `0.5%` scale-relative or `0.5 W m-2` absolute flux difference, any change to an identically-zero reference variable, or a reference-lane build-environment update). When applied, note in the marker comment that the PR needs `## Scientific evidence` and domain-owner sign-off (`MAINTAINERS.md`) before advancing.
+- `0-numerics:change` when the PR changes no process formulation -- only constant precision, unit conversions, or floating-point representation -- and moves all reference outputs strictly below `0.5%` scale-relative (with `Lob` / `L_MOD_RSL` judged by `zL` / `zeta`) and `0.5 W m-2` absolute flux difference. When applied, note that the PR needs same-PR fixture refresh, a per-variable change table, and green `physics-full` CI (no `## Scientific evidence` or domain-owner sign-off).
+
+Both sit outside the `0-pr:*` state machine, are mutually exclusive with each other (`0-physics:change` wins if mixed or uncertain), and select the `physics-full` CI tier.
+Apply a missing classification label **only when neither `0-physics:change` nor `0-numerics:change` is already present** on the PR; never remove, replace, or downgrade an existing classification label automatically (`.claude/rules/physics-change-evidence.md`).
+If an existing classification label conflicts with the diff (or both labels are present), preserve the existing label(s) untouched and flag the proposed change in the marker comment and verdict `Reason` for a maintainer to decide and record.
 
 ### Priority
 
@@ -157,7 +153,7 @@ Create these six labels once in the repository:
 0-pr:escalate
 ```
 
-`triage-pr` queries existing repository labels first (`gh label list --repo UMEP-dev/SUEWS --limit 200 --json name --jq '.[].name'`), applies only labels present in that inventory, and NEVER creates labels. If `0-auto:pr-audited`, `0-physics:change`, or a `0-pr:*` label is absent from the repository, degrade gracefully: skip that `gh pr edit --add-label` call and record the missing label note in the verdict output rather than failing.
+`triage-pr` queries existing repository labels first (`gh label list --repo UMEP-dev/SUEWS --limit 200 --json name --jq '.[].name'`), applies only labels present in that inventory, and NEVER creates labels. If `0-auto:pr-audited`, `0-physics:change`, `0-numerics:change`, or a `0-pr:*` label is absent from the repository, degrade gracefully: skip that `gh pr edit --add-label` call and record the missing label note in the verdict output rather than failing.
 
 ---
 
@@ -197,8 +193,10 @@ May run without human approval in autonomous mode:
 - Compute verdicts per `references/rubric.md` for every candidate PR.
 - **On PRs owned by the current operator/automation account ONLY**:
   - Post or upsert the marker comment (`<!-- triage-pr:verdict ts=... -->`).
-  - Swap the matching `0-pr:*` label and apply `0-auto:pr-audited` (and
-    `0-physics:change` when triggered), skipping any label missing from
+  - Swap the matching `0-pr:*` label and apply `0-auto:pr-audited` (plus
+    `0-physics:change` or `0-numerics:change` when triggered and neither
+    classification label is already on the PR; preserve existing classification
+    labels on conflict and flag for a maintainer), skipping any label missing from
     `gh label list`.
 
 ### Confidence-gated

@@ -268,14 +268,20 @@ workflow's `on:` / `paths:` rather than assuming.
   - Enforces `.claude/rules/physics-change-evidence.md` (`needs:` of `PR build validation`):
     fails if stored reference outputs (`test/fixtures/data_test/sample_output_2012-*.csv`,
     `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change
-    without the `0-physics:change` label, and warns on unlabelled `suews_phys_*.f9*`
-    edits.
-  - Maintainer-gated + author-fixable (no cosmetic bypass): add `## Scientific evidence`
-    to the PR body, have a maintainer apply `0-physics:change`, and re-trigger
-    (note: `check_physics_label` reads labels live via the API, whereas
-    `determine_matrix` on `pull_request` reads the event payload to select the
-    full `-m physics` tier -- push a commit or close/reopen so the full physics
-    tier runs).
+    without **exactly one** of `0-physics:change` or `0-numerics:change`, fails if a PR
+    carries both labels simultaneously or if a labelled ready PR / `merge_group` run did not
+    execute `test_tier=physics-full` (and `PR build validation` requires `build_wheels == success`
+    whenever either label is present), and warns on unlabelled `suews_phys_*.f9*` edits.
+  - Maintainer-gated + author-fixable (no cosmetic bypass): for formulation, build-environment,
+    or above-threshold changes, add `## Scientific evidence` to the PR body and have a
+    maintainer apply `0-physics:change`; for constant precision, unit conversion, or
+    floating-point representation changes strictly below `0.5%` scale-relative and `0.5 W m-2`
+    absolute flux difference, add the per-variable numerical change table and have a
+    maintainer apply `0-numerics:change`. Both `determine_matrix` and `check_physics_label`
+    query live PR labels via the API, and `build-publish_to_pypi.yml` does not trigger on
+    label events -- so after adding or changing either label, click "Re-run all jobs" (or push
+    a commit / close and reopen the PR) so `determine_matrix` and `build_wheels` run `physics-full`
+    (never re-run `check_physics_label` alone).
 - **`Build MCP package`** (`build_mcp` in `build-publish_to_pypi.yml`)
   - Enforces (`needs:` of `build_wheels` and `PR build validation`): runs
     `python3 get_ver_git.py` and `python -m build mcp` to produce the
@@ -330,9 +336,9 @@ trigger types, so labelling those re-triggers them directly. Check the workflow'
 - **Do not propose a bypass to dodge a real change.** The label is for diffs that
   do not need the bump, never for diffs that need it and would rather not. Verify
   the non-structural claim against the diff yourself before writing the sentence.
-- **Do not propose a bypass at all for `0-physics:change`.** Per
-  `.claude/rules/physics-change-evidence.md` that gate has no cosmetic bypass; it is
-  satisfied by supplying the evidence.
+- **Do not propose a cosmetic bypass for `0-physics:change` or `0-numerics:change`.** Per
+  `.claude/rules/physics-change-evidence.md` neither label can be waived, and `0-numerics:change`
+  must never be proposed for a formulation change or an output shift at or above the numerical threshold.
 - **Do not re-run, close/reopen, or push to a PR you do not own** to clear a check.
   Those are author or maintainer actions; the review names them, the review does not
   perform them.

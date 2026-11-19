@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 19 Nov 2026
+
+- [maintenance] Add a static ratchet (`scripts/lint/check_rust_optional_reads.py` and `scripts/lint/rust_optional_reads_baseline.json`) pinning legacy optional YAML reader counts in `src/suews_bridge/src/yaml_config.rs` per function so new PRs cannot add silent fallback reads while #1991/#2002 migrates read sites to `require_*` (#1991, #2077)
+
 ### 18 Nov 2026
 
 - [maintenance] Separate round-off numerical changes (`0-numerics:change`) from formulation physics changes (`0-physics:change`) in `.claude/rules/physics-change-evidence.md`, companion governance rules/docs/skills, and CI: constant-precision, unit-conversion, and floating-point-representation changes that move reference outputs strictly below `0.5%` scale-relative (with `Lob` / `L_MOD_RSL` judged by `zL` / `zeta`) and `0.5 W m-2` absolute flux difference refresh fixtures in the same PR with a per-variable change table and run the `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off, while CI enforces mutual exclusion and `physics-full` execution across both labels (#2064)

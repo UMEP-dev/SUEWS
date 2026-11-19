@@ -897,6 +897,10 @@ jobs:
   #  4. Fortran physical-constant literals (273.15, Stefan-Boltzmann, pi,
   #     degree-radian and time factors, cp and Lv) must match their
   #     committed per-file baseline. A text scan that needs no build.
+  #  5. Legacy optional YAML readers in `src/suews_bridge/src/yaml_config.rs`
+  #     must match their committed per-function baseline so counts can only go
+  #     down as #1991/#2002 converts blocks to `require_*`. A text scan that
+  #     needs no build.
   #
   # The job id and display name are unchanged so nothing that references
   # them (needs:, .github/scripts/pr-gate.sh, branch protection) breaks.
@@ -943,6 +947,13 @@ jobs:
         if: always()
         shell: bash
         run: python scripts/lint/check_fortran_literals.py
+
+      # Legacy optional YAML readers in the Rust bridge may only go down while
+      # #1991/#2002 converts read sites block by block to require_* readers.
+      - name: Lint Rust bridge optional YAML readers against the baseline
+        if: always()
+        shell: bash
+        run: python scripts/lint/check_rust_optional_reads.py
 
   # A change to the stored reference outputs must declare itself as a physics
   # or numerical change (.claude/rules/physics-change-evidence.md). The exact

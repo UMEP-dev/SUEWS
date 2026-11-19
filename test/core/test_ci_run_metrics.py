@@ -902,3 +902,625 @@ def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
     upload = job["steps"][-1]
     assert upload["if"] == "always()"
     assert upload["with"]["name"] == "python-coverage"
+
+
+def _write_gh_stub(bin_dir: Path) -> None:
+    """Write a minimal executable ``gh`` stub into ``bin_dir`` for workflow step tests."""
+    stub = bin_dir / "gh"
+    stub.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json\n"
+        "import os\n"
+        "import re\n"
+        "import sys\n"
+        "argv = sys.argv[1:]\n"
+        "args = ' '.join(argv)\n"
+        "paginate = '--paginate' in argv\n"
+        "m_lbl = re.search(r'/issues/(\\d+)/labels', args)\n"
+        "m_pr_files = re.search(r'/pulls/(\\d+)/files', args)\n"
+        "if m_lbl:\n"
+        "    by_pr = json.loads(os.environ.get('FAKE_GH_LABELS_BY_PR', '{}'))\n"
+        "    pr = m_lbl.group(1)\n"
+        "    raw = (\n"
+        "        by_pr[pr]\n"
+        "        if pr in by_pr\n"
+        "        else json.loads(os.environ.get('FAKE_GH_LABELS_JSON', '[]'))\n"
+        "    )\n"
+        "    pages = raw if (raw and isinstance(raw[0], list)) else [raw]\n"
+        "    shown = pages if paginate else pages[:1]\n"
+        "    for page in shown:\n"
+        "        sys.stdout.write(json.dumps(page) + '\\n')\n"
+        "elif m_pr_files or '/compare/' in args:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_GH_FILES', '') + '\\n')\n"
+        "else:\n"
+        "    sys.exit(f'unexpected gh call: {args}')\n",
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(
+    sys.platform == "win32"
+    or shutil.which("bash") is None
+    or shutil.which("jq") is None,
+    reason="Workflow shell steps run under bash + jq on Linux CI",
+)
+@pytest.mark.parametrize(
+    ("event_name", "api_labels", "head_ref", "base_sha", "expected"),
+    [
+        ("pull_request", ["0-physics:change"], "", "", "true"),
+        ("pull_request", ["1-maintenance", "0-numerics:change"], "", "", "true"),
+        (
+            "pull_request",
+            [["1-maintenance"], ["0-numerics:change"]],
+            "",
+            "",
+            "true",
+        ),
+        (
+            "pull_request",
+            [["0-physics:change"], ["0-numerics:change"]],
+            "",
+            "",
+            "true",
+        ),
+        ("pull_request", ["1-maintenance", "2-meta:governance"], "", "", "false"),
+        (
+            "merge_group",
+            ["0-numerics:change"],
+            "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+            "ba5e000",
+            "true",
+        ),
+        (
+            "merge_group",
+            [["1-maintenance"], ["0-numerics:change"]],
+            "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+            "ba5e000",
+            "true",
+        ),
+        (
+            "merge_group",
+            ["1-maintenance"],
+            "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+            "ba5e000",
+            "false",
+        ),
+        (
+            "merge_group",
+            ["1-maintenance"],
+            "refs/heads/gh-readonly-queue/master/pr-42-a11ce41",
+            "ba5e000",
+            "true",
+        ),
+        (
+            "merge_group",
+            [],
+            "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+            "ba5e000",
+            "true",
+        ),
+    ],
+)
+def test_determine_matrix_label_step_reads_live_api_labels(
+    tmp_path: Path,
+    event_name: str,
+    api_labels: list[str] | list[list[str]],
+    head_ref: str,
+    base_sha: str,
+    expected: str,
+) -> None:
+    """Live API labels drive physics-full selection across PR and merge_group contexts."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    step = next(
+        s
+        for s in workflow["jobs"]["determine_matrix"]["steps"]
+        if s.get("id") == "physics-label"
+    )
+    assert "PR_LABELS_JSON" not in step["env"]
+    assert json.loads(step["env"]["LABELS_JSON"]) == [
+        "0-physics:change",
+        "0-numerics:change",
+    ]
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _write_gh_stub(bin_dir)
+    gh_out = tmp_path / "github_output"
+    gh_out.write_text("", encoding="utf-8")
+
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
+        "GITHUB_OUTPUT": str(gh_out),
+        "EVENT_NAME": event_name,
+        "PR_NUMBER": "42",
+        "FAKE_GH_LABELS_JSON": json.dumps(api_labels),
+        "MERGE_HEAD_REF": head_ref,
+        "MERGE_BASE_SHA": base_sha,
+        "REPO": "UMEP-dev/SUEWS",
+        "LABELS_JSON": step["env"]["LABELS_JSON"],
+    }
+
+    # ACT
+    result = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    # ASSERT
+    outputs = dict(
+        line.split("=", 1)
+        for line in gh_out.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    assert outputs["found"] == expected
+    if api_labels == [["0-physics:change"], ["0-numerics:change"]]:
+        assert "(0-physics:change, 0-numerics:change)" in result.stdout
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(
+    sys.platform == "win32"
+    or shutil.which("bash") is None
+    or shutil.which("jq") is None,
+    reason="Workflow shell steps run under bash + jq on Linux CI",
+)
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": "without 0-physics:change or 0-numerics:change",
+            },
+            id="pr-unlabelled-ref-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": (
+                    "test/fixtures/data_test/sample_output_2012-01.csv\n"
+                    "test/fixtures/data_test/provenance.json"
+                ),
+                "labels": ["1-maintenance", "0-numerics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="pr-numerics-physics-full-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["1-bug", "0-physics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-physics:change"
+                ),
+            },
+            id="pr-physics-physics-full-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels": ["1-maintenance", "0-numerics:change"],
+                "expected_rc": 1,
+                "expected_substring": (
+                    "requires test_tier=physics-full, but this workflow run used test_tier=smoke"
+                ),
+            },
+            id="pr-late-label-without-physics-full-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "true",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels": ["1-maintenance", "0-numerics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="draft-pr-numerics-smoke-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["0-physics:change", "0-numerics:change"],
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="pr-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": [
+                    ["1-maintenance", "0-physics:change"],
+                    ["2-infra:ci", "0-numerics:change"],
+                ],
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="pr-split-pages-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": [["1-maintenance"], ["0-numerics:change"]],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="pr-split-pages-second-page-label-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "src/suews/src/suews_phys_ohm.f95",
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "::warning::PR #42 touches physics source without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="pr-unlabelled-physics-warns",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+                "base_sha": "ba5e000",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["0-numerics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="mq-single-pr-labelled-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+                "base_sha": "ba5e000",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": (
+                    "PR #42 changes stored reference outputs without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="mq-single-pr-unlabelled-ref-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+                "base_sha": "ba5e000",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["0-physics:change", "0-numerics:change"],
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="mq-single-pr-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-a11ce41",
+                "base_sha": "ba5e000",
+                "files": "README.md\ntest/fixtures/w16_most.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Multi-PR or unparsed merge_group ref gated by physics-full"
+                ),
+            },
+            id="mq-multi-pr-ref-does-not-misattribute-to-tail-pr",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-a11ce41",
+                "base_sha": "ba5e000",
+                "files": "README.md\ntest/fixtures/w16_most.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": "requires test_tier=physics-full",
+            },
+            id="mq-multi-pr-ref-without-physics-full-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+                "base_sha": "ba5e000",
+                "files": "README.md",
+                "labels": [],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Multi-PR or unparsed merge_group ref gated by physics-full"
+                ),
+            },
+            id="mq-unparsed-batch-ref-gated-by-physics-full",
+        ),
+    ],
+)
+def test_check_physics_label_gate_enforces_exclusivity_tier_and_queue_refs(
+    tmp_path: Path,
+    case: dict[str, object],
+) -> None:
+    """Fixture refreshes require exactly one classification label and a physics-full run."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    job = workflow["jobs"]["check_physics_label"]
+    assert job["needs"] == ["determine_matrix"]
+    step = job["steps"][0]
+    assert json.loads(step["env"]["LABELS_JSON"]) == [
+        "0-physics:change",
+        "0-numerics:change",
+    ]
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _write_gh_stub(bin_dir)
+
+    event_name = str(case["event_name"])
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
+        "EVENT_NAME": event_name,
+        "REPO": "UMEP-dev/SUEWS",
+        "PR_NUMBER": "42",
+        "IS_DRAFT": str(case["is_draft"]),
+        "DETERMINE_MATRIX_RESULT": "success",
+        "TEST_TIER": str(case["test_tier"]),
+        "MERGE_HEAD_REF": str(case["head_ref"]),
+        "MERGE_BASE_SHA": str(case["base_sha"]),
+        "MERGE_HEAD_SHA": "head111" if event_name == "merge_group" else "",
+        "LABELS_JSON": step["env"]["LABELS_JSON"],
+        "FAKE_GH_FILES": str(case["files"]),
+        "FAKE_GH_LABELS_BY_PR": json.dumps({"42": case["labels"]}),
+    }
+
+    # ACT
+    result = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    # ASSERT
+    assert result.returncode == case["expected_rc"], result.stdout + result.stderr
+    assert str(case["expected_substring"]) in result.stdout
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh and pr-gate.sh run under bash on Linux CI only",
+)
+def test_determine_matrix_and_pr_gate_enforce_physics_or_numerics_override(
+    tmp_path: Path,
+) -> None:
+    """Classification labels force wheel builds, physics-full tiers, and pr-gate wheel checks."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    assert not (root / ".github/workflows/physics-label-rerun.yml").exists()
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert workflow["jobs"]["determine_matrix"]["outputs"]["physics_change"] == (
+        "${{ steps.physics-label.outputs.found || 'false' }}"
+    )
+    assert (
+        "needs.determine_matrix.outputs.physics_change == 'true'"
+        in workflow["jobs"]["build_wheels"]["if"]
+    )
+    pr_gate_job = workflow["jobs"]["pr-gate"]
+    assert "determine_matrix" in pr_gate_job["needs"]
+    gate_step = next(s for s in pr_gate_job["steps"] if "run" in s)
+    assert gate_step["env"]["PHYSICS_CHANGE"] == (
+        "${{ needs.determine_matrix.outputs.physics_change || 'false' }}"
+    )
+    declared_needs = json.loads(
+        (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    assert "Determine build matrix" in declared_needs["PR build validation"]
+
+    base_env = {
+        **os.environ,
+        "IS_DRAFT": "false",
+        "FORTRAN_CHANGED": "false",
+        "RUST_CHANGED": "false",
+        "PYTHON_CHANGED": "false",
+        "UTIL_CHANGED": "false",
+        "BUILD_CHANGED": "false",
+        "CI_CHANGED": "false",
+    }
+
+    # ACT: ready PR and merge_group with PHYSICS_CHANGE=true
+    pr_out = tmp_path / "pr_out"
+    pr_out.write_text("", encoding="utf-8")
+    subprocess.run(
+        ["bash", str(root / ".github/scripts/determine-matrix.sh")],
+        env={
+            **base_env,
+            "GITHUB_OUTPUT": str(pr_out),
+            "EVENT_NAME": "pull_request",
+            "PHYSICS_CHANGE": "true",
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    mq_out = tmp_path / "mq_out"
+    mq_out.write_text("", encoding="utf-8")
+    subprocess.run(
+        ["bash", str(root / ".github/scripts/determine-matrix.sh")],
+        env={
+            **base_env,
+            "GITHUB_OUTPUT": str(mq_out),
+            "EVENT_NAME": "merge_group",
+            "PHYSICS_CHANGE": "true",
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    gate_env = {
+        **os.environ,
+        "DETECT_CHANGES_RESULT": "success",
+        "BUILD_WHEELS_RESULT": "skipped",
+        "BUILD_MCP_RESULT": "skipped",
+        "TEST_BRIDGE_RESULT": "skipped",
+        "CHECK_MARKERS_RESULT": "success",
+        "NEEDS_BUILD": "false",
+        "PHYSICS_CHANGE": "false",
+    }
+    gate_fail = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={**gate_env, "PHYSICS_LABEL_RESULT": "failure"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    gate_noncode_ok = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={**gate_env, "PHYSICS_LABEL_RESULT": "success"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    gate_labelled_skipped_wheels = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={
+            **gate_env,
+            "PHYSICS_LABEL_RESULT": "success",
+            "PHYSICS_CHANGE": "true",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    gate_labelled_built_wheels = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={
+            **gate_env,
+            "PHYSICS_LABEL_RESULT": "success",
+            "PHYSICS_CHANGE": "true",
+            "BUILD_WHEELS_RESULT": "success",
+            "TEST_BRIDGE_RESULT": "success",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    # ASSERT
+    pr_kv = dict(
+        line.split("=", 1)
+        for line in pr_out.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    mq_kv = dict(
+        line.split("=", 1)
+        for line in mq_out.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    assert pr_kv["test_tier"] == "physics-full"
+    assert mq_kv["test_tier"] == "physics-full"
+    assert len(json.loads(mq_kv["buildplat"])) == 3
+
+    assert gate_fail.returncode == 1
+    assert "0-physics:change or 0-numerics:change" in gate_fail.stdout
+    assert gate_noncode_ok.returncode == 0
+    assert "[OK] Code builds correctly skipped" in gate_noncode_ok.stdout
+    assert gate_labelled_skipped_wheels.returncode == 1
+    assert (
+        "[X] Classification label requires wheel and physics build"
+        in gate_labelled_skipped_wheels.stdout
+    )
+    assert gate_labelled_built_wheels.returncode == 0
+    assert "[OK] Wheel and physics build passed" in gate_labelled_built_wheels.stdout

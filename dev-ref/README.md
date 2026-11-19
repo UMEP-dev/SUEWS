@@ -40,7 +40,7 @@ when a guide here disagrees with a rule, skill or agent file, follow the higher 
   - CI matrix behaviour and troubleshooting queue failures
 
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
-  - Code governance, `0-physics:change` evidence gates, and review workflow
+  - Code governance, `0-physics:change` / `0-numerics:change` gates, and review workflow
   - Manual maintainer routing for governance and process changes
 
 - **[Regression Checklist](REGRESSION_CHECKLIST.md)** - Lessons from past failures, each with a trigger readable from the diff

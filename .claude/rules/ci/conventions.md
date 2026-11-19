@@ -295,7 +295,7 @@ Test tiers control which pytest markers run during CI builds. Defined via pytest
 - **core** (`-m "(smoke or core) and not slow"`) -- core physics and logic, includes smoke (~2-3 min)
 - **cfg** (`-m "(smoke or cfg) and not slow"`) -- config/schema validation, includes smoke (~2-3 min)
 - **standard** (`-m "core or not slow"`) -- all non-slow tests plus essential core regressions (~5-10 min)
-- **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`.
+- **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics/numerics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 - **all** (no filter) -- full suite including slow tests (~15-30 min)
 
 Importance and cost are independent. The cost markers are defined by the CPU
@@ -331,7 +331,7 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 - `python` or `util`: `MINIMAL_PLATFORMS` (1), test tier **standard** [fact: git grep -n "Ready PR with python/util changes" .github/scripts/determine-matrix.sh]
 - `ci` or `tests` only: `MINIMAL_PLATFORMS` (1), test tier **smoke** [fact: git grep -n "Ready PR with ci/tests-only changes" .github/scripts/determine-matrix.sh]
 - Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
-- **`0-physics:change` label override (gh#1576)**: a ready PR carrying this label runs test tier **physics-full** instead, so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python.
+- **`0-physics:change` / `0-numerics:change` label override (gh#1576)**: a ready PR carrying either label forces `build_wheels` (even when `needs-build` is false) and runs test tier **physics-full**, requiring a green wheel build in `pr-gate` so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml]
 
 ### Merge queue (`merge_group`)
 
@@ -339,7 +339,7 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 - Tests-only or other non-package changes across the queued group: `MINIMAL_PLATFORMS` (1, Linux x86_64), the abi3 build floor (1 Python), test tier **standard** -- wheels are byte-for-byte identical to what `master` already validated across OS families, so one Linux build runs the new tests while the nightly still covers every platform. [fact: git grep -n "tests-only change, minimal platform" .github/scripts/determine-matrix.sh]
 - Ready-PR CI has already exercised both Python bookends; the queue repeats the combined tree on the abi3 floor only. [fact: git grep -n 'API_PYTHON="$BUILD_PYTHON"' .github/scripts/determine-matrix.sh]
 
-**Exception (gh#1576):** when the queued PR carries `0-physics:change`, the merge queue runs `PR_PLATFORMS` (3) with test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from the queue ref and validated before the label is queried; if it cannot be identified (e.g. a batched group), the queue fails safe to **physics-full**. [fact: git grep -n 'MERGE_PLATFORMS="$PR_PLATFORMS"' .github/scripts/determine-matrix.sh]
+**Exception (gh#1576):** when the queued PR carries `0-physics:change` or `0-numerics:change`, the merge queue forces `build_wheels` on `PR_PLATFORMS` (3) with test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from `gh-readonly-queue/<base>/pr-<n>-<sha>` when `<sha>` matches `merge_group.base_sha` (a single-PR queue diff); if the queue ref spans multiple PRs or cannot be parsed, the queue fails safe to **physics-full**. [fact: git grep -n 'MERGE_PLATFORMS="$PR_PLATFORMS"' .github/scripts/determine-matrix.sh && git grep -n "ref_base_sha" .github/workflows/build-publish_to_pypi.yml]
 
 ### Nightly schedule / tag push
 
@@ -414,7 +414,7 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 
 - macOS Intel x86_64 (legacy platform, declining user base)
 - Python 3.13, 3.14 and 3.15 (3.15 is covered by the ready-PR bookends; 3.13 and 3.14 by nightly/release CI)
-- non-core `slow` tests -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576)
+- non-core `slow` tests -- **except** for PRs labelled `0-physics:change` or `0-numerics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576) [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 
 **Rationale:** Full matrix (4 platforms x 4 Python = 16 jobs), or even
 repeating both bookends on all three queue platforms, duplicates work already
@@ -508,9 +508,7 @@ jobs.
 A new check that costs more than a minute or two of runner time goes to the
 nightly first, as a recording job that never gates. Give it a PR-tier
 counterpart only when it must gate merges -- that is, when landing the failure
-it detects would be worse than the delay it adds to every PR. The physics tier
-is the worked example: `slow` physics tests run nightly, and gate a PR only
-through the `0-physics:change` label (gh#1576), never by default.
+it detects would be worse than the delay it adds to every PR. The physics tier is the worked example: `slow` physics tests run nightly, and gate a PR only through the `0-physics:change` or `0-numerics:change` label (gh#1576), never by default. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 
 The corollary is that the nightly's own reliability is a first-class concern.
 The verification criterion for this arrangement is thirty consecutive green

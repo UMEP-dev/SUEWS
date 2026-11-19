@@ -84,7 +84,7 @@ It applies in both modes; the sections below give the pipeline's detail.
 - A decision that is waiting stays visible: the pull request or issue says who it waits on and for what.
   There is no time limit on the answer.
 - A change to model output values, or to what a user of the model can see (names, units, defaults and semantics of interfaces, YAML fields and output variables; runtime dependencies), is accepted by a named person.
-  For a physics change, a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge.
+  For a physics change (`0-physics:change`), a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge; a numerical-only change within the round-off threshold (`0-numerics:change`, see `physics-change-evidence.md`) needs no domain-owner sign-off or scientific-evidence section, while merge itself remains human-gated. [decision: software maintainer, 2026-11-18]
   A structural schema or data-model migration is a design choice with no evidence to prepare first, so the wait is before implementation.
 - A change does not edit the checks that judge it.
   A pull request that changes code does not, in the same pull request, loosen a tolerance, weaken or remove an assertion of an existing test, add a skip or xfail to an existing test, or change `AGENTS.md`, a file under `.claude/` or a required CI check.
@@ -301,19 +301,13 @@ already exist and never creates labels. If a label is absent, the verdict is
 recorded in the marker comment and verdict block only, with a note that the label
 is missing.
 
-## The 0-physics:change classification label
+## The 0-physics:change and 0-numerics:change classification labels
 
-`0-physics:change` is a classification label in the `0-` automation namespace,
-independent of the `0-pr:*` disposition family (a PR can carry both). It marks
-that a PR changes model physics or moves a reference output, and it activates the
-evidence gate in `.claude/rules/physics-change-evidence.md`: a `## Scientific
-evidence` PR-body section, domain-owner sign-off for any owned subsystem (named in
-`MAINTAINERS.md`), the reference-fixture refresh travelling in the same PR, and
-the full `-m physics` CI tier (including `slow`) running as a required check
-before merge. `triage-pr` and `audit-pr` apply it when the diff matches the
-physics-change triggers; a maintainer creates the label once and the autonomous
-tier never creates labels. It is additive (applied once, not swapped) and is not
-counted as substantive work in the `Applied:` field. Unlike
-`0-ci:schema-audit-ok`, there is no cosmetic bypass: the gate is satisfied by
-providing the evidence, not by waiving it. Domain-owner sign-off on a
-physics-change PR is part of the always-human-gated merge gate.
+`0-physics:change` and `0-numerics:change` are mutually exclusive classification labels in the `0-` automation namespace, independent of the `0-pr:*` disposition family (a PR can carry one classification label alongside a `0-pr:*` label). [decision: software maintainer, 2026-11-18]
+Their definitions and thresholds live in `.claude/rules/physics-change-evidence.md`:
+
+- `0-physics:change` marks a PR that changes process formulation (equations, parameterisation form, process partitioning, scheme dispatch, calibrated coefficients, physics-affecting defaults) or moves any model output / vendored reference fixture without satisfying all conditions of `0-numerics:change`: it activates `## Scientific evidence`, domain-owner sign-off (`MAINTAINERS.md`), same-PR fixture refresh, and the `physics-full` CI tier. Domain-owner sign-off on a `0-physics:change` PR is part of the always-human-gated merge gate. [decision: software maintainer, 2026-11-18]
+- `0-numerics:change` marks a PR that changes no process formulation -- only constant precision, unit conversions, or floating-point representation -- and moves all reference outputs strictly below `0.5%` scale-relative (with `Lob` / `L_MOD_RSL` judged by `zL` / `zeta`) and `0.5 W m-2` absolute flux difference: it requires same-PR fixture refresh, a per-variable numerical change table in the PR body, and the `physics-full` CI tier, without `## Scientific evidence` or domain-owner sign-off. [decision: software maintainer, 2026-11-19]
+
+`triage-pr` applies a missing classification label on operator/automation-owned PRs only when neither `0-physics:change` nor `0-numerics:change` is already present (and `audit-pr`, which is read-only in autonomous mode, proposes or flags it); on a conflict, automation preserves the existing label(s) untouched and flags the proposed change for a maintainer to decide and record, while a maintainer creates each label once and the autonomous tier never creates labels. [procedure: Principle 2]
+Neither label is counted as substantive work in the `Applied:` field, and unlike `0-ci:schema-audit-ok` neither is a cosmetic bypass: CI requires **exactly one** of `0-physics:change` or `0-numerics:change` on reference-fixture updates (failing if both are present) and runs `physics-full` for both. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]

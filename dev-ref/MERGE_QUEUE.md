@@ -34,16 +34,16 @@ GitHub's merge queue tests each PR (or batch of PRs) against the latest `master`
 | **Draft PR** (Fortran or Rust changed) | `PR_PLATFORMS` | Bookends (`cp312`, newest) | `core` |
 | **Draft PR** (build-system changed) | `PR_PLATFORMS` | Bookends (`cp312`, newest) | `cfg` |
 | **Draft PR** (Python / util / CI / tests only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `smoke` |
-| **Ready PR** (Fortran, Rust, or build changed) | `PR_PLATFORMS` | Bookends (`cp312`, newest) | `standard` (`physics-full` if `0-physics:change`) |
-| **Ready PR** (Python or util only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `standard` (`physics-full` if `0-physics:change`) |
-| **Ready PR** (CI or tests only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `smoke` (`physics-full` if `0-physics:change`) |
-| **Merge Queue** (Fortran, Rust, Python, util, build, or CI changed) | `PR_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` (`physics-full` if `0-physics:change`) |
-| **Merge Queue** (tests or non-package files only) | `MINIMAL_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` |
+| **Ready PR** (Fortran, Rust, or build changed) | `PR_PLATFORMS` | Bookends (`cp312`, newest) | `standard` (`physics-full` if `0-physics:change` / `0-numerics:change`) |
+| **Ready PR** (Python or util only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `standard` (`physics-full` if `0-physics:change` / `0-numerics:change`) |
+| **Ready PR** (CI or tests only) | `MINIMAL_PLATFORMS` | Bookends (`cp312`, newest) | `smoke` (`physics-full` if `0-physics:change` / `0-numerics:change`) |
+| **Merge Queue** (Fortran, Rust, Python, util, build, or CI changed) | `PR_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` (`physics-full` if `0-physics:change` / `0-numerics:change`) |
+| **Merge Queue** (tests or non-package files only) | `MINIMAL_PLATFORMS` | `cp312` (`requires-python` / `abi3` floor) | `standard` (`physics-full` if `0-physics:change` / `0-numerics:change`) |
 | **Nightly (`schedule`)** | `FULL_PLATFORMS` (wheels) / `NIGHTLY_API_PLATFORMS` (`api`) | All supported (`cp312..cp315`) | `all` (+ checked Fortran profile, tolerance spread, cost markers) |
 | **Release / `.dev` Tag Push** | `FULL_PLATFORMS` (wheels) / `NIGHTLY_API_PLATFORMS` (`api`) | All supported (`cp312..cp315`) | `all` |
 
 - **Documentation-only PRs**: `detect-changes` skips wheel builds when no code/test/build paths changed; `pr-gate` still runs and passes so docs PRs traverse the merge queue quickly.
-- **`0-physics:change` PRs**: Both Ready PR and Merge Queue runs automatically upgrade `test_tier` to `physics-full` (gh#1576) so all `-m physics` tests (including `slow`) run before merge.
+- **`0-physics:change` / `0-numerics:change` PRs**: Both Ready PR and Merge Queue runs automatically upgrade `test_tier` to `physics-full` (and Merge Queue widens to `PR_PLATFORMS`; gh#1576) so all `-m physics` tests (including `slow`) run before merge.
 - **UMEP/QGIS (`qgis` marker)**: Excluded from PR and Merge Queue `standard` expressions (`and not qgis`); runs under `all` on Nightly, Tag pushes, and `full` manual dispatches (Windows + Python 3.12).
 
 ## Using the Merge Queue
@@ -119,6 +119,6 @@ gh api graphql -f query='mutation { dequeuePullRequest(input: {id: "<PR_NODE_ID>
 ## See Also
 
 - [`FEATURE_DEVELOPMENT_WORKFLOW.md`](FEATURE_DEVELOPMENT_WORKFLOW.md) - Stacked PRs and `git worktree` workflows
-- [`REVIEW_PROCESS.md`](REVIEW_PROCESS.md) - Code governance and `0-physics:change` sign-off
+- [`REVIEW_PROCESS.md`](REVIEW_PROCESS.md) - Code governance and `0-physics:change` / `0-numerics:change` gates
 - [`RELEASE_MANUAL.md`](RELEASE_MANUAL.md) - Release PR and tag workflow
 - [`.github/scripts/determine-matrix.sh`](../.github/scripts/determine-matrix.sh) - Authoritative CI matrix logic

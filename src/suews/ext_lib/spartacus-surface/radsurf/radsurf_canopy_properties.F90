@@ -15,6 +15,8 @@
 
 module radsurf_canopy_properties
 
+  use radiation_io, only : radiation_error
+
   use parkind1, only : jpim, jprb
 
   implicit none
@@ -287,31 +289,45 @@ contains
     this%is_simple = .false.
 
     call file%get('skin_temperature', this%skin_temperature, do_transp=.true.)
+    if (radiation_error()) return
     call file%get('canopy_temperature', this%canopy_temperature, do_transp=.true.)
+    if (radiation_error()) return
     call file%get('sw_albedo', this%sw_albedo, ipermute=ipermute)
+    if (radiation_error()) return
     if (file%exists('sw_albedo_direct')) then
       call file%get('sw_albedo', this%sw_albedo_direct, ipermute=ipermute)
+      if (radiation_error()) return
     end if
     call file%get('lw_emissivity', this%lw_emissivity, ipermute=ipermute)
+    if (radiation_error()) return
     call file%get('tile_representation', data_1d)
+    if (radiation_error()) return
     this%ntile = size(data_1d)
     allocate(this%i_representation(this%ntile))
     this%i_representation = int(data_1d)
     call file%get('tile_fraction', this%tile_fraction, do_transp=.true.)
+    if (radiation_error()) return
     call file%get('canopy_depth', this%canopy_depth, do_transp=.true.)
+    if (radiation_error()) return
     call file%get('building_fraction', this%building_fraction, do_transp=.true.)
+    if (radiation_error()) return
     if (file%exists('building_normalized_perimeter')) then
       call file%get('building_normalized_perimeter', &
            &  this%building_normalized_perimeter, do_transp=.true.)
+      if (radiation_error()) return
     else
       ! Convert building scale to normalized perimeter
       call file%get('building_scale', this%building_normalized_perimeter, do_transp=.true.)
+      if (radiation_error()) return
       this%building_normalized_perimeter = 4.0_jprb * this%building_fraction &
            &  * (1.0_jprb-this%building_fraction) / max(1.0e-8_jprb,this%building_normalized_perimeter)
     end if
     call file%get('veg_optical_depth', this%veg_optical_depth, do_transp=.true.)
+    if (radiation_error()) return
     call file%get('veg_sw_albedo', this%veg_sw_albedo, ipermute=ipermute)
+    if (radiation_error()) return
     call file%get('veg_lw_emissivity', this%veg_lw_emissivity, ipermute=ipermute)
+    if (radiation_error()) return
 
     this%nregion = sum(NTileRegions(this%i_representation))
     this%ncol    = size(this%skin_temperature,1)

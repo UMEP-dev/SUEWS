@@ -42,7 +42,7 @@ contains
     
     use parkind1,                   only : jpim, jprb
     use yomhook,                    only : lhook, dr_hook
-    use radiation_io,               only : radiation_abort
+    use radiation_io,               only : radiation_abort, radiation_error
     use radsurf_config,             only : config_type
     use radtool_legendre_gauss,     only : legendre_gauss_type
     use radsurf_canopy_properties,  only : canopy_properties_type
@@ -258,6 +258,7 @@ contains
       do_vegetation = (nreg > 1)
       if (do_vegetation .and. .not. config%do_vegetation) then
         call radiation_abort('Attempt to perform urban radiative transfer with more than one region when vegetation not enabled')
+        return
       end if
       !
       ! Tangent and sine of solar zenith angle
@@ -284,6 +285,7 @@ contains
       ! Compute overlap matrices
       call calc_overlap_matrices_urban(nlay,nreg,frac,u_overlap,v_overlap, &
            &  config%min_vegetation_fraction);
+      if (radiation_error()) return
 
 #ifdef PRINT_ARRAYS
       call print_array3('u_overlap',u_overlap)

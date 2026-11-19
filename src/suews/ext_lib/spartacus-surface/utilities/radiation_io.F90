@@ -24,6 +24,7 @@
 module radiation_io
 
   use parkind1, only : jpim
+  use iso_c_binding, only : c_int, c_char
 
   implicit none
   
@@ -39,18 +40,33 @@ module radiation_io
   ! but should be closed as soon as the file is read
   integer(kind=jpim), parameter :: nulrad = 25
 
+  interface
+    subroutine tls_error_set(code, message, length) bind(C, name="suews_tls_error_set")
+      import c_int, c_char
+      integer(c_int), value :: code, length
+      character(c_char), intent(in) :: message(*)
+    end subroutine
+    function tls_error_flag() result(flag) bind(C, name="suews_tls_error_flag")
+      import c_int
+      integer(c_int) :: flag
+    end function
+  end interface
+
 contains
+
+  logical function radiation_error()
+    radiation_error = tls_error_flag() /= 0
+  end function radiation_error
 
   ! Abort the program with optional error message. Normally you would
   ! log details of the error to nulerr before calling this subroutine.
   subroutine radiation_abort(text)
     character(len=*), intent(in), optional :: text
     if (present(text)) then
-      write(nulerr, '(a)') text
+      call tls_error_set(111_c_int, text, int(len_trim(text), c_int))
     else
-      write(nulerr, '(a)') 'Error in radiation calculation'
+      call tls_error_set(111_c_int, 'Error in radiation calculation', 30_c_int)
     end if
-    call abort
   end subroutine radiation_abort
 
 end module radiation_io

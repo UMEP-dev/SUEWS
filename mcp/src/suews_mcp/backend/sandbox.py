@@ -22,7 +22,22 @@ class SUEWSMCPSandboxError(PermissionError):
 
 def _canonical_path(path: Union[str, Path]) -> Path:
     try:
-        return Path(path).resolve(strict=False)
+        if hasattr(os.path, "ALLOW_MISSING"):
+            return Path(os.path.realpath(path, strict=os.path.ALLOW_MISSING))
+        # Older Python releases lack ALLOW_MISSING. Only relax strict resolution
+        # for a missing path, as new project and output directories are valid.
+        candidate = Path(path)
+        try:
+            return candidate.resolve(strict=True)
+        except FileNotFoundError:
+            resolved = candidate.resolve(strict=False)
+        # Normalising a missing component and ".." can expose a different
+        # existing prefix. Accept a missing destination, but surface other errors.
+        try:
+            resolved.stat()
+        except FileNotFoundError:
+            pass
+        return resolved
     except (OSError, RuntimeError, ValueError) as exc:
         raise SUEWSMCPSandboxError(f"Cannot resolve path {path!r}: {exc}") from exc
 

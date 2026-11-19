@@ -47,6 +47,7 @@ from ...data_model.core.field_renames import (
 )
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
+from ...data_model.validation.required_fields import NON_WATER_SURFACES
 from .._forcing import SOIL_CONVERT_HINT
 
 # Historical rename steps must retain their outgoing dev5 spelling. The new
@@ -1704,6 +1705,73 @@ def _migrate_2026_6_dev9_to_2026_6_dev10(cfg: dict) -> dict:
     return cfg
 
 
+_SOIL_PARAMS_REQUIRED_DEV11: tuple[tuple[str, str], ...] = (
+    ("soil_depth", "soildepth"),
+    ("soil_store_capacity", "soilstorecap"),
+    ("saturated_hydraulic_conductivity", "sathydraulicconduct"),
+)
+
+
+def _migrate_2026_6_dev10_to_2026_6_dev11(cfg: dict) -> dict:
+    """Write explicit 0.0 for missing or null soil parameters on active non-water surfaces.
+
+    From 2026.6.dev11, ``soil_depth``, ``soil_store_capacity`` and
+    ``saturated_hydraulic_conductivity`` are required on every active
+    (``sfr > 0``) non-water surface (#2077, #2001). Previously an absent or
+    null value reached the water-balance kernel as 0.0 via the Rust bridge.
+    Writing that 0.0 explicitly keeps upgraded configurations runnable with
+    the same effective inputs while preserving non-null values and references.
+    """
+    result = deepcopy(cfg)
+    for site in result.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        if not isinstance(props, dict):
+            continue
+        land_cover = props.get("land_cover")
+        if not isinstance(land_cover, dict):
+            continue
+        for surface_name in NON_WATER_SURFACES:
+            surface = land_cover.get(surface_name)
+            if not isinstance(surface, dict):
+                continue
+            raw_sfr = (
+                _unwrap_scalar(surface.get("sfr"))
+                if "sfr" in surface
+                else (1.0 / 7.0)
+            )
+            if raw_sfr is None:
+                continue
+            try:
+                sfr_value = float(raw_sfr)
+            except (TypeError, ValueError):
+                continue
+            if sfr_value <= 0.0:
+                continue
+            for canonical, legacy in _SOIL_PARAMS_REQUIRED_DEV11:
+                if any(
+                    _unwrap_scalar(surface.get(name)) is not None
+                    for name in (canonical, legacy)
+                ):
+                    continue
+                if canonical in surface and isinstance(surface[canonical], dict):
+                    surface[canonical]["value"] = 0.0
+                    surface.pop(legacy, None)
+                elif legacy in surface and isinstance(surface[legacy], dict):
+                    entry = surface.pop(legacy)
+                    entry["value"] = 0.0
+                    surface[canonical] = entry
+                else:
+                    surface.pop(legacy, None)
+                    surface[canonical] = {"value": 0.0}
+                _log(
+                    f"[yaml-upgrade]   set 'land_cover.{surface_name}.{canonical}' "
+                    "to 0.0 (absent or null on active surface; the value the model used)"
+                )
+    return result
+
+
 _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed.
@@ -1770,6 +1838,27 @@ def apply_migration_handler(handler, cfg, *, migration_context=None):
     if "migration_context" in signature(handler, follow_wrapped=False).parameters:
         return handler(cfg, migration_context=migration_context)
     return handler(cfg)
+
+
+# dev11 requires soil_depth, soil_store_capacity and
+# saturated_hydraulic_conductivity on active non-water surfaces. Existing
+# routes keep targeting dev10 for callers pinning dev10, and compose the dev11
+# delta when upgrading to the current schema.
+def _with_soil_params_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev10_to_2026_6_dev11(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev10")] = _handler
+        _HANDLERS[(_source, _target)] = _with_soil_params_delta(_handler)
+_HANDLERS[("2026.6.dev10", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev10_to_2026_6_dev11
 
 
 # ---------------------------------------------------------------------------

@@ -319,9 +319,9 @@ fn site_yaml_at(site_root: &Value) -> String {
 // Required readers. Each is the required form of an optional reader above:
 // where the selected options make the kernel read a value, a missing, null,
 // malformed or non-finite value is an error naming its YAML path (and list
-// index), never a kept default. No read site uses them yet; the read sites
-// move to them block by block (#1991), so outside tests they are unused
-// until then.
+// index), never a kept default. The read sites move to them block by block
+// (#1991, #2002); readers not yet adopted by a production block keep
+// `allow(dead_code)` until their block migrates.
 
 /// The given value of a YAML node, unwrapping the RefValue form
 /// (`{value: x}`), or `None` when it is not given. supy writes a RefValue
@@ -354,7 +354,6 @@ fn given_value(value: &Value) -> Option<&Value> {
 /// spelling (`ground_depth`). The Rust tables do not record which of the
 /// names is current, so the read sites for those blocks, when they move to
 /// the required readers (#1991), must name such keys themselves.
-#[cfg_attr(not(test), allow(dead_code))]
 fn yaml_path_display(at: &str, path: &[&str]) -> String {
     let keys = path.iter().map(|key| {
         let mut current = FIELD_RENAMES
@@ -378,7 +377,6 @@ fn yaml_path_display(at: &str, path: &[&str]) -> String {
 /// path when it is not given (`given_value`). A given `null` or a mapping
 /// that is not a RefValue is returned as such, so the caller can say what it
 /// is.
-#[cfg_attr(not(test), allow(dead_code))]
 fn require_value<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a Value, String> {
     let missing = || {
         format!(
@@ -394,7 +392,6 @@ fn require_value<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a Val
 /// The required form of `read_finite_numeric`: a finite number at `path`.
 /// Missing, null, non-numeric, NaN and infinite values are errors naming the
 /// YAML path. The RefValue form is unwrapped once only.
-#[cfg_attr(not(test), allow(dead_code))]
 fn require_numeric(root: &Value, path: &[&str], at: &str) -> Result<f64, String> {
     match require_value(root, path, at)? {
         Value::Number(n) => match n.as_f64() {
@@ -851,16 +848,35 @@ fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) -> Res
     Ok(())
 }
 
-fn apply_soil_overrides(soil: &mut crate::soil::SoilPrm, lc_root: &Value) -> Result<(), String> {
-    if let Some(v) = read_numeric(lc_root, &["soildepth"]) {
-        soil.soil_depth = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["soilstorecap"]) {
-        soil.soil_store_capacity = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["sathydraulicconduct"]) {
-        soil.saturated_hydraulic_conductivity = v;
-    }
+/// Read the three soil parameters for one land cover.
+///
+/// Active non-water surfaces (`sfr > 0.0`) participate in the soil water
+/// balance (`suews_phys_waterdist.f95` loops over `1..nsurf-1` and skips
+/// `sfr == 0`), so missing, null, non-numeric or non-finite values fail with
+/// the canonical YAML path (#1991, #2002, #2077). Inactive surfaces
+/// (`sfr == 0.0`) and `water` carry `0.0` when omitted or null, while still
+/// rejecting malformed non-null values.
+fn apply_soil_overrides(
+    soil: &mut crate::soil::SoilPrm,
+    lc_root: &Value,
+    at: &str,
+    active: bool,
+) -> Result<(), String> {
+    let read_field = |key: &str| -> Result<f64, String> {
+        if active
+            || get_path(lc_root, &[key])
+                .and_then(given_value)
+                .is_some_and(|v| !v.is_null())
+        {
+            require_numeric(lc_root, &[key], at)
+        } else {
+            Ok(0.0)
+        }
+    };
+
+    soil.soil_depth = read_field("soildepth")?;
+    soil.soil_store_capacity = read_field("soilstorecap")?;
+    soil.saturated_hydraulic_conductivity = read_field("sathydraulicconduct")?;
     Ok(())
 }
 
@@ -1619,6 +1635,7 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
 }
 
 fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
+    let site_at = site_yaml_at(site_root);
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "paved"]) {
         if let Some(v) = read_numeric(lc_root, &["sfr"]) {
             site.lc_paved.sfr = v;
@@ -1636,7 +1653,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_paved.irrfracpaved = v;
         }
         apply_ohm_overrides(&mut site.lc_paved.ohm, lc_root)?;
-        apply_soil_overrides(&mut site.lc_paved.soil, lc_root)?;
+        apply_soil_overrides(
+            &mut site.lc_paved.soil,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.paved"),
+            site.lc_paved.sfr > 0.0,
+        )?;
         apply_waterdist_overrides(&mut site.lc_paved.waterdist, lc_root)?;
     }
 
@@ -1663,7 +1685,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_bldg.irrfracbldgs = v;
         }
         apply_ohm_overrides(&mut site.lc_bldg.ohm, lc_root)?;
-        apply_soil_overrides(&mut site.lc_bldg.soil, lc_root)?;
+        apply_soil_overrides(
+            &mut site.lc_bldg.soil,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.bldgs"),
+            site.lc_bldg.sfr > 0.0,
+        )?;
         apply_waterdist_overrides(&mut site.lc_bldg.waterdist, lc_root)?;
     }
 
@@ -1699,7 +1726,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_evetr.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_evetr.ohm, lc_root)?;
-        apply_soil_overrides(&mut site.lc_evetr.soil, lc_root)?;
+        apply_soil_overrides(
+            &mut site.lc_evetr.soil,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.evetr"),
+            site.lc_evetr.sfr > 0.0,
+        )?;
         apply_bioco2_overrides(&mut site.lc_evetr.bioco2, lc_root)?;
         apply_lai_overrides(&mut site.lc_evetr.lai, lc_root)?;
         apply_waterdist_overrides(&mut site.lc_evetr.waterdist, lc_root)?;
@@ -1749,7 +1781,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_dectr.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_dectr.ohm, lc_root)?;
-        apply_soil_overrides(&mut site.lc_dectr.soil, lc_root)?;
+        apply_soil_overrides(
+            &mut site.lc_dectr.soil,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.dectr"),
+            site.lc_dectr.sfr > 0.0,
+        )?;
         apply_bioco2_overrides(&mut site.lc_dectr.bioco2, lc_root)?;
         apply_lai_overrides(&mut site.lc_dectr.lai, lc_root)?;
         apply_waterdist_overrides(&mut site.lc_dectr.waterdist, lc_root)?;
@@ -1781,7 +1818,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_grass.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_grass.ohm, lc_root)?;
-        apply_soil_overrides(&mut site.lc_grass.soil, lc_root)?;
+        apply_soil_overrides(
+            &mut site.lc_grass.soil,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.grass"),
+            site.lc_grass.sfr > 0.0,
+        )?;
         apply_bioco2_overrides(&mut site.lc_grass.bioco2, lc_root)?;
         apply_lai_overrides(&mut site.lc_grass.lai, lc_root)?;
         apply_waterdist_overrides(&mut site.lc_grass.waterdist, lc_root)?;
@@ -1804,7 +1846,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_bsoil.irrfracbsoil = v;
         }
         apply_ohm_overrides(&mut site.lc_bsoil.ohm, lc_root)?;
-        apply_soil_overrides(&mut site.lc_bsoil.soil, lc_root)?;
+        apply_soil_overrides(
+            &mut site.lc_bsoil.soil,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.bsoil"),
+            site.lc_bsoil.sfr > 0.0,
+        )?;
         apply_waterdist_overrides(&mut site.lc_bsoil.waterdist, lc_root)?;
     }
 
@@ -1825,7 +1872,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_water.irrfracwater = v;
         }
         apply_ohm_overrides(&mut site.lc_water.ohm, lc_root)?;
-        apply_soil_overrides(&mut site.lc_water.soil, lc_root)?;
+        apply_soil_overrides(
+            &mut site.lc_water.soil,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.water"),
+            false,
+        )?;
     }
     Ok(())
 }
@@ -5489,5 +5541,80 @@ mod tests {
         assert!(err.contains("walls[1]` is null"), "{err}");
         // An item beyond `required` is not read, so it is not checked.
         assert_eq!(require_sequence(&root, &["walls"], at, 1).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn active_non_water_surface_requires_soil_parameters() {
+        for (surface, field) in [
+            ("paved", "soil_depth"),
+            ("bldgs", "soil_store_capacity"),
+            ("grass", "saturated_hydraulic_conductivity"),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                .expect("surface block exists");
+            remove_key(lc, field);
+            let err = load_run_config_from_value(&mut root).expect_err(field);
+            assert!(
+                err.contains(&format!(
+                    "properties.land_cover.{surface}.{field}` is missing"
+                )),
+                "{surface}.{field}: {err}"
+            );
+        }
+
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+        *get_path_mut(site, &["properties", "land_cover", "paved", "soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: null}").unwrap();
+        let err = load_run_config_from_value(&mut root).unwrap_err();
+        assert!(
+            err.contains("properties.land_cover.paved.soil_depth` is null"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn inactive_and_water_surfaces_allow_omitted_soil_parameters() {
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+        for field in [
+            "soil_depth",
+            "soil_store_capacity",
+            "saturated_hydraulic_conductivity",
+        ] {
+            remove_key(
+                get_path_mut(site, &["properties", "land_cover", "water"]).unwrap(),
+                field,
+            );
+            let bsoil = get_path_mut(site, &["properties", "land_cover", "bsoil"]).unwrap();
+            *get_path_mut(bsoil, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+            remove_key(bsoil, field);
+        }
+        let run_cfg = load_run_config_from_value(&mut root).expect("inactive/water soil allowed");
+        assert_eq!(run_cfg.site.lc_water.soil.soil_depth, 0.0);
+        assert_eq!(run_cfg.site.lc_bsoil.soil.soil_store_capacity, 0.0);
+    }
+
+    #[test]
+    fn distinct_soil_parameters_reach_their_surface_structs() {
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+        let paved = get_path_mut(site, &["properties", "land_cover", "paved"]).unwrap();
+        *get_path_mut(paved, &["soil_depth"]).unwrap() = serde_yaml::from_str("{value: 412.5}").unwrap();
+        *get_path_mut(paved, &["soil_store_capacity"]).unwrap() =
+            serde_yaml::from_str("{value: 173.25}").unwrap();
+        *get_path_mut(paved, &["saturated_hydraulic_conductivity"]).unwrap() =
+            serde_yaml::from_str("{value: 0.00275}").unwrap();
+
+        let run_cfg = load_run_config_from_value(&mut root).expect("custom soil values parse");
+        assert!((run_cfg.site.lc_paved.soil.soil_depth - 412.5).abs() < 1.0e-12);
+        assert!((run_cfg.site.lc_paved.soil.soil_store_capacity - 173.25).abs() < 1.0e-12);
+        assert!((run_cfg.site.lc_paved.soil.saturated_hydraulic_conductivity - 0.00275).abs() < 1.0e-12);
     }
 }

@@ -217,6 +217,32 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev11_soil_parameters:
+
+Upgrading to Schema 2026.6.dev11
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev11`` requires ``soil_depth``, ``soil_store_capacity`` and
+``saturated_hydraulic_conductivity`` on every active (``sfr > 0``) non-water
+surface (``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass`` and ``bsoil``)
+in configurations loaded from YAML or a dict. Leaving any of them out or
+setting it to ``null`` now stops loading with an error naming the site,
+surface and field, and the Rust bridge enforces the same requirement on
+resolved engine YAML. Inactive surfaces (``sfr == 0``) and ``water`` are
+exempt.
+
+Previously, an omitted or null soil parameter reached the water-balance kernel
+as ``0.0`` via the Rust bridge. Run the converter to upgrade an older YAML:
+
+.. code-block:: bash
+
+   suews convert -i old.yml -o new.yml --from 2026.6.dev10
+
+The migration from ``2026.6.dev10`` writes ``0.0`` explicitly wherever an
+active non-water surface omits or nulls any of the three soil parameters,
+preserving all supplied values and reference metadata so upgraded runs keep
+their previous effective inputs.
+
 .. _schema_dev10_storage_capacity:
 
 Upgrading to Schema 2026.6.dev10

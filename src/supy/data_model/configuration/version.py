@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev10"
+CURRENT_SCHEMA_VERSION = "2026.6.dev11"
 
 # Schema version history and descriptions.
 #
@@ -191,6 +191,15 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "Surface water storage (#2018). The model reads the current capacity "
         "from store_cap and uses store_max when the capacity is omitted. "
         "Upgrading preserves both explicit values and their references."
+    ),
+    "2026.6.dev11": (
+        "Development schema requiring soil_depth, soil_store_capacity and "
+        "saturated_hydraulic_conductivity on every active (sfr > 0) non-water "
+        "surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting "
+        "any of them used to reach the kernel as 0.0 via the Rust bridge. "
+        "The (2026.6.dev10 -> 2026.6.dev11) migration writes 0.0 explicitly "
+        "wherever an active non-water surface omits or nulls one of these "
+        "three fields, preserving existing values and reference metadata."
     ),
 }
 

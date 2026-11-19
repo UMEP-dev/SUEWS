@@ -244,6 +244,35 @@ CO2_POINT_SOURCE_REQUIRED: RequirementTable = {
     ),
 }
 
+# Non-water land covers carry an active soil store in the water-balance kernel
+# (suews_phys_waterdist.f95 loops over 1..nsurf-1 and excludes WaterSurf).
+# Checked by SUEWSConfig._iter_critical_null_site_param_issues (gh#2077, gh#2001).
+NON_WATER_SURFACES: tuple[str, ...] = (
+    "paved",
+    "bldgs",
+    "evetr",
+    "dectr",
+    "grass",
+    "bsoil",
+)
+SOIL_REQUIRED: RequirementTable = {
+    "soil_depth": (
+        "Soil depth is required for active non-water surfaces",
+        "Add soil depth in millimetres beneath this surface",
+    ),
+    "soil_store_capacity": (
+        "Soil store capacity is required for active non-water surfaces",
+        "Add maximum water storage capacity of the soil layer in kg m-2",
+    ),
+    "saturated_hydraulic_conductivity": (
+        "Saturated hydraulic conductivity is required for active non-water surfaces",
+        "Add saturated hydraulic conductivity of the soil layer in mm s-1",
+    ),
+}
+# Enforced unconditionally by SUEWSConfig._validate_soil_observation when
+# observed soil moisture is selected.
+SOIL_OBSERVED_REQUIRED: tuple[str, ...] = ("soil_field_capacity",)
+
 # Water-distribution destinations each surface must give when its waterdist
 # block is supplied; an omitted block takes surface-specific defaults. Keyed by
 # surface type value; the water surface has no distribution.
@@ -307,6 +336,25 @@ def _present(surface: str, label: str) -> str:
 _BUILDINGS_PRESENT = _present("bldgs", "buildings")
 _EVERGREEN_PRESENT = _present("evetr", "evergreen trees")
 _DECIDUOUS_PRESENT = _present("dectr", "deciduous trees")
+_PAVED_PRESENT = _present("paved", "paved surfaces")
+_GRASS_PRESENT = _present("grass", "grass")
+_BSOIL_PRESENT = _present("bsoil", "bare soil")
+_NON_WATER_PRESENT = (
+    "a non-water surface using these parameters is present "
+    "(``sfr`` above zero for ``paved``, ``bldgs``, ``evetr``, ``dectr``, "
+    "``grass`` or ``bsoil``)"
+)
+_SOIL_OBSERVED = _option("model.physics.soil_moisture", (1,), ("OBSERVED",))
+
+
+def _soil_conditions(present: str) -> dict[str, str]:
+    """Describe when soil properties must be supplied for a non-water surface."""
+    return {
+        **dict.fromkeys(SOIL_REQUIRED, present),
+        **dict.fromkeys(SOIL_OBSERVED_REQUIRED, f"{present} and {_SOIL_OBSERVED}"),
+    }
+
+
 # Mirrors two SUEWSConfig validators: validate_model_output_timestamp_reference
 # rejects a daylight output clock unless both ends of the DLS window are
 # supplied, and validate_dls_parameters rejects a window with only one end.
@@ -379,18 +427,25 @@ DOC_REQUIRED_WHEN: dict[str, dict[str, str]] = {
             f"{_VEGETATION_PRESENT} and {_LAI_MODELLED}",
         ),
     },
+    "SurfaceProperties": _soil_conditions(_NON_WATER_PRESENT),
+    "PavedProperties": _soil_conditions(_PAVED_PRESENT),
     "BldgsProperties": {
+        **_soil_conditions(_BUILDINGS_PRESENT),
         "bldgh": _BUILDINGS_PRESENT,
         "faibldg": _fai_condition(_BUILDINGS_PRESENT, rsl_applies=True),
     },
     "EvetrProperties": {
+        **_soil_conditions(_EVERGREEN_PRESENT),
         "height_evergreen_tree": _EVERGREEN_PRESENT,
         "fai_evergreen_tree": _fai_condition(_EVERGREEN_PRESENT),
     },
     "DectrProperties": {
+        **_soil_conditions(_DECIDUOUS_PRESENT),
         "height_deciduous_tree": _DECIDUOUS_PRESENT,
         "fai_deciduous_tree": _fai_condition(_DECIDUOUS_PRESENT),
     },
+    "GrassProperties": _soil_conditions(_GRASS_PRESENT),
+    "BsoilProperties": _soil_conditions(_BSOIL_PRESENT),
     "ThermalLayers": dict.fromkeys(
         DYOHM_BUILDING_LAYERS_REQUIRED,
         "used as the building layers (``land_cover.bldgs.thermal_layers``) "

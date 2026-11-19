@@ -136,6 +136,18 @@ class ValidationIssue:
                 "value": 12.0,
                 "_comment": "deciduous tree height in meters",
             },
+            "soil_depth": {
+                "value": 350.0,
+                "_comment": "soil depth beneath surface (mm)",
+            },
+            "soil_store_capacity": {
+                "value": 150.0,
+                "_comment": "maximum soil water storage capacity (kg m-2)",
+            },
+            "saturated_hydraulic_conductivity": {
+                "value": 0.0005,
+                "_comment": "saturated hydraulic conductivity (mm s-1)",
+            },
             "emission_co2_point_source": {"value": 0.0, "_comment": "point source CO2 emissions"},
             "emission_factor_co2_fuel": {
                 "value": 1.159,

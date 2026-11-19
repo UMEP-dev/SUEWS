@@ -56,7 +56,9 @@ from ..validation.required_fields import (
     EVERGREEN_REQUIRED_PROVIDED_FAI,
     LAI_CALCULATED_ONLY_REQUIRED,
     LAI_REQUIRED,
+    NON_WATER_SURFACES,
     RSL_VARIABLE_BLDGS_REQUIRED,
+    SOIL_REQUIRED,
     SPARTACUS_BUILDING_STORAGE_METHODS,
     SPARTACUS_OBSERVED_STORAGE_METHOD,
     STEBBS_SHADING_REQUIRED_MODES,
@@ -3439,6 +3441,10 @@ class SUEWSConfig(BaseModel):
           ``fai_evergreen_tree`` must be non-None.
         - For ``dectr`` with ``sfr > 0``: ``height_deciduous_tree`` and
           ``fai_deciduous_tree`` must be non-None.
+        - For each non-water surface (``paved``, ``bldgs``, ``evetr``,
+          ``dectr``, ``grass``, ``bsoil``) with ``sfr > 0``: ``soil_depth``,
+          ``soil_store_capacity`` and ``saturated_hydraulic_conductivity``
+          must be non-None (gh#2077).
         - If any vegetated surface is active, the site's ``conductance``
           block must carry non-None values for all eleven fields
           (``g_max``, ``g_k``, ``g_q_base``, ``g_q_shape``, ``g_t``,
@@ -3740,6 +3746,32 @@ class SUEWSConfig(BaseModel):
                                         message=message,
                                         fix=fix,
                                     )
+
+                for surface_name in NON_WATER_SURFACES:
+                    if not _surface_requires_validation(i, surface_name):
+                        continue
+                    surface = getattr(land_cover, surface_name, None)
+                    if surface is None:
+                        continue
+                    sfr_raw = getattr(surface, "sfr", None)
+                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                    if sfr_value is None or sfr_value <= 0:
+                        continue
+                    for field_name, (message, fix) in SOIL_REQUIRED.items():
+                        raw = getattr(surface, field_name, None)
+                        if getattr(raw, "value", raw) is None:
+                            _add_issue(
+                                error_text=(
+                                    f"sites[{i}] ({site_name}), "
+                                    f"land_cover.{surface_name}: "
+                                    f"{field_name} is None but "
+                                    f"{surface_name}.sfr={sfr_value} > 0"
+                                ),
+                                path=f"sites[{i}]/properties/land_cover/{surface_name}",
+                                param=field_name,
+                                message=message,
+                                fix=fix,
+                            )
 
             if active_veg:
                 conductance = getattr(props, "conductance", None)

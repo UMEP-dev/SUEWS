@@ -327,10 +327,10 @@ def _minimal_paved_only_config(schema_version: str) -> Dict[str, Any]:
     """Build a minimal YAML that passes schema and Pydantic but lacks the
     required ``model.physics`` keys.
 
-    Uses ``land_cover.paved.sfr=1.0`` so the Pydantic ``model_validator``
-    does not reject the payload via site-level critical-null checks
-    (which fire only when vegetated surfaces are active). This isolates
-    the structural-presence gap closed in gh#1409.
+    Uses ``land_cover.paved.sfr=1.0`` with its required soil parameters so
+    the Pydantic ``model_validator`` does not reject the payload via
+    site-level critical-null checks. This isolates the structural-presence
+    gap closed in gh#1409.
     """
     return {
         "schema_version": schema_version,
@@ -357,7 +357,12 @@ def _minimal_paved_only_config(schema_version: str) -> Dict[str, Any]:
                     "timezone": {"value": -7},
                     "surfacearea": {"value": 1.0},
                     "land_cover": {
-                        "paved": {"sfr": {"value": 1.0}},
+                        "paved": {
+                            "sfr": {"value": 1.0},
+                            "soil_depth": {"value": 350.0},
+                            "soil_store_capacity": {"value": 150.0},
+                            "saturated_hydraulic_conductivity": {"value": 0.0005},
+                        },
                         "bldgs": {"sfr": {"value": 0.0}},
                         "evetr": {"sfr": {"value": 0.0}},
                         "dectr": {"sfr": {"value": 0.0}},

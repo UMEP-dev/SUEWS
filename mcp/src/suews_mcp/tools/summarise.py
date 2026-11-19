@@ -36,10 +36,10 @@ def summarise_run(
         Comma-separated variable names to restrict the summary. ``None`` or
         an empty string means every numeric column is summarised.
     """
-    root = ProjectRoot(project_root)
     try:
-        path = root.resolve(run_dir)
-    except SUEWSMCPSandboxError as exc:
+        root = ProjectRoot(project_root)
+        path = root.check_tree(run_dir)
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(str(exc), command=f"suews summarise {run_dir}")
 
     args = [str(path)]

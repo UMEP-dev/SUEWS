@@ -347,11 +347,10 @@ CONTAINS
                         id=id, lai_calc_yes=LAICalcYes, & !input
                         lat=lat, lai_obs=[lai_evetr, lai_dectr, lai_grass], &
                         t_min_id_prev=Tmin_id, t_max_id_prev=Tmax_id, &
-                        len_day_id_prev=lenDay_id, &
                         base_t_gdd=BaseT, base_t_sdd=BaseTe, &
                         gdd_base=GDDBase, sdd_base=SDDBase, &
                         lai_min=LAIMin, lai_max=LAIMax, &
-                        lai_power=LAIPower, lai_type=LAIType, &
+                        lai_power=LAIPower, &
                         lai_id_prev=LAI_id_prev, &
                         gdd_id=GDD_id, sdd_id=SDD_id, & !inout
                         lai_id_next=LAI_id) !output

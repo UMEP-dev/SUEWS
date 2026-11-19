@@ -4,24 +4,16 @@ MODULE module_phys_lai
     USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
 
     IMPLICIT NONE
-      
-      ! Enumeration parameters for the LAI type
-      INTEGER, PARAMETER :: LAI_ORIGINAL = 0
-
-      ! Enumeration parameters for senescence conditions
-      ! FA (TODO: use of day length only used for northern hemipshere which seems arbitrary? use gdd/sdd base only for now?)
-      INTEGER, PARAMETER :: SEN_DAYLENGTH = 1
-      INTEGER, PARAMETER :: SEN_SDD = 2
 
 CONTAINS
 
     SUBROUTINE update_gddlai( &
       id, lai_calc_yes, & !input
       lat, lai_obs, &
-      t_min_id_prev, t_max_id_prev, len_day_id_prev, &
+      t_min_id_prev, t_max_id_prev, &
       base_t_gdd, base_t_sdd, &
       gdd_base, sdd_base, &
-      lai_min, lai_max, lai_power, lai_type, &
+      lai_min, lai_max, lai_power, &
       lai_id_prev, &
       gdd_id, sdd_id, & !output
       lai_id_next) !output
@@ -40,7 +32,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_obs
       REAL(KIND(1D0)), INTENT(IN) :: t_min_id_prev
       REAL(KIND(1D0)), INTENT(IN) :: t_max_id_prev
-      REAL(KIND(1D0)), INTENT(IN) :: len_day_id_prev
 
       ! --- Vegetation phenology ---------------------------------------------------------------------
       ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
@@ -78,7 +69,6 @@ CONTAINS
       ! Hemisphere specific parameters for LAI calculations
       INTEGER :: summer_day
       INTEGER :: winter_day
-      INTEGER :: senescence_mode
 
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -101,11 +91,9 @@ CONTAINS
       IF (lat >= 0) THEN
          summer_day = 182
          winter_day = 1
-         senescence_mode = SEN_DAYLENGTH
       ELSE !! N.B. not identical to N hemisphere - return to later
          summer_day = 1
          winter_day = 182
-         senescence_mode = SEN_SDD
       END IF
 
       ! Loop through vegetation types (iv)
@@ -151,17 +139,14 @@ CONTAINS
          IF (lai_calc_yes /= 0) THEN
             ! Now calculate LAI itself
             CALL calculate_lai( &
-               senescence_mode=senescence_mode, &
                growth_state=growth_state(iv), &
                senescence_state=senescence_state(iv), &
-               len_day_id_prev=len_day_id_prev, &
                delta_gdd=delta_gdd, &
                delta_sdd=delta_sdd, &
                gdd_id=gdd_id(iv), &
                sdd_id=sdd_id(iv), &
                gdd_base=gdd_base(iv), &
                sdd_base=sdd_base(iv), &
-               lai_type=lai_type(iv), &
                lai_power=lai_power(:, iv), &
                lai_max=lai_max(iv), &
                lai_min=lai_min(iv), &
@@ -329,15 +314,13 @@ CONTAINS
 
 
    SUBROUTINE calculate_lai( &
-         senescence_mode, &
          growth_state, senescence_state, &
          delta_gdd, delta_sdd, gdd_id, sdd_id, &
-         gdd_base, sdd_base, lai_power, lai_type, &
-         len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
+         gdd_base, sdd_base, lai_power, &
+         lai_id_prev, lai_max, lai_min, lai_id_next)
 
       IMPLICIT NONE
 
-      INTEGER, INTENT(IN) :: senescence_mode
       INTEGER, INTENT(IN) :: growth_state
       INTEGER, INTENT(IN) :: senescence_state
 
@@ -350,9 +333,6 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(4), INTENT(IN) :: lai_power
 
-      INTEGER, INTENT(IN) :: lai_type
-
-      REAL(KIND(1D0)), INTENT(IN) :: len_day_id_prev
       REAL(KIND(1D0)), INTENT(IN) :: lai_id_prev
       REAL(KIND(1D0)), INTENT(IN) :: lai_max
       REAL(KIND(1D0)), INTENT(IN) :: lai_min
@@ -360,58 +340,30 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: lai_id_next
 
 
-      LOGICAL :: start_senescence
-
-      lai_id_next = lai_id_prev
-
       ! If in growing half of year, and GDD exceeds GDD base, leaves can grow
       IF ((gdd_id >= gdd_base) .AND. (growth_state == 1)) THEN
+
          lai_id_next = calculate_gdd( &
             lai_id_prev=lai_id_prev, &
             lai_power=lai_power, &
             gdd=delta_gdd &
          )
       
-      ! If in senescing half of year, leaves can fall
-      ELSE IF (senescence_state == 1) THEN
+      ! If in senescing half of year, and SDD exceeds SDD base, leaves can fall
+      ELSE IF ((sdd_id <= sdd_base) .AND. (senescence_state == 1)) THEN
 
-         ! incorporate extra check which allows for day length gate !FA - remove this for now?
-         IF (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
-            start_senescence = check_start_senescence( &
-               senescence_mode=senescence_mode, &
-               len_day_id_prev=len_day_id_prev, &
-               sdd_id=sdd_id, &
-               sdd_base=sdd_base &
-            )
-            ! If SDD_base is exceeded and other conditions satisfied, compute resulting LAI decline
-            IF (start_senescence) THEN 
-               lai_id_next = calculate_sdd_type0( &
+         lai_id_next = calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
                   sdd=delta_sdd & 
                )
-            END IF
-
-         ELSE
-            !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
-            start_senescence = check_start_senescence( &
-               senescence_mode=senescence_mode, &
-               len_day_id_prev=len_day_id_prev, &
-               sdd_id=sdd_id, &
-               sdd_base=sdd_base &
-            )
-            !FA - type 1 option wiill produce wrong output when using delta_gdd/delta_sdd
-            IF (start_senescence) THEN !Start senescence
-               lai_id_next = calculate_sdd_type1( &
-                  lai_id_prev=lai_id_prev, &
-                  lai_power=lai_power, &
-                  sdd=delta_sdd &
-               )
-            END IF
-
-         END IF
+      
+      ELSE
+         ! otherwise GDD and SDD do not change the LAI
+         lai_id_next = lai_id_prev
 
       END IF
+      
 
       ! Keep internally computed phenology within the configured canopy envelope.
       CALL limit_lai( &
@@ -447,34 +399,6 @@ CONTAINS
 
    END SUBROUTINE reset_degree_days
 
-   FUNCTION check_start_senescence(senescence_mode, len_day_id_prev, sdd_id, sdd_base) RESULT(start_senescence)
-      
-      IMPLICIT NONE
-      
-      INTEGER, INTENT(IN) :: senescence_mode
-
-      REAL(KIND(1D0)), INTENT(IN) :: len_day_id_prev
-      REAL(KIND(1D0)), INTENT(IN) :: sdd_id
-      REAL(KIND(1D0)), INTENT(IN) :: sdd_base
-
-      LOGICAL :: start_senescence
-      
-      SELECT CASE (senescence_mode)
-
-         CASE (SEN_DAYLENGTH)
-            start_senescence = ((len_day_id_prev <= 12) .AND. (sdd_id <= sdd_base))
-
-         CASE (SEN_SDD)
-            start_senescence = (sdd_id <= sdd_base)
-
-         CASE DEFAULT
-            ! Invalid option falls back to SEN_SDD. No error yet registered.
-            ! default currently not possible as function calls hard-coded
-            start_senescence = (sdd_id <= sdd_base)
-
-      END SELECT
-
-   END FUNCTION check_start_senescence
 
    FUNCTION calculate_gdd(lai_id_prev, lai_power, gdd) RESULT(lai_id_next)
 
@@ -502,18 +426,6 @@ CONTAINS
 
    END FUNCTION calculate_sdd_type0
 
-   FUNCTION calculate_sdd_type1(lai_id_prev, lai_power, sdd) RESULT(lai_id_next)
-
-      IMPLICIT NONE
-
-      REAL(KIND(1D0)), INTENT(IN) :: lai_id_prev
-      REAL(KIND(1D0)), DIMENSION(4), INTENT(IN) :: lai_power
-      REAL(KIND(1D0)), INTENT(IN) :: sdd
-      REAL(KIND(1D0)) :: lai_id_next
-
-      lai_id_next = lai_id_prev + (lai_id_prev * lai_power(3) * (1 - sdd) * lai_power(4))
-
-   END FUNCTION calculate_sdd_type1
 
    SUBROUTINE limit_lai(lai_id_next, lai_max, lai_min)
 
@@ -533,4 +445,48 @@ CONTAINS
 
    END SUBROUTINE limit_lai
 
+
+   ! note the following function waspreviously  used for higher latitude locations but has not been tested
+   ! so removing for now. Will perform proper testing for higher latitude locations later
+   ! FUNCTION calculate_sdd_type1(lai_id_prev, lai_power, sdd) RESULT(lai_id_next)
+
+   !    IMPLICIT NONE
+
+   !    REAL(KIND(1D0)), INTENT(IN) :: lai_id_prev
+   !    REAL(KIND(1D0)), DIMENSION(4), INTENT(IN) :: lai_power
+   !    REAL(KIND(1D0)), INTENT(IN) :: sdd
+   !    REAL(KIND(1D0)) :: lai_id_next
+
+   !    lai_id_next = lai_id_prev + (lai_id_prev * lai_power(3) * (1 - sdd) * lai_power(4))
+
+   ! END FUNCTION calculate_sdd_type1
+
+      ! FUNCTION check_start_senescence(senescence_mode, len_day_id_prev, sdd_id, sdd_base) RESULT(start_senescence)
+      
+   !    IMPLICIT NONE
+      
+   !    INTEGER, INTENT(IN) :: senescence_mode
+
+   !    REAL(KIND(1D0)), INTENT(IN) :: len_day_id_prev
+   !    REAL(KIND(1D0)), INTENT(IN) :: sdd_id
+   !    REAL(KIND(1D0)), INTENT(IN) :: sdd_base
+
+   !    LOGICAL :: start_senescence
+      
+   !    SELECT CASE (senescence_mode)
+
+   !       CASE (SEN_DAYLENGTH)
+   !          start_senescence = ((len_day_id_prev <= 12) .AND. (sdd_id <= sdd_base))
+
+   !       CASE (SEN_SDD)
+   !          start_senescence = (sdd_id <= sdd_base)
+
+   !       CASE DEFAULT
+   !          ! Invalid option falls back to SEN_SDD. No error yet registered.
+   !          ! default currently not possible as function calls hard-coded
+   !          start_senescence = (sdd_id <= sdd_base)
+
+   !    END SELECT
+
+   ! END FUNCTION check_start_senescence
 END MODULE module_phys_lai

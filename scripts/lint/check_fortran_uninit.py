@@ -722,10 +722,12 @@ def _validate_compiler_image_bump(
       ``compiler``, returns ``(False, None, None)`` (ordinary PR: strict
       shrink-only applies).
     - When ``container_image`` or ``compiler`` differs, permits re-baselining
-      only if the candidate digest matches ``PINNED_CONTAINER_IMAGE``, the
-      workflow's ``container.image`` (when present), and the live running
-      ``gfortran --version`` line. Otherwise returns a rejection message so a
-      PR cannot bypass shrink-only by editing the baseline JSON alone.
+      only if the candidate digest matches ``PINNED_CONTAINER_IMAGE`` and the
+      workflow's ``container.image`` (failing closed if missing/unparseable),
+      and the candidate compiler matches both ``PINNED_COMPILER`` and the live
+      running ``gfortran --version`` line. Otherwise returns a rejection
+      message so a PR cannot bypass shrink-only by editing the baseline JSON
+      alone.
     """
     if base_payload is None:
         return False, None, None
@@ -751,10 +753,21 @@ def _validate_compiler_image_bump(
             f"PINNED_CONTAINER_IMAGE {PINNED_CONTAINER_IMAGE!r} in "
             "scripts/lint/check_fortran_uninit.py"
         )
-    elif workflow_image is not None and cand_image != workflow_image:
+    elif workflow_image is None:
+        spoof_error = (
+            f"could not read pinned container.image from "
+            f"{WORKFLOW_PATH.as_posix()} (failing closed on compiler-image bump)"
+        )
+    elif cand_image != workflow_image:
         spoof_error = (
             f"candidate baseline container_image {cand_image!r} does not match "
             f"{WORKFLOW_PATH.as_posix()} container.image {workflow_image!r}"
+        )
+    elif cand_compiler != PINNED_COMPILER:
+        spoof_error = (
+            f"candidate baseline compiler {cand_compiler!r} does not match "
+            f"PINNED_COMPILER {PINNED_COMPILER!r} in "
+            "scripts/lint/check_fortran_uninit.py"
         )
     elif cand_compiler != running_compiler:
         spoof_error = (

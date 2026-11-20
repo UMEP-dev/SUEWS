@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -421,10 +422,13 @@ def test_live_repo_unit_discovery_and_committed_baseline_contract():
     assert checkout_step["with"]["persist-credentials"] is False
 
     check_step = job["steps"][-1]
+    assert check_step["env"]["EVENT_NAME"] == "${{ github.event_name }}"
+    assert "github.event.pull_request.head.sha" in check_step["env"]["PR_HEAD_SHA"]
     assert "github.event.pull_request.base.sha" in check_step["env"]["BASE_SHA"]
     assert "github.event.merge_group.base_sha" in check_step["env"]["BASE_SHA"]
     assert "HEAD^2" in check_step["run"]
     assert "HEAD^1" in check_step["run"]
+    assert "PR_HEAD_SHA" in check_step["run"]
     assert '--base-ref "$BASE_SHA"' in check_step["run"]
 
 
@@ -716,8 +720,24 @@ def test_compiler_image_bump_permits_rebaseline_and_rejects_spoofs(
     assert check_fortran_uninit.main(cli_args) == 1
     assert "does not match PINNED_CONTAINER_IMAGE" in capsys.readouterr().err
 
-    # Case 2: Lockstep bump across script + workflow + JSON, but compiler mismatch -> FAIL
+    # Case 2: Missing or unparseable workflow image -> FAIL closed
     monkeypatch.setattr(check_fortran_uninit, "PINNED_CONTAINER_IMAGE", new_image)
+    wf_path.unlink()
+    assert check_fortran_uninit.main(cli_args) == 1
+    assert "could not read pinned container.image" in capsys.readouterr().err
+    wf_path.write_text("jobs:\n  lint:\n    runs-on: ubuntu-latest\n", encoding="utf-8")
+    assert check_fortran_uninit.main(cli_args) == 1
+    assert "could not read pinned container.image" in capsys.readouterr().err
+    wf_path.write_text(
+        f"jobs:\n  lint:\n    container:\n      image: {new_image}\n", encoding="utf-8"
+    )
+
+    # Case 3: Stale PINNED_COMPILER -> FAIL closed
+    assert check_fortran_uninit.main(cli_args) == 1
+    assert "does not match PINNED_COMPILER" in capsys.readouterr().err
+
+    # Case 4: Lockstep script + workflow + PINNED_COMPILER, but running compiler mismatch -> FAIL
+    monkeypatch.setattr(check_fortran_uninit, "PINNED_COMPILER", new_compiler)
     monkeypatch.setattr(
         check_fortran_uninit,
         "compile_and_collect",
@@ -726,7 +746,7 @@ def test_compiler_image_bump_permits_rebaseline_and_rejects_spoofs(
     assert check_fortran_uninit.main(cli_args) == 1
     assert "does not match running compiler" in capsys.readouterr().err
 
-    # Case 3: Genuine lockstep bump with matching running compiler -> PASS
+    # Case 5: Genuine full lockstep bump with matching running compiler -> PASS
     monkeypatch.setattr(
         check_fortran_uninit,
         "compile_and_collect",
@@ -735,7 +755,7 @@ def test_compiler_image_bump_permits_rebaseline_and_rejects_spoofs(
     assert check_fortran_uninit.main(cli_args) == 0
     assert "compiler-image bump detected" in capsys.readouterr().err
 
-    # Case 4: Genuine bump still fails if actual warnings do not match candidate JSON
+    # Case 6: Genuine bump still fails if actual warnings do not match candidate JSON
     monkeypatch.setattr(
         check_fortran_uninit,
         "compile_and_collect",
@@ -743,6 +763,135 @@ def test_compiler_image_bump_permits_rebaseline_and_rejects_spoofs(
     )
     assert check_fortran_uninit.main(cli_args) == 1
     assert "stale baseline" in capsys.readouterr().err
+
+
+def _run_fortran_uninit_base_resolution(
+    repo: Path, *, event_name: str, pr_head_sha: str, base_sha: str
+) -> str:
+    """Execute the exact POSIX sh base-resolution block from fortran-uninit.yml."""
+    workflow = yaml.safe_load(
+        (REPO_ROOT / check_fortran_uninit.WORKFLOW_PATH).read_text(encoding="utf-8")
+    )
+    (job,) = workflow["jobs"].values()
+    run_block = str(job["steps"][-1]["run"])
+    # Keep only the base-resolution logic and emit the resolved BASE_SHA.
+    resolve_only = run_block.split('if [ -n "$BASE_SHA" ]; then', 1)[0]
+    script = (
+        "set -eu\n"
+        + "\n".join(
+            line
+            for line in resolve_only.splitlines()
+            if "gfortran --version" not in line
+        )
+        + '\nprintf "%s" "$BASE_SHA"\n'
+    )
+    res = subprocess.run(
+        ["sh", "-c", script],
+        cwd=repo,
+        env={
+            **os.environ,
+            "EVENT_NAME": event_name,
+            "PR_HEAD_SHA": pr_head_sha,
+            "BASE_SHA": base_sha,
+        },
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return res.stdout
+
+
+def test_fortran_uninit_workflow_base_resolution_matrix(tmp_path):
+    """Workflow resolves HEAD^1 ONLY on synthetic PR merges; preserves merge_group/dispatch."""
+    repo = tmp_path / "wf_base_repo"
+    repo.mkdir()
+    _init_git_repo(repo)
+
+    # Base B1 on master
+    (repo / "a.txt").write_text("b1\n", encoding="utf-8")
+    b1 = _git_commit_all(repo, "b1")
+    subprocess.run(
+        ["git", "-C", str(repo), "branch", "-M", "master"],
+        check=True,
+        capture_output=True,
+    )
+
+    # PR1 branch from B1
+    subprocess.run(
+        ["git", "-C", str(repo), "checkout", "-b", "pr1", b1],
+        check=True,
+        capture_output=True,
+    )
+    (repo / "pr1.txt").write_text("pr1\n", encoding="utf-8")
+    pr1_head = _git_commit_all(repo, "pr1")
+
+    # Advance master to B2 (moving master)
+    subprocess.run(
+        ["git", "-C", str(repo), "checkout", "master"],
+        check=True,
+        capture_output=True,
+    )
+    (repo / "m.txt").write_text("b2\n", encoding="utf-8")
+    b2 = _git_commit_all(repo, "b2")
+
+    # 1. Synthetic pull_request merge commit (HEAD^1=B2, HEAD^2=pr1_head) -> resolves B2
+    subprocess.run(
+        ["git", "-C", str(repo), "checkout", "--detach", b2],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repo), "merge", "--no-ff", "-m", "synthetic pr1", pr1_head],
+        check=True,
+        capture_output=True,
+    )
+    assert (
+        _run_fortran_uninit_base_resolution(
+            repo, event_name="pull_request", pr_head_sha=pr1_head, base_sha=b1
+        )
+        == b2
+    )
+
+    # 2. Non-synthetic pull_request merge tip (HEAD is itself pr_head, so HEAD^2 != PR_HEAD_SHA)
+    merged_pr_head = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    assert (
+        _run_fortran_uninit_base_resolution(
+            repo, event_name="pull_request", pr_head_sha=merged_pr_head, base_sha=b1
+        )
+        == b1
+    )
+
+    # 3. 2-PR merge_group batch (HEAD = merge PR2 onto (merge PR1 onto B2)) -> keeps B2
+    subprocess.run(
+        ["git", "-C", str(repo), "checkout", "-b", "pr2", b2],
+        check=True,
+        capture_output=True,
+    )
+    (repo / "pr2.txt").write_text("pr2\n", encoding="utf-8")
+    pr2_head = _git_commit_all(repo, "pr2")
+    subprocess.run(
+        ["git", "-C", str(repo), "checkout", "--detach", merged_pr_head],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repo), "merge", "--no-ff", "-m", "batch pr2", pr2_head],
+        check=True,
+        capture_output=True,
+    )
+    assert (
+        _run_fortran_uninit_base_resolution(
+            repo, event_name="merge_group", pr_head_sha="", base_sha=b2
+        )
+        == b2
+    )
+
+    # 4. workflow_dispatch on a merge tip -> keeps BASE_SHA empty
+    assert not _run_fortran_uninit_base_resolution(
+        repo, event_name="workflow_dispatch", pr_head_sha="", base_sha=""
+    )
 
 
 def _load_snan_summariser():

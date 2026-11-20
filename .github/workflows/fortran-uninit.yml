@@ -50,14 +50,22 @@ jobs:
 
       - name: Check Fortran -Wuninitialized ratchet
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
         run: |
           set -eu
           gfortran --version | head -n 1
-          # On pull_request synthetic merge checkouts (2-parent HEAD), use
-          # HEAD^1 so moving master cannot lag behind pull_request.base.sha.
-          if git -c "safe.directory=$PWD" rev-parse --verify -q HEAD^2 >/dev/null 2>&1; then
-            BASE_SHA="$(git -c "safe.directory=$PWD" rev-parse HEAD^1)"
+          # On pull_request synthetic merge checkouts (2-parent HEAD whose
+          # second parent is pull_request.head.sha), use HEAD^1 so moving
+          # master cannot lag behind pull_request.base.sha. Multi-PR
+          # merge_group batches keep merge_group.base_sha, non-synthetic merge
+          # tips keep BASE_SHA, and workflow_dispatch keeps BASE_SHA empty.
+          if [ "${EVENT_NAME:-}" = "pull_request" ] && [ -n "${PR_HEAD_SHA:-}" ]; then
+            HEAD_SECOND_PARENT="$(git -c "safe.directory=$PWD" rev-parse --verify -q HEAD^2 2>/dev/null || true)"
+            if [ -n "$HEAD_SECOND_PARENT" ] && [ "$HEAD_SECOND_PARENT" = "$PR_HEAD_SHA" ]; then
+              BASE_SHA="$(git -c "safe.directory=$PWD" rev-parse HEAD^1)"
+            fi
           fi
           if [ -n "$BASE_SHA" ]; then
             python3 scripts/lint/check_fortran_uninit.py --base-ref "$BASE_SHA"

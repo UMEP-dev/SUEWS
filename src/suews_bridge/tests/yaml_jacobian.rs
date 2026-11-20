@@ -184,10 +184,12 @@ struct SweepReport {
     nlayer: usize,
     ndepth: usize,
     nspec: usize,
+    base_non_finite: Vec<(String, f64)>,
     dead_keys: BTreeSet<String>,
     key_targets: BTreeMap<String, BTreeSet<String>>,
     slot_owners: BTreeMap<String, Vec<String>>,
     non_unit_deltas: BTreeMap<(String, String), String>,
+    non_finite_perturbations: Vec<(String, Vec<(String, f64)>)>,
     perturbation_errors: Vec<(String, String)>,
 }
 
@@ -521,6 +523,11 @@ fn run_jacobian_sweep(orig_root: &Value) -> SweepReport {
     let mut base_root = orig_root.clone();
     let base_rc = load_run_config_from_value(&mut base_root).expect("baseline fixture must load");
     let base_flat = flatten_run_config(&base_rc);
+    let base_non_finite: Vec<(String, f64)> = base_flat
+        .iter()
+        .filter(|(_, val)| !val.is_finite())
+        .map(|(k, &v)| (k.clone(), v))
+        .collect();
     let leaves = collect_anchor_leaves(orig_root);
     let leaves_tested = leaves.len();
 
@@ -563,8 +570,17 @@ fn run_jacobian_sweep(orig_root: &Value) -> SweepReport {
             match loaded {
                 Err(err) => (leaf.display.clone(), Err(err)),
                 Ok((used_delta, rc)) => {
-                    let diffs = diff_maps(&base_flat, &flatten_run_config(&rc));
-                    (leaf.display.clone(), Ok((used_delta, diffs)))
+                    let pert_flat = flatten_run_config(&rc);
+                    let pert_non_finite: Vec<(String, f64)> = pert_flat
+                        .iter()
+                        .filter(|(_, val)| !val.is_finite())
+                        .map(|(k, &v)| (k.clone(), v))
+                        .collect();
+                    let diffs = diff_maps(&base_flat, &pert_flat);
+                    (
+                        leaf.display.clone(),
+                        Ok((used_delta, diffs, pert_non_finite)),
+                    )
                 }
             }
         })
@@ -574,12 +590,16 @@ fn run_jacobian_sweep(orig_root: &Value) -> SweepReport {
     let mut key_targets: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut slot_owners: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut non_unit_deltas = BTreeMap::new();
+    let mut non_finite_perturbations = Vec::new();
     let mut perturbation_errors = Vec::new();
 
     for (display, outcome) in per_leaf {
         match outcome {
             Err(err) => perturbation_errors.push((display, err)),
-            Ok((used_delta, diffs)) => {
+            Ok((used_delta, diffs, pert_non_finite)) => {
+                if !pert_non_finite.is_empty() {
+                    non_finite_perturbations.push((display.clone(), pert_non_finite));
+                }
                 if diffs.is_empty() {
                     dead_keys.insert(display);
                     continue;
@@ -592,7 +612,9 @@ fn run_jacobian_sweep(orig_root: &Value) -> SweepReport {
                         .or_default()
                         .push(display.clone());
                     let actual_delta = pert_val - base_val;
-                    if (actual_delta - used_delta).abs() > DELTA_TOL {
+                    // Guard finiteness explicitly: in IEEE-754, `NaN > tol`
+                    // evaluates to `false` and would silently hide a NaN delta.
+                    if !actual_delta.is_finite() || (actual_delta - used_delta).abs() > DELTA_TOL {
                         non_unit_deltas.insert(
                             (display.clone(), slot),
                             format!(
@@ -611,10 +633,12 @@ fn run_jacobian_sweep(orig_root: &Value) -> SweepReport {
         nlayer: base_rc.nlayer as usize,
         ndepth: base_rc.ndepth as usize,
         nspec: base_rc.site.spartacus_layer.nspec,
+        base_non_finite,
         dead_keys,
         key_targets,
         slot_owners,
         non_unit_deltas,
+        non_finite_perturbations,
         perturbation_errors,
     }
 }
@@ -1165,9 +1189,20 @@ fn assert_jacobian_invariants(fixture_label: &str, yaml_text: &str) {
         report.leaves_tested
     );
     assert!(
+        report.base_non_finite.is_empty(),
+        "{fixture_label}: baseline RunConfig contains non-finite slots:\n{:#?}",
+        report.base_non_finite
+    );
+    assert!(
         report.perturbation_errors.is_empty(),
         "{fixture_label}: unexpected perturbation errors (both +delta and -delta failed):\n{:#?}",
         report.perturbation_errors
+    );
+    assert!(
+        report.non_finite_perturbations.is_empty(),
+        "{fixture_label}: finite numeric perturbations produced non-finite RunConfig slots ({}):\n{:#?}",
+        report.non_finite_perturbations.len(),
+        report.non_finite_perturbations
     );
 
     // 1. Bidirectional dead-key ratchet.
@@ -1519,20 +1554,120 @@ fn nan_poison_completeness_across_anchor_options() {
         Value::Number(12.into()),
     ));
 
-    let anchors: [(&str, Value); 6] = [
-        ("sample_ohm", sample_root.clone()),
-        ("stebbs_spartacus", stebbs_root.clone()),
-        ("stebbs_ehc_spartacus", ehc_spartacus.clone()),
-        ("sample_dyohm", dyohm),
-        ("sample_snow", snow),
-        ("sample_co2", co2.clone()),
+    struct ExpectedOptions {
+        net_radiation_method: i32,
+        storage_heat_method: i32,
+        emissions_method: i32,
+        snow_use: i32,
+        stebbs_method: i32,
+        rc_method: i32,
+    }
+
+    let anchors: [(&str, Value, ExpectedOptions); 6] = [
+        (
+            "sample_ohm",
+            sample_root.clone(),
+            ExpectedOptions {
+                net_radiation_method: 3,
+                storage_heat_method: 1,
+                emissions_method: 2,
+                snow_use: 0,
+                stebbs_method: 0,
+                rc_method: 0,
+            },
+        ),
+        (
+            "stebbs_spartacus",
+            stebbs_root.clone(),
+            ExpectedOptions {
+                net_radiation_method: 1003,
+                storage_heat_method: 7,
+                emissions_method: 2,
+                snow_use: 0,
+                stebbs_method: 1,
+                rc_method: 2,
+            },
+        ),
+        (
+            "stebbs_ehc_spartacus",
+            ehc_spartacus.clone(),
+            ExpectedOptions {
+                net_radiation_method: 1003,
+                storage_heat_method: 5,
+                emissions_method: 2,
+                snow_use: 0,
+                stebbs_method: 1,
+                rc_method: 2,
+            },
+        ),
+        (
+            "sample_dyohm",
+            dyohm,
+            ExpectedOptions {
+                net_radiation_method: 3,
+                storage_heat_method: 6,
+                emissions_method: 2,
+                snow_use: 0,
+                stebbs_method: 0,
+                rc_method: 0,
+            },
+        ),
+        (
+            "sample_snow",
+            snow,
+            ExpectedOptions {
+                net_radiation_method: 3,
+                storage_heat_method: 1,
+                emissions_method: 2,
+                snow_use: 1,
+                stebbs_method: 0,
+                rc_method: 0,
+            },
+        ),
+        (
+            "sample_co2",
+            co2.clone(),
+            ExpectedOptions {
+                net_radiation_method: 3,
+                storage_heat_method: 1,
+                emissions_method: 12,
+                snow_use: 0,
+                stebbs_method: 0,
+                rc_method: 0,
+            },
+        ),
     ];
 
-    // 1. Every numeric slot in every resolved anchor configuration must be
-    //    strictly finite (zero NaN, zero Inf).
-    for (label, mut root) in anchors {
+    // 1. Every resolved anchor configuration must activate its expected
+    //    decoded Fortran option flags AND produce strictly finite numeric
+    //    slots across the entire RunConfig (zero NaN, zero Inf).
+    for (label, mut root, expected_opts) in anchors {
         let rc = load_run_config_from_value(&mut root)
             .unwrap_or_else(|err| panic!("{label}: failed to load resolved anchor: {err}"));
+        assert_eq!(
+            rc.config.net_radiation_method, expected_opts.net_radiation_method,
+            "{label}: unexpected decoded net_radiation_method"
+        );
+        assert_eq!(
+            rc.config.storage_heat_method, expected_opts.storage_heat_method,
+            "{label}: unexpected decoded storage_heat_method"
+        );
+        assert_eq!(
+            rc.config.emissions_method, expected_opts.emissions_method,
+            "{label}: unexpected decoded emissions_method"
+        );
+        assert_eq!(
+            rc.config.snow_use, expected_opts.snow_use,
+            "{label}: unexpected decoded snow_use"
+        );
+        assert_eq!(
+            rc.config.stebbs_method, expected_opts.stebbs_method,
+            "{label}: unexpected decoded stebbs_method"
+        );
+        assert_eq!(
+            rc.config.rc_method, expected_opts.rc_method,
+            "{label}: unexpected decoded rc_method"
+        );
         let bad = non_finite_slots(&rc);
         assert!(
             bad.is_empty(),

@@ -26,9 +26,8 @@ This module contains:
   ``SUEWSConfig._iter_critical_null_site_param_issues``.
 - ``WATER_DISTRIBUTION_REQUIRED``, the destinations each surface must route
   water to, consumed by ``WaterDistribution.validate_distribution``. A failure
-  there is reported as a warning while a configuration loads, but the missing
-  fractions then reach the model as nulls, so the reference documents them as
-  required.
+  there raises a validation error when a configuration loads, matching the
+  documented requirement.
 - ``DOC_REQUIRED_WHEN``, which maps a model class name to a reader-facing
   description of when each field is required. This is consumed by the
   documentation generator. Most entries are derived from the constants above;

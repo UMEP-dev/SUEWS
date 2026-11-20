@@ -183,17 +183,15 @@ class WaterDistribution(DataModelBase):
         # Check required fields are present and collect values
         for field in fields:
             value = getattr(self, field)
-            if value is None:
+            raw = value.value if isinstance(value, RefValue) else value
+            if raw is None:
                 raise ValueError(
                     f"Missing required field {field} for {surface_type.value}"
                 )
-            values.append(value)
+            values.append(raw)
 
         # Validate sum
-        total = sum(
-            value.value if isinstance(value, RefValue) else value for value in values
-        )
-        # if not np.isclose(total, 1.0, rtol=1e-5):
+        total = sum(values)
         if not math.isclose(total, 1.0, rel_tol=1e-5):
             raise ValueError(f"Water distribution sum must be 1.0, got {total}")
 

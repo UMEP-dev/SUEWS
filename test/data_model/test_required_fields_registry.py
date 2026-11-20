@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from supy._env import trv_supy_module
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.human_activity import (
     AnthropogenicEmissions,
@@ -306,6 +307,63 @@ def test_water_distribution_conditions_name_the_right_surfaces() -> None:
                 continue
             named = f"``{surface}``" in required_when("WaterDistribution", field)
             assert named == (field in fields), (surface, field)
+
+
+def _load_sample_raw() -> dict:
+    return yaml.safe_load(
+        (trv_supy_module / "sample_data" / "sample_config.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+
+def test_water_distribution_missing_field_rejected_by_from_yaml(
+    tmp_path: Path,
+) -> None:
+    """Omitting a required waterdist destination fails SUEWSConfig.from_yaml()."""
+    # ARRANGE
+    raw = _load_sample_raw()
+    del raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]["to_runoff"]
+    cfg_path = tmp_path / "missing_to_runoff.yml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match="Missing required field to_runoff for paved"):
+        SUEWSConfig.from_yaml(str(cfg_path))
+
+
+def test_water_distribution_null_refvalue_rejected_by_from_yaml(
+    tmp_path: Path,
+) -> None:
+    """Passing {value: null} on a waterdist destination fails SUEWSConfig.from_yaml()."""
+    # ARRANGE
+    raw = _load_sample_raw()
+    raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]["to_runoff"] = {
+        "value": None
+    }
+    cfg_path = tmp_path / "null_to_runoff.yml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match="Missing required field to_runoff for paved"):
+        SUEWSConfig.from_yaml(str(cfg_path))
+
+
+def test_water_distribution_non_unit_sum_rejected_by_from_yaml(
+    tmp_path: Path,
+) -> None:
+    """A waterdist block whose fractions do not sum to 1.0 fails SUEWSConfig.from_yaml()."""
+    # ARRANGE
+    raw = _load_sample_raw()
+    raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]["to_runoff"] = {
+        "value": 0.5
+    }
+    cfg_path = tmp_path / "bad_sum.yml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match="Water distribution sum must be 1.0"):
+        SUEWSConfig.from_yaml(str(cfg_path))
 
 
 def test_shading_conditions_follow_the_shared_modes() -> None:

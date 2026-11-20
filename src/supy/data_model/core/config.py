@@ -4795,6 +4795,7 @@ class SUEWSConfig(DataModelBase):
             "water": SurfaceType.WATER,
         }
 
+        errors = []
         for site_index, site in enumerate(self.sites):
             if site.properties and site.properties.land_cover:
                 land_cover = site.properties.land_cover
@@ -4806,16 +4807,14 @@ class SUEWSConfig(DataModelBase):
                         if surface_prop and hasattr(surface_prop, "set_surface_type"):
                             try:
                                 surface_prop.set_surface_type(surface_type)
-                            except Exception as e:
-                                # Log the error but continue processing other surfaces
+                            except ValueError as e:
                                 site_name = getattr(site, "name", f"Site {site_index}")
-                                import warnings
-
-                                warnings.warn(
-                                    f"{site_name}: Failed to set surface type for {surface_name}: {str(e)}",
-                                    UserWarning,
-                                    stacklevel=2,
+                                errors.append(
+                                    f"{site_name}: Invalid surface configuration for {surface_name}: {e}"
                                 )
+
+        if errors:
+            raise ValueError("\n".join(errors))
 
         return self
 

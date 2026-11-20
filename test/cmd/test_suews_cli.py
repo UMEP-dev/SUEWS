@@ -220,17 +220,217 @@ def test_schema_version_update_no_backup(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("flag", [[], ["-b"], ["--no-backup"]])
-def test_schema_migrate_leaves_input_unchanged(tmp_path, flag) -> None:
-    """``migrate`` never rewrites its input; the legacy backup flag is inert."""
+def test_schema_migrate_leaves_input_unchanged(
+    tmp_path: Path, flag: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``migrate`` writes a migrated copy and leaves its input untouched."""
+    import yaml as _yaml
+    from supy.cmd import schema_cli
     from supy.cmd.suews_cli import cli
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
+    # ARRANGE: skip only the heavy post-write JSON Schema generation so the
+    # real SchemaMigrator and file I/O execute in milliseconds.
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
     config = tmp_path / "config.yml"
-    _write_old_config(config)
+    config.write_text("name: test\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
     original = config.read_text(encoding="utf-8")
 
+    # ACT
     result = CliRunner().invoke(cli, ["schema", "migrate", *flag, str(config)])
+
+    # ASSERT
     assert result.exit_code == 0, result.output
     assert config.read_text(encoding="utf-8") == original
+    migrated = tmp_path / "config.migrated.yml"
+    assert migrated.exists()
+    migrated_doc = _yaml.safe_load(migrated.read_text(encoding="utf-8"))
+    assert migrated_doc["schema_version"] == CURRENT_SCHEMA_VERSION
+
+
+def _stderr_or_output(result) -> str:
+    """Return captured stderr when Click separates streams, else combined output."""
+    try:
+        return result.stderr
+    except ValueError:  # Click < 8.2 without mix_stderr=False
+        return result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("subcmd", ["version", "migrate"])
+def test_schema_subcommands_exit_nonzero_on_malformed_yaml(
+    tmp_path: Path, subcmd: str, quiet_flag: list[str]
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    bad = tmp_path / "bad.yml"
+    bad.write_text("name: [unterminated\n", encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", *quiet_flag, subcmd, str(bad)])
+
+    # ASSERT
+    assert result.exit_code == 1
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "bad.yml:" in err
+        assert "YAML" in err
+    else:
+        assert "bad.yml" in result.output
+        assert "YAML" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("subcmd", ["version", "migrate"])
+@pytest.mark.parametrize("content", ["- item1\n- item2\n", ""])
+def test_schema_subcommands_exit_nonzero_on_non_mapping_yaml(
+    tmp_path: Path, subcmd: str, quiet_flag: list[str], content: str
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    non_mapping = tmp_path / "non_mapping.yml"
+    non_mapping.write_text(content, encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", *quiet_flag, subcmd, str(non_mapping)])
+
+    # ASSERT
+    assert result.exit_code == 1
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "non_mapping.yml:" in err
+        assert "mapping" in err
+    else:
+        assert "mapping" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("dry_run_flag", [[], ["--dry-run"]])
+def test_schema_migrate_exits_nonzero_on_unsupported_migration_path(
+    tmp_path: Path, quiet_flag: list[str], dry_run_flag: list[str]
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    config = tmp_path / "unsupported.yml"
+    _write_old_config(config)
+
+    # ACT
+    result = CliRunner().invoke(
+        cli, ["schema", *quiet_flag, "migrate", *dry_run_flag, str(config)]
+    )
+
+    # ASSERT
+    assert result.exit_code == 1
+    assert not (tmp_path / "unsupported.migrated.yml").exists()
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "unsupported.yml:" in err
+        assert "No migration path available" in err
+    else:
+        assert "No migration path available" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+def test_schema_migrate_dry_run_valid_config_writes_nothing(
+    tmp_path: Path, quiet_flag: list[str]
+) -> None:
+    """``migrate --dry-run`` validates migration in memory without writing to disk."""
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    config = tmp_path / "config.yml"
+    config.write_text("name: test\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
+    original = config.read_text(encoding="utf-8")
+    out_dir = tmp_path / "should_not_be_created"
+
+    # ACT
+    result = CliRunner().invoke(
+        cli,
+        [
+            "schema",
+            *quiet_flag,
+            "migrate",
+            "--dry-run",
+            "--output-dir",
+            str(out_dir),
+            str(config),
+        ],
+    )
+
+    # ASSERT
+    assert result.exit_code == 0, result.output
+    assert config.read_text(encoding="utf-8") == original
+    assert not out_dir.exists()
+    assert not (tmp_path / "config.migrated.yml").exists()
+    if quiet_flag:
+        assert not result.output
+    else:
+        assert "Would migrate" in result.output
+
+
+def test_schema_version_batch_quiet_reports_only_failing_file(tmp_path: Path) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    good = tmp_path / "good.yml"
+    good.write_text("name: good\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
+    listfile = tmp_path / "listfile.yml"
+    listfile.write_text("- item1\n- item2\n", encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(
+        cli, ["schema", "--quiet", "version", str(good), str(listfile)]
+    )
+
+    # ASSERT
+    assert result.exit_code == 1
+    err = _stderr_or_output(result)
+    assert "listfile.yml:" in err
+    assert "mapping" in err
+    assert "good.yml" not in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("dry_run_flag", [[], ["--dry-run"]])
+def test_schema_migrate_batch_exits_nonzero_when_any_file_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    quiet_flag: list[str],
+    dry_run_flag: list[str],
+) -> None:
+    from supy.cmd import schema_cli
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
+    good = tmp_path / "good.yml"
+    good.write_text("name: good\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
+    bad = tmp_path / "bad.yml"
+    _write_old_config(bad)
+
+    # ACT
+    result = CliRunner().invoke(
+        cli, ["schema", *quiet_flag, "migrate", *dry_run_flag, str(good), str(bad)]
+    )
+
+    # ASSERT
+    assert result.exit_code == 1
+    if dry_run_flag:
+        assert not (tmp_path / "good.migrated.yml").exists()
+    else:
+        assert (tmp_path / "good.migrated.yml").exists()
+    assert not (tmp_path / "bad.migrated.yml").exists()
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "bad.yml:" in err
+        assert "good.yml" not in result.output
 
 
 # ---------------------------------------------------------------------------

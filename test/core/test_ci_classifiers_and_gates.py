@@ -137,9 +137,9 @@ def _run_determine_matrix(
             id="build-system",
         ),
         pytest.param(
-            lambda d: d.setdefault("tool", {}).update(
-                {"cibuildwheel": {"skip": "pp*"}}
-            ),
+            lambda d: d.setdefault("tool", {}).update({
+                "cibuildwheel": {"skip": "pp*"}
+            }),
             (True, False, False),
             id="tool-cibuildwheel",
         ),
@@ -166,9 +166,9 @@ def _run_determine_matrix(
             id="project-requires-python",
         ),
         pytest.param(
-            lambda d: d["project"]["scripts"].update(
-                {"suews-new": "supy.cmd.suews_cli:main"}
-            ),
+            lambda d: d["project"]["scripts"].update({
+                "suews-new": "supy.cmd.suews_cli:main"
+            }),
             (False, True, False),
             id="project-scripts",
         ),
@@ -959,3 +959,37 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
         "Data-interface version audit / Validate data-interface version histories",
         "PR build validation",
     ]
+
+
+def test_reusable_workflows_with_concurrency_isolate_group_by_workflow() -> None:
+    """Dual-trigger workflow_call files must isolate concurrency by github.workflow.
+
+    Without github.workflow in concurrency.group, a folded workflow_call run
+    inside build-publish_to_pypi.yml shares a group with its standalone
+    pull_request run and cancels it (or gets cancelled by a label event).
+    """
+    workflows_dir = REPO_ROOT / ".github/workflows"
+    checked: list[str] = []
+    for path in sorted(workflows_dir.glob("*.yml")):
+        wf = yaml.safe_load(path.read_text(encoding="utf-8"))
+        triggers = wf[True] if True in wf else wf.get("on", {})
+        if not isinstance(triggers, dict) or "workflow_call" not in triggers:
+            continue
+        concurrency = wf.get("concurrency")
+        if concurrency is None:
+            continue
+        group = (
+            concurrency["group"] if isinstance(concurrency, dict) else str(concurrency)
+        )
+        assert "github.workflow" in str(group), (
+            f"{path.name}: concurrency.group {group!r} must include "
+            "github.workflow to prevent standalone vs workflow_call self-cancellation"
+        )
+        checked.append(path.name)
+
+    assert {
+        "encoding-audit.yml",
+        "rust-clippy.yml",
+        "rust-test.yml",
+        "schema-version-audit.yml",
+    } <= set(checked)

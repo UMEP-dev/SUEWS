@@ -41,7 +41,9 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: schema-version-audit-${{ github.event.pull_request.number || github.ref }}
+  # Include github.workflow so standalone pull_request runs and folded
+  # workflow_call runs from build-publish_to_pypi.yml never cancel each other.
+  group: schema-version-audit-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

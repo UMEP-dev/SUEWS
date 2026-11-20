@@ -54,12 +54,10 @@ class GateTests(unittest.TestCase):
         for needs_build in ("true", "false"):
             for status in ("success", "cancelled", "failure", "skipped", "", "unknown"):
                 with self.subTest(status=status, needs_build=needs_build):
-                    result = _run_pr_gate(
-                        {
-                            "DETECT_CHANGES_RESULT": status,
-                            "NEEDS_BUILD": needs_build,
-                        }
-                    )
+                    result = _run_pr_gate({
+                        "DETECT_CHANGES_RESULT": status,
+                        "NEEDS_BUILD": needs_build,
+                    })
                     self.assertEqual(
                         result.returncode,
                         0 if status == "success" else 1,
@@ -74,17 +72,15 @@ class GateTests(unittest.TestCase):
         )
 
     def test_stage1_consolidated_producers_observability_mode(self):
-        all_green = _run_pr_gate(
-            {
-                "RUST_TEST_RESULT": "success",
-                "RUST_CLIPPY_RESULT": "success",
-                "SCHEMA_AUDIT_RESULT": "success",
-                "DATA_INTERFACE_AUDIT_RESULT": "success",
-                "ENCODING_AUDIT_RESULT": "success",
-                "WORKFLOW_SECURITY_RESULT": "success",
-                "DEPENDENCY_AUDIT_RESULT": "skipped",
-            }
-        )
+        all_green = _run_pr_gate({
+            "RUST_TEST_RESULT": "success",
+            "RUST_CLIPPY_RESULT": "success",
+            "SCHEMA_AUDIT_RESULT": "success",
+            "DATA_INTERFACE_AUDIT_RESULT": "success",
+            "ENCODING_AUDIT_RESULT": "success",
+            "WORKFLOW_SECURITY_RESULT": "success",
+            "DEPENDENCY_AUDIT_RESULT": "skipped",
+        })
         self.assertEqual(all_green.returncode, 0, all_green.stdout + all_green.stderr)
         self.assertIn("[OK] rust_test: success", all_green.stdout)
         self.assertIn("[OK] schema_version_audit: success", all_green.stdout)
@@ -92,13 +88,11 @@ class GateTests(unittest.TestCase):
 
         # Stage 1 logs a warning for a non-success folded producer without
         # turning on Stage 2 fail-closed enforcement before Stage 1 lands on master.
-        stage1_warn = _run_pr_gate(
-            {
-                "RUST_TEST_RESULT": "failure",
-                "SCHEMA_AUDIT_RESULT": "success",
-                "DATA_INTERFACE_AUDIT_RESULT": "success",
-            }
-        )
+        stage1_warn = _run_pr_gate({
+            "RUST_TEST_RESULT": "failure",
+            "SCHEMA_AUDIT_RESULT": "success",
+            "DATA_INTERFACE_AUDIT_RESULT": "success",
+        })
         self.assertEqual(
             stage1_warn.returncode, 0, stage1_warn.stdout + stage1_warn.stderr
         )

@@ -30,6 +30,7 @@ import ast
 from collections.abc import Callable
 import copy
 from dataclasses import dataclass
+from enum import IntFlag
 import importlib
 from importlib.resources import files
 import importlib.util
@@ -845,9 +846,205 @@ def _is_warn_call(node: ast.AST) -> bool:
     return False
 
 
-def _handler_unconditionally_reraises(handler: ast.ExceptHandler) -> bool:
-    """True when *handler* executes a top-level ``raise`` statement."""
-    return any(isinstance(stmt, ast.Raise) for stmt in handler.body)
+class _Exit(IntFlag):
+    """Non-raising control-flow exits reachable from an AST statement block."""
+
+    NONE = 0
+    FALL = 1
+    RETURN = 2
+    BREAK = 4
+    CONTINUE = 8
+
+
+_TRY_NODE_TYPES: tuple[type[ast.AST], ...] = (
+    (ast.Try, ast.TryStar) if hasattr(ast, "TryStar") else (ast.Try,)
+)
+
+
+def _expr_has_warn(node: ast.AST | None) -> bool:
+    """True when *node* contains a warning call expression."""
+    if node is None:
+        return False
+    return any(_is_warn_call(child) for child in ast.walk(node))
+
+
+def _stmt_contains_warn(stmt: ast.stmt) -> bool:
+    """True when *stmt* contains a warning call outside nested definitions."""
+    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return any(_expr_has_warn(d) for d in stmt.decorator_list)
+    stack: list[ast.AST] = [stmt]
+    while stack:
+        node = stack.pop()
+        if _is_warn_call(node):
+            return True
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if any(_expr_has_warn(d) for d in child.decorator_list):
+                    return True
+                continue
+            stack.append(child)
+    return False
+
+
+def _seq_flow(
+    first: tuple[_Exit, _Exit], second: tuple[_Exit, _Exit]
+) -> tuple[_Exit, _Exit]:
+    """Compose ``(all_exits, warn_exits)`` for sequential statements."""
+    a1, w1 = first
+    if _Exit.FALL not in a1:
+        return a1, w1
+    a2, w2 = second
+    all_exits = (a1 & ~_Exit.FALL) | a2
+    warn_exits = (w1 & ~_Exit.FALL) | w2 | (a2 if _Exit.FALL in w1 else _Exit.NONE)
+    return all_exits, warn_exits
+
+
+def _is_irrefutable_pattern(pattern: ast.pattern) -> bool:
+    """True when a ``match`` pattern unconditionally matches every value."""
+    if isinstance(pattern, ast.MatchAs):
+        return pattern.pattern is None
+    if isinstance(pattern, ast.MatchOr):
+        return any(_is_irrefutable_pattern(p) for p in pattern.patterns)
+    return False
+
+
+def _is_constant_true(expr: ast.expr) -> bool:
+    """True when *expr* is a literal truthy constant (e.g. ``while True:``)."""
+    return isinstance(expr, ast.Constant) and bool(expr.value)
+
+
+def _analyse_loop(stmt: ast.For | ast.AsyncFor | ast.While) -> tuple[_Exit, _Exit]:
+    """Compute non-raising exits for a ``for`` or ``while`` loop."""
+    header = stmt.test if isinstance(stmt, ast.While) else stmt.iter
+    hdr_flow = (_Exit.FALL, _Exit.FALL if _expr_has_warn(header) else _Exit.NONE)
+    ab, wb = _analyse_block(stmt.body)
+    ao, wo = _analyse_block(stmt.orelse)
+    wb_star = wb | (ab if (wb & (_Exit.FALL | _Exit.CONTINUE)) else _Exit.NONE)
+    break_a = _Exit.FALL if _Exit.BREAK in ab else _Exit.NONE
+    break_w = _Exit.FALL if _Exit.BREAK in wb_star else _Exit.NONE
+    if isinstance(stmt, ast.While) and _is_constant_true(stmt.test):
+        loop_a = (ab & _Exit.RETURN) | break_a
+        loop_w = (wb_star & _Exit.RETURN) | break_w
+    else:
+        loop_a = (ab & _Exit.RETURN) | break_a | ao
+        loop_w = (
+            (wb_star & _Exit.RETURN)
+            | break_w
+            | wo
+            | (ao if (wb_star & (_Exit.FALL | _Exit.CONTINUE)) else _Exit.NONE)
+        )
+    return _seq_flow(hdr_flow, (loop_a, loop_w))
+
+
+def _apply_finally_flow(
+    try_flow: tuple[_Exit, _Exit],
+    finalbody: list[ast.stmt],
+    try_has_warn: bool,
+) -> tuple[_Exit, _Exit]:
+    """Combine exits from a ``try``/``except``/``else`` with its ``finally`` block."""
+    at, wt = try_flow
+    af, wf = _analyse_block(finalbody)
+    non_fall_af = af & ~_Exit.FALL
+    non_fall_wf = wf & ~_Exit.FALL
+    if _Exit.FALL in af:
+        a_out = at | non_fall_af
+        w_out = (
+            wt
+            | non_fall_wf
+            | (at if _Exit.FALL in wf else _Exit.NONE)
+            | (non_fall_af if (wt != _Exit.NONE or try_has_warn) else _Exit.NONE)
+        )
+        return a_out, w_out
+    return non_fall_af, non_fall_wf | (non_fall_af if try_has_warn else _Exit.NONE)
+
+
+def _analyse_try(stmt: ast.Try | Any) -> tuple[_Exit, _Exit]:
+    """Compute non-raising exits for a nested ``try`` / ``except`` / ``finally``."""
+    at, wt = _seq_flow(_analyse_block(stmt.body), _analyse_block(stmt.orelse))
+    body_has_warn = any(_stmt_contains_warn(s) for s in stmt.body)
+    for handler in stmt.handlers:
+        ah, wh = _analyse_block(handler.body)
+        at |= ah
+        wt |= wh | (ah if body_has_warn else _Exit.NONE)
+    if not stmt.finalbody:
+        return at, wt
+    try_has_warn = (
+        body_has_warn
+        or any(_stmt_contains_warn(s) for s in stmt.orelse)
+        or any(any(_stmt_contains_warn(s) for s in h.body) for h in stmt.handlers)
+    )
+    return _apply_finally_flow((at, wt), stmt.finalbody, try_has_warn)
+
+
+def _analyse_match(stmt: ast.Match) -> tuple[_Exit, _Exit]:
+    """Compute non-raising exits for a ``match`` / ``case`` statement."""
+    hdr = (_Exit.FALL, _Exit.FALL if _expr_has_warn(stmt.subject) else _Exit.NONE)
+    all_cases = _Exit.NONE
+    warn_cases = _Exit.NONE
+    exhaustive = False
+    for case in stmt.cases:
+        if case.guard is None and _is_irrefutable_pattern(case.pattern):
+            exhaustive = True
+        guard_hdr = (
+            _Exit.FALL,
+            _Exit.FALL if _expr_has_warn(case.guard) else _Exit.NONE,
+        )
+        ac, wc = _seq_flow(guard_hdr, _analyse_block(case.body))
+        all_cases |= ac
+        warn_cases |= wc
+    if not exhaustive:
+        all_cases |= _Exit.FALL
+    return _seq_flow(hdr, (all_cases, warn_cases))
+
+
+def _analyse_stmt(stmt: ast.stmt) -> tuple[_Exit, _Exit]:
+    """Compute ``(all_exits, warn_exits)`` reachable from one AST statement."""
+    if isinstance(stmt, ast.Raise):
+        result = (_Exit.NONE, _Exit.NONE)
+    elif isinstance(stmt, ast.Return):
+        result = (
+            _Exit.RETURN,
+            _Exit.RETURN if _expr_has_warn(stmt.value) else _Exit.NONE,
+        )
+    elif isinstance(stmt, ast.Break):
+        result = (_Exit.BREAK, _Exit.NONE)
+    elif isinstance(stmt, ast.Continue):
+        result = (_Exit.CONTINUE, _Exit.NONE)
+    elif isinstance(stmt, ast.If):
+        hdr = (_Exit.FALL, _Exit.FALL if _expr_has_warn(stmt.test) else _Exit.NONE)
+        ab, wb = _analyse_block(stmt.body)
+        ao, wo = _analyse_block(stmt.orelse)
+        result = _seq_flow(hdr, (ab | ao, wb | wo))
+    elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+        result = _analyse_loop(stmt)
+    elif isinstance(stmt, (ast.With, ast.AsyncWith)):
+        hdr_warn = any(_expr_has_warn(item.context_expr) for item in stmt.items)
+        hdr = (_Exit.FALL, _Exit.FALL if hdr_warn else _Exit.NONE)
+        result = _seq_flow(hdr, _analyse_block(stmt.body))
+    elif isinstance(stmt, _TRY_NODE_TYPES):
+        result = _analyse_try(stmt)
+    elif isinstance(stmt, ast.Match):
+        result = _analyse_match(stmt)
+    else:
+        result = (
+            _Exit.FALL,
+            _Exit.FALL if _stmt_contains_warn(stmt) else _Exit.NONE,
+        )
+    return result
+
+
+def _analyse_block(stmts: list[ast.stmt]) -> tuple[_Exit, _Exit]:
+    """Compute ``(all_exits, warn_exits)`` reachable from a statement sequence."""
+    flow = (_Exit.FALL, _Exit.NONE)
+    for stmt in stmts:
+        flow = _seq_flow(flow, _analyse_stmt(stmt))
+    return flow
+
+
+def _handler_swallows_warning(handler: ast.ExceptHandler) -> bool:
+    """True when *handler* can execute a warning call without raising."""
+    _, warn_exits = _analyse_block(handler.body)
+    return warn_exits != _Exit.NONE
 
 
 def find_validator_warning_swallows(
@@ -865,8 +1062,9 @@ def find_validator_warning_swallows(
     Returns
     -------
     list of WarningSwallowFinding
-        All validator ``except`` handlers calling ``warnings.warn`` without
-        unconditionally re-raising.
+        All validator ``except`` handlers with a non-raising path after a
+        warning call (including conditional ``warn`` + ``return``/``continue``
+        before a trailing ``raise``).
     """
     tree = ast.parse(source, filename=rel_path)
     findings: list[WarningSwallowFinding] = []
@@ -882,9 +1080,7 @@ def find_validator_warning_swallows(
                     for sub in ast.walk(stmt):
                         if not isinstance(sub, ast.ExceptHandler):
                             continue
-                        if _handler_unconditionally_reraises(sub):
-                            continue
-                        if any(_is_warn_call(inner) for inner in ast.walk(sub)):
+                        if _handler_swallows_warning(sub):
                             exc_type = (
                                 ast.unparse(sub.type)
                                 if sub.type is not None
@@ -964,7 +1160,8 @@ def test_no_unreviewed_validator_warning_swallows() -> None:
 
 def test_validator_warning_swallow_ast_lint_synthetic_cases() -> None:
     """Prove the AST lint catches warning swallows and ignores valid patterns."""
-    # ARRANGE: offending @model_validator, @field_validator, and bare except
+    # ARRANGE: offending @model_validator, @field_validator, bare except, and
+    # control-flow bypasses (conditional warn+return/continue/fallthrough/finally)
     bad_source = """
 import warnings
 from warnings import warn
@@ -998,8 +1195,63 @@ class BadModel(BaseModel):
         except:
             warnings.warn("bare swallow", UserWarning)
             return data
+
+    @model_validator(mode="after")
+    def swallow_conditional_return_before_raise(self):
+        try:
+            raise ValueError("broken")
+        except ValueError as exc:
+            if self.x > 0:
+                warnings.warn(str(exc), UserWarning)
+                return self
+            raise
+
+    @model_validator(mode="after")
+    def swallow_warn_then_conditional_return(self):
+        try:
+            raise ValueError("broken")
+        except ValueError as exc:
+            warnings.warn(str(exc), UserWarning)
+            if self.x > 0:
+                return self
+            raise
+
+    @model_validator(mode="after")
+    def swallow_conditional_fallthrough(self):
+        try:
+            raise ValueError("broken")
+        except ValueError as exc:
+            if self.x > 0:
+                warnings.warn(str(exc), UserWarning)
+            else:
+                raise
+        return self
+
+    @model_validator(mode="after")
+    def swallow_loop_continue_before_raise(self):
+        for _ in range(1):
+            try:
+                raise ValueError("broken")
+            except ValueError as exc:
+                if self.x > 0:
+                    warnings.warn(str(exc), UserWarning)
+                    continue
+                raise
+        return self
+
+    @model_validator(mode="after")
+    def swallow_finally_return_overrides_raise(self):
+        try:
+            raise ValueError("broken")
+        except ValueError as exc:
+            try:
+                warnings.warn(str(exc), UserWarning)
+                raise
+            finally:
+                return self
 """
-    # ARRANGE: allowed patterns (re-raising, advisory warn outside except, non-validator)
+    # ARRANGE: allowed patterns (unconditional re-raise, conditional warn before
+    # unconditional raise, advisory warn outside except, non-validator helper)
     good_source = """
 import warnings
 from pydantic import BaseModel, model_validator
@@ -1013,6 +1265,25 @@ class GoodModel(BaseModel):
             raise ValueError("broken")
         except ValueError as exc:
             warnings.warn(f"about to raise: {exc}", UserWarning)
+            raise
+
+    @model_validator(mode="after")
+    def conditional_warn_then_reraise(self):
+        try:
+            raise ValueError("broken")
+        except ValueError as exc:
+            if self.x > 0:
+                warnings.warn(f"about to raise: {exc}", UserWarning)
+            raise
+
+    @model_validator(mode="after")
+    def branch_warn_and_reraise(self):
+        try:
+            raise ValueError("broken")
+        except ValueError as exc:
+            if self.x > 0:
+                warnings.warn(f"about to raise: {exc}", UserWarning)
+                raise
             raise
 
     @model_validator(mode="before")
@@ -1037,6 +1308,11 @@ class GoodModel(BaseModel):
         ("BadModel.swallow_exception", "Exception"),
         ("BadModel.swallow_field", "ValueError"),
         ("BadModel.swallow_bare", "bare"),
+        ("BadModel.swallow_conditional_return_before_raise", "ValueError"),
+        ("BadModel.swallow_warn_then_conditional_return", "ValueError"),
+        ("BadModel.swallow_conditional_fallthrough", "ValueError"),
+        ("BadModel.swallow_loop_continue_before_raise", "ValueError"),
+        ("BadModel.swallow_finally_return_overrides_raise", "ValueError"),
     }
     assert good_findings == []
 

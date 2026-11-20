@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 
 import pytest
@@ -365,3 +367,93 @@ def test_driver_audit_rejects_dropped_site_scalar(tmp_path: Path) -> None:
 
     with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_SITE%lat"):
         gen.audit_driver_private_unpackers(tmp_path, types_by_lower)
+
+
+@pytest.mark.parametrize(
+    ("case_name", "injected_line"),
+    [
+        (
+            "direct_component_ref",
+            "   call error_state_unpack(state_flat(1), 0_c_int, state%errorState, local_err)",
+        ),
+        (
+            "nested_subcomponent_ref",
+            "   state%errorState%code = 0",
+        ),
+    ],
+)
+def test_driver_audit_rejects_stale_state_errorstate_exclusion(
+    tmp_path: Path,
+    case_name: str,
+    injected_line: str,
+) -> None:
+    """Touching SUEWS_STATE%errorState in driver.f95::unpack_state_members fails audit loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    orig_driver = (gen.CAPI_DIR / "driver.f95").read_text(encoding="utf-8")
+    anchor = "   if (member_len/=0_c_int) then"
+    assert anchor in orig_driver
+    mutated = orig_driver.replace(anchor, f"{injected_line}\n{anchor}", 1)
+    assert mutated != orig_driver
+    (tmp_path / "driver.f95").write_text(mutated, encoding="utf-8")
+
+    with pytest.raises(
+        gen.CoverageInventoryError,
+        match=r"SUEWS_STATE%errorState.*remove stale exclusion",
+    ):
+        gen.audit_driver_private_unpackers(tmp_path, types_by_lower)
+
+
+def test_non_allocatable_derived_leaf_emits_constant_sentinel() -> None:
+    """SUEWS_STATE%errorState is non-allocatable and emits a constant metadata sentinel, not allocated()."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    _, leaves_by_type = gen.audit_manifest_and_inventory(
+        gen.MANIFEST_PATH,
+        types_by_lower,
+        gen.CAPI_DIR,
+    )
+    state_leaves = {leaf.path: leaf for leaf in leaves_by_type["suews_state"]}
+    err_leaf = state_leaves["errorState"]
+    assert err_leaf.kind == "derived"
+    assert err_leaf.allocatable is False
+    assert err_leaf.bridged is False
+
+    emitted = gen._emit_leaf_observations(types_by_lower["suews_state"], [err_leaf])
+    assert emitted == [
+        f"      call obs_emit_unallocated({err_leaf.field_id}_c_int, out_meta, n_meta, err)"
+    ]
+    assert all("actual%errorState" not in line for line in emitted)
+
+
+def test_gitattributes_pins_observer_artefacts_to_lf() -> None:
+    """Generated observer artefacts stay pinned to LF so Windows core.autocrlf=true keeps --check green."""
+    gitattributes = (REPO_ROOT / ".gitattributes").read_text(encoding="utf-8")
+    rules = [
+        line.strip()
+        for line in gitattributes.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    assert "src/suews_bridge/test_observer/** text eol=lf" in rules
+
+    if shutil.which("git") and (REPO_ROOT / ".git").exists():
+        proc = subprocess.run(
+            [
+                "git",
+                "check-attr",
+                "text",
+                "eol",
+                "--",
+                "src/suews_bridge/test_observer/capi_field_observer.f95",
+                "src/suews_bridge/test_observer/observer_manifest.rs",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+        assert lines == [
+            "src/suews_bridge/test_observer/capi_field_observer.f95: text: set",
+            "src/suews_bridge/test_observer/capi_field_observer.f95: eol: lf",
+            "src/suews_bridge/test_observer/observer_manifest.rs: text: set",
+            "src/suews_bridge/test_observer/observer_manifest.rs: eol: lf",
+        ]

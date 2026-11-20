@@ -1,13 +1,14 @@
 name: Rust C-API field observer
 
 # Verify that the generated test-only Fortran C-API field-binding observer stays
-# current with canonical kernel TYPE declarations and passes all 30 direct
-# *_unpack observer tests (covering all 49 bridged types in bridge-manifest.json;
-# gh#2096).
+# current with canonical kernel TYPE declarations and passes all 38 observer
+# tests (30 direct *_unpack routines, 4 driver aggregate unpackers, manifest
+# coverage, nested-type codec checks, and negative bounds; covering all 49
+# bridged types in bridge-manifest.json; gh#2096).
 #
 # Kept separate from rust-test.yml so the observer compiles and links ONLY under
-# the opt-in `capi-observer` Cargo feature and never enters production wheel or
-# CLI builds.
+# the opt-in `capi-observer` Cargo feature and never enters shipped wheel or
+# default CLI builds.
 
 on:
   pull_request:

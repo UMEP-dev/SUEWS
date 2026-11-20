@@ -1,4 +1,4 @@
-//! Generated typed Fortran C-API field-binding observer tests (gh#2096).
+//! Hand-maintained typed Fortran C-API field-binding observer tests (gh#2096).
 //!
 //! For every unpacked Fortran C-API type across all 49 `bridge-manifest.json`
 //! entries (30 direct `*_unpack` routines, all 8 nested derived types live
@@ -661,10 +661,22 @@ fn assert_observed_matches(
                 "{type_name}%{}: unbridged leaf missing documented reason",
                 desc.path
             );
-            if desc.allocatable || desc.kind == ObsKind::Derived {
+            if desc.allocatable {
                 if obs_meta.allocated {
                     diagnostics.push(format!(
-                        "{type_name}%{}: unbridged allocatable/derived field was unexpectedly allocated (bounds {:?})",
+                        "{type_name}%{}: unbridged allocatable field was unexpectedly allocated (bounds {:?})",
+                        desc.path, obs_meta
+                    ));
+                }
+            } else if desc.kind == ObsKind::Derived {
+                // Non-allocatable excluded derived leaves (e.g. SUEWS_STATE%errorState)
+                // cannot be queried with Fortran `allocated()`, so the observer emits a
+                // constant metadata sentinel (`allocated == false`). Exclusion is enforced
+                // statically by `gen_capi_field_observer.py::audit_driver_private_unpackers`
+                // and at runtime by `driver.f95` rejecting any non-zero `errorState` TOC span.
+                if obs_meta.allocated {
+                    diagnostics.push(format!(
+                        "{type_name}%{}: unexpected non-zero sentinel on excluded non-allocatable derived leaf (bounds {:?})",
                         desc.path, obs_meta
                     ));
                 }
@@ -2474,6 +2486,10 @@ fn observe_suews_state() {
     };
 
     let (state_flat, state_toc) = encode_state_members_flat(&state).unwrap();
+    assert_eq!(
+        state_toc[1], 0,
+        "SUEWS_STATE%errorState TOC input length must be 0"
+    );
     let observed = call_observer_state(
         &state_flat,
         &state_toc,
@@ -2484,6 +2500,23 @@ fn observe_suews_state() {
     );
     assert_observed_matches("SUEWS_STATE", OBS_FIELDS_SUEWS_STATE, &exp, &observed);
     assert_eq!(suews_state_schema_info().unwrap().member_names.len(), 13);
+
+    // Non-allocatable SUEWS_STATE%errorState cannot fail via Fortran allocated(); verify
+    // driver.f95::unpack_state_members rejects any non-zero errorState TOC payload at runtime.
+    let mut bad_toc = state_toc;
+    bad_toc[1] = 1;
+    let bad_obs = call_observer_state(
+        &state_flat,
+        &bad_toc,
+        13,
+        nlayer,
+        ndepth,
+        OBS_FIELDS_SUEWS_STATE,
+    );
+    assert_ne!(
+        bad_obs.err, SUEWS_CAPI_OK,
+        "non-zero SUEWS_STATE%errorState TOC span must be rejected by unpack_state_members"
+    );
 }
 
 // =============================================================================

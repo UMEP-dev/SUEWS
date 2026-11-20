@@ -1278,6 +1278,12 @@ def _referenced_component_paths(body: str, state_var: str) -> set[str]:
     return refs
 
 
+def _path_is_referenced(refs: set[str], target_path: str) -> bool:
+    """Return True if ``target_path`` or any nested sub-component under it is referenced."""
+    prefix = f"{target_path}%"
+    return any(ref == target_path or ref.startswith(prefix) for ref in refs)
+
+
 def audit_direct_unpack_coverage(
     type_name: str,
     spec: DirectUnpackSpec,
@@ -1305,7 +1311,7 @@ def audit_direct_unpack_coverage(
     errors: list[str] = []
     for leaf in leaves:
         norm_path = re.sub(r"\([^)]*\)", "", leaf.path).lower()
-        is_touched = norm_path in refs
+        is_touched = _path_is_referenced(refs, norm_path)
         if leaf.bridged and not is_touched:
             errors.append(
                 f"{type_name}%{leaf.path} is not written by {spec.capi_file}::{spec.unpack_sub} "
@@ -1328,9 +1334,16 @@ def _audit_driver_config_and_timer(
     _, cfg_body = _extract_subroutine_body(source, "unpack_config", "driver.f95")
     cfg_refs = _referenced_component_paths(cfg_body, "config")
     for comp in types_by_lower["suews_config"].components:
-        if comp.name.lower() not in cfg_refs:
+        key = ("suews_config", comp.name.lower())
+        excluded = key in REVIEWED_DRIVER_EXCLUDED_COMPONENTS
+        touched = _path_is_referenced(cfg_refs, comp.name.lower())
+        if not excluded and not touched:
             raise CoverageInventoryError(
                 f"SUEWS_CONFIG%{comp.name} missing from driver.f95::unpack_config"
+            )
+        if excluded and touched:
+            raise CoverageInventoryError(
+                f"SUEWS_CONFIG%{comp.name} is unpacked in driver.f95::unpack_config; remove stale exclusion"
             )
 
     _, timer_body = _extract_subroutine_body(source, "unpack_timer", "driver.f95")
@@ -1338,7 +1351,7 @@ def _audit_driver_config_and_timer(
     for comp in types_by_lower["suews_timer"].components:
         key = ("suews_timer", comp.name.lower())
         excluded = key in REVIEWED_DRIVER_EXCLUDED_COMPONENTS
-        touched = comp.name.lower() in timer_refs
+        touched = _path_is_referenced(timer_refs, comp.name.lower())
         if not excluded and not touched:
             raise CoverageInventoryError(
                 f"SUEWS_TIMER%{comp.name} missing from driver.f95::unpack_timer"
@@ -1366,17 +1379,24 @@ def _audit_driver_site_and_state(
         key = ("suews_site", comp.name.lower())
         excluded = key in REVIEWED_DRIVER_EXCLUDED_COMPONENTS
         if comp.kind == "derived":
+            touched = _path_is_referenced(site_member_refs, comp.name.lower())
+            if excluded:
+                if touched:
+                    raise CoverageInventoryError(
+                        f"SUEWS_SITE%{comp.name} is unpacked in driver.f95::unpack_site_members; remove stale exclusion"
+                    )
+                continue
             assert comp.derived_type is not None
             if comp.derived_type.lower() not in DIRECT_UNPACK_SPECS:
                 raise CoverageInventoryError(
                     f"SUEWS_SITE%{comp.name} type {comp.derived_type} not in DIRECT_UNPACK_SPECS"
                 )
-            if comp.name.lower() not in site_member_refs:
+            if not touched:
                 raise CoverageInventoryError(
                     f"SUEWS_SITE%{comp.name} missing from driver.f95::unpack_site_members"
                 )
         else:
-            touched = comp.name.lower() in site_scalar_refs
+            touched = _path_is_referenced(site_scalar_refs, comp.name.lower())
             if not excluded and not touched:
                 raise CoverageInventoryError(
                     f"SUEWS_SITE%{comp.name} missing from driver.f95::unpack_site_scalars"
@@ -1392,16 +1412,41 @@ def _audit_driver_site_and_state(
     state_refs = _referenced_component_paths(state_body, "state")
     for comp in types_by_lower["suews_state"].components:
         key = ("suews_state", comp.name.lower())
-        if key in REVIEWED_DRIVER_EXCLUDED_COMPONENTS:
+        excluded = key in REVIEWED_DRIVER_EXCLUDED_COMPONENTS
+        touched = _path_is_referenced(state_refs, comp.name.lower())
+        if excluded:
+            if touched:
+                raise CoverageInventoryError(
+                    f"SUEWS_STATE%{comp.name} is unpacked in driver.f95::unpack_state_members; remove stale exclusion"
+                )
             continue
         assert comp.derived_type is not None
         if comp.derived_type.lower() not in DIRECT_UNPACK_SPECS:
             raise CoverageInventoryError(
                 f"SUEWS_STATE%{comp.name} type {comp.derived_type} not in DIRECT_UNPACK_SPECS"
             )
-        if comp.name.lower() not in state_refs:
+        if not touched:
             raise CoverageInventoryError(
                 f"SUEWS_STATE%{comp.name} missing from driver.f95::unpack_state_members"
+            )
+
+
+def _audit_exclusion_keys_exist(
+    exclusions: dict[tuple[str, str], str],
+    allowed_types: set[str],
+    types_by_lower: dict[str, FortranTypeDef],
+    table_name: str,
+) -> None:
+    """Reject orphaned exclusion entries whose type or component no longer exists."""
+    for tkey, comp_lower in sorted(exclusions):
+        if tkey not in allowed_types or tkey not in types_by_lower:
+            raise CoverageInventoryError(
+                f"{table_name} references unknown type {tkey!r} (remove stale exclusion)"
+            )
+        comp_names = {c.name.lower() for c in types_by_lower[tkey].components}
+        if comp_lower not in comp_names:
+            raise CoverageInventoryError(
+                f"{table_name} references unknown component {tkey}%{comp_lower} (remove stale exclusion)"
             )
 
 
@@ -1410,6 +1455,12 @@ def audit_driver_private_unpackers(
     types_by_lower: dict[str, FortranTypeDef],
 ) -> None:
     """Statically audit private unpack routines inside ``c_api/driver.f95``."""
+    _audit_exclusion_keys_exist(
+        REVIEWED_DRIVER_EXCLUDED_COMPONENTS,
+        set(DRIVER_PRIVATE_UNPACK_SPECS),
+        types_by_lower,
+        "REVIEWED_DRIVER_EXCLUDED_COMPONENTS",
+    )
     source = (capi_dir / "driver.f95").read_text(encoding="utf-8")
     _audit_driver_config_and_timer(source, types_by_lower)
     _audit_driver_site_and_state(source, types_by_lower)
@@ -1526,6 +1577,12 @@ def audit_manifest_and_inventory(
     _audit_category_completeness(manifest_entries, types_by_lower)
     _audit_capi_unpack_registry(capi_dir)
     _audit_nested_parent_paths(types_by_lower)
+    _audit_exclusion_keys_exist(
+        REVIEWED_UNBRIDGED_COMPONENTS,
+        set(DIRECT_UNPACK_SPECS) | set(NESTED_IN_PARENT_SPECS),
+        types_by_lower,
+        "REVIEWED_UNBRIDGED_COMPONENTS",
+    )
 
     all_unbridged = {
         **REVIEWED_UNBRIDGED_COMPONENTS,
@@ -1922,6 +1979,10 @@ def _emit_leaf_observations(tdef: FortranTypeDef, leaves: list[LeafField]) -> li
                     "      end if",
                 ])
             else:
+                # Non-allocatable excluded derived component (e.g. SUEWS_STATE%errorState):
+                # Fortran cannot call allocated() on a non-allocatable component, so emit a
+                # constant metadata sentinel here. Unpacking exclusions are enforced statically
+                # by audit_driver_private_unpackers (and driver.f95 rejects non-zero TOC spans).
                 lines.append(
                     f"      call obs_emit_unallocated({fid}, out_meta, n_meta, err)"
                 )

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import hashlib
+import json
 import os
 from pathlib import Path
 import platform
@@ -122,6 +124,103 @@ def _run_make(
 
 
 _EXT_LIB_SOURCE_SUFFIXES = {".f90", ".f95", ".f", ".c", ".h", ".inc", ".mk"}
+_MAKE_ENV_KEYS = ("PROFILE", "SINGLE_PRECISION", "NETCDF4")
+_BUILD_ARTIFACT_PATTERNS = ("*.o", "*.mod", "lib*.a")
+
+
+def _is_build_config_file(path: Path) -> bool:
+    """Return True if ``path`` is a Makefile or included ``.mk`` fragment."""
+    return path.is_file() and (
+        path.name.startswith("Makefile") or path.suffix.lower() == ".mk"
+    )
+
+
+def collect_build_config_files(suews_dir: Path) -> list[Path]:
+    """Return sorted Makefile and build-configuration files under ``suews_dir``."""
+    config_files: list[Path] = [
+        path for path in suews_dir.iterdir() if _is_build_config_file(path)
+    ]
+
+    ext_lib_dir = suews_dir / "ext_lib"
+    if ext_lib_dir.is_dir():
+        config_files.extend(
+            path for path in ext_lib_dir.rglob("*") if _is_build_config_file(path)
+        )
+
+    return sorted(
+        config_files,
+        key=lambda path: path.relative_to(suews_dir).as_posix(),
+    )
+
+
+def compute_build_fingerprint(
+    suews_dir: Path,
+    fc: str | None,
+    profile: str,
+    profile_args: list[str],
+    environ: Mapping[str, str] | None = None,
+) -> str:
+    """Compute a deterministic SHA-256 fingerprint of effective build inputs."""
+    source_env = os.environ if environ is None else environ
+    file_hashes = [
+        [
+            path.relative_to(suews_dir).as_posix(),
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+        ]
+        for path in collect_build_config_files(suews_dir)
+    ]
+    payload = {
+        "fc": fc or "",
+        "profile": profile,
+        "profile_args": list(profile_args),
+        "make_env": {key: source_env.get(key, "") for key in _MAKE_ENV_KEYS},
+        "files": file_hashes,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def fingerprint_path_for_stamp(stamp_file: Path) -> Path:
+    """Return the fingerprint file path beside Meson's ``stamp_file``."""
+    return stamp_file.with_name(f"{stamp_file.name}.fingerprint")
+
+
+def clean_build_artifacts(suews_dir: Path) -> list[Path]:
+    """Remove compiled Fortran/C objects, modules, and archives under ``suews_dir``."""
+    removed: list[Path] = []
+    for pattern in _BUILD_ARTIFACT_PATTERNS:
+        for path in sorted(suews_dir.rglob(pattern)):
+            if path.is_file() and not path.is_symlink():
+                path.unlink()
+                removed.append(path)
+    return sorted(removed)
+
+
+def invalidate_stale_artifacts(
+    suews_dir: Path,
+    stamp_file: Path,
+    fingerprint: str,
+) -> list[Path]:
+    """Clean compiled artefacts when the build-config fingerprint changed."""
+    fp_path = fingerprint_path_for_stamp(stamp_file)
+    previous = (
+        fp_path.read_text(encoding="utf-8").strip() if fp_path.is_file() else None
+    )
+    if previous == fingerprint:
+        return []
+
+    removed = clean_build_artifacts(suews_dir)
+    if fp_path.exists():
+        fp_path.unlink()
+    return removed
+
+
+def write_build_fingerprint(stamp_file: Path, fingerprint: str) -> Path:
+    """Write ``fingerprint`` beside ``stamp_file`` inside Meson's build tree."""
+    fp_path = fingerprint_path_for_stamp(stamp_file)
+    fp_path.parent.mkdir(parents=True, exist_ok=True)
+    fp_path.write_text(f"{fingerprint}\n", encoding="utf-8")
+    return fp_path
 
 
 def _escape_depfile_token(token: str) -> str:
@@ -177,6 +276,14 @@ def main() -> None:
         f"make jobs: {jobs}\n"
     )
 
+    fingerprint = compute_build_fingerprint(suews_dir, fc, profile, profile_args)
+    removed = invalidate_stale_artifacts(suews_dir, stamp_file, fingerprint)
+    if removed:
+        sys.stdout.write(
+            f"Build configuration changed; cleaned {len(removed)} compiled "
+            "Fortran/C build artefacts before rebuild.\n"
+        )
+
     # Run make and propagate failures so Meson can fail fast.
     # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
     # Fortran module files (*.mod) that cannot be read by the new compiler.
@@ -209,6 +316,7 @@ def main() -> None:
 
     # Ensure an output file exists so Meson can track this custom target.
     stamp_file.parent.mkdir(parents=True, exist_ok=True)
+    write_build_fingerprint(stamp_file, fingerprint)
     stamp_file.touch()
     if depfile is not None:
         write_depfile(depfile, raw_stamp, collect_ext_lib_inputs(suews_dir))

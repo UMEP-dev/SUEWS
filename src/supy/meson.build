@@ -295,8 +295,18 @@ foreach f : src_f95_all
   src_f95_files += join_paths(dir_src_suews, f)
 endforeach
 src_f95_files = files(src_f95_files)
-# C helpers compiled into the same archives (thread-local error store, gh#1736)
-src_c_files = files(dir_src_suews / 'suews_ctrl_error_tls.c')
+# C helpers compiled into the same archives (thread-local error store, gh#1736;
+# Windows MinGW strptime shim)
+src_c_all = [
+  'strptime.c',
+  'suews_ctrl_error_tls.c',
+]
+
+src_c_files = []
+foreach f : src_c_all
+  src_c_files += join_paths(dir_src_suews, f)
+endforeach
+src_c_files = files(src_c_files)
 
 makefile_deps = files(
   dir_suews / 'Makefile',

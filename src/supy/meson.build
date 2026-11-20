@@ -248,28 +248,46 @@ dir_src_suews = dir_suews / 'src'
 
 src_f95_all = [
   'suews_ctrl_const.f95',
+  'suews_ctrl_driver.f95',
+  'suews_ctrl_error.f95',
   'suews_ctrl_type.f95',
-  'suews_util_profile.f95',
-  'suews_util_time.f95',
-  'suews_util_meteo.f95',
-  'suews_util_datetime.f95',
-  'suews_phys_waterdist.f95',
-  'suews_phys_narp.f95',
-  'suews_phys_beers.f95',
-  'suews_phys_atmmoiststab.f95',
-  'suews_phys_resist.f95',
-  'suews_phys_evap.f95',
-  'suews_phys_snow.f95',
-  'suews_phys_lai.f95',
-  'suews_phys_dailystate.f95',
-  'suews_phys_lumps.f95',
+  'suews_phys_anohm.f95',
   'suews_phys_anthro.f95',
-  'suews_phys_rslprof.f95',
+  'suews_phys_atmmoiststab.f95',
+  'suews_phys_beers.f95',
   'suews_phys_biogenco2.f95',
+  'suews_phys_bluews.f95',
+  'suews_phys_dailystate.f95',
+  'suews_phys_ehc.f95',
+  'suews_phys_evap.f95',
+  'suews_phys_lai.f95',
+  'suews_phys_lumps.f95',
+  'suews_phys_narp.f95',
   'suews_phys_ohm.f95',
+  'suews_phys_resist.f95',
+  'suews_phys_rslprof.f95',
+  'suews_phys_snow.f95',
+  'suews_phys_solweig.f95',
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
-  'suews_ctrl_driver.f95',
+  'suews_phys_waterdist.f95',
+  'suews_type_anthro.f95',
+  'suews_type_atmosphere.f95',
+  'suews_type_ehc.f95',
+  'suews_type_heat.f95',
+  'suews_type_hydro.f95',
+  'suews_type_landcover.f95',
+  'suews_type_snow.f95',
+  'suews_type_soil.f95',
+  'suews_type_spartacus.f95',
+  'suews_type_stebbs.f95',
+  'suews_type_surface.f95',
+  'suews_type_vegetation.f95',
+  'suews_type_waterdist.f95',
+  'suews_util_datetime.f95',
+  'suews_util_meteo.f95',
+  'suews_util_profile.f95',
+  'suews_util_time.f95',
 ]
 
 src_f95_files = []
@@ -280,7 +298,13 @@ src_f95_files = files(src_f95_files)
 # C helpers compiled into the same archives (thread-local error store, gh#1736)
 src_c_files = files(dir_src_suews / 'suews_ctrl_error_tls.c')
 
-makefile_deps = files(dir_suews / 'Makefile', dir_suews / 'Makefile.deps')
+makefile_deps = files(
+  dir_suews / 'Makefile',
+  dir_suews / 'Makefile.deps',
+  dir_suews / 'Makefile.gfortran',
+  dir_suews / 'Makefile.ifort',
+  'run_make.py',
+)
 
 build_suews = custom_target(
   'suews_objects',
@@ -289,9 +313,11 @@ build_suews = custom_target(
     '@CURRENT_SOURCE_DIR@/run_make.py',
     meson.current_source_dir() / '../suews/',
     '@OUTPUT@',
+    '@DEPFILE@',
   ],
   build_by_default: true,
   depend_files: [src_f95_files, src_c_files, makefile_deps],
+  depfile: 'suews_objects.d',
   output: 'suews_objects',
 )
 
@@ -300,8 +326,10 @@ if rust_bridge_enabled
     find_program('cargo', required: true)
     rust_bridge_dep_files = files(
         '../suews_bridge/Cargo.toml',
+        '../suews_bridge/Cargo.lock',
         '../suews_bridge/build.rs',
         '../suews_bridge/src/field_renames.rs',
+        'build_rust_bridge.py',
     )
     # abi3 filename: one wheel covers cp39..cp3xx. The PyO3 feature
     # abi3-py39 makes the cargo artefact itself ABI-stable; the filename
@@ -323,10 +351,12 @@ if rust_bridge_enabled
             meson.project_source_root(),
             '@OUTPUT0@',
             '@OUTPUT1@',
+            '@DEPFILE@',
         ],
         output: [rust_bridge_ext_name, rust_bridge_cli_name],
         depends: build_suews,
         depend_files: rust_bridge_dep_files,
+        depfile: 'rust_bridge_artifacts.d',
         build_by_default: true,
         install: true,
         install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],

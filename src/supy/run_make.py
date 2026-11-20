@@ -121,12 +121,51 @@ def _run_make(
     return result
 
 
+_EXT_LIB_SOURCE_SUFFIXES = {".f90", ".f95", ".f", ".c", ".h", ".inc", ".mk"}
+
+
+def _escape_depfile_token(token: str) -> str:
+    """Escape a path for Ninja/Make depfile consumption."""
+    return token.replace("$", "$$").replace(" ", "\\ ")
+
+
+def collect_ext_lib_inputs(suews_dir: Path) -> list[Path]:
+    """Return sorted vendored source/build inputs under ``suews_dir/ext_lib``."""
+    ext_lib_dir = suews_dir / "ext_lib"
+    if not ext_lib_dir.is_dir():
+        return []
+    inputs: list[Path] = []
+    for path in sorted(ext_lib_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() in _EXT_LIB_SOURCE_SUFFIXES or path.name.startswith(
+            "Makefile"
+        ):
+            inputs.append(path.resolve())
+    return inputs
+
+
+def write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
+    """Write a single-target Ninja-compatible depfile."""
+    depfile.parent.mkdir(parents=True, exist_ok=True)
+    target_tok = _escape_depfile_token(target.replace("\\", "/"))
+    dep_toks = [_escape_depfile_token(p.as_posix()) for p in deps]
+    content = (
+        f"{target_tok}: " + " \\\n  ".join(dep_toks) + "\n"
+        if dep_toks
+        else f"{target_tok}:\n"
+    )
+    depfile.write_text(content, encoding="utf-8")
+
+
 def main() -> None:
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: run_make.py <suews_dir> <stamp_file>")
+    if len(sys.argv) not in {3, 4}:
+        raise SystemExit("Usage: run_make.py <suews_dir> <stamp_file> [depfile]")
 
     suews_dir = Path(sys.argv[1]).resolve()
-    stamp_file = Path(sys.argv[2])
+    raw_stamp = sys.argv[2]
+    stamp_file = Path(raw_stamp)
+    depfile = Path(sys.argv[3]) if len(sys.argv) == 4 else None
 
     fc = _pick_suews_fc()
     profile = build_profile_from_env()
@@ -171,6 +210,8 @@ def main() -> None:
     # Ensure an output file exists so Meson can track this custom target.
     stamp_file.parent.mkdir(parents=True, exist_ok=True)
     stamp_file.touch()
+    if depfile is not None:
+        write_depfile(depfile, raw_stamp, collect_ext_lib_inputs(suews_dir))
 
 
 if __name__ == "__main__":

@@ -80,63 +80,63 @@
       "properties": {
         "qf0_beu": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Base anthropogenic heat flux for buildings, equipment and urban metabolism",
-          "display_name": "Base Energy Use QF",
-          "unit": "W m-2"
+          "description": "Fraction of the temperature-independent (base) anthropogenic heat flux that comes from building energy use. Used to separate the building share of heat and CO2 emissions. In the methods with codes ending in 1, 2 or 3 the rest of the base flux, less human metabolism, is attributed to traffic.",
+          "display_name": "Building Fraction of Base QF",
+          "unit": "1"
         },
         "qf_a": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Coefficient a for anthropogenic heat flux calculation",
+          "description": "Temperature-independent (base) anthropogenic heat flux per unit population density, that is per person, in the J11 heat basis (method codes ending in 2 or 5).",
           "display_name": "QF Coefficient A",
           "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
-          "unit": "1"
+          "unit": "W m-2 ha"
         },
         "qf_b": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Coefficient b for anthropogenic heat flux calculation",
+          "description": "Cooling coefficient in the J11 heat basis (method codes ending in 2 or 5): anthropogenic heat flux per cooling degree day and per unit population density, that is per person.",
           "display_name": "QF Coefficient B",
           "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
-          "unit": "1"
+          "unit": "W m-2 K-1 ha"
         },
         "qf_c": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Coefficient c for anthropogenic heat flux calculation",
+          "description": "Heating coefficient in the J11 heat basis (method codes ending in 2 or 5): anthropogenic heat flux per heating degree day and per unit population density, that is per person.",
           "display_name": "QF Coefficient C",
           "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
-          "unit": "1"
+          "unit": "W m-2 K-1 ha"
         },
         "baset_cooling": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Base temperature for cooling degree days",
+          "description": "Base temperature for cooling degree days. In the L11_UPDATED heat basis (method codes ending in 3 or 6) it is also the critical temperature above which the cooling term applies, compared with a running mean of daily mean air temperature over about five days.",
           "display_name": "Base Temperature Cooling",
           "unit": "degC"
         },
         "baset_heating": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Base temperature for heating degree days",
+          "description": "Base temperature for heating degree days. In the L11 and L11_UPDATED heat bases (method codes ending in 1, 3, 4 or 6) it is also the critical air temperature below which the heating term applies.",
           "display_name": "Base Temperature Heating",
           "unit": "degC"
         },
         "ah_min": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Minimum anthropogenic heat flux",
-          "display_name": "Minimum Anthropogenic Heat",
+          "description": "Temperature-independent (base) anthropogenic heat flux in the L11 and L11_UPDATED heat bases (method codes ending in 1, 3, 4 or 6), as a daily mean and not a lower bound: at each timestep it is multiplied by ahprof_24hr normalised to a mean of 1, so the modelled base term is above this value at some hours and below it at others. In the detailed methods (codes ending in 4 or 6) the building heat flux is rescaled by the population profile instead. Not used by the J11 heat basis (codes ending in 2 or 5).",
+          "display_name": "Base Anthropogenic Heat",
           "unit": "W m-2"
         },
         "ah_slope_cooling": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Slope of anthropogenic heat vs cooling degree days",
+          "description": "Increase in anthropogenic heat flux per degree by which a running mean of daily mean air temperature (about five days) exceeds baset_cooling. Used only by the L11_UPDATED heat basis (method codes ending in 3 or 6); scaled by the normalised ahprof_24hr.",
           "display_name": "Anthropogenic Heat Slope (Cooling)",
           "unit": "W m-2 K-1"
         },
         "ah_slope_heating": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Slope of anthropogenic heat vs heating degree days",
+          "description": "Increase in anthropogenic heat flux per degree of air temperature below baset_heating: instantaneous air temperature in the L11 heat basis (method codes ending in 1 or 4), a running mean of daily mean air temperature over about five days in L11_UPDATED (codes ending in 3 or 6). Scaled by the normalised ahprof_24hr.",
           "display_name": "Anthropogenic Heat Slope (Heating)",
           "unit": "W m-2 K-1"
         },
@@ -1805,8 +1805,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -2141,8 +2141,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -2487,10 +2487,10 @@
             }
           ],
           "default": null,
-          "description": "Maximum surface conductance for photosynthesis",
-          "display_name": "Maximum Surface Conductance",
+          "description": "Fitted scaling coefficient for surface conductance: it multiplies the product of the environmental response functions and the LAI-weighted sum of the per-surface maximum conductances (max_conductance). It is not itself a conductance.",
+          "display_name": "Surface Conductance Scaling Coefficient",
           "title": "G Max",
-          "unit": "mm s-1"
+          "unit": "1"
         },
         "g_k": {
           "anyOf": [
@@ -2692,7 +2692,7 @@
       "type": "object"
     },
     "CoolingSetpointProfile": {
-      "description": "10-minute profile for cooling setpoints (default: off).",
+      "description": "Cooling setpoints in two day-type mappings with 10-minute keys ``\"1\"`` to ``\"144\"``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -2756,7 +2756,7 @@
       "type": "object"
     },
     "DayProfile": {
-      "description": "Daily values that can vary by day of year.",
+      "description": "Scalar values keyed by ``working_day`` and ``holiday``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for day selection and field uses.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -3030,8 +3030,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -3400,7 +3400,7 @@
       "type": "object"
     },
     "EmissionsMethod": {
-      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature\n4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes\n11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
+      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using a running mean of daily mean air temperature (about five days)\n4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes\n11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
       "enum": [
         0,
         1,
@@ -3668,8 +3668,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -4276,8 +4276,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -4564,7 +4564,7 @@
       "type": "integer"
     },
     "HeatingSetpointProfile": {
-      "description": "10-minute profile for heating setpoints (default: off).",
+      "description": "Heating setpoints in two day-type mappings with 10-minute keys ``\"1\"`` to ``\"144\"``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -4628,7 +4628,7 @@
       "type": "object"
     },
     "HourlyProfile": {
-      "description": "24-hour profile for diurnal variations.\n\nHolds two sets of 24 hourly values, one for working days\n(``working_day``) and one for holidays (``holiday``). Each set is a\nmapping keyed by the hour, ``\"1\"`` to ``\"24\"``, where ``\"1\"`` is the\nfirst hour of the day, starting at 00:00; all 24 keys must be present.\nThe two sets are given together. A profile left out of the\nconfiguration takes a uniform 1/24 in both sets.\n\nUsed by the snow, irrigation, anthropogenic-heat, population, traffic\nand human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\nThe 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\nsubclasses instead.",
+      "description": "24-hour profile for diurnal variations.\n\nHolds two sets of 24 hourly values, one for working days\n(``working_day``) and one for holidays (``holiday``). Each set is a\nmapping keyed by the hour, ``\"1\"`` to ``\"24\"``, where ``\"1\"`` is the\nfirst hour of the day, starting at 00:00; all 24 keys must be present.\nThe two sets are given together. A profile left out of the\nconfiguration takes a uniform 1/24 in both sets.\n\nUsed by the snow, irrigation, anthropogenic-heat, population, traffic\nand human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\nThe 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\nsubclasses instead.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -7377,7 +7377,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature; 4 (J19) = Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 5 (J19_UPDATED) = Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 6 (L11_UPDATED_DETAILED) = Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 13 (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 14 (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 15 (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 16 (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 21 (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 22 (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 23 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 24 (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 25 (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 26 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 31 (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 32 (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 33 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 34 (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 35 (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 36 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 41 (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 42 (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 43 (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 44 (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 45 (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 46 (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
+          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using a running mean of daily mean air temperature (about five days); 4 (J19) = Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 5 (J19_UPDATED) = Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 6 (L11_UPDATED_DETAILED) = Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 13 (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 14 (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 15 (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 16 (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 21 (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 22 (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 23 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 24 (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 25 (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 26 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 31 (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 32 (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 33 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 34 (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 35 (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 36 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 41 (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 42 (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 43 (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 44 (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 45 (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 46 (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
           "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
           "provides_to": [
             "ohm_inc_qf",
@@ -8136,8 +8136,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -12331,7 +12331,7 @@
       "type": "object"
     },
     "TenMinuteProfile": {
-      "description": "10-minute profile for diurnal variations (144 values per day).",
+      "description": "Two 10-minute mappings, ``working_day`` and ``holiday``, keyed ``\"1\"`` to ``\"144\"``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for slot timing and field uses.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -13345,8 +13345,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -13495,7 +13495,7 @@
       "type": "integer"
     },
     "WeeklyProfile": {
-      "description": "Weekly pattern for 7-day variations.",
+      "description": "Seven daily values keyed by lowercase weekday names, Monday to Sunday.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for storage order and field uses.",
       "properties": {
         "monday": {
           "anyOf": [
@@ -13598,7 +13598,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev10. Surface water storage (#2018). The model reads the current capacity from store_cap and uses store_max when the capacity is omitted. Upgrading preserves both explicit values and their references.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev11. Development schema requiring soil_depth, soil_store_capacity and saturated_hydraulic_conductivity on every active (sfr > 0) non-water surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting any of them used to reach the kernel as 0.0 via the Rust bridge. The (2026.6.dev10 -> 2026.6.dev11) migration writes 0.0 explicitly wherever an active non-water surface omits or nulls one of these three fields, preserving existing values and reference metadata.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13651,20 +13651,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev10",
+  "title": "SUEWS Configuration Schema v2026.6.dev11",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev10.json",
-  "version": "2026.6.dev10",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev11.json",
+  "version": "2026.6.dev11",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev10"
+    "schema_version": "2026.6.dev11"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev10",
+      "schema_version": "2026.6.dev11",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

@@ -24,10 +24,17 @@ from supy.data_model.core.site import (
     Conductance,
     DectrProperties,
     EvetrProperties,
+    GrassProperties,
     LAIParams,
     StebbsProperties,
 )
-from supy.data_model.core.surface import BldgsProperties, ThermalLayers
+from supy.data_model.core.surface import (
+    BldgsProperties,
+    BsoilProperties,
+    PavedProperties,
+    SurfaceProperties,
+    ThermalLayers,
+)
 from supy.data_model.validation.required_fields import (
     BUILDING_REQUIRED,
     BUILDING_REQUIRED_PROVIDED_FAI,
@@ -42,6 +49,8 @@ from supy.data_model.validation.required_fields import (
     LAI_CALCULATED_ONLY_REQUIRED,
     LAI_REQUIRED,
     RSL_VARIABLE_BLDGS_REQUIRED,
+    SOIL_OBSERVED_REQUIRED,
+    SOIL_REQUIRED,
     STEBBS_SHADING_REQUIRED_MODES,
     WATER_DISTRIBUTION_REQUIRED,
     required_when,
@@ -52,9 +61,13 @@ pytestmark = pytest.mark.api
 MODELS = {
     "Conductance": Conductance,
     "LAIParams": LAIParams,
+    "SurfaceProperties": SurfaceProperties,
+    "PavedProperties": PavedProperties,
     "BldgsProperties": BldgsProperties,
     "EvetrProperties": EvetrProperties,
     "DectrProperties": DectrProperties,
+    "GrassProperties": GrassProperties,
+    "BsoilProperties": BsoilProperties,
     "AnthropogenicEmissions": AnthropogenicEmissions,
     "CO2Params": CO2Params,
     "ThermalLayers": ThermalLayers,
@@ -66,7 +79,13 @@ MODELS = {
 # Field lists the validators consume, keyed by the model that declares them.
 # A field added to any of these must also be described in DOC_REQUIRED_WHEN.
 RULE_FIELDS_BY_MODEL = {
-    "BldgsProperties": RSL_VARIABLE_BLDGS_REQUIRED,
+    "SurfaceProperties": SOIL_OBSERVED_REQUIRED,
+    "PavedProperties": SOIL_OBSERVED_REQUIRED,
+    "BldgsProperties": RSL_VARIABLE_BLDGS_REQUIRED + SOIL_OBSERVED_REQUIRED,
+    "EvetrProperties": SOIL_OBSERVED_REQUIRED,
+    "DectrProperties": SOIL_OBSERVED_REQUIRED,
+    "GrassProperties": SOIL_OBSERVED_REQUIRED,
+    "BsoilProperties": SOIL_OBSERVED_REQUIRED,
     "ThermalLayers": DYOHM_BUILDING_LAYERS_REQUIRED,
     "StebbsProperties": tuple(STEBBS_SHADING_REQUIRED_MODES),
     "WaterDistribution": tuple(
@@ -85,6 +104,7 @@ ALL_TABLES = (
     DECIDUOUS_REQUIRED,
     DECIDUOUS_REQUIRED_PROVIDED_FAI,
     CO2_POINT_SOURCE_REQUIRED,
+    SOIL_REQUIRED,
 )
 
 EXPECTED_TABLES = {
@@ -200,6 +220,20 @@ EXPECTED_TABLES = {
             "Add the whole-grid CO2 point source in kg C per day (0 if there is none)",
         ),
     },
+    "SOIL_REQUIRED": {
+        "soil_depth": (
+            "Soil depth is required for active non-water surfaces",
+            "Add soil depth in millimetres beneath this surface",
+        ),
+        "soil_store_capacity": (
+            "Soil store capacity is required for active non-water surfaces",
+            "Add maximum water storage capacity of the soil layer in kg m-2",
+        ),
+        "saturated_hydraulic_conductivity": (
+            "Saturated hydraulic conductivity is required for active non-water surfaces",
+            "Add saturated hydraulic conductivity of the soil layer in mm s-1",
+        ),
+    },
 }
 
 
@@ -252,6 +286,7 @@ def test_every_physics_rule_field_has_a_documented_condition() -> None:
         ("ThermalLayers", "dz", "``model.physics.storage_heat``"),
         ("StebbsProperties", "reduction_factor_shading", "``internal_shading``"),
         ("CO2Params", "emission_co2_point_source", "``model.physics.emissions``"),
+        ("SurfaceProperties", "soil_field_capacity", "``model.physics.soil_moisture``"),
     ],
 )
 def test_physics_conditions_name_their_option(
@@ -297,6 +332,7 @@ def test_message_strings_are_frozen() -> None:
         "DECIDUOUS_REQUIRED": DECIDUOUS_REQUIRED,
         "DECIDUOUS_REQUIRED_PROVIDED_FAI": DECIDUOUS_REQUIRED_PROVIDED_FAI,
         "CO2_POINT_SOURCE_REQUIRED": CO2_POINT_SOURCE_REQUIRED,
+        "SOIL_REQUIRED": SOIL_REQUIRED,
     }
 
     # ACT / ASSERT

@@ -27,6 +27,7 @@ invariants in the fast PR ``api`` tier:
 from __future__ import annotations
 
 import ast
+from collections import Counter
 from collections.abc import Callable
 import copy
 from dataclasses import dataclass
@@ -1125,8 +1126,70 @@ def _iter_data_model_python_sources() -> list[tuple[str, str]]:
     return collected
 
 
+def _evaluate_validator_warning_swallows(
+    findings: list[WarningSwallowFinding],
+    allowlist: dict[str, dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    """Compare AST findings against the exact per-method handler allowlist.
+
+    Each allowlist entry specifies ``except_types`` (one per reviewed handler)
+    and ``count`` (matching ``len(except_types)``), so adding a second
+    warning-swallowing handler inside an already-allowlisted method, changing
+    the caught exception type, or leaving a fixed handler in the allowlist
+    all fail.
+    """
+    expected: Counter[tuple[str, str]] = Counter()
+    for site_id, meta in allowlist.items():
+        except_types = meta["except_types"]
+        expected_count = meta["count"]
+        if (
+            isinstance(expected_count, bool)
+            or not isinstance(expected_count, int)
+            or expected_count < 1
+        ):
+            msg = (
+                f"{site_id}: allowlist count must be a positive int, "
+                f"got {expected_count!r}"
+            )
+            raise ValueError(msg)
+        if not isinstance(except_types, list) or len(except_types) != expected_count:
+            msg = (
+                f"{site_id}: allowlist except_types length ({len(except_types)}) "
+                f"must equal count ({expected_count})"
+            )
+            raise ValueError(msg)
+        for exc_type in except_types:
+            expected[site_id, exc_type] += 1
+
+    actual: Counter[tuple[str, str]] = Counter()
+    lines_by_key: dict[tuple[str, str], list[int]] = {}
+    for finding in findings:
+        key = (finding.site_id, finding.except_type)
+        actual[key] += 1
+        lines_by_key.setdefault(key, []).append(finding.lineno)
+
+    unreviewed: list[str] = []
+    stale: list[str] = []
+    for key in sorted(set(actual) | set(expected)):
+        site_id, exc_type = key
+        obs = actual[key]
+        exp = expected[key]
+        if obs > exp:
+            lines = ", ".join(str(ln) for ln in sorted(lines_by_key[key]))
+            unreviewed.append(
+                f"{site_id} (except {exc_type}: observed {obs} handler(s) at "
+                f"line(s) {lines}, allowlisted {exp})"
+            )
+        elif obs < exp:
+            stale.append(
+                f"{site_id} (except {exc_type}: observed {obs} handler(s), "
+                f"allowlisted {exp})"
+            )
+    return unreviewed, stale
+
+
 def test_no_unreviewed_validator_warning_swallows() -> None:
-    """Every ``except: warnings.warn`` in a Pydantic validator must be zero or allowlisted."""
+    """Every ``except: warnings.warn`` in a Pydantic validator must match exact allowlist counts."""
     # ARRANGE
     baseline = _load_baseline()
     allowlist = baseline["validator_warning_swallows"]
@@ -1138,24 +1201,89 @@ def test_no_unreviewed_validator_warning_swallows() -> None:
     for rel_path, source in sources:
         findings.extend(find_validator_warning_swallows(source, rel_path))
 
-    found_by_site = {f.site_id: f for f in findings}
-    expected_sites = set(allowlist)
-    actual_sites = set(found_by_site)
+    unreviewed, stale = _evaluate_validator_warning_swallows(findings, allowlist)
 
     # ASSERT
-    unreviewed = sorted(actual_sites - expected_sites)
-    stale = sorted(expected_sites - actual_sites)
     assert not unreviewed, (
-        "Unreviewed Pydantic validator exception-to-warning swallow site(s) detected: "
-        + ", ".join(
-            f"{s} (line {found_by_site[s].lineno}, except {found_by_site[s].except_type})"
-            for s in unreviewed
-        )
+        "Unreviewed Pydantic validator exception-to-warning swallow handler(s) "
+        f"detected: {'; '.join(unreviewed)}"
     )
     assert not stale, (
-        "Legacy validator warning-swallow site(s) were fixed; remove stale entry "
-        f"from schema_contract_baseline.json: {stale}"
+        "Legacy validator warning-swallow handler(s) were fixed; remove or "
+        f"shrink stale entry in schema_contract_baseline.json: {'; '.join(stale)}"
     )
+
+
+def test_validator_warning_swallow_allowlist_enforces_exact_handler_count() -> None:
+    """Adding a second swallow in an allowlisted method or fixing one must fail."""
+    # ARRANGE
+    site_path = "src/supy/data_model/core/config.py"
+    site_id = f"{site_path}::SUEWSConfig.set_surface_types_validation"
+    allowlist = {
+        site_id: {
+            "owner_issue": "#2086",
+            "owner_pr": "#2117",
+            "except_types": ["Exception"],
+            "count": 1,
+            "reason": "Synthetic 1-handler allowlist matching live legacy entry.",
+        }
+    }
+
+    def _eval(body: str) -> tuple[int, list[str], list[str]]:
+        src = (
+            "import warnings\n"
+            "from pydantic import BaseModel, model_validator\n"
+            "class SUEWSConfig(BaseModel):\n"
+            '    @model_validator(mode="after")\n'
+            "    def set_surface_types_validation(self):\n"
+            f"{body}"
+            "        return self\n"
+        )
+        found = find_validator_warning_swallows(src, site_path)
+        unreviewed, stale = _evaluate_validator_warning_swallows(found, allowlist)
+        return len(found), unreviewed, stale
+
+    one_exc = (
+        '        try:\n            raise ValueError("first")\n'
+        "        except Exception as exc:\n"
+        "            warnings.warn(str(exc), UserWarning)\n"
+    )
+    second_exc = (
+        '        try:\n            raise ValueError("second")\n'
+        "        except Exception as exc:\n"
+        "            warnings.warn(str(exc), UserWarning)\n"
+    )
+    second_val = (
+        '        try:\n            raise ValueError("second")\n'
+        "        except ValueError as exc:\n"
+        "            warnings.warn(str(exc), UserWarning)\n"
+    )
+
+    # ACT / ASSERT: exact 1-handler match passes
+    assert _eval(one_exc) == (1, [], [])
+
+    # ACT / ASSERT: second handler of same exception type in allowlisted method fails
+    n_double, unrev_double, stale_double = _eval(one_exc + second_exc)
+    assert n_double == 2
+    assert len(unrev_double) == 1
+    assert "observed 2 handler(s)" in unrev_double[0]
+    assert "allowlisted 1" in unrev_double[0]
+    assert stale_double == []
+
+    # ACT / ASSERT: second handler of different exception type in allowlisted method fails
+    n_extra, unrev_extra, stale_extra = _eval(one_exc + second_val)
+    assert n_extra == 2
+    assert len(unrev_extra) == 1
+    assert "except ValueError" in unrev_extra[0]
+    assert stale_extra == []
+
+    # ACT / ASSERT: removing the legacy swallow fails as stale (0 observed vs 1 allowed)
+    n_clean, unrev_clean, stale_clean = _eval("")
+    assert n_clean == 0
+    assert unrev_clean == []
+    assert len(stale_clean) == 1
+    assert "observed 0 handler(s)" in stale_clean[0]
+    assert "allowlisted 1" in stale_clean[0]
 
 
 def test_validator_warning_swallow_ast_lint_synthetic_cases() -> None:
@@ -1457,6 +1585,18 @@ def test_schema_contract_ledger_integrity() -> None:
     for cond_key in baseline["optional_ref_with_default"]["documented_conditional"]:
         assert cond_key in doc_required_keys, (
             f"documented_conditional field {cond_key} is not in DOC_REQUIRED_WHEN"
+        )
+
+    for site_id, meta in baseline["validator_warning_swallows"].items():
+        assert meta.get("owner_issue"), f"{site_id} allowlist entry missing owner_issue"
+        assert meta.get("reason"), f"{site_id} allowlist entry missing reason"
+        count = meta.get("count")
+        except_types = meta.get("except_types")
+        assert isinstance(count, int) and not isinstance(count, bool) and count >= 1, (
+            f"{site_id} allowlist count must be a positive int, got {count!r}"
+        )
+        assert isinstance(except_types, list) and len(except_types) == count, (
+            f"{site_id} allowlist except_types must be a list of length {count}"
         )
 
 

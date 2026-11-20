@@ -238,10 +238,17 @@ as ``0.0`` via the Rust bridge. Run the converter to upgrade an older YAML:
 
    suews convert -i old.yml -o new.yml --from 2026.6.dev10
 
-The migration from ``2026.6.dev10`` writes ``0.0`` explicitly wherever an
-active non-water surface omits or nulls any of the three soil parameters,
-preserving all supplied values and reference metadata so upgraded runs keep
-their previous effective inputs.
+The migration from ``2026.6.dev10`` preserves all supplied soil parameters and
+reference metadata and leaves inactive (``sfr == 0``) and ``water`` surfaces
+untouched. When ``soil_depth`` is missing or ``null`` on an active non-water
+surface with positive ``soil_store_capacity``, migration stops without writing
+an output file and reports each affected site and surface: substituting ``0.0``
+for ``soil_depth`` under positive soil capacity breaks wet-day soil water
+balance. Supply a positive ``soil_depth`` (in mm) for each reported surface and
+re-run the converter. Other missing or ``null`` soil parameters on active
+non-water surfaces (including ``soil_depth`` when ``soil_store_capacity`` is
+``0`` or omitted) are written explicitly as ``0.0`` while preserving reference
+metadata.
 
 .. _schema_dev10_storage_capacity:
 

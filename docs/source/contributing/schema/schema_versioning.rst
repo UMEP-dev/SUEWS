@@ -59,7 +59,7 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — ``2026.6.dev11`` comes after ``2026.6.dev10``,
+as a floating-point number -- ``2026.6.dev11`` comes after ``2026.6.dev10``,
 which comes after ``2026.6.dev9``,
 which comes after ``2026.6.dev8``,
 which comes after ``2026.6.dev7``,
@@ -190,10 +190,13 @@ the schema that shipped with it via
    surface (``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass`` and ``bsoil``)
    in configurations loaded from YAML or a dict (#2077, #2001, #2002). Omitting
    any of them used to reach the water-balance kernel as ``0.0`` via the Rust
-   bridge. The ``(2026.6.dev10 -> 2026.6.dev11)`` handler writes ``0.0``
-   explicitly wherever an active non-water surface omits or nulls one of these
-   fields, preserving supplied values and references. See
-   :ref:`schema_dev11_soil_parameters`.
+   bridge. The ``(2026.6.dev10 -> 2026.6.dev11)`` handler refuses to substitute
+   ``0.0`` when ``soil_depth`` is missing or null on an active surface with
+   positive ``soil_store_capacity`` (reporting each affected site and surface
+   so the user can supply ``soil_depth``), preserves supplied values and
+   inactive/``water`` surfaces unchanged, and writes ``0.0`` explicitly for
+   other missing or null active soil parameters while preserving references.
+   See :ref:`schema_dev11_soil_parameters`.
 
 **Schema 2026.6.dev10** (development)
    The model uses an explicit surface storage capacity (``store_cap``) even when

@@ -5,28 +5,40 @@ gh#2077 / gh#2076 / gh#2001 / gh#2002 (part of gh#1991): omitting or nulling
 on an active (``sfr > 0``) non-water surface used to pass validation and reach
 the water-balance kernel as ``0.0`` via the Rust bridge. Active non-water
 surfaces must now supply all three parameters; inactive surfaces (``sfr == 0``)
-and ``water`` remain exempt. The 2026.6.dev11 migration writes the former
-effective ``0.0`` explicitly on active non-water surfaces when upgrading older
-configurations.
+and ``water`` remain exempt. The 2026.6.dev11 migration requires the user to
+supply ``soil_depth`` (reporting each affected site and surface without writing
+output) when it is missing or null on an active surface with positive
+``soil_store_capacity``, preserves supplied values and inactive/``water``
+surfaces unchanged, and writes explicit ``0.0`` for other missing or null
+active soil parameters.
 """
 
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 
+from click.testing import CliRunner
 import pytest
 import yaml
 
+from supy import SUEWSSimulation
 from supy._env import trv_supy_module
-from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
+from supy._run_rust import run_suews_rust
+from supy.cmd.suews_cli import cli
+from supy.data_model.configuration import (
+    CURRENT_SCHEMA_VERSION,
+    SchemaMigrator,
+    migrate_config_file,
+)
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.validation.required_fields import (
     NON_WATER_SURFACES,
     SOIL_REQUIRED,
     required_when,
 )
-from supy.util.converter.yaml_upgrade import upgrade_yaml
+from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
 
 pytestmark = [pytest.mark.api, pytest.mark.cfg]
 
@@ -121,7 +133,7 @@ def test_inactive_non_water_surface_allows_omitted_soil_params(
     # ASSERT
     for surface in ("grass", "bsoil"):
         surf = getattr(config.sites[0].properties.land_cover, surface)
-        assert surf.sfr.value == 0.0
+        assert surf.sfr.value == pytest.approx(0.0)
         for field in SOIL_FIELDS:
             assert getattr(surf, field) is None
 
@@ -143,7 +155,7 @@ def test_water_surface_allows_omitted_soil_params(sample_dict: dict) -> None:
     config = SUEWSConfig.from_dict(data)
 
     # ASSERT
-    assert config.sites[0].properties.land_cover.water.sfr.value == 1.0
+    assert config.sites[0].properties.land_cover.water.sfr.value == pytest.approx(1.0)
     for field in SOIL_FIELDS:
         assert getattr(config.sites[0].properties.land_cover.water, field) is None
 
@@ -157,36 +169,38 @@ def test_water_docs_do_not_claim_soil_requirements() -> None:
 @pytest.mark.parametrize(
     "source_schema", ["2026.6.dev10", "2026.6.dev9", "2026.6.dev8"]
 )
-def test_upgrade_writes_former_zero_for_missing_and_null_soil_params(
+def test_upgrade_writes_former_zero_when_capacity_is_zero_or_absent(
     sample_dict: dict, tmp_path: Path, source_schema: str
 ) -> None:
-    """Upgrading to dev11 writes 0.0 on active non-water surfaces and preserves refs."""
+    """Zero or omitted capacity allows explicit 0.0 soil params while keeping refs."""
     # ARRANGE
     data = copy.deepcopy(sample_dict)
     data["schema_version"] = source_schema
     if source_schema == "2026.6.dev8":
-        physics = data["model"]["physics"]
-        physics.pop("soil_moisture", None)
-        physics["soil_moisture_deficit"] = {"value": 0}
+        data["model"]["physics"].pop("soil_moisture", None)
+        data["model"]["physics"]["soil_moisture_deficit"] = {"value": 0}
     lc = _land_cover(data)
-    # Omitted on active paved -> 0.0
     lc["paved"].pop("soil_depth", None)
-    # Null with reference metadata on active paved -> 0.0 preserving ref
     lc["paved"]["soil_store_capacity"] = {
         "value": None,
         "ref": {"desc": "Legacy null placeholder"},
     }
-    # Explicit 0.0 on active paved -> preserved
     lc["paved"]["saturated_hydraulic_conductivity"] = {"value": 0.0}
-    # Inactive bsoil missing all three -> stays omitted
-    bsoil_sfr = lc["bsoil"]["sfr"]["value"]
-    lc["bldgs"]["sfr"]["value"] += bsoil_sfr
+    lc["bldgs"]["soil_store_capacity"] = {"value": 0.0}
+    lc["bldgs"]["soil_depth"] = {
+        "value": None,
+        "ref": {"desc": "Zero-capacity null depth"},
+    }
+    lc["grass"]["soil_depth"] = {"value": 417.0, "ref": {"desc": "Measured depth"}}
+    lc["grass"].pop("saturated_hydraulic_conductivity", None)
+    lc["bldgs"]["sfr"]["value"] += lc["bsoil"]["sfr"]["value"]
     lc["bsoil"]["sfr"]["value"] = 0.0
-    for field in SOIL_FIELDS:
-        lc["bsoil"].pop(field, None)
-    # Water missing all three -> stays omitted
-    for field in SOIL_FIELDS:
-        lc["water"].pop(field, None)
+    lc["evetr"]["sfr"] = {"value": 0.0}
+    lc["evetr"]["soil_store_capacity"] = {"value": 150.0}
+    lc["evetr"].pop("soil_depth", None)
+    for surface in ("bsoil", "water"):
+        for field in SOIL_FIELDS:
+            lc[surface].pop(field, None)
 
     source = tmp_path / f"{source_schema}.yml"
     output = tmp_path / "upgraded.yml"
@@ -204,23 +218,257 @@ def test_upgrade_writes_former_zero_for_missing_and_null_soil_params(
         "value": 0.0,
         "ref": {"desc": "Legacy null placeholder"},
     }
-    assert migrated_lc["paved"]["saturated_hydraulic_conductivity"] == {"value": 0.0}
+    assert migrated_lc["bldgs"]["soil_depth"] == {
+        "value": 0.0,
+        "ref": {"desc": "Zero-capacity null depth"},
+    }
+    assert migrated_lc["grass"]["soil_depth"] == {
+        "value": 417.0,
+        "ref": {"desc": "Measured depth"},
+    }
+    assert migrated_lc["grass"]["saturated_hydraulic_conductivity"] == {"value": 0.0}
+    assert "soil_depth" not in migrated_lc["evetr"]
     for field in SOIL_FIELDS:
         assert field not in migrated_lc["bsoil"]
         assert field not in migrated_lc["water"]
 
-    loaded = SUEWSConfig.from_yaml(str(output))
-    paved = loaded.sites[0].properties.land_cover.paved
-    assert paved.soil_depth.value == 0.0
-    assert paved.soil_store_capacity.value == 0.0
-    assert paved.saturated_hydraulic_conductivity.value == 0.0
+    loaded_lc = SUEWSConfig.from_yaml(str(output)).sites[0].properties.land_cover
+    assert loaded_lc.paved.soil_depth.value == pytest.approx(0.0)
+    assert loaded_lc.paved.soil_store_capacity.value == pytest.approx(0.0)
+    assert loaded_lc.bldgs.soil_depth.value == pytest.approx(0.0)
+    assert loaded_lc.bldgs.soil_store_capacity.value == pytest.approx(0.0)
+    assert loaded_lc.grass.soil_depth.value == pytest.approx(417.0)
+    assert loaded_lc.grass.saturated_hydraulic_conductivity.value == pytest.approx(0.0)
+    assert loaded_lc.evetr.soil_depth is None
+
+
+def _legacy_soil_depth_doc(
+    sample_dict: dict,
+    *,
+    source_schema: str,
+    surface: str,
+    form: str,
+    second_site: bool = False,
+) -> tuple[dict, dict]:
+    """Build a legacy configuration targeting *surface* on site 0 or site 1."""
+    doc = copy.deepcopy(sample_dict)
+    doc["schema_version"] = source_schema
+    if source_schema == "2026.6.dev8":
+        physics = doc["model"]["physics"]
+        physics.pop("soil_moisture", None)
+        physics["soil_moisture_deficit"] = {"value": 0}
+    if second_site:
+        other = copy.deepcopy(doc["sites"][0])
+        other["name"] = "Independent site B"
+        other["gridiv"] = 42
+        doc["sites"].append(other)
+    site = doc["sites"][-1]
+    fields = site["properties"]["land_cover"][surface]
+    if form == "missing":
+        fields.pop("soil_depth", None)
+    elif form == "wrapped-null":
+        fields["soil_depth"] = {"value": None}
+    elif form == "bare-null":
+        fields["soil_depth"] = None
+    elif form == "legacy-alias-null":
+        fields.pop("soil_depth", None)
+        fields.pop("soil_store_capacity", None)
+        fields["soildepth"] = {"value": None}
+        fields["soilstorecap"] = {"value": 150.0}
+    else:
+        raise AssertionError(f"Unexpected form {form!r}")
+    return doc, site
+
+
+@pytest.mark.parametrize(
+    ("surface", "form", "second_site"),
+    [
+        ("bldgs", "missing", False),
+        ("paved", "wrapped-null", False),
+        ("paved", "bare-null", True),
+        ("grass", "legacy-alias-null", False),
+    ],
+)
+@pytest.mark.parametrize(
+    "source_schema", ["2026.6.dev10", "2026.6.dev9", "2026.6.dev8"]
+)
+def test_cli_convert_refuses_missing_or_null_soil_depth_on_active_positive_capacity(
+    sample_dict: dict,
+    tmp_path: Path,
+    surface: str,
+    form: str,
+    second_site: bool,
+    source_schema: str,
+) -> None:
+    """Public ``suews convert`` exits non-zero, writes no file, and reports site/surface."""
+    # ARRANGE
+    doc, site = _legacy_soil_depth_doc(
+        sample_dict,
+        source_schema=source_schema,
+        surface=surface,
+        form=form,
+        second_site=second_site,
+    )
+    source = tmp_path / "old.yml"
+    output = tmp_path / "converted.yml"
+    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(
+        cli,
+        ["convert", "-i", str(source), "-o", str(output)],
+        terminal_width=250,
+        color=False,
+    )
+
+    # ASSERT
+    assert result.exit_code == 1, result.output
+    assert not output.exists()
+    msg = " ".join(result.output.split())
+    assert site["name"] in msg
+    assert str(site["gridiv"]) in msg
+    assert surface in msg
+    assert "soil_depth" in msg
+
+
+def test_cli_convert_json_and_migrator_refusal_are_transactional(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """JSON CLI, SchemaMigrator and migrate_config_file leave input and target untouched."""
+    # ARRANGE
+    doc, site = _legacy_soil_depth_doc(
+        sample_dict,
+        source_schema="2026.6.dev10",
+        surface="paved",
+        form="missing",
+        second_site=True,
+    )
+    # Also remove soil_depth from bldgs on site 0 to verify multi-site reporting.
+    doc["sites"][0]["properties"]["land_cover"]["bldgs"].pop("soil_depth", None)
+    before = copy.deepcopy(doc)
+
+    # ACT / ASSERT: in-memory migrator does not mutate caller dict
+    with pytest.raises(YamlUpgradeError) as exc_info:
+        SchemaMigrator().migrate(doc)
+    assert doc == before
+    err_msg = str(exc_info.value)
+    assert doc["sites"][0]["name"] in err_msg
+    assert "bldgs" in err_msg
+    assert site["name"] in err_msg
+    assert str(site["gridiv"]) in err_msg
+    assert "paved" in err_msg
+    assert "soil_depth" in err_msg
+
+    # ACT / ASSERT: file helpers and CLI do not overwrite existing output
+    source = tmp_path / "old.yml"
+    dest = tmp_path / "existing.yml"
+    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    dest.write_text("existing output", encoding="utf-8")
+
+    with pytest.raises(YamlUpgradeError):
+        migrate_config_file(str(source), str(dest))
+    assert dest.read_text(encoding="utf-8") == "existing output"
+
+    try:
+        json_runner = CliRunner(mix_stderr=False)
+    except TypeError:
+        json_runner = CliRunner()
+    result_json = json_runner.invoke(
+        cli,
+        ["convert", "-i", str(source), "-o", str(dest), "--format", "json"],
+        terminal_width=250,
+        color=False,
+    )
+    assert result_json.exit_code == 1, result_json.output
+    assert dest.read_text(encoding="utf-8") == "existing output"
+    envelope = json.loads(result_json.stdout)
+    assert envelope["status"] == "error"
+    error_text = " ".join(entry["message"] for entry in envelope["errors"])
+    assert site["name"] in error_text
+    assert str(site["gridiv"]) in error_text
+    assert "paved" in error_text
+    assert "bldgs" in error_text
+    assert "soil_depth" in error_text
+
+    # ACT / ASSERT: suews schema migrate writes no .migrated.yml file and reports the error
+    schema_out = source.with_suffix(".migrated.yml")
+    result_schema = CliRunner().invoke(
+        cli,
+        ["schema", "migrate", str(source)],
+        terminal_width=250,
+        color=False,
+    )
+    assert not schema_out.exists()
+    schema_msg = " ".join(result_schema.output.split())
+    assert site["name"] in schema_msg
+    assert str(site["gridiv"]) in schema_msg
+    assert "paved" in schema_msg
+    assert "soil_depth" in schema_msg
+
+
+@pytest.mark.parametrize("case", ["supplied", "inactive", "water", "zero-capacity"])
+def test_cli_convert_positive_controls_and_reloads(
+    sample_dict: dict, tmp_path: Path, case: str
+) -> None:
+    """Supplied soil_depth, inactive, water and zero-capacity cases migrate and reload."""
+    # ARRANGE
+    doc = copy.deepcopy(sample_dict)
+    doc["schema_version"] = "2026.6.dev10"
+    lc = _land_cover(doc)
+    if case == "supplied":
+        lc["paved"]["soil_depth"] = {
+            "value": 417.0,
+            "ref": {"desc": "Site borehole survey"},
+        }
+    elif case == "inactive":
+        assert lc["evetr"]["sfr"]["value"] == pytest.approx(0.0)
+        lc["evetr"]["soil_store_capacity"] = {"value": 150.0}
+        lc["evetr"].pop("soil_depth", None)
+    elif case == "water":
+        lc["water"].pop("soil_depth", None)
+    elif case == "zero-capacity":
+        lc["paved"]["soil_store_capacity"] = {"value": 0.0}
+        lc["paved"].pop("soil_depth", None)
+
+    source = tmp_path / f"{case}.yml"
+    output = tmp_path / f"{case}_converted.yml"
+    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(
+        cli,
+        ["convert", "-i", str(source), "-o", str(output)],
+        terminal_width=250,
+        color=False,
+    )
+
+    # ASSERT
+    assert result.exit_code == 0, result.output
+    assert output.is_file()
+    migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
+    assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
+    migrated_lc = _land_cover(migrated)
+    loaded_lc = SUEWSConfig.from_yaml(str(output)).sites[0].properties.land_cover
+    if case == "supplied":
+        assert migrated_lc["paved"]["soil_depth"] == {
+            "value": 417.0,
+            "ref": {"desc": "Site borehole survey"},
+        }
+        assert loaded_lc.paved.soil_depth.value == pytest.approx(417.0)
+    elif case == "inactive":
+        assert "soil_depth" not in migrated_lc["evetr"]
+        assert loaded_lc.evetr.soil_depth is None
+    elif case == "water":
+        assert "soil_depth" not in migrated_lc["water"]
+        assert loaded_lc.water.soil_depth is None
+    elif case == "zero-capacity":
+        assert migrated_lc["paved"]["soil_depth"] == {"value": 0.0}
+        assert loaded_lc.paved.soil_depth.value == pytest.approx(0.0)
+        assert loaded_lc.paved.soil_store_capacity.value == pytest.approx(0.0)
 
 
 def test_rust_bridge_rejects_missing_soil_param_on_programmatic_config() -> None:
     """Even if a programmatic config drops a soil field, the Rust bridge refuses it."""
-    from supy import SUEWSSimulation
-    from supy._run_rust import run_suews_rust
-
     # ARRANGE
     sim = SUEWSSimulation.from_sample_data()
     cfg = sim.config.model_copy(deep=True)

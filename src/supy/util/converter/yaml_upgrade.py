@@ -1712,63 +1712,143 @@ _SOIL_PARAMS_REQUIRED_DEV11: tuple[tuple[str, str], ...] = (
 )
 
 
+def _format_site_label(site_idx: int, site: dict) -> str:
+    """Return a concise site identifier naming index, name and gridiv."""
+    parts: list[str] = []
+    raw_name = _unwrap_scalar(site.get("name"))
+    if raw_name is not None and str(raw_name).strip():
+        parts.append(str(raw_name).strip())
+    raw_gridiv = _unwrap_scalar(site.get("gridiv"))
+    if raw_gridiv is not None and not isinstance(raw_gridiv, bool):
+        parts.append(f"gridiv={raw_gridiv}")
+    if parts:
+        return f"sites[{site_idx}] ({', '.join(parts)})"
+    return f"sites[{site_idx}]"
+
+
+def _positive_soil_capacity(surface: dict) -> float | None:
+    """Return a finite or infinite positive soil store capacity, or None."""
+    for name in ("soil_store_capacity", "soilstorecap"):
+        if name not in surface:
+            continue
+        raw = _unwrap_scalar(surface.get(name))
+        if raw is None or isinstance(raw, bool):
+            continue
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        if not math.isnan(value) and value > 0.0:
+            return value
+        return None
+    return None
+
+
+def _active_surface_sfr(surface: dict) -> float | None:
+    """Return finite positive surface fraction for *surface*, or None when inactive."""
+    raw_sfr = (
+        _unwrap_scalar(surface.get("sfr")) if "sfr" in surface else (1.0 / 7.0)
+    )
+    if raw_sfr is None or isinstance(raw_sfr, bool):
+        return None
+    try:
+        sfr_value = float(raw_sfr)
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(sfr_value) and sfr_value > 0.0):
+        return None
+    return sfr_value
+
+
+def _set_zero_soil_param(surface: dict, canonical: str, legacy: str) -> None:
+    """Write explicit 0.0 for a missing/null soil field, preserving ref metadata."""
+    if canonical in surface and isinstance(surface[canonical], dict):
+        surface[canonical]["value"] = 0.0
+        surface.pop(legacy, None)
+    elif legacy in surface and isinstance(surface[legacy], dict):
+        entry = surface.pop(legacy)
+        entry["value"] = 0.0
+        surface[canonical] = entry
+    else:
+        surface.pop(legacy, None)
+        surface[canonical] = {"value": 0.0}
+
+
+def _migrate_active_surface_soil_params(
+    site_label: str,
+    surface_name: str,
+    surface: dict,
+    missing_depths: list[str],
+    pending_logs: list[str],
+) -> None:
+    """Apply dev11 soil parameter migration to one non-water surface mapping."""
+    sfr_value = _active_surface_sfr(surface)
+    if sfr_value is None:
+        return
+    positive_cap = _positive_soil_capacity(surface)
+    for canonical, legacy in _SOIL_PARAMS_REQUIRED_DEV11:
+        if any(
+            _unwrap_scalar(surface.get(name)) is not None
+            for name in (canonical, legacy)
+        ):
+            continue
+        if canonical == "soil_depth" and positive_cap is not None:
+            missing_depths.append(
+                f"{site_label} surface {surface_name}: "
+                "soil_depth is missing or null "
+                f"(sfr={sfr_value:g}, soil_store_capacity={positive_cap:g})"
+            )
+            continue
+        _set_zero_soil_param(surface, canonical, legacy)
+        pending_logs.append(
+            f"[yaml-upgrade]   set '{site_label} land_cover.{surface_name}.{canonical}' "
+            "to 0.0 (absent or null on active surface; the value the model used)"
+        )
+
+
 def _migrate_2026_6_dev10_to_2026_6_dev11(cfg: dict) -> dict:
-    """Write explicit 0.0 for missing or null soil parameters on active non-water surfaces.
+    """Migrate active non-water surface soil parameters to schema 2026.6.dev11.
 
     From 2026.6.dev11, ``soil_depth``, ``soil_store_capacity`` and
     ``saturated_hydraulic_conductivity`` are required on every active
-    (``sfr > 0``) non-water surface (#2077, #2001). Previously an absent or
-    null value reached the water-balance kernel as 0.0 via the Rust bridge.
-    Writing that 0.0 explicitly keeps upgraded configurations runnable with
-    the same effective inputs while preserving non-null values and references.
+    (``sfr > 0``) non-water surface (#2077, #2001). When ``soil_depth`` is
+    missing or null on an active surface with positive
+    ``soil_store_capacity``, migration refuses to substitute ``0.0`` (which
+    divides by zero in horizontal soil water redistribution and breaks wet-day
+    water balance) and raises ``YamlUpgradeError`` listing every affected site
+    and surface so the user can supply ``soil_depth`` explicitly. Supplied
+    values, inactive (``sfr == 0``) surfaces and ``water`` remain unchanged;
+    other missing or null soil parameters (including ``soil_depth`` when soil
+    store capacity is zero or absent) receive explicit ``0.0`` while
+    preserving any reference metadata.
     """
     result = deepcopy(cfg)
-    for site in result.get("sites", []) or []:
+    missing_depths: list[str] = []
+    pending_logs: list[str] = []
+    for site_idx, site in enumerate(result.get("sites", []) or []):
         if not isinstance(site, dict):
             continue
         props = site.get("properties")
-        if not isinstance(props, dict):
-            continue
-        land_cover = props.get("land_cover")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
         if not isinstance(land_cover, dict):
             continue
+        site_label = _format_site_label(site_idx, site)
         for surface_name in NON_WATER_SURFACES:
             surface = land_cover.get(surface_name)
-            if not isinstance(surface, dict):
-                continue
-            raw_sfr = (
-                _unwrap_scalar(surface.get("sfr"))
-                if "sfr" in surface
-                else (1.0 / 7.0)
-            )
-            if raw_sfr is None:
-                continue
-            try:
-                sfr_value = float(raw_sfr)
-            except (TypeError, ValueError):
-                continue
-            if sfr_value <= 0.0:
-                continue
-            for canonical, legacy in _SOIL_PARAMS_REQUIRED_DEV11:
-                if any(
-                    _unwrap_scalar(surface.get(name)) is not None
-                    for name in (canonical, legacy)
-                ):
-                    continue
-                if canonical in surface and isinstance(surface[canonical], dict):
-                    surface[canonical]["value"] = 0.0
-                    surface.pop(legacy, None)
-                elif legacy in surface and isinstance(surface[legacy], dict):
-                    entry = surface.pop(legacy)
-                    entry["value"] = 0.0
-                    surface[canonical] = entry
-                else:
-                    surface.pop(legacy, None)
-                    surface[canonical] = {"value": 0.0}
-                _log(
-                    f"[yaml-upgrade]   set 'land_cover.{surface_name}.{canonical}' "
-                    "to 0.0 (absent or null on active surface; the value the model used)"
+            if isinstance(surface, dict):
+                _migrate_active_surface_soil_params(
+                    site_label, surface_name, surface, missing_depths, pending_logs
                 )
+    if missing_depths:
+        raise YamlUpgradeError(
+            "Cannot migrate configuration to schema 2026.6.dev11: "
+            + "; ".join(missing_depths)
+            + ". Active non-water surfaces with positive soil_store_capacity "
+            "require a user-supplied soil_depth (in mm) before migration; "
+            "substituting 0.0 breaks wet-day soil water balance."
+        )
+    for message in pending_logs:
+        _log(message)
     return result
 
 

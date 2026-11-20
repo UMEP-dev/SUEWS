@@ -197,9 +197,12 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "saturated_hydraulic_conductivity on every active (sfr > 0) non-water "
         "surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting "
         "any of them used to reach the kernel as 0.0 via the Rust bridge. "
-        "The (2026.6.dev10 -> 2026.6.dev11) migration writes 0.0 explicitly "
-        "wherever an active non-water surface omits or nulls one of these "
-        "three fields, preserving existing values and reference metadata."
+        "The (2026.6.dev10 -> 2026.6.dev11) migration requires the user to "
+        "supply soil_depth (reporting each affected site and surface) when it "
+        "is missing or null on an active surface with positive "
+        "soil_store_capacity, preserves supplied values and inactive/water "
+        "surfaces unchanged, and writes explicit 0.0 for other missing or null "
+        "active soil parameters (preserving reference metadata)."
     ),
 }
 

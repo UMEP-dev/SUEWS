@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Optional
 
 from ..backend import ProjectRoot, SUEWSMCPSandboxError
@@ -37,7 +38,7 @@ def read_run_resource(
             payload = read_provenance(run_dir)
         else:
             payload = read_diagnostics(run_dir)
-    except OSError as exc:
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         return _err(str(exc), run_id, kind)
 
     return {

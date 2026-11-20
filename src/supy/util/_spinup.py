@@ -4,6 +4,8 @@ import math
 import numpy as np
 import pandas as pd
 
+from .._misc import infer_freq_offset
+
 _SURFACE_NAMES = ("paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water")
 _VEG_SURFACE_SPECS = (
     # (grid_idx, veg_idx, veg_name, df_alb_col, ckpt_alb_key)
@@ -142,7 +144,9 @@ def get_spinup_state(
     df_state : pd.DataFrame
         Dataframe containing the initial state of the model.
     df_forcing : pd.DataFrame
-        Dataframe containing the forcing data for the model.
+        Dataframe containing the forcing data for the model. Duplication
+        requires a regular, increasing DatetimeIndex. Its frequency is
+        inferred from the timestamps if frequency metadata is absent.
     start_analysis : str
         Start date of the analysis period in the format 'YYYY-MM-DD'.
     spinup_days : int, optional
@@ -161,6 +165,13 @@ def get_spinup_state(
     from ..data_model import SUEWSConfig  # noqa: PLC0415
     from ..suews_sim import SUEWSSimulation  # noqa: PLC0415
 
+    if not isinstance(df_forcing.index, pd.DatetimeIndex):
+        raise ValueError("Spin-up forcing must have a pandas.DatetimeIndex.")
+    if df_forcing.empty:
+        raise ValueError("Spin-up forcing data is empty.")
+    if df_forcing.index.hasnans:
+        raise ValueError("Spin-up forcing timestamps must not contain NaT.")
+
     # if df_forcing is shorter than one year, raise error
     len_forcing = df_forcing.index.max() - df_forcing.index.min()
     if len_forcing < pd.Timedelta(days=364):
@@ -171,16 +182,34 @@ def get_spinup_state(
     # if df_forcing is longer than one year but shorter than two years
     # then duplicate the forcing dataframe to cover the requested spin-up span
     if len_forcing < pd.Timedelta(days=365 * 2):
+        freq = df_forcing.index.freq
+        if freq is None:
+            # infer_freq needs three timestamps; two define a single interval.
+            freq = (
+                infer_freq_offset(df_forcing.index)
+                if len(df_forcing.index) >= 3
+                else pd.tseries.frequencies.to_offset(
+                    df_forcing.index[1] - df_forcing.index[0]
+                )
+            )
+        if (
+            freq is None
+            or not df_forcing.index.is_monotonic_increasing
+            or not df_forcing.index.is_unique
+        ):
+            raise ValueError(
+                "Spin-up forcing requires a regular, increasing DatetimeIndex "
+                "to duplicate the forcing data."
+            )
         n_year = np.ceil(spinup_days / 365).astype(int)
         print(
             f"The forcing dataframe is longer than one year but shorter than two years, duplicating the forcing dataframe to {n_year} years"
         )
         df_forcing_spinup = pd.concat([df_forcing] * n_year, ignore_index=True)
         df_forcing_spinup.index = pd.date_range(
-            df_forcing.index.max()
-            - (df_forcing_spinup.index.size - 1) * df_forcing.index.freq,
+            df_forcing.index.max() - (df_forcing_spinup.index.size - 1) * freq,
             df_forcing.index.max(),
-            freq=df_forcing.index.freq,
+            freq=freq,
         )
     else:
         df_forcing_spinup = df_forcing

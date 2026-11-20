@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 20 Nov 2026
 
+- [bugfix] Infer the spin-up forcing interval from regularly spaced timestamps when pandas frequency metadata is missing (#2129)
+
 - [change][experimental] Require `soil_depth`, `soil_store_capacity` and `saturated_hydraulic_conductivity` on every active (`sfr > 0`) non-water surface (`paved`, `bldgs`, `evetr`, `dectr`, `grass`, `bsoil`) in YAML/dict configuration loads and in the Rust bridge's `apply_soil_overrides` reader; omitting or nulling any of them now stops with an error naming the site, surface and parameter instead of silently reaching the water-balance kernel as `0.0`. Inactive surfaces (`sfr == 0`) and `water` remain exempt. The generated configuration reference now reports the validator requirement for these three fields (and for `soil_field_capacity` under observed soil moisture) instead of claiming they are unchecked. Schema bumped to `2026.6.dev11`; when migrating older configurations, missing or null `soil_depth` on an active non-water surface with positive `soil_store_capacity` now stops without writing output and reports each affected site and surface so the user can supply `soil_depth` (avoiding `0.0`, which violates wet-day water balance), while supplied values and inactive/water surfaces are preserved unchanged and other missing or null active soil parameters receive explicit `0.0` (#2077, #2076, #1991, #2001, #2002)
 
 ### 19 Nov 2026

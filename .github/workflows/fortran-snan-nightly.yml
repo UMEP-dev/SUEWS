@@ -1,0 +1,146 @@
+name: Fortran sNaN nightly pilot
+
+# Isolated Linux nightly runtime pilot compiling the SUEWS Fortran kernel with
+# no-trap `-finit-real=snan` (NO `-ffpe-trap=invalid`) via `SUEWS_INIT_REAL=snan`
+# and running `pytest -m physics` (gh#2095).
+#
+# Deliberately isolated from `build-publish_to_pypi.yml` and shipped `release` /
+# `checked` wheels:
+# - Never uploads or publishes any wheel.
+# - Never reddens `report_scheduled_run` or `pr-gate`.
+# - Surfaces NaN / non-finite propagation from uninitialised local real variables
+#   (such as `#2105` MomentumRoughnessMethod=5) cleanly in the job summary and
+#   report artefact without arming hardware FPE traps.
+
+on:
+  schedule:
+    - cron: '37 3 * * *' # daily 03:37 UTC (off-minute, offset from main nightly)
+  workflow_dispatch:
+    inputs:
+      build_profile:
+        description: 'Fortran build profile (release or checked) combined with SUEWS_INIT_REAL=snan'
+        required: false
+        type: choice
+        default: 'release'
+        options:
+          - release
+          - checked
+      strict:
+        description: 'Fail the workflow if any physics test fails (default false while Wave 4 #2105 is open)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fortran-snan-nightly
+  cancel-in-progress: false
+
+jobs:
+  snan-physics-pilot:
+    name: Linux no-trap -finit-real=snan physics pilot
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUEWS_BUILD_PROFILE: ${{ inputs.build_profile || 'release' }}
+      SUEWS_INIT_REAL: snan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Install gfortran and record toolchains
+        id: toolchains
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install -y gfortran
+          GFORTRAN_VER="$(gfortran --version | head -n 1)"
+          echo "$GFORTRAN_VER"
+          rustc --version
+          cargo --version
+          echo "gfortran=$GFORTRAN_VER" >> "$GITHUB_OUTPUT"
+
+      - name: Verify no-trap -finit-real=snan compiler flags
+        run: |
+          set -eu
+          if [ "$SUEWS_BUILD_PROFILE" = "checked" ]; then
+            MAKE_DEBUG="DEBUG=1"
+          else
+            MAKE_DEBUG="DEBUG="
+          fi
+          DRY_CMD="$(make -B -C src/suews --no-print-directory -n "$MAKE_DEBUG" src/suews_phys_resist.o | grep 'gfortran ' | tail -n 1)"
+          echo "Resolved compile command: $DRY_CMD"
+          printf '%s\n' "$DRY_CMD" | grep -q -- '-finit-real=snan'
+          if printf '%s\n' "$DRY_CMD" | grep -q -- '-finit-real=zero'; then
+            echo "::error::Expected -finit-real=snan, but -finit-real=zero is still present."
+            exit 1
+          fi
+          if printf '%s\n' "$DRY_CMD" | grep -q -- '-ffpe-trap'; then
+            echo "::error::No-trap sNaN pilot must not pass -ffpe-trap."
+            exit 1
+          fi
+
+      - name: Build isolated sNaN environment (no wheels shipped)
+        run: |
+          set -eu
+          uv venv .venv-snan
+          # shellcheck disable=SC1091
+          source .venv-snan/bin/activate
+          uv pip install ninja
+          make dev
+
+      - name: Run physics test suite under no-trap -finit-real=snan
+        id: physics-run
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC1091
+          source .venv-snan/bin/activate
+          mkdir -p snan-report
+          python -m pytest test -m physics \
+            -v --tb=short --durations=10 \
+            -n auto --maxprocesses=4 --dist worksteal \
+            --junitxml=snan-report/snan-physics-junit.xml \
+            2>&1 | tee snan-report/snan-physics.log
+
+      - name: Summarise sNaN physics results
+        if: always() && (steps.physics-run.outcome == 'success' || steps.physics-run.outcome == 'failure')
+        env:
+          GFORTRAN_VER: ${{ steps.toolchains.outputs.gfortran }}
+          STRICT_MODE: ${{ inputs.strict == true && 'true' || 'false' }}
+        run: |
+          set -eu
+          EXTRA_ARGS=()
+          if [ "$STRICT_MODE" = "true" ]; then
+            EXTRA_ARGS+=(--strict)
+          fi
+          python3 scripts/lint/summarise_snan_report.py \
+            snan-report/snan-physics-junit.xml \
+            --compiler "$GFORTRAN_VER" \
+            --build-profile "$SUEWS_BUILD_PROFILE" \
+            --markdown snan-report/snan-summary.md \
+            --append-summary "$GITHUB_STEP_SUMMARY" \
+            --github-annotations \
+            "${EXTRA_ARGS[@]}"
+
+      - name: Upload sNaN diagnostic report (no wheels)
+        if: always() && (steps.physics-run.outcome == 'success' || steps.physics-run.outcome == 'failure')
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: fortran-snan-physics-report
+          path: snan-report/
+          if-no-files-found: error
+          retention-days: 14

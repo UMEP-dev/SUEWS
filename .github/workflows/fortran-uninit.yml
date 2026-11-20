@@ -1,0 +1,54 @@
+name: Fortran uninitialized lint
+
+# Compile-only shrinking ratchet for Fortran -Wuninitialized and
+# -Wmaybe-uninitialized warnings across all compiled SUEWS Fortran units
+# (SPARTACUS, SUEWS kernel, and Rust-bridge C-API facades), compiled WITHOUT
+# -finit-real=zero so uninitialised local variables are not masked.
+#
+# Runs inside a digest-pinned Linux GCC container so gfortran's optimisation
+# passes and diagnostic set stay 100% deterministic across runs (gh#2095).
+
+on:
+  pull_request:
+    paths:
+      - 'src/suews/src/**'
+      - 'src/suews/ext_lib/**'
+      - 'src/suews/Makefile'
+      - 'src/suews/Makefile.deps'
+      - 'src/suews/Makefile.gfortran'
+      - 'src/suews_bridge/c_api/**'
+      - 'src/suews_bridge/build.rs'
+      - 'scripts/lint/check_fortran_uninit.py'
+      - 'scripts/lint/fortran_uninit_baseline.json'
+      - '.github/workflows/fortran-uninit.yml'
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fortran-uninit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-fortran-uninit:
+    name: Fortran -Wuninitialized ratchet (GCC 14.2.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      # gcc:14.2.0-bookworm (linux/amd64) on Amazon ECR Public mirror of Docker
+      # Official Images -- pinned by immutable manifest digest so the gfortran
+      # binary and its -Wmaybe-uninitialized diagnostics never drift.
+      image: public.ecr.aws/docker/library/gcc@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Check Fortran -Wuninitialized ratchet
+        run: |
+          set -eu
+          gfortran --version | head -n 1
+          python3 scripts/lint/check_fortran_uninit.py

@@ -273,7 +273,7 @@ def version(ctx, files, update, target_version, backup):
     if update:
         table.add_column("Action", style="yellow")
 
-    failures: List[Tuple[str, str]] = []
+    failures: list[tuple[str, str]] = []
 
     for file_path in files:
         path = Path(file_path)
@@ -359,7 +359,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     target = target_version or CURRENT_SCHEMA_VERSION
     output_path = Path(output_dir) if output_dir else None
 
-    if output_path:
+    if output_path and not dry_run:
         output_path.mkdir(parents=True, exist_ok=True)
 
     if not quiet:
@@ -368,7 +368,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
 
     migrator = SchemaMigrator()
     results = []
-    failures: List[Tuple[str, str]] = []
+    failures: list[tuple[str, str]] = []
 
     for file_path in track(files, description="Migrating...", disable=quiet):
         path = Path(file_path)
@@ -386,12 +386,13 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                 ))
                 continue
 
-            # Perform migration
-            if not dry_run:
-                migrated = migrator.migrate(
-                    config, from_version=current_version, to_version=target
-                )
+            # Perform migration in memory first so --dry-run validates the
+            # migration path and transforms without touching disk.
+            migrated = migrator.migrate(
+                config, from_version=current_version, to_version=target
+            )
 
+            if not dry_run:
                 # Determine output path
                 if output_path:
                     out_file = output_path / path.name

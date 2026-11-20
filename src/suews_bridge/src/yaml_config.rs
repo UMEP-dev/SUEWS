@@ -415,7 +415,6 @@ fn require_numeric(root: &Value, path: &[&str], at: &str) -> Result<f64, String>
 /// rounding tolerance: rounding a value that is not an integer would stand
 /// in a value the YAML did not give. If a read site moved to this reader
 /// turns out to receive round-tripped floats, revisit it there.
-#[cfg_attr(not(test), allow(dead_code))]
 fn require_i32(root: &Value, path: &[&str], at: &str) -> Result<i32, String> {
     let v = require_numeric(root, path, at)?;
     if v.fract() == 0.0 && v >= i32::MIN as f64 && v <= i32::MAX as f64 {
@@ -2184,7 +2183,15 @@ fn apply_config_overrides(
     if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
         config.rsl_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "emissionsmethod"]) {
+    if get_path(root, &["model", "physics", "emissionsmethod"]).is_some() {
+        let v = require_i32(root, &["model", "physics", "emissionsmethod"], "")?;
+        if !is_valid_emissions_method(v) {
+            return Err(format!(
+                "`model.physics.emissions` has unsupported value {v}; valid values are 0 \
+                 (observed), 1..=6 (modelled heat), or 11..=16, 21..=26, 31..=36, 41..=46 \
+                 (biogenic CO2)"
+            ));
+        }
         config.emissions_method = v;
     }
     if let Some(v) = read_i32(root, &["model", "physics", "roughlenheatmethod"]) {
@@ -3039,6 +3046,20 @@ fn apply_state_overrides(
         }
     }
     Ok(())
+}
+
+/// Explicit allowlist of supported `EmissionsMethod` integer codes, matching
+/// `src/supy/data_model/core/model.py` (`EmissionsMethod`),
+/// `src/suews/src/suews_phys_anthro.f95`, and
+/// `src/suews/src/suews_phys_biogenco2.f95`:
+/// - `0`: observed `qf` from forcing
+/// - `1..=6`: modelled anthropogenic heat (CO2 fluxes zeroed by driver)
+/// - `11..=16`, `21..=26`, `31..=36`, `41..=46`: biogenic CO2 families 1..=4
+///   paired with anthropogenic heat/CO2 branches 1..=6.
+pub(crate) fn is_valid_emissions_method(emissions_method: i32) -> bool {
+    emissions_method == 0
+        || (1..=6).contains(&emissions_method)
+        || emissions_method_uses_co2_point_source(emissions_method)
 }
 
 /// Whether the CO2 point source reaches the model output under this
@@ -5851,5 +5872,61 @@ mod tests {
         assert_eq!(run_cfg.site.lc_bsoil.soil.soil_depth, 0.0);
         assert_eq!(run_cfg.site.lc_water.soil.soil_depth, 0.0);
         assert!(run_cfg.site.lc_grass.soil.soil_depth > 0.0);
+    }
+
+    #[test]
+    fn emissions_method_allowlist_accepts_every_valid_code_and_rejects_holes() {
+        let mut expected_valid = vec![0, 1, 2, 3, 4, 5, 6];
+        for family in [10, 20, 30, 40] {
+            for sub in 1..=6 {
+                expected_valid.push(family + sub);
+            }
+        }
+
+        for code in -5..=60 {
+            let expected = expected_valid.contains(&code);
+            assert_eq!(
+                is_valid_emissions_method(code),
+                expected,
+                "unexpected allowlist decision for emissions={code}"
+            );
+        }
+
+        // Every valid code loads cleanly through YAML (including >= 11 CO2 codes).
+        for &code in &expected_valid {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {code}}}")).unwrap();
+            let run_cfg = load_run_config_from_value(&mut root)
+                .unwrap_or_else(|e| panic!("valid emissions={code} must parse: {e}"));
+            assert_eq!(run_cfg.config.emissions_method, code);
+        }
+
+        // Invalid holes (including 17, 7..10, 18..20, 27..30, 37..40, 47, -1) fail loudly.
+        for bad in [-1, 7, 8, 9, 10, 17, 18, 19, 20, 27, 30, 37, 40, 47, 51, 999] {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {bad}}}")).unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("invalid emissions={bad} must be rejected"));
+            assert!(
+                err.contains("model.physics.emissions") && err.contains(&bad.to_string()),
+                "emissions={bad} error should name path and value: {err}"
+            );
+        }
+
+        // Non-integer / null / non-finite emissions values are also rejected.
+        for malformed in ["null", "{value: null}", "17.5", ".nan", ".inf"] {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(malformed).unwrap();
+            assert!(
+                load_run_config_from_value(&mut root).is_err(),
+                "malformed emissions={malformed} must be rejected"
+            );
+        }
     }
 }

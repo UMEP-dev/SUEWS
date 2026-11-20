@@ -10,6 +10,7 @@ use crate::ehc_prm::{ehc_prm_from_ordered_values, EhcPrm};
 use crate::error::BridgeError;
 use crate::ffi;
 use crate::flag::flag_state_from_ordered_values;
+use crate::forcing_io::validate_forcing_block_for_emissions;
 use crate::heat_state::HeatState;
 use crate::hydro_state::HydroState;
 use crate::irrigation_prm::irrigation_prm_from_ordered_values;
@@ -1295,6 +1296,14 @@ pub fn run_simulation_into(
         });
     }
 
+    validate_forcing_block_for_emissions(
+        &input.forcing_block,
+        input.len_sim,
+        MET_FORCING_COLS,
+        input.config.emissions_method,
+    )
+    .map_err(simulation_error)?;
+
     let timer_in = input.timer.to_flat();
     let config_in = input.config.to_flat();
     let site_members = encode_site_members(&input.site)?;
@@ -1558,6 +1567,114 @@ mod tests {
         // No failed or later timestep may publish any output, including time.
         assert!(data.iter().all(|value| *value == sentinel));
         assert!(datetime.iter().all(|value| *value == sentinel));
+    }
+
+    #[test]
+    fn native_invalid_emissions_method_triggers_fortran_error_73() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+
+        for invalid_code in [7, 17, 20, 47] {
+            let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+            // Bypass YAML allowlist to exercise the Fortran kernel guard directly.
+            input.config.emissions_method = invalid_code;
+            let sentinel = 12345.0;
+            let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+            let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+            let result = run_simulation_into(
+                input,
+                OutputBuffers {
+                    data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                    datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS)
+                        .unwrap(),
+                },
+            );
+            match result {
+                Err(BridgeError::SimulationError { code: 73, message }) => {
+                    assert!(
+                        message.contains("EmissionsMethod"),
+                        "emissions={invalid_code} error message should mention EmissionsMethod: {message}"
+                    );
+                }
+                other => panic!(
+                    "expected SimulationError code 73 for emissions={invalid_code}, got {other:?}"
+                ),
+            }
+            assert!(data.iter().all(|value| *value == sentinel));
+            assert!(datetime.iter().all(|value| *value == sentinel));
+        }
+    }
+
+    #[test]
+    fn observed_emissions_rejects_missing_qf_and_accepts_valid_qf() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+        use crate::forcing::SuewsField;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+
+        // Missing qf (-999) with emissions=0 must fail before stepping Fortran.
+        let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        input.config.emissions_method = 0;
+        let sentinel = 12345.0;
+        let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+        let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+        let err = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        )
+        .expect_err("emissions=0 with missing qf must fail");
+        assert!(
+            matches!(err, BridgeError::SimulationError { ref message, .. }
+                if message.contains("forcing column 'qf'") && message.contains("emissions=0")),
+            "unexpected error: {err}"
+        );
+        assert!(data.iter().all(|value| *value == sentinel));
+        assert!(datetime.iter().all(|value| *value == sentinel));
+
+        // Valid observed qf (25.0 W m-2) succeeds and flows into SUEWS QF (data col 6).
+        row[SuewsField::qf_obs.index()] = 25.0;
+        let mut valid_input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        valid_input.config.emissions_method = 0;
+        let mut data_ok = vec![0.0; 3 * OUTPUT_DATA_COLS];
+        let mut datetime_ok = vec![0.0; 3 * OUTPUT_DATETIME_COLS];
+        run_simulation_into(
+            valid_input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data_ok, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime_ok, 3, OUTPUT_DATETIME_COLS)
+                    .unwrap(),
+            },
+        )
+        .expect("emissions=0 with valid observed qf must succeed");
+        // Column-major layout: element (r, c) is at c * nrows + r. SUEWS QF is col 6.
+        let qf_col = 6;
+        for step in 0..3 {
+            let qf_out = data_ok[qf_col * 3 + step];
+            assert!(
+                (qf_out - 25.0).abs() < 1e-12,
+                "step {step}: expected QF=25.0, got {qf_out}"
+            );
+        }
     }
 
     #[test]

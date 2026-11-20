@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for surface properties parameters" name="description" />
 <meta content="SUEWS, YAML, vegetatedsurfaceproperties, parameters, configuration" name="keywords" />
 
-    <title>4.6.53. Surface Properties &#8212; SUEWS 2026.11.20.dev6 documentation</title>
+    <title>4.6.54. Surface Properties &#8212; SUEWS 2026.11.20.dev10 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=4526d959"></script>
+    <script src="../../../_static/documentation_options.js?v=2a784aa5"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,11 +57,11 @@
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="4.6.54. Vegetation Parameters" href="vegetationparams.html" />
-    <link rel="prev" title="4.6.52. Material Layers" href="thermallayers.html" />
+    <link rel="next" title="4.6.55. Vegetation Parameters" href="vegetationparams.html" />
+    <link rel="prev" title="4.6.53. Material Layers" href="thermallayers.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.20.dev6" />
+  <meta name="docsearch:version" content="2026.11.20.dev10" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.20.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4420a951a0f01f0ef7a983ecee89c2baf3748055" style="color: #31708f;">4420a95</a>).
+        (2026.11.20.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1110eb4ee786e61a4e5a06416a9f2fe9823d4b59" style="color: #31708f;">1110eb4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev6 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev6 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev10 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev10 documentation - Home"/>
   
   
 </a></div>
@@ -202,56 +202,57 @@
 <li class="toctree-l3"><a class="reference internal" href="co2params.html">4.6.7. CO2 Emissions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="conductance.html">4.6.8. Conductance</a></li>
 <li class="toctree-l3"><a class="reference internal" href="coolingsetpointprofile.html">4.6.9. Cooling Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dayprofile.html">4.6.10. Daily Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dectrproperties.html">4.6.11. Deciduous Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="evetrproperties.html">4.6.12. Evergreen Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="forcingcontrol.html">4.6.13. Forcing Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="grassproperties.html">4.6.14. Grass</a></li>
-<li class="toctree-l3"><a class="reference internal" href="heatingsetpointprofile.html">4.6.15. Heating Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="hourlyprofile.html">4.6.16. Hourly Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstatebldgs.html">4.6.17. Buildings Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstatebsoil.html">4.6.18. Bare Soil Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstatedectr.html">4.6.19. Deciduous Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstateevetr.html">4.6.20. Evergreen Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstategrass.html">4.6.21. Grass Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstatepaved.html">4.6.22. Paved Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstateveg.html">4.6.23. Vegetation Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstatewater.html">4.6.24. Water Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="initialstates.html">4.6.25. Initial States</a></li>
-<li class="toctree-l3"><a class="reference internal" href="irrigationparams.html">4.6.26. Irrigation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="laiparams.html">4.6.27. LAI</a></li>
-<li class="toctree-l3"><a class="reference internal" href="laipowercoefficients.html">4.6.28. LAI Power Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="lumpsparams.html">4.6.29. LUMPS Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="landcover.html">4.6.30. Land Cover</a></li>
-<li class="toctree-l3"><a class="reference internal" href="model.html">4.6.31. Model Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="modelcontrol.html">4.6.32. Model Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="modelphysics.html">4.6.33. Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="nonvegetatedsurfaceproperties.html">4.6.34. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ohmcoefficients.html">4.6.35. OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ohm_coefficient_season_wetness.html">4.6.36. Seasonal/Wetness OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="outputcontrol.html">4.6.37. Output Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pavedproperties.html">4.6.38. Paved Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="rooflayer.html">4.6.39. Roof Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="spartacusparams.html">4.6.40. SPARTACUS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="suewsconfig.html">4.6.41. SUEWS Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="site.html">4.6.42. Site Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="siteproperties.html">4.6.43. Site Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="snowparams.html">4.6.44. Snow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="soilobservationconfig.html">4.6.45. Soil Observation Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stebbsphysics.html">4.6.46. STEBBS Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stebbsproperties.html">4.6.47. STEBBS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="storagedrainparams.html">4.6.48. Drainage Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="surfaceinitialstate.html">4.6.49. Generic Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="surfaceproperties.html">4.6.50. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tenminuteprofile.html">4.6.51. Ten Minute Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="thermallayers.html">4.6.52. Material Layers</a></li>
-<li class="toctree-l3 current active"><a class="current reference internal" href="#">4.6.53. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="vegetationparams.html">4.6.54. Vegetation Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="verticallayers.html">4.6.55. SPARTACUS Vertical Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="walllayer.html">4.6.56. Wall Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="waterdistribution.html">4.6.57. Water Distribution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="waterproperties.html">4.6.58. Water Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="weeklyprofile.html">4.6.59. Weekly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="datamodelbase.html">4.6.10. Data Model Base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dayprofile.html">4.6.11. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dectrproperties.html">4.6.12. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="evetrproperties.html">4.6.13. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="forcingcontrol.html">4.6.14. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="grassproperties.html">4.6.15. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heatingsetpointprofile.html">4.6.16. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hourlyprofile.html">4.6.17. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatebldgs.html">4.6.18. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatebsoil.html">4.6.19. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatedectr.html">4.6.20. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstateevetr.html">4.6.21. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstategrass.html">4.6.22. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatepaved.html">4.6.23. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstateveg.html">4.6.24. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatewater.html">4.6.25. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstates.html">4.6.26. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="irrigationparams.html">4.6.27. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="laiparams.html">4.6.28. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="laipowercoefficients.html">4.6.29. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lumpsparams.html">4.6.30. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="landcover.html">4.6.31. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model.html">4.6.32. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modelcontrol.html">4.6.33. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modelphysics.html">4.6.34. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="nonvegetatedsurfaceproperties.html">4.6.35. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ohmcoefficients.html">4.6.36. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ohm_coefficient_season_wetness.html">4.6.37. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputcontrol.html">4.6.38. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pavedproperties.html">4.6.39. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rooflayer.html">4.6.40. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spartacusparams.html">4.6.41. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="suewsconfig.html">4.6.42. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="site.html">4.6.43. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="siteproperties.html">4.6.44. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="snowparams.html">4.6.45. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="soilobservationconfig.html">4.6.46. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stebbsphysics.html">4.6.47. STEBBS Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stebbsproperties.html">4.6.48. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="storagedrainparams.html">4.6.49. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="surfaceinitialstate.html">4.6.50. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="surfaceproperties.html">4.6.51. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tenminuteprofile.html">4.6.52. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="thermallayers.html">4.6.53. Material Layers</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">4.6.54. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vegetationparams.html">4.6.55. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="verticallayers.html">4.6.56. SPARTACUS Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="walllayer.html">4.6.57. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="waterdistribution.html">4.6.58. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="waterproperties.html">4.6.59. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="weeklyprofile.html">4.6.60. Weekly Profile</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="../../converter.html">4.7. SUEWS Format Converter</a></li>
@@ -569,7 +570,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </ol>
 </div>
 <section id="surface-properties">
-<span id="index-0"></span><span id="vegetatedsurfaceproperties"></span><h1><span class="section-number">4.6.53. </span>Surface Properties<a class="headerlink" href="#surface-properties" title="Link to this heading">#</a></h1>
+<span id="index-0"></span><span id="vegetatedsurfaceproperties"></span><h1><span class="section-number">4.6.54. </span>Surface Properties<a class="headerlink" href="#surface-properties" title="Link to this heading">#</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Example values below are parameter choices compiled in the SUEWS parameter database, which is being prepared for publication. Until its release, the cited studies provide the supporting evidence. These values are not defaults or recommendations; select or calibrate values for the site.</p>
@@ -1300,7 +1301,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">4.6.52. </span>Material Layers</p>
+        <p class="prev-next-title"><span class="section-number">4.6.53. </span>Material Layers</p>
       </div>
     </a>
     <a class="right-next"
@@ -1308,7 +1309,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">4.6.54. </span>Vegetation Parameters</p>
+        <p class="prev-next-title"><span class="section-number">4.6.55. </span>Vegetation Parameters</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1352,8 +1353,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.20.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4420a951a0f01f0ef7a983ecee89c2baf3748055">4420a95</a> |
+  <p>Version: 2026.11.20.dev10 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1110eb4ee786e61a4e5a06416a9f2fe9823d4b59">1110eb4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -1,3 +1,29 @@
+//! Build script for the `suews_bridge` Rust <-> Fortran C-API crate.
+//!
+//! Responsibilities, in execution order:
+//!
+//! 1. **Version metadata**: queries `git describe` (mirroring `get_ver_git.py`)
+//!    and exports `SUEWS_VERSION` and `SUEWS_COMMIT` via `cargo:rustc-env`.
+//! 2. **Lint-only fast path (`SUEWS_BRIDGE_LINT_ONLY=1`)**: generates
+//!    `$OUT_DIR/output_cols.rs` from Fortran source text and returns early,
+//!    skipping gfortran compilation and native linking for `cargo clippy` and
+//!    `cargo doc` checks (never a substitute for native-linked build evidence;
+//!    see `BR-09` in `.claude/rules/rust/bridge-contract.md`).
+//! 3. **C-API Fortran compilation**: compiles `c_api/*.f95` in dependency order
+//!    with gfortran (respecting `SUEWS_BUILD_PROFILE=release|checked`, adding
+//!    `-fcheck=all` in `checked` mode) and archives `libsuews_bridge.a`.
+//! 4. **Test-only observer (`capi-observer`)**: when enabled (mutually
+//!    exclusive with `python-extension`), compiles
+//!    `test_observer/capi_field_observer.f95` into `libsuews_capi_observer.a`
+//!    and links it ahead of `libsuews_bridge.a`.
+//! 5. **Kernel and runtime linkage**: under `--features physics`, links the
+//!    prebuilt SUEWS archives (`libsuewsdriver.a`, `libsuewsphys.a`,
+//!    `libspartacus.a`, `libsuewsutil.a`), followed by `libgfortran` (plus
+//!    `libquadmath` on Windows/MinGW) and macOS Python dynamic lookup flags.
+//! 6. **Output width generation**: parses `ncolumnsDataOut*` parameters from
+//!    `src/suews/src/suews_ctrl_const.f95` into `$OUT_DIR/output_cols.rs` so
+//!    `sim.rs` and `output_line.rs` stay in step with the Fortran kernel.
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,7 +59,7 @@ fn main() {
                     // Nightly: 2025.8.17.dev -> 2025.8.17.devN
                     format!("{base}{distance}")
                 } else if base.contains(".dev") {
-                    // Already has .devN suffix — replace N with distance
+                    // Already has .devN suffix -- replace N with distance
                     let idx = base.rfind(".dev").unwrap();
                     base.truncate(idx);
                     format!("{base}.dev{distance}")
@@ -206,7 +232,7 @@ fn main() {
         ]);
 
         if runtime_checks {
-            // Runtime checks: bounds, pointer, memory – catch UB as
+            // Runtime checks: bounds, pointer, memory -- catch UB as
             // Fortran runtime error instead of bare SIGSEGV.
             gfortran_cmd.arg("-fcheck=all");
         }
@@ -370,12 +396,14 @@ fn main() {
 //
 // Reads `suews_ctrl_const.f95`, extracts every `ncolumnsDataOut<Name> = <expr>`
 // parameter, evaluates the integer arithmetic, and writes
-// `$OUT_DIR/output_cols.rs` with `pub const OUTPUT_<NAME>_COLS: usize = …;`.
+// `$OUT_DIR/output_cols.rs` with `pub const OUTPUT_<NAME>_COLS: usize = ...;`.
 //
-// sim.rs includes this generated file via `include!()` so that column counts
-// stay in sync automatically when the Fortran source changes.
+// sim.rs and output_line.rs include this generated file via `include!()` so
+// that column counts stay in sync automatically when the Fortran source changes.
 // ---------------------------------------------------------------------------
 
+/// Parse `ncolumnsDataOut*` parameters from `src/suews/src/suews_ctrl_const.f95`
+/// and emit `$OUT_DIR/output_cols.rs`.
 fn generate_output_col_constants(manifest_dir: &Path, out_dir: &Path) {
     let const_file = manifest_dir.join("../suews/src/suews_ctrl_const.f95");
     println!("cargo:rerun-if-changed={}", const_file.display());
@@ -514,6 +542,8 @@ fn extract_expression(s: &str) -> &str {
 // Operator precedence: * / before + -.
 // ---------------------------------------------------------------------------
 
+/// Evaluate a simple Fortran integer arithmetic expression (`+`, `-`, `*`, `/`,
+/// parentheses, and integer literals with optional `_kind` suffixes).
 fn eval_int_expr(expr: &str) -> i64 {
     let tokens = lex_int_expr(expr);
     let (val, rest) = parse_additive(&tokens);
@@ -667,6 +697,8 @@ fn parse_primary(tokens: &[Token]) -> (i64, &[Token]) {
     }
 }
 
+/// Locate and link the matching gfortran runtime (`libgfortran`, plus static
+/// `libquadmath` on Windows/MinGW) via `gfortran -print-file-name=...`.
 fn link_fortran_runtime(gfortran_bin: &Path) {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
 

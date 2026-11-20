@@ -1,3 +1,24 @@
+//! Core surface constants, `OHM_STATE` codec, solar helper and legacy scalar
+//! OHM bindings (`c_api/ohm.f95` and `c_api/sunposition.f95`).
+//!
+//! ## Contents
+//!
+//! - **Canonical surface order**: [`NSURF`] (`7`) and [`SURFACE_NAMES`]
+//!   (`paved`, `bldg`, `evetr`, `dectr`, `grass`, `bsoil`, `water`), shared
+//!   across parameter and state codecs.
+//! - **`OhmState` codec (schema v2)**: marshals Fortran `OHM_STATE`, including
+//!   per-surface dynamic OHM coefficients and ANOHM rolling-window buffers
+//!   (`ANOHM_MAX_SAMPLES = 48`), with backward-compatible decoding of schema v1
+//!   payloads (`OHM_STATE_V1_FLAT_LEN = 53`).
+//! - **Solar geometry (`sunposition_calc`, `physics`-gated)**: thin FFI wrapper
+//!   around `module_phys_narp::NARP_cal_SunPosition`.
+//! - **Legacy scalar OHM helpers (`qs_calc`, `dqndt_step`, `ohm_step`,
+//!   `ohm_state_step`, `OhmModel`)**: invoke scalar formulas copied inside
+//!   `c_api/ohm.f95` rather than `module_phys_ohm`. This is a recorded `BR-01`
+//!   deviation retained for existing API compatibility; do not use it as a
+//!   template for new facades (see `dev-ref/RUST_BRIDGE_DESIGN.md` and
+//!   `dev-ref/RUST_BRIDGE_AUDIT.md`).
+
 use crate::codec::{
     field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
     StateCodec, TypeSchema, ValuesPayload,
@@ -6,12 +27,18 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
+/// Number of SUEWS surface land-cover types (`paved` through `water`).
 pub const NSURF: usize = 7;
+/// Maximum number of samples held in each ANOHM rolling-window buffer.
 pub const ANOHM_MAX_SAMPLES: usize = 48;
+/// Flat buffer length of legacy schema-version-1 `OHM_STATE` payloads.
 pub const OHM_STATE_V1_FLAT_LEN: usize = 53;
+/// Current flat buffer length of schema-version-2 `OHM_STATE` payloads.
 pub const OHM_STATE_FLAT_LEN: usize =
     OHM_STATE_V1_FLAT_LEN + 5 + 14 * ANOHM_MAX_SAMPLES + 3 * NSURF;
+/// Current schema version for [`OhmState`], matching `c_api/ohm.f95`.
 pub const OHM_STATE_SCHEMA_VERSION: u32 = 2;
+/// Canonical ordered names of the 7 SUEWS land-cover surfaces.
 pub const SURFACE_NAMES: [&str; NSURF] =
     ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
 

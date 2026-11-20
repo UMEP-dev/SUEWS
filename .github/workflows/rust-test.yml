@@ -10,8 +10,10 @@ name: Rust test
 #
 # Unlike clippy, cargo test links, so it needs the SUEWS Fortran static
 # libraries and .mod files: the job builds them with `make -C src/suews all`
-# before testing with the `physics` feature, which is how the bridge is built
-# for SuPy. Only the SHA-pinned actions/checkout is used (satisfies
+# before testing with both `--features physics` (how the bridge is built for
+# SuPy) and `--features physics,arrow-output` (the standalone engine's Arrow
+# output feature set, gh#2093), so neither feature-off nor feature-on builds
+# can regress. Only the SHA-pinned actions/checkout is used (satisfies
 # workflow-security.yml); gfortran comes from apt and Rust from the runner's
 # preinstalled rustup.
 
@@ -57,15 +59,28 @@ jobs:
       - name: Build SUEWS Fortran libraries
         run: make -C src/suews all -j"$(nproc)"
 
-      - name: Run cargo test
+      - name: Run cargo test (physics)
         run: |
           set -eu
           if ! cargo test \
                 --manifest-path src/suews_bridge/Cargo.toml \
                 --features physics; then
-            echo "::error::cargo test failed in src/suews_bridge/."
+            echo "::error::cargo test (--features physics) failed in src/suews_bridge/."
             echo "Reproduce locally:"
             echo "    make -C src/suews all"
             echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics"
+            exit 1
+          fi
+
+      - name: Run cargo test (physics,arrow-output)
+        run: |
+          set -eu
+          if ! cargo test \
+                --manifest-path src/suews_bridge/Cargo.toml \
+                --features physics,arrow-output; then
+            echo "::error::cargo test (--features physics,arrow-output) failed in src/suews_bridge/."
+            echo "Reproduce locally:"
+            echo "    make -C src/suews all"
+            echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,arrow-output"
             exit 1
           fi

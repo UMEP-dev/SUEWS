@@ -134,10 +134,9 @@ pub fn write_output_arrow(
     let mut columns: Vec<Vec<f64>> = (0..OUTPUT_ALL_COLS)
         .map(|_| Vec::with_capacity(len_sim))
         .collect();
-    for row_idx in 0..len_sim {
-        let base = row_idx * OUTPUT_ALL_COLS;
-        for col_idx in 0..OUTPUT_ALL_COLS {
-            columns[col_idx].push(output_block[base + col_idx]);
+    for row in output_block.chunks_exact(OUTPUT_ALL_COLS) {
+        for (col, &val) in columns.iter_mut().zip(row) {
+            col.push(val);
         }
     }
 
@@ -172,4 +171,204 @@ pub fn write_output_arrow(
         .map_err(|e| format!("failed to finish Arrow IPC file: {e}"))?;
 
     Ok(out_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arrow::array::Array;
+    use arrow::ipc::reader::FileReader;
+    use std::collections::HashSet;
+
+    #[test]
+    fn build_all_column_names_matches_suews_names_and_group_layout() {
+        let names = build_all_column_names();
+        assert_eq!(names.len(), OUTPUT_ALL_COLS);
+        assert_eq!(OUTPUT_SUEWS_COLS, SUEWS_OUTPUT_NAMES.len());
+
+        // First group must be SUEWS with exact positional variable names iy..QS_Water.
+        assert_eq!(OUTPUT_GROUP_LAYOUT[0], ("SUEWS", OUTPUT_SUEWS_COLS));
+        assert_eq!(names[0], "iy");
+        assert_eq!(names[OUTPUT_SUEWS_COLS - 1], "QS_Water");
+        for (actual, &expected) in names[..OUTPUT_SUEWS_COLS]
+            .iter()
+            .zip(SUEWS_OUTPUT_NAMES.iter())
+        {
+            assert_eq!(actual, expected);
+        }
+
+        // Subsequent groups must follow `{group}_{idx}` matching OUTPUT_GROUP_LAYOUT.
+        let mut offset = OUTPUT_SUEWS_COLS;
+        for &(group, ncols) in &OUTPUT_GROUP_LAYOUT[1..] {
+            for (idx, actual) in names[offset..offset + ncols].iter().enumerate() {
+                assert_eq!(actual, &format!("{group}_{idx}"));
+            }
+            offset += ncols;
+        }
+        assert_eq!(offset, OUTPUT_ALL_COLS);
+
+        // Column names must be globally unique across all output groups.
+        let unique: HashSet<&str> = names.iter().map(String::as_str).collect();
+        assert_eq!(unique.len(), names.len());
+    }
+
+    #[test]
+    fn group_layout_metadata_matches_output_group_layout_and_total_width() {
+        let meta = group_layout_metadata();
+        assert_eq!(meta.len(), 1);
+        let encoded = meta
+            .get("group_layout")
+            .expect("group_layout metadata key must be present");
+
+        let parsed: Vec<(&str, usize)> = encoded
+            .split(',')
+            .map(|entry| {
+                let (name, width) = entry
+                    .split_once(':')
+                    .expect("each group_layout entry must have 'name:width' format");
+                let ncols: usize = width
+                    .parse()
+                    .expect("group width must be a valid unsigned integer");
+                (name, ncols)
+            })
+            .collect();
+
+        assert_eq!(parsed.as_slice(), OUTPUT_GROUP_LAYOUT);
+        let total_cols: usize = parsed.iter().map(|&(_, ncols)| ncols).sum();
+        assert_eq!(total_cols, OUTPUT_ALL_COLS);
+    }
+
+    #[test]
+    fn write_output_arrow_round_trips_values_schema_metadata_and_sentinels() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let output_dir = dir.path().join("nested_output");
+        let len_sim = 3;
+
+        // Distinct row-major values so any transpose/stride bug is caught immediately.
+        let mut output_block = Vec::with_capacity(len_sim * OUTPUT_ALL_COLS);
+        for row_idx in 0..len_sim {
+            for col_idx in 0..OUTPUT_ALL_COLS {
+                output_block.push(((row_idx + 1) * 10_000 + col_idx) as f64 + 0.25);
+            }
+        }
+
+        // Inject -999.0 sentinels and NaN values across SUEWS and non-SUEWS groups.
+        output_block[10] = -999.0; // row 0, QN
+        output_block[OUTPUT_ALL_COLS] = -999.0; // row 1, iy
+        output_block[2 * OUTPUT_ALL_COLS + (OUTPUT_ALL_COLS - 1)] = -999.0; // row 2, last col
+        output_block[5] = f64::NAN; // row 0, Kdown
+        output_block[OUTPUT_ALL_COLS + OUTPUT_SUEWS_COLS] = f64::NAN; // row 1, snow_0
+        output_block[2 * OUTPUT_ALL_COLS + (OUTPUT_SUEWS_COLS - 1)] = f64::NAN; // row 2, QS_Water
+        output_block[OUTPUT_ALL_COLS + (OUTPUT_SUEWS_COLS - 1)] = -123.456; // row 1, QS_Water
+
+        let out_path = write_output_arrow(&output_dir, &output_block, len_sim)
+            .expect("write_output_arrow should succeed");
+        assert_eq!(out_path, output_dir.join("suews_output.arrow"));
+        assert!(out_path.exists());
+
+        let file = File::open(&out_path).expect("open written Arrow IPC file");
+        let reader = FileReader::try_new(file, None).expect("parse Arrow IPC file");
+
+        let expected_names = build_all_column_names();
+        let schema = reader.schema();
+        assert_eq!(schema.fields().len(), OUTPUT_ALL_COLS);
+        for (field, expected_name) in schema.fields().iter().zip(expected_names.iter()) {
+            assert_eq!(field.name(), expected_name);
+            assert_eq!(field.data_type(), &DataType::Float64);
+            assert!(!field.is_nullable());
+        }
+        assert_eq!(schema.metadata(), &group_layout_metadata());
+
+        let batches: Vec<RecordBatch> = reader
+            .collect::<Result<_, _>>()
+            .expect("read all Arrow record batches");
+        assert_eq!(batches.len(), 1);
+        let batch = &batches[0];
+        assert_eq!(batch.num_rows(), len_sim);
+        assert_eq!(batch.num_columns(), OUTPUT_ALL_COLS);
+
+        for (col_idx, col) in batch.columns().iter().enumerate() {
+            let arr = col
+                .as_any()
+                .downcast_ref::<Float64Array>()
+                .expect("Arrow column should be Float64Array");
+            // Non-nullable float columns preserve -999.0 and NaN as literal values, not nulls.
+            assert_eq!(arr.null_count(), 0);
+            for (row_idx, row) in output_block.chunks_exact(OUTPUT_ALL_COLS).enumerate() {
+                let expected = row[col_idx];
+                let actual = arr.value(row_idx);
+                if expected.is_nan() {
+                    assert!(
+                        actual.is_nan(),
+                        "expected NaN at row {row_idx}, col {col_idx}, got {actual}"
+                    );
+                } else {
+                    assert_eq!(
+                        actual.to_bits(),
+                        expected.to_bits(),
+                        "value mismatch at row {row_idx}, col {col_idx}: expected {expected}, got {actual}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn write_output_arrow_supports_zero_rows() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let out_path = write_output_arrow(dir.path(), &[], 0)
+            .expect("write_output_arrow should support zero rows");
+
+        let file = File::open(&out_path).expect("open zero-row Arrow IPC file");
+        let reader = FileReader::try_new(file, None).expect("parse zero-row Arrow IPC file");
+        assert_eq!(reader.schema().fields().len(), OUTPUT_ALL_COLS);
+        assert_eq!(reader.schema().metadata(), &group_layout_metadata());
+
+        let batches: Vec<RecordBatch> = reader
+            .collect::<Result<_, _>>()
+            .expect("read zero-row Arrow batches");
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].num_rows(), 0);
+        assert_eq!(batches[0].num_columns(), OUTPUT_ALL_COLS);
+    }
+
+    #[test]
+    fn write_output_arrow_rejects_mismatched_buffer_length_and_overflow() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let missing_dir = dir.path().join("should_not_be_created");
+
+        let short_block = vec![0.0; OUTPUT_ALL_COLS - 1];
+        let err = write_output_arrow(&missing_dir, &short_block, 1)
+            .expect_err("too-short buffer must fail");
+        assert!(
+            err.contains("output block length mismatch"),
+            "unexpected error for short buffer: {err}"
+        );
+        assert!(!missing_dir.exists());
+
+        let long_block = vec![0.0; OUTPUT_ALL_COLS + 1];
+        let err = write_output_arrow(&missing_dir, &long_block, 1)
+            .expect_err("too-long buffer must fail");
+        assert!(
+            err.contains("output block length mismatch"),
+            "unexpected error for long buffer: {err}"
+        );
+        assert!(!missing_dir.exists());
+
+        let extra_for_zero = vec![0.0; OUTPUT_ALL_COLS];
+        let err = write_output_arrow(&missing_dir, &extra_for_zero, 0)
+            .expect_err("non-empty buffer for len_sim=0 must fail");
+        assert!(
+            err.contains("output block length mismatch"),
+            "unexpected error for zero-row mismatch: {err}"
+        );
+
+        let err = write_output_arrow(&missing_dir, &[], usize::MAX)
+            .expect_err("len_sim overflow must fail");
+        assert!(
+            err.contains("output length overflow"),
+            "unexpected error for overflow: {err}"
+        );
+        assert!(!missing_dir.exists());
+    }
 }

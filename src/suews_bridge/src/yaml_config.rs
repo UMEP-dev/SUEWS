@@ -85,7 +85,9 @@ pub struct RunConfig {
     pub site_scalars: SiteScalars,
     pub state: SuewsState,
     pub forcing_path: PathBuf,
-    pub output_dir: PathBuf,
+    // In-memory runs return buffers and need no output destination. File runs
+    // require this field before invoking the kernel.
+    pub output_dir: Option<PathBuf>,
     pub nlayer: i32,
     pub ndepth: i32,
 }
@@ -3291,13 +3293,14 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
         ForcingTimestampReference::Utc => 1,
     };
 
-    // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
-    // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
-    // user YAMLs at either schema parse pre-migration.
-    let output_dir = read_string(root, &["model", "control", "output", "dir"])
-        .or_else(|| read_string(root, &["model", "control", "output_file", "path"]))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("./output"));
+    // Source model dumps used by buffer-only library callers may omit the
+    // destination or retain None as null. Neither supplies a native default.
+    // Legacy output_file migration belongs to the Python data model.
+    let output_path = &["model", "control", "output", "dir"];
+    let output_dir = match get_path(root, output_path) {
+        None | Some(Value::Null) => None,
+        Some(_) => Some(PathBuf::from(require_string(root, output_path, "")?)),
+    };
 
     Ok(RunConfig {
         timer,
@@ -3319,6 +3322,13 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
         .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
     let mut root: Value =
         serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
+    // File execution writes output, unlike the buffer-only library routes.
+    // Validate before native initialisation or any filesystem output.
+    let output_dir = PathBuf::from(require_string(
+        &root,
+        &["model", "control", "output", "dir"],
+        "",
+    )?);
     let mut run_cfg = load_run_config_from_value(&mut root)?;
 
     let forcing_rel = read_forcing_rel(&root).ok_or_else(|| {
@@ -3334,9 +3344,11 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
     // Resolve output_dir relative to config file location
-    if run_cfg.output_dir.is_relative() {
-        run_cfg.output_dir = base_dir.join(&run_cfg.output_dir);
-    }
+    run_cfg.output_dir = Some(if output_dir.is_relative() {
+        base_dir.join(output_dir)
+    } else {
+        output_dir
+    });
 
     if !run_cfg.forcing_path.exists() {
         return Err(format!(
@@ -3411,6 +3423,58 @@ mod tests {
 
     fn sample_fixture_yaml() -> &'static str {
         include_str!("../../../test/fixtures/bridge/sample_resolved.yml")
+    }
+
+    #[test]
+    fn buffer_only_config_needs_no_output_destination() {
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        root["model"]["control"]["output"]
+            .as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("dir".to_string()));
+        root["model"]["control"]["output_file"] =
+            serde_yaml::from_str("{path: legacy}").unwrap();
+        assert!(load_run_config_from_value(&mut root.clone())
+            .unwrap()
+            .output_dir
+            .is_none());
+        root["model"]["control"]["output"]["dir"] = Value::Null;
+        assert!(load_run_config_from_value(&mut root)
+            .unwrap()
+            .output_dir
+            .is_none());
+    }
+
+    #[test]
+    fn file_output_destination_preserves_paths_and_canonical_precedence() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("forcing.txt"), "").unwrap();
+        let path = dir.path().join("resolved.yml");
+        let absolute = dir.path().join("absolute");
+        for supplied in [".", "specified", absolute.to_str().unwrap()] {
+            for wrapped in [false, true] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["control"]["forcing"]["file"] =
+                    Value::String("forcing.txt".to_string());
+                let value = Value::String(supplied.to_string());
+                root["model"]["control"]["output"]["dir"] = if wrapped {
+                    let mut map = serde_yaml::Mapping::new();
+                    map.insert(Value::String("value".to_string()), value);
+                    Value::Mapping(map)
+                } else {
+                    value
+                };
+                // Source migration already gives the canonical block precedence.
+                root["model"]["control"]["output_file"] =
+                    serde_yaml::from_str("{path: legacy}").unwrap();
+                fs::write(&path, serde_yaml::to_string(&root).unwrap()).unwrap();
+                let config = load_run_config(&path).unwrap();
+                assert_eq!(config.output_dir, Some(dir.path().join(supplied)));
+            }
+        }
+        assert!(!dir.path().join("specified").exists());
+        assert!(!absolute.exists());
+        assert!(!dir.path().join("legacy").exists());
     }
 
     fn get_path_mut<'a>(root: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> {

@@ -71,6 +71,10 @@ def read_yaml_file(file_path: Path) -> Tuple[dict, Optional[str]]:
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
+        if not isinstance(config, dict):
+            raise click.ClickException(
+                f"YAML file {file_path} must contain a mapping at top level"
+            )
         schema_version = config.get("schema_version")
         return config, schema_version
     except yaml.YAMLError as e:
@@ -269,6 +273,8 @@ def version(ctx, files, update, target_version, backup):
     if update:
         table.add_column("Action", style="yellow")
 
+    failures: List[Tuple[str, str]] = []
+
     for file_path in files:
         path = Path(file_path)
 
@@ -307,6 +313,7 @@ def version(ctx, files, update, target_version, backup):
                 table.add_row(path.name, current_version, status)
 
         except Exception as e:
+            failures.append((path.name, str(e)))
             if update:
                 table.add_row(path.name, "Error", f"[red]✗ {str(e)}[/red]", "Skipped")
             else:
@@ -314,6 +321,12 @@ def version(ctx, files, update, target_version, backup):
 
     if not quiet:
         console.print(table)
+
+    if failures:
+        if quiet:
+            for name, message in failures:
+                click.echo(f"{name}: {message}", err=True)
+        ctx.exit(1)
 
 
 @cli.command()
@@ -355,6 +368,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
 
     migrator = SchemaMigrator()
     results = []
+    failures: List[Tuple[str, str]] = []
 
     for file_path in track(files, description="Migrating...", disable=quiet):
         path = Path(file_path)
@@ -413,6 +427,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                 ))
 
         except Exception as e:
+            failures.append((path.name, str(e)))
             results.append((path.name, "Error", f"[red]✗ {str(e)}[/red]"))
 
     # Display results
@@ -426,6 +441,12 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
             table.add_row(name, migration, status)
 
         console.print(table)
+
+    if failures:
+        if quiet:
+            for name, message in failures:
+                click.echo(f"{name}: {message}", err=True)
+        ctx.exit(1)
 
 
 @cli.command()

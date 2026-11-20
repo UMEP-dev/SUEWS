@@ -220,17 +220,112 @@ def test_schema_version_update_no_backup(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("flag", [[], ["-b"], ["--no-backup"]])
-def test_schema_migrate_leaves_input_unchanged(tmp_path, flag) -> None:
-    """``migrate`` never rewrites its input; the legacy backup flag is inert."""
+def test_schema_migrate_leaves_input_unchanged(
+    tmp_path: Path, flag: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``migrate`` writes a migrated copy and leaves its input untouched."""
+    import yaml as _yaml
+    from supy.cmd import schema_cli
     from supy.cmd.suews_cli import cli
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
+    # ARRANGE: skip only the heavy post-write JSON Schema generation so the
+    # real SchemaMigrator and file I/O execute in milliseconds.
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
     config = tmp_path / "config.yml"
-    _write_old_config(config)
+    config.write_text("name: test\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
     original = config.read_text(encoding="utf-8")
 
+    # ACT
     result = CliRunner().invoke(cli, ["schema", "migrate", *flag, str(config)])
+
+    # ASSERT
     assert result.exit_code == 0, result.output
     assert config.read_text(encoding="utf-8") == original
+    migrated = tmp_path / "config.migrated.yml"
+    assert migrated.exists()
+    assert _yaml.safe_load(migrated.read_text(encoding="utf-8"))["schema_version"] == CURRENT_SCHEMA_VERSION
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("subcmd", ["version", "migrate"])
+def test_schema_subcommands_exit_nonzero_on_malformed_yaml(
+    tmp_path: Path, subcmd: str, quiet_flag: list[str]
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    bad = tmp_path / "bad.yml"
+    bad.write_text("name: [unterminated\n", encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", *quiet_flag, subcmd, str(bad)])
+
+    # ASSERT
+    assert result.exit_code != 0
+    assert "bad.yml" in result.output or "YAML" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+def test_schema_version_exits_nonzero_on_non_mapping_yaml(
+    tmp_path: Path, quiet_flag: list[str]
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    empty = tmp_path / "empty.yml"
+    empty.write_text("- item1\n- item2\n", encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", *quiet_flag, "version", str(empty)])
+
+    # ASSERT
+    assert result.exit_code != 0
+    assert "mapping" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+def test_schema_migrate_exits_nonzero_on_unsupported_migration_path(
+    tmp_path: Path, quiet_flag: list[str]
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    config = tmp_path / "unsupported.yml"
+    _write_old_config(config)
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", *quiet_flag, "migrate", str(config)])
+
+    # ASSERT
+    assert result.exit_code != 0
+    assert not (tmp_path / "unsupported.migrated.yml").exists()
+
+
+def test_schema_migrate_batch_exits_nonzero_when_any_file_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from supy.cmd import schema_cli
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
+    good = tmp_path / "good.yml"
+    good.write_text("name: good\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
+    bad = tmp_path / "bad.yml"
+    _write_old_config(bad)
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", "migrate", str(good), str(bad)])
+
+    # ASSERT
+    assert result.exit_code != 0
+    assert (tmp_path / "good.migrated.yml").exists()
+    assert not (tmp_path / "bad.migrated.yml").exists()
 
 
 # ---------------------------------------------------------------------------

@@ -78,6 +78,14 @@ The tool automatically detects the configuration format based on file extension:
 
 Resolved input is the caller contract: defaults belong in the data model, and callers must pass the engine a complete, resolved configuration. Enforcement of this contract at the engine boundary is still being completed; some omitted values can still retain legacy bridge fallbacks. Acceptance by the engine does not establish that an incomplete configuration is valid.
 
+The resolved ``model.control.forcing.timestamp_reference`` must explicitly contain
+``local_standard_time`` or ``utc`` (a bare string or a ``value`` wrapper).
+The engine rejects missing, null, malformed and unknown values with the full
+field path. The source configuration still defaults to ``local_standard_time``
+through the data model. If a saved resolved input lacks this field, regenerate
+it from the source configuration with the current SuPy data model; running the
+source through ``suews run`` or :class:`~supy.SUEWSSimulation` resolves it again.
+
 .. Maintainer tracking: engine-boundary enforcement remains in #1991/#2002.
 
 .. note::

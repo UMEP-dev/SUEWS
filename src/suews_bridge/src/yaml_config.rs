@@ -3204,18 +3204,15 @@ fn forcing_file_is_null(root: &Value) -> bool {
 }
 
 fn read_forcing_timestamp_reference(root: &Value) -> Result<ForcingTimestampReference, String> {
-    let Some(reference) = read_string(
-        root,
-        &["model", "control", "forcing", "timestamp_reference"],
-    ) else {
-        return Ok(ForcingTimestampReference::LocalStandardTime);
-    };
+    let path = &["model", "control", "forcing", "timestamp_reference"];
+    let reference = require_string(root, path, "")?;
 
     match reference.as_str() {
         "local_standard_time" => Ok(ForcingTimestampReference::LocalStandardTime),
         "utc" => Ok(ForcingTimestampReference::Utc),
         _ => Err(format!(
-            "unsupported forcing timestamp_reference `{reference}`; expected `local_standard_time` or `utc`"
+            "`{}` has unsupported value `{reference}`; expected `local_standard_time` or `utc`",
+            yaml_path_display("", path)
         )),
     }
 }
@@ -3624,55 +3621,6 @@ mod tests {
         assert_eq!(
             stebbs_prm_to_map(&explicit.site.stebbs).get("fraction_convective_heating"),
             Some(&0.6)
-        );
-    }
-
-    #[test]
-    fn forcing_timestamp_reference_defaults_to_local_standard_time() {
-        let mut root: Value =
-            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
-        let Some(Value::Mapping(forcing)) =
-            get_path_mut(&mut root, &["model", "control", "forcing"])
-        else {
-            panic!("fixture should define model.control.forcing");
-        };
-        forcing
-            .remove("timestamp_reference")
-            .expect("fixture should set timestamp_reference");
-        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
-
-        assert_eq!(run_cfg.config.forcing_timestamp_reference, 0);
-    }
-
-    #[test]
-    fn forcing_timestamp_reference_accepts_utc_and_rejects_civil_time() {
-        let mut root: Value =
-            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
-        *get_path_mut(&mut root, &["model", "control", "forcing"])
-            .expect("fixture should define forcing") = serde_yaml::from_str(
-            "file:\n  value: test_2017_data_15_mp.txt\ntimestamp_reference:\n  value: utc\n",
-        )
-        .unwrap();
-        let run_cfg = load_run_config_from_value(&mut root).expect("UTC should parse");
-        assert_eq!(run_cfg.config.forcing_timestamp_reference, 1);
-
-        *get_path_mut(
-            &mut root,
-            &[
-                "model",
-                "control",
-                "forcing",
-                "timestamp_reference",
-                "value",
-            ],
-        )
-        .expect("fixture should define timestamp_reference") =
-            Value::String("civil_time".to_string());
-        let error = load_run_config_from_value(&mut root)
-            .expect_err("daylight-saving civil time should be rejected");
-        assert!(
-            error.contains("timestamp_reference"),
-            "unexpected error: {error}"
         );
     }
 

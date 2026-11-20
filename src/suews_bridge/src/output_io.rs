@@ -134,7 +134,7 @@ pub fn write_output_arrow(
     let mut columns: Vec<Vec<f64>> = (0..OUTPUT_ALL_COLS)
         .map(|_| Vec::with_capacity(len_sim))
         .collect();
-    for row in output_block.chunks_exact(OUTPUT_ALL_COLS) {
+    for row in output_block.as_chunks::<OUTPUT_ALL_COLS>().0 {
         for (col, &val) in columns.iter_mut().zip(row) {
             col.push(val);
         }
@@ -294,7 +294,12 @@ mod tests {
                 .expect("Arrow column should be Float64Array");
             // Non-nullable float columns preserve -999.0 and NaN as literal values, not nulls.
             assert_eq!(arr.null_count(), 0);
-            for (row_idx, row) in output_block.chunks_exact(OUTPUT_ALL_COLS).enumerate() {
+            for (row_idx, row) in output_block
+                .as_chunks::<OUTPUT_ALL_COLS>()
+                .0
+                .iter()
+                .enumerate()
+            {
                 let expected = row[col_idx];
                 let actual = arr.value(row_idx);
                 if expected.is_nan() {

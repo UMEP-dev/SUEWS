@@ -135,6 +135,8 @@ which storage-heat and radiation methods use each property.
 For profile keys, day selection, normalisation and defaults, read
 :doc:`temporal-profiles`.
 
+If an older YAML contains ``to_soilstore: 0`` for paving or buildings, see
+:ref:`schema_dev12_water_routing` before comparing runoff with previous runs.
 For per-surface within-grid water routing (``waterdist``), read
 :ref:`waterdist_yaml_rules` and :doc:`config-reference/waterdistribution`. When
 a ``waterdist`` block is supplied for an active surface (``sfr > 0``), all

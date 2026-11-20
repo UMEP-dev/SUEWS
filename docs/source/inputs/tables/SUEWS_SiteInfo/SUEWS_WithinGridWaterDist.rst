@@ -65,4 +65,7 @@ In the table below, for example,
    the diagonal and in the unused terminal column. For YAML configurations
    (``sites[*].properties.land_cover.<surface>.waterdist``), see
    :ref:`waterdist_yaml_rules` and
-   :doc:`/inputs/yaml/config-reference/waterdistribution`.
+   :doc:`/inputs/yaml/config-reference/waterdistribution`. If a YAML converted
+   from this table retains the unused zero on paving or buildings,
+   :ref:`schema_dev12_water_routing` explains the effect on runoff and how to
+   compare an archived run.

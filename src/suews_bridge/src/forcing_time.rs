@@ -1,8 +1,20 @@
+//! Gregorian calendar and column-index utilities for standalone forcing I/O.
+//!
+//! Provides the four leading timestamp column indices (`iy`, `id`, `it`, `imin`)
+//! and signed-second conversions relative to an arbitrary `base_year`, used by
+//! `forcing_io` to detect timesteps and align interpolated forcing rows across
+//! year and leap-year boundaries.
+
+/// Zero-based column indices of the four timestamp fields in SUEWS forcing data.
 #[derive(Debug, Clone, Copy)]
 pub struct TimeColumns {
+    /// Year column index (`0`).
     pub iy: usize,
+    /// 1-based day-of-year column index (`1`).
     pub id: usize,
+    /// Hour-of-day column index (`2`).
     pub it: usize,
+    /// Minute-of-hour column index (`3`).
     pub imin: usize,
 }
 
@@ -13,8 +25,10 @@ impl Default for TimeColumns {
 }
 
 impl TimeColumns {
+    /// Number of leading calendar columns in a forcing row (`4`).
     pub const COUNT: usize = 4;
 
+    /// Construct the canonical `(0, 1, 2, 3)` timestamp column index mapping.
     pub const fn new() -> Self {
         Self {
             iy: 0,
@@ -25,13 +39,17 @@ impl TimeColumns {
     }
 }
 
+/// Canonical timestamp column indices for SUEWS forcing tables.
 pub const TIME_COLUMNS: TimeColumns = TimeColumns::new();
+/// Number of leading calendar columns (`iy`, `id`, `it`, `imin`).
 pub const TIME_COLUMN_COUNT: usize = TimeColumns::COUNT;
 
+/// Return `true` if `year` is a Gregorian leap year.
 pub fn is_leap_year(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
+/// Return the number of calendar days in `year` (`366` in a leap year, else `365`).
 pub fn days_in_year(year: i32) -> i64 {
     if is_leap_year(year) {
         366

@@ -1,3 +1,19 @@
+//! Composite site parameter container mirroring Fortran `SUEWS_SITE`.
+//!
+//! Aggregates the 18 site parameter member structs (`SUEWS_SITE_MEMBER_ORDER`):
+//! SPARTACUS, LUMPS, EHC, SPARTACUS layers, surface storage, irrigation,
+//! anthropogenic emissions, snow, conductance, all seven land-cover types,
+//! building archetype and STEBBS.
+//!
+//! During simulation (`sim.rs`), these 18 members are concatenated into one
+//! flat `[f64]` buffer accompanied by a table of contents (TOC) of `(offset,
+//! length)` pairs matching `SITE_MEMBER_*` in `sim.rs` and
+//! `SUEWS_CAPI_SITE_MEMBER_*` in `c_api/driver.f95`. Site-level scalars
+//! (`lat`, `z`, `z0m_in`, ...) travel separately in `sim::SiteScalars`.
+//!
+//! Supports both nested JSON payloads ([`CompositeCodec`]) and dotted flat
+//! maps (`"<member>.<field>"`) for inspection and testing.
+
 use crate::anthro_emis_prm::{
     anthro_emis_prm_default_from_fortran, anthro_emis_prm_from_map, anthro_emis_prm_to_map,
     AnthroEmisPrm,
@@ -59,6 +75,7 @@ use crate::surf_store::{
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
+/// Schema version for the composite [`SuewsSite`] container payload.
 pub const SUEWS_SITE_SCHEMA_VERSION: u32 = 1;
 
 const MEMBER_SPARTACUS: &str = "spartacus";
@@ -101,6 +118,7 @@ const SUEWS_SITE_MEMBER_ORDER: [&str; 18] = [
     MEMBER_STEBBS,
 ];
 
+/// Schema metadata describing the 18 members and dotted field list of [`SuewsSite`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SuewsSiteSchema {
     pub schema_version: u32,
@@ -109,12 +127,14 @@ pub struct SuewsSiteSchema {
     pub member_field_counts: BTreeMap<String, usize>,
 }
 
+/// Versioned nested map representation of a [`SuewsSite`] (`member -> field -> value`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsSiteValuesPayload {
     pub schema_version: u32,
     pub members: BTreeMap<String, BTreeMap<String, f64>>,
 }
 
+/// Composite parameter container holding all 18 bridged members of Fortran `SUEWS_SITE`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsSite {
     pub spartacus: SpartacusPrm,

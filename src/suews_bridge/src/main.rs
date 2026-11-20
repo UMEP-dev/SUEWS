@@ -131,7 +131,8 @@ use suews_bridge::{
 const RESOLVED_YAML_HINT: &str = "suews-engine is a developer and test binary: `suews-engine run` expects \
 resolved YAML, as `suews run` hands it to the engine. To run a hand-written \
 config, use `suews run <config>`, which validates and resolves it through the \
-SUEWS data model first.";
+SUEWS data model first. Resolved site properties require finite lat, lng, alt, \
+timezone, surfacearea and z. Use lng for site longitude.";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -788,6 +789,9 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
     let config_yaml = fs::read_to_string(&config_path)
         .map_err(|e| format!("failed to read config {}: {e}", config_path.display()))?;
     let run_cfg = load_run_config(&config_path).map_err(with_resolved_yaml_hint)?;
+    let output_dir = run_cfg.output_dir.as_deref().ok_or_else(|| {
+        with_resolved_yaml_hint("`model.control.output.dir` is missing".to_string())
+    })?;
     if run_cfg.config.smd_method != 0 {
         return Err("Observed soil moisture requires Python soil-content preparation; use SUEWSSimulation".into());
     }
@@ -814,7 +818,7 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
         );
     }
 
-    let output_path = write_output_arrow(&run_cfg.output_dir, &output_block, len_sim)?;
+    let output_path = write_output_arrow(output_dir, &output_block, len_sim)?;
 
     println!("simulation complete");
     println!("timesteps_processed={}", len_sim);

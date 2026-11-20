@@ -85,7 +85,9 @@ pub struct RunConfig {
     pub site_scalars: SiteScalars,
     pub state: SuewsState,
     pub forcing_path: PathBuf,
-    pub output_dir: PathBuf,
+    // In-memory runs return buffers and need no output destination. File runs
+    // require this field before invoking the kernel.
+    pub output_dir: Option<PathBuf>,
     pub nlayer: i32,
     pub ndepth: i32,
 }
@@ -3077,26 +3079,23 @@ fn apply_site_scalar_overrides(
     site_root: &Value,
     emissions_method: i32,
 ) -> Result<(), String> {
-    if let Some(v) = read_numeric(site_root, &["properties", "lat"]) {
-        site_scalars.lat = v;
+    // SiteProperties resolves these unconditionally, including valid zero
+    // coordinates, altitude and UTC offset. Defaults belong to that model.
+    let at = site_yaml_at(site_root);
+    // Check representation only: never read or choose the alias's value.
+    // Both source and resolved site input use the canonical longitude key.
+    if get_path(site_root, &["properties", "lon"]).is_some() {
+        return Err(format!(
+            "`{at}.properties.lon` is not a resolved field; use only \
+             `{at}.properties.lng` for longitude"
+        ));
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "lng"])
-        .or_else(|| read_numeric(site_root, &["properties", "lon"]))
-    {
-        site_scalars.lon = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "alt"]) {
-        site_scalars.alt = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "timezone"]) {
-        site_scalars.timezone = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "surfacearea"]) {
-        site_scalars.surfacearea = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "z"]) {
-        site_scalars.z = v;
-    }
+    site_scalars.lat = require_numeric(site_root, &["properties", "lat"], &at)?;
+    site_scalars.lon = require_numeric(site_root, &["properties", "lng"], &at)?;
+    site_scalars.alt = require_numeric(site_root, &["properties", "alt"], &at)?;
+    site_scalars.timezone = require_numeric(site_root, &["properties", "timezone"], &at)?;
+    site_scalars.surfacearea = require_numeric(site_root, &["properties", "surfacearea"], &at)?;
+    site_scalars.z = require_numeric(site_root, &["properties", "z"], &at)?;
     if let Some(v) = read_numeric(site_root, &["properties", "z0m_in"]) {
         site_scalars.z0m_in = v;
     }
@@ -3294,13 +3293,14 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
         ForcingTimestampReference::Utc => 1,
     };
 
-    // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
-    // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
-    // user YAMLs at either schema parse pre-migration.
-    let output_dir = read_string(root, &["model", "control", "output", "dir"])
-        .or_else(|| read_string(root, &["model", "control", "output_file", "path"]))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("./output"));
+    // Source model dumps used by buffer-only library callers may omit the
+    // destination or retain None as null. Neither supplies a native default.
+    // Legacy output_file migration belongs to the Python data model.
+    let output_path = &["model", "control", "output", "dir"];
+    let output_dir = match get_path(root, output_path) {
+        None | Some(Value::Null) => None,
+        Some(_) => Some(PathBuf::from(require_string(root, output_path, "")?)),
+    };
 
     Ok(RunConfig {
         timer,
@@ -3322,6 +3322,13 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
         .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
     let mut root: Value =
         serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
+    // File execution writes output, unlike the buffer-only library routes.
+    // Validate before native initialisation or any filesystem output.
+    let output_dir = PathBuf::from(require_string(
+        &root,
+        &["model", "control", "output", "dir"],
+        "",
+    )?);
     let mut run_cfg = load_run_config_from_value(&mut root)?;
 
     let forcing_rel = read_forcing_rel(&root).ok_or_else(|| {
@@ -3337,9 +3344,11 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
     // Resolve output_dir relative to config file location
-    if run_cfg.output_dir.is_relative() {
-        run_cfg.output_dir = base_dir.join(&run_cfg.output_dir);
-    }
+    run_cfg.output_dir = Some(if output_dir.is_relative() {
+        base_dir.join(output_dir)
+    } else {
+        output_dir
+    });
 
     if !run_cfg.forcing_path.exists() {
         return Err(format!(
@@ -3416,6 +3425,58 @@ mod tests {
         include_str!("../../../test/fixtures/bridge/sample_resolved.yml")
     }
 
+    #[test]
+    fn buffer_only_config_needs_no_output_destination() {
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        root["model"]["control"]["output"]
+            .as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("dir".to_string()));
+        root["model"]["control"]["output_file"] =
+            serde_yaml::from_str("{path: legacy}").unwrap();
+        assert!(load_run_config_from_value(&mut root.clone())
+            .unwrap()
+            .output_dir
+            .is_none());
+        root["model"]["control"]["output"]["dir"] = Value::Null;
+        assert!(load_run_config_from_value(&mut root)
+            .unwrap()
+            .output_dir
+            .is_none());
+    }
+
+    #[test]
+    fn file_output_destination_preserves_paths_and_canonical_precedence() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("forcing.txt"), "").unwrap();
+        let path = dir.path().join("resolved.yml");
+        let absolute = dir.path().join("absolute");
+        for supplied in [".", "specified", absolute.to_str().unwrap()] {
+            for wrapped in [false, true] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["control"]["forcing"]["file"] =
+                    Value::String("forcing.txt".to_string());
+                let value = Value::String(supplied.to_string());
+                root["model"]["control"]["output"]["dir"] = if wrapped {
+                    let mut map = serde_yaml::Mapping::new();
+                    map.insert(Value::String("value".to_string()), value);
+                    Value::Mapping(map)
+                } else {
+                    value
+                };
+                // Source migration already gives the canonical block precedence.
+                root["model"]["control"]["output_file"] =
+                    serde_yaml::from_str("{path: legacy}").unwrap();
+                fs::write(&path, serde_yaml::to_string(&root).unwrap()).unwrap();
+                let config = load_run_config(&path).unwrap();
+                assert_eq!(config.output_dir, Some(dir.path().join(supplied)));
+            }
+        }
+        assert!(!dir.path().join("specified").exists());
+        assert!(!absolute.exists());
+        assert!(!dir.path().join("legacy").exists());
+    }
+
     fn get_path_mut<'a>(root: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> {
         let mut current = root;
         for key in path {
@@ -3431,6 +3492,146 @@ mod tests {
         match get_path_mut(root, &["sites"])? {
             Value::Sequence(items) => items.get_mut(0),
             _ => None,
+        }
+    }
+
+    const REQUIRED_SITE_COORDINATES: [&str; 6] = ["lat", "lng", "alt", "timezone", "z", "surfacearea"];
+
+    #[test]
+    fn resolved_site_coordinates_preserve_bare_and_wrapped_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        // The path reader also checks the genuine relative forcing resource.
+        fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../supy/sample_data/Kc_2012_data_60.txt"),
+            dir.path().join("Kc_2012_data_60.txt"),
+        )
+        .unwrap();
+        for wrapped in [false, true] {
+            for values in [
+                [0.0, 0.0, 0.0, 0.0, 17.0, 23456.0],
+                [-23.5, 142.75, 123.0, 5.5, 29.0, 34567.0],
+            ] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                let props = &mut first_site_mut(&mut root).unwrap()["properties"];
+                for (field, value) in REQUIRED_SITE_COORDINATES.iter().zip(values) {
+                    props[*field] = if wrapped {
+                        serde_yaml::from_str(&format!("{{value: {value}}}")).unwrap()
+                    } else {
+                        Value::from(value)
+                    };
+                }
+                let yaml = serde_yaml::to_string(&root).unwrap();
+                fs::write(&path, &yaml).unwrap();
+                for (reader, result) in [
+                    ("value", load_run_config_from_value(&mut root)),
+                    ("string", load_run_config_from_str(&yaml)),
+                    ("file", load_run_config(&path)),
+                ] {
+                    let sc = result.expect(reader).site_scalars;
+                    assert_eq!(
+                        [sc.lat, sc.lon, sc.alt, sc.timezone, sc.z, sc.surfacearea],
+                        values
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resolved_site_coordinates_reject_invalid_values_at_public_readers() {
+        let invalid = [
+            None,
+            Some("null"),
+            Some("{value: null}"),
+            Some("wrong"),
+            Some("{value: wrong}"),
+            Some("[1, 2]"),
+            Some("{unexpected: 1}"),
+            Some("{value: {value: 1}}"),
+            Some("{ref: citation}"),
+            Some(".nan"),
+            Some(".inf"),
+            Some("-.inf"),
+            Some("{value: .nan}"),
+            Some("{value: .inf}"),
+            Some("{value: -.inf}"),
+        ];
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        for field in REQUIRED_SITE_COORDINATES {
+            for input in invalid {
+                // Match _run_rust._grid_config_jsons: the later site is
+                // passed alone, retaining its gridiv rather than its index.
+                for gridiv in [None, Some(27)] {
+                    let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                    let first = first_site_mut(&mut root).unwrap().clone();
+                    root["sites"].as_sequence_mut().unwrap().push(first);
+                    let mut later = root["sites"][1].clone();
+                    later.as_mapping_mut().unwrap().remove("gridiv");
+                    if let Some(id) = gridiv {
+                        later["gridiv"] = Value::from(id);
+                    }
+                    let props = later["properties"].as_mapping_mut().unwrap();
+                    props.remove(field);
+                    if let Some(yaml) = input {
+                        props.insert(Value::from(field), serde_yaml::from_str(yaml).unwrap());
+                    }
+                    root["sites"] = Value::Sequence(vec![later]);
+                    let at = if gridiv.is_some() {
+                        "sites[gridiv=27]"
+                    } else {
+                        "sites[0]"
+                    };
+                    let expected = format!("`{at}.properties.{field}`");
+                    let yaml = serde_yaml::to_string(&root).unwrap();
+                    fs::write(&path, &yaml).unwrap();
+                    for result in [
+                        load_run_config_from_value(&mut root),
+                        load_run_config_from_str(&yaml),
+                        load_run_config(&path),
+                    ] {
+                        let error = result.expect_err("invalid resolved coordinate must fail");
+                        assert!(error.contains(&expected), "{field} {input:?}: {error}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resolved_site_longitude_rejects_alias_and_ambiguous_input() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        for canonical in [None, Some("null"), Some("0"), Some("23.5")] {
+            for alias in ["null", "0", "23.5"] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                let props = first_site_mut(&mut root).unwrap()["properties"]
+                    .as_mapping_mut()
+                    .unwrap();
+                props.remove("lng");
+                if let Some(value) = canonical {
+                    props.insert(Value::from("lng"), serde_yaml::from_str(value).unwrap());
+                }
+                props.insert(Value::from("lon"), serde_yaml::from_str(alias).unwrap());
+                let yaml = serde_yaml::to_string(&root).unwrap();
+                fs::write(&path, &yaml).unwrap();
+                for result in [
+                    load_run_config_from_value(&mut root),
+                    load_run_config_from_str(&yaml),
+                    load_run_config(&path),
+                ] {
+                    let error = result.expect_err("resolved site input must use lng");
+                    assert!(
+                        error.contains("`sites[gridiv=1].properties.lon`"),
+                        "{canonical:?}/{alias}: {error}"
+                    );
+                    assert!(
+                        error.contains("use only `sites[gridiv=1].properties.lng`"),
+                        "{canonical:?}/{alias}: {error}"
+                    );
+                }
+            }
         }
     }
 
@@ -4337,27 +4538,17 @@ mod tests {
     }
 
     #[test]
-    fn optional_non_finite_scalar_reaches_the_struct() {
-        for (number, expected) in [
-            (".nan", f64::NAN),
-            (".inf", f64::INFINITY),
-            ("-.inf", f64::NEG_INFINITY),
-        ] {
+    fn non_finite_measurement_height_is_rejected_before_site_scalars() {
+        for number in [".nan", ".inf", "-.inf"] {
             for value in [number.to_string(), format!("{{value: {number}}}")] {
                 let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
                 let site = first_site_mut(&mut root).unwrap();
                 *get_path_mut(site, &["properties", "z"]).unwrap() =
                     serde_yaml::from_str(&value).unwrap();
-                let run = load_run_config_from_value(&mut root).expect(&value);
-                if expected.is_nan() {
-                    assert!(
-                        run.site_scalars.z.is_nan(),
-                        "{value}: {}",
-                        run.site_scalars.z
-                    );
-                } else {
-                    assert_eq!(run.site_scalars.z, expected, "{value}");
-                }
+                let error = load_run_config_from_value(&mut root)
+                    .expect_err("measurement height must be finite");
+                assert!(error.contains("sites[gridiv=1].properties.z"), "{value}: {error}");
+                assert!(error.contains("is non-finite"), "{value}: {error}");
             }
         }
     }

@@ -17,6 +17,8 @@ import sys
 BUILD_PROFILES = ("release", "checked")
 DEFAULT_BUILD_PROFILE = "release"
 BUILD_PROFILE_ENV = "SUEWS_BUILD_PROFILE"
+INIT_REAL_ENV = "SUEWS_INIT_REAL"
+DEFAULT_INIT_REAL = "zero"
 MAKE_JOBS_ENV = "SUEWS_MAKE_JOBS"
 # Cap on the default job count. The module dependency graph is mostly a
 # chain (types -> utilities -> physics -> driver), so jobs beyond this add
@@ -126,30 +128,52 @@ def _run_make(
 
 
 _EXT_LIB_SOURCE_SUFFIXES = {".f90", ".f95", ".f", ".c", ".h", ".inc", ".mk"}
-_MAKE_ENV_KEYS = ("PROFILE", "SINGLE_PRECISION", "NETCDF4")
+# Compile-flag environment variables read by src/suews/Makefile* together with
+# their effective default when unset (matching Makefile.gfortran's `?=` rules).
+_MAKE_ENV_DEFAULTS: dict[str, str] = {
+    "PROFILE": "",
+    "SINGLE_PRECISION": "",
+    "NETCDF4": "",
+    INIT_REAL_ENV: DEFAULT_INIT_REAL,
+}
+_MAKE_ENV_KEYS = tuple(_MAKE_ENV_DEFAULTS)
+_IGNORED_BUILD_CONFIG_NAMES = frozenset({"Makefile.deps"})
+_IGNORED_EXT_LIB_DIRS = frozenset({"doc", "docs", "test", "tests"})
 _BUILD_ARTIFACT_PATTERNS = ("*.o", "*.mod", "lib*.a")
 BUILD_FINGERPRINT_FILENAME = ".suews_build_fingerprint"
 BUILD_LOCK_FILENAME = ".suews_build.lock"
 
 
 def _is_build_config_file(path: Path) -> bool:
-    """Return True if ``path`` is a Makefile or included ``.mk`` fragment."""
-    return path.is_file() and (
-        path.name.startswith("Makefile") or path.suffix.lower() == ".mk"
-    )
+    """Return True if ``path`` is a build Makefile or included ``.mk`` fragment.
+
+    Excludes ``Makefile.deps`` (module dependency edges only; GNU Make rebuilds
+    affected targets incrementally without wiping all compiled objects).
+    """
+    if not path.is_file() or path.name in _IGNORED_BUILD_CONFIG_NAMES:
+        return False
+    return path.name.startswith("Makefile") or path.suffix.lower() == ".mk"
 
 
 def collect_build_config_files(suews_dir: Path) -> list[Path]:
-    """Return sorted Makefile and build-configuration files under ``suews_dir``."""
+    """Return sorted build-configuration Makefiles under ``suews_dir``.
+
+    Excludes ``Makefile.deps`` (dependency edges handled incrementally by Make)
+    and unused documentation/test Makefiles under ``ext_lib``.
+    """
     config_files: list[Path] = [
         path for path in suews_dir.iterdir() if _is_build_config_file(path)
     ]
 
     ext_lib_dir = suews_dir / "ext_lib"
     if ext_lib_dir.is_dir():
-        config_files.extend(
-            path for path in ext_lib_dir.rglob("*") if _is_build_config_file(path)
-        )
+        for path in ext_lib_dir.rglob("*"):
+            if not _is_build_config_file(path):
+                continue
+            rel_parent_parts = path.relative_to(ext_lib_dir).parent.parts
+            if any(part in _IGNORED_EXT_LIB_DIRS for part in rel_parent_parts):
+                continue
+            config_files.append(path)
 
     return sorted(
         config_files,
@@ -173,11 +197,14 @@ def compute_build_fingerprint(
         ]
         for path in collect_build_config_files(suews_dir)
     ]
+    make_env = {
+        key: source_env.get(key, default) for key, default in _MAKE_ENV_DEFAULTS.items()
+    }
     payload = {
         "fc": fc or "",
         "profile": profile,
         "profile_args": list(profile_args),
-        "make_env": {key: source_env.get(key, "") for key in _MAKE_ENV_KEYS},
+        "make_env": make_env,
         "files": file_hashes,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")

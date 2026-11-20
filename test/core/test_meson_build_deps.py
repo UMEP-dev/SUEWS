@@ -182,13 +182,25 @@ def test_run_make_collect_build_config_files_covers_makefiles() -> None:
     # ASSERT
     for required in (
         "Makefile",
-        "Makefile.deps",
         "Makefile.gfortran",
         "Makefile.ifort",
         "ext_lib/spartacus-surface/Makefile",
         "ext_lib/spartacus-surface/Makefile_include.gfortran",
     ):
         assert required in rel_paths, f"Missing build config input: {required}"
+    for excluded in (
+        "Makefile.deps",
+        "ext_lib/spartacus-surface/doc/Makefile",
+        "ext_lib/spartacus-surface/test/urban/Makefile",
+    ):
+        assert (suews_dir / excluded).is_file(), f"Expected fixture file {excluded}"
+        assert excluded not in rel_paths, (
+            f"Non-build Makefile should not be hashed: {excluded}"
+        )
+    assert not any(
+        any(part in {"doc", "docs", "test", "tests"} for part in Path(p).parts)
+        for p in rel_paths
+    ), f"Unused doc/test Makefiles should not be hashed: {sorted(rel_paths)}"
 
 
 def _make_synthetic_suews_tree(root: Path) -> Path:
@@ -249,6 +261,15 @@ def test_run_make_fingerprint_tracks_flags_compiler_profile_and_makefiles(
         environ={"SINGLE_PRECISION": "1"},
     )
 
+    # ACT: routine Makefile.deps edge updates must not invalidate all objects
+    (suews_dir / "Makefile.deps").write_text(
+        "src/suews_phys_lai.o: src/suews_ctrl_const.o src/suews_type_surface.o\n",
+        encoding="utf-8",
+    )
+    fp_deps_change = helper.compute_build_fingerprint(
+        suews_dir, fc=None, profile="release", profile_args=["DEBUG="], environ=base_env
+    )
+
     (suews_dir / "Makefile.gfortran").write_text("OPTFLAGS = -O0\n", encoding="utf-8")
     fp_opt_change = helper.compute_build_fingerprint(
         suews_dir, fc=None, profile="release", profile_args=["DEBUG="], environ=base_env
@@ -263,6 +284,7 @@ def test_run_make_fingerprint_tracks_flags_compiler_profile_and_makefiles(
 
     # ASSERT
     assert fp_base == fp_repeat
+    assert fp_deps_change == fp_base
     assert len({fp_base, fp_checked, fp_fc, fp_env, fp_opt_change, fp_ext_change}) == 6
 
 
@@ -375,3 +397,93 @@ def test_gitignore_and_makefile_handle_shared_suews_build_state() -> None:
     assert "src/suews/.suews_build_fingerprint" in gitignore
     assert "src/suews/.suews_build.lock" in gitignore
     assert "rm -f .suews_build_fingerprint" in makefile
+
+
+def test_run_make_fingerprint_tracks_init_real_mode_with_zero_default(
+    tmp_path: Path,
+) -> None:
+    # ARRANGE
+    helper = _load_helper("suews_run_make", "src/supy/run_make.py")
+    suews_dir = _make_synthetic_suews_tree(tmp_path)
+    obj = suews_dir / "src" / "suews_phys_resist.o"
+    obj.write_bytes(b"zero-obj")
+
+    # ACT: unset and explicit "zero" share one fingerprint; "snan" diverges
+    fp_unset = helper.compute_build_fingerprint(
+        suews_dir, fc=None, profile="release", profile_args=["DEBUG="], environ={}
+    )
+    fp_zero = helper.compute_build_fingerprint(
+        suews_dir,
+        fc=None,
+        profile="release",
+        profile_args=["DEBUG="],
+        environ={"SUEWS_INIT_REAL": "zero"},
+    )
+    fp_snan = helper.compute_build_fingerprint(
+        suews_dir,
+        fc=None,
+        profile="release",
+        profile_args=["DEBUG="],
+        environ={"SUEWS_INIT_REAL": "snan"},
+    )
+    fp_empty = helper.compute_build_fingerprint(
+        suews_dir,
+        fc=None,
+        profile="release",
+        profile_args=["DEBUG="],
+        environ={"SUEWS_INIT_REAL": ""},
+    )
+
+    helper.write_build_fingerprint(suews_dir, fp_zero)
+    removed_unset = helper.invalidate_stale_artifacts(suews_dir, fp_unset)
+    removed_to_snan = helper.invalidate_stale_artifacts(suews_dir, fp_snan)
+    obj.write_bytes(b"snan-obj")
+    helper.write_build_fingerprint(suews_dir, fp_snan)
+    removed_to_zero = helper.invalidate_stale_artifacts(suews_dir, fp_zero)
+
+    # ASSERT
+    assert fp_unset == fp_zero
+    assert fp_snan != fp_zero
+    assert fp_empty != fp_zero
+    assert removed_unset == []
+    assert removed_to_snan == [obj]
+    assert removed_to_zero == [obj]
+
+
+def test_run_make_tracks_all_makefile_conditional_assign_vars() -> None:
+    # ARRANGE: parse every top-level `VAR ?= <default>` in the SUEWS Makefiles
+    helper = _load_helper("suews_run_make", "src/supy/run_make.py")
+    suews_dir = REPO_ROOT / "src" / "suews"
+    profile_arg_vars = {
+        arg.split("=", 1)[0]
+        for profile in helper.BUILD_PROFILES
+        for arg in helper.make_args_for_profile(profile)
+        if "=" in arg
+    }
+    discovered: dict[str, str] = {}
+    for name in ("Makefile", "Makefile.gfortran", "Makefile.ifort"):
+        text = (suews_dir / name).read_text(encoding="utf-8")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            match = re.match(r"^([A-Z][A-Z0-9_]*)\s*\?=\s*(.*?)\s*(?:#.*)?$", stripped)
+            if match is not None:
+                discovered[match.group(1)] = match.group(2)
+
+    # ACT: every ?= variable must be overridden via profile_args or tracked in _MAKE_ENV_KEYS
+    tracked_env_keys = set(helper._MAKE_ENV_KEYS)
+    untracked = sorted(
+        var
+        for var in discovered
+        if var not in profile_arg_vars and var not in tracked_env_keys
+    )
+
+    # ASSERT
+    assert "SUEWS_INIT_REAL" in discovered
+    assert "SUEWS_INIT_REAL" in tracked_env_keys
+    assert helper._MAKE_ENV_DEFAULTS["SUEWS_INIT_REAL"] == discovered["SUEWS_INIT_REAL"]
+    assert not untracked, (
+        "SUEWS Makefile `?=` variables missing from run_make._MAKE_ENV_KEYS: "
+        f"{untracked}"
+    )

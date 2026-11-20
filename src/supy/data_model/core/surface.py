@@ -443,9 +443,11 @@ class SurfaceProperties(DataModelBase):
                 if value is not None:
                     value = value.value if isinstance(value, RefValue) else value
                 else:
-                    # Default values for None surface parameters
+                    # Preserve missing soil_store_capacity prospectively via NaN
+                    # rather than fabricating 150.0 mm across to_df_state() ->
+                    # from_df_state() round-trips (gh#2099).
                     defaults = {
-                        "soil_store_capacity": 150.0,
+                        "soil_store_capacity": float("nan"),
                     }
                     value = defaults.get(field_name, 0.0)
                 cols[(f"{col_name}_surf", f"({surf_idx},)")] = value
@@ -470,10 +472,12 @@ class SurfaceProperties(DataModelBase):
                 if value is not None:
                     value = value.value if isinstance(value, RefValue) else value
                 else:
-                    # Default values for None surface parameters
+                    # Preserve missing soil_depth and saturated_hydraulic_conductivity
+                    # prospectively via NaN rather than fabricating 150.0 / 0.0001
+                    # across to_df_state() -> from_df_state() round-trips (gh#2099).
                     defaults = {
-                        "soil_depth": 150.0,
-                        "saturated_hydraulic_conductivity": 0.0001,
+                        "soil_depth": float("nan"),
+                        "saturated_hydraulic_conductivity": float("nan"),
                         "soil_density": -999.0,
                     }
                     value = defaults.get(field_name, 0.0)
@@ -566,7 +570,10 @@ class SurfaceProperties(DataModelBase):
                 property_values[field_name] = RefValue(value)
             elif col_name in ["sfr", "soilstorecap", "statelimit", "wetthresh"]:
                 value = df.loc[grid_id, (f"{col_name}_surf", f"({surf_idx},)")]
-                property_values[field_name] = RefValue(value)
+                if col_name == "soilstorecap" and pd.isna(value):
+                    property_values[field_name] = None
+                else:
+                    property_values[field_name] = RefValue(value)
             elif col_name == "rho_cp_anohm":  # Moved to cp in df_state
                 value = df.loc[grid_id, ("cpanohm", f"({surf_idx},)")]
                 property_values[field_name] = RefValue(value)
@@ -581,7 +588,12 @@ class SurfaceProperties(DataModelBase):
                 col_key = (col_name, f"({surf_idx},)")
                 if col_key in df.columns:
                     value = df.loc[grid_id, col_key]
-                    property_values[field_name] = RefValue(value)
+                    if col_name in ("soildepth", "sathydraulicconduct") and pd.isna(
+                        value
+                    ):
+                        property_values[field_name] = None
+                    else:
+                        property_values[field_name] = RefValue(value)
                 else:
                     # Column doesn't exist - skip if optional, raise if required
                     field_info = cls.model_fields.get(field_name)

@@ -6,10 +6,19 @@ Parses the JUnit XML written by ``pytest -m physics`` under a no-trap
 non-finite values, writes an ASCII Markdown summary for ``$GITHUB_STEP_SUMMARY``
 (and report artefacts), and optionally emits GitHub Actions warning annotations.
 
-Exits 1 if the JUnit XML is missing, malformed, or recorded zero tests (so a
-broken build or aborted pytest run never reads as clean). When tests ran to
-completion, exits 0 in advisory pilot mode and 1 if ``--strict`` is passed with
-any failure or error.
+Always exits 1 (even in default advisory pilot mode) if:
+
+- the JUnit XML is missing, malformed, or recorded zero tests;
+- zero non-skipped test bodies executed (for example an all-skipped run or a
+  collection/import error before any test ran);
+- any JUnit ``<error>`` represents a collection failure; or
+- ``--pytest-exit-code`` is outside ``{0, 1}`` (pytest exit codes 2, 3, 4, 5,
+  or signal exits such as SIGSEGV/SIGFPE).
+
+When at least one test body executed cleanly and pytest exited with ``0`` or
+``1``, exits 0 in advisory pilot mode (so known Wave 4 physics failures such as
+``#2105`` stay non-blocking) and exits 1 if ``--strict`` is passed with any
+failure or error.
 """
 
 from __future__ import annotations
@@ -25,6 +34,7 @@ _NAN_SIGNAL_RE = re.compile(
     r"\b(?:nan|snan|qnan|non-finite|not finite|isfinite)\b|code 110",
     re.I,
 )
+_COLLECTION_ERROR_RE = re.compile(r"collection failure", re.I)
 
 
 @dataclass(frozen=True)
@@ -34,6 +44,7 @@ class FailedCase:
     node: str
     kind: str
     nan_related: bool
+    is_collection_error: bool
     summary: str
 
 
@@ -51,8 +62,13 @@ class SuiteSummary:
 
     @property
     def executed(self) -> int:
-        """Number of non-skipped tests that actually executed."""
-        return self.passed + self.failures + self.errors
+        """Number of non-skipped test bodies that actually ran."""
+        return self.passed + self.failures
+
+    @property
+    def has_collection_error(self) -> bool:
+        """Whether any recorded JUnit error represents a pytest collection failure."""
+        return any(case.is_collection_error for case in self.failed_cases)
 
 
 def _first_line(text: str, limit: int = 200) -> str:
@@ -74,15 +90,20 @@ def _extract_failed_cases(suite: ET.Element) -> list[FailedCase]:
             if element is None:
                 continue
             classname = case.attrib.get("classname", "")
-            name = case.attrib.get("name", "<unknown>")
+            raw_name = case.attrib.get("name", "")
+            name = raw_name or "<collection>"
             node = f"{classname}::{name}" if classname else name
             message = element.attrib.get("message", "")
             body = element.text or ""
+            is_collection = tag == "error" and (
+                not raw_name or bool(_COLLECTION_ERROR_RE.search(message))
+            )
             cases.append(
                 FailedCase(
                     node=node,
                     kind=tag,
                     nan_related=bool(_NAN_SIGNAL_RE.search(f"{message}\n{body}")),
+                    is_collection_error=is_collection,
                     summary=_first_line(message or body),
                 )
             )
@@ -129,6 +150,7 @@ def render_markdown(
     *,
     compiler: str = "",
     build_profile: str = "release",
+    pytest_exit_code: int | None = None,
 ) -> str:
     """Render an ASCII Markdown report suitable for ``$GITHUB_STEP_SUMMARY``."""
     nan_count = sum(1 for case in summary.failed_cases if case.nan_related)
@@ -139,9 +161,11 @@ def render_markdown(
     ]
     if compiler:
         lines.append(f"- **Compiler:** `{compiler}`")
+    if pytest_exit_code is not None:
+        lines.append(f"- **Pytest exit code:** `{pytest_exit_code}`")
     lines.extend([
         (
-            f"- **Results:** {summary.tests} tests -> "
+            f"- **Results:** {summary.tests} recorded -> "
             f"{summary.passed} passed, {summary.failures} failed, "
             f"{summary.errors} errors, {summary.skipped} skipped/xfailed "
             f"({summary.elapsed_s:.1f}s)"
@@ -178,8 +202,32 @@ def render_markdown(
     return "\n".join(lines) + "\n"
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Parse JUnit XML, write summary Markdown, and apply optional strict gate."""
+def _evaluate_hard_failure(
+    summary: SuiteSummary,
+    xml_path: Path,
+    pytest_exit_code: int | None,
+) -> str | None:
+    """Return an error reason if the run must fail hard even in advisory mode."""
+    if pytest_exit_code is not None and pytest_exit_code not in {0, 1}:
+        return (
+            f"pytest exited abnormally with code {pytest_exit_code} "
+            "(only 0 or 1 is admissible in advisory mode)"
+        )
+    if summary.tests == 0:
+        return f"JUnit XML {xml_path} recorded zero tests"
+    if summary.has_collection_error:
+        return f"pytest reported collection error(s) in {xml_path}"
+    if summary.executed == 0:
+        return (
+            f"No physics tests executed in {xml_path} "
+            f"({summary.tests} recorded, {summary.errors} errors, "
+            f"{summary.skipped} skipped/xfailed)"
+        )
+    return None
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Create the CLI argument parser."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("junit_xml", help="path to pytest JUnit XML file")
     parser.add_argument(
@@ -198,6 +246,12 @@ def main(argv: list[str] | None = None) -> int:
         "--build-profile", default="release", help="SUEWS_BUILD_PROFILE used"
     )
     parser.add_argument(
+        "--pytest-exit-code",
+        type=int,
+        default=None,
+        help="raw exit code returned by pytest (non-0/1 always fails hard)",
+    )
+    parser.add_argument(
         "--github-annotations",
         action="store_true",
         help="emit GitHub Actions ::warning annotations for each failure",
@@ -207,7 +261,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="exit 1 if any test failed or errored",
     )
-    args = parser.parse_args(sys.argv[1:] if argv is None else argv[1:])
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Parse JUnit XML, write summary Markdown, and apply hard/strict gates."""
+    args = _build_parser().parse_args(sys.argv[1:] if argv is None else argv[1:])
 
     xml_path = Path(args.junit_xml)
     if not xml_path.is_file():
@@ -220,22 +279,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[X] failed to parse {xml_path}: {exc}", file=sys.stderr)
         return 1
 
-    if summary.tests == 0:
-        print(f"[X] JUnit XML {xml_path} recorded zero tests", file=sys.stderr)
-        return 1
-
-    if summary.executed == 0:
-        print(
-            f"[X] No physics tests executed in {xml_path} "
-            f"({summary.tests} recorded, {summary.skipped} skipped/xfailed)",
-            file=sys.stderr,
-        )
-        return 1
-
     markdown = render_markdown(
         summary,
         compiler=args.compiler,
         build_profile=args.build_profile,
+        pytest_exit_code=args.pytest_exit_code,
     )
     print(markdown, end="")
 
@@ -255,6 +303,11 @@ def main(argv: list[str] | None = None) -> int:
                 f"::warning title=Fortran sNaN pilot ({tag})::"
                 f"{case.node}: {case.summary}"
             )
+
+    hard_failure = _evaluate_hard_failure(summary, xml_path, args.pytest_exit_code)
+    if hard_failure is not None:
+        print(f"[X] {hard_failure}", file=sys.stderr)
+        return 1
 
     if args.strict and (summary.failures > 0 or summary.errors > 0):
         return 1

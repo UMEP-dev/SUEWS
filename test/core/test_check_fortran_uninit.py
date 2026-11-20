@@ -650,6 +650,8 @@ def test_summarise_snan_report_flags_nan_failures_and_respects_strict(tmp_path, 
     rc_advisory = summariser.main([
         "summarise_snan_report",
         str(xml_path),
+        "--pytest-exit-code",
+        "1",
         "--markdown",
         str(md_out),
         "--compiler",
@@ -663,7 +665,13 @@ def test_summarise_snan_report_flags_nan_failures_and_respects_strict(tmp_path, 
     assert "roughness_length_momentum=ALTERNATIVE" in md_text
     assert "**NaN / non-finite tagged failures:** 1" in md_text
 
-    rc_strict = summariser.main(["summarise_snan_report", str(xml_path), "--strict"])
+    rc_strict = summariser.main([
+        "summarise_snan_report",
+        str(xml_path),
+        "--pytest-exit-code",
+        "1",
+        "--strict",
+    ])
     assert rc_strict == 1
 
 
@@ -710,8 +718,80 @@ def test_summarise_snan_report_rejects_zero_executed_and_empty_junit(tmp_path, c
         assert "recorded zero tests" in capsys.readouterr().err
 
 
+def test_summarise_snan_report_fails_hard_on_real_pytest_collection_error(
+    tmp_path, capsys
+):
+    """A real pytest collection error (exit 2 + JUnit <error>) fails hard even in advisory mode."""
+    summariser = _load_snan_summariser()
+    broken_test = tmp_path / "test_broken_collect.py"
+    broken_test.write_text(
+        'raise RuntimeError("boom during collection")\n', encoding="utf-8"
+    )
+    junit_xml = tmp_path / "collect_error.xml"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--noconftest",
+            "-o",
+            "addopts=",
+            str(broken_test),
+            f"--junitxml={junit_xml}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert junit_xml.is_file()
+
+    # With raw --pytest-exit-code 2 (how the workflow invokes it): hard failure
+    rc_with_code = summariser.main([
+        "summarise_snan_report",
+        str(junit_xml),
+        "--pytest-exit-code",
+        str(proc.returncode),
+    ])
+    assert rc_with_code == 1
+    assert "exited abnormally with code 2" in capsys.readouterr().err
+
+    # Even without --pytest-exit-code, collection <error> / zero executed bodies fails hard
+    rc_without_code = summariser.main(["summarise_snan_report", str(junit_xml)])
+    assert rc_without_code == 1
+    assert "collection error" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("bad_code", [2, 3, 4, 5, -11])
+def test_summarise_snan_report_rejects_abnormal_pytest_exit_codes(
+    tmp_path, capsys, bad_code
+):
+    """Non-0/1 pytest exit codes always fail hard even if JUnit recorded passing tests."""
+    summariser = _load_snan_summariser()
+    xml_path = tmp_path / "passing.xml"
+    xml_path.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="5" errors="0" failures="0" skipped="0" time="1.0"/>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+
+    rc = summariser.main([
+        "summarise_snan_report",
+        str(xml_path),
+        "--pytest-exit-code",
+        str(bad_code),
+    ])
+    assert rc == 1
+    assert f"code {bad_code}" in capsys.readouterr().err
+
+
 def test_snan_nightly_workflow_is_isolated_and_no_trap():
-    """Nightly sNaN workflow stays isolated from shipped wheels and avoids -ffpe-trap."""
+    """Nightly sNaN workflow stays isolated from shipped wheels and preserves pytest exit code."""
     workflow_path = REPO_ROOT / ".github" / "workflows" / "fortran-snan-nightly.yml"
     text = workflow_path.read_text(encoding="utf-8")
     workflow = yaml.safe_load(text)
@@ -726,3 +806,5 @@ def test_snan_nightly_workflow_is_isolated_and_no_trap():
     run_blocks = "\n".join(str(step.get("run", "")) for step in job["steps"])
     assert "-ffpe-trap=invalid" not in run_blocks
     assert "-finit-real=snan" in run_blocks
+    assert "PIPESTATUS[0]" in run_blocks
+    assert '--pytest-exit-code "$PYTEST_EXIT"' in run_blocks

@@ -12032,7 +12032,7 @@
             }
           ],
           "default": 0,
-          "description": "Drainage equation selection (1: threshold power law; 2: modified Rutter exponential equation; 3: power law). The default 0 is an unset placeholder and should be replaced for configured surfaces",
+          "description": "Integer drainage equation selection (1: threshold power law; 2: modified Rutter exponential equation; 3: power law). The default 0 is an unset placeholder and should be replaced for configured surfaces",
           "display_name": "Drainage Equation",
           "title": "Drain Eq",
           "unit": null
@@ -12050,7 +12050,7 @@
             }
           ],
           "default": null,
-          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 1",
           "title": "Drain Coef 1",
           "unit": "equation-dependent"
@@ -12068,7 +12068,7 @@
             }
           ],
           "default": null,
-          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 2",
           "title": "Drain Coef 2",
           "unit": "equation-dependent"
@@ -13598,7 +13598,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev11. Development schema requiring soil_depth, soil_store_capacity and saturated_hydraulic_conductivity on every active (sfr > 0) non-water surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting any of them used to reach the kernel as 0.0 via the Rust bridge. The (2026.6.dev10 -> 2026.6.dev11) migration writes 0.0 explicitly wherever an active non-water surface omits or nulls one of these three fields, preserving existing values and reference metadata.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev12. Require finite drain_coef_1 and drain_coef_2 for active non-water surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains accepted. Diagnose missing active drainage blocks and fractional native/mutable selectors without assigning new equation semantics. Migration preserves supplied values and refuses to invent missing blocks or coefficients; inactive surfaces and water are unchanged.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13651,20 +13651,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev11",
+  "title": "SUEWS Configuration Schema v2026.6.dev12",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev11.json",
-  "version": "2026.6.dev11",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev12.json",
+  "version": "2026.6.dev12",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev11"
+    "schema_version": "2026.6.dev12"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev11",
+      "schema_version": "2026.6.dev12",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

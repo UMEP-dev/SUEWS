@@ -217,6 +217,53 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev12_drainage_coefficients:
+
+Upgrading to Schema 2026.6.dev12
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a non-water land surface with ``sfr > 0`` and ``drain_eq`` equal to
+1, 2 or 3, both ``storage_drain_params.drain_coef_1`` and
+``storage_drain_params.drain_coef_2`` must be supplied as finite numbers.
+Previously an omitted coefficient silently reached the model as zero and could
+change runoff and evaporation. A coefficient explicitly set to zero remains
+valid; its meaning depends on the selected equation.
+
+Loading a configuration and running after an in-memory mutation both check this
+requirement. Errors identify the site index, surface and coefficient. Water and
+zero-area surfaces do not acquire this requirement.
+
+An active, explicitly configured land surface must also provide its
+``storage_drain_params`` block. Previously an omitted block materialised an empty
+model with selector ``0``; native input left zero-filled storage rows. Neither
+path supplied an equation. Loading now diagnoses the omitted block when the
+surface area is given, and execution rejects unresolved factory placeholders.
+A sparse Python model may still be constructed before its surface inputs are
+filled in. Native resolved YAML must give ``sfr`` for each configured land
+surface; omission is not evidence of zero area.
+
+``drain_eq`` is an integer field. Whole-number floats such as ``3.0`` remain
+accepted; active-surface native input and mutable handoff now reject fractions,
+including near-integers. Previously native input could pass ``3.5`` through to
+Fortran, which truncates it with ``INT`` and executes equation 3. This could
+bypass an exact-selector coefficient check. The loader now reports the selector
+path before the kernel is called, without rounding or choosing an equation.
+
+This change does not assign scientific meaning to integer selectors outside
+1, 2 and 3, or turn ``0`` into a supported no-drainage option. Their existing
+transport is retained; a wet run with such a selector is not established as
+valid. Explicit zero coefficients retain their existing acceptance: for example,
+a zero exponent in equation 3 gives a constant rate before the existing water
+availability cap. No new default or sign restriction is introduced. The storage
+capacity fallback from ``store_max`` when ``store_cap`` is omitted is unchanged.
+
+Use ``suews schema migrate config.yml`` to upgrade an older configuration.
+Migration preserves supplied coefficients, including legacy ``storedrainprm``
+input and reference metadata. If an active block or a required coefficient is
+missing or null, migration stops with its path: supply the missing input and
+retry. Migration does not choose an equation or convert omission into explicit
+zero. Supplied malformed values remain subject to load-time validation.
+
 .. _schema_dev11_soil_parameters:
 
 Upgrading to Schema 2026.6.dev11

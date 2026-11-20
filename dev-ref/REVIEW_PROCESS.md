@@ -3,7 +3,7 @@
 > **Canonical Rules Notice**
 >
 > Active standing rules and review skills supersede this overview whenever an example drifts. Always read:
-> - Rules: [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), [`.claude/rules/labels.md`](../.claude/rules/labels.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md), and [`.claude/rules/review-convergence.md`](../.claude/rules/review-convergence.md)
+> - Rules: [`.claude/rules/pr-description.md`](../.claude/rules/pr-description.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), [`.claude/rules/labels.md`](../.claude/rules/labels.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md), and [`.claude/rules/review-convergence.md`](../.claude/rules/review-convergence.md)
 > - Skills: `/triage-issue` ([`.claude/skills/triage-issue/SKILL.md`](../.claude/skills/triage-issue/SKILL.md)), `/triage-pr` ([`.claude/skills/triage-pr/SKILL.md`](../.claude/skills/triage-pr/SKILL.md)), `/audit-pr` ([`.claude/skills/audit-pr/SKILL.md`](../.claude/skills/audit-pr/SKILL.md)), and `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md))
 
 ## Overview
@@ -67,7 +67,7 @@ Every PR carries:
 
 Per [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md):
 - **Every `0-physics:change` PR** MUST include:
-  1. **A `## Scientific evidence` section in the PR body** documenting which physical quantities change and the physical mechanism chain, a before/after comparison (table or figure), and expected sign and magnitude reasoning.
+  1. **A `## Scientific evidence` section in the PR body** following the tiered presentation, figure-hosting, data-licensing, and commit-provenance protocol in [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md) (narrow fixes complete in the body; formulation or multi-site changes use an executive summary plus linked PR comments for figures and full tables).
   2. **Domain-owner sign-off** where the rule requires it: the person in the "Sign-off required from" column of [`MAINTAINERS.md`](../MAINTAINERS.md), or the software maintainer for a module with no named owner, plus manual requests to the advisory reviewers listed there (see "Scientific Review Request" below).
   3. **Reference-fixture refresh in the same PR**, generated from the CI `reference-regenerated-cp312-manylinux-x86_64` artefact (`scripts/suews/gen_sample_output.py`, updating both the shards and `test/fixtures/data_test/provenance.json`).
   4. **Green `physics-full` CI tier** before merge (`determine-matrix.sh` automatically selects `test_tier=physics-full` on ready PRs and merge-queue runs carrying `0-physics:change` or `0-numerics:change`).
@@ -107,9 +107,10 @@ Please review for scientific validity, particularly the changes to surface tempe
 
 Reviewers (human maintainers, domain experts, and `/audit-pr`) check:
 1. **Size Gate (`work-sizing.md`)**: One coherent, revertible concern; oversized or bundled diffs are routed to `/split-pr`.
-2. **Physical Validity**: Equations match literature, units are consistent, conservation laws hold, and `## Scientific evidence` is complete when `0-physics:change` applies.
-3. **Implementation & Thread Safety**: No implicitly `SAVE`d Fortran locals, proper `set_supy_error` / `supy_error_flag()` error propagation, schema version bump + upgrader when `src/supy/data_model/` changes structurally, and BR-01..BR-10 compliance across `src/suews_bridge/`.
-4. **CI Gate**: Required checks (`pr-gate`, lints, exact reference gate, docs checks) are green.
+2. **PR Description (`pr-description.md`)**: Human-readable `## Why`, `## What changed` (with known limits), `## How to review`, and PR-specific `## Verification` (no copy-pasted batch boilerplate).
+3. **Physical Validity**: Equations match literature, units are consistent, conservation laws hold, and `## Scientific evidence` (with commit provenance and compliant figures where attached) is complete when `0-physics:change` applies.
+4. **Implementation & Thread Safety**: No implicitly `SAVE`d Fortran locals, proper `set_supy_error` / `supy_error_flag()` error propagation, schema version bump + upgrader when `src/supy/data_model/` changes structurally, and BR-01..BR-10 compliance across `src/suews_bridge/`.
+5. **CI Gate**: Required checks (`pr-gate`, lints, exact reference gate, docs checks) are green.
 
 ### 6. Merge Criteria (`/queue-pr`)
 

@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util._tmy &#8212; SUEWS 2026.11.20.dev23 documentation</title>
+    <title>supy.util._tmy &#8212; SUEWS 2026.11.20.dev25 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=99ca7a2e"></script>
+    <script src="../../../_static/documentation_options.js?v=b7237ae2"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.20.dev23" />
+  <meta name="docsearch:version" content="2026.11.20.dev25" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.20.dev23, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b182735a1ef1537fef24404e0e0788b0adb140e" style="color: #31708f;">5b18273</a>).
+        (2026.11.20.dev25, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cb00c777d2009d3fd2e1dbb03cac887f5a77fd1f" style="color: #31708f;">cb00c77</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev23 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev23 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev25 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev25 documentation - Home"/>
   
   
 </a></div>
@@ -566,6 +566,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.._post</span><span class="w"> </span><span class="kn">import</span> <span class="n">_resample_output</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..units</span><span class="w"> </span><span class="kn">import</span> <span class="n">convert</span>
 
 <span class="c1"># Logger for this module</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -994,6 +995,30 @@
 
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_derive_epw_dewpoint_and_pressure</span><span class="p">(</span>
+    <span class="n">df_tmy</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">atmosp_mod</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Derive EPW dew point temperature (degC) and station pressure (Pa).</span>
+
+<span class="sd">    Converts ``Q2`` from SUEWS output units (``g kg-1``) to ``atmosp``'s SI</span>
+<span class="sd">    reference unit (``kg kg-1``) up front so ``atmosp.calculate`` does not</span>
+<span class="sd">    require the optional ``cfunits`` dependency (``atmosp[units]``).</span>
+<span class="sd">    """</span>
+    <span class="n">t_kelvin</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="s2">"degC"</span><span class="p">,</span> <span class="s2">"K"</span><span class="p">)</span>
+    <span class="n">qv_kg_per_kg</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Q2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="s2">"g kg-1"</span><span class="p">,</span> <span class="s2">"kg kg-1"</span><span class="p">)</span>
+    <span class="n">rh_pct</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"RH2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">dew_point_degc</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span>
+        <span class="n">atmosp_mod</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="s2">"Td"</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t_kelvin</span><span class="p">,</span> <span class="n">qv</span><span class="o">=</span><span class="n">qv_kg_per_kg</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh_pct</span><span class="p">,</span> <span class="n">rho</span><span class="o">=</span><span class="mf">1.23</span><span class="p">),</span>
+        <span class="s2">"K"</span><span class="p">,</span>
+        <span class="s2">"degC"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">station_pressure_pa</span> <span class="o">=</span> <span class="n">atmosp_mod</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span>
+        <span class="s2">"p"</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t_kelvin</span><span class="p">,</span> <span class="n">qv</span><span class="o">=</span><span class="n">qv_kg_per_kg</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh_pct</span><span class="p">,</span> <span class="n">rho</span><span class="o">=</span><span class="mf">1.23</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">dew_point_degc</span><span class="p">,</span> <span class="n">station_pressure_pa</span>
+
+
 <span class="c1"># generate EPW file from `df_TMY`</span>
 <div class="viewcode-block" id="gen_epw">
 <a class="viewcode-back" href="../../../api/_autosummary/supy.util.gen_epw.html#supy.util.gen_epw">[docs]</a>
@@ -1114,25 +1139,9 @@
     <span class="c1"># assign timezone info</span>
     <span class="n">df_tmy</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tz_localize</span><span class="p">(</span><span class="n">tz</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">)</span>
 
-    <span class="c1"># adding necessary variables that can be derive from supy output</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Dew Point Temperature"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">atmosp</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span>
-            <span class="s2">"Td"</span><span class="p">,</span>
-            <span class="n">T</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="mf">273.15</span><span class="p">,</span>
-            <span class="n">qv</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Q2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">qv_unit</span><span class="o">=</span><span class="s2">"g/kg"</span><span class="p">,</span>
-            <span class="n">RH</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"RH2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">rho</span><span class="o">=</span><span class="mf">1.23</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="o">-</span> <span class="mf">273.15</span>
-    <span class="p">)</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Atmospheric Station Pressure"</span><span class="p">]</span> <span class="o">=</span> <span class="n">atmosp</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span>
-        <span class="s2">"p"</span><span class="p">,</span>
-        <span class="n">T</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="mf">273.15</span><span class="p">,</span>
-        <span class="n">qv</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Q2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-        <span class="n">qv_unit</span><span class="o">=</span><span class="s2">"g/kg"</span><span class="p">,</span>
-        <span class="n">RH</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"RH2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-        <span class="n">rho</span><span class="o">=</span><span class="mf">1.23</span><span class="p">,</span>
+    <span class="c1"># adding necessary variables that can be derived from supy output</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Dew Point Temperature"</span><span class="p">],</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Atmospheric Station Pressure"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_derive_epw_dewpoint_and_pressure</span><span class="p">(</span><span class="n">df_tmy</span><span class="p">,</span> <span class="n">atmosp</span><span class="p">)</span>
     <span class="p">)</span>
 
     <span class="c1"># processing solar radiation components</span>
@@ -1322,8 +1331,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.20.dev23 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b182735a1ef1537fef24404e0e0788b0adb140e">5b18273</a> |
+  <p>Version: 2026.11.20.dev25 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cb00c777d2009d3fd2e1dbb03cac887f5a77fd1f">cb00c77</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -1,0 +1,1038 @@
+{
+  "schema_version": 1,
+  "description": "Pinned shadow-default divergences between SUEWSConfig.to_df_state() and config_to_engine_yaml() on the canonical sparse executable configuration (gh#2099; Refs #1991, #2001, #2002, #2077, #2101). Shrinking ratchet: entries may only be removed as shadow defaults are aligned or retired.",
+  "gaps": [
+    {
+      "df_col": [
+        "preciplimit",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.snow.temperature_rain_snow_threshold",
+      "df_value": 2.2,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "snowdensmin",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.snow.snow_density_min",
+      "df_value": 100.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "snowdensmax",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.snow.snow_density_max",
+      "df_value": 400.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "soildensity",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.paved.soil_density",
+      "df_value": -999.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_surf",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.paved.thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_surf",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.paved.thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_surf",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.paved.thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "soildensity",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bldgs.soil_density",
+      "df_value": -999.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_surf",
+        "(1, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bldgs.thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_surf",
+        "(1, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bldgs.thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_surf",
+        "(1, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bldgs.thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "soildensity",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.soil_density",
+      "df_value": -999.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_surf",
+        "(2, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_surf",
+        "(2, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_surf",
+        "(2, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "soildensity",
+        "(3,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.soil_density",
+      "df_value": -999.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_surf",
+        "(3, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_surf",
+        "(3, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_surf",
+        "(3, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "soildensity",
+        "(4,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.soil_density",
+      "df_value": -999.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_surf",
+        "(4, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_surf",
+        "(4, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_surf",
+        "(4, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "soildensity",
+        "(5,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bsoil.soil_density",
+      "df_value": -999.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_surf",
+        "(5, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bsoil.thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_surf",
+        "(5, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bsoil.thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_surf",
+        "(5, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bsoil.thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "soildensity",
+        "(6,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.water.soil_density",
+      "df_value": -999.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_surf",
+        "(6, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.water.thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_surf",
+        "(6, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.water.thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_surf",
+        "(6, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.water.thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "faibldg",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bldgs.faibldg",
+      "df_value": 0.3,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "bldgh",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.bldgs.bldgh",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "faievetree",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.fai_evergreen_tree",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "evetreeh",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.height_evergreen_tree",
+      "df_value": 15.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "faidectree",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.fai_deciduous_tree",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "dectreeh",
+        "0"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.height_deciduous_tree",
+      "df_value": 15.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "beta_bioco2",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.beta_bio_co2",
+      "df_value": 0.6,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "alpha_bioco2",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.alpha_bio_co2",
+      "df_value": 0.8,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "resp_a",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.resp_a",
+      "df_value": 1.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "resp_b",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.resp_b",
+      "df_value": 1.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "theta_bioco2",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.theta_bio_co2",
+      "df_value": 1.2,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "baset",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.base_temperature",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "gddfull",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.gdd_full",
+      "df_value": 100.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "basete",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.base_temperature_senescence",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "sddfull",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.sdd_full",
+      "df_value": 100.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "laimax",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_max",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(0, 0)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.growth_lai",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(1, 0)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.growth_gdd",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(2, 0)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.senescence_lai",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(3, 0)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.senescence_sdd",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "beta_bioco2",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.beta_bio_co2",
+      "df_value": 0.6,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "alpha_bioco2",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.alpha_bio_co2",
+      "df_value": 0.8,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "resp_a",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.resp_a",
+      "df_value": 1.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "resp_b",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.resp_b",
+      "df_value": 1.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "theta_bioco2",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.theta_bio_co2",
+      "df_value": 1.2,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "baset",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.base_temperature",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "gddfull",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.gdd_full",
+      "df_value": 100.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "basete",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.base_temperature_senescence",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "sddfull",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.sdd_full",
+      "df_value": 100.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "laimax",
+        "(1,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_max",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(0, 1)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.growth_lai",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(1, 1)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.growth_gdd",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(2, 1)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.senescence_lai",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(3, 1)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.senescence_sdd",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "beta_bioco2",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.beta_bio_co2",
+      "df_value": 0.6,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "alpha_bioco2",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.alpha_bio_co2",
+      "df_value": 0.8,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "resp_a",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.resp_a",
+      "df_value": 1.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "resp_b",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.resp_b",
+      "df_value": 1.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "theta_bioco2",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.theta_bio_co2",
+      "df_value": 1.2,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "baset",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.base_temperature",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "gddfull",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.gdd_full",
+      "df_value": 100.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "basete",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.base_temperature_senescence",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "sddfull",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.sdd_full",
+      "df_value": 100.0,
+      "yaml_value": null,
+      "owner_issue": "#2001"
+    },
+    {
+      "df_col": [
+        "laimax",
+        "(2,)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_max",
+      "df_value": 10.0,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(0, 2)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.growth_lai",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(1, 2)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.growth_gdd",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(2, 2)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.senescence_lai",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "laipower",
+        "(3, 2)"
+      ],
+      "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.senescence_sdd",
+      "df_value": 0.1,
+      "yaml_value": null,
+      "owner_issue": "#2101"
+    },
+    {
+      "df_col": [
+        "soilstorecap_roof",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.roofs[0].soil_store_capacity",
+      "df_value": 150.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_roof",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.roofs[0].thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_roof",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.roofs[0].thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_roof",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.roofs[0].thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "soilstorecap_wall",
+        "(0,)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.walls[0].soil_store_capacity",
+      "df_value": 150.0,
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "dz_wall",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.walls[0].thermal_layers.dz",
+      "df_value": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "k_wall",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.walls[0].thermal_layers.k",
+      "df_value": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    },
+    {
+      "df_col": [
+        "cp_wall",
+        "(0, 0..4)"
+      ],
+      "yaml_path": "sites[0].properties.vertical_layers.walls[0].thermal_layers.rho_cp",
+      "df_value": [
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0,
+        1000.0
+      ],
+      "yaml_value": null,
+      "owner_issue": "#1991"
+    }
+  ]
+}

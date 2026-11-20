@@ -331,10 +331,30 @@ def test_cli_convert_refuses_missing_or_null_soil_depth_on_active_positive_capac
     assert "soil_depth" in msg
 
 
+def _separate_stream_runner() -> CliRunner:
+    """Return a Click CliRunner with separated stdout and stderr across Click versions."""
+    try:
+        return CliRunner(mix_stderr=False)
+    except TypeError:
+        return CliRunner()
+
+
+def _normalise_rich_table_text(output: str) -> str:
+    """Join wrapped Rich table cell text regardless of terminal width or box glyphs."""
+    parts: list[str] = []
+    for line in output.splitlines():
+        cleaned = "".join(
+            " " if (ch in "|+" or "\u2500" <= ch <= "\u257f") else ch for ch in line
+        ).strip()
+        if cleaned and not set(cleaned) <= {"-", "="}:
+            parts.append(cleaned)
+    return " ".join(" ".join(parts).split())
+
+
 def test_cli_convert_json_and_migrator_refusal_are_transactional(
     sample_dict: dict, tmp_path: Path
 ) -> None:
-    """JSON CLI, SchemaMigrator and migrate_config_file leave input and target untouched."""
+    """JSON CLI, schema CLI, SchemaMigrator and migrate_config_file stay transactional."""
     # ARRANGE
     doc, site = _legacy_soil_depth_doc(
         sample_dict,
@@ -344,7 +364,8 @@ def test_cli_convert_json_and_migrator_refusal_are_transactional(
         second_site=True,
     )
     # Also remove soil_depth from bldgs on site 0 to verify multi-site reporting.
-    doc["sites"][0]["properties"]["land_cover"]["bldgs"].pop("soil_depth", None)
+    site0 = doc["sites"][0]
+    site0["properties"]["land_cover"]["bldgs"].pop("soil_depth", None)
     before = copy.deepcopy(doc)
 
     # ACT / ASSERT: in-memory migrator does not mutate caller dict
@@ -352,14 +373,18 @@ def test_cli_convert_json_and_migrator_refusal_are_transactional(
         SchemaMigrator().migrate(doc)
     assert doc == before
     err_msg = str(exc_info.value)
-    assert doc["sites"][0]["name"] in err_msg
-    assert "bldgs" in err_msg
-    assert site["name"] in err_msg
-    assert str(site["gridiv"]) in err_msg
-    assert "paved" in err_msg
-    assert "soil_depth" in err_msg
+    for token in (
+        site0["name"],
+        str(site0["gridiv"]),
+        "bldgs",
+        site["name"],
+        str(site["gridiv"]),
+        "paved",
+        "soil_depth",
+    ):
+        assert token in err_msg
 
-    # ACT / ASSERT: file helpers and CLI do not overwrite existing output
+    # ACT / ASSERT: file helpers and JSON CLI do not overwrite existing output
     source = tmp_path / "old.yml"
     dest = tmp_path / "existing.yml"
     source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
@@ -369,14 +394,10 @@ def test_cli_convert_json_and_migrator_refusal_are_transactional(
         migrate_config_file(str(source), str(dest))
     assert dest.read_text(encoding="utf-8") == "existing output"
 
-    try:
-        json_runner = CliRunner(mix_stderr=False)
-    except TypeError:
-        json_runner = CliRunner()
-    result_json = json_runner.invoke(
+    result_json = _separate_stream_runner().invoke(
         cli,
         ["convert", "-i", str(source), "-o", str(dest), "--format", "json"],
-        terminal_width=250,
+        terminal_width=80,
         color=False,
     )
     assert result_json.exit_code == 1, result_json.output
@@ -384,26 +405,212 @@ def test_cli_convert_json_and_migrator_refusal_are_transactional(
     envelope = json.loads(result_json.stdout)
     assert envelope["status"] == "error"
     error_text = " ".join(entry["message"] for entry in envelope["errors"])
-    assert site["name"] in error_text
-    assert str(site["gridiv"]) in error_text
-    assert "paved" in error_text
-    assert "bldgs" in error_text
-    assert "soil_depth" in error_text
+    for token in (
+        site0["name"],
+        str(site0["gridiv"]),
+        "bldgs",
+        site["name"],
+        str(site["gridiv"]),
+        "paved",
+        "soil_depth",
+    ):
+        assert token in error_text
 
-    # ACT / ASSERT: suews schema migrate writes no .migrated.yml file and reports the error
+    # ACT / ASSERT: suews schema --quiet migrate writes nothing, exits 1, reports on stderr
     schema_out = source.with_suffix(".migrated.yml")
+    result_quiet = _separate_stream_runner().invoke(
+        cli,
+        ["schema", "--quiet", "migrate", str(source)],
+        env={"COLUMNS": "80"},
+        terminal_width=80,
+        color=False,
+    )
+    assert result_quiet.exit_code == 1, result_quiet.output
+    assert not schema_out.exists()
+    assert result_quiet.stdout == ""
+    quiet_err = " ".join(result_quiet.stderr.split())
+    for token in (
+        site0["name"],
+        str(site0["gridiv"]),
+        "bldgs",
+        site["name"],
+        str(site["gridiv"]),
+        "paved",
+        "soil_depth",
+    ):
+        assert token in quiet_err
+
+    # ACT / ASSERT: narrow-terminal Rich table output exits 1, writes nothing, reports both sites
     result_schema = CliRunner().invoke(
         cli,
         ["schema", "migrate", str(source)],
-        terminal_width=250,
+        env={"COLUMNS": "80"},
+        terminal_width=80,
         color=False,
     )
+    assert result_schema.exit_code == 1, result_schema.output
     assert not schema_out.exists()
-    schema_msg = " ".join(result_schema.output.split())
-    assert site["name"] in schema_msg
-    assert str(site["gridiv"]) in schema_msg
-    assert "paved" in schema_msg
-    assert "soil_depth" in schema_msg
+    schema_msg = _normalise_rich_table_text(result_schema.output)
+    for token in (
+        site0["name"],
+        str(site0["gridiv"]),
+        "bldgs",
+        site["name"],
+        str(site["gridiv"]),
+        "paved",
+        "soil_depth",
+    ):
+        assert token in schema_msg
+
+
+def _build_two_grid_grass_doc(
+    sample_dict: dict, *, active_first: bool, supply_active_depth: bool
+) -> dict:
+    """Build a two-grid dev10 config pairing inactive grass with active grass."""
+    doc = copy.deepcopy(sample_dict)
+    doc["schema_version"] = "2026.6.dev10"
+
+    inactive_site = copy.deepcopy(doc["sites"][0])
+    inactive_site["name"] = "GridInactive"
+    inactive_site["gridiv"] = 101
+    inactive_lc = inactive_site["properties"]["land_cover"]
+    grass_sfr = inactive_lc["grass"]["sfr"]["value"]
+    inactive_lc["paved"]["sfr"]["value"] = round(
+        inactive_lc["paved"]["sfr"]["value"] + grass_sfr, 6
+    )
+    inactive_lc["grass"]["sfr"]["value"] = 0.0
+    inactive_lc["grass"]["soil_store_capacity"] = {"value": 150.0}
+    inactive_lc["grass"].pop("soil_depth", None)
+
+    active_site = copy.deepcopy(doc["sites"][0])
+    active_site["name"] = "GridActive"
+    active_site["gridiv"] = 202
+    active_lc = active_site["properties"]["land_cover"]
+    assert active_lc["grass"]["sfr"]["value"] > 0.0
+    assert active_lc["grass"]["soil_store_capacity"]["value"] > 0.0
+    if supply_active_depth:
+        active_lc["grass"]["soil_depth"] = {"value": 380.0}
+    else:
+        active_lc["grass"].pop("soil_depth", None)
+
+    for site in (inactive_site, active_site):
+        total_sfr = sum(
+            site["properties"]["land_cover"][surf]["sfr"]["value"]
+            for surf in (*NON_WATER_SURFACES, "water")
+        )
+        assert total_sfr == pytest.approx(1.0)
+
+    doc["sites"] = (
+        [active_site, inactive_site] if active_first else [inactive_site, active_site]
+    )
+    return doc
+
+
+@pytest.mark.parametrize("active_first", [False, True])
+def test_cli_two_grid_inactive_and_active_both_orders(
+    sample_dict: dict, tmp_path: Path, active_first: bool
+) -> None:
+    """Two-grid migration blames only active grid in both orders and preserves omission."""
+    # ARRANGE (error control): inactive grass + active grass both omit soil_depth
+    broken_doc = _build_two_grid_grass_doc(
+        sample_dict, active_first=active_first, supply_active_depth=False
+    )
+    broken_in = tmp_path / "two_grid_broken.yml"
+    broken_convert_out = tmp_path / "two_grid_converted.yml"
+    broken_schema_out = broken_in.with_suffix(".migrated.yml")
+    broken_in.write_text(yaml.safe_dump(broken_doc, sort_keys=False), encoding="utf-8")
+
+    # ACT / ASSERT: convert and schema migrate (quiet + narrow table) refuse and write nothing
+    res_convert = CliRunner().invoke(
+        cli,
+        ["convert", "-i", str(broken_in), "-o", str(broken_convert_out)],
+        env={"COLUMNS": "80"},
+        terminal_width=80,
+        color=False,
+    )
+    assert res_convert.exit_code == 1, res_convert.output
+    assert not broken_convert_out.exists()
+    convert_msg = " ".join(res_convert.output.split())
+
+    res_quiet = _separate_stream_runner().invoke(
+        cli,
+        ["schema", "--quiet", "migrate", str(broken_in)],
+        env={"COLUMNS": "80"},
+        terminal_width=80,
+        color=False,
+    )
+    assert res_quiet.exit_code == 1, res_quiet.output
+    assert not broken_schema_out.exists()
+    quiet_msg = " ".join(res_quiet.stderr.split())
+
+    res_table = CliRunner().invoke(
+        cli,
+        ["schema", "migrate", str(broken_in)],
+        env={"COLUMNS": "80"},
+        terminal_width=80,
+        color=False,
+    )
+    assert res_table.exit_code == 1, res_table.output
+    assert not broken_schema_out.exists()
+    table_msg = _normalise_rich_table_text(res_table.output)
+
+    for msg in (convert_msg, quiet_msg, table_msg):
+        assert "GridActive" in msg
+        assert "202" in msg
+        assert "grass" in msg
+        assert "soil_depth" in msg
+        assert "GridInactive" not in msg
+        assert "gridiv=101" not in msg
+
+    # ARRANGE (positive control): supply depth on GridActive alone, keep GridInactive omitted
+    fixed_doc = _build_two_grid_grass_doc(
+        sample_dict, active_first=active_first, supply_active_depth=True
+    )
+    fixed_in = tmp_path / "two_grid_fixed.yml"
+    fixed_convert_out = tmp_path / "two_grid_fixed_converted.yml"
+    fixed_schema_out = fixed_in.with_suffix(".migrated.yml")
+    fixed_in.write_text(yaml.safe_dump(fixed_doc, sort_keys=False), encoding="utf-8")
+
+    # ACT / ASSERT: both CLIs succeed, preserve GridActive depth and GridInactive omission
+    ok_convert = CliRunner().invoke(
+        cli,
+        ["convert", "-i", str(fixed_in), "-o", str(fixed_convert_out)],
+        env={"COLUMNS": "80"},
+        terminal_width=80,
+        color=False,
+    )
+    assert ok_convert.exit_code == 0, ok_convert.output
+    assert fixed_convert_out.is_file()
+
+    ok_schema = _separate_stream_runner().invoke(
+        cli,
+        ["schema", "--quiet", "migrate", str(fixed_in)],
+        env={"COLUMNS": "80"},
+        terminal_width=80,
+        color=False,
+    )
+    assert ok_schema.exit_code == 0, ok_schema.output
+    assert fixed_schema_out.is_file()
+
+    active_idx, inactive_idx = (0, 1) if active_first else (1, 0)
+    for out_path in (fixed_convert_out, fixed_schema_out):
+        migrated = yaml.safe_load(out_path.read_text(encoding="utf-8"))
+        assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert migrated["sites"][active_idx]["properties"]["land_cover"]["grass"][
+            "soil_depth"
+        ] == {"value": 380.0}
+        assert (
+            "soil_depth"
+            not in migrated["sites"][inactive_idx]["properties"]["land_cover"]["grass"]
+        )
+        loaded = SUEWSConfig.from_yaml(str(out_path))
+        active_grass = loaded.sites[active_idx].properties.land_cover.grass
+        inactive_grass = loaded.sites[inactive_idx].properties.land_cover.grass
+        assert loaded.sites[active_idx].gridiv == 202
+        assert active_grass.soil_depth.value == pytest.approx(380.0)
+        assert loaded.sites[inactive_idx].gridiv == 101
+        assert inactive_grass.sfr.value == pytest.approx(0.0)
+        assert inactive_grass.soil_depth is None
 
 
 @pytest.mark.parametrize("case", ["supplied", "inactive", "water", "zero-capacity"])

@@ -32,6 +32,7 @@ from collections.abc import Callable
 import copy
 from dataclasses import dataclass
 from enum import IntFlag
+import hashlib
 import importlib
 from importlib.resources import files
 import importlib.util
@@ -949,6 +950,7 @@ class WarningSwallowFinding:
     qualname: str
     lineno: int
     except_type: str
+    try_body_sha256: str
 
     @property
     def site_id(self) -> str:
@@ -1173,10 +1175,69 @@ def _analyse_block(stmts: list[ast.stmt]) -> tuple[_Exit, _Exit]:
     return flow
 
 
+def _canonical_ast_repr(node: ast.AST) -> str:
+    """Return a Python-version-stable structural AST representation.
+
+    Walks ``ast.iter_fields`` (which excludes line and column attributes) and
+    omits ``None`` and empty lists so the result is identical across Python
+    3.10-3.14 regardless of ``ast.dump``'s ``show_empty`` default.
+    """
+    fields: list[str] = []
+    for field_name, value in ast.iter_fields(node):
+        if value is None or value == []:
+            continue
+        if isinstance(value, ast.AST):
+            rendered = _canonical_ast_repr(value)
+        elif isinstance(value, list):
+            items = ", ".join(
+                _canonical_ast_repr(item) if isinstance(item, ast.AST) else repr(item)
+                for item in value
+            )
+            rendered = f"[{items}]"
+        else:
+            rendered = repr(value)
+        fields.append(f"{field_name}={rendered}")
+    joined = ", ".join(fields)
+    return f"{type(node).__name__}({joined})"
+
+
+def _try_body_signature(try_node: ast.Try | Any) -> str:
+    """Return a SHA-256 fingerprint of ``try_node.body`` independent of line numbers."""
+    canonical = "\n".join(_canonical_ast_repr(stmt) for stmt in try_node.body)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _handler_swallows_warning(handler: ast.ExceptHandler) -> bool:
     """True when *handler* can execute a warning call without raising."""
     _, warn_exits = _analyse_block(handler.body)
     return warn_exits != _Exit.NONE
+
+
+def _collect_validator_swallows(
+    fn_node: ast.FunctionDef | ast.AsyncFunctionDef,
+    rel_path: str,
+    qualname: str,
+) -> list[WarningSwallowFinding]:
+    """Collect warning-swallowing ``except`` handlers inside one validator."""
+    found: list[WarningSwallowFinding] = []
+    for sub in ast.walk(fn_node):
+        if not isinstance(sub, _TRY_NODE_TYPES):
+            continue
+        try_sig = _try_body_signature(sub)
+        for handler in sub.handlers:
+            if not _handler_swallows_warning(handler):
+                continue
+            exc_type = ast.unparse(handler.type) if handler.type is not None else "bare"
+            found.append(
+                WarningSwallowFinding(
+                    rel_path=rel_path,
+                    qualname=qualname,
+                    lineno=handler.lineno,
+                    except_type=exc_type,
+                    try_body_sha256=try_sig,
+                )
+            )
+    return found
 
 
 def find_validator_warning_swallows(
@@ -1196,7 +1257,8 @@ def find_validator_warning_swallows(
     list of WarningSwallowFinding
         All validator ``except`` handlers with a non-raising path after a
         warning call (including conditional ``warn`` + ``return``/``continue``
-        before a trailing ``raise``).
+        before a trailing ``raise``), tagged with the normalised SHA-256
+        signature of the enclosing ``try`` body.
     """
     tree = ast.parse(source, filename=rel_path)
     findings: list[WarningSwallowFinding] = []
@@ -1207,25 +1269,11 @@ def find_validator_warning_swallows(
                 _visit_scope(stmt.body, (*prefix, stmt.name))
             elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 dec_names = {_decorator_name(d) for d in stmt.decorator_list}
-                qualname = ".".join((*prefix, stmt.name))
                 if dec_names & VALIDATOR_DECORATORS:
-                    for sub in ast.walk(stmt):
-                        if not isinstance(sub, ast.ExceptHandler):
-                            continue
-                        if _handler_swallows_warning(sub):
-                            exc_type = (
-                                ast.unparse(sub.type)
-                                if sub.type is not None
-                                else "bare"
-                            )
-                            findings.append(
-                                WarningSwallowFinding(
-                                    rel_path=rel_path,
-                                    qualname=qualname,
-                                    lineno=sub.lineno,
-                                    except_type=exc_type,
-                                )
-                            )
+                    qualname = ".".join((*prefix, stmt.name))
+                    findings.extend(
+                        _collect_validator_swallows(stmt, rel_path, qualname)
+                    )
 
     _visit_scope(tree.body, ())
     return findings
@@ -1257,21 +1305,16 @@ def _iter_data_model_python_sources() -> list[tuple[str, str]]:
     return collected
 
 
-def _evaluate_validator_warning_swallows(
-    findings: list[WarningSwallowFinding],
-    allowlist: dict[str, dict[str, Any]],
-) -> tuple[list[str], list[str]]:
-    """Compare AST findings against the exact per-method handler allowlist.
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
-    Each allowlist entry specifies ``except_types`` (one per reviewed handler)
-    and ``count`` (matching ``len(except_types)``), so adding a second
-    warning-swallowing handler inside an already-allowlisted method, changing
-    the caught exception type, or leaving a fixed handler in the allowlist
-    all fail.
-    """
-    expected: Counter[tuple[str, str]] = Counter()
+
+def _parse_allowlist_handlers(
+    allowlist: dict[str, dict[str, Any]],
+) -> Counter[tuple[str, str, str]]:
+    """Validate and expand allowlist entries into ``(site_id, exc_type, try_sha256)`` counts."""
+    expected: Counter[tuple[str, str, str]] = Counter()
     for site_id, meta in allowlist.items():
-        except_types = meta["except_types"]
+        handlers = meta["handlers"]
         expected_count = meta["count"]
         if (
             isinstance(expected_count, bool)
@@ -1283,44 +1326,70 @@ def _evaluate_validator_warning_swallows(
                 f"got {expected_count!r}"
             )
             raise ValueError(msg)
-        if not isinstance(except_types, list) or len(except_types) != expected_count:
+        if not isinstance(handlers, list) or len(handlers) != expected_count:
             msg = (
-                f"{site_id}: allowlist except_types length ({len(except_types)}) "
+                f"{site_id}: allowlist handlers length ({len(handlers)}) "
                 f"must equal count ({expected_count})"
             )
             raise ValueError(msg)
-        for exc_type in except_types:
-            expected[site_id, exc_type] += 1
+        for entry in handlers:
+            exc_type = entry["except_type"]
+            try_sig = entry["try_body_sha256"]
+            if not isinstance(exc_type, str) or not exc_type:
+                msg = f"{site_id}: allowlist handler missing non-empty except_type"
+                raise ValueError(msg)
+            if not isinstance(try_sig, str) or not _SHA256_HEX_RE.match(try_sig):
+                msg = (
+                    f"{site_id}: allowlist handler try_body_sha256 must be 64 "
+                    f"lowercase hex chars, got {try_sig!r}"
+                )
+                raise ValueError(msg)
+            expected[site_id, exc_type, try_sig] += 1
+    return expected
 
-    actual: Counter[tuple[str, str]] = Counter()
-    lines_by_key: dict[tuple[str, str], list[int]] = {}
+
+def _evaluate_validator_warning_swallows(
+    findings: list[WarningSwallowFinding],
+    allowlist: dict[str, dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    """Compare AST findings against exact ``(site_id, except_type, try_body_sha256)`` counts.
+
+    Pinning the normalised ``try``-body AST signature prevents swapping a
+    reviewed handler for a new warning swallow on a different protected
+    operation inside the same method, while remaining invariant to comments,
+    formatting, and line-number shifts.
+    """
+    expected = _parse_allowlist_handlers(allowlist)
+    actual: Counter[tuple[str, str, str]] = Counter()
+    lines_by_key: dict[tuple[str, str, str], list[int]] = {}
     for finding in findings:
-        key = (finding.site_id, finding.except_type)
+        key = (finding.site_id, finding.except_type, finding.try_body_sha256)
         actual[key] += 1
         lines_by_key.setdefault(key, []).append(finding.lineno)
 
     unreviewed: list[str] = []
     stale: list[str] = []
     for key in sorted(set(actual) | set(expected)):
-        site_id, exc_type = key
+        site_id, exc_type, try_sig = key
         obs = actual[key]
         exp = expected[key]
+        short_sig = try_sig[:12]
         if obs > exp:
             lines = ", ".join(str(ln) for ln in sorted(lines_by_key[key]))
             unreviewed.append(
-                f"{site_id} (except {exc_type}: observed {obs} handler(s) at "
-                f"line(s) {lines}, allowlisted {exp})"
+                f"{site_id} (except {exc_type}, try={short_sig}: observed {obs} "
+                f"handler(s) at line(s) {lines}, allowlisted {exp})"
             )
         elif obs < exp:
             stale.append(
-                f"{site_id} (except {exc_type}: observed {obs} handler(s), "
-                f"allowlisted {exp})"
+                f"{site_id} (except {exc_type}, try={short_sig}: observed {obs} "
+                f"handler(s), allowlisted {exp})"
             )
     return unreviewed, stale
 
 
 def test_no_unreviewed_validator_warning_swallows() -> None:
-    """Every ``except: warnings.warn`` in a Pydantic validator must match exact allowlist counts."""
+    """Every ``except: warnings.warn`` in a Pydantic validator must match exact allowlist signatures."""
     # ARRANGE
     baseline = _load_baseline()
     allowlist = baseline["validator_warning_swallows"]
@@ -1350,11 +1419,22 @@ def test_validator_warning_swallow_allowlist_enforces_exact_handler_count() -> N
     # ARRANGE
     site_path = "src/supy/data_model/core/config.py"
     site_id = f"{site_path}::SUEWSConfig.set_surface_types_validation"
+    legacy_sig = _try_body_signature(
+        ast.parse(
+            "try:\n    surface_prop.set_surface_type(surface_type)\nexcept Exception:\n    pass"
+        ).body[0]
+    )
     allowlist = {
         site_id: {
             "owner_issue": "#2086",
             "owner_pr": "#2117",
-            "except_types": ["Exception"],
+            "handlers": [
+                {
+                    "except_type": "Exception",
+                    "try_body_sha256": legacy_sig,
+                    "protected_op": "surface_prop.set_surface_type(surface_type)",
+                }
+            ],
             "count": 1,
             "reason": "Synthetic 1-handler allowlist matching live legacy entry.",
         }
@@ -1375,17 +1455,14 @@ def test_validator_warning_swallow_allowlist_enforces_exact_handler_count() -> N
         return len(found), unreviewed, stale
 
     one_exc = (
-        '        try:\n            raise ValueError("first")\n'
-        "        except Exception as exc:\n"
-        "            warnings.warn(str(exc), UserWarning)\n"
-    )
-    second_exc = (
-        '        try:\n            raise ValueError("second")\n'
+        "        try:\n"
+        "            surface_prop.set_surface_type(surface_type)\n"
         "        except Exception as exc:\n"
         "            warnings.warn(str(exc), UserWarning)\n"
     )
     second_val = (
-        '        try:\n            raise ValueError("second")\n'
+        "        try:\n"
+        "            surface_prop.set_surface_type(surface_type)\n"
         "        except ValueError as exc:\n"
         "            warnings.warn(str(exc), UserWarning)\n"
     )
@@ -1393,15 +1470,15 @@ def test_validator_warning_swallow_allowlist_enforces_exact_handler_count() -> N
     # ACT / ASSERT: exact 1-handler match passes
     assert _eval(one_exc) == (1, [], [])
 
-    # ACT / ASSERT: second handler of same exception type in allowlisted method fails
-    n_double, unrev_double, stale_double = _eval(one_exc + second_exc)
+    # ACT / ASSERT: second handler of same exception type on same op fails
+    n_double, unrev_double, stale_double = _eval(one_exc + one_exc)
     assert n_double == 2
     assert len(unrev_double) == 1
     assert "observed 2 handler(s)" in unrev_double[0]
     assert "allowlisted 1" in unrev_double[0]
     assert stale_double == []
 
-    # ACT / ASSERT: second handler of different exception type in allowlisted method fails
+    # ACT / ASSERT: additional handler with different exception type fails
     n_extra, unrev_extra, stale_extra = _eval(one_exc + second_val)
     assert n_extra == 2
     assert len(unrev_extra) == 1
@@ -1415,6 +1492,123 @@ def test_validator_warning_swallow_allowlist_enforces_exact_handler_count() -> N
     assert len(stale_clean) == 1
     assert "observed 0 handler(s)" in stale_clean[0]
     assert "allowlisted 1" in stale_clean[0]
+
+
+def test_validator_warning_swallow_try_body_signature_controls() -> None:
+    """Try-body AST signatures tolerate source movement but catch swapped ops."""
+    # ARRANGE
+    site_path = "src/supy/data_model/core/config.py"
+    site_id = f"{site_path}::SUEWSConfig.set_surface_types_validation"
+    allowlist = {site_id: _load_baseline()["validator_warning_swallows"][site_id]}
+
+    base_source = """
+import warnings
+from pydantic import BaseModel, model_validator
+
+class SUEWSConfig(BaseModel):
+    @model_validator(mode="after")
+    def set_surface_types_validation(self):
+        try:
+            surface_prop.set_surface_type(surface_type)
+        except Exception as exc:
+            warnings.warn(str(exc), UserWarning)
+        return self
+"""
+    # Positive control: shift lines, insert preceding helper, comments, blank
+    # lines, and multi-line call formatting around the exact same try operation.
+    moved_source = """
+import warnings
+from pydantic import BaseModel, model_validator
+
+# Unrelated header comment shifting line numbers.
+
+
+class SUEWSConfig(BaseModel):
+    def unrelated_helper(self):
+        # Extra lines before the allowlisted validator method.
+        return 42
+
+    @model_validator(mode="after")
+    def set_surface_types_validation(self):
+        # Harmless comment inside the validator.
+        try:
+            # Comment inside the protected try block.
+            surface_prop.set_surface_type(
+                surface_type,
+            )
+        except Exception as exc:
+            warnings.warn(str(exc), UserWarning)
+        return self
+"""
+    # Negative control 1: fix the allowlisted handler to re-raise while adding
+    # a new except Exception warning swallow on a different operation in the
+    # same method (count stays 1, same method and Exception type!).
+    swapped_op_source = """
+import warnings
+from pydantic import BaseModel, model_validator
+
+class SUEWSConfig(BaseModel):
+    @model_validator(mode="after")
+    def set_surface_types_validation(self):
+        try:
+            surface_prop.set_surface_type(surface_type)
+        except Exception as exc:
+            warnings.warn(str(exc), UserWarning)
+            raise
+        try:
+            surface_prop.validate_water_distribution()
+        except Exception as exc:
+            warnings.warn(str(exc), UserWarning)
+        return self
+"""
+    # Negative control 2: smuggle a second call inside the allowlisted try block.
+    expanded_try_source = """
+import warnings
+from pydantic import BaseModel, model_validator
+
+class SUEWSConfig(BaseModel):
+    @model_validator(mode="after")
+    def set_surface_types_validation(self):
+        try:
+            surface_prop.set_surface_type(surface_type)
+            surface_prop.validate_water_distribution()
+        except Exception as exc:
+            warnings.warn(str(exc), UserWarning)
+        return self
+"""
+
+    # ACT
+    base_found = find_validator_warning_swallows(base_source, site_path)
+    moved_found = find_validator_warning_swallows(moved_source, site_path)
+    swapped_found = find_validator_warning_swallows(swapped_op_source, site_path)
+    expanded_found = find_validator_warning_swallows(expanded_try_source, site_path)
+
+    # ASSERT: positive control passes despite shifted line numbers & formatting
+    assert len(base_found) == 1
+    assert len(moved_found) == 1
+    assert moved_found[0].lineno > base_found[0].lineno
+    assert moved_found[0].try_body_sha256 == base_found[0].try_body_sha256
+    assert _evaluate_validator_warning_swallows(moved_found, allowlist) == ([], [])
+
+    # ASSERT: swapping to a new operation in the same method fails loudly
+    assert len(swapped_found) == 1
+    assert swapped_found[0].except_type == "Exception"
+    assert swapped_found[0].try_body_sha256 != base_found[0].try_body_sha256
+    swap_unrev, swap_stale = _evaluate_validator_warning_swallows(
+        swapped_found, allowlist
+    )
+    assert len(swap_unrev) == 1
+    assert swapped_found[0].try_body_sha256[:12] in swap_unrev[0]
+    assert len(swap_stale) == 1
+    assert base_found[0].try_body_sha256[:12] in swap_stale[0]
+
+    # ASSERT: adding a second call into the allowlisted try block also fails
+    assert len(expanded_found) == 1
+    exp_unrev, exp_stale = _evaluate_validator_warning_swallows(
+        expanded_found, allowlist
+    )
+    assert len(exp_unrev) == 1
+    assert len(exp_stale) == 1
 
 
 def test_validator_warning_swallow_ast_lint_synthetic_cases() -> None:
@@ -1722,13 +1916,23 @@ def test_schema_contract_ledger_integrity() -> None:
         assert meta.get("owner_issue"), f"{site_id} allowlist entry missing owner_issue"
         assert meta.get("reason"), f"{site_id} allowlist entry missing reason"
         count = meta.get("count")
-        except_types = meta.get("except_types")
+        handlers = meta.get("handlers")
         assert isinstance(count, int) and not isinstance(count, bool) and count >= 1, (
             f"{site_id} allowlist count must be a positive int, got {count!r}"
         )
-        assert isinstance(except_types, list) and len(except_types) == count, (
-            f"{site_id} allowlist except_types must be a list of length {count}"
+        assert isinstance(handlers, list) and len(handlers) == count, (
+            f"{site_id} allowlist handlers must be a list of length {count}"
         )
+        for handler_meta in handlers:
+            assert handler_meta.get("except_type"), (
+                f"{site_id} allowlist handler missing except_type"
+            )
+            assert _SHA256_HEX_RE.match(handler_meta.get("try_body_sha256", "")), (
+                f"{site_id} allowlist handler has invalid try_body_sha256"
+            )
+            assert handler_meta.get("protected_op"), (
+                f"{site_id} allowlist handler missing protected_op description"
+            )
 
 
 def test_status_no_default_classified_ratchet(doc_snapshot) -> None:

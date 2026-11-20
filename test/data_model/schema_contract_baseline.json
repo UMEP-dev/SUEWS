@@ -5,8 +5,12 @@
     "src/supy/data_model/core/config.py::SUEWSConfig.set_surface_types_validation": {
       "owner_issue": "#2086",
       "owner_pr": "#2117",
-      "except_types": [
-        "Exception"
+      "handlers": [
+        {
+          "except_type": "Exception",
+          "try_body_sha256": "a2d4e623ee7f24d975f4764bce3d1a6daf89d3704e0e04af642ed205188d22b2",
+          "protected_op": "surface_prop.set_surface_type(surface_type)"
+        }
       ],
       "count": 1,
       "reason": "Legacy except Exception handler downgrades WaterDistribution.validate_distribution ValueError to UserWarning; removed by PR #2117."

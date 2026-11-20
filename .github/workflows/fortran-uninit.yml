@@ -54,6 +54,11 @@ jobs:
         run: |
           set -eu
           gfortran --version | head -n 1
+          # On pull_request synthetic merge checkouts (2-parent HEAD), use
+          # HEAD^1 so moving master cannot lag behind pull_request.base.sha.
+          if git -c "safe.directory=$PWD" rev-parse --verify -q HEAD^2 >/dev/null 2>&1; then
+            BASE_SHA="$(git -c "safe.directory=$PWD" rev-parse HEAD^1)"
+          fi
           if [ -n "$BASE_SHA" ]; then
             python3 scripts/lint/check_fortran_uninit.py --base-ref "$BASE_SHA"
           else

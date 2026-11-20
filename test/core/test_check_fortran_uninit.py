@@ -339,20 +339,57 @@ def test_write_baseline_and_report_round_trip(tmp_path, monkeypatch, capsys):
     assert "(src/suews/src/a.f95, sub_a, v_a, maybe-uninitialized)" in report
 
 
-def test_live_repo_unit_discovery_and_committed_baseline_contract():
-    """Live repo discovers all 114 Fortran units and baseline matches pinned workflow."""
-    units = check_fortran_uninit.discover_fortran_units(REPO_ROOT)
-    assert len(units) == 114
-    assert len({unit.rel_path for unit in units}) == 114
+def _tracked_rel_paths(pattern: str, fallback_dir: Path, glob_pat: str) -> set[str]:
+    """Return repo-relative tracked paths via git, falling back to filesystem glob."""
+    try:
+        res = subprocess.run(
+            ["git", "ls-files", pattern],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        paths = {line.strip() for line in res.stdout.splitlines() if line.strip()}
+        if paths:
+            return paths
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return {
+        p.relative_to(REPO_ROOT).as_posix()
+        for p in fallback_dir.glob(glob_pat)
+        if p.is_file()
+    }
 
-    groups: dict[str, int] = {}
+
+def test_live_repo_unit_discovery_and_committed_baseline_contract():
+    """Live repo unit discovery matches Makefile/C-API sources and pinned workflow."""
+    units = check_fortran_uninit.discover_fortran_units(REPO_ROOT)
+    assert len(units) > 0
+    assert len({unit.rel_path for unit in units}) == len(units)
+
+    by_group: dict[str, set[str]] = {"spartacus": set(), "suews": set(), "c_api": set()}
     for unit in units:
-        groups[unit.group] = groups.get(unit.group, 0) + 1
-    assert groups == {"spartacus": 24, "suews": 42, "c_api": 48}
+        assert unit.group in by_group
+        by_group[unit.group].add(unit.rel_path)
+        if unit.source_path is not None:
+            assert unit.source_path.is_file(), f"Missing Fortran unit: {unit.rel_path}"
+
+    assert all(by_group.values()), f"Empty Fortran unit group: {by_group}"
+
+    expected_suews = _tracked_rel_paths(
+        "src/suews/src/*.f95", REPO_ROOT / "src" / "suews" / "src", "*.f95"
+    ) | {check_fortran_uninit.GENERATED_VERSION_REL}
+    expected_capi = _tracked_rel_paths(
+        "src/suews_bridge/c_api/*.f95",
+        REPO_ROOT / "src" / "suews_bridge" / "c_api",
+        "*.f95",
+    )
+    assert by_group["suews"] == expected_suews
+    assert by_group["c_api"] == expected_capi
 
     baseline_path = REPO_ROOT / check_fortran_uninit.BASELINE_PATH
     keys, payload = check_fortran_uninit.load_baseline(baseline_path)
-    assert payload["unit_count"] == len(units)
+    assert isinstance(payload["unit_count"], int) and payload["unit_count"] > 0
     assert payload["entry_count"] == len(keys)
     assert keys == sorted(set(keys))
     assert payload["container_image"] == check_fortran_uninit.PINNED_CONTAINER_IMAGE
@@ -373,6 +410,7 @@ def test_live_repo_unit_discovery_and_committed_baseline_contract():
     assert re.search(r"@sha256:[0-9a-f]{64}$", image)
     assert "-finit-real=zero" not in check_fortran_uninit.KERNEL_BASE_FLAGS
     assert "-finit-real=zero" not in check_fortran_uninit.CAPI_BASE_FLAGS
+    assert "--allow-baseline-growth" not in workflow_text
 
     checkout_step = next(
         step
@@ -385,6 +423,8 @@ def test_live_repo_unit_discovery_and_committed_baseline_contract():
     check_step = job["steps"][-1]
     assert "github.event.pull_request.base.sha" in check_step["env"]["BASE_SHA"]
     assert "github.event.merge_group.base_sha" in check_step["env"]["BASE_SHA"]
+    assert "HEAD^2" in check_step["run"]
+    assert "HEAD^1" in check_step["run"]
     assert '--base-ref "$BASE_SHA"' in check_step["run"]
 
 
@@ -615,6 +655,96 @@ def test_base_ref_bootstrap_shrink_rejection_and_invalid_ref(
     assert "could not be resolved" in capsys.readouterr().err
 
 
+def test_compiler_image_bump_permits_rebaseline_and_rejects_spoofs(
+    tmp_path, monkeypatch, capsys
+):
+    """Genuine lockstep GCC image bumps permit re-baselining; spoofed JSON metadata fails."""
+    key_a = check_fortran_uninit.DiagnosticKey(
+        file="src/suews/src/a.f95", proc="sub_a", var="v_a", kind="maybe-uninitialized"
+    )
+    key_b = check_fortran_uninit.DiagnosticKey(
+        file="src/suews/src/b.f95", proc="sub_b", var="v_b", kind="uninitialized"
+    )
+    new_image = (
+        "public.ecr.aws/docker/library/gcc"
+        "@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    )
+    old_compiler = "GNU Fortran (GCC) 14.2.0"
+    new_compiler = "GNU Fortran (GCC) 15.1.0"
+
+    base_path = tmp_path / "base.json"
+    check_fortran_uninit.write_baseline(
+        base_path, [key_a], unit_count=114, compiler=old_compiler
+    )
+    base_data = json.loads(base_path.read_text(encoding="utf-8"))
+    base_data["container_image"] = (
+        "public.ecr.aws/docker/library/gcc"
+        "@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    )
+    base_path.write_text(json.dumps(base_data, indent=2) + "\n", encoding="utf-8")
+
+    repo = _make_stub_repo(tmp_path / "bump_repo", [key_a, key_b])
+    wf_path = repo / check_fortran_uninit.WORKFLOW_PATH
+    wf_path.parent.mkdir(parents=True, exist_ok=True)
+    wf_path.write_text(
+        f"jobs:\n  lint:\n    container:\n      image: {new_image}\n", encoding="utf-8"
+    )
+
+    cand_path = repo / check_fortran_uninit.BASELINE_PATH
+    cand_data = json.loads(cand_path.read_text(encoding="utf-8"))
+    cand_data["container_image"] = new_image
+    cand_data["compiler"] = new_compiler
+    cand_path.write_text(json.dumps(cand_data, indent=2) + "\n", encoding="utf-8")
+
+    both_hits = [
+        check_fortran_uninit.DiagnosticHit(key=key_a, line=1),
+        check_fortran_uninit.DiagnosticHit(key=key_b, line=2),
+    ]
+    cli_args = [
+        "check_fortran_uninit",
+        str(repo),
+        "--base-baseline",
+        str(base_path),
+    ]
+
+    # Case 1: Spoofed JSON only (workflow/PINNED_CONTAINER_IMAGE still old) -> FAIL
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (both_hits, 114, new_compiler),
+    )
+    assert check_fortran_uninit.main(cli_args) == 1
+    assert "does not match PINNED_CONTAINER_IMAGE" in capsys.readouterr().err
+
+    # Case 2: Lockstep bump across script + workflow + JSON, but compiler mismatch -> FAIL
+    monkeypatch.setattr(check_fortran_uninit, "PINNED_CONTAINER_IMAGE", new_image)
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (both_hits, 114, old_compiler),
+    )
+    assert check_fortran_uninit.main(cli_args) == 1
+    assert "does not match running compiler" in capsys.readouterr().err
+
+    # Case 3: Genuine lockstep bump with matching running compiler -> PASS
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (both_hits, 114, new_compiler),
+    )
+    assert check_fortran_uninit.main(cli_args) == 0
+    assert "compiler-image bump detected" in capsys.readouterr().err
+
+    # Case 4: Genuine bump still fails if actual warnings do not match candidate JSON
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (both_hits[:1], 114, new_compiler),
+    )
+    assert check_fortran_uninit.main(cli_args) == 1
+    assert "stale baseline" in capsys.readouterr().err
+
+
 def _load_snan_summariser():
     path = REPO_ROOT / "scripts" / "lint" / "summarise_snan_report.py"
     spec = importlib.util.spec_from_file_location("summarise_snan_report", path)
@@ -790,8 +920,130 @@ def test_summarise_snan_report_rejects_abnormal_pytest_exit_codes(
     assert f"code {bad_code}" in capsys.readouterr().err
 
 
+def test_summarise_snan_report_fails_hard_on_mixed_pass_and_xdist_worker_error(
+    tmp_path, capsys
+):
+    """Any JUnit <error> (e.g. xdist worker crash alongside a pass) fails hard in advisory mode."""
+    summariser = _load_snan_summariser()
+    xml_path = tmp_path / "xdist_crash.xml"
+    xml_path.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="2" errors="1" failures="0" skipped="0" time="4.2">
+    <testcase classname="test.physics.test_ok" name="test_passes" time="1.0"/>
+    <testcase classname="test.physics.test_crash" name="test_worker_killed" time="3.2">
+      <error message="worker 'gw0' crashed while running 'test_worker_killed' (exit 86)">INTERNALERROR</error>
+    </testcase>
+  </testsuite>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+
+    rc = summariser.main([
+        "summarise_snan_report",
+        str(xml_path),
+        "--pytest-exit-code",
+        "1",
+        "--github-annotations",
+    ])
+    assert rc == 1
+    captured = capsys.readouterr()
+    assert "JUnit <error>" in captured.err
+    assert "::error title=Fortran sNaN pilot (error)::" in captured.out
+
+    # Exit code 1 with 0 failures and 0 errors in JUnit must also fail hard
+    clean_xml = tmp_path / "clean_but_rc1.xml"
+    clean_xml.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="3" errors="0" failures="0" skipped="0" time="1.0"/>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+    rc_mismatch = summariser.main([
+        "summarise_snan_report",
+        str(clean_xml),
+        "--pytest-exit-code",
+        "1",
+    ])
+    assert rc_mismatch == 1
+    assert "recorded 0 failures and 0 errors" in capsys.readouterr().err
+
+
+def test_summarise_snan_report_allowlist_passes_known_and_fails_new_failure(
+    tmp_path, capsys
+):
+    """Only allowlisted #2105 failures stay advisory; any NEW failure exits 1."""
+    summariser = _load_snan_summariser()
+    expected_path = (
+        REPO_ROOT / "scripts" / "lint" / "fortran_snan_expected_failures.json"
+    )
+    expected = summariser.load_expected_failures(expected_path)
+    known_node = next(iter(expected))
+    assert "roughness_length_momentum=ALTERNATIVE" in known_node
+
+    # Known #2105 + NEW unexpected failure -> advisory mode MUST exit 1
+    mixed_xml = tmp_path / "mixed_failures.xml"
+    mixed_xml.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="10" errors="0" failures="2" skipped="0" time="5.0">
+    <testcase classname="test.physics.test_option_sweep"
+              name="test_option_value_runs_finite_and_conserves_water[roughness_length_momentum=ALTERNATIVE]"
+              time="1.2">
+      <failure message="RuntimeError: simulation failed (code 110): non-finite roughness length">tb</failure>
+    </testcase>
+    <testcase classname="test.physics.test_new_regression"
+              name="test_unexpected_nan"
+              time="0.8">
+      <failure message="AssertionError: NaN in output QH">tb</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+    rc_new = summariser.main([
+        "summarise_snan_report",
+        str(mixed_xml),
+        "--pytest-exit-code",
+        "1",
+        "--github-annotations",
+    ])
+    assert rc_new == 1
+    captured = capsys.readouterr()
+    assert "test.physics.test_new_regression::test_unexpected_nan" in captured.err
+    assert "::warning title=Fortran sNaN pilot (NaN/non-finite)::" in captured.out
+    assert "::error title=Fortran sNaN pilot (NaN/non-finite)::" in captured.out
+
+    # Clean passing run notes allowlisted failure did not occur
+    all_pass_xml = tmp_path / "all_pass.xml"
+    all_pass_xml.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="10" errors="0" failures="0" skipped="0" time="5.0"/>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+    rc_pass = summariser.main([
+        "summarise_snan_report",
+        str(all_pass_xml),
+        "--pytest-exit-code",
+        "0",
+    ])
+    assert rc_pass == 0
+    assert "did not fail in this run" in capsys.readouterr().out
+
+
 def test_snan_nightly_workflow_is_isolated_and_no_trap():
-    """Nightly sNaN workflow stays isolated from shipped wheels and preserves pytest exit code."""
+    """Nightly sNaN workflow stays isolated from shipped wheels and wires allowlist + exit code."""
     workflow_path = REPO_ROOT / ".github" / "workflows" / "fortran-snan-nightly.yml"
     text = workflow_path.read_text(encoding="utf-8")
     workflow = yaml.safe_load(text)
@@ -808,3 +1060,7 @@ def test_snan_nightly_workflow_is_isolated_and_no_trap():
     assert "-finit-real=snan" in run_blocks
     assert "PIPESTATUS[0]" in run_blocks
     assert '--pytest-exit-code "$PYTEST_EXIT"' in run_blocks
+    assert (
+        "--expected-failures scripts/lint/fortran_snan_expected_failures.json"
+        in run_blocks
+    )

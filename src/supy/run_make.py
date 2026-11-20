@@ -245,6 +245,58 @@ def invalidate_stale_artifacts(
     return removed
 
 
+def sync_builddir_for_env(
+    suews_dir: Path,
+    build_dir: Path,
+    *,
+    fc: str | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> list[Path]:
+    """Invalidate Meson builddir stamps when the live env fingerprint changed.
+
+    Ninja tracks file mtimes rather than environment variables such as
+    ``SUEWS_INIT_REAL`` or ``SUEWS_BUILD_PROFILE``. Running this before
+    ``ninja`` or editable reinstall preserves zero-work no-op rebuilds when
+    the environment is unchanged while forcing a clean Fortran rebuild and
+    Rust-bridge relink when the build configuration changes in the same build
+    directory.
+    """
+    if not build_dir.is_dir():
+        return []
+
+    resolved_fc = _pick_suews_fc() if fc is None and environ is None else fc
+    profile = build_profile_from_env(environ)
+    profile_args = make_args_for_profile(profile)
+    fingerprint = compute_build_fingerprint(
+        suews_dir, resolved_fc, profile, profile_args, environ=environ
+    )
+    fp_path = fingerprint_path_for_suews(suews_dir)
+    previous = (
+        fp_path.read_text(encoding="utf-8").strip() if fp_path.is_file() else None
+    )
+    if previous == fingerprint:
+        return []
+
+    supy_build = build_dir / "src" / "supy"
+    candidates: list[Path] = []
+    stamp = supy_build / "suews_objects"
+    if stamp.is_file():
+        candidates.append(stamp)
+    if supy_build.is_dir():
+        candidates.extend(sorted(supy_build.glob("suews_bridge.*")))
+        candidates.extend(sorted(supy_build.glob("suews-engine*")))
+    bin_dir = supy_build / "bin"
+    if bin_dir.is_dir():
+        candidates.extend(sorted(bin_dir.glob("suews*")))
+
+    removed: list[Path] = []
+    for path in candidates:
+        if path.is_file() and not path.is_symlink():
+            path.unlink()
+            removed.append(path)
+    return sorted(removed)
+
+
 def write_build_fingerprint(suews_dir: Path, fingerprint: str) -> Path:
     """Write ``fingerprint`` beside the shared objects in ``suews_dir``.
 
@@ -399,8 +451,24 @@ def _record_build_outputs(
 
 
 def main() -> None:
+    if len(sys.argv) == 4 and sys.argv[1] == "--sync-builddir":
+        suews_dir = Path(sys.argv[2]).resolve()
+        build_dir = Path(sys.argv[3]).resolve()
+        with _suews_build_lock(suews_dir):
+            removed = sync_builddir_for_env(suews_dir, build_dir)
+        if removed:
+            sys.stdout.write(
+                f"Build configuration changed for {build_dir.name}; "
+                f"invalidated {len(removed)} Meson stamp/bridge artefact(s) "
+                "before rebuild.\n"
+            )
+        return
+
     if len(sys.argv) not in {3, 4}:
-        raise SystemExit("Usage: run_make.py <suews_dir> <stamp_file> [depfile]")
+        raise SystemExit(
+            "Usage: run_make.py <suews_dir> <stamp_file> [depfile] | "
+            "run_make.py --sync-builddir <suews_dir> <build_dir>"
+        )
 
     suews_dir = Path(sys.argv[1]).resolve()
     raw_stamp = sys.argv[2]

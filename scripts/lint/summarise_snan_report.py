@@ -4,37 +4,55 @@
 Parses the JUnit XML written by ``pytest -m physics`` under a no-trap
 ``SUEWS_INIT_REAL=snan`` build, flags failures whose traceback mentions NaN or
 non-finite values, writes an ASCII Markdown summary for ``$GITHUB_STEP_SUMMARY``
-(and report artefacts), and optionally emits GitHub Actions warning annotations.
+(and report artefacts), and optionally emits GitHub Actions annotations.
 
 Always exits 1 (even in default advisory pilot mode) if:
 
 - the JUnit XML is missing, malformed, or recorded zero tests;
 - zero non-skipped test bodies executed (for example an all-skipped run or a
   collection/import error before any test ran);
-- any JUnit ``<error>`` represents a collection failure; or
+- any JUnit ``<error>`` occurred (collection failure, fixture setup/teardown
+  error, or pytest-xdist worker crash even in a mixed pass/error run);
 - ``--pytest-exit-code`` is outside ``{0, 1}`` (pytest exit codes 2, 3, 4, 5,
-  or signal exits such as SIGSEGV/SIGFPE).
+  or signal exits such as SIGSEGV/SIGFPE), or ``1`` with zero recorded failures
+  and zero recorded errors; or
+- any JUnit ``<failure>`` is outside the expected-failures allowlist (preventing
+  new regressions from hiding silently in nightly runs).
 
-When at least one test body executed cleanly and pytest exited with ``0`` or
-``1``, exits 0 in advisory pilot mode (so known Wave 4 physics failures such as
-``#2105`` stay non-blocking) and exits 1 if ``--strict`` is passed with any
-failure or error.
+Only failures explicitly listed in the expected-failures allowlist (currently
+known Wave 4 ``#2105``) stay advisory (exit 0) in default pilot mode; passing
+``--strict`` exits 1 on every failure including allowlisted entries.
 """
 
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 import sys
 import xml.etree.ElementTree as ET
+
+DEFAULT_EXPECTED_FAILURES_PATH = (
+    Path(__file__).resolve().with_name("fortran_snan_expected_failures.json")
+)
 
 _NAN_SIGNAL_RE = re.compile(
     r"\b(?:nan|snan|qnan|non-finite|not finite|isfinite)\b|code 110",
     re.I,
 )
 _COLLECTION_ERROR_RE = re.compile(r"collection failure", re.I)
+
+
+@dataclass(frozen=True)
+class ExpectedFailure:
+    """One tracked physics test failure allowlisted while its Wave 4 fix is open."""
+
+    node: str
+    issue: str
+    reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -69,6 +87,36 @@ class SuiteSummary:
     def has_collection_error(self) -> bool:
         """Whether any recorded JUnit error represents a pytest collection failure."""
         return any(case.is_collection_error for case in self.failed_cases)
+
+    @property
+    def has_any_error(self) -> bool:
+        """Whether any JUnit error occurred (collection, setup/teardown, xdist crash)."""
+        return self.errors > 0 or any(
+            case.kind == "error" for case in self.failed_cases
+        )
+
+
+def load_expected_failures(path: Path) -> dict[str, ExpectedFailure]:
+    """Load the allowlisted known-failure map keyed by JUnit ``classname::name``."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    raw_entries = payload.get("entries")
+    if not isinstance(raw_entries, list):
+        raise ValueError(
+            f"Expected-failures file {path} must contain an 'entries' list"
+        )
+    expected: dict[str, ExpectedFailure] = {}
+    for item in raw_entries:
+        if not isinstance(item, dict) or not item.get("node") or not item.get("issue"):
+            raise ValueError(
+                f"Each entry in {path} must define non-empty 'node' and 'issue' strings"
+            )
+        entry = ExpectedFailure(
+            node=str(item["node"]),
+            issue=str(item["issue"]),
+            reason=str(item.get("reason", "")),
+        )
+        expected[entry.node] = entry
+    return expected
 
 
 def _first_line(text: str, limit: int = 200) -> str:
@@ -145,14 +193,32 @@ def parse_junit_xml(path: Path) -> SuiteSummary:
     )
 
 
+def classify_failures(
+    summary: SuiteSummary,
+    expected_failures: Mapping[str, ExpectedFailure],
+) -> tuple[list[FailedCase], list[FailedCase], list[ExpectedFailure]]:
+    """Split JUnit ``<failure>`` cases into ``(allowlisted, unexpected, resolved)``."""
+    failure_cases = [case for case in summary.failed_cases if case.kind == "failure"]
+    allowlisted = [case for case in failure_cases if case.node in expected_failures]
+    unexpected = [case for case in failure_cases if case.node not in expected_failures]
+    seen_nodes = {case.node for case in failure_cases}
+    resolved = [
+        entry for node, entry in expected_failures.items() if node not in seen_nodes
+    ]
+    return allowlisted, unexpected, resolved
+
+
 def render_markdown(
     summary: SuiteSummary,
     *,
     compiler: str = "",
     build_profile: str = "release",
     pytest_exit_code: int | None = None,
+    expected_failures: Mapping[str, ExpectedFailure] | None = None,
 ) -> str:
     """Render an ASCII Markdown report suitable for ``$GITHUB_STEP_SUMMARY``."""
+    expected_map = {} if expected_failures is None else expected_failures
+    allowlisted, unexpected, resolved = classify_failures(summary, expected_map)
     nan_count = sum(1 for case in summary.failed_cases if case.nan_related)
     lines = [
         "## Fortran no-trap `-finit-real=snan` physics pilot",
@@ -166,7 +232,8 @@ def render_markdown(
     lines.extend([
         (
             f"- **Results:** {summary.tests} recorded -> "
-            f"{summary.passed} passed, {summary.failures} failed, "
+            f"{summary.passed} passed, {summary.failures} failed "
+            f"({len(allowlisted)} allowlisted, {len(unexpected)} unexpected), "
             f"{summary.errors} errors, {summary.skipped} skipped/xfailed "
             f"({summary.elapsed_s:.1f}s)"
         ),
@@ -176,13 +243,21 @@ def render_markdown(
 
     if summary.failed_cases:
         lines.extend([
-            "| Test | Kind | NaN/non-finite | Summary |",
-            "|---|---|---|---|",
+            "| Test | Kind | Status | NaN/non-finite | Summary |",
+            "|---|---|---|---|---|",
         ])
         for case in summary.failed_cases:
             flag = "yes" if case.nan_related else "no"
+            if case.kind == "error":
+                status = "hard-error"
+            elif case.node in expected_map:
+                status = f"allowlisted ({expected_map[case.node].issue})"
+            else:
+                status = "unexpected"
             safe_summary = case.summary.replace("|", "\\|")
-            lines.append(f"| `{case.node}` | {case.kind} | {flag} | {safe_summary} |")
+            lines.append(
+                f"| `{case.node}` | {case.kind} | {status} | {flag} | {safe_summary} |"
+            )
         lines.extend([
             "",
             "Known Wave 4 tracked items exposed by sNaN initialisation: "
@@ -199,6 +274,14 @@ def render_markdown(
             "[OK] All `-m physics` tests passed under no-trap `-finit-real=snan`."
         )
 
+    if resolved and summary.executed > 0 and not summary.has_any_error:
+        lines.append("")
+        for entry in resolved:
+            lines.append(
+                f"[!] Allowlisted failure `{entry.node}` ({entry.issue}) did not "
+                "fail in this run; consider shrinking the allowlist or enabling `--strict`."
+            )
+
     return "\n".join(lines) + "\n"
 
 
@@ -206,30 +289,65 @@ def _evaluate_hard_failure(
     summary: SuiteSummary,
     xml_path: Path,
     pytest_exit_code: int | None,
+    unexpected_failures: list[FailedCase],
 ) -> str | None:
     """Return an error reason if the run must fail hard even in advisory mode."""
+    recorded_failures = [c for c in summary.failed_cases if c.kind == "failure"]
+    reason: str | None = None
     if pytest_exit_code is not None and pytest_exit_code not in {0, 1}:
-        return (
+        reason = (
             f"pytest exited abnormally with code {pytest_exit_code} "
             "(only 0 or 1 is admissible in advisory mode)"
         )
-    if summary.tests == 0:
-        return f"JUnit XML {xml_path} recorded zero tests"
-    if summary.has_collection_error:
-        return f"pytest reported collection error(s) in {xml_path}"
-    if summary.executed == 0:
-        return (
+    elif summary.tests == 0:
+        reason = f"JUnit XML {xml_path} recorded zero tests"
+    elif summary.has_collection_error:
+        reason = f"pytest reported collection error(s) in {xml_path}"
+    elif summary.has_any_error:
+        error_count = max(
+            summary.errors,
+            sum(1 for case in summary.failed_cases if case.kind == "error"),
+        )
+        reason = (
+            f"pytest recorded {error_count} JUnit <error> record(s) "
+            f"(infrastructure/setup/xdist worker crash) in {xml_path}"
+        )
+    elif summary.executed == 0:
+        reason = (
             f"No physics tests executed in {xml_path} "
             f"({summary.tests} recorded, {summary.errors} errors, "
             f"{summary.skipped} skipped/xfailed)"
         )
-    return None
+    elif pytest_exit_code == 1 and summary.failures == 0 and summary.errors == 0:
+        reason = (
+            f"pytest exited with code 1 but {xml_path} recorded 0 failures and 0 errors"
+        )
+    elif summary.failures > 0 and not recorded_failures:
+        reason = (
+            f"{xml_path} header reported {summary.failures} failure(s) without "
+            "<failure> testcase entries to match against the allowlist"
+        )
+    elif unexpected_failures:
+        nodes = ", ".join(case.node for case in unexpected_failures)
+        reason = (
+            f"{len(unexpected_failures)} unexpected physics failure(s) outside "
+            f"the sNaN allowlist: {nodes}"
+        )
+    return reason
 
 
 def _build_parser() -> argparse.ArgumentParser:
     """Create the CLI argument parser."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("junit_xml", help="path to pytest JUnit XML file")
+    parser.add_argument(
+        "--expected-failures",
+        default=None,
+        help=(
+            "path to JSON allowlist of known advisory failures "
+            f"(default: {DEFAULT_EXPECTED_FAILURES_PATH.name} beside this script)"
+        ),
+    )
     parser.add_argument(
         "--markdown",
         action="append",
@@ -254,36 +372,55 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--github-annotations",
         action="store_true",
-        help="emit GitHub Actions ::warning annotations for each failure",
+        help="emit GitHub Actions ::warning/::error annotations for each failure",
     )
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="exit 1 if any test failed or errored",
+        help="exit 1 if any test failed or errored (including allowlisted entries)",
     )
     return parser
 
 
+def _load_inputs(
+    xml_path: Path, expected_path: Path
+) -> tuple[SuiteSummary, dict[str, ExpectedFailure]]:
+    """Load and validate both the JUnit XML report and the expected-failures allowlist."""
+    if not xml_path.is_file():
+        raise FileNotFoundError(f"JUnit XML not found: {xml_path}")
+    if not expected_path.is_file():
+        raise FileNotFoundError(
+            f"expected-failures allowlist not found: {expected_path}"
+        )
+    expected_failures = load_expected_failures(expected_path)
+    summary = parse_junit_xml(xml_path)
+    return summary, expected_failures
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Parse JUnit XML, write summary Markdown, and apply hard/strict gates."""
+    """Parse JUnit XML, write summary Markdown, and apply hard/allowlist/strict gates."""
     args = _build_parser().parse_args(sys.argv[1:] if argv is None else argv[1:])
 
     xml_path = Path(args.junit_xml)
-    if not xml_path.is_file():
-        print(f"[X] JUnit XML not found: {xml_path}", file=sys.stderr)
+    expected_path = (
+        Path(args.expected_failures)
+        if args.expected_failures is not None
+        else DEFAULT_EXPECTED_FAILURES_PATH
+    )
+    try:
+        summary, expected_failures = _load_inputs(xml_path, expected_path)
+    except (OSError, ValueError, json.JSONDecodeError, ET.ParseError) as exc:
+        print(f"[X] {exc}", file=sys.stderr)
         return 1
 
-    try:
-        summary = parse_junit_xml(xml_path)
-    except (ET.ParseError, ValueError) as exc:
-        print(f"[X] failed to parse {xml_path}: {exc}", file=sys.stderr)
-        return 1
+    _allowlisted, unexpected, _resolved = classify_failures(summary, expected_failures)
 
     markdown = render_markdown(
         summary,
         compiler=args.compiler,
         build_profile=args.build_profile,
         pytest_exit_code=args.pytest_exit_code,
+        expected_failures=expected_failures,
     )
     print(markdown, end="")
 
@@ -299,12 +436,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.github_annotations:
         for case in summary.failed_cases:
             tag = "NaN/non-finite" if case.nan_related else case.kind
+            is_allowlisted = case.kind == "failure" and case.node in expected_failures
+            level = "warning" if is_allowlisted and not args.strict else "error"
             print(
-                f"::warning title=Fortran sNaN pilot ({tag})::"
+                f"::{level} title=Fortran sNaN pilot ({tag})::"
                 f"{case.node}: {case.summary}"
             )
 
-    hard_failure = _evaluate_hard_failure(summary, xml_path, args.pytest_exit_code)
+    hard_failure = _evaluate_hard_failure(
+        summary, xml_path, args.pytest_exit_code, unexpected
+    )
     if hard_failure is not None:
         print(f"[X] {hard_failure}", file=sys.stderr)
         return 1

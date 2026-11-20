@@ -487,3 +487,73 @@ def test_run_make_tracks_all_makefile_conditional_assign_vars() -> None:
         "SUEWS Makefile `?=` variables missing from run_make._MAKE_ENV_KEYS: "
         f"{untracked}"
     )
+
+
+def test_run_make_sync_builddir_invalidates_only_on_env_change(tmp_path: Path) -> None:
+    # ARRANGE
+    helper = _load_helper("suews_run_make", "src/supy/run_make.py")
+    suews_dir = _make_synthetic_suews_tree(tmp_path)
+    build_dir = tmp_path / "build" / "cp312"
+    supy_build = build_dir / "src" / "supy"
+    (supy_build / "bin").mkdir(parents=True)
+
+    expected_outputs = {
+        supy_build / "suews_objects",
+        supy_build / "suews_bridge.abi3.so",
+        supy_build / "suews-engine",
+        supy_build / "bin" / "suews-engine",
+    }
+    for path in expected_outputs:
+        path.write_bytes(b"zero-build")
+
+    fp_zero = helper.compute_build_fingerprint(
+        suews_dir, fc=None, profile="release", profile_args=["DEBUG="], environ={}
+    )
+    helper.write_build_fingerprint(suews_dir, fp_zero)
+
+    # ACT & ASSERT 1: matching env (unset or explicit "zero") leaves stamps untouched
+    assert helper.sync_builddir_for_env(suews_dir, build_dir, environ={}) == []
+    assert (
+        helper.sync_builddir_for_env(
+            suews_dir, build_dir, environ={"SUEWS_INIT_REAL": "zero"}
+        )
+        == []
+    )
+    assert all(path.is_file() for path in expected_outputs)
+
+    # ACT & ASSERT 2: switching to SUEWS_INIT_REAL=snan invalidates Meson & bridge outputs
+    assert (
+        set(
+            helper.sync_builddir_for_env(
+                suews_dir, build_dir, environ={"SUEWS_INIT_REAL": "snan"}
+            )
+        )
+        == expected_outputs
+    )
+    assert not any(path.exists() for path in expected_outputs)
+
+    # ACT & ASSERT 3: switching SUEWS_BUILD_PROFILE also invalidates stamps
+    for path in expected_outputs:
+        path.write_bytes(b"snan-build")
+    fp_snan = helper.compute_build_fingerprint(
+        suews_dir,
+        fc=None,
+        profile="release",
+        profile_args=["DEBUG="],
+        environ={"SUEWS_INIT_REAL": "snan"},
+    )
+    helper.write_build_fingerprint(suews_dir, fp_snan)
+    assert (
+        set(
+            helper.sync_builddir_for_env(
+                suews_dir,
+                build_dir,
+                environ={"SUEWS_INIT_REAL": "snan", "SUEWS_BUILD_PROFILE": "checked"},
+            )
+        )
+        == expected_outputs
+    )
+
+    # Root Makefile wires --sync-builddir into both dev and rebuild-meson targets
+    root_makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    assert root_makefile.count("run_make.py --sync-builddir src/suews") >= 2

@@ -25,6 +25,21 @@ baseline ``scripts/lint/fortran_uninit_baseline.json``:
 Diagnostics depend on exact compiler optimisation passes, so CI runs this
 script inside a digest-pinned Linux ``gcc`` container image.
 
+GCC container-image bump procedure (maintainers only):
+
+1. Update ``container.image`` in ``.github/workflows/fortran-uninit.yml`` to
+   the new immutable ``@sha256:...`` digest.
+2. Update ``PINNED_CONTAINER_IMAGE`` and ``PINNED_COMPILER`` in this script to
+   match the new image.
+3. Regenerate ``scripts/lint/fortran_uninit_baseline.json`` inside the new
+   container using ``--write-baseline``.
+4. Open a dedicated compiler-bump PR approved by a maintainer. When
+   ``container_image`` / ``compiler`` changes in lockstep across the workflow,
+   this script, the baseline JSON, and the live running ``gfortran --version``,
+   ``--base-ref`` permits the audited re-baseline while still requiring exact
+   match between observed warnings and the new baseline. Ordinary PRs with the
+   same compiler digest remain strictly shrink-only.
+
 Exits 0 when the observed diagnostic key set equals the baseline, 1 otherwise.
 """
 
@@ -42,12 +57,15 @@ import sys
 import tempfile
 
 BASELINE_PATH = Path("scripts") / "lint" / "fortran_uninit_baseline.json"
+WORKFLOW_PATH = Path(".github") / "workflows" / "fortran-uninit.yml"
 
 PINNED_CONTAINER_IMAGE = (
     "public.ecr.aws/docker/library/gcc"
     "@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82"
 )
 PINNED_COMPILER = "GNU Fortran (GCC) 14.2.0"
+_DIGEST_IMAGE_RE = re.compile(r"@sha256:[0-9a-f]{64}$")
+_WORKFLOW_IMAGE_RE = re.compile(r"^\s*image:\s*(\S+)\s*$")
 
 GENERATED_VERSION_REL = "src/suews/src/suews_ctrl_ver.f95"
 GENERATED_VERSION_SOURCE = """\
@@ -99,12 +117,16 @@ against {BASELINE_PATH.as_posix()} using the pinned Linux container image:
   {PINNED_CONTAINER_IMAGE}
 
   - new warning     ->  initialise the variable along every path or fix the
-                        missing branch; do not add new entries to the baseline.
+                        missing branch; ordinary PRs cannot grow the baseline.
   - stale baseline  ->  thank you for fixing a warning; shrink the baseline
                         inside the pinned container in this diff:
                         docker run --rm -v "$PWD:/work" -w /work \\
                           {PINNED_CONTAINER_IMAGE} \\
-                          python3 scripts/lint/check_fortran_uninit.py --write-baseline\
+                          python3 scripts/lint/check_fortran_uninit.py --write-baseline
+  - compiler bump   ->  update container.image in {WORKFLOW_PATH.as_posix()},
+                        PINNED_CONTAINER_IMAGE / PINNED_COMPILER here, and
+                        regenerate the baseline with --write-baseline inside
+                        the new container in a dedicated maintainer-reviewed PR.\
 """
 
 # Regexes for Fortran procedure-span tracking (mirrors check_saved_fortran_locals.py).
@@ -630,14 +652,14 @@ def load_base_baseline_from_git(
     repo_root: Path,
     base_ref: str,
     baseline_rel: Path = BASELINE_PATH,
-) -> tuple[list[DiagnosticKey] | None, str]:
+) -> tuple[list[DiagnosticKey] | None, dict[str, object] | None, str]:
     """Load the trusted base revision's baseline JSON via ``git``.
 
     Verifies that ``base_ref`` resolves to a commit in ``repo_root`` (failing
     loudly if the commit is missing, e.g. under a shallow checkout). Returns
-    ``(None, resolved_sha)`` only when ``baseline_rel`` does not yet exist in
-    that verified base commit (first-introduction bootstrap); otherwise returns
-    ``(keys, resolved_sha)``.
+    ``(None, None, resolved_sha)`` only when ``baseline_rel`` does not yet
+    exist in that verified base commit (first-introduction bootstrap);
+    otherwise returns ``(keys, payload, resolved_sha)``.
     """
     git_base = ["git", "-c", f"safe.directory={repo_root}", "-C", str(repo_root)]
     verify = subprocess.run(
@@ -661,7 +683,7 @@ def load_base_baseline_from_git(
         check=False,
     )
     if exists.returncode != 0:
-        return None, resolved_sha
+        return None, None, resolved_sha
 
     show = subprocess.run(
         [*git_base, "show", git_spec],
@@ -671,8 +693,85 @@ def load_base_baseline_from_git(
     )
     if show.returncode != 0:
         raise RuntimeError(f"Failed to read {git_spec} from git: {show.stderr.strip()}")
-    keys, _payload = parse_baseline_json(show.stdout, git_spec)
-    return keys, resolved_sha
+    keys, payload = parse_baseline_json(show.stdout, git_spec)
+    return keys, payload, resolved_sha
+
+
+def _read_workflow_container_image(repo_root: Path) -> str | None:
+    """Read ``container.image`` from ``.github/workflows/fortran-uninit.yml``."""
+    wf_path = repo_root / WORKFLOW_PATH
+    if not wf_path.is_file():
+        return None
+    for line in wf_path.read_text(encoding="utf-8").splitlines():
+        match = _WORKFLOW_IMAGE_RE.match(line)
+        if match is not None:
+            return match.group(1).strip("'\"")
+    return None
+
+
+def _validate_compiler_image_bump(
+    repo_root: Path,
+    base_payload: dict[str, object] | None,
+    candidate_payload: dict[str, object],
+    running_compiler: str,
+) -> tuple[bool, str | None, str | None]:
+    """Check whether a base -> candidate metadata change is an audited compiler bump.
+
+    Returns ``(is_valid_bump, bump_note, spoof_error)``:
+    - When base and candidate share the same ``container_image`` and
+      ``compiler``, returns ``(False, None, None)`` (ordinary PR: strict
+      shrink-only applies).
+    - When ``container_image`` or ``compiler`` differs, permits re-baselining
+      only if the candidate digest matches ``PINNED_CONTAINER_IMAGE``, the
+      workflow's ``container.image`` (when present), and the live running
+      ``gfortran --version`` line. Otherwise returns a rejection message so a
+      PR cannot bypass shrink-only by editing the baseline JSON alone.
+    """
+    if base_payload is None:
+        return False, None, None
+
+    base_image = str(base_payload.get("container_image") or "")
+    cand_image = str(candidate_payload.get("container_image") or "")
+    base_compiler = str(base_payload.get("compiler") or "")
+    cand_compiler = str(candidate_payload.get("compiler") or "")
+
+    if base_image == cand_image and base_compiler == cand_compiler:
+        return False, None, None
+
+    workflow_image = _read_workflow_container_image(repo_root)
+    spoof_error: str | None = None
+    if not _DIGEST_IMAGE_RE.search(cand_image):
+        spoof_error = (
+            f"candidate baseline container_image {cand_image!r} is not pinned "
+            "to an immutable @sha256 digest"
+        )
+    elif cand_image != PINNED_CONTAINER_IMAGE:
+        spoof_error = (
+            f"candidate baseline container_image {cand_image!r} does not match "
+            f"PINNED_CONTAINER_IMAGE {PINNED_CONTAINER_IMAGE!r} in "
+            "scripts/lint/check_fortran_uninit.py"
+        )
+    elif workflow_image is not None and cand_image != workflow_image:
+        spoof_error = (
+            f"candidate baseline container_image {cand_image!r} does not match "
+            f"{WORKFLOW_PATH.as_posix()} container.image {workflow_image!r}"
+        )
+    elif cand_compiler != running_compiler:
+        spoof_error = (
+            f"candidate baseline compiler {cand_compiler!r} does not match "
+            f"running compiler {running_compiler!r}"
+        )
+
+    if spoof_error is not None:
+        return False, None, spoof_error
+
+    old_digest = base_image.rsplit("@", 1)[-1][:19]
+    new_digest = cand_image.rsplit("@", 1)[-1][:19]
+    return (
+        True,
+        f"{base_compiler} ({old_digest}) -> {cand_compiler} ({new_digest})",
+        None,
+    )
 
 
 def check_baseline_shrink_only(
@@ -691,23 +790,23 @@ def check_baseline_shrink_only(
     return added, removed
 
 
-def _resolve_base_keys(
+def _resolve_base_baseline(
     repo_root: Path,
     *,
     base_baseline: str | None,
     base_ref: str | None,
     baseline_rel: Path = BASELINE_PATH,
-) -> tuple[list[DiagnosticKey] | None, str | None]:
-    """Load base baseline keys from ``--base-baseline`` or ``--base-ref``."""
+) -> tuple[list[DiagnosticKey] | None, dict[str, object] | None, str | None]:
+    """Load base baseline keys and metadata from ``--base-baseline`` or ``--base-ref``."""
     if base_baseline is not None:
         base_path = Path(base_baseline)
         if not base_path.is_file():
             raise FileNotFoundError(f"Base baseline not found: {base_path}")
-        keys, _payload = load_baseline(base_path)
-        return keys, base_path.as_posix()
+        keys, payload = load_baseline(base_path)
+        return keys, payload, base_path.as_posix()
 
     if base_ref is not None:
-        keys, resolved_sha = load_base_baseline_from_git(
+        keys, payload, resolved_sha = load_base_baseline_from_git(
             repo_root, base_ref, baseline_rel=baseline_rel
         )
         if keys is None:
@@ -716,10 +815,10 @@ def _resolve_base_keys(
                 f"revision {resolved_sha[:12]}; skipping base-baseline shrink check.",
                 file=sys.stderr,
             )
-            return None, None
-        return keys, resolved_sha[:12]
+            return None, None, None
+        return keys, payload, resolved_sha[:12]
 
-    return None, None
+    return None, None, None
 
 
 def write_baseline(
@@ -765,6 +864,7 @@ def _print_report(
 
 
 def _check_against_baseline(
+    repo_root: Path,
     baseline_path: Path,
     actual_keys: Sequence[DiagnosticKey],
     first_lines: dict[DiagnosticKey, int],
@@ -772,7 +872,9 @@ def _check_against_baseline(
     unit_count: int,
     compiler: str,
     base_keys: Sequence[DiagnosticKey] | None = None,
+    base_payload: dict[str, object] | None = None,
     base_label: str | None = None,
+    allow_baseline_growth: bool = False,
 ) -> int:
     """Compare observed keys against candidate and optional base baselines."""
     if not baseline_path.is_file():
@@ -782,14 +884,24 @@ def _check_against_baseline(
     baseline_keys, payload = load_baseline(baseline_path)
     added_to_baseline: list[DiagnosticKey] = []
     removed_from_baseline: list[DiagnosticKey] = []
+    bump_note: str | None = None
+    spoof_error: str | None = None
+    rebaseline_permitted = allow_baseline_growth
+
     if base_keys is not None:
         added_to_baseline, removed_from_baseline = check_baseline_shrink_only(
             baseline_keys, base_keys
         )
+        is_bump, bump_note, spoof_error = _validate_compiler_image_bump(
+            repo_root, base_payload, payload, compiler
+        )
+        if is_bump:
+            rebaseline_permitted = True
 
     new_warnings, stale_entries = compare_keys(actual_keys, baseline_keys)
+    forbidden_additions = [] if rebaseline_permitted else added_to_baseline
 
-    if added_to_baseline or new_warnings or stale_entries:
+    if spoof_error or forbidden_additions or new_warnings or stale_entries:
         expected_compiler = payload.get("compiler")
         if expected_compiler and compiler != expected_compiler:
             print(
@@ -797,14 +909,20 @@ def _check_against_baseline(
                 f"'{expected_compiler}'.",
                 file=sys.stderr,
             )
-        if added_to_baseline:
+        if spoof_error:
             print(
-                f"[X] {len(added_to_baseline)} baseline entry/entries added "
+                f"[X] invalid compiler/image metadata change relative to base "
+                f"{base_label}: {spoof_error}",
+                file=sys.stderr,
+            )
+        if forbidden_additions:
+            print(
+                f"[X] {len(forbidden_additions)} baseline entry/entries added "
                 f"relative to base {base_label} (baseline is shrink-only -- "
                 "additions and swaps are forbidden):",
                 file=sys.stderr,
             )
-            for key in added_to_baseline:
+            for key in forbidden_additions:
                 print(f"  - {key.format_short()}", file=sys.stderr)
         if new_warnings:
             print(
@@ -827,8 +945,22 @@ def _check_against_baseline(
         print(REMEDIATION, file=sys.stderr)
         return 1
 
+    if bump_note is not None:
+        print(
+            f"[!] compiler-image bump detected ({bump_note}): permitting "
+            f"re-baseline (+{len(added_to_baseline)} added, "
+            f"-{len(removed_from_baseline)} removed relative to base {base_label}).",
+            file=sys.stderr,
+        )
+    elif allow_baseline_growth and added_to_baseline:
+        print(
+            f"[!] --allow-baseline-growth permitted +{len(added_to_baseline)} "
+            f"baseline entry/entries relative to base {base_label}.",
+            file=sys.stderr,
+        )
+
     shrink_note = ""
-    if removed_from_baseline:
+    if removed_from_baseline and not added_to_baseline:
         shrink_note = (
             f"; shrunk by {len(removed_from_baseline)} entry/entries "
             f"from base {base_label}"
@@ -860,6 +992,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "--base-ref",
         default=None,
         help="trusted base git commit/ref whose baseline JSON enforces shrink-only keys",
+    )
+    parser.add_argument(
+        "--allow-baseline-growth",
+        action="store_true",
+        help=(
+            "manual maintainer audit flag permitting added baseline keys "
+            "relative to base (never pass in pull_request or merge_group CI)"
+        ),
     )
     parser.add_argument(
         "--gfortran",
@@ -924,7 +1064,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        base_keys, base_label = _resolve_base_keys(
+        base_keys, base_payload, base_label = _resolve_base_baseline(
             repo_root,
             base_baseline=args.base_baseline,
             base_ref=args.base_ref,
@@ -934,13 +1074,16 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     return _check_against_baseline(
+        repo_root,
         baseline_path,
         actual_keys,
         first_lines,
         unit_count=unit_count,
         compiler=compiler,
         base_keys=base_keys,
+        base_payload=base_payload,
         base_label=base_label,
+        allow_baseline_growth=args.allow_baseline_growth,
     )
 
 

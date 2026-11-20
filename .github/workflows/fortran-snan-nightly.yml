@@ -26,7 +26,7 @@ on:
           - release
           - checked
       strict:
-        description: 'Fail the workflow if any physics test fails (default false while Wave 4 #2105 is open)'
+        description: 'Fail even on allowlisted Wave 4 failures (unexpected failures and JUnit errors always fail)'
         required: false
         type: boolean
         default: false
@@ -134,6 +134,7 @@ jobs:
           fi
           python3 scripts/lint/summarise_snan_report.py \
             snan-report/snan-physics-junit.xml \
+            --expected-failures scripts/lint/fortran_snan_expected_failures.json \
             --pytest-exit-code "$PYTEST_EXIT" \
             --compiler "$GFORTRAN_VER" \
             --build-profile "$SUEWS_BUILD_PROFILE" \

@@ -1503,13 +1503,47 @@ fn precedence_fallbacks_and_spartacus_clobber_witness() {
     }
 }
 
-#[test]
-fn nan_poison_completeness_across_anchor_options() {
+#[derive(Clone, Copy)]
+struct ExpectedOptions {
+    net_radiation_method: i32,
+    storage_heat_method: i32,
+    emissions_method: i32,
+    snow_use: i32,
+    stebbs_method: i32,
+    rc_method: i32,
+}
+
+fn assert_decoded_options(label: &str, rc: &RunConfig, expected: ExpectedOptions) {
+    assert_eq!(
+        rc.config.net_radiation_method, expected.net_radiation_method,
+        "{label}: unexpected decoded net_radiation_method"
+    );
+    assert_eq!(
+        rc.config.storage_heat_method, expected.storage_heat_method,
+        "{label}: unexpected decoded storage_heat_method"
+    );
+    assert_eq!(
+        rc.config.emissions_method, expected.emissions_method,
+        "{label}: unexpected decoded emissions_method"
+    );
+    assert_eq!(
+        rc.config.snow_use, expected.snow_use,
+        "{label}: unexpected decoded snow_use"
+    );
+    assert_eq!(
+        rc.config.stebbs_method, expected.stebbs_method,
+        "{label}: unexpected decoded stebbs_method"
+    );
+    assert_eq!(
+        rc.config.rc_method, expected.rc_method,
+        "{label}: unexpected decoded rc_method"
+    );
+}
+
+fn build_option_anchors() -> [(&'static str, Value, ExpectedOptions); 6] {
     let sample_root: Value = serde_yaml::from_str(SAMPLE_YAML).expect("sample YAML must parse");
     let stebbs_root: Value = serde_yaml::from_str(STEBBS_YAML).expect("stebbs YAML must parse");
 
-    // Build option-activated anchor variants covering OHM, STEBBS/SPARTACUS,
-    // EHC, DyOHM, Snow, and biogenic CO2.
     let mut ehc_spartacus = stebbs_root.clone();
     assert!(set_scalar_or_ref_value(
         &mut ehc_spartacus,
@@ -1554,19 +1588,10 @@ fn nan_poison_completeness_across_anchor_options() {
         Value::Number(12.into()),
     ));
 
-    struct ExpectedOptions {
-        net_radiation_method: i32,
-        storage_heat_method: i32,
-        emissions_method: i32,
-        snow_use: i32,
-        stebbs_method: i32,
-        rc_method: i32,
-    }
-
-    let anchors: [(&str, Value, ExpectedOptions); 6] = [
+    [
         (
             "sample_ohm",
-            sample_root.clone(),
+            sample_root,
             ExpectedOptions {
                 net_radiation_method: 3,
                 storage_heat_method: 1,
@@ -1578,7 +1603,7 @@ fn nan_poison_completeness_across_anchor_options() {
         ),
         (
             "stebbs_spartacus",
-            stebbs_root.clone(),
+            stebbs_root,
             ExpectedOptions {
                 net_radiation_method: 1003,
                 storage_heat_method: 7,
@@ -1590,7 +1615,7 @@ fn nan_poison_completeness_across_anchor_options() {
         ),
         (
             "stebbs_ehc_spartacus",
-            ehc_spartacus.clone(),
+            ehc_spartacus,
             ExpectedOptions {
                 net_radiation_method: 1003,
                 storage_heat_method: 5,
@@ -1626,7 +1651,7 @@ fn nan_poison_completeness_across_anchor_options() {
         ),
         (
             "sample_co2",
-            co2.clone(),
+            co2,
             ExpectedOptions {
                 net_radiation_method: 3,
                 storage_heat_method: 1,
@@ -1636,7 +1661,135 @@ fn nan_poison_completeness_across_anchor_options() {
                 rc_method: 0,
             },
         ),
-    ];
+    ]
+}
+
+fn assert_scoped_option_perturbations(
+    label: &str,
+    orig_root: &Value,
+    expected_opts: ExpectedOptions,
+    expected_targets: &BTreeMap<String, BTreeSet<String>>,
+) {
+    let mut base_root = orig_root.clone();
+    let base_rc = load_run_config_from_value(&mut base_root)
+        .unwrap_or_else(|err| panic!("{label}: baseline option anchor failed to load: {err}"));
+    assert_decoded_options(label, &base_rc, expected_opts);
+    let base_flat = flatten_run_config(&base_rc);
+    let base_bad: Vec<_> = base_flat
+        .iter()
+        .filter(|(_, val)| !val.is_finite())
+        .collect();
+    assert!(
+        base_bad.is_empty(),
+        "{label}: baseline option anchor produced non-finite slots:\n{base_bad:#?}"
+    );
+
+    let all_leaves = collect_anchor_leaves(orig_root);
+    let leaf_by_display: BTreeMap<String, &NumericLeaf> = all_leaves
+        .iter()
+        .map(|leaf| (leaf.display.clone(), leaf))
+        .collect();
+
+    let selected: Vec<(&NumericLeaf, &BTreeSet<String>)> = expected_targets
+        .iter()
+        .map(|(display, targets)| {
+            let leaf = *leaf_by_display.get(display).unwrap_or_else(|| {
+                panic!("{label}: expected active leaf `{display}` not found in fixture")
+            });
+            (leaf, targets)
+        })
+        .collect();
+
+    let failures: Vec<String> = selected
+        .par_iter()
+        .filter_map(|(leaf, expected_slots)| {
+            let delta = if leaf.is_int { 1.0 } else { FLOAT_DELTA };
+            let mut root_pos = orig_root.clone();
+            if !mutate_at(
+                &mut root_pos,
+                &leaf.path,
+                yaml_perturbed_value(leaf.is_int, leaf.value, delta),
+            ) {
+                return Some(format!("{}: failed to mutate +delta", leaf.display));
+            }
+            let loaded = match load_run_config_from_value(&mut root_pos) {
+                Ok(rc) => Ok((delta, rc)),
+                Err(err_pos) => {
+                    let neg_delta = -delta;
+                    let mut root_neg = orig_root.clone();
+                    if !mutate_at(
+                        &mut root_neg,
+                        &leaf.path,
+                        yaml_perturbed_value(leaf.is_int, leaf.value, neg_delta),
+                    ) {
+                        return Some(format!("{}: failed to mutate -delta", leaf.display));
+                    }
+                    match load_run_config_from_value(&mut root_neg) {
+                        Ok(rc_neg) => Ok((neg_delta, rc_neg)),
+                        Err(err_neg) => Err(format!("+delta: {err_pos} | -delta: {err_neg}")),
+                    }
+                }
+            };
+            let (used_delta, rc) = match loaded {
+                Ok(pair) => pair,
+                Err(err) => return Some(format!("{}: load error: {err}", leaf.display)),
+            };
+
+            assert_decoded_options(label, &rc, expected_opts);
+            let pert_flat = flatten_run_config(&rc);
+            let pert_bad: Vec<_> = pert_flat
+                .iter()
+                .filter(|(_, val)| !val.is_finite())
+                .map(|(k, &v)| (k.clone(), v))
+                .collect();
+            if !pert_bad.is_empty() {
+                return Some(format!(
+                    "{}: produced non-finite slots: {pert_bad:?}",
+                    leaf.display
+                ));
+            }
+
+            let diffs = diff_maps(&base_flat, &pert_flat);
+            let actual_slots: BTreeSet<String> =
+                diffs.iter().map(|(slot, _, _)| slot.clone()).collect();
+            if actual_slots != **expected_slots {
+                return Some(format!(
+                    "{}: expected slots {:?}, got {:?}",
+                    leaf.display, expected_slots, actual_slots
+                ));
+            }
+            for (slot, bv, pv) in diffs {
+                let actual_delta = pv - bv;
+                if !actual_delta.is_finite() || (actual_delta - used_delta).abs() > DELTA_TOL {
+                    return Some(format!(
+                        "{} -> {slot}: expected delta={used_delta:.6}, got delta={actual_delta:.6} ({bv:.6} -> {pv:.6})",
+                        leaf.display
+                    ));
+                }
+            }
+            None
+        })
+        .collect();
+
+    assert!(
+        failures.is_empty(),
+        "{label}: option-active leaf perturbation failures ({}):\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+    println!(
+        "[OK] {label}: option-active leaves={} verified (exact receivers, exact deltas, zero NaN)",
+        selected.len()
+    );
+}
+
+#[test]
+fn nan_poison_completeness_across_anchor_options() {
+    let anchors = build_option_anchors();
+    let sample_root = anchors[0].1.clone();
+    let stebbs_root = anchors[1].1.clone();
+    let ehc_spartacus = anchors[2].1.clone();
+    let co2 = anchors[5].1.clone();
 
     // 1. Every resolved anchor configuration must activate its expected
     //    decoded Fortran option flags AND produce strictly finite numeric
@@ -1644,30 +1797,7 @@ fn nan_poison_completeness_across_anchor_options() {
     for (label, mut root, expected_opts) in anchors {
         let rc = load_run_config_from_value(&mut root)
             .unwrap_or_else(|err| panic!("{label}: failed to load resolved anchor: {err}"));
-        assert_eq!(
-            rc.config.net_radiation_method, expected_opts.net_radiation_method,
-            "{label}: unexpected decoded net_radiation_method"
-        );
-        assert_eq!(
-            rc.config.storage_heat_method, expected_opts.storage_heat_method,
-            "{label}: unexpected decoded storage_heat_method"
-        );
-        assert_eq!(
-            rc.config.emissions_method, expected_opts.emissions_method,
-            "{label}: unexpected decoded emissions_method"
-        );
-        assert_eq!(
-            rc.config.snow_use, expected_opts.snow_use,
-            "{label}: unexpected decoded snow_use"
-        );
-        assert_eq!(
-            rc.config.stebbs_method, expected_opts.stebbs_method,
-            "{label}: unexpected decoded stebbs_method"
-        );
-        assert_eq!(
-            rc.config.rc_method, expected_opts.rc_method,
-            "{label}: unexpected decoded rc_method"
-        );
+        assert_decoded_options(label, &rc, expected_opts);
         let bad = non_finite_slots(&rc);
         assert!(
             bad.is_empty(),
@@ -1826,4 +1956,359 @@ fn nan_poison_completeness_across_anchor_options() {
             "{label}: expected NaN in slot matching `{expected_slot_substr}`, got {bad:#?}"
         );
     }
+}
+
+#[test]
+fn option_active_leaf_perturbations() {
+    let anchors = build_option_anchors();
+    let (_, ref ehc_root, ehc_opts) = anchors[2];
+    let (_, ref dyohm_root, dyohm_opts) = anchors[3];
+    let (_, ref snow_root, snow_opts) = anchors[4];
+    let (_, ref co2_root, co2_opts) = anchors[5];
+
+    let single = |slot: &str| BTreeSet::from([slot.to_string()]);
+
+    // 1. sample_co2 (emissions = 12): direct active co2_point_source exact-value
+    //    control (0.0 vs 2.75) plus scoped perturbations across anthropogenic
+    //    and biogenic CO2 leaves.
+    let co2_point_path = [
+        Step::Key("sites".into()),
+        Step::Idx(0),
+        Step::Key("properties".into()),
+        Step::Key("anthropogenic_emissions".into()),
+        Step::Key("co2".into()),
+        Step::Key("emission_co2_point_source".into()),
+    ];
+    let mut co2_flats = Vec::new();
+    for expected_ps in [0.0_f64, 2.75_f64] {
+        let mut root = co2_root.clone();
+        assert!(
+            set_scalar_or_ref_value(
+                &mut root,
+                &co2_point_path,
+                serde_yaml::to_value(expected_ps).unwrap(),
+            ),
+            "sample_co2: failed to set emission_co2_point_source={expected_ps}"
+        );
+        let rc = load_run_config_from_value(&mut root)
+            .unwrap_or_else(|err| panic!("sample_co2: load failed for {expected_ps}: {err}"));
+        assert_decoded_options("sample_co2_point_source", &rc, co2_opts);
+        assert!(
+            (rc.site_scalars.co2_point_source - expected_ps).abs() < DIFF_EPS,
+            "sample_co2: expected co2_point_source={expected_ps}, got {}",
+            rc.site_scalars.co2_point_source
+        );
+        let bad = non_finite_slots(&rc);
+        assert!(
+            bad.is_empty(),
+            "sample_co2 ({expected_ps}): non-finite slots:\n{bad:#?}"
+        );
+        co2_flats.push(flatten_run_config(&rc));
+    }
+    let ps_diffs = diff_maps(&co2_flats[0], &co2_flats[1]);
+    assert_eq!(
+        ps_diffs.len(),
+        1,
+        "sample_co2: changing emission_co2_point_source 0.0 -> 2.75 must move only 1 slot, got {ps_diffs:?}"
+    );
+    assert_eq!(ps_diffs[0].0, "scalars.co2_point_source");
+    assert!(
+        ((ps_diffs[0].2 - ps_diffs[0].1) - 2.75).abs() < DELTA_TOL,
+        "sample_co2: expected delta 2.75 on scalars.co2_point_source, got {:?}",
+        ps_diffs[0]
+    );
+
+    let mut co2_cases: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for (rel_key, slot) in [
+        ("emission_co2_point_source", "scalars.co2_point_source"),
+        ("emission_factor_co2_fuel", "site.anthroemis.ef_umolco2perj"),
+        (
+            "emission_factor_energy_vehicle",
+            "site.anthroemis.enef_v_jkm",
+        ),
+        (
+            "emission_factor_co2_vehicle.working_day",
+            "site.anthroemis.fcef_v_kgkm_1",
+        ),
+        (
+            "emission_factor_co2_vehicle.holiday",
+            "site.anthroemis.fcef_v_kgkm_2",
+        ),
+        (
+            "fraction_fossil_fuel_heating",
+            "site.anthroemis.frfossilfuel_heat",
+        ),
+        (
+            "fraction_fossil_fuel_non_heating",
+            "site.anthroemis.frfossilfuel_nonheat",
+        ),
+        ("emission_co2_metabolism_max", "site.anthroemis.maxfcmetab"),
+        ("emission_heat_metabolism_max", "site.anthroemis.maxqfmetab"),
+        ("emission_co2_metabolism_min", "site.anthroemis.minfcmetab"),
+        ("emission_heat_metabolism_min", "site.anthroemis.minqfmetab"),
+        (
+            "traffic_rate.working_day",
+            "site.anthroemis.trafficrate_working",
+        ),
+        (
+            "traffic_rate.holiday",
+            "site.anthroemis.trafficrate_holiday",
+        ),
+        ("type_traffic_rate", "site.anthroemis.trafficunits"),
+    ] {
+        co2_cases.insert(
+            format!("sites[0].properties.anthropogenic_emissions.co2.{rel_key}"),
+            single(slot),
+        );
+    }
+    for veg in ["evetr", "dectr", "grass"] {
+        for (yaml_field, codec_field) in [
+            ("alpha_bio_co2", "alpha_bioco2"),
+            ("beta_bio_co2", "beta_bioco2"),
+            ("theta_bio_co2", "theta_bioco2"),
+            ("resp_a", "resp_a"),
+            ("resp_b", "resp_b"),
+            ("min_res_bioco2", "min_res_bioco2"),
+        ] {
+            co2_cases.insert(
+                format!("sites[0].properties.land_cover.{veg}.{yaml_field}"),
+                single(&format!("site.lc_{veg}.bioco2.{codec_field}")),
+            );
+        }
+    }
+    assert_scoped_option_perturbations("sample_co2", co2_root, co2_opts, &co2_cases);
+
+    // 2. sample_snow (snow_use = 1): active snow parameters, per-surface
+    //    snowpack limits, and snow initial states.
+    let mut snow_cases: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for (yaml_field, codec_field) in [
+        ("water_holding_capacity_max", "crwmax"),
+        ("water_holding_capacity_min", "crwmin"),
+        ("narp_emissivity_snow", "narp_emis_snow"),
+        ("temperature_rain_snow_threshold", "preciplimit"),
+        ("precipitation_threshold_albedo_reset", "preciplimitalb"),
+        ("snow_albedo_max", "snowalbmax"),
+        ("snow_albedo_min", "snowalbmin"),
+        ("snow_density_min", "snowdensmin"),
+        ("snow_density_max", "snowdensmax"),
+        ("snow_depth_limit_building", "snowlimbldg"),
+        ("snow_depth_limit_paved", "snowlimpaved"),
+        ("tau_cold_snow", "tau_a"),
+        ("tau_melting_snow", "tau_f"),
+        ("tau_refreezing_snow", "tau_r"),
+        ("temperature_melt_factor", "tempmeltfact"),
+        ("radiation_melt_factor", "radmeltfact"),
+    ] {
+        snow_cases.insert(
+            format!("sites[0].properties.snow.{yaml_field}"),
+            single(&format!("site.snow.{codec_field}")),
+        );
+    }
+    for (yaml_surf, codec_surf) in [("paved", "paved"), ("bldgs", "bldg"), ("grass", "grass")] {
+        snow_cases.insert(
+            format!("sites[0].properties.land_cover.{yaml_surf}.snowpack_limit"),
+            single(&format!("site.snow.snowpacklimit.{codec_surf}")),
+        );
+    }
+    snow_cases.insert(
+        "sites[0].initial_states.snowalb".into(),
+        single("state.snow_state.snowalb"),
+    );
+    snow_cases.insert(
+        "sites[0].initial_states.snowfallcum".into(),
+        single("state.snow_state.snowfall_cum"),
+    );
+    for field in ["snowfrac", "snowpack", "icefrac", "snowwater", "snowdens"] {
+        snow_cases.insert(
+            format!("sites[0].initial_states.paved.{field}"),
+            single(&format!("state.snow_state.{field}.paved")),
+        );
+    }
+    assert_scoped_option_perturbations("sample_snow", snow_root, snow_opts, &snow_cases);
+
+    // 3. sample_dyohm (storage_heat = 6): active outermost surface thermal
+    //    layers across all 7 surfaces plus OHM/AnOHM parameters and states.
+    let mut dyohm_cases: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for (surf_idx, yaml_surf) in [
+        "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let surf_num = surf_idx + 1;
+        for (yaml_prop, ehc_prop) in [("k", "k"), ("rho_cp", "cp"), ("dz", "dz")] {
+            dyohm_cases.insert(
+                format!("sites[0].properties.land_cover.{yaml_surf}.thermal_layers.{yaml_prop}[0]"),
+                single(&format!("site.ehc.{ehc_prop}_surf_{surf_num:02}_01")),
+            );
+        }
+    }
+    for (yaml_field, slot) in [
+        ("ch_anohm", "site.lc_paved.ohm.chanohm"),
+        ("rho_cp_anohm", "site.lc_paved.ohm.cpanohm"),
+        ("k_anohm", "site.lc_paved.ohm.kkanohm"),
+        (
+            "ohm_threshold_summer_winter",
+            "site.lc_paved.ohm.ohm_threshsw",
+        ),
+        ("ohm_threshold_wet_dry", "site.lc_paved.ohm.ohm_threshwd"),
+        (
+            "ohm_coef.summer_dry.a1",
+            "site.lc_paved.ohm.ohm_coef_lc_1.summer_dry",
+        ),
+        (
+            "ohm_coef.summer_dry.a2",
+            "site.lc_paved.ohm.ohm_coef_lc_2.summer_dry",
+        ),
+        (
+            "ohm_coef.summer_dry.a3",
+            "site.lc_paved.ohm.ohm_coef_lc_3.summer_dry",
+        ),
+    ] {
+        dyohm_cases.insert(
+            format!("sites[0].properties.land_cover.paved.{yaml_field}"),
+            single(slot),
+        );
+    }
+    for (init_field, slot) in [
+        ("paved.temperature[0]", "state.heat_state.temp_surf_01_01"),
+        ("paved.tsfc", "state.heat_state.tsfc_surf_01"),
+        ("qn_av", "state.ohm_state.qn_av"),
+        ("dqndt", "state.ohm_state.dqndt"),
+    ] {
+        dyohm_cases.insert(
+            format!("sites[0].initial_states.{init_field}"),
+            single(slot),
+        );
+    }
+    assert_scoped_option_perturbations("sample_dyohm", dyohm_root, dyohm_opts, &dyohm_cases);
+
+    // 4. stebbs_ehc_spartacus (storage_heat = 5, net_radiation = 1003,
+    //    stebbs = 1): full-depth EHC surface & facet thermal layers, inner
+    //    boundary temperatures, SPARTACUS geometry, and STEBBS/archetype keys.
+    let mut ehc_cases: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for (yaml_surf, surf_num) in [("paved", 1usize), ("bldgs", 2), ("grass", 5)] {
+        for depth in [0usize, 4] {
+            let d = depth + 1;
+            for (yaml_prop, ehc_prop) in [("k", "k"), ("rho_cp", "cp"), ("dz", "dz")] {
+                ehc_cases.insert(
+                    format!(
+                        "sites[0].properties.land_cover.{yaml_surf}.thermal_layers.{yaml_prop}[{depth}]"
+                    ),
+                    single(&format!("site.ehc.{ehc_prop}_surf_{surf_num:02}_{d:02}")),
+                );
+            }
+        }
+    }
+    for (yaml_facet, codec_facet) in [("roofs", "roof"), ("walls", "wall")] {
+        for layer in [0usize, 2] {
+            let l = layer + 1;
+            for depth in [0usize, 4] {
+                let d = depth + 1;
+                for (yaml_prop, ehc_prop) in [("k", "k"), ("rho_cp", "cp"), ("dz", "dz")] {
+                    ehc_cases.insert(
+                        format!(
+                            "sites[0].properties.vertical_layers.{yaml_facet}[{layer}].thermal_layers.{yaml_prop}[{depth}]"
+                        ),
+                        single(&format!("site.ehc.{ehc_prop}_{codec_facet}_{l:02}_{d:02}")),
+                    );
+                }
+            }
+        }
+        for (yaml_prop, ehc_prop) in [
+            ("soil_store_capacity", "soil_storecap"),
+            ("state_limit", "state_limit"),
+            ("wet_threshold", "wet_thresh"),
+        ] {
+            ehc_cases.insert(
+                format!("sites[0].properties.vertical_layers.{yaml_facet}[0].{yaml_prop}"),
+                single(&format!("site.ehc.{ehc_prop}_{codec_facet}_01")),
+            );
+        }
+        ehc_cases.insert(
+            format!("sites[0].initial_states.{yaml_facet}[0].tin"),
+            single(&format!("site.ehc.tin_{codec_facet}_01")),
+        );
+        ehc_cases.insert(
+            format!("sites[0].initial_states.{yaml_facet}[0].tsfc"),
+            single(&format!("state.heat_state.tsfc_{codec_facet}_01")),
+        );
+        for depth in [0usize, 4] {
+            let d = depth + 1;
+            ehc_cases.insert(
+                format!("sites[0].initial_states.{yaml_facet}[0].temperature[{depth}]"),
+                single(&format!("state.heat_state.temp_{codec_facet}_01_{d:02}")),
+            );
+        }
+    }
+    for (init_field, slot) in [
+        ("paved.tin", "site.ehc.tin_surf_01"),
+        ("paved.tsfc", "state.heat_state.tsfc_surf_01"),
+        ("paved.temperature[0]", "state.heat_state.temp_surf_01_01"),
+        ("paved.temperature[4]", "state.heat_state.temp_surf_01_05"),
+    ] {
+        ehc_cases.insert(
+            format!("sites[0].initial_states.{init_field}"),
+            single(slot),
+        );
+    }
+    for (prop_field, slot) in [
+        (
+            "vertical_layers.building_frac[0]",
+            "site.spartacus_layer.building_frac_01",
+        ),
+        (
+            "vertical_layers.building_scale[0]",
+            "site.spartacus_layer.building_scale_01",
+        ),
+        ("vertical_layers.height[0]", "site.spartacus.height_01"),
+        (
+            "vertical_layers.roofs[0].alb",
+            "site.spartacus_layer.alb_roof_01",
+        ),
+        (
+            "vertical_layers.roofs[0].emis",
+            "site.spartacus_layer.emis_roof_01",
+        ),
+        (
+            "vertical_layers.walls[0].alb",
+            "site.spartacus_layer.alb_wall_01",
+        ),
+        (
+            "vertical_layers.walls[0].emis",
+            "site.spartacus_layer.emis_wall_01",
+        ),
+        ("stebbs.depth_ground", "site.stebbs.ground_depth"),
+        (
+            "stebbs.thermal_conductivity_ground",
+            "site.stebbs.external_ground_conductivity",
+        ),
+        (
+            "stebbs.convection_coefficient_wall_internal",
+            "site.stebbs.wall_internal_convection_coefficient",
+        ),
+        (
+            "stebbs.deep_soil_temperature",
+            "state.stebbs_state.deep_soil_temperature",
+        ),
+        (
+            "building_archetype.thickness_wall",
+            "site.building_archtype.wallthickness",
+        ),
+        (
+            "building_archetype.conductivity_wall",
+            "site.building_archtype.walleffectiveconductivity",
+        ),
+        (
+            "building_archetype.thickness_roof",
+            "site.building_archtype.roofthickness",
+        ),
+        (
+            "building_archetype.conductivity_window",
+            "site.building_archtype.windoweffectiveconductivity",
+        ),
+    ] {
+        ehc_cases.insert(format!("sites[0].properties.{prop_field}"), single(slot));
+    }
+    assert_scoped_option_perturbations("stebbs_ehc_spartacus", ehc_root, ehc_opts, &ehc_cases);
 }

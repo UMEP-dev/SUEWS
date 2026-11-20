@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 20 Nov 2026
 
+- [change][experimental] Require finite `lat`, `lng`, `alt`, `timezone`, `surfacearea` and `z` in resolved native site input instead of retaining Rust defaults. The public configuration and resolved input both use `lng` for site longitude. Native inputs that previously used `lon` must use the canonical key (#2002)
 - [bugfix] Infer the spin-up forcing interval from regularly spaced timestamps when pandas frequency metadata is missing (#2129)
 
 - [bugfix] Reject explicitly supplied zero `soil_depth` (`0`, `0.0`, `{value: 0.0}`, or legacy `soildepth: 0`) on any active (`sfr > 0`) non-water surface with positive `soil_store_capacity` (or legacy `soilstorecap`) across configuration loading, schema migration (without writing output), post-construction live mutations via `SUEWSConfig.validate_for_engine()`, and the native Rust bridge (`apply_soil_overrides`), reporting the affected site, surface and canonical `soil_depth` path; inactive surfaces, `water`, zero soil storage capacity and positive supplied `soil_depth` remain permitted (#2077, #2080, #2083, #2128)

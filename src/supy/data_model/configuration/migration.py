@@ -104,6 +104,12 @@ class SchemaMigrator:
 
         # No migration needed if versions match
         if from_version == to_version:
+            if to_version == CURRENT_SCHEMA_VERSION:
+                from ...util.converter.yaml_upgrade import (  # noqa: PLC0415
+                    validate_active_soil_depth_raw,
+                )
+
+                validate_active_soil_depth_raw(config)
             logger.info(f"Configuration already at schema version {to_version}")
             return config
 

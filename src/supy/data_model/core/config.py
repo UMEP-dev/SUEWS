@@ -802,6 +802,9 @@ class SUEWSConfig(DataModelBase):
         ### 4b) Check for critical null site-level parameters (gh#1333)
         critical_site_nulls = self._check_critical_null_site_params()
 
+        # 4c) Check for explicit zero soil_depth on active positive-capacity surfaces
+        zero_soil_depth_issues = self._check_zero_soil_depth_params()
+
         ### 5) If we have either conditional issues or critical nulls, raise validation error
         all_critical_issues = []
         if cond_issues:
@@ -810,6 +813,8 @@ class SUEWSConfig(DataModelBase):
             all_critical_issues.extend(critical_nulls)
         if critical_site_nulls:
             all_critical_issues.extend(critical_site_nulls)
+        if zero_soil_depth_issues:
+            all_critical_issues.extend(zero_soil_depth_issues)
 
         if all_critical_issues:
             # Preserve the annotated-YAML UX on the failure path: if the caller
@@ -3957,6 +3962,189 @@ class SUEWSConfig(DataModelBase):
             if issue["error_text"]
         ]
 
+    @staticmethod
+    def _extract_numeric_scalar(raw: Any) -> float | None:
+        """Unwrap RefValue or ``{'value': ...}`` to float (excluding bool), or None."""
+        val = _unwrap_value(raw)
+        if isinstance(val, Mapping) and "value" in val:
+            val = _unwrap_value(val["value"])
+        if val is None or isinstance(val, (bool, np.bool_)):
+            return None
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _field_or_key(obj: Any, *names: str) -> Any:
+        """Return the first present field/key among *names*, or None."""
+        if isinstance(obj, Mapping):
+            for name in names:
+                if name in obj:
+                    return obj[name]
+            return None
+        for name in names:
+            if hasattr(obj, name):
+                return getattr(obj, name)
+        return None
+
+    @classmethod
+    def _extract_aliased_numeric(cls, obj: Any, *names: str) -> float | None:
+        """Return the first present non-None numeric value across *names*."""
+        for name in names:
+            if isinstance(obj, Mapping):
+                if name not in obj:
+                    continue
+                raw = obj[name]
+            else:
+                if not hasattr(obj, name):
+                    continue
+                raw = getattr(obj, name)
+            val = cls._extract_numeric_scalar(raw)
+            if val is not None:
+                return val
+        return None
+
+    def _iter_zero_soil_depth_issues(self) -> list[dict[str, str]]:
+        """Return issues for zero ``soil_depth`` on active positive-capacity surfaces.
+
+        Applies unconditionally (without gating on ``_yaml_raw``) across all six
+        non-water surfaces (``paved``, ``bldgs``, ``evetr``, ``dectr``,
+        ``grass``, ``bsoil``) whenever ``sfr > 0``, ``soil_store_capacity > 0``
+        and ``soil_depth == 0.0``. Zero capacity, inactive surfaces, ``water``,
+        positive depths, and negative/non-finite values are untouched here.
+
+        Returns
+        -------
+        list of dict of str to str
+            Structured issue records matching
+            :meth:`_iter_critical_null_site_param_issues`.
+        """
+        if not getattr(self, "sites", None):
+            return []
+
+        issues: list[dict[str, str]] = []
+        for i, site in enumerate(self.sites):
+            props = self._field_or_key(site, "properties")
+            land_cover = (
+                self._field_or_key(props, "land_cover") if props is not None else None
+            )
+            if land_cover is None:
+                continue
+
+            raw_name = _unwrap_value(self._field_or_key(site, "name"))
+            if isinstance(raw_name, Mapping) and "value" in raw_name:
+                raw_name = _unwrap_value(raw_name["value"])
+            raw_gridiv = _unwrap_value(self._field_or_key(site, "gridiv"))
+            if isinstance(raw_gridiv, Mapping) and "value" in raw_gridiv:
+                raw_gridiv = _unwrap_value(raw_gridiv["value"])
+            label_parts: list[str] = []
+            if raw_name is not None and str(raw_name).strip():
+                label_parts.append(str(raw_name).strip())
+            if raw_gridiv is not None and not isinstance(raw_gridiv, (bool, np.bool_)):
+                label_parts.append(f"gridiv={raw_gridiv}")
+            site_label = (
+                f"sites[{i}] ({', '.join(label_parts)})"
+                if label_parts
+                else f"sites[{i}]"
+            )
+
+            for surface_name in NON_WATER_SURFACES:
+                surface = self._field_or_key(land_cover, surface_name)
+                if surface is None:
+                    continue
+                if isinstance(surface, Mapping):
+                    sfr_raw = surface.get("sfr", 1.0 / 7.0)
+                else:
+                    sfr_raw = getattr(surface, "sfr", None)
+                sfr_value = self._extract_numeric_scalar(sfr_raw)
+                if sfr_value is None or not (
+                    math.isfinite(sfr_value) and sfr_value > 0.0
+                ):
+                    continue
+
+                cap_value = self._extract_aliased_numeric(
+                    surface, "soil_store_capacity", "soilstorecap"
+                )
+                if cap_value is None or math.isnan(cap_value) or cap_value <= 0.0:
+                    continue
+
+                depth_value = self._extract_aliased_numeric(
+                    surface, "soil_depth", "soildepth"
+                )
+                if depth_value is None or depth_value != 0:
+                    continue
+
+                issues.append(
+                    {
+                        "error_text": (
+                            f"{site_label}, "
+                            f"properties.land_cover.{surface_name}.soil_depth "
+                            f"must not be 0 when {surface_name}.sfr={sfr_value:g} > 0 "
+                            f"and soil_store_capacity={cap_value:g} > 0; supply a "
+                            "positive soil_depth (in mm) or set "
+                            "soil_store_capacity to 0"
+                        ),
+                        "path": f"sites[{i}]/properties/land_cover/{surface_name}",
+                        "param": "soil_depth",
+                        "message": (
+                            f"Soil depth cannot be 0 on active {surface_name} surface "
+                            f"with positive soil_store_capacity ({cap_value:g})"
+                        ),
+                        "fix": (
+                            "Supply a positive soil_depth in millimetres beneath this "
+                            "surface, or set soil_store_capacity to 0"
+                        ),
+                    }
+                )
+        return issues
+
+    def _check_zero_soil_depth_params(self) -> list[str]:
+        """Return error texts for zero ``soil_depth`` on active positive-capacity surfaces."""
+        return [
+            issue["error_text"]
+            for issue in self._iter_zero_soil_depth_issues()
+            if issue["error_text"]
+        ]
+
+    def validate_soil_depths(self) -> None:
+        """Validate ``soil_depth`` across all sites and non-water surfaces.
+
+        Re-checks every site so post-construction live mutations cannot carry
+        explicit zero ``soil_depth`` on an active (``sfr > 0``) non-water
+        surface with positive ``soil_store_capacity`` into ``to_df_state()``,
+        ``SUEWSSimulation.update_config()``, ``SUEWSSimulation.run()``, or the
+        Rust engine.
+
+        Raises
+        ------
+        ValueError
+            If any active non-water surface with positive
+            ``soil_store_capacity`` has ``soil_depth == 0``.
+        """
+        issues = self._check_zero_soil_depth_params()
+        if issues:
+            raise ValueError("\n".join(issues))
+
+    def validate_for_engine(self) -> None:
+        """Run pre-handoff invariant checks before exporting or running the engine.
+
+        Aggregates live-mutation checks required at every public engine handoff
+        (``SUEWSSimulation.update_config()``, ``SUEWSSimulation.run()``,
+        ``config_to_engine_yaml()``, ``_grid_config_jsons()``, and
+        ``to_df_state()``) so every entry point enforces the same invariants.
+
+        Raises
+        ------
+        ValueError
+            If a non-optional ``RefValue`` (or active biogenic CO2
+            ``min_res_bioco2``) was mutated to ``None``, or if any active
+            non-water surface with positive ``soil_store_capacity`` has
+            ``soil_depth == 0``.
+        """
+        self.validate_non_null_ref_values()
+        self.validate_soil_depths()
+
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
     ) -> str:
@@ -4016,7 +4204,10 @@ class SUEWSConfig(DataModelBase):
         # Mirror the hard-failure sparse-YAML checks in the annotated output so
         # auto_generate_annotated=True remains actionable on the raise path.
         site_prefix = f"sites[{site_index}]"
-        for issue in self._iter_critical_null_site_param_issues():
+        for issue in (
+            *self._iter_critical_null_site_param_issues(),
+            *self._iter_zero_soil_depth_issues(),
+        ):
             if issue["path"] == site_prefix or issue["path"].startswith(
                 f"{site_prefix}/"
             ):
@@ -5369,6 +5560,7 @@ class SUEWSConfig(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing SUEWS configuration state
         """
+        self.validate_for_engine()
         if use_conditional_validation and _validation_available:
             # Pre-validate configuration before conversion
             config_data = self.model_dump()

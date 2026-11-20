@@ -1,16 +1,139 @@
-from typing import Tuple, Union
+import json
+import math
 
 import numpy as np
 import pandas as pd
+
+_SURFACE_NAMES = ("paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water")
+_VEG_SURFACE_SPECS = (
+    # (grid_idx, veg_idx, veg_name, df_alb_col, ckpt_alb_key)
+    (2, 0, "evetr", "albevetr_id", "alb_evetr_id"),
+    (3, 1, "dectr", "albdectr_id", "alb_dectr_id"),
+    (4, 2, "grass", "albgrass_id", "alb_grass_id"),
+)
+_DECTR_GRID_IDX = 3
+
+
+def _sanitise_values(values: list) -> list[float]:
+    return [math.nan if v is None else float(v) for v in values]
+
+
+def _decode_spinup_checkpoint(checkpoint) -> tuple[dict[int, dict], dict[int, dict]]:
+    """Decode evolved hydro and phenology state dictionaries per pure-cover grid."""
+    from .. import suews_bridge as sb  # noqa: PLC0415
+
+    if checkpoint is None or not getattr(checkpoint, "grid_states", None):
+        raise RuntimeError(
+            "Spin-up simulation did not produce a final checkpoint state."
+        )
+
+    hydro_by_grid: dict[int, dict] = {}
+    pheno_by_grid: dict[int, dict] = {}
+    for grid_idx in range(len(_SURFACE_NAMES)):
+        if grid_idx not in checkpoint.grid_states:
+            raise RuntimeError(
+                f"Spin-up checkpoint is missing final state for grid {grid_idx}."
+            )
+        payload = json.loads(checkpoint.grid_states[grid_idx])
+        state_obj = payload.get("state", payload)
+        members = state_obj["members"]
+        hydro_raw = members["hydro_state"]
+        pheno_raw = members["phenology_state"]
+
+        hydro_state = sb.HydroState.from_values_payload(
+            hydro_raw["schema_version"],
+            _sanitise_values(hydro_raw["values"]),
+            hydro_raw["dims"],
+        )
+        pheno_state = sb.PhenologyState.from_values_payload(
+            pheno_raw["schema_version"],
+            _sanitise_values(pheno_raw["values"]),
+        )
+        hydro_by_grid[grid_idx] = hydro_state.to_dict()
+        pheno_by_grid[grid_idx] = pheno_state.to_dict()
+
+    return hydro_by_grid, pheno_by_grid
+
+
+def _apply_grid_evolved_state(
+    df_target: pd.DataFrame,
+    row_selector,
+    hydro_dict: dict[str, float],
+    pheno_dict: dict[str, float],
+) -> None:
+    """Write one grid's evolved hydro and phenology states into ``df_target``."""
+    top_cols = set(df_target.columns.get_level_values(0))
+    for surf_idx, surf_name in enumerate(_SURFACE_NAMES):
+        idx_col = f"({surf_idx},)"
+        if "soilstore_surf" in top_cols:
+            df_target.loc[row_selector, ("soilstore_surf", idx_col)] = hydro_dict[
+                f"soilstore_surf.{surf_name}"
+            ]
+        if "state_surf" in top_cols:
+            df_target.loc[row_selector, ("state_surf", idx_col)] = hydro_dict[
+                f"state_surf.{surf_name}"
+            ]
+        if "alb" in top_cols:
+            df_target.loc[row_selector, ("alb", idx_col)] = pheno_dict[
+                f"alb.{surf_name}"
+            ]
+
+    for _, veg_idx, veg_name, df_alb_col, ckpt_alb_key in _VEG_SURFACE_SPECS:
+        if "lai_id" in top_cols:
+            df_target.loc[row_selector, ("lai_id", f"({veg_idx},)")] = pheno_dict[
+                f"lai_id.{veg_name}"
+            ]
+        if df_alb_col in top_cols:
+            df_target.loc[row_selector, df_alb_col] = pheno_dict[ckpt_alb_key]
+
+    for var in ("porosity_id", "decidcap_id"):
+        if var in top_cols:
+            df_target.loc[row_selector, var] = pheno_dict[var]
+
+
+def _assign_spinup_state(
+    df_target: pd.DataFrame,
+    hydro_by_grid: dict[int, dict[str, float]],
+    pheno_by_grid: dict[int, dict[str, float]],
+) -> None:
+    """Transfer each surface's evolved state from its pure-cover spin-up grid."""
+    top_cols = set(df_target.columns.get_level_values(0))
+    for surf_idx, surf_name in enumerate(_SURFACE_NAMES):
+        idx_col = f"({surf_idx},)"
+        if "soilstore_surf" in top_cols:
+            df_target.loc[:, ("soilstore_surf", idx_col)] = hydro_by_grid[surf_idx][
+                f"soilstore_surf.{surf_name}"
+            ]
+        if "state_surf" in top_cols:
+            df_target.loc[:, ("state_surf", idx_col)] = hydro_by_grid[surf_idx][
+                f"state_surf.{surf_name}"
+            ]
+        if "alb" in top_cols:
+            df_target.loc[:, ("alb", idx_col)] = pheno_by_grid[surf_idx][
+                f"alb.{surf_name}"
+            ]
+
+    for grid_idx, veg_idx, veg_name, df_alb_col, ckpt_alb_key in _VEG_SURFACE_SPECS:
+        if "lai_id" in top_cols:
+            df_target.loc[:, ("lai_id", f"({veg_idx},)")] = pheno_by_grid[grid_idx][
+                f"lai_id.{veg_name}"
+            ]
+        if df_alb_col in top_cols:
+            df_target.loc[:, df_alb_col] = pheno_by_grid[grid_idx][ckpt_alb_key]
+
+    # Properties specific to deciduous trees (grid 3 = 100% dectr).
+    for var in ("porosity_id", "decidcap_id"):
+        if var in top_cols:
+            df_target.loc[:, var] = pheno_by_grid[_DECTR_GRID_IDX][var]
 
 
 def get_spinup_state(
     df_state: pd.DataFrame,
     df_forcing: pd.DataFrame,
     start_analysis: str,
-    spinup_days=365,
+    spinup_days: int = 365,
     save_spinup: bool = False,
-) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]:
+) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Get the spin-up state for the model.
 
@@ -31,11 +154,12 @@ def get_spinup_state(
     -------
     pd.DataFrame
         Dataframe containing the spin-up state for the model if `save_spinup` is False.
-    Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
-        A tuple of dataframes containing the spin-up output, state, and forcing data if `save_spinup` is True.
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+        A tuple of dataframes containing the spin-up state, spin-up output, and per-land-cover spun-up state if `save_spinup` is True.
     """
     # this function is inspired by the spinup function in the supy-lcz project led by @matthiasdemuzere
-    from ..suews_sim import SUEWSSimulation
+    from ..data_model import SUEWSConfig  # noqa: PLC0415
+    from ..suews_sim import SUEWSSimulation  # noqa: PLC0415
 
     # if df_forcing is shorter than one year, raise error
     len_forcing = df_forcing.index.max() - df_forcing.index.min()
@@ -45,7 +169,7 @@ def get_spinup_state(
         )
 
     # if df_forcing is longer than one year but shorter than two years
-    # then duplicate the forcing dataframe to two years
+    # then duplicate the forcing dataframe to cover the requested spin-up span
     if len_forcing < pd.Timedelta(days=365 * 2):
         n_year = np.ceil(spinup_days / 365).astype(int)
         print(
@@ -60,8 +184,6 @@ def get_spinup_state(
         )
     else:
         df_forcing_spinup = df_forcing
-
-    # print(df_forcing_spinup.index.min(), df_forcing_spinup.index.max())
 
     # duplicate the state dataframe for later output
     df_state_spinup = df_state.copy()
@@ -92,31 +214,28 @@ def get_spinup_state(
     # Slice forcing
     df_forcing_spinup = df_forcing_spinup.loc[start_spinup:end_spinup]
 
-    simulation = SUEWSSimulation.from_state(df_state_lc_init)
+    simulation = SUEWSSimulation(SUEWSConfig.from_df_state(df_state_lc_init))
     simulation.update_forcing(df_forcing_spinup)
     output = simulation.run()
     df_output_lc = output.df
-    df_state_lc = output.state_final
 
-    print(f"==> spin-up simulations completed, assigning spin-up states!")
-    # retrieve the state after spin-up
-    idx_spinup = df_forcing_spinup.index[-1] + df_forcing_spinup.index.freq
+    print("==> spin-up simulations completed, assigning spin-up states!")
+    # Decode the genuinely evolved final state per pure-cover grid from the
+    # Rust/Fortran checkpoint (``output.state_final`` is an un-evolved legacy
+    # DFState copy kept only for schema compatibility).
+    hydro_by_grid, pheno_by_grid = _decode_spinup_checkpoint(output.checkpoint)
 
-    # transfer the spun-up state to the state dataframe for simulation
-    for var in ["lai_id", "soilstore_surf", "state_surf", "alb"]:
-        df_state_spinup.loc[:, var] = np.vstack(
-            [df_state_lc.loc[idx_spinup, var].values.diagonal()] * len(df_state)
+    df_state_lc = output.state_final.copy()
+    for grid_idx in range(len(_SURFACE_NAMES)):
+        _apply_grid_evolved_state(
+            df_state_lc,
+            grid_idx,
+            hydro_by_grid[grid_idx],
+            pheno_by_grid[grid_idx],
         )
-    # properties specific to deciduous trees
-    list_var_dectree = ["porosity_id", "decidcap_id"]
-    # porosity
-    for var in list_var_dectree:
-        df_state_spinup.loc[:, var] = df_state_lc.loc[
-            (idx_spinup, 3),
-            var,
-        ].values[0]
+
+    _assign_spinup_state(df_state_spinup, hydro_by_grid, pheno_by_grid)
 
     if save_spinup:
         return df_state_spinup, df_output_lc, df_state_lc
-    else:
-        return df_state_spinup
+    return df_state_spinup

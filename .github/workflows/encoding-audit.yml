@@ -18,13 +18,33 @@ name: Encoding audit
 on:
   pull_request:
     # Include labeled/unlabeled so adding the bypass label after a failed run
-    # re-triggers the gate. Default types (opened/synchronize/reopened) do not
-    # fire on label changes -- that is why the schema-audit gate needs a
-    # close/reopen to pick a label up; this gate does not.
+    # re-triggers the gate.
     types: [opened, synchronize, reopened, labeled, unlabeled]
     paths:
       - '**.py'
       - '.github/workflows/encoding-audit.yml'
+  workflow_call:
+    inputs:
+      base_sha:
+        description: 'Base commit SHA for single-PR merge_group verification'
+        required: false
+        type: string
+        default: ''
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
+      pr_number:
+        description: 'Pull request number for live bypass-label lookup'
+        required: false
+        type: string
+        default: ''
+      merge_head_ref:
+        description: 'merge_group head_ref for single-PR bypass-label lookup'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -34,25 +54,53 @@ jobs:
   check-encoding:
     name: Require explicit encoding on text I/O
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Decide whether to skip (PR has bypass label)
         id: bypass
+        shell: bash
         env:
-          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
+          MERGE_HEAD_REF: ${{ inputs.merge_head_ref || github.event.merge_group.head_ref }}
+          MERGE_BASE_SHA: ${{ inputs.base_sha || github.event.merge_group.base_sha }}
+          BYPASS_LABEL: '0-ci:encoding-audit-ok'
         run: |
-          set -eu
-          echo "Labels on this PR: $LABELS"
-          if printf '%s' "$LABELS" | grep -q '"0-ci:encoding-audit-ok"'; then
+          set -euo pipefail
+          pr_num=""
+          if [[ "${PR_NUMBER:-}" =~ ^[0-9]+$ ]]; then
+            pr_num="$PR_NUMBER"
+          elif [[ "$EVENT_NAME" == "merge_group" ]]; then
+            parsed_pr="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            ref_base_sha="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-[0-9]+-([0-9a-f]+)$#\1#p')"
+            if [[ "$parsed_pr" =~ ^[0-9]+$ && -n "${MERGE_BASE_SHA:-}" && "$ref_base_sha" == "$MERGE_BASE_SHA" ]]; then
+              pr_num="$parsed_pr"
+            fi
+          fi
+
+          if [[ -z "$pr_num" ]]; then
+            echo "No single-PR context for bypass label lookup; running encoding audit."
+            echo "bypass=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matched="$(gh api --paginate "repos/${REPO}/issues/${pr_num}/labels?per_page=100" --jq '[.[].name]' \
+            | jq -rs --arg wanted "$BYPASS_LABEL" '[(add // [])[] | select(. == $wanted)] | length')"
+          if [[ "$matched" -gt 0 ]]; then
             echo "bypass=true" >> "$GITHUB_OUTPUT"
-            echo "PR carries label '0-ci:encoding-audit-ok'; skipping encoding audit."
+            echo "PR #${pr_num} carries label '${BYPASS_LABEL}'; skipping encoding audit."
           else
             echo "bypass=false" >> "$GITHUB_OUTPUT"
+            echo "PR #${pr_num} does not carry label '${BYPASS_LABEL}'; running encoding audit."
           fi
 
       - name: Checkout
         if: steps.bypass.outputs.bypass != 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       - name: Set up Python

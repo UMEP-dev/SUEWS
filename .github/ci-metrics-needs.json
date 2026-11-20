@@ -31,7 +31,14 @@
     "Detect code changes",
     "Verify tag is on master"
   ],
+  "Data-interface version audit / *": [],
+  "Dependency and startup audit / *": [
+    "Detect code changes"
+  ],
   "Determine build matrix": [
+    "Detect code changes"
+  ],
+  "Encoding audit / *": [
     "Detect code changes"
   ],
   "Physics-change label": [
@@ -45,12 +52,29 @@
     "Build and test (*) / *",
     "Build MCP package",
     "Check pytest marker axis",
+    "Data-interface version audit / *",
+    "Dependency and startup audit / *",
     "Detect code changes",
     "Determine build matrix",
-    "Physics-change label"
+    "Encoding audit / *",
+    "Physics-change label",
+    "Rust clippy / *",
+    "Rust test / *",
+    "Schema version audit / *",
+    "Workflow security / *"
   ],
+  "Rust clippy / *": [
+    "Detect code changes"
+  ],
+  "Rust test / *": [
+    "Detect code changes"
+  ],
+  "Schema version audit / *": [],
   "Tolerance spread / *": [
     "Determine build matrix",
     "Build and test (*) / cp*"
+  ],
+  "Workflow security / *": [
+    "Detect code changes"
   ]
 }

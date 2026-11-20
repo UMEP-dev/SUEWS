@@ -2,6 +2,18 @@ name: Data-interface version audit
 
 on:
   pull_request:
+  workflow_call:
+    inputs:
+      base_sha:
+        description: 'Base commit SHA to compare against'
+        required: false
+        type: string
+        default: ''
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -10,10 +22,12 @@ jobs:
   check-interface-version-history:
     name: Validate data-interface version histories
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout full history
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -27,20 +41,35 @@ jobs:
           python -m pip install --disable-pip-version-check \
             'jsonschema' 'numpy>=1.22' 'pandas<3' 'pydantic>=2.12'
 
-      - name: Fetch base ref
+      - name: Resolve comparison base
+        id: base
+        shell: bash
         env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ inputs.base_sha || github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
         run: |
-          set -eu
-          git fetch --no-tags origin "$BASE_REF"
+          set -euo pipefail
+          if [[ -n "${BASE_SHA:-}" ]]; then
+            if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              git fetch --no-tags origin "$BASE_SHA"
+            fi
+            echo "ref=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${BASE_REF:-}" ]]; then
+            git fetch --no-tags origin "$BASE_REF"
+            echo "ref=origin/${BASE_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Cannot determine comparison base SHA or ref."
+            exit 1
+          fi
 
       - name: Validate data-interface version histories
+        shell: bash
         env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          COMPARE_BASE: ${{ steps.base.outputs.ref }}
         run: |
-          set -eu
+          set -euo pipefail
           python scripts/lint/check_data_interface_version_history.py \
-            --base "origin/$BASE_REF"
+            --base "$COMPARE_BASE"
 
       - name: Validate output-contract artefacts
         run: python scripts/lint/check_output_contract_artefacts.py

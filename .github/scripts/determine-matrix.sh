@@ -29,6 +29,8 @@
 #   BUILD_CHANGED        -- detect-changes output
 #   CI_CHANGED           -- detect-changes output (merge queue keeps all three
 #                           OS families when CI or build tooling changed)
+#   TESTS_CHANGED        -- detect-changes output (ready PRs touching tests run
+#                           standard so newly added/edited non-smoke tests run)
 #   INPUT_MATRIX_CONFIG  -- inputs.matrix_config (dispatch only)
 #   INPUT_PLAT_LINUX     -- inputs.plat_linux (dispatch/custom only)
 #   INPUT_PLAT_MACOS_INTEL -- inputs.plat_macos_intel
@@ -56,6 +58,7 @@ INPUT_MATRIX_CONFIG="${INPUT_MATRIX_CONFIG:-}"
 INPUT_TEST_TIER="${INPUT_TEST_TIER:-all}"
 PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
 CI_CHANGED="${CI_CHANGED:-false}"
+TESTS_CHANGED="${TESTS_CHANGED:-false}"
 GITHUB_REF="${GITHUB_REF:-}"
 
 # Platform presets
@@ -146,11 +149,21 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
     echo "Ready PR with python/util changes - minimal platform, standard tests"
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
     echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
-  else
-    echo "Ready PR with ci/tests-only changes - minimal platform, smoke tests"
+  elif [[ "${TESTS_CHANGED}" == "true" ]]; then
+    echo "Ready PR with tests changes - minimal platform, standard tests"
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
     echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
-    TIER=smoke
+  elif [[ "${CI_CHANGED}" == "true" ]]; then
+    echo "Ready PR with ci-only changes - minimal platform, standard tests"
+    echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+  else
+    # Fallback (including older workflow callers that did not pass TESTS_CHANGED):
+    # keep standard so ready PRs match merge_group and never silently deselect
+    # newly added or edited non-smoke unit/API tests (gh#2094).
+    echo "Ready PR with tests/other changes - minimal platform, standard tests"
+    echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
   fi
   # gh#1576: a physics- or numerics-change PR runs the full physics tier (incl. slow)
   # so an output shift surfaces here rather than in the nightly. Only the physics axis

@@ -84,6 +84,10 @@ Resolved input is the caller contract: defaults belong in the data model, and ca
 
    The SuPy package also contains a ``suews-engine`` binary, the Rust runtime that ``suews run`` drives. It is a developer and test tool, not a user command: ``suews-engine run`` expects a configuration that has already been resolved in this way, and does not perform data-model validation or resolution for a hand-written YAML file. To run a configuration, use ``suews run``.
 
+   File execution requires a string at ``model.control.output.dir`` (a ``value`` wrapper is also accepted). Export with ``config_to_engine_yaml`` from ``supy._run_rust``. When the source omits the output directory, the export captures the absolute process working directory. A saved export retains that destination even when launched from another directory. Supplied paths are preserved: ``.`` and relative paths resolve against the engine configuration file's directory, and absolute paths remain absolute. Keep the export beside its source configuration to retain the base for supplied relative paths.
+
+   Ordinary model dumps and ``to_yaml()`` remain portable source exports and leave an omitted directory unset. Buffer-only library calls return arrays and leave an omitted directory unset, including when the current working directory is unavailable. The public Python ``save(path)`` argument still takes precedence over the configured directory.
+
 For detailed usage and examples, see the :doc:`/workflow` guide.
 
 suews convert

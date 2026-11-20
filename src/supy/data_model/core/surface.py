@@ -305,7 +305,11 @@ class SurfaceProperties(DataModelBase):
     )
     waterdist: Optional[WaterDistribution] = Field(
         default=None,  # TODO: Can this be None?
-        description="Water distribution parameters",
+        description=(
+            "Within-grid water routing fractions (applicable destinations "
+            "required when sfr > 0; inapplicable 0 normalises to absent at "
+            "load; non-zero or post-load edits fail)."
+        ),
     )
     storage_drain_params: StorageDrainParams = Field(
         default_factory=StorageDrainParams,
@@ -354,13 +358,19 @@ class SurfaceProperties(DataModelBase):
             return False
 
     def validate_water_distribution(
-        self, surface_type: SurfaceType | None = None
+        self,
+        surface_type: SurfaceType | None = None,
+        *,
+        normalise_zero_disallowed: bool = False,
     ) -> None:
         """Validate this surface's water distribution against its surface type.
 
         Owning destinations and unit-sum completeness are required only when
-        this surface has positive area fraction (``sfr > 0``). Disallowed
-        destinations and invalid supplied values are always rejected.
+        this surface has positive area fraction (``sfr > 0``). When
+        ``normalise_zero_disallowed`` is True (YAML or model load), explicit
+        numeric zeros in inapplicable destinations are normalised to absent
+        (``None``); when False (post-load handoff validation), any non-null
+        inapplicable destination including ``0.0`` is rejected.
         """
         resolved_type = surface_type or self._surface_type
         if resolved_type is None:
@@ -385,12 +395,16 @@ class SurfaceProperties(DataModelBase):
                 f"expected WaterDistribution, got {type(self.waterdist).__name__}"
             )
         self.waterdist.validate_distribution(
-            resolved_type, require_complete=is_active
+            resolved_type,
+            require_complete=is_active,
+            normalise_zero_disallowed=normalise_zero_disallowed,
         )
 
     def set_surface_type(self, surface_type: SurfaceType):
         self._surface_type = surface_type
-        self.validate_water_distribution(surface_type)
+        self.validate_water_distribution(
+            surface_type, normalise_zero_disallowed=True
+        )
 
     def get_surface_type(self) -> SurfaceType:
         return self._surface_type
@@ -687,7 +701,11 @@ class PavedProperties(
     _surface_type: Literal[SurfaceType.PAVED] = SurfaceType.PAVED
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.PAVED),
-        description="Water distribution fractions for paved surfaces",
+        description=(
+            "Water distribution for paved surfaces (impervious: routes to other "
+            "surfaces and to_runoff when sfr > 0; to_paved/to_soilstore "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -1009,6 +1027,11 @@ class BldgsProperties(
     )  # We need to check if there is a building - and then this has to be greather than 0, accordingly.
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.BLDGS),
+        description=(
+            "Water distribution for building surfaces (impervious: routes to "
+            "other surfaces and to_runoff when sfr > 0; to_bldgs/to_soilstore "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -1089,7 +1112,11 @@ class BsoilProperties(
     _surface_type: Literal[SurfaceType.BSOIL] = SurfaceType.BSOIL
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.BSOIL),
-        description="Water distribution for bare soil",
+        description=(
+            "Water distribution for bare soil (pervious: routes to other "
+            "surfaces and to_soilstore when sfr > 0; to_bsoil/to_runoff "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 

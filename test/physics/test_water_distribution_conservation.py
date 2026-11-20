@@ -26,14 +26,16 @@ import pandas as pd
 import pytest
 import yaml
 
-from supy import SUEWSSimulation, suews_sim as suews_sim_module
+from supy import SUEWSSimulation
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.type import RefValue
+import supy.suews_sim as suews_sim_module
 
 pytestmark = pytest.mark.physics
 
 GRID = 1
 WATER_CLOSURE_TOLERANCE_MM = 1e-4
+RUNOFF_MATCH_TOLERANCE_MM = 1e-12
 
 
 def _load_sample_raw() -> dict:
@@ -109,24 +111,28 @@ def test_intact_sample_closes_wet_day_water_balance(control_run: dict) -> None:
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    ("case", "payload", "should_refuse"),
+    ("case", "payload", "should_refuse", "expect_absent"),
     [
-        ("omitted", None, False),
-        ("null", None, False),
-        ("wrapped-null", {"value": None}, False),
-        ("zero", {"value": 0.0}, True),
-        ("half", {"value": 0.5}, True),
+        ("omitted", None, False, False),
+        ("null", None, False, False),
+        ("wrapped-null", {"value": None}, False, False),
+        ("zero-int", 0, False, True),
+        ("zero-float", 0.0, False, True),
+        ("neg-zero", -0.0, False, True),
+        ("wrapped-zero", {"value": 0.0}, False, True),
+        ("half", {"value": 0.5}, True, False),
     ],
 )
 def test_paved_terminal_alias_conserves_water_or_is_refused(
     case: str,
     payload: object,
     should_refuse: bool,
+    expect_absent: bool,
     one_day_forcing: pd.DataFrame,
     control_run: dict,
     tmp_path: Path,
 ) -> None:
-    """Exercise all five paved to_soilstore terminal-alias forms against the wet-day control."""
+    """Zero inapplicable terminal aliases normalise to None at load; non-zero fails."""
     # ARRANGE
     raw = deepcopy(_load_sample_raw())
     dist = raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]
@@ -142,6 +148,13 @@ def test_paved_terminal_alias_conserves_water_or_is_refused(
         return
 
     sim, df_output = _run_wet_day(raw, one_day_forcing, tmp_path / f"{case}.yml")
+    loaded_dist = sim.config.sites[0].properties.land_cover.paved.waterdist
+    if expect_absent:
+        assert loaded_dist.to_soilstore is None
+        assert "to_soilstore" not in loaded_dist.model_fields_set
+    assert loaded_dist.to_runoff.value == pytest.approx(0.98)
+    assert loaded_dist.to_grass.value == pytest.approx(0.02)
+
     residual = _water_balance_residual_mm(sim, df_output)
     runoff = df_output.loc[GRID, "SUEWS"]["RO"]
     assert float(residual.abs().max()) < WATER_CLOSURE_TOLERANCE_MM
@@ -149,7 +162,7 @@ def test_paved_terminal_alias_conserves_water_or_is_refused(
         runoff.to_numpy(),
         control_run["runoff"].to_numpy(),
         rtol=0.0,
-        atol=WATER_CLOSURE_TOLERANCE_MM,
+        atol=RUNOFF_MATCH_TOLERANCE_MM,
     )
 
 
@@ -182,10 +195,10 @@ def test_paved_terminal_alias_conserves_water_or_is_refused(
             "Disallowed water distribution field to_paved for paved",
         ),
         (
-            "grass-runoff-zero",
-            "grass",
-            ("set", "to_runoff", {"value": 0.0}),
-            "Disallowed water distribution field to_runoff for grass",
+            "paved-soilstore-bool-false",
+            "paved",
+            ("set", "to_soilstore", {"value": False}),
+            "to_soilstore",
         ),
         (
             "grass-runoff-half",
@@ -203,7 +216,7 @@ def test_invalid_water_distribution_refused_before_run(
     one_day_forcing: pd.DataFrame,
     tmp_path: Path,
 ) -> None:
-    """Incomplete, non-unit, self-routed, and wrong-terminal distributions fail at load."""
+    """Incomplete, non-unit, non-zero inapplicable, and bool distributions fail at load."""
     # ARRANGE
     raw = deepcopy(_load_sample_raw())
     dist = raw["sites"][0]["properties"]["land_cover"][surface]["waterdist"]
@@ -218,24 +231,28 @@ def test_invalid_water_distribution_refused_before_run(
 
 
 @pytest.mark.core
+@pytest.mark.parametrize("field_name", ["to_soilstore", "to_paved"])
 @pytest.mark.parametrize("when", ["before-update-config", "after-update-config"])
 def test_mutable_disallowed_destination_refused_at_handoff(
+    field_name: str,
     when: str,
     one_day_forcing: pd.DataFrame,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """In-place mutation adding paved.to_soilstore=0.0 is refused before execution."""
+    """Post-load mutation adding paved.to_soilstore=0.0 or to_paved=0.0 is refused."""
     # ARRANGE
     cfg = SUEWSConfig.from_dict(deepcopy(_load_sample_raw()))
 
     # ACT / ASSERT
     pattern = (
         r"sites\[0\] \(KCL, gridiv=1\): Invalid surface configuration for paved: "
-        r"Disallowed water distribution field to_soilstore for paved"
+        rf"Disallowed water distribution field {field_name} for paved"
     )
     if when == "before-update-config":
-        cfg.sites[0].properties.land_cover.paved.waterdist.to_soilstore = RefValue(
-            value=0.0
+        setattr(
+            cfg.sites[0].properties.land_cover.paved.waterdist,
+            field_name,
+            RefValue(value=0.0),
         )
         sim = SUEWSSimulation()
         with pytest.raises(ValueError, match=pattern):
@@ -247,8 +264,10 @@ def test_mutable_disallowed_destination_refused_at_handoff(
 
     sim = SUEWSSimulation()
     sim.update_config(cfg, auto_load_forcing=False)
-    sim.config.sites[0].properties.land_cover.paved.waterdist.to_soilstore = RefValue(
-        value=0.0
+    setattr(
+        sim.config.sites[0].properties.land_cover.paved.waterdist,
+        field_name,
+        RefValue(value=0.0),
     )
     sim.update_forcing(one_day_forcing.copy())
 
@@ -298,7 +317,7 @@ def test_inactive_surface_omitted_waterdist_runs_and_activation_fails(
             runoff.to_numpy(),
             control_run["runoff"].to_numpy(),
             rtol=0.0,
-            atol=WATER_CLOSURE_TOLERANCE_MM,
+            atol=RUNOFF_MATCH_TOLERANCE_MM,
         )
 
     # ACT / ASSERT (b): activating evetr from sfr=0 to sfr=0.05 (keeping sum(sfr)=1)

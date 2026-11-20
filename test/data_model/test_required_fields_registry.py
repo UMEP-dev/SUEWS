@@ -302,7 +302,7 @@ def test_physics_conditions_name_their_option(
 
 
 def test_water_distribution_conditions_name_the_right_surfaces() -> None:
-    """Each destination's condition lists the owning surfaces and sfr > 0 rule."""
+    """Each destination's condition lists the owning surfaces and validation rules."""
     # ARRANGE / ACT / ASSERT
     for surface, fields in WATER_DISTRIBUTION_REQUIRED.items():
         for field in WaterDistribution.model_fields:
@@ -313,7 +313,9 @@ def test_water_distribution_conditions_name_the_right_surfaces() -> None:
             assert named == (field in fields), (surface, field)
             assert "``sfr > 0``" in condition
             assert "``sfr == 0``" in condition
-            assert "disallowed destinations" in condition
+            assert "inapplicable destinations" in condition
+            assert "normalised to absent" in condition
+            assert "post-load mutations fail" in condition
 
 
 def _load_sample_raw() -> dict:
@@ -409,30 +411,57 @@ def test_water_distribution_null_or_omitted_disallowed_terminal_accepted(
 @pytest.mark.parametrize(
     ("case", "payload"),
     [
-        ("zero", {"value": 0.0}),
-        ("bare-zero", 0.0),
-        ("half", {"value": 0.5}),
-        ("bare-half", 0.5),
+        ("int-zero", 0),
+        ("float-zero", 0.0),
+        ("neg-zero", -0.0),
+        ("wrapped-int-zero", {"value": 0}),
+        ("wrapped-float-zero", {"value": 0.0}),
+        ("wrapped-neg-zero", {"value": -0.0}),
+        ("wrapped-zero-with-ref", {"value": 0.0, "ref": {"desc": "legacy zero"}}),
     ],
 )
-def test_water_distribution_paved_soilstore_beside_runoff_rejected(
+def test_water_distribution_load_normalises_paved_zero_soilstore_to_none(
     case: str, payload: object, tmp_path: Path
 ) -> None:
-    """Any numeric paved.waterdist.to_soilstore (including 0.0) is rejected."""
+    """Explicit numeric zero in paved.to_soilstore normalises to None on load."""
     # ARRANGE
+    run_rust = import_module("supy._run_rust")
     raw = _load_sample_raw()
     raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"][
         "to_soilstore"
     ] = payload
-    cfg_path = tmp_path / f"paved_soilstore_{case}.yml"
+    raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]["to_paved"] = (
+        payload
+    )
+    cfg_path = tmp_path / f"paved_zero_{case}.yml"
     cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
 
-    # ACT / ASSERT
-    pattern = r"Disallowed water distribution field to_soilstore for paved"
-    with pytest.raises(ValueError, match=pattern):
-        SUEWSConfig.from_yaml(str(cfg_path))
-    with pytest.raises(ValueError, match=pattern):
-        SUEWSConfig.from_dict(raw)
+    # ACT
+    cfg_yaml = SUEWSConfig.from_yaml(str(cfg_path))
+    cfg_dict = SUEWSConfig.from_dict(raw)
+    cfg_init = SUEWSConfig(**raw)
+
+    # ASSERT
+    for cfg in (cfg_yaml, cfg_dict, cfg_init):
+        dist = cfg.sites[0].properties.land_cover.paved.waterdist
+        assert dist.to_soilstore is None
+        assert dist.to_paved is None
+        assert "to_soilstore" not in dist.model_fields_set
+        assert "to_paved" not in dist.model_fields_set
+        assert dist.to_runoff.value == pytest.approx(0.98)
+        assert dist.to_grass.value == pytest.approx(0.02)
+        cfg.validate_for_engine()
+        df_state = cfg.to_df_state()
+        assert df_state.loc[1, ("waterdist", "(0, 0)")] == pytest.approx(0.0)
+        assert df_state.loc[1, ("waterdist", "(4, 0)")] == pytest.approx(0.02)
+        assert df_state.loc[1, ("waterdist", "(7, 0)")] == pytest.approx(0.98)
+        engine_yaml = run_rust.config_to_engine_yaml(cfg)
+        engine_doc = yaml.safe_load(engine_yaml)
+        paved_dist = engine_doc["sites"][0]["properties"]["land_cover"]["paved"][
+            "waterdist"
+        ]
+        assert "to_soilstore" not in paved_dist
+        assert "to_paved" not in paved_dist
 
 
 @pytest.mark.parametrize(
@@ -452,32 +481,67 @@ def test_water_distribution_paved_soilstore_beside_runoff_rejected(
         ("bsoil", "to_bsoil"),
     ],
 )
-@pytest.mark.parametrize("raw_value", [0.0, 0.5])
-def test_water_distribution_disallowed_destinations_rejected_all_surfaces(
-    surface: str, disallowed_field: str, raw_value: float, tmp_path: Path
+def test_water_distribution_load_zero_normalised_and_nonzero_rejected_all_surfaces(
+    surface: str, disallowed_field: str, tmp_path: Path
 ) -> None:
-    """Every non-water surface rejects self-routing and the opposite terminal field."""
-    # ARRANGE
-    raw = _load_sample_raw()
-    raw["sites"][0]["properties"]["land_cover"][surface]["waterdist"][
+    """All 12 inapplicable slots normalise 0.0 to None at load and reject non-zero/bool."""
+    # ARRANGE / ACT / ASSERT (a): explicit zero normalises to None on all surfaces.
+    raw_zero = _load_sample_raw()
+    raw_zero["sites"][0]["properties"]["land_cover"][surface]["waterdist"][
         disallowed_field
-    ] = {"value": raw_value}
-    cfg_path = tmp_path / f"{surface}_{disallowed_field}_{raw_value}.yml"
-    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    ] = {"value": 0.0}
+    cfg_zero_path = tmp_path / f"{surface}_{disallowed_field}_zero.yml"
+    cfg_zero_path.write_text(yaml.safe_dump(raw_zero), encoding="utf-8")
+    cfg_zero = SUEWSConfig.from_yaml(str(cfg_zero_path))
+    dist_zero = getattr(cfg_zero.sites[0].properties.land_cover, surface).waterdist
+    assert getattr(dist_zero, disallowed_field) is None
+    assert disallowed_field not in dist_zero.model_fields_set
+    cfg_zero.validate_for_engine()
 
-    # ACT / ASSERT
+    # ARRANGE / ACT / ASSERT (b): non-zero inapplicable value fails on load.
+    raw_nonzero = _load_sample_raw()
+    raw_nonzero["sites"][0]["properties"]["land_cover"][surface]["waterdist"][
+        disallowed_field
+    ] = {"value": 0.5}
+    cfg_nonzero_path = tmp_path / f"{surface}_{disallowed_field}_nonzero.yml"
+    cfg_nonzero_path.write_text(yaml.safe_dump(raw_nonzero), encoding="utf-8")
     pattern = rf"Disallowed water distribution field {disallowed_field} for {surface}"
     with pytest.raises(ValueError, match=pattern):
-        SUEWSConfig.from_yaml(str(cfg_path))
+        SUEWSConfig.from_yaml(str(cfg_nonzero_path))
+    with pytest.raises(ValueError, match=pattern):
+        SUEWSConfig.from_dict(raw_nonzero)
+    with pytest.raises(ValueError, match=pattern):
+        SUEWSConfig(**raw_nonzero)
+
+    # ARRANGE / ACT / ASSERT (c): bool inapplicable value (even False) fails on load.
+    for bool_payload in (False, {"value": False}, True, {"value": True}):
+        raw_bool = _load_sample_raw()
+        raw_bool["sites"][0]["properties"]["land_cover"][surface]["waterdist"][
+            disallowed_field
+        ] = bool_payload
+        with pytest.raises(ValueError, match=disallowed_field):
+            SUEWSConfig.from_dict(raw_bool)
 
 
-def test_water_distribution_disallowed_rejected_on_direct_init() -> None:
-    """Direct WaterDistribution(surface_type, ...) also rejects disallowed fields."""
-    # ACT / ASSERT
+def test_water_distribution_direct_init_normalises_zero_and_rejects_nonzero() -> None:
+    """Direct WaterDistribution(surface_type, ...) normalises 0.0 and rejects non-zero/bool."""
+    # ACT / ASSERT (a): explicit zero normalises to None at construction.
+    paved_zero = WaterDistribution(
+        SurfaceType.PAVED, to_soilstore=0.0, to_paved=RefValue(value=-0.0)
+    )
+    assert paved_zero.to_soilstore is None
+    assert paved_zero.to_paved is None
+    paved_zero.validate_distribution(SurfaceType.PAVED)
+
+    grass_zero = WaterDistribution(SurfaceType.GRASS, to_runoff=0)
+    assert grass_zero.to_runoff is None
+    grass_zero.validate_distribution(SurfaceType.GRASS)
+
+    # ACT / ASSERT (b): non-zero and bool fail at construction.
     with pytest.raises(
         ValueError, match="Disallowed water distribution field to_soilstore for paved"
     ):
-        WaterDistribution(SurfaceType.PAVED, to_soilstore=0.0)
+        WaterDistribution(SurfaceType.PAVED, to_soilstore=0.5)
     with pytest.raises(
         ValueError, match="Disallowed water distribution field to_paved for paved"
     ):
@@ -485,7 +549,16 @@ def test_water_distribution_disallowed_rejected_on_direct_init() -> None:
     with pytest.raises(
         ValueError, match="Disallowed water distribution field to_runoff for grass"
     ):
-        WaterDistribution(SurfaceType.GRASS, to_runoff=0.0)
+        WaterDistribution(SurfaceType.GRASS, to_runoff=0.5)
+    with pytest.raises(ValueError, match="to_soilstore"):
+        WaterDistribution(SurfaceType.PAVED, to_soilstore=False)
+
+    # ACT / ASSERT (c): post-construction mutation setting 0.0 fails strict validation.
+    paved_zero.to_soilstore = RefValue(value=0.0)
+    with pytest.raises(
+        ValueError, match="Disallowed water distribution field to_soilstore for paved"
+    ):
+        paved_zero.validate_distribution(SurfaceType.PAVED)
 
 
 def test_water_distribution_water_surface_null_allowed_non_null_rejected(
@@ -683,11 +756,41 @@ def test_water_distribution_inactive_surface_omission_and_activation_handoffs() 
     assert grid_ids == [1]
     assert len(grid_jsons) == 1
 
-    # Disallowed destinations remain refused even on inactive (sfr == 0) surfaces.
+    # Round-tripping through df_state keeps inactive surfaces valid without
+    # fabricating unit-sum routing, so reactivating sfr > 0 still fails.
+    cfg_from_df = SUEWSConfig.from_df_state(df_state)
+    cfg_from_df.validate_for_engine()
+    cfg_from_df.sites[0].properties.land_cover.bsoil.sfr = RefValue(value=0.05)
+    cfg_from_df.sites[0].properties.land_cover.paved.sfr = RefValue(value=0.38)
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid surface configuration for bsoil: "
+        r"Water distribution sum must be 1\.0",
+    ):
+        cfg_from_df.validate_for_engine()
+
+    # Non-zero disallowed destinations remain refused on inactive (sfr == 0) surfaces,
+    # while explicit zero normalises to None at load and fails if re-introduced later.
+    raw_disallowed_zero = _load_sample_raw()
+    raw_disallowed_zero["sites"][0]["properties"]["land_cover"]["evetr"]["waterdist"][
+        "to_runoff"
+    ] = {"value": 0.0}
+    cfg_evetr_zero = SUEWSConfig.from_dict(raw_disallowed_zero)
+    assert cfg_evetr_zero.sites[0].properties.land_cover.evetr.waterdist.to_runoff is None
+    cfg_evetr_zero.sites[0].properties.land_cover.evetr.waterdist.to_runoff = RefValue(
+        value=0.0
+    )
+    with pytest.raises(
+        ValueError,
+        match=r"sites\[0\] \(KCL, gridiv=1\): Invalid surface configuration for evetr: "
+        r"Disallowed water distribution field to_runoff for evetr",
+    ):
+        cfg_evetr_zero.validate_for_engine()
+
     raw_disallowed = _load_sample_raw()
     raw_disallowed["sites"][0]["properties"]["land_cover"]["evetr"]["waterdist"][
         "to_runoff"
-    ] = {"value": 0.0}
+    ] = {"value": 0.5}
     with pytest.raises(
         ValueError,
         match=r"sites\[0\] \(KCL, gridiv=1\): Invalid surface configuration for evetr: "

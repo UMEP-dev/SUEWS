@@ -10,12 +10,18 @@ Validates:
 
 from __future__ import annotations
 
+from copy import deepcopy
+from importlib.resources import files
+import json
 from pathlib import Path
 import re
 import sys
 
 from click.testing import CliRunner
 import pytest
+import yaml
+
+from supy.cmd.suews_cli import cli as suews_cli_root
 
 pytestmark = pytest.mark.api
 
@@ -674,3 +680,135 @@ def test_run_explains_null_forcing_file(tmp_path: Path) -> None:
     assert result.exit_code == 1, result.output
     assert "'forcing.file' is null" in result.output
     assert "update_forcing()" in result.output
+
+
+def _assert_waterdist_schema_rules(schema_dict: dict) -> None:
+    wd = schema_dict["$defs"]["WaterDistribution"]
+    assert "sfr > 0" in wd["description"]
+    assert "sfr == 0" in wd["description"]
+    assert "0 normalises to absent at load" in wd["description"]
+    assert "non-zero or post-load edits fail" in wd["description"]
+
+    for field_name in ("to_runoff", "to_soilstore", "to_paved"):
+        desc = wd["properties"][field_name]["description"]
+        assert "sfr > 0" in desc
+        assert "0 normalises to absent at load" in desc
+        assert "non-zero or post-load edits fail" in desc
+        # Keep descriptions within MCP search_schema's 200-char display budget.
+        assert len(desc) <= 200, (field_name, len(desc))
+
+
+def _write_waterdist_cli_cases(tmp_path: Path) -> tuple[Path, Path, Path]:
+    sample_raw = yaml.safe_load(
+        (files("supy") / "sample_data" / "sample_config.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    props = sample_raw["sites"][0]["properties"]
+    props.pop("stebbs", None)
+    props.pop("building_archetype", None)
+
+    raw_zero = deepcopy(sample_raw)
+    raw_zero["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"][
+        "to_soilstore"
+    ] = {"value": 0.0}
+    path_zero = tmp_path / "paved_zero_soilstore.yml"
+    path_zero.write_text(yaml.safe_dump(raw_zero), encoding="utf-8")
+
+    raw_inactive = deepcopy(sample_raw)
+    del raw_inactive["sites"][0]["properties"]["land_cover"]["evetr"]["waterdist"][
+        "to_soilstore"
+    ]
+    path_inactive = tmp_path / "inactive_evetr_omitted.yml"
+    path_inactive.write_text(yaml.safe_dump(raw_inactive), encoding="utf-8")
+
+    raw_nonzero = deepcopy(sample_raw)
+    raw_nonzero["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"][
+        "to_soilstore"
+    ] = {"value": 0.5}
+    path_nonzero = tmp_path / "paved_nonzero_soilstore.yml"
+    path_nonzero.write_text(yaml.safe_dump(raw_nonzero), encoding="utf-8")
+    return path_zero, path_inactive, path_nonzero
+
+
+@pytest.mark.medium
+def test_schema_export_cli_displays_waterdistribution_rules(tmp_path: Path) -> None:
+    """``suews schema export`` exposes the synced WaterDistribution rules."""
+    runner = CliRunner()
+    out_json = tmp_path / "exported_schema.json"
+
+    export_res = runner.invoke(
+        suews_cli_root, ["schema", "export", "-o", str(out_json)]
+    )
+
+    assert export_res.exit_code == 0, export_res.output
+    exported = json.loads(out_json.read_text(encoding="utf-8"))
+    _assert_waterdist_schema_rules(exported)
+
+
+@pytest.mark.medium
+def test_schema_envelope_cli_displays_waterdistribution_rules() -> None:
+    """``suews schema --format json`` exposes the synced WaterDistribution rules."""
+    runner = CliRunner()
+
+    envelope_res = runner.invoke(suews_cli_root, ["schema", "--format", "json"])
+
+    assert envelope_res.exit_code == 0, envelope_res.output
+    envelope = json.loads(envelope_res.output)
+    assert envelope["status"] == "success"
+    _assert_waterdist_schema_rules(envelope["data"])
+
+
+def test_inspect_cli_waterdist_rules(tmp_path: Path) -> None:
+    """``suews inspect --format json`` enforces load-time waterdist rules."""
+    path_zero, path_inactive, path_nonzero = _write_waterdist_cli_cases(tmp_path)
+    runner = CliRunner()
+
+    for ok_path in (path_zero, path_inactive):
+        inspect_ok = runner.invoke(
+            suews_cli_root, ["inspect", "--format", "json", str(ok_path)]
+        )
+        assert inspect_ok.exit_code == 0, inspect_ok.output
+        assert json.loads(inspect_ok.output)["status"] == "success"
+
+    inspect_bad = runner.invoke(
+        suews_cli_root, ["inspect", "--format", "json", str(path_nonzero)]
+    )
+    assert inspect_bad.exit_code != 0, inspect_bad.output
+    bad_env = json.loads(inspect_bad.output)
+    assert bad_env["status"] == "error"
+    assert any("to_soilstore" in str(err) for err in bad_env["errors"]), bad_env
+
+
+@pytest.mark.medium
+def test_validate_cli_waterdist_rules(tmp_path: Path) -> None:
+    """``suews validate -p C --dry-run --format json`` enforces load-time waterdist rules."""
+    path_zero, path_inactive, path_nonzero = _write_waterdist_cli_cases(tmp_path)
+    runner = CliRunner()
+
+    val_res = runner.invoke(
+        suews_cli_root,
+        [
+            "validate",
+            "-p",
+            "C",
+            "--dry-run",
+            "--format",
+            "json",
+            str(path_zero),
+            str(path_inactive),
+            str(path_nonzero),
+        ],
+    )
+    assert val_res.exit_code == 1, val_res.output
+    val_env = json.loads(val_res.output)
+    assert val_env["status"] == "error"
+    files_by_name = {
+        Path(entry["file"]).name: entry for entry in val_env["data"]["files"]
+    }
+    assert files_by_name["paved_zero_soilstore.yml"]["valid"] is True
+    assert files_by_name["inactive_evetr_omitted.yml"]["valid"] is True
+    assert files_by_name["paved_nonzero_soilstore.yml"]["valid"] is False
+    assert any(
+        "to_soilstore" in str(err.get("message", "")) for err in val_env["errors"]
+    ), val_env["errors"]

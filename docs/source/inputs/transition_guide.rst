@@ -864,6 +864,85 @@ combinations rather than assigning misleading semantics. Non-biogenic
 flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
 but their CO2 fluxes are discarded by the driver.
 
+.. _waterdist_yaml_rules:
+
+Within-grid water distribution (``waterdist``)
+----------------------------------------------
+
+In legacy tabular input (``SUEWS_WithinGridWaterDist.txt``; see
+:ref:`SUEWS_WithinGridWaterDist`), each surface row carried all nine
+destination columns, placing explicit zeros on the self-routing diagonal and in
+the unused terminal column (``ToSoilStore`` on impervious surfaces;
+``ToRunoff`` on pervious surfaces).
+
+In YAML configurations, each non-water surface under
+``sites[*].properties.land_cover.<surface>.waterdist`` specifies only its seven
+applicable destinations: the other six surfaces plus ``to_runoff`` for
+impervious surfaces (``paved``, ``bldgs``) or ``to_soilstore`` for pervious
+surfaces (``evetr``, ``dectr``, ``grass``, ``bsoil``). The ``water`` surface
+does not take a ``waterdist`` block.
+
+Worked example for an active ``paved`` surface routing 98% of drainage to
+surface runoff and 2% to grass:
+
+.. code-block:: yaml
+
+   sites:
+     - name: "ExampleSite"
+       properties:
+         land_cover:
+           paved:
+             sfr:
+               value: 0.43
+             waterdist:
+               to_bldgs:
+                 value: 0.0
+               to_dectr:
+                 value: 0.0
+               to_evetr:
+                 value: 0.0
+               to_grass:
+                 value: 0.02
+               to_bsoil:
+                 value: 0.0
+               to_water:
+                 value: 0.0
+               to_runoff:
+                 value: 0.98
+
+YAML validation enforces three rules:
+
+1. **Active vs. inactive surfaces (``sfr > 0`` vs. ``sfr == 0``):** All seven
+   applicable destinations (finite fractions in ``[0, 1]`` summing to ``1.0``)
+   are required only when the surface is active (``sfr > 0``) and a
+   ``waterdist`` block is supplied. Omitting the entire ``waterdist`` block
+   applies surface-specific defaults. Inactive surfaces (``sfr == 0``) may omit
+   applicable destinations (or supply an empty ``waterdist`` block).
+2. **Inapplicable destinations at YAML or model load:** Self-routing
+   (``to_<self>``), ``to_soilstore`` on impervious surfaces, and ``to_runoff``
+   on pervious surfaces should be omitted or set to ``null``. For compatibility
+   with files migrated from legacy nine-column tables, an explicit numeric zero
+   (``0``, ``0.0``, ``-0.0``, or ``{value: 0.0}``) in an inapplicable slot is
+   normalised to absent (``None``) when loading through
+   ``SUEWSConfig.from_yaml``, ``SUEWSConfig.from_dict``, or ``SUEWSConfig(...)``
+   while leaving the applicable routed fractions untouched. For example, adding
+   ``to_soilstore: {value: 0.0}`` alongside ``to_runoff: 0.98`` and
+   ``to_grass: 0.02`` above clears ``to_soilstore`` to ``None`` on load and
+   preserves the exact ``0.98`` runoff fraction. Any non-zero, boolean, or
+   non-finite value in an inapplicable slot raises :class:`ValueError`.
+3. **Post-load live mutations:** After loading, editing a live configuration in
+   place to introduce any inapplicable destination (including
+   ``paved.waterdist.to_soilstore = RefValue(value=0.0)`` or
+   ``paved.waterdist.to_paved = RefValue(value=0.0)``) or raising ``sfr`` from
+   ``0`` to ``> 0`` on a surface whose applicable destinations are missing
+   raises :class:`ValueError` before engine execution. These invariants are
+   re-checked at :meth:`~supy.SUEWSSimulation.update_config`,
+   :meth:`~supy.SUEWSSimulation.run`, ``SUEWSConfig.to_df_state``, and engine
+   serialisation via ``SUEWSConfig.validate_for_engine``. Valid multi-step
+   in-place edits (for example, shifting ``0.02`` from ``to_runoff`` to
+   ``to_grass`` across two assignments so the final sum is ``1.0``) remain
+   supported.
+
 Forcing and output units
 ------------------------
 

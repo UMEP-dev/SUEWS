@@ -4788,8 +4788,12 @@ class SUEWSConfig(DataModelBase):
     def _validate_land_cover_surfaces(self, *, set_surface_types: bool) -> None:
         """Validate every site's surface water distributions.
 
-        When ``set_surface_types`` is True, also binds ``_surface_type`` on
-        each surface property via ``set_surface_type``.
+        When ``set_surface_types`` is True (model load/construction), binds
+        ``_surface_type`` via ``set_surface_type``, which normalises explicit
+        numeric zeros in inapplicable destinations to ``None`` while rejecting
+        non-zero or invalid values. When False (post-load handoff checks),
+        validates strictly and rejects any non-null inapplicable destination
+        including ``0.0``.
         """
         errors: list[str] = []
         for site_index, site in enumerate(self.sites):

@@ -274,10 +274,12 @@ SOIL_OBSERVED_REQUIRED: tuple[str, ...] = ("soil_field_capacity",)
 
 # Water-distribution destinations each active surface (sfr > 0) must give when
 # its waterdist block is supplied; an omitted block takes surface-specific
-# defaults, and inactive surfaces (sfr == 0) may omit owning destinations. Keyed
-# by surface type value; the water surface has no distribution. Any destination
-# outside a surface's tuple (self-routing or the opposite terminal field) must
-# be omitted or null regardless of sfr.
+# defaults, and inactive surfaces (sfr == 0) may omit applicable destinations
+# (raising sfr from 0 to > 0 without them fails before execution). Keyed by
+# surface type value; the water surface has no distribution. Any destination
+# outside a surface's tuple (self-routing or the opposite terminal field) is
+# inapplicable: omit or set null (explicit numeric 0 is normalised to absent
+# at YAML/model load; non-zero values or post-load mutations fail).
 WATER_DISTRIBUTION_REQUIRED: dict[str, tuple[str, ...]] = {
     "paved": (
         "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",
@@ -408,8 +410,11 @@ def _water_distribution_conditions() -> dict[str, str]:
             f"``waterdist`` is given for an active {listed} surface "
             "(``sfr > 0``); an omitted ``waterdist`` block takes "
             "surface-specific defaults, inactive surfaces (``sfr == 0``) may "
-            "omit owning destinations, and disallowed destinations "
-            "(self-routing or the opposite terminal field) must be omitted or null"
+            "omit applicable destinations (activating ``sfr`` from ``0`` to "
+            "``> 0`` without them fails before execution), and inapplicable "
+            "destinations (self-routing or the opposite terminal field) should "
+            "be omitted or null -- explicit ``0.0`` is normalised to absent at "
+            "YAML/model load, while non-zero values or post-load mutations fail"
         )
     return conditions
 

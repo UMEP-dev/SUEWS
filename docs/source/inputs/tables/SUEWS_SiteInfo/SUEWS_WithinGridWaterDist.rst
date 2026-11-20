@@ -57,3 +57,12 @@ In the table below, for example,
 .. only:: latex
 
     An example `SUEWS_WithinGridWaterDist.txt` can be found in the online version.
+
+.. note::
+
+   This page documents the legacy tabular ``SUEWS_WithinGridWaterDist.txt``
+   format, where every row includes all nine destination columns with zeros on
+   the diagonal and in the unused terminal column. For YAML configurations
+   (``sites[*].properties.land_cover.<surface>.waterdist``), see
+   :ref:`waterdist_yaml_rules` and
+   :doc:`/inputs/yaml/config-reference/waterdistribution`.

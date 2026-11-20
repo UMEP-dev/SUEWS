@@ -17,6 +17,10 @@ from supy.data_model.parameter_examples import (
     get_all_parameter_examples,
     get_parameter_examples,
 )
+from supy.data_model.validation.derived_fields import (
+    DOC_DERIVED_DEFAULT,
+    derived_default,
+)
 from supy.data_model.validation.required_fields import DOC_REQUIRED_WHEN
 
 pytestmark = pytest.mark.api
@@ -263,8 +267,9 @@ def test_field_without_default_or_rule_is_not_called_optional(monkeypatch) -> No
     # ARRANGE
     module = _load_generator_module()
     monkeypatch.setattr(module, "required_when", lambda model, field: "")
+    monkeypatch.setattr(module, "derived_default", lambda model, field: "")
     field_doc = {
-        "name": "store_cap",
+        "name": "drain_coef_1",
         "type": "Optional[FlexibleRefValue(float)]",
         "default": None,
     }
@@ -276,6 +281,32 @@ def test_field_without_default_or_rule_is_not_called_optional(monkeypatch) -> No
     # ASSERT
     assert status == module.STATUS_NO_DEFAULT
     assert "optional" not in status.lower()
+    assert status.isascii()
+    assert default_line == (None, None)
+
+
+def test_derived_default_field_reports_its_source(monkeypatch) -> None:
+    """A runtime-derived field reports its derivation rather than no default."""
+    # ARRANGE
+    module = _load_generator_module()
+    monkeypatch.setattr(module, "required_when", lambda model, field: "")
+    monkeypatch.setattr(
+        module,
+        "derived_default",
+        lambda model, field: (
+            "``store_max`` when omitted"
+            if (model, field) == ("StorageDrainParams", "store_cap")
+            else ""
+        ),
+    )
+    field_doc = {"name": "store_cap", "default": None}
+
+    # ACT
+    status = module.RSTGenerator._format_status(field_doc, "StorageDrainParams")
+    default_line = module.RSTGenerator._format_default(field_doc)
+
+    # ASSERT
+    assert status == "Optional; derived from ``store_max`` when omitted"
     assert status.isascii()
     assert default_line == (None, None)
 
@@ -433,6 +464,71 @@ def test_every_recorded_requirement_reaches_the_reference(generated_reference) -
 
     # ASSERT
     assert not missing
+
+
+def test_every_recorded_derived_default_reaches_the_reference(
+    generated_reference,
+) -> None:
+    """Every runtime-derived field must report its derivation on its doc page."""
+    # ARRANGE
+    output_dir, _ = generated_reference
+
+    # ACT
+    missing = []
+    for model_name, fields in DOC_DERIVED_DEFAULT.items():
+        page = output_dir / f"{model_name.lower()}.rst"
+        blocks = (
+            _option_blocks(page.read_text(encoding="utf-8")) if page.exists() else {}
+        )
+        for field, source in fields.items():
+            expected = f":Status: Optional; derived from {source}"
+            normalised = " ".join(blocks.get(field, "").split())
+            if expected not in normalised:
+                missing.append(f"{model_name}.{field}")
+
+    # ASSERT
+    assert not missing
+
+
+def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
+    """Every derived-default entry names a real field with runtime resolution."""
+    from supy.data_model.core.config import SUEWSConfig
+    from supy.data_model.core.hydro import StorageDrainParams
+    from supy.data_model.core.state import (
+        InitialStateDectr,
+        InitialStateEvetr,
+        InitialStateGrass,
+        InitialStateVeg,
+    )
+
+    # ARRANGE
+    models = {
+        "StorageDrainParams": StorageDrainParams,
+        "InitialStateVeg": InitialStateVeg,
+        "InitialStateEvetr": InitialStateEvetr,
+        "InitialStateDectr": InitialStateDectr,
+        "InitialStateGrass": InitialStateGrass,
+    }
+
+    # ACT / ASSERT - every recorded field exists and lookup works
+    assert set(DOC_DERIVED_DEFAULT) == set(models)
+    for model_name, fields in DOC_DERIVED_DEFAULT.items():
+        for field in fields:
+            assert field in models[model_name].model_fields
+            assert derived_default(model_name, field) == fields[field]
+    assert not derived_default("StorageDrainParams", "not_a_field")
+
+    # Runtime check 1: StorageDrainParams.store_cap resolves to store_max in engine dump
+    drain = StorageDrainParams(store_max=0.73)
+    dumped = drain.model_dump(exclude_none=True, mode="json")
+    assert dumped["store_cap"]["value"] == pytest.approx(0.73)
+
+    # Runtime check 2: InitialState*.alb_id is derived from LAI/albedo limits
+    cfg = SUEWSConfig(sites=[{}])
+    for surface in ("evetr", "dectr", "grass"):
+        state = getattr(cfg.sites[0].initial_states, surface)
+        alb = state.alb_id.value if hasattr(state.alb_id, "value") else state.alb_id
+        assert alb is not None
 
 
 @pytest.mark.parametrize(

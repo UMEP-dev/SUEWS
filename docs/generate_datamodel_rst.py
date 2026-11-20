@@ -47,14 +47,30 @@ except ImportError:
         """Fall back to recording no condition."""
         return ""
 
+try:
+    from supy.data_model.validation.derived_fields import derived_default
+except ImportError:
+    print(
+        "WARNING: the installed supy has no derived-default field registry, "
+        "so runtime-derived defaults will be omitted from the generated "
+        "configuration reference. Rebuild supy from this checkout (make dev) "
+        "to include them.",
+        file=sys.stderr,
+    )
+
+    def derived_default(model_name: str, field_name: str) -> str:
+        """Fall back to recording no runtime derivation."""
+        return ""
+
 
 # Every parameter entry carries one "Status" line:
 # required by its type, required under a condition the validation layer
 # records (see supy.data_model.validation.required_fields), optional because a
-# default exists, or without a default and unchecked.
+# literal or runtime-derived default exists, or without a default and unchecked.
 STATUS_LABEL = "Status"
 STATUS_REQUIRED = "Required"
 STATUS_REQUIRED_WHEN = "Required when {condition}"
+STATUS_DERIVED = "Optional; derived from {source}"
 STATUS_OPTIONAL = "Optional"
 # A parameter with no default that no validator checks. Such parameters are
 # declared Optional only so that a partial configuration still loads, which is
@@ -881,6 +897,8 @@ class RSTGenerator:
         - Fields declared without a default (Pydantic-required): ``"Required"``
         - Fields the validation layer requires under a recorded condition:
           ``"Required when ..."``, whether or not they carry a default
+        - Fields whose omitted value is derived from other inputs at runtime:
+          ``"Optional; derived from ..."``
         - Other fields with a default: ``"Optional"``
         - Other fields with ``default=None``: ``STATUS_NO_DEFAULT``
         - Nested models: ``None``, as the structure link describes them
@@ -888,8 +906,9 @@ class RSTGenerator:
         Args:
             field_doc: Field documentation dictionary
             model_name: Name of the model declaring the field, used to look up
-                a conditional requirement. Omitted for callers that have no
-                model context, which simply skips that lookup.
+                a conditional requirement or derived default. Omitted for
+                callers that have no model context, which simply skips those
+                lookups.
         """
         if field_doc.get("nested_model"):
             return None
@@ -898,9 +917,14 @@ class RSTGenerator:
         if str(default) == "PydanticUndefined":
             return STATUS_REQUIRED
 
-        condition = required_when(model_name, field_doc.get("name", ""))
+        field_name = field_doc.get("name", "")
+        condition = required_when(model_name, field_name)
         if condition:
             return STATUS_REQUIRED_WHEN.format(condition=condition)
+
+        source = derived_default(model_name, field_name)
+        if source:
+            return STATUS_DERIVED.format(source=source)
 
         if default is None:
             return STATUS_NO_DEFAULT

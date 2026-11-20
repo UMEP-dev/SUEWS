@@ -54,8 +54,8 @@ jobs:
         run: |
           set -eu
           gfortran --version | head -n 1
-          EXTRA_ARGS=()
           if [ -n "$BASE_SHA" ]; then
-            EXTRA_ARGS+=(--base-ref "$BASE_SHA")
+            python3 scripts/lint/check_fortran_uninit.py --base-ref "$BASE_SHA"
+          else
+            python3 scripts/lint/check_fortran_uninit.py
           fi
-          python3 scripts/lint/check_fortran_uninit.py "${EXTRA_ARGS[@]}"

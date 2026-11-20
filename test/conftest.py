@@ -313,20 +313,33 @@ def _invocation_targets_full_test_tree(config):
     """True when the pytest invocation covers the whole `test/` tree.
 
     The lint below should fire on CI-style invocations (`pytest test`,
-    `pytest` from rootdir, or with marker-only filters) and stay out of the
-    way during local iteration on a single file or subdirectory.
+    `pytest` from rootdir, or with option filters such as
+    `pytest -m physics test/`) and stay out of the way during local
+    iteration on a single file or subdirectory.
+
+    Uses pytest's parsed positional `config.args` rather than raw
+    `invocation_params.args` so option values (e.g. `physics` in
+    `-m physics test/`) are never mistaken for path arguments.
     """
-    args = list(config.invocation_params.args or ())
-    path_args = [a for a in args if not a.startswith("-")]
+    rootpath = Path(str(config.rootpath)).resolve()
+    test_dir = (rootpath / "test").resolve()
+    invocation_dir = Path(str(config.invocation_params.dir)).resolve()
+
+    path_args = list(getattr(config, "args", ()) or ())
     if not path_args:
         return True
-    test_dir = (Path(str(config.rootpath)) / "test").resolve()
+
+    full_tree_targets = {rootpath, test_dir}
     for arg in path_args:
+        if "::" in str(arg):
+            return False
+        raw = Path(arg)
+        candidate = raw if raw.is_absolute() else invocation_dir / raw
         try:
-            resolved = Path(arg).resolve()
+            resolved = candidate.resolve()
         except (OSError, ValueError):
             return False
-        if resolved != test_dir:
+        if resolved not in full_tree_targets:
             return False
     return True
 

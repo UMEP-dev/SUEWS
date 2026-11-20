@@ -65,15 +65,28 @@ OPTION_VALUES_REFUSED = {
     ("net_radiation", 12): "forcing column 'fcld'",
     ("net_radiation", 100): "forcing column 'ldown'",
     ("net_radiation", 200): "forcing column 'fcld'",
-    ("net_radiation", 1001): "forcing column 'ldown'",
-    ("net_radiation", 1002): "forcing column 'fcld'",
+    # SPARTACUS with buildings needs a facet-resolved storage heat method
+    # (gh#1834) and zero vegetation above tree crowns, which the sample's
+    # storage_heat=1 and vertical layers do not satisfy; varying one option
+    # at a time cannot satisfy the paired rules.
+    ("net_radiation", 1001): "SPARTACUS with buildings",
+    ("net_radiation", 1002): "SPARTACUS with buildings",
+    ("net_radiation", 1003): "SPARTACUS with buildings",
     ("emissions", 0): "forcing column 'qf'",
     ("storage_heat", 0): "forcing column 'qs'",
     # STEBBS storage heat needs SPARTACUS-Surface net radiation, which the
     # sample's net_radiation=3 is not; varying one option at a time cannot
     # satisfy the pair.
-    ("storage_heat", 7): "requires SPARTACUS-Surface net radiation",
-    ("soil_moisture", 1): "forcing column 'sm'",
+    (
+        "storage_heat",
+        7,
+    ): "requires model.physics.net_radiation to be a SPARTACUS-Surface method",
+    # Observed soil moisture requires a soil_observation input block before the
+    # forcing check runs, which the bundled sample does not carry.
+    (
+        "soil_moisture",
+        1,
+    ): "Observed soil moisture requires soil_observation layer bounds",
     ("water_use", 1): "forcing column 'wuh'",
     ("laimethod", 0): "forcing column 'lai'",
     # W16 has no phi implementation for the sample's RSL path (GH#1784).

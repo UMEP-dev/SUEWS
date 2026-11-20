@@ -28,6 +28,8 @@ def _forest_only_direct_albedo_state(df_state_init):
         df_state.loc[:, ("building_scale", f"({idx},)")] = 0.0
         df_state.loc[:, ("veg_frac", f"({idx},)")] = 0.0
     df_state.loc[:, ("veg_frac", "(0,)")] = 1.0
+    # Layer 2 (15-22 m) lies above the 13.1 m evergreen canopy.
+    df_state.loc[:, ("veg_scale", "(2,)")] = 0.0
 
     df_state.loc[:, ("bldgh", "0")] = 0.0
     df_state.loc[:, ("faibldg", "0")] = 0.0

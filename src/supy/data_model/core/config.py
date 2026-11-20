@@ -96,6 +96,16 @@ import warnings
 
 SAME_SURFACE_TOL = 1e-6  # Tolerance for same-surface-property checks
 
+_LAND_COVER_SURFACE_TYPES: tuple[tuple[str, SurfaceType], ...] = (
+    ("paved", SurfaceType.PAVED),
+    ("bldgs", SurfaceType.BLDGS),
+    ("dectr", SurfaceType.DECTR),
+    ("evetr", SurfaceType.EVETR),
+    ("grass", SurfaceType.GRASS),
+    ("bsoil", SurfaceType.BSOIL),
+    ("water", SurfaceType.WATER),
+)
+
 class ConditionalValidationWarning(UserWarning):
     """Warning issued when conditional validation is requested but not available.
 
@@ -4138,12 +4148,14 @@ class SUEWSConfig(DataModelBase):
         ------
         ValueError
             If a non-optional ``RefValue`` (or active biogenic CO2
-            ``min_res_bioco2``) was mutated to ``None``, or if any active
+            ``min_res_bioco2``) was mutated to ``None``, if any active
             non-water surface with positive ``soil_store_capacity`` has
-            ``soil_depth == 0``.
+            ``soil_depth == 0``, or if any site violates per-surface
+            ``WaterDistribution`` invariants.
         """
         self.validate_non_null_ref_values()
         self.validate_soil_depths()
+        self.validate_water_distributions()
 
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
@@ -4773,6 +4785,57 @@ class SUEWSConfig(DataModelBase):
                                     initial_states["hdd_id"] = {}
         return data
 
+    def _validate_land_cover_surfaces(self, *, set_surface_types: bool) -> None:
+        """Validate every site's surface water distributions.
+
+        When ``set_surface_types`` is True, also binds ``_surface_type`` on
+        each surface property via ``set_surface_type``.
+        """
+        errors: list[str] = []
+        for site_index, site in enumerate(self.sites):
+            props = getattr(site, "properties", None)
+            land_cover = (
+                getattr(props, "land_cover", None) if props is not None else None
+            )
+            if land_cover is None:
+                continue
+
+            site_name = getattr(site, "name", f"Site {site_index}")
+            for surface_name, surface_type in _LAND_COVER_SURFACE_TYPES:
+                surface_prop = getattr(land_cover, surface_name, None)
+                if surface_prop is None:
+                    continue
+                try:
+                    if set_surface_types and hasattr(surface_prop, "set_surface_type"):
+                        surface_prop.set_surface_type(surface_type)
+                    elif hasattr(surface_prop, "validate_water_distribution"):
+                        surface_prop.validate_water_distribution(surface_type)
+                except ValueError as exc:
+                    errors.append(
+                        f"{site_name}: Invalid surface configuration for "
+                        f"{surface_name}: {exc}"
+                    )
+
+        if errors:
+            raise ValueError("\n".join(errors))
+
+    def validate_water_distributions(self) -> None:
+        """Validate water distributions across all sites and land-cover surfaces.
+
+        Re-checks every site's seven surface ``waterdist`` blocks (required
+        destinations, disallowed destinations, finite ``[0, 1]`` bounds, unit
+        sum, and absence on ``water``) so in-place mutations made after
+        ``SUEWSConfig`` construction cannot reach the engine or ``df_state``
+        unchecked.
+
+        Raises
+        ------
+        ValueError
+            If any site has a missing, disallowed, out-of-range, or non-unit
+            water distribution.
+        """
+        self._validate_land_cover_surfaces(set_surface_types=False)
+
     @model_validator(mode="after")
     def set_surface_types_validation(self) -> "SUEWSConfig":
         """Set surface types on all land cover properties across all sites.
@@ -4782,40 +4845,7 @@ class SUEWSConfig(DataModelBase):
         validation and processing logic. Migrated from LandCover.set_surface_types
         to provide centralized validation across all sites.
         """
-        from .type import SurfaceType  # Import here to avoid circular import
-
-        # Surface type mapping
-        surface_map = {
-            "paved": SurfaceType.PAVED,
-            "bldgs": SurfaceType.BLDGS,
-            "dectr": SurfaceType.DECTR,
-            "evetr": SurfaceType.EVETR,
-            "grass": SurfaceType.GRASS,
-            "bsoil": SurfaceType.BSOIL,
-            "water": SurfaceType.WATER,
-        }
-
-        errors = []
-        for site_index, site in enumerate(self.sites):
-            if site.properties and site.properties.land_cover:
-                land_cover = site.properties.land_cover
-
-                # Set surface types for each surface property
-                for surface_name, surface_type in surface_map.items():
-                    if hasattr(land_cover, surface_name):
-                        surface_prop = getattr(land_cover, surface_name)
-                        if surface_prop and hasattr(surface_prop, "set_surface_type"):
-                            try:
-                                surface_prop.set_surface_type(surface_type)
-                            except ValueError as e:
-                                site_name = getattr(site, "name", f"Site {site_index}")
-                                errors.append(
-                                    f"{site_name}: Invalid surface configuration for {surface_name}: {e}"
-                                )
-
-        if errors:
-            raise ValueError("\n".join(errors))
-
+        self._validate_land_cover_surfaces(set_surface_types=True)
         return self
 
     @model_validator(mode="after")

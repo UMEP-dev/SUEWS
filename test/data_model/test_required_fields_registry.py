@@ -8,12 +8,14 @@ the coupling is pinned here.
 
 from __future__ import annotations
 
+from importlib import import_module
 from importlib.resources import files
 from pathlib import Path
 
 import pytest
 import yaml
 
+from supy import SUEWSSimulation
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.human_activity import (
     AnthropogenicEmissions,
@@ -36,7 +38,7 @@ from supy.data_model.core.surface import (
     SurfaceProperties,
     ThermalLayers,
 )
-from supy.data_model.core.type import SurfaceType
+from supy.data_model.core.type import RefValue, SurfaceType
 from supy.data_model.validation.required_fields import (
     BUILDING_REQUIRED,
     BUILDING_REQUIRED_PROVIDED_FAI,
@@ -526,6 +528,130 @@ def test_water_distribution_invalid_numeric_values_rejected(
         SUEWSConfig.from_yaml(str(cfg_path))
     with pytest.raises(ValueError):
         SUEWSConfig.from_dict(raw)
+
+
+def _apply_mutable_waterdist_case(cfg: SUEWSConfig, case: str) -> None:
+    land_cover = cfg.sites[0].properties.land_cover
+    if case == "paved-to-soilstore-zero":
+        land_cover.paved.waterdist.to_soilstore = RefValue(value=0.0)
+    elif case == "paved-self-routing":
+        land_cover.paved.waterdist.to_paved = RefValue(value=0.0)
+    elif case == "grass-to-runoff-zero":
+        land_cover.grass.waterdist.to_runoff = RefValue(value=0.0)
+    elif case == "paved-broken-sum":
+        land_cover.paved.waterdist.to_runoff = RefValue(value=0.5)
+    elif case == "paved-missing-wrapped-null":
+        land_cover.paved.waterdist.to_runoff = RefValue(value=None)
+    elif case == "paved-missing-none":
+        land_cover.paved.waterdist.to_runoff = None
+    elif case == "paved-compensating-out-of-bounds":
+        land_cover.paved.waterdist.to_grass = RefValue(value=-0.1)
+        land_cover.paved.waterdist.to_runoff = RefValue(value=1.1)
+    elif case == "paved-sentinel-minus-999":
+        land_cover.paved.waterdist.to_runoff = RefValue(value=-999.0)
+    elif case == "paved-nan":
+        land_cover.paved.waterdist.to_runoff = RefValue(value=float("nan"))
+    elif case == "paved-waterdist-none":
+        land_cover.paved.waterdist = None
+    elif case == "water-surface-has-waterdist":
+        land_cover.water.waterdist = WaterDistribution(to_paved=0.5)
+    else:
+        raise AssertionError(f"Unknown case: {case}")
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_pattern"),
+    [
+        (
+            "paved-to-soilstore-zero",
+            r"Disallowed water distribution field to_soilstore for paved",
+        ),
+        (
+            "paved-self-routing",
+            r"Disallowed water distribution field to_paved for paved",
+        ),
+        (
+            "grass-to-runoff-zero",
+            r"Disallowed water distribution field to_runoff for grass",
+        ),
+        ("paved-broken-sum", r"Water distribution sum must be 1\.0"),
+        ("paved-missing-wrapped-null", r"Missing required field to_runoff for paved"),
+        ("paved-missing-none", r"Missing required field to_runoff for paved"),
+        (
+            "paved-compensating-out-of-bounds",
+            r"Invalid water distribution value for to_grass on paved",
+        ),
+        (
+            "paved-sentinel-minus-999",
+            r"Invalid water distribution value for to_runoff on paved",
+        ),
+        (
+            "paved-nan",
+            r"Invalid water distribution value for to_runoff on paved",
+        ),
+        ("paved-waterdist-none", r"Water distribution required for paved"),
+        (
+            "water-surface-has-waterdist",
+            r"Water surface should not have water distribution",
+        ),
+    ],
+)
+def test_water_distribution_in_place_mutations_rejected_at_all_handoffs(
+    case: str, expected_pattern: str
+) -> None:
+    """In-place waterdist mutations are caught by every public handoff path."""
+    # ARRANGE
+    run_rust = import_module("supy._run_rust")
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    _apply_mutable_waterdist_case(cfg, case)
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match=expected_pattern):
+        cfg.validate_water_distributions()
+    with pytest.raises(ValueError, match=expected_pattern):
+        cfg.to_df_state()
+    with pytest.raises(ValueError, match=expected_pattern):
+        run_rust.config_to_engine_yaml(cfg)
+    with pytest.raises(ValueError, match=expected_pattern):
+        run_rust._grid_config_jsons(cfg)
+    sim = SUEWSSimulation()
+    with pytest.raises(ValueError, match=expected_pattern):
+        sim.update_config(cfg, auto_load_forcing=False)
+    assert sim.config is None
+
+
+def test_water_distribution_valid_multi_step_mutation_passes_all_handoffs() -> None:
+    """Multi-step valid edits and clearing a disallowed field pass every handoff."""
+    # ARRANGE
+    run_rust = import_module("supy._run_rust")
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    dist = cfg.sites[0].properties.land_cover.paved.waterdist
+
+    # Step 1 leaves sum at 0.98 temporarily; step 2 restores sum to 1.0.
+    dist.to_runoff = RefValue(value=0.96)
+    dist.to_grass = RefValue(value=0.04)
+
+    # Setting and then clearing a disallowed field back to None/wrapped-null recovers.
+    dist.to_soilstore = RefValue(value=0.0)
+    with pytest.raises(ValueError, match="to_soilstore"):
+        cfg.validate_water_distributions()
+    dist.to_soilstore = RefValue(value=None)
+
+    # ACT
+    cfg.validate_water_distributions()
+    df_state = cfg.to_df_state()
+    engine_yaml = run_rust.config_to_engine_yaml(cfg)
+    grid_ids, grid_jsons = run_rust._grid_config_jsons(cfg)
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+
+    # ASSERT
+    assert df_state.loc[1, ("waterdist", "(4, 0)")] == pytest.approx(0.04)
+    assert df_state.loc[1, ("waterdist", "(7, 0)")] == pytest.approx(0.96)
+    assert "to_runoff" in engine_yaml
+    assert grid_ids == [1]
+    assert len(grid_jsons) == 1
+    assert sim.config is cfg
 
 
 def test_shading_conditions_follow_the_shared_modes() -> None:

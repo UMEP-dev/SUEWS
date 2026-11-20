@@ -1,12 +1,16 @@
+import math
+import numbers
+from typing import Optional
+
+import pandas as pd
 from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
     model_serializer,
-    model_validator,
 )
-from typing import Optional
-import pandas as pd
+
+from ..validation.required_fields import WATER_DISTRIBUTION_REQUIRED
 from .type import (
     DataModelBase,
     FlexibleRefValue,
@@ -14,8 +18,6 @@ from .type import (
     RefValue,
     SurfaceType,
 )
-from ..validation.required_fields import WATER_DISTRIBUTION_REQUIRED
-import math
 
 
 class WaterDistribution(DataModelBase):
@@ -180,7 +182,7 @@ class WaterDistribution(DataModelBase):
         fields = WATER_DISTRIBUTION_REQUIRED[surface_type.value]
         values = []
 
-        # Check required fields are present and collect values
+        # Check required fields are present, numeric, finite, and within [0, 1]
         for field in fields:
             value = getattr(self, field)
             raw = value.value if isinstance(value, RefValue) else value
@@ -188,7 +190,20 @@ class WaterDistribution(DataModelBase):
                 raise ValueError(
                     f"Missing required field {field} for {surface_type.value}"
                 )
-            values.append(raw)
+            if isinstance(raw, bool) or not isinstance(raw, numbers.Real):
+                raise ValueError(
+                    f"Invalid water distribution value for {field} on "
+                    f"{surface_type.value}: expected a finite fraction in [0, 1], "
+                    f"got {raw!r}"
+                )
+            numeric = float(raw)
+            if not math.isfinite(numeric) or not 0.0 <= numeric <= 1.0:
+                raise ValueError(
+                    f"Invalid water distribution value for {field} on "
+                    f"{surface_type.value}: expected a finite fraction in [0, 1], "
+                    f"got {raw!r}"
+                )
+            values.append(numeric)
 
         # Reject any disallowed destination for this surface (self-routing or
         # the wrong terminal field: to_soilstore on impervious surfaces, or

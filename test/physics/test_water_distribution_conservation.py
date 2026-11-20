@@ -27,6 +27,8 @@ import pytest
 import yaml
 
 from supy import SUEWSSimulation
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.type import RefValue
 
 pytestmark = pytest.mark.physics
 
@@ -213,3 +215,74 @@ def test_invalid_water_distribution_refused_before_run(
     # ACT / ASSERT
     with pytest.raises(ValueError, match=expected_pattern):
         _run_wet_day(raw, one_day_forcing, tmp_path / f"{case}.yml")
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("when", ["before-update-config", "after-update-config"])
+def test_mutable_disallowed_destination_refused_at_handoff(
+    when: str,
+    one_day_forcing: pd.DataFrame,
+) -> None:
+    """In-place mutation adding paved.to_soilstore=0.0 is refused before execution."""
+    # ARRANGE
+    cfg = SUEWSConfig.from_dict(deepcopy(_load_sample_raw()))
+
+    # ACT / ASSERT
+    pattern = r"Disallowed water distribution field to_soilstore for paved"
+    if when == "before-update-config":
+        cfg.sites[0].properties.land_cover.paved.waterdist.to_soilstore = RefValue(
+            value=0.0
+        )
+        sim = SUEWSSimulation()
+        with pytest.raises(ValueError, match=pattern):
+            sim.update_config(cfg, auto_load_forcing=False)
+        assert sim.config is None
+        with pytest.raises(ValueError, match=pattern):
+            SUEWSSimulation(cfg)
+        return
+
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.config.sites[0].properties.land_cover.paved.waterdist.to_soilstore = RefValue(
+        value=0.0
+    )
+    sim.update_forcing(one_day_forcing.copy())
+    with pytest.raises(ValueError, match=pattern):
+        sim.run(end_date=one_day_forcing.index[-1])
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("when", ["before-update-config", "after-update-config"])
+def test_mutable_valid_multi_step_edit_succeeds_and_conserves_water(
+    when: str,
+    one_day_forcing: pd.DataFrame,
+    control_run: dict,
+) -> None:
+    """Two-step valid in-place fraction shift still runs and closes water balance."""
+    # ARRANGE
+    cfg = SUEWSConfig.from_dict(deepcopy(_load_sample_raw()))
+    sim = SUEWSSimulation()
+
+    def _shift_paved_runoff_to_grass(target_cfg: SUEWSConfig) -> None:
+        dist = target_cfg.sites[0].properties.land_cover.paved.waterdist
+        # Intermediate sum is 0.98 after step 1, restored to 1.0 after step 2.
+        dist.to_runoff = RefValue(value=0.96)
+        dist.to_grass = RefValue(value=0.04)
+
+    # ACT
+    if when == "before-update-config":
+        _shift_paved_runoff_to_grass(cfg)
+        sim.update_config(cfg, auto_load_forcing=False)
+    else:
+        sim.update_config(cfg, auto_load_forcing=False)
+        _shift_paved_runoff_to_grass(sim.config)
+
+    sim.update_forcing(one_day_forcing.copy())
+    output = sim.run(end_date=one_day_forcing.index[-1])
+
+    # ASSERT
+    residual = _water_balance_residual_mm(sim, output.df)
+    assert float(residual.abs().max()) < WATER_CLOSURE_TOLERANCE_MM
+    shifted_runoff_mm = float(output.df.loc[GRID, "SUEWS"]["RO"].sum())
+    control_runoff_mm = float(control_run["runoff"].sum())
+    assert shifted_runoff_mm < control_runoff_mm

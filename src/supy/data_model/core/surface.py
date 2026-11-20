@@ -343,17 +343,31 @@ class SurfaceProperties(DataModelBase):
 
     ref: Optional[Reference] = None
 
-    def set_surface_type(self, surface_type: SurfaceType):
-        self._surface_type = surface_type
-        if self._surface_type == SurfaceType.WATER:
+    def validate_water_distribution(
+        self, surface_type: SurfaceType | None = None
+    ) -> None:
+        """Validate this surface's water distribution against its surface type."""
+        resolved_type = surface_type or self._surface_type
+        if resolved_type is None:
+            raise ValueError(
+                "Surface type must be set before validating water distribution"
+            )
+        if resolved_type == SurfaceType.WATER:
             if self.waterdist is not None:
                 raise ValueError("Water surface should not have water distribution")
-        else:
-            if self.waterdist is None:
-                raise ValueError(
-                    f"Water distribution required for {self._surface_type.value}"
-                )
-            self.waterdist.validate_distribution(self._surface_type)
+            return
+        if self.waterdist is None:
+            raise ValueError(f"Water distribution required for {resolved_type.value}")
+        if not isinstance(self.waterdist, WaterDistribution):
+            raise ValueError(
+                f"Invalid water distribution for {resolved_type.value}: "
+                f"expected WaterDistribution, got {type(self.waterdist).__name__}"
+            )
+        self.waterdist.validate_distribution(resolved_type)
+
+    def set_surface_type(self, surface_type: SurfaceType):
+        self._surface_type = surface_type
+        self.validate_water_distribution(surface_type)
 
     def get_surface_type(self) -> SurfaceType:
         return self._surface_type

@@ -1,6 +1,11 @@
 """Test gen_epw with resampling functionality (GitHub issue #150)."""
 
+import sys
+import types
+
+import atmosp
 from conftest import TIMESTEPS_PER_DAY
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -65,6 +70,92 @@ class TestGenEpwResample:
         suews_vars = df_hourly.loc[grid, "SUEWS"].columns.tolist()
         for var in ["T2", "RH2", "U10", "Kdown"]:
             assert var in suews_vars, f"Variable {var} not found in resampled output"
+
+
+def test_gen_epw_converts_q2_to_si_without_cfunits(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """gen_epw converts Q2 (g kg-1 -> kg kg-1) without requiring optional cfunits."""
+    idx = pd.date_range("2012-01-01 01:00:00", periods=23, freq="h")
+    df_suews = pd.DataFrame(
+        {
+            "T2": np.linspace(5.0, 15.0, len(idx)),
+            "RH2": np.full(len(idx), 65.0),
+            "U10": np.full(len(idx), 3.0),
+            "Q2": np.linspace(4.0, 8.0, len(idx)),
+            "Kdown": np.maximum(0.0, 250.0 * np.sin(np.linspace(0, np.pi, len(idx)))),
+            "Ldown": np.full(len(idx), 310.0),
+        },
+        index=idx,
+    )
+
+    # Stub only pvlib so this unit test runs on every CI lane without pvlib
+    # while exercising real atmosp.calculate without optional cfunits.
+    fake_pvlib = types.ModuleType("pvlib")
+    fake_solar = types.ModuleType("pvlib.solarposition")
+    fake_irrad = types.ModuleType("pvlib.irradiance")
+    fake_solar.get_solarposition = lambda times, lat, lon: pd.DataFrame(
+        {"zenith": np.full(len(times), 45.0)}, index=times
+    )
+    fake_irrad.dirint = lambda ghi, times, **kwargs: pd.Series(
+        np.zeros(len(times)), index=times
+    )
+    fake_pvlib.solarposition = fake_solar
+    fake_pvlib.irradiance = fake_irrad
+    monkeypatch.setitem(sys.modules, "pvlib", fake_pvlib)
+
+    seen_calls: list[dict] = []
+    real_calc = atmosp.calculate
+
+    def _spy_calc(var, **kwargs):
+        seen_calls.append({"var": var, "kwargs": dict(kwargs)})
+        return real_calc(var, **kwargs)
+
+    monkeypatch.setattr(atmosp, "calculate", _spy_calc)
+
+    df_epw, _meta, out_path = sp.util.gen_epw(
+        df_suews,
+        lat=51.5,
+        lon=-0.1,
+        path_epw=tmp_path / "si_units.epw",
+    )
+    assert out_path.is_file()
+    assert len(seen_calls) == 2
+    for call in seen_calls:
+        assert not any("unit" in key for key in call["kwargs"]), (
+            f"atmosp.calculate must not rely on optional cfunits unit kwargs: {call}"
+        )
+        np.testing.assert_allclose(
+            call["kwargs"]["qv"],
+            df_suews["Q2"].values * 1e-3,
+            rtol=1e-12,
+            atol=0.0,
+        )
+
+    expected_td = (
+        real_calc(
+            "Td",
+            T=df_suews["T2"].values + 273.15,
+            qv=df_suews["Q2"].values * 1e-3,
+            RH=df_suews["RH2"].values,
+            rho=1.23,
+        )
+        - 273.15
+    )
+    expected_p = real_calc(
+        "p",
+        T=df_suews["T2"].values + 273.15,
+        qv=df_suews["Q2"].values * 1e-3,
+        RH=df_suews["RH2"].values,
+        rho=1.23,
+    )
+    np.testing.assert_allclose(
+        df_epw["Dew Point Temperature"].values, expected_td, rtol=1e-12
+    )
+    np.testing.assert_allclose(
+        df_epw["Atmospheric Station Pressure"].values, expected_p, rtol=1e-12
+    )
 
 
 @pytest.mark.usefixtures("pvlib_available")

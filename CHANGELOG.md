@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 19 Nov 2026
+
+- [maintenance] Replace index-only range loops with slice iterators across nine `suews_bridge` codec modules (`anthroemis`, `atm`, `building_archetype_prm`, `core`, `heat_state`, `hydro_state`, `phenology`, `snow`, `stebbs_prm`) to satisfy Rust 1.100 `clippy::needless_range_loop`; no behaviour or layout changes
+
 ### 18 Nov 2026
 
 - [maintenance] Separate round-off numerical changes (`0-numerics:change`) from formulation physics changes (`0-physics:change`) in `.claude/rules/physics-change-evidence.md`, companion governance rules/docs/skills, and CI: constant-precision, unit-conversion, and floating-point-representation changes that move reference outputs strictly below `0.5%` scale-relative (with `Lob` / `L_MOD_RSL` judged by `zL` / `zeta`) and `0.5 W m-2` absolute flux difference refresh fixtures in the same PR with a per-variable change table and run the `physics-full` CI tier without `## Scientific evidence` or domain-owner sign-off, while CI enforces mutual exclusion and `physics-full` execution across both labels (#2064)

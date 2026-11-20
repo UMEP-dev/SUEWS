@@ -942,6 +942,8 @@ def config_to_engine_yaml(config: SUEWSConfig) -> str:
     ``suews run`` and the library backend pass it to the engine. The
     standalone ``suews-engine run`` binary expects input in this form (gh#2004).
     """
+    if hasattr(config, "validate_non_null_ref_values"):
+        config.validate_non_null_ref_values()
     return yaml.dump(
         config.model_dump(exclude_none=True, mode="json"),
         default_flow_style=False,
@@ -1123,6 +1125,8 @@ def _grid_config_jsons(config: SUEWSConfig) -> tuple[list[int], list[str]]:
     legacy fused spellings (gh#1322), so the Pydantic dump is submitted
     verbatim.
     """
+    if hasattr(config, "validate_non_null_ref_values"):
+        config.validate_non_null_ref_values()
     config_dict = config.model_dump(exclude_none=True, mode="json")
     list_grid_ids = []
     list_config_jsons = []

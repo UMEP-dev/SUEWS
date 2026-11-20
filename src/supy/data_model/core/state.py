@@ -2,7 +2,6 @@ from typing import Optional, Union, List, Literal, Type
 import pandas as pd
 from pydantic import (
     ConfigDict,
-    BaseModel,
     Field,
     field_validator,
     model_validator,
@@ -10,17 +9,17 @@ from pydantic import (
 )
 
 from .type import (
+    DataModelBase,
     RefValue,
     Reference,
     FlexibleRefValue,
     df_from_cols,
     SurfaceType,
-    null_rejecting_validator,
 )
 from ..._env import logger_supy
 
 
-class SurfaceInitialState(BaseModel):
+class SurfaceInitialState(DataModelBase):
     """Generic initial state parameters for all surface types"""
 
     model_config = ConfigDict(title="Generic Surface Initial State")
@@ -290,7 +289,7 @@ class SurfaceInitialState(BaseModel):
         )
 
 
-class WaterUse(BaseModel):
+class WaterUse(DataModelBase):
     """Water use data and parameters."""
 
     model_config = ConfigDict(title="Water Use")
@@ -416,7 +415,6 @@ class InitialStateVeg(SurfaceInitialState):
         default=0,
     )  # This need to be consistent with GDD.
 
-    _sdd_id_not_null = null_rejecting_validator("sdd_id")
     wu: WaterUse = Field(
         default_factory=WaterUse, json_schema_extra={"display_name": "Water Use"}
     )
@@ -725,7 +723,7 @@ class InitialStateWater(SurfaceInitialState):
     )
 
 
-class HDD_ID(BaseModel):
+class HDD_ID(DataModelBase):
     """Heating Degree Days and related meteorological tracking parameters.
 
     This structure maintains both current day accumulations (fields 1-6) and
@@ -885,7 +883,7 @@ class HDD_ID(BaseModel):
         )
 
 
-class InitialStates(BaseModel):
+class InitialStates(DataModelBase):
     """Initial conditions for the SUEWS model"""
 
     model_config = ConfigDict(title="Initial States")
@@ -897,8 +895,6 @@ class InitialStates(BaseModel):
         ge=0,
         le=1,
     )
-
-    _snowalb_not_null = null_rejecting_validator("snowalb")
 
     paved: InitialStatePaved = Field(
         default_factory=InitialStatePaved,

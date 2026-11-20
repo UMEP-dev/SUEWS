@@ -1,9 +1,9 @@
-from pydantic import ConfigDict, BaseModel, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 from pydantic_core import PydanticUndefined
 from typing import Optional, Union
 import pandas as pd
 import warnings
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
 from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
 from ..validation.core.utils import (
@@ -14,7 +14,7 @@ from ..validation.core.utils import (
 
 
 class IrrigationParams(
-    BaseModel
+    DataModelBase
 ):  # TODO: May need to add RefValue to the profiles here
     """Parameters for irrigation and water use management."""
 
@@ -193,7 +193,7 @@ class IrrigationParams(
 
 
 class AnthropogenicHeat(
-    BaseModel
+    DataModelBase
 ):  # TODO: May need to add the RefValue to the profiles here
     """Anthropogenic heat flux parameters and profiles."""
 
@@ -457,7 +457,7 @@ class AnthropogenicHeat(
         )
 
 
-class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profiles here
+class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the profiles here
     """CO2 emission parameters and profiles."""
 
     model_config = ConfigDict(title="CO2 Emissions")
@@ -759,7 +759,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         )
 
 
-class AnthropogenicEmissions(BaseModel):
+class AnthropogenicEmissions(DataModelBase):
     model_config = ConfigDict(title="Anthropogenic Emissions")
 
     startdls: Optional[FlexibleRefValue(float)] = Field(

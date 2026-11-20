@@ -1,10 +1,10 @@
-from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing import Optional, Dict
 import pandas as pd
-from .type import Reference, df_from_cols
+from .type import DataModelBase, Reference, df_from_cols
 
 
-class DayProfile(BaseModel):
+class DayProfile(DataModelBase):
     """Scalar values keyed by ``working_day`` and ``holiday``.
 
     See :doc:`/inputs/yaml/temporal-profiles` for day selection and field uses.
@@ -77,7 +77,7 @@ class DayProfile(BaseModel):
         return cls(**params)
 
 
-class WeeklyProfile(BaseModel):
+class WeeklyProfile(DataModelBase):
     """Seven daily values keyed by lowercase weekday names, Monday to Sunday.
 
     See :doc:`/inputs/yaml/temporal-profiles` for storage order and field uses.
@@ -157,7 +157,7 @@ class WeeklyProfile(BaseModel):
         return cls(**params)
 
 
-class HourlyProfile(BaseModel):
+class HourlyProfile(DataModelBase):
     """24-hour profile for diurnal variations.
 
     Holds two sets of 24 hourly values, one for working days
@@ -269,8 +269,9 @@ class HourlyProfile(BaseModel):
 
         # Create an instance of HourlyProfile
         return cls(working_day=working_day, holiday=holiday)
-    
-class TenMinuteProfile(BaseModel):
+
+
+class TenMinuteProfile(DataModelBase):
     """Two 10-minute mappings, ``working_day`` and ``holiday``, keyed ``"1"`` to ``"144"``.
 
     See :doc:`/inputs/yaml/temporal-profiles` for slot timing and field uses.

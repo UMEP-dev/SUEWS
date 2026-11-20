@@ -1,0 +1,77 @@
+name: Windows incremental archive evidence (2147)
+
+on:
+  push:
+    branches: [evidence/2147-windows-incremental-20261120]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-incremental:
+    if: github.repository == 'UMEP-dev/SUEWS' && github.event_name == 'push' && github.ref == 'refs/heads/evidence/2147-windows-incremental-20261120'
+    runs-on: windows-2025
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONUTF8: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Initialise evidence directory
+        run: |
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/windows-2147/evidence" | Out-Null
+          "run=$env:GITHUB_RUN_ID attempt=$env:GITHUB_RUN_ATTEMPT harness=$env:GITHUB_SHA" |
+            Set-Content "$env:RUNNER_TEMP/windows-2147/evidence/run.txt"
+
+      - name: Check out evidence harness
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.sha }}
+          path: harness
+          persist-credentials: false
+
+      - name: Check out exact parent source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          repository: UMEP-dev/SUEWS
+          ref: 8bc069e94294b31199ac593ce57145871b501e22
+          path: parent
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out exact candidate source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          repository: UMEP-dev/SUEWS
+          ref: f64fa20607fe31b75c6ee5687499e1e8575e60a9
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up native x64 CPython
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+          architecture: x64
+
+      - name: Build and measure parent and candidate in one controlled environment
+        timeout-minutes: 38
+        run: python harness/.github/scripts/20261120_windows_incremental.py run
+
+      - name: Preserve partial dependency evidence on failure
+        if: always()
+        run: |
+          if (Test-Path harness/.github/scripts/20261120_windows_incremental.py) {
+            python harness/.github/scripts/20261120_windows_incremental.py collect
+          }
+
+      - name: Upload evidence including failed controls
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: windows-2147-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/windows-2147/evidence
+          retention-days: 7
+          if-no-files-found: error

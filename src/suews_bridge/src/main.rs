@@ -131,7 +131,8 @@ use suews_bridge::{
 const RESOLVED_YAML_HINT: &str = "suews-engine is a developer and test binary: `suews-engine run` expects \
 resolved YAML, as `suews run` hands it to the engine. To run a hand-written \
 config, use `suews run <config>`, which validates and resolves it through the \
-SUEWS data model first.";
+SUEWS data model first. Resolved site properties require finite lat, lng, alt, \
+timezone, surfacearea and z. Use lng for site longitude.";
 
 #[derive(Debug, Parser)]
 #[command(

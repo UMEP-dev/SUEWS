@@ -132,10 +132,10 @@ pub const SUEWS_CAPI_SITE_SCALARS_LEN: usize = 24;
 ///
 /// Unlike the bridged types, the defaults below are Rust's own and are all
 /// zero (except `gridiv`). The YAML reader
-/// (`yaml_config::apply_site_scalar_overrides`) overwrites only the keys it
-/// finds, and the command-line entry point has no required-field check, so a
-/// YAML without, say, `properties.z` runs with a measurement height of 0 m.
-/// supy's data model supplies most of these values. These Rust-side zeros are
+/// (`yaml_config::apply_site_scalar_overrides`) requires finite coordinates,
+/// altitude, time zone, site area and measurement height. Other legacy reads
+/// still overwrite only the keys they find. SuPy's data model supplies the
+/// resolved values and owns their defaults. These Rust-side zeros are
 /// legacy: under the bridge's pass-through rule (`yaml_config.rs` module
 /// docs) a site scalar the kernel needs must come from the YAML or the run
 /// stops; do not rely on, or add to, these defaults.

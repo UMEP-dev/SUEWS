@@ -15,9 +15,10 @@
 //!    once a tracked defect is fixed.
 //! 2. **Slot-ownership / cross-key overwrite guard**: every perturbed
 //!    `RunConfig` slot is owned by at most one YAML key outside an explicit
-//!    reviewed precedence table, with the known `#2085` SPARTACUS cross-facet
-//!    clobber pinned until `#2085` lands and intentional precedence fallbacks
-//!    exercised directly.
+//!    reviewed precedence table, with zero cross-facet SPARTACUS clobbers
+//!    (`roof_albedo_dir_mult_fact` owned by `roofs[i]`,
+//!    `wall_specular_frac` owned by `walls[i]`, `nspec = 1`), intentional
+//!    precedence fallbacks and non-owning facet invariance exercised directly.
 //! 3. **Complete named receiver identity and unaffected neighbours**: every
 //!    wired leaf across model scalars, site scalars, LUMPS, conductance,
 //!    SPARTACUS, irrigation (including all 24-hour profiles), snow (including
@@ -108,17 +109,9 @@ const BATCH_RING_PHASE: f64 = 0.003498;
 /// bidirectional ratchet fails if any entry becomes stale.
 const KNOWN_DEAD_KEYS: &[&str] = &[
     // Intentional precedence overrides (verified alive when the winner is
-    // removed in `precedence_fallbacks_and_spartacus_clobber_witness`).
+    // removed in `precedence_fallbacks_and_spartacus_facet_isolation`).
     "sites[0].properties.spartacus.sw_dn_direct_frac",
     "sites[0].properties.stebbs.temperature_air_annual_mean",
-    // #2085: SPARTACUS cross-facet clobber in `apply_vertical_layers_overrides`
-    // (`walls[i]` overwrites `roofs[i]` for both fields).
-    "sites[0].properties.vertical_layers.roofs[0].roof_albedo_dir_mult_fact",
-    "sites[0].properties.vertical_layers.roofs[0].wall_specular_frac",
-    "sites[0].properties.vertical_layers.roofs[1].roof_albedo_dir_mult_fact",
-    "sites[0].properties.vertical_layers.roofs[1].wall_specular_frac",
-    "sites[0].properties.vertical_layers.roofs[2].roof_albedo_dir_mult_fact",
-    "sites[0].properties.vertical_layers.roofs[2].wall_specular_frac",
     // #2109: Snow OHM parameters unwired across Rust bridge and Fortran kernel
     // (14 keys).
     "sites[0].properties.snow.ohm_threshold_summer_winter",
@@ -173,32 +166,29 @@ const KNOWN_DEAD_KEYS: &[&str] = &[
     "sites[0].initial_states.dqndt_surf[6]",
 ];
 
+/// Shared `BuildingLayer` schema keys serialised on the non-owning SPARTACUS
+/// facet (`walls[i].roof_albedo_dir_mult_fact` is roof-only;
+/// `roofs[i].wall_specular_frac` is wall-only; see
+/// `src/supy/data_model/core/surface.py`). Perturbing any of these keys must
+/// leave every `RunConfig` slot strictly invariant.
+const NON_OWNING_FACET_KEYS: &[&str] = &[
+    "sites[0].properties.vertical_layers.roofs[0].wall_specular_frac",
+    "sites[0].properties.vertical_layers.roofs[1].wall_specular_frac",
+    "sites[0].properties.vertical_layers.roofs[2].wall_specular_frac",
+    "sites[0].properties.vertical_layers.walls[0].roof_albedo_dir_mult_fact",
+    "sites[0].properties.vertical_layers.walls[1].roof_albedo_dir_mult_fact",
+    "sites[0].properties.vertical_layers.walls[2].roof_albedo_dir_mult_fact",
+];
+
 /// Reviewed slots permitted to be perturbed by more than one distinct YAML key
 /// within a single fixture sweep. Empty at baseline: every active slot has a
 /// single owning YAML key.
 const REVIEWED_MULTI_OWNER_SLOTS: &[&str] = &[];
 
-/// #2085: SPARTACUS roof-albedo multiplier layers currently owned by
-/// `walls[i].roof_albedo_dir_mult_fact` instead of
-/// `roofs[i].roof_albedo_dir_mult_fact`. Each entry pins the exact
-/// `(owner_yaml_key, target_layer_1based)` pair, expanding to the exact slot
-/// set `site.spartacus_layer.roof_albedo_dir_mult_fact_{s:02}_{layer:02}` for
-/// `s in 1..=nspec` (`nspec=4` in sample, `nspec=8` in STEBBS). Remove every
-/// entry here when #2085 fixes `apply_vertical_layers_overrides`.
-const KNOWN_CLOBBERED_SPARTACUS_LAYERS: &[(&str, usize)] = &[
-    (
-        "sites[0].properties.vertical_layers.walls[0].roof_albedo_dir_mult_fact",
-        1,
-    ),
-    (
-        "sites[0].properties.vertical_layers.walls[1].roof_albedo_dir_mult_fact",
-        2,
-    ),
-    (
-        "sites[0].properties.vertical_layers.walls[2].roof_albedo_dir_mult_fact",
-        3,
-    ),
-];
+/// Cross-facet SPARTACUS slot-ownership allowlist. Empty now that #2085
+/// confines `roof_albedo_dir_mult_fact` to `roofs[i]` and
+/// `wall_specular_frac` to `walls[i]`.
+const KNOWN_CLOBBERED_SPARTACUS_LAYERS: &[(&str, usize)] = &[];
 
 /// #2101: Float-serialised day-of-year parameters silently zeroed by
 /// `read_i32` when perturbed by a non-integer float delta. Remove entries here
@@ -294,6 +284,7 @@ struct ExpectedOptions {
 
 struct BaselineAllowlist<'a> {
     dead_keys: &'a [&'a str],
+    non_owning_facet_keys: &'a [&'a str],
     multi_owner_slots: &'a [&'a str],
     clobbered_spartacus_layers: &'a [(&'a str, usize)],
     non_unit_deltas: &'a [(&'a str, &'a str)],
@@ -302,6 +293,7 @@ struct BaselineAllowlist<'a> {
 
 const MASTER_ALLOWLIST: BaselineAllowlist<'static> = BaselineAllowlist {
     dead_keys: KNOWN_DEAD_KEYS,
+    non_owning_facet_keys: NON_OWNING_FACET_KEYS,
     multi_owner_slots: REVIEWED_MULTI_OWNER_SLOTS,
     clobbered_spartacus_layers: KNOWN_CLOBBERED_SPARTACUS_LAYERS,
     non_unit_deltas: KNOWN_NON_UNIT_DELTAS,
@@ -1302,7 +1294,11 @@ enum ProbeJob<'a> {
 }
 
 fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
-    let known_dead: BTreeSet<&str> = KNOWN_DEAD_KEYS.iter().copied().collect();
+    let known_dead: BTreeSet<&str> = KNOWN_DEAD_KEYS
+        .iter()
+        .chain(NON_OWNING_FACET_KEYS.iter())
+        .copied()
+        .collect();
     let known_non_unit: BTreeSet<&str> = KNOWN_NON_UNIT_DELTAS.iter().map(|(k, _)| *k).collect();
 
     let mut jobs = Vec::new();
@@ -2484,6 +2480,14 @@ fn build_expected_receivers(
             }
         }
 
+        let roof_mult_slots: Vec<String> = (1..=nspec)
+            .map(|s| format!("site.spartacus_layer.roof_albedo_dir_mult_fact_{s:02}_{l:02}"))
+            .collect();
+        b.expect_many(
+            format!("sites[0].properties.vertical_layers.roofs[{layer}].roof_albedo_dir_mult_fact"),
+            &roof_mult_slots,
+        );
+
         let wall_spec_slots: Vec<String> = (1..=nspec)
             .map(|s| format!("site.spartacus_layer.wall_specular_frac_{s:02}_{l:02}"))
             .collect();
@@ -2558,6 +2562,8 @@ fn build_expected_clobbered_receivers(
 #[derive(Debug)]
 struct ValidationSummary {
     receiver_checks: usize,
+    non_owning_invariant: usize,
+    observed_dead: usize,
     observed_clobber_slots: usize,
     observed_non_unit: usize,
 }
@@ -2587,6 +2593,12 @@ fn validate_sweep_report(
         violations.push(format!(
             "{fixture_label}: expected 1776 long-profile leaves (14x24 + 10x144), got {}",
             report.profile_leaves_tested
+        ));
+    }
+    if report.nspec != 1 {
+        violations.push(format!(
+            "{fixture_label}: site.spartacus_layer.nspec must match Fortran compile-time nspec = 1, got {}",
+            report.nspec
         ));
     }
 
@@ -2632,21 +2644,46 @@ fn validate_sweep_report(
         ));
     }
 
-    // 1. Bidirectional dead-key ratchet.
+    // 1a. Non-owning SPARTACUS facet invariance: shared BuildingLayer schema
+    //     keys emitted on the non-owning facet must leave every RunConfig slot
+    //     strictly invariant (zero moved slots).
+    let non_owning_keys: BTreeSet<String> = allowlist
+        .non_owning_facet_keys
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let mut non_owning_violations = Vec::new();
+    for key in &non_owning_keys {
+        if let Some(moved) = report.key_targets.get(key) {
+            non_owning_violations.push(format!("{key} moved slots {moved:?}"));
+        } else if !report.dead_keys.contains(key) {
+            non_owning_violations.push(format!(
+                "{key} was not exercised in the sweep (missing from fixture)"
+            ));
+        }
+    }
+    if !non_owning_violations.is_empty() {
+        violations.push(format!(
+            "{fixture_label}: non-owning SPARTACUS facet invariance violated ({}):\n{}",
+            non_owning_violations.len(),
+            non_owning_violations.join("\n")
+        ));
+    }
+
+    // 1b. Bidirectional dead-key ratchet (excluding intentional non-owning
+    //     facet keys already verified invariant above).
     let allowed_dead: BTreeSet<String> = allowlist
         .dead_keys
         .iter()
         .map(|s| (*s).to_string())
         .collect();
-    let unexpected_dead: Vec<_> = report
+    let observed_dead: BTreeSet<String> = report
         .dead_keys
-        .difference(&allowed_dead)
+        .difference(&non_owning_keys)
         .cloned()
         .collect();
-    let stale_dead: Vec<_> = allowed_dead
-        .difference(&report.dead_keys)
-        .cloned()
-        .collect();
+    let unexpected_dead: Vec<_> = observed_dead.difference(&allowed_dead).cloned().collect();
+    let stale_dead: Vec<_> = allowed_dead.difference(&observed_dead).cloned().collect();
     if !unexpected_dead.is_empty() {
         violations.push(format!(
             "{fixture_label}: new dead/unwired YAML keys detected outside KNOWN_DEAD_KEYS ({}): {:?}",
@@ -2805,6 +2842,8 @@ fn validate_sweep_report(
     if violations.is_empty() {
         Ok(ValidationSummary {
             receiver_checks: expected.len(),
+            non_owning_invariant: non_owning_keys.len(),
+            observed_dead: observed_dead.len(),
             observed_clobber_slots: observed_clobber_pairs.len(),
             observed_non_unit: observed_non_unit.len(),
         })
@@ -2981,13 +3020,15 @@ fn assert_anchor_jacobian(
     match validate_sweep_report(label, &report, &MASTER_ALLOWLIST) {
         Ok(summary) => {
             println!(
-                "[OK] {label}: leaves={} (wrapped_arrays={}, profiles={}), slots={}, receiver_checks={}, dead={} (allowlisted), multi_owner=0, clobbered_slots={} (#2085), non_unit={} (#2101), batch_fallbacks={}",
+                "[OK] {label}: leaves={} (wrapped_arrays={}, profiles={}), slots={}, nspec={}, receiver_checks={}, non_owning_invariant={}, dead={} (allowlisted), multi_owner=0, clobbered_slots={}, non_unit={} (#2101), batch_fallbacks={}",
                 report.leaves_tested,
                 report.wrapped_array_leaves_tested,
                 report.profile_leaves_tested,
                 report.total_slots,
+                report.nspec,
                 summary.receiver_checks,
-                report.dead_keys.len(),
+                summary.non_owning_invariant,
+                summary.observed_dead,
                 summary.observed_clobber_slots,
                 summary.observed_non_unit,
                 report.batch_fallbacks,
@@ -3338,7 +3379,7 @@ fn model_switches_and_structural_dims_wiring() {
 }
 
 #[test]
-fn precedence_fallbacks_and_spartacus_clobber_witness() {
+fn precedence_fallbacks_and_spartacus_facet_isolation() {
     let orig_sample: Value = serde_yaml::from_str(SAMPLE_YAML).expect("sample YAML must parse");
     let orig_stebbs: Value = serde_yaml::from_str(STEBBS_YAML).expect("stebbs YAML must parse");
 
@@ -3542,45 +3583,156 @@ fn precedence_fallbacks_and_spartacus_clobber_witness() {
     let tin_rc = load_run_config_from_value(&mut no_tin).expect("load tin fallback");
     assert!((tin_rc.site.ehc.tin_surf[0] - 17.25).abs() < DELTA_TOL);
 
-    // 7. Removing `walls[0].roof_albedo_dir_mult_fact` restores
-    //    `roofs[0].roof_albedo_dir_mult_fact` (witnessing the #2085 clobber).
-    let mut no_wall0_roof_alb = orig_stebbs;
-    assert!(remove_mapping_key(
-        &mut no_wall0_roof_alb,
-        &[
-            Step::Key("sites".into()),
-            Step::Idx(0),
-            Step::Key("properties".into()),
-            Step::Key("vertical_layers".into()),
-            Step::Key("walls".into()),
-            Step::Idx(0),
-        ],
-        "roof_albedo_dir_mult_fact",
-    ));
-    let mut base_unclobbered = no_wall0_roof_alb.clone();
-    let base_u_rc = load_run_config_from_value(&mut base_unclobbered).expect("load unclobbered");
-    let mut pert_unclobbered = no_wall0_roof_alb;
-    let roof0_path = [
+    // 7. SPARTACUS facet isolation (#2085) and `nspec = 1` layout on
+    //    `stebbs_resolved.yml` (`n_stream_sw_urban = 8`):
+    //    (a) Removing `roofs[0].roof_albedo_dir_mult_fact` leaves
+    //        `walls[0].roof_albedo_dir_mult_fact` strictly invariant.
+    //    (b) Removing `walls[0].wall_specular_frac` leaves
+    //        `roofs[0].wall_specular_frac` strictly invariant.
+    //    (c) Simultaneously perturbing both owning keys and overwriting both
+    //        non-owning copies moves only the two exact `nspec = 1` owner slots.
+    let vlayers_prefix = [
         Step::Key("sites".into()),
         Step::Idx(0),
         Step::Key("properties".into()),
         Step::Key("vertical_layers".into()),
+    ];
+    let roof0_parent = [
+        vlayers_prefix[0].clone(),
+        vlayers_prefix[1].clone(),
+        vlayers_prefix[2].clone(),
+        vlayers_prefix[3].clone(),
         Step::Key("roofs".into()),
         Step::Idx(0),
-        Step::Key("roof_albedo_dir_mult_fact".into()),
     ];
-    let expected_roof0 = base_u_rc.site.spartacus_layer.roof_albedo_dir_mult_fact[0] + FLOAT_DELTA;
-    assert!(set_scalar_or_ref_value(
-        &mut pert_unclobbered,
-        &roof0_path,
-        serde_yaml::to_value(expected_roof0).unwrap(),
+    let wall0_parent = [
+        vlayers_prefix[0].clone(),
+        vlayers_prefix[1].clone(),
+        vlayers_prefix[2].clone(),
+        vlayers_prefix[3].clone(),
+        Step::Key("walls".into()),
+        Step::Idx(0),
+    ];
+
+    // 7a: Remove roofs[0].roof_albedo_dir_mult_fact -> walls[0] copy stays dead.
+    let mut no_roof0_mult = orig_stebbs.clone();
+    assert!(remove_mapping_key(
+        &mut no_roof0_mult,
+        &roof0_parent,
+        "roof_albedo_dir_mult_fact",
     ));
-    let pert_u_rc =
-        load_run_config_from_value(&mut pert_unclobbered).expect("load perturbed roof0");
+    let mut base_no_roof0 = no_roof0_mult.clone();
+    let base_no_roof0_rc =
+        load_run_config_from_value(&mut base_no_roof0).expect("load without roof0 multiplier");
+    assert_eq!(
+        base_no_roof0_rc.site.spartacus_layer.nspec, 1,
+        "stebbs_resolved.yml must decode nspec = 1 despite n_stream_sw_urban = 8"
+    );
+    let base_no_roof0_flat = flatten_run_config_map(&base_no_roof0_rc);
+    let mut pert_wall0_mult = no_roof0_mult;
+    let mut wall0_mult_path = wall0_parent.to_vec();
+    wall0_mult_path.push(Step::Key("roof_albedo_dir_mult_fact".into()));
+    assert!(set_scalar_or_ref_value(
+        &mut pert_wall0_mult,
+        &wall0_mult_path,
+        serde_yaml::to_value(0.77_f64).unwrap(),
+    ));
+    let pert_wall0_mult_flat = flatten_run_config_map(
+        &load_run_config_from_value(&mut pert_wall0_mult)
+            .expect("load perturbed walls[0].roof_albedo_dir_mult_fact"),
+    );
+    let wall_mult_diffs = diff_maps(&base_no_roof0_flat, &pert_wall0_mult_flat);
     assert!(
-        (pert_u_rc.site.spartacus_layer.roof_albedo_dir_mult_fact[0] - expected_roof0).abs()
+        wall_mult_diffs.is_empty(),
+        "walls[0].roof_albedo_dir_mult_fact must leave all slots invariant even when roofs[0] omits it, got {wall_mult_diffs:?}"
+    );
+
+    // 7b: Remove walls[0].wall_specular_frac -> roofs[0] copy stays dead.
+    let mut no_wall0_spec = orig_stebbs.clone();
+    assert!(remove_mapping_key(
+        &mut no_wall0_spec,
+        &wall0_parent,
+        "wall_specular_frac",
+    ));
+    let mut base_no_wall0 = no_wall0_spec.clone();
+    let base_no_wall0_flat = flatten_run_config_map(
+        &load_run_config_from_value(&mut base_no_wall0).expect("load without wall0 specular"),
+    );
+    let mut pert_roof0_spec = no_wall0_spec;
+    let mut roof0_spec_path = roof0_parent.to_vec();
+    roof0_spec_path.push(Step::Key("wall_specular_frac".into()));
+    assert!(set_scalar_or_ref_value(
+        &mut pert_roof0_spec,
+        &roof0_spec_path,
+        serde_yaml::to_value(0.63_f64).unwrap(),
+    ));
+    let pert_roof0_spec_flat = flatten_run_config_map(
+        &load_run_config_from_value(&mut pert_roof0_spec)
+            .expect("load perturbed roofs[0].wall_specular_frac"),
+    );
+    let roof_spec_diffs = diff_maps(&base_no_wall0_flat, &pert_roof0_spec_flat);
+    assert!(
+        roof_spec_diffs.is_empty(),
+        "roofs[0].wall_specular_frac must leave all slots invariant even when walls[0] omits it, got {roof_spec_diffs:?}"
+    );
+
+    // 7c: Simultaneous owner + non-owning perturbations route cleanly.
+    let mut base_stebbs_mut = orig_stebbs.clone();
+    let base_stebbs_rc = load_run_config_from_value(&mut base_stebbs_mut).expect("load stebbs");
+    assert_eq!(base_stebbs_rc.site.spartacus_layer.nspec, 1);
+    let base_stebbs_flat = flatten_run_config_map(&base_stebbs_rc);
+    let mut pert_both = orig_stebbs;
+    let mut roof0_mult_path = roof0_parent.to_vec();
+    roof0_mult_path.push(Step::Key("roof_albedo_dir_mult_fact".into()));
+    let mut wall0_spec_path = wall0_parent.to_vec();
+    wall0_spec_path.push(Step::Key("wall_specular_frac".into()));
+    let roof_delta = FLOAT_DELTA;
+    let wall_delta = 2.0 * FLOAT_DELTA;
+    let exp_roof_mult =
+        base_stebbs_flat["site.spartacus_layer.roof_albedo_dir_mult_fact_01_01"] + roof_delta;
+    let exp_wall_spec =
+        base_stebbs_flat["site.spartacus_layer.wall_specular_frac_01_01"] + wall_delta;
+    assert!(set_scalar_or_ref_value(
+        &mut pert_both,
+        &roof0_mult_path,
+        serde_yaml::to_value(exp_roof_mult).unwrap(),
+    ));
+    assert!(set_scalar_or_ref_value(
+        &mut pert_both,
+        &wall0_mult_path,
+        serde_yaml::to_value(0.91_f64).unwrap(),
+    ));
+    assert!(set_scalar_or_ref_value(
+        &mut pert_both,
+        &wall0_spec_path,
+        serde_yaml::to_value(exp_wall_spec).unwrap(),
+    ));
+    assert!(set_scalar_or_ref_value(
+        &mut pert_both,
+        &roof0_spec_path,
+        serde_yaml::to_value(0.73_f64).unwrap(),
+    ));
+    let pert_both_flat = flatten_run_config_map(
+        &load_run_config_from_value(&mut pert_both).expect("load isolated facet edits"),
+    );
+    let both_diffs: BTreeMap<String, f64> = diff_maps(&base_stebbs_flat, &pert_both_flat)
+        .into_iter()
+        .map(|(slot, bv, pv)| (slot, pv - bv))
+        .collect();
+    assert_eq!(
+        both_diffs.len(),
+        2,
+        "isolated roof/wall perturbations must move exactly 2 slots, got {both_diffs:?}"
+    );
+    assert!(
+        (both_diffs["site.spartacus_layer.roof_albedo_dir_mult_fact_01_01"] - roof_delta).abs()
             < DELTA_TOL,
-        "roofs[0].roof_albedo_dir_mult_fact must control slot 0 when walls[0] does not overwrite it"
+        "roofs[0].roof_albedo_dir_mult_fact must control slot 01_01 independently of walls[0]"
+    );
+    assert!(
+        (both_diffs["site.spartacus_layer.wall_specular_frac_01_01"] - wall_delta).abs()
+            < DELTA_TOL,
+        "walls[0].wall_specular_frac must control slot 01_01 independently of roofs[0]"
     );
 
     // 8. Integer perturbations on the four #2101 DOY keys move each slot by
@@ -3964,7 +4116,7 @@ fn nan_poison_completeness_across_all_six_anchors() {
 fn make_clean_synthetic_report() -> SweepReport {
     let nlayer = 3;
     let ndepth = 5;
-    let nspec = 4;
+    let nspec = 1;
     let mut key_targets = build_expected_receivers(nlayer, ndepth, nspec);
     let mut slot_owners: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
@@ -3977,7 +4129,6 @@ fn make_clean_synthetic_report() -> SweepReport {
         }
     }
 
-    // Add the exact pinned #2085 clobbered wall keys.
     for (owner, slots) in
         build_expected_clobbered_receivers(KNOWN_CLOBBERED_SPARTACUS_LAYERS, nspec)
     {
@@ -3990,7 +4141,11 @@ fn make_clean_synthetic_report() -> SweepReport {
         key_targets.insert(owner, slots);
     }
 
-    let dead_keys: BTreeSet<String> = KNOWN_DEAD_KEYS.iter().map(|s| (*s).to_string()).collect();
+    let dead_keys: BTreeSet<String> = KNOWN_DEAD_KEYS
+        .iter()
+        .chain(NON_OWNING_FACET_KEYS.iter())
+        .map(|s| (*s).to_string())
+        .collect();
     let non_unit_deltas: BTreeMap<(String, String), String> = KNOWN_NON_UNIT_DELTAS
         .iter()
         .map(|(k, s)| {
@@ -4005,7 +4160,7 @@ fn make_clean_synthetic_report() -> SweepReport {
         leaves_tested: key_targets.len() + dead_keys.len(),
         wrapped_array_leaves_tested: 279,
         profile_leaves_tested: 1776,
-        total_slots: 4207,
+        total_slots: 4189,
         nlayer,
         ndepth,
         nspec,
@@ -4090,62 +4245,75 @@ fn jacobian_negative_controls_and_batch_equivalence() {
         "cross-facet error missing, got: {err:#?}"
     );
 
-    // 4b. Negative control: swapping target layers between two pinned #2085
-    //     displaced owners (`walls[1]` <-> `walls[2]`) preserves owner names
-    //     and prefixes yet MUST fail both exact cross-facet `(slot, owner)`
-    //     ratcheting and named-receiver verification.
-    let mut clobber_layer_swap = clean.clone();
+    // 4b. Negative control: reintroducing the #2085 cross-facet clobber
+    //     (`walls[1].roof_albedo_dir_mult_fact` taking ownership of
+    //     `roof_albedo_dir_mult_fact_01_02` from `roofs[1]`) MUST fail
+    //     non-owning facet invariance, cross-facet ownership, and
+    //     named-receiver verification.
+    let mut reintroduced_clobber = clean.clone();
+    let r1 = "sites[0].properties.vertical_layers.roofs[1].roof_albedo_dir_mult_fact".to_string();
     let w1 = "sites[0].properties.vertical_layers.walls[1].roof_albedo_dir_mult_fact".to_string();
-    let w2 = "sites[0].properties.vertical_layers.walls[2].roof_albedo_dir_mult_fact".to_string();
-    let w1_slots = clobber_layer_swap.key_targets.get(&w1).unwrap().clone();
-    let w2_slots = clobber_layer_swap.key_targets.get(&w2).unwrap().clone();
-    for slot in &w1_slots {
-        clobber_layer_swap
-            .slot_owners
-            .insert(slot.clone(), vec![w2.clone()]);
-    }
-    for slot in &w2_slots {
-        clobber_layer_swap
+    let r1_slots = reintroduced_clobber.key_targets.remove(&r1).unwrap();
+    reintroduced_clobber.dead_keys.insert(r1.clone());
+    reintroduced_clobber.dead_keys.remove(&w1);
+    for slot in &r1_slots {
+        reintroduced_clobber
             .slot_owners
             .insert(slot.clone(), vec![w1.clone()]);
     }
-    clobber_layer_swap.key_targets.insert(w1.clone(), w2_slots);
-    clobber_layer_swap.key_targets.insert(w2.clone(), w1_slots);
+    reintroduced_clobber
+        .key_targets
+        .insert(w1.clone(), r1_slots);
     let err = validate_sweep_report(
-        "neg_clobber_layer_swap",
-        &clobber_layer_swap,
+        "neg_reintroduced_clobber",
+        &reintroduced_clobber,
         &MASTER_ALLOWLIST,
     )
-    .expect_err("swapping displaced SPARTACUS layer indices must fail immediately");
+    .expect_err("reintroducing #2085 cross-facet clobber must fail immediately");
     assert!(
         err.iter()
-            .any(|m| m.contains("unexpected cross-facet SPARTACUS"))
+            .any(|m| m.contains("non-owning SPARTACUS facet invariance") && m.contains(&w1))
+            && err
+                .iter()
+                .any(|m| m.contains("unexpected cross-facet SPARTACUS"))
             && err.iter().any(|m| m.contains("named receiver-identity")),
-        "clobber layer swap must fail both cross-facet and named-receiver checks, got: {err:#?}"
+        "reintroduced clobber must fail invariance, cross-facet, and receiver checks, got: {err:#?}"
     );
 
-    // 4c. Negative control: dropping a single spectral band from a pinned
-    //     displaced owner must fail both the exact cross-facet ratchet and
-    //     named-receiver verification.
-    let mut clobber_missing_band = clean.clone();
-    let dropped_band = "site.spartacus_layer.roof_albedo_dir_mult_fact_04_02".to_string();
-    clobber_missing_band
-        .key_targets
-        .get_mut(&w1)
-        .unwrap()
-        .remove(&dropped_band);
-    clobber_missing_band.slot_owners.remove(&dropped_band);
-    let err = validate_sweep_report(
-        "neg_clobber_missing_band",
-        &clobber_missing_band,
-        &MASTER_ALLOWLIST,
-    )
-    .expect_err("dropping one spectral band from a pinned clobber must fail immediately");
+    // 4c. Negative control: wrong `nspec != 1` (e.g. legacy `nspec = 4`
+    //     stride mismatch) and swapping two roof multiplier layers MUST both
+    //     fail validation immediately.
+    let mut wrong_nspec = clean.clone();
+    wrong_nspec.nspec = 4;
+    let err = validate_sweep_report("neg_wrong_nspec", &wrong_nspec, &MASTER_ALLOWLIST)
+        .expect_err("nspec != 1 must fail immediately");
+    assert!(
+        err.iter().any(|m| m.contains("nspec = 1")),
+        "wrong-nspec error must cite nspec = 1, got: {err:#?}"
+    );
+
+    let mut roof_layer_swap = clean.clone();
+    let r2 = "sites[0].properties.vertical_layers.roofs[2].roof_albedo_dir_mult_fact".to_string();
+    let r1_slots = roof_layer_swap.key_targets.get(&r1).unwrap().clone();
+    let r2_slots = roof_layer_swap.key_targets.get(&r2).unwrap().clone();
+    for slot in &r1_slots {
+        roof_layer_swap
+            .slot_owners
+            .insert(slot.clone(), vec![r2.clone()]);
+    }
+    for slot in &r2_slots {
+        roof_layer_swap
+            .slot_owners
+            .insert(slot.clone(), vec![r1.clone()]);
+    }
+    roof_layer_swap.key_targets.insert(r1.clone(), r2_slots);
+    roof_layer_swap.key_targets.insert(r2.clone(), r1_slots);
+    let err = validate_sweep_report("neg_roof_layer_swap", &roof_layer_swap, &MASTER_ALLOWLIST)
+        .expect_err("swapping roof multiplier layer indices must fail immediately");
     assert!(
         err.iter()
-            .any(|m| m.contains("KNOWN_CLOBBERED_SPARTACUS_LAYERS") && m.contains(&dropped_band))
-            && err.iter().any(|m| m.contains("named receiver-identity")),
-        "missing spectral band must fail exact clobber and receiver checks, got: {err:#?}"
+            .any(|m| m.contains("named receiver-identity") && m.contains(&r1) && m.contains(&r2)),
+        "roof layer swap must fail named-receiver checks, got: {err:#?}"
     );
 
     // 5. Negative control: 1-to-1 field swap (swapping two 144-step profile

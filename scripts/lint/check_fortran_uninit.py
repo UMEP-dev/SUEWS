@@ -609,14 +609,117 @@ def compare_keys(
     return new_warnings, stale_entries
 
 
-def load_baseline(path: Path) -> tuple[list[DiagnosticKey], dict[str, object]]:
-    """Read and validate the committed baseline JSON file."""
-    payload = json.loads(path.read_text(encoding="utf-8"))
+def parse_baseline_json(
+    raw_text: str, source_label: str
+) -> tuple[list[DiagnosticKey], dict[str, object]]:
+    """Parse and validate baseline JSON text."""
+    payload = json.loads(raw_text)
     raw_entries = payload.get("entries")
     if not isinstance(raw_entries, list):
-        raise ValueError(f"Baseline {path} must contain an 'entries' list")
+        raise ValueError(f"Baseline {source_label} must contain an 'entries' list")
     keys = [DiagnosticKey.from_dict(entry) for entry in raw_entries]
     return keys, payload
+
+
+def load_baseline(path: Path) -> tuple[list[DiagnosticKey], dict[str, object]]:
+    """Read and validate a committed baseline JSON file."""
+    return parse_baseline_json(path.read_text(encoding="utf-8"), str(path))
+
+
+def load_base_baseline_from_git(
+    repo_root: Path,
+    base_ref: str,
+    baseline_rel: Path = BASELINE_PATH,
+) -> tuple[list[DiagnosticKey] | None, str]:
+    """Load the trusted base revision's baseline JSON via ``git``.
+
+    Verifies that ``base_ref`` resolves to a commit in ``repo_root`` (failing
+    loudly if the commit is missing, e.g. under a shallow checkout). Returns
+    ``(None, resolved_sha)`` only when ``baseline_rel`` does not yet exist in
+    that verified base commit (first-introduction bootstrap); otherwise returns
+    ``(keys, resolved_sha)``.
+    """
+    git_base = ["git", "-c", f"safe.directory={repo_root}", "-C", str(repo_root)]
+    verify = subprocess.run(
+        [*git_base, "rev-parse", "--verify", f"{base_ref}^{{commit}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if verify.returncode != 0:
+        raise RuntimeError(
+            f"Base git revision {base_ref!r} could not be resolved in {repo_root}: "
+            f"{verify.stderr.strip()}"
+        )
+    resolved_sha = verify.stdout.strip()
+    git_spec = f"{resolved_sha}:{baseline_rel.as_posix()}"
+
+    exists = subprocess.run(
+        [*git_base, "cat-file", "-e", git_spec],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if exists.returncode != 0:
+        return None, resolved_sha
+
+    show = subprocess.run(
+        [*git_base, "show", git_spec],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if show.returncode != 0:
+        raise RuntimeError(f"Failed to read {git_spec} from git: {show.stderr.strip()}")
+    keys, _payload = parse_baseline_json(show.stdout, git_spec)
+    return keys, resolved_sha
+
+
+def check_baseline_shrink_only(
+    candidate_keys: Iterable[DiagnosticKey],
+    base_keys: Iterable[DiagnosticKey],
+) -> tuple[list[DiagnosticKey], list[DiagnosticKey]]:
+    """Return ``(added_keys, removed_keys)`` from base to candidate baseline.
+
+    A shrink-only ratchet forbids any non-empty ``added_keys`` even when the
+    total entry count is equal or lower (preventing warning swaps).
+    """
+    candidate_set = set(candidate_keys)
+    base_set = set(base_keys)
+    added = sorted(candidate_set - base_set)
+    removed = sorted(base_set - candidate_set)
+    return added, removed
+
+
+def _resolve_base_keys(
+    repo_root: Path,
+    *,
+    base_baseline: str | None,
+    base_ref: str | None,
+    baseline_rel: Path = BASELINE_PATH,
+) -> tuple[list[DiagnosticKey] | None, str | None]:
+    """Load base baseline keys from ``--base-baseline`` or ``--base-ref``."""
+    if base_baseline is not None:
+        base_path = Path(base_baseline)
+        if not base_path.is_file():
+            raise FileNotFoundError(f"Base baseline not found: {base_path}")
+        keys, _payload = load_baseline(base_path)
+        return keys, base_path.as_posix()
+
+    if base_ref is not None:
+        keys, resolved_sha = load_base_baseline_from_git(
+            repo_root, base_ref, baseline_rel=baseline_rel
+        )
+        if keys is None:
+            print(
+                f"[!] bootstrap: {baseline_rel.as_posix()} does not exist at base "
+                f"revision {resolved_sha[:12]}; skipping base-baseline shrink check.",
+                file=sys.stderr,
+            )
+            return None, None
+        return keys, resolved_sha[:12]
+
+    return None, None
 
 
 def write_baseline(
@@ -668,16 +771,25 @@ def _check_against_baseline(
     *,
     unit_count: int,
     compiler: str,
+    base_keys: Sequence[DiagnosticKey] | None = None,
+    base_label: str | None = None,
 ) -> int:
-    """Compare observed keys against ``baseline_path`` and print diagnostics."""
+    """Compare observed keys against candidate and optional base baselines."""
     if not baseline_path.is_file():
         print(f"[X] baseline not found: {baseline_path}", file=sys.stderr)
         return 1
 
     baseline_keys, payload = load_baseline(baseline_path)
+    added_to_baseline: list[DiagnosticKey] = []
+    removed_from_baseline: list[DiagnosticKey] = []
+    if base_keys is not None:
+        added_to_baseline, removed_from_baseline = check_baseline_shrink_only(
+            baseline_keys, base_keys
+        )
+
     new_warnings, stale_entries = compare_keys(actual_keys, baseline_keys)
 
-    if new_warnings or stale_entries:
+    if added_to_baseline or new_warnings or stale_entries:
         expected_compiler = payload.get("compiler")
         if expected_compiler and compiler != expected_compiler:
             print(
@@ -685,6 +797,15 @@ def _check_against_baseline(
                 f"'{expected_compiler}'.",
                 file=sys.stderr,
             )
+        if added_to_baseline:
+            print(
+                f"[X] {len(added_to_baseline)} baseline entry/entries added "
+                f"relative to base {base_label} (baseline is shrink-only -- "
+                "additions and swaps are forbidden):",
+                file=sys.stderr,
+            )
+            for key in added_to_baseline:
+                print(f"  - {key.format_short()}", file=sys.stderr)
         if new_warnings:
             print(
                 f"[X] {len(new_warnings)} new Fortran uninitialised-variable warning(s):",
@@ -706,21 +827,39 @@ def _check_against_baseline(
         print(REMEDIATION, file=sys.stderr)
         return 1
 
+    shrink_note = ""
+    if removed_from_baseline:
+        shrink_note = (
+            f"; shrunk by {len(removed_from_baseline)} entry/entries "
+            f"from base {base_label}"
+        )
     print(
         f"[OK] Fortran -Wuninitialized diagnostics match baseline "
-        f"({len(actual_keys)} entries across {unit_count} units; {compiler})."
+        f"({len(actual_keys)} entries across {unit_count} units; "
+        f"{compiler}{shrink_note})."
     )
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Run the Fortran ``-Wuninitialized`` shrinking ratchet."""
+def _build_parser() -> argparse.ArgumentParser:
+    """Create the CLI argument parser."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("repo_root", nargs="?", default=".")
     parser.add_argument(
         "--baseline",
         default=None,
         help="path to baseline JSON (default: scripts/lint/fortran_uninit_baseline.json)",
+    )
+    base_group = parser.add_mutually_exclusive_group()
+    base_group.add_argument(
+        "--base-baseline",
+        default=None,
+        help="path to trusted base baseline JSON to enforce shrink-only keys",
+    )
+    base_group.add_argument(
+        "--base-ref",
+        default=None,
+        help="trusted base git commit/ref whose baseline JSON enforces shrink-only keys",
     )
     parser.add_argument(
         "--gfortran",
@@ -737,7 +876,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="print all detected warning keys and exit 0",
     )
-    args = parser.parse_args(sys.argv[1:] if argv is None else argv[1:])
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the Fortran ``-Wuninitialized`` shrinking ratchet."""
+    args = _build_parser().parse_args(sys.argv[1:] if argv is None else argv[1:])
 
     repo_root = Path(args.repo_root).resolve()
     if not (repo_root / "src" / "suews" / "Makefile").is_file():
@@ -779,12 +923,24 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    try:
+        base_keys, base_label = _resolve_base_keys(
+            repo_root,
+            base_baseline=args.base_baseline,
+            base_ref=args.base_ref,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        print(f"[X] {exc}", file=sys.stderr)
+        return 1
+
     return _check_against_baseline(
         baseline_path,
         actual_keys,
         first_lines,
         unit_count=unit_count,
         compiler=compiler,
+        base_keys=base_keys,
+        base_label=base_label,
     )
 
 

@@ -49,6 +49,11 @@ class SuiteSummary:
     elapsed_s: float
     failed_cases: tuple[FailedCase, ...]
 
+    @property
+    def executed(self) -> int:
+        """Number of non-skipped tests that actually executed."""
+        return self.passed + self.failures + self.errors
+
 
 def _first_line(text: str, limit: int = 200) -> str:
     """Return a single ASCII-safe summary line from a failure message."""
@@ -160,6 +165,11 @@ def render_markdown(
             "`#2105` (`MomentumRoughnessMethod=5`, `z0m_zh`/`zdm_zh`) and "
             "`#2106` (`SnowUse=1` + `NetRadiationMethod` 13/1003, `tsurf_0_K`).",
         ])
+    elif summary.executed == 0:
+        lines.append(
+            "[X] No physics tests executed under no-trap `-finit-real=snan` "
+            f"({summary.tests} recorded, {summary.skipped} skipped/xfailed)."
+        )
     else:
         lines.append(
             "[OK] All `-m physics` tests passed under no-trap `-finit-real=snan`."
@@ -212,6 +222,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if summary.tests == 0:
         print(f"[X] JUnit XML {xml_path} recorded zero tests", file=sys.stderr)
+        return 1
+
+    if summary.executed == 0:
+        print(
+            f"[X] No physics tests executed in {xml_path} "
+            f"({summary.tests} recorded, {summary.skipped} skipped/xfailed)",
+            file=sys.stderr,
+        )
         return 1
 
     markdown = render_markdown(

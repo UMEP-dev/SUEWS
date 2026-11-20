@@ -59,8 +59,10 @@ endif
 # builds; `snan` is an opt-in override reserved for the isolated nightly
 # no-trap sNaN pilot (.github/workflows/fortran-snan-nightly.yml).
 SUEWS_INIT_REAL ?= zero
-ifeq ($(filter $(SUEWS_INIT_REAL),zero snan),)
+ifneq ($(SUEWS_INIT_REAL),zero)
+ifneq ($(SUEWS_INIT_REAL),snan)
 $(error SUEWS_INIT_REAL must be 'zero' or 'snan', got '$(SUEWS_INIT_REAL)')
+endif
 endif
 ifeq ($(SUEWS_INIT_REAL),snan)
 DEBUGFLAGS := $(subst -finit-real=zero,-finit-real=snan,$(DEBUGFLAGS))

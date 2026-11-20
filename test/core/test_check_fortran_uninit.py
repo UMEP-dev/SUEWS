@@ -14,6 +14,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 import pytest
@@ -373,6 +374,246 @@ def test_live_repo_unit_discovery_and_committed_baseline_contract():
     assert "-finit-real=zero" not in check_fortran_uninit.KERNEL_BASE_FLAGS
     assert "-finit-real=zero" not in check_fortran_uninit.CAPI_BASE_FLAGS
 
+    checkout_step = next(
+        step
+        for step in job["steps"]
+        if str(step.get("uses", "")).startswith("actions/checkout@")
+    )
+    assert checkout_step["with"]["fetch-depth"] == 0
+    assert checkout_step["with"]["persist-credentials"] is False
+
+    check_step = job["steps"][-1]
+    assert "github.event.pull_request.base.sha" in check_step["env"]["BASE_SHA"]
+    assert "github.event.merge_group.base_sha" in check_step["env"]["BASE_SHA"]
+    assert '--base-ref "$BASE_SHA"' in check_step["run"]
+
+
+def _init_git_repo(repo_root: Path) -> None:
+    """Initialise a throwaway git repository for --base-ref tests."""
+    subprocess.run(["git", "init", str(repo_root)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "config", "user.name", "Test"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repo_root), "config", "user.email", "test@example.com"],
+        check=True,
+        capture_output=True,
+    )
+
+
+def _git_commit_all(repo_root: Path, message: str) -> str:
+    subprocess.run(
+        ["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", message],
+        check=True,
+        capture_output=True,
+    )
+    out = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return out.stdout.strip()
+
+
+def test_shrink_only_rejects_added_and_swapped_keys_and_allows_removals(
+    tmp_path, monkeypatch, capsys
+):
+    """--base-baseline forbids adding or swapping keys even at equal/lower count."""
+    key_a = check_fortran_uninit.DiagnosticKey(
+        file="src/suews/src/a.f95", proc="sub_a", var="v_a", kind="maybe-uninitialized"
+    )
+    key_b = check_fortran_uninit.DiagnosticKey(
+        file="src/suews/src/b.f95", proc="sub_b", var="v_b", kind="maybe-uninitialized"
+    )
+    key_c = check_fortran_uninit.DiagnosticKey(
+        file="src/suews/src/c.f95", proc="sub_c", var="v_c", kind="uninitialized"
+    )
+
+    base_path = tmp_path / "base.json"
+    check_fortran_uninit.write_baseline(
+        base_path,
+        [key_a, key_b],
+        unit_count=114,
+        compiler=check_fortran_uninit.PINNED_COMPILER,
+    )
+
+    # Case 1: added key with higher total count -> FAIL (even though warnings match candidate)
+    repo_add = _make_stub_repo(tmp_path / "add", [key_a, key_b, key_c])
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (
+            [
+                check_fortran_uninit.DiagnosticHit(key=key_a, line=1),
+                check_fortran_uninit.DiagnosticHit(key=key_b, line=2),
+                check_fortran_uninit.DiagnosticHit(key=key_c, line=3),
+            ],
+            114,
+            check_fortran_uninit.PINNED_COMPILER,
+        ),
+    )
+    rc_add = check_fortran_uninit.main([
+        "check_fortran_uninit",
+        str(repo_add),
+        "--base-baseline",
+        str(base_path),
+    ])
+    assert rc_add == 1
+    err_add = capsys.readouterr().err
+    assert "shrink-only" in err_add
+    assert key_c.format_short() in err_add
+
+    # Case 2: swapped key at equal total count (remove key_b, add key_c) -> FAIL
+    repo_swap = _make_stub_repo(tmp_path / "swap", [key_a, key_c])
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (
+            [
+                check_fortran_uninit.DiagnosticHit(key=key_a, line=1),
+                check_fortran_uninit.DiagnosticHit(key=key_c, line=3),
+            ],
+            114,
+            check_fortran_uninit.PINNED_COMPILER,
+        ),
+    )
+    rc_swap = check_fortran_uninit.main([
+        "check_fortran_uninit",
+        str(repo_swap),
+        "--base-baseline",
+        str(base_path),
+    ])
+    assert rc_swap == 1
+    err_swap = capsys.readouterr().err
+    assert "shrink-only" in err_swap
+    assert key_c.format_short() in err_swap
+
+    # Case 3: swapped key at LOWER total count (remove key_a & key_b, add key_c) -> FAIL
+    repo_lower = _make_stub_repo(tmp_path / "lower", [key_c])
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (
+            [check_fortran_uninit.DiagnosticHit(key=key_c, line=3)],
+            114,
+            check_fortran_uninit.PINNED_COMPILER,
+        ),
+    )
+    rc_lower = check_fortran_uninit.main([
+        "check_fortran_uninit",
+        str(repo_lower),
+        "--base-baseline",
+        str(base_path),
+    ])
+    assert rc_lower == 1
+    assert key_c.format_short() in capsys.readouterr().err
+
+    # Case 4: genuine removal (key_b resolved & removed) -> PASS
+    repo_shrink = _make_stub_repo(tmp_path / "shrink", [key_a])
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (
+            [check_fortran_uninit.DiagnosticHit(key=key_a, line=1)],
+            114,
+            check_fortran_uninit.PINNED_COMPILER,
+        ),
+    )
+    rc_shrink = check_fortran_uninit.main([
+        "check_fortran_uninit",
+        str(repo_shrink),
+        "--base-baseline",
+        str(base_path),
+    ])
+    assert rc_shrink == 0
+    assert "shrunk by 1" in capsys.readouterr().out
+
+
+def test_base_ref_bootstrap_shrink_rejection_and_invalid_ref(
+    tmp_path, monkeypatch, capsys
+):
+    """--base-ref handles first-introduction bootstrap, shrink-only, and invalid refs."""
+    key_a = check_fortran_uninit.DiagnosticKey(
+        file="src/suews/src/a.f95", proc="sub_a", var="v_a", kind="maybe-uninitialized"
+    )
+    key_b = check_fortran_uninit.DiagnosticKey(
+        file="src/suews/src/b.f95", proc="sub_b", var="v_b", kind="uninitialized"
+    )
+
+    repo = _make_stub_repo(tmp_path / "gitrepo", baseline_keys=None)
+    _init_git_repo(repo)
+    base_without_file = _git_commit_all(repo, "base without baseline")
+
+    # Introduce baseline in working tree -> bootstrap against base_without_file passes
+    check_fortran_uninit.write_baseline(
+        repo / check_fortran_uninit.BASELINE_PATH,
+        [key_a],
+        unit_count=114,
+        compiler=check_fortran_uninit.PINNED_COMPILER,
+    )
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (
+            [check_fortran_uninit.DiagnosticHit(key=key_a, line=10)],
+            114,
+            check_fortran_uninit.PINNED_COMPILER,
+        ),
+    )
+    rc_boot = check_fortran_uninit.main([
+        "check_fortran_uninit",
+        str(repo),
+        "--base-ref",
+        base_without_file,
+    ])
+    assert rc_boot == 0
+    assert "bootstrap:" in capsys.readouterr().err
+
+    # Commit the baseline; adding key_b in candidate must now FAIL against that base
+    base_with_file = _git_commit_all(repo, "add initial baseline")
+    check_fortran_uninit.write_baseline(
+        repo / check_fortran_uninit.BASELINE_PATH,
+        [key_a, key_b],
+        unit_count=114,
+        compiler=check_fortran_uninit.PINNED_COMPILER,
+    )
+    monkeypatch.setattr(
+        check_fortran_uninit,
+        "compile_and_collect",
+        lambda _root, gfortran="gfortran": (
+            [
+                check_fortran_uninit.DiagnosticHit(key=key_a, line=10),
+                check_fortran_uninit.DiagnosticHit(key=key_b, line=20),
+            ],
+            114,
+            check_fortran_uninit.PINNED_COMPILER,
+        ),
+    )
+    rc_added = check_fortran_uninit.main([
+        "check_fortran_uninit",
+        str(repo),
+        "--base-ref",
+        base_with_file,
+    ])
+    assert rc_added == 1
+    assert key_b.format_short() in capsys.readouterr().err
+
+    # Non-existent / unfetched base ref must fail loudly (never silently bootstrap)
+    rc_bad_ref = check_fortran_uninit.main([
+        "check_fortran_uninit",
+        str(repo),
+        "--base-ref",
+        "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    ])
+    assert rc_bad_ref == 1
+    assert "could not be resolved" in capsys.readouterr().err
+
 
 def _load_snan_summariser():
     path = REPO_ROOT / "scripts" / "lint" / "summarise_snan_report.py"
@@ -424,6 +665,49 @@ def test_summarise_snan_report_flags_nan_failures_and_respects_strict(tmp_path, 
 
     rc_strict = summariser.main(["summarise_snan_report", str(xml_path), "--strict"])
     assert rc_strict == 1
+
+
+def test_summarise_snan_report_rejects_zero_executed_and_empty_junit(tmp_path, capsys):
+    """All-skipped (0 passed, 1 skipped) and empty JUnit reports always exit non-zero."""
+    summariser = _load_snan_summariser()
+
+    all_skipped = tmp_path / "all_skipped.xml"
+    all_skipped.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="1" errors="0" failures="0" skipped="1" time="0.1">
+    <testcase classname="test.physics.test_dummy" name="test_only_skipped" time="0.0">
+      <skipped message="skipped"/>
+    </testcase>
+  </testsuite>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+    summary = summariser.parse_junit_xml(all_skipped)
+    assert summary.executed == 0
+    assert "All `-m physics` tests passed" not in summariser.render_markdown(summary)
+
+    for extra in ([], ["--strict"]):
+        rc = summariser.main(["summarise_snan_report", str(all_skipped), *extra])
+        assert rc == 1
+        assert "No physics tests executed" in capsys.readouterr().err
+
+    empty_xml = tmp_path / "empty.xml"
+    empty_xml.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="0" errors="0" failures="0" skipped="0" time="0.0"/>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+    for extra in ([], ["--strict"]):
+        rc_empty = summariser.main(["summarise_snan_report", str(empty_xml), *extra])
+        assert rc_empty == 1
+        assert "recorded zero tests" in capsys.readouterr().err
 
 
 def test_snan_nightly_workflow_is_isolated_and_no_trap():

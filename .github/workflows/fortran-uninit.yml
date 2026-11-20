@@ -45,10 +45,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Check Fortran -Wuninitialized ratchet
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
         run: |
           set -eu
           gfortran --version | head -n 1
-          python3 scripts/lint/check_fortran_uninit.py
+          EXTRA_ARGS=()
+          if [ -n "$BASE_SHA" ]; then
+            EXTRA_ARGS+=(--base-ref "$BASE_SHA")
+          fi
+          python3 scripts/lint/check_fortran_uninit.py "${EXTRA_ARGS[@]}"

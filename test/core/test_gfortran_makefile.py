@@ -104,12 +104,17 @@ class MakefileTests(unittest.TestCase):
             self.assertNotIn("-finit-real=zero", snan_res.stdout)
             self.assertNotIn("-ffpe-trap", snan_res.stdout)
 
-            bad_res = subprocess.run(
-                [*base_cmd, "SUEWS_INIT_REAL=bogus"],
-                env=clean_env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertNotEqual(bad_res.returncode, 0)
-            self.assertIn("SUEWS_INIT_REAL must be 'zero' or 'snan'", bad_res.stderr)
+            for bad_value in ("bogus", "zero snan", "snan zero", ""):
+                bad_res = subprocess.run(
+                    [*base_cmd, f"SUEWS_INIT_REAL={bad_value}"],
+                    env=clean_env,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertNotEqual(
+                    bad_res.returncode, 0, msg=f"accepted {bad_value!r}"
+                )
+                self.assertIn(
+                    "SUEWS_INIT_REAL must be 'zero' or 'snan'", bad_res.stderr
+                )

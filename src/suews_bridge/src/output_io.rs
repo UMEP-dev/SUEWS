@@ -1,8 +1,24 @@
-//! Optional Arrow file output for the standalone engine, adjacent to the bridge
-//! transport core. Group widths come from generated metadata; the SUEWS names
-//! below are still hand-maintained and other groups use indexed names. Width
-//! agreement alone does not establish parity with Python's output registry.
-//! This writer serialises existing results and must not reinterpret the science.
+//! Optional Apache Arrow IPC file output for the standalone `suews-engine` CLI,
+//! adjacent to the bridge transport core (`--features physics,arrow-output`).
+//!
+//! ## Layout and metadata contract
+//!
+//! - Input is the row-major flat `[f64]` simulation buffer of shape
+//!   `(len_sim, OUTPUT_ALL_COLS)` across all 11 concatenated output groups in
+//!   `sim::OUTPUT_GROUP_LAYOUT`.
+//! - Group widths come from build-time `$OUT_DIR/output_cols.rs`, emitted by
+//!   `build.rs` from `src/suews/src/suews_ctrl_const.f95`.
+//! - The 118 `SUEWS` columns use named variables from [`SUEWS_OUTPUT_NAMES`]
+//!   (5 time columns + 113 physics columns, verified in unit tests against the
+//!   published canonical output catalogue under `src/supy/data_model/output/`);
+//!   the other 10 groups currently use `{group}_{idx}` indexed names.
+//! - Every Arrow field is non-nullable `Float64`, preserving `-999.0` sentinels
+//!   and `NaN` values literally rather than turning them into Arrow nulls.
+//! - Schema metadata carries `"group_layout"` (`"SUEWS:118,snow:103,..."`) so
+//!   downstream readers can partition the flat column space by group.
+//!
+//! This writer serialises existing kernel results without reinterpreting
+//! physical units or model semantics (`BR-07`).
 
 use crate::sim::{OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT, OUTPUT_SUEWS_COLS};
 use std::collections::HashMap;
@@ -100,12 +116,13 @@ fn group_layout_metadata() -> HashMap<String, String> {
     meta
 }
 
-/// Write all 11 output groups to a single Arrow IPC file.
+/// Write all 11 concatenated output groups to `<output_dir>/suews_output.arrow`.
 ///
-/// The flat buffer has `len_sim` rows of `OUTPUT_ALL_COLS` columns.
-/// SUEWS columns use proper variable names; other groups use
-/// `{group}_{idx}` naming.  The group layout is stored as Arrow
-/// schema metadata.
+/// Validates `output_block.len() == len_sim * OUTPUT_ALL_COLS` (using checked
+/// multiplication) before creating `output_dir`, transposes the row-major flat
+/// slice into non-nullable `Float64` columns, attaches `"group_layout"` schema
+/// metadata, and writes a single Arrow IPC [`RecordBatch`] (including the
+/// zero-row case when `len_sim == 0`).
 pub fn write_output_arrow(
     output_dir: &Path,
     output_block: &[f64],

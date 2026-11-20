@@ -1,4 +1,13 @@
-"""Build helper for embedding the Rust bridge into the Meson package build."""
+"""Build helper for embedding the Rust bridge into the Meson package build.
+
+Invoked by ``src/supy/meson.build`` after the Fortran kernel static libraries
+are built. Compiles ``src/suews_bridge/Cargo.toml`` with
+``python-extension,physics,arrow-output`` (using the MinGW GNU target on
+Windows so gfortran symbols link cleanly), copies both the PyO3 extension
+library (``suews_bridge``) and standalone ``suews-engine`` CLI into the Meson
+staging outputs, and emits a Ninja depfile tracking Rust, C-API Fortran and
+driver inputs so incremental rebuilds stay accurate.
+"""
 
 from __future__ import annotations
 

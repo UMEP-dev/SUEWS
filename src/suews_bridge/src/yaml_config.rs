@@ -3060,11 +3060,11 @@ fn apply_site_scalar_overrides(
     // coordinates, altitude and UTC offset. Defaults belong to that model.
     let at = site_yaml_at(site_root);
     // Check representation only: never read or choose the alias's value.
-    // Python folds source aliases and rejects duplicates before emission.
+    // Both source and resolved site input use the canonical longitude key.
     if get_path(site_root, &["properties", "lon"]).is_some() {
         return Err(format!(
             "`{at}.properties.lon` is not a resolved field; use only \
-             `{at}.properties.lng` and resolve source input through SuPy"
+             `{at}.properties.lng` for longitude"
         ));
     }
     site_scalars.lat = require_numeric(site_root, &["properties", "lat"], &at)?;

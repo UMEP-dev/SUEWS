@@ -45,17 +45,32 @@ jobs:
         id: base
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_SHA: ${{ inputs.base_sha || github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
         run: |
           set -euo pipefail
-          if [[ -n "${BASE_SHA:-}" ]]; then
+          # On pull_request, GitHub checks out a synthetic 2-parent merge commit
+          # (HEAD^1 = current target tip, HEAD^2 = pull_request.head.sha), whereas
+          # pull_request.base.sha can lag behind HEAD^1 after master advances.
+          # Match HEAD^2 == PR_HEAD_SHA so a PR branch whose own tip is a merge
+          # commit is never mistaken for GitHub's synthetic merge commit, and on
+          # merge_group keep explicit base_sha (incl. multi-PR batches).
+          HEAD_SECOND_PARENT="$(git rev-parse --verify -q HEAD^2 2>/dev/null || true)"
+          if [[ "${EVENT_NAME:-}" == "pull_request" && -n "${PR_HEAD_SHA:-}" && "$HEAD_SECOND_PARENT" == "$PR_HEAD_SHA" ]]; then
+            HEAD_BASE_SHA="$(git rev-parse HEAD^1)"
+            echo "Resolved comparison base from synthetic PR merge HEAD^1: ${HEAD_BASE_SHA}"
+            echo "ref=${HEAD_BASE_SHA}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${BASE_SHA:-}" ]]; then
             if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
               git fetch --no-tags origin "$BASE_SHA"
             fi
+            echo "Resolved comparison base from explicit BASE_SHA: ${BASE_SHA}"
             echo "ref=${BASE_SHA}" >> "$GITHUB_OUTPUT"
           elif [[ -n "${BASE_REF:-}" ]]; then
             git fetch --no-tags origin "$BASE_REF"
+            echo "Resolved comparison base from BASE_REF: origin/${BASE_REF}"
             echo "ref=origin/${BASE_REF}" >> "$GITHUB_OUTPUT"
           else
             echo "::error::Cannot determine comparison base SHA or ref."

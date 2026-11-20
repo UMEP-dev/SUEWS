@@ -729,6 +729,7 @@ def test_audit_base_resolution_uses_explicit_base_sha(
         env={
             **os.environ,
             "GITHUB_OUTPUT": str(gh_out),
+            "EVENT_NAME": "merge_group",
             "BASE_SHA": base_sha,
             "BASE_REF": "",
         },
@@ -747,6 +748,7 @@ def test_audit_base_resolution_uses_explicit_base_sha(
         env={
             **os.environ,
             "GITHUB_OUTPUT": str(fail_out),
+            "EVENT_NAME": "merge_group",
             "BASE_SHA": "",
             "BASE_REF": "",
         },
@@ -755,6 +757,182 @@ def test_audit_base_resolution_uses_explicit_base_sha(
         text=True,
     )
     assert res.returncode == 1
+
+
+def _build_moving_base_synthetic_pr_repo(
+    tmp_path: Path,
+) -> tuple[Path, str, str, str]:
+    """Build a synthetic 2-parent PR merge commit (B2, pr_head) over stale base B1."""
+    repo = tmp_path / "moving_base_repo"
+    repo.mkdir()
+
+    def git(*args: str) -> str:
+        return subprocess.check_output(
+            ["git", *args],
+            cwd=repo,
+            text=True,
+            stderr=subprocess.STDOUT,
+        ).strip()
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Test")
+    git("config", "user.email", "test@example.com")
+
+    version_file = repo / "src/supy/data_model/configuration/version.py"
+    core_file = repo / "src/supy/data_model/core/hydro.py"
+    doc_file = repo / "docs/source/contributing/schema/schema_versioning.rst"
+    for path in (version_file, core_file, doc_file):
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    # B1: initial base
+    version_file.write_text('CURRENT_SCHEMA_VERSION = "2026.11.0"\n', encoding="utf-8")
+    core_file.write_text("X = 1\n", encoding="utf-8")
+    doc_file.write_text("Schema v2026.11.0\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-m", "B1 base")
+    b1_sha = git("rev-parse", "HEAD")
+
+    # PR branch from B1: modifies watched core model WITHOUT bumping schema version
+    git("checkout", "-b", "pr-branch")
+    core_file.write_text("X = 2\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-m", "PR unbumped data_model edit")
+    pr_head_sha = git("rev-parse", "HEAD")
+
+    # master advances to B2: unrelated PR bumps schema version + updates docs
+    git("checkout", "master")
+    version_file.write_text('CURRENT_SCHEMA_VERSION = "2026.11.1"\n', encoding="utf-8")
+    doc_file.write_text("Schema v2026.11.1\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-m", "B2 unrelated schema bump on master")
+    b2_sha = git("rev-parse", "HEAD")
+
+    # Synthetic GitHub PR merge commit M with parents (B2, pr_head_sha)
+    git("merge", "--no-ff", "-m", "Synthetic PR merge", pr_head_sha)
+    assert git("rev-parse", "HEAD^1") == b2_sha
+    assert git("rev-parse", "HEAD^2") == pr_head_sha
+    return repo, b1_sha, b2_sha, pr_head_sha
+
+
+def _run_resolve_base_step(
+    step_run: str,
+    repo: Path,
+    out_file: Path,
+    env_extra: dict[str, str],
+) -> str:
+    """Execute a workflow's Resolve comparison base step and return its ref output."""
+    out_file.write_text("", encoding="utf-8")
+    subprocess.run(
+        ["bash", "-c", step_run],
+        cwd=repo,
+        env={**os.environ, "GITHUB_OUTPUT": str(out_file), **env_extra},
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return _parse_github_output(out_file)["ref"]
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="Workflow shell steps run under bash on Linux CI",
+)
+@pytest.mark.parametrize(
+    ("workflow_name", "job_id"),
+    [
+        ("schema-version-audit.yml", "check-schema-bump"),
+        ("data-interface-version-audit.yml", "check-interface-version-history"),
+    ],
+)
+def test_moving_base_synthetic_pr_merge_commit_uses_head_first_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    workflow_name: str,
+    job_id: str,
+) -> None:
+    """Synthetic 2-parent PR merge commits diff against HEAD^1, not stale pull_request.base.sha.
+
+    When master advances from B1 to B2 (e.g. an unrelated PR bumping
+    CURRENT_SCHEMA_VERSION + docs) after a PR branched from B1, GitHub's
+    synthetic PR merge commit M has parents (B2, PR_head) while
+    pull_request.base.sha can still report stale B1. Diffing B1...M attributes
+    B2's bump to the PR and fails open; matching HEAD^2 == PR_HEAD_SHA and
+    resolving HEAD^1 (= B2) keeps the audit strictly scoped to the PR without
+    misclassifying a non-synthetic PR merge commit or a merge_group batch.
+    """
+    wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows" / workflow_name).read_text(encoding="utf-8")
+    )
+    step = next(s for s in wf["jobs"][job_id]["steps"] if s.get("id") == "base")
+    assert step["env"]["EVENT_NAME"] == "${{ github.event_name }}"
+    assert step["env"]["PR_HEAD_SHA"] == "${{ github.event.pull_request.head.sha }}"
+
+    repo, b1_sha, b2_sha, pr_head_sha = _build_moving_base_synthetic_pr_repo(tmp_path)
+    merge_head_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+    ).strip()
+
+    # 1. Synthetic PR merge commit (HEAD^2 == PR_HEAD_SHA) with stale BASE_SHA=B1
+    #    must resolve to HEAD^1 (= B2).
+    resolved_pr_base = _run_resolve_base_step(
+        step["run"],
+        repo,
+        tmp_path / "pr_base_out",
+        {
+            "EVENT_NAME": "pull_request",
+            "PR_HEAD_SHA": pr_head_sha,
+            "BASE_SHA": b1_sha,
+            "BASE_REF": "master",
+        },
+    )
+    assert resolved_pr_base == b2_sha
+
+    # 2. Direct checkout of a merge commit whose HEAD^2 != PR_HEAD_SHA (e.g. a PR
+    #    branch tip that merged master) must fall back to explicit BASE_SHA=B1.
+    non_synthetic_base = _run_resolve_base_step(
+        step["run"],
+        repo,
+        tmp_path / "non_synthetic_out",
+        {
+            "EVENT_NAME": "pull_request",
+            "PR_HEAD_SHA": merge_head_sha,
+            "BASE_SHA": b1_sha,
+            "BASE_REF": "master",
+        },
+    )
+    assert non_synthetic_base == b1_sha
+
+    # 3. merge_group (even on a 2-parent merge commit) must keep explicit BASE_SHA=B1.
+    mq_base = _run_resolve_base_step(
+        step["run"],
+        repo,
+        tmp_path / "mq_base_out",
+        {
+            "EVENT_NAME": "merge_group",
+            "PR_HEAD_SHA": "",
+            "BASE_SHA": b1_sha,
+            "BASE_REF": "",
+        },
+    )
+    assert mq_base == b1_sha
+
+    # 4. End-to-end proof with check_schema_version_bump.py on the moving-base merge commit:
+    #    stale B1 fails open (exit 0), whereas resolved HEAD^1 (= B2) catches the unbumped edit (exit 1).
+    if workflow_name == "schema-version-audit.yml":
+        lint_root = REPO_ROOT / "scripts" / "lint"
+        if str(lint_root) not in sys.path:
+            sys.path.insert(0, str(lint_root))
+        spec = importlib.util.spec_from_file_location(
+            "check_schema_version_bump_moving_base",
+            lint_root / "check_schema_version_bump.py",
+        )
+        assert spec is not None and spec.loader is not None
+        schema_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(schema_mod)
+
+        monkeypatch.chdir(repo)
+        assert schema_mod.main(["--base", b1_sha]) == 0
+        assert schema_mod.main(["--base", resolved_pr_base]) == 1
 
 
 # ---- Consolidated workflow wiring & ci-metrics-needs.json parity ----

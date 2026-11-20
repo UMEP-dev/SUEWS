@@ -20,6 +20,7 @@ from pydantic import BaseModel
 import pytest
 import yaml
 
+from supy._run_rust import config_to_engine_yaml  # noqa: PLC2701
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.surface import PavedProperties
 from supy.data_model.core.type import (
@@ -33,6 +34,7 @@ from supy.data_model.validation.pipeline.phase_a import (
     create_clean_missing_param_annotation,
     find_missing_parameters,
 )
+from supy.suews_sim import SUEWSSimulation
 
 pytestmark = [pytest.mark.api, pytest.mark.cfg]
 
@@ -314,3 +316,108 @@ def test_create_clean_missing_param_annotation_keeps_critical_physics_block():
     assert lines[0] == "stebbs:"
     assert any("capacitance:" in line for line in lines)
     assert any("setpoint:" in line for line in lines)
+
+
+def test_mutable_live_model_rejects_in_place_null_on_non_optional_ref(sample_dict):
+    """Mutating ``.value = None`` or assigning null on a live model fails immediately."""
+    # ARRANGE
+    cfg = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+    paved = cfg.sites[0].properties.land_cover.paved
+    original_emis = _unwrap(paved.emis)
+
+    # ACT / ASSERT: in-place RefValue.value = None fails and leaves original value intact
+    with pytest.raises(ValueError, match="emis needs a number"):
+        paved.emis.value = None
+    assert _unwrap(paved.emis) == pytest.approx(original_emis)
+
+    # Direct attribute null assignments also fail immediately
+    for bad_val in (None, RefValue(None), {"value": None}):
+        with pytest.raises(ValueError, match="emis needs a number"):
+            paved.emis = bad_val
+    assert _unwrap(paved.emis) == pytest.approx(original_emis)
+
+    # Deepcopy preserves the non-optional binding
+    cloned = copy.deepcopy(cfg)
+    with pytest.raises(ValueError, match="emis needs a number"):
+        cloned.sites[0].properties.land_cover.paved.emis.value = None
+
+    # Assigning a new RefValue binds it so a later .value = None is also rejected
+    paved.emis = RefValue(0.90)
+    assert _unwrap(paved.emis) == pytest.approx(0.90)
+    with pytest.raises(ValueError, match="emis needs a number"):
+        paved.emis.value = None
+
+
+def test_mutable_model_positive_controls_and_optional_ref_allowed(sample_dict):
+    """Valid typed edits succeed and genuinely Optional RefValue(None) stays allowed."""
+    # ARRANGE
+    cfg = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+
+    # ACT: valid live edit before SUEWSSimulation and after SUEWSSimulation
+    cfg.sites[0].properties.land_cover.paved.emis.value = 0.90
+    sim = SUEWSSimulation(cfg)
+    engine_before = yaml.safe_load(config_to_engine_yaml(sim.config))
+    sim.config.sites[0].properties.land_cover.paved.emis.value = 0.88
+    engine_after = yaml.safe_load(config_to_engine_yaml(sim.config))
+
+    # Genuinely optional field and standalone RefValue(None) remain nullable
+    sim.config.sites[0].initial_states.evetr.alb_id.value = None
+    standalone = RefValue(None)
+
+    # ASSERT
+    assert _unwrap(
+        engine_before["sites"][0]["properties"]["land_cover"]["paved"]["emis"]
+    ) == pytest.approx(0.90)
+    assert _unwrap(
+        engine_after["sites"][0]["properties"]["land_cover"]["paved"]["emis"]
+    ) == pytest.approx(0.88)
+    assert sim.config.sites[0].initial_states.evetr.alb_id.value is None
+    assert standalone.value is None
+
+
+def test_simulation_routes_reject_mutated_null_before_and_after_construction(
+    sample_dict,
+):
+    """Both before- and after-construction ``SUEWSSimulation`` routes reject null edits."""
+    # Route 1: mutate config before SUEWSSimulation(cfg)
+    cfg_before = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+    with pytest.raises(ValueError, match="emis needs a number"):
+        cfg_before.sites[0].properties.land_cover.paved.emis.value = None
+
+    # Route 2: construct SUEWSSimulation, then mutate sim.config before run/export
+    sim = SUEWSSimulation(SUEWSConfig.from_dict(copy.deepcopy(sample_dict)))
+    with pytest.raises(ValueError, match="emis needs a number"):
+        sim.config.sites[0].properties.land_cover.paved.emis.value = None
+    with pytest.raises(ValueError, match="emis needs a number"):
+        sim.config.sites[0].properties.land_cover.paved.emis = None
+    with pytest.raises(ValueError, match="emis needs a number"):
+        sim.config.sites[0].properties.land_cover.paved.emis = RefValue(None)
+
+
+def test_public_handoffs_reject_mutated_null_min_res_bioco2_when_active(
+    sample_dict, sample_forcing_parsed
+):
+    """Mutating ``min_res_bioco2.value = None`` under active biogenic CO2 fails handoff."""
+    # ARRANGE: Route 1 -- mutate before SUEWSSimulation(cfg)
+    data = copy.deepcopy(sample_dict)
+    data["model"]["physics"]["emissions"] = {"value": 22}
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.sites[0].properties.land_cover.grass.min_res_bioco2.value = None
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match="min_res_bioco2"):
+        SUEWSSimulation(cfg)
+    with pytest.raises(ValueError, match="min_res_bioco2"):
+        config_to_engine_yaml(cfg)
+
+    # ARRANGE: Route 2 -- construct valid SUEWSSimulation, then mutate sim.config
+    _, df_short = sample_forcing_parsed(12)
+    sim = SUEWSSimulation(SUEWSConfig.from_dict(copy.deepcopy(data)))
+    sim.update_forcing(df_short)
+    sim.config.sites[0].properties.land_cover.grass.min_res_bioco2.value = None
+
+    # ACT / ASSERT: rejected before Rust bridge serialization / execution
+    with pytest.raises(ValueError, match="min_res_bioco2"):
+        config_to_engine_yaml(sim.config)
+    with pytest.raises(ValueError, match="min_res_bioco2"):
+        sim.run(end_date=df_short.index[-1])

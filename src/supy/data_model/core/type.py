@@ -19,6 +19,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PrivateAttr,
     ValidationInfo,
     field_validator,
     model_serializer,
@@ -78,6 +79,8 @@ class RefValue(BaseModel, Generic[T]):
 
     value: Optional[T]
     ref: Optional[Reference] = None
+    _non_null_field_name: Optional[str] = PrivateAttr(default=None)
+    _non_null_expected_kind: str = PrivateAttr(default="value")
 
     model_config = ConfigDict(
         # Configure serialization to handle the value field properly
@@ -141,6 +144,22 @@ class RefValue(BaseModel, Generic[T]):
         data["value"] = value
         data["ref"] = ref
         super().__init__(**data)
+
+    def _bind_non_optional(self, field_name: str, expected_kind: str) -> None:
+        """Bind this wrapper to a non-optional field so ``.value = None`` fails."""
+        self._non_null_field_name = field_name
+        self._non_null_expected_kind = expected_kind
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "value" and value is None:
+            field_name = getattr(self, "_non_null_field_name", None)
+            if field_name is not None:
+                reject_null_value(
+                    None,
+                    field_name,
+                    expected_kind=getattr(self, "_non_null_expected_kind", "value"),
+                )
+        super().__setattr__(name, value)
 
     @field_validator("value", mode="before")
     @classmethod
@@ -377,15 +396,70 @@ class DataModelBase(BaseModel):
     @field_validator("*", mode="after")
     @classmethod
     def _reject_null_on_non_optional_ref_field(cls, v: Any, info: ValidationInfo) -> Any:
-        if isinstance(v, RefValue) and v.value is None:
+        if isinstance(v, RefValue):
             field_name = info.field_name
             if field_name is not None and field_name in cls._non_optional_ref_fields:
-                return reject_null_value(
-                    v,
-                    field_name,
-                    expected_kind=cls._non_optional_ref_fields[field_name],
-                )
+                expected_kind = cls._non_optional_ref_fields[field_name]
+                if v.value is None:
+                    return reject_null_value(
+                        v,
+                        field_name,
+                        expected_kind=expected_kind,
+                    )
+                v._bind_non_optional(field_name, expected_kind)
         return v
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        expected_kind = type(self)._non_optional_ref_fields.get(name)
+        if expected_kind is not None:
+            if value is None:
+                reject_null_value(value, name, expected_kind=expected_kind)
+            elif isinstance(value, RefValue):
+                if value.value is None:
+                    reject_null_value(value, name, expected_kind=expected_kind)
+                value._bind_non_optional(name, expected_kind)
+            elif (
+                isinstance(value, dict)
+                and "value" in value
+                and value["value"] is None
+            ):
+                reject_null_value(None, name, expected_kind=expected_kind)
+        super().__setattr__(name, value)
+
+    def validate_non_null_ref_values(self, _path: str = "") -> None:
+        """Recursively reject null values on non-optional ``RefValue`` fields.
+
+        Defence in depth at public execution and export boundaries (such as
+        ``SUEWSSimulation`` and ``config_to_engine_yaml``) in case a live
+        model was mutated via ``object.__setattr__`` or ``model_construct``
+        (gh#2087).
+        """
+        non_opt = type(self)._non_optional_ref_fields
+        for field_name in type(self).model_fields:
+            val = getattr(self, field_name, None)
+            field_path = f"{_path}.{field_name}" if _path else field_name
+            expected_kind = non_opt.get(field_name)
+            if expected_kind is not None:
+                if val is None or (isinstance(val, RefValue) and val.value is None):
+                    reject_null_value(None, field_path, expected_kind=expected_kind)
+                elif (
+                    isinstance(val, dict)
+                    and "value" in val
+                    and val["value"] is None
+                ):
+                    reject_null_value(None, field_path, expected_kind=expected_kind)
+            _validate_non_null_ref_container(val, field_path)
+
+
+def _validate_non_null_ref_container(value: Any, path: str) -> None:
+    if isinstance(value, DataModelBase):
+        value.validate_non_null_ref_values(path)
+    elif isinstance(value, (list, tuple)):
+        for idx, item in enumerate(value):
+            _validate_non_null_ref_container(item, f"{path}[{idx}]")
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _validate_non_null_ref_container(item, f"{path}.{key}")
 
 
 def null_rejecting_validator(field_name: str):

@@ -3793,6 +3793,13 @@ class SUEWSConfig(DataModelBase):
         issues.extend(self._iter_biogenic_co2_null_issues())
         return issues
 
+    def validate_non_null_ref_values(self, _path: str = "") -> None:
+        """Reject null non-optional RefValue fields and active biogenic CO2 nulls."""
+        super().validate_non_null_ref_values(_path)
+        bioco2_issues = self._iter_biogenic_co2_null_issues()
+        if bioco2_issues:
+            raise ValueError("; ".join(issue["error_text"] for issue in bioco2_issues))
+
     def _iter_biogenic_co2_null_issues(self) -> list[dict[str, str]]:
         """Return an issue when ``min_res_bioco2`` is explicitly null under active biogenic CO2.
 

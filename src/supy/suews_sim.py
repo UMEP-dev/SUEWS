@@ -264,6 +264,8 @@ class SUEWSSimulation:
 
         else:
             # Assume it's a SUEWSConfig object
+            if hasattr(config, "validate_non_null_ref_values"):
+                config.validate_non_null_ref_values()
             self._config = config
             self._config_identity = None
             self._df_state_init = self._config.to_df_state()

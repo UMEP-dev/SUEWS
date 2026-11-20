@@ -15,6 +15,7 @@ One file for the from_yaml/to_yaml surface:
 
 import tempfile
 import warnings
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -50,6 +51,166 @@ def _write_yaml(tmp_path: Path, data: dict) -> Path:
     with target.open("w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, sort_keys=False)
     return target
+
+
+@pytest.mark.cfg
+class TestSiteLongitudeInput:
+    """Source aliases resolve once, before validation and engine emission."""
+
+    @pytest.mark.parametrize("entry", ["dict", "yaml"])
+    @pytest.mark.parametrize("key", ["lon", "lng", None])
+    @pytest.mark.parametrize("wrapped", [False, True])
+    @pytest.mark.parametrize("value", [0.0, 23.5])
+    def test_source_to_resolved_yaml(
+        self, sample_config_dict, tmp_path, entry, key, wrapped, value
+    ):
+        from supy._run_rust import config_to_engine_yaml
+
+        properties = sample_config_dict["sites"][0]["properties"]
+        properties.pop("lng", None)
+        if key is not None:
+            properties[key] = {"value": value} if wrapped else value
+        original = deepcopy(sample_config_dict)
+        if entry == "yaml":
+            config = SUEWSConfig.from_yaml(str(_write_yaml(tmp_path, original)))
+        else:
+            config = SUEWSConfig.from_dict(sample_config_dict)
+        expected = -0.13 if key is None else value
+        longitude = config.sites[0].properties.lng
+        assert getattr(longitude, "value", longitude) == expected
+        emitted = yaml.safe_load(config_to_engine_yaml(config))
+        resolved = emitted["sites"][0]["properties"]
+        assert "lon" not in resolved
+        longitude = resolved["lng"]
+        assert (longitude["value"] if isinstance(longitude, dict) else longitude) == expected
+        assert sample_config_dict == original
+
+    @pytest.mark.parametrize("entry", ["dict", "yaml"])
+    @pytest.mark.parametrize("canonical,alias", [(0, 0), (23.5, 0), (None, 23.5), (0, None)])
+    def test_duplicate_spellings_fail_with_site_path(
+        self, sample_config_dict, tmp_path, entry, canonical, alias
+    ):
+        # Put the conflict on a later site to expose hard-coded first-site paths.
+        later = deepcopy(sample_config_dict["sites"][0])
+        later["gridiv"] = 27
+        later["properties"].update(lng=canonical, lon=alias)
+        sample_config_dict["sites"].append(later)
+        with pytest.raises(ValueError) as excinfo:
+            if entry == "yaml":
+                SUEWSConfig.from_yaml(str(_write_yaml(tmp_path, sample_config_dict)))
+            else:
+                SUEWSConfig.from_dict(sample_config_dict)
+        message = str(excinfo.value)
+        assert "sites[1].properties" in message
+        assert "Use only 'lng'" in message
+
+    def test_validation_folds_only_site_properties(self, tmp_path):
+        from supy.data_model.core.field_renames import normalise_site_longitude
+        from supy.data_model.validation.core.yaml_helpers import load_user_yaml_normalised
+        from supy.data_model.validation.pipeline.phase_a import _normalise_phase_a_compatibility
+
+        data = {
+            "lon": "root",
+            "metadata": {"lon": 8, "lng": 9},
+            "sites": [{"properties": {
+                "lon": {"value": 0, "ref": {"lon": "citation"}},
+                "metadata": {"lon": 10, "lng": 11},
+            }}],
+        }
+        original = deepcopy(data)
+        path = _write_yaml(tmp_path, data)
+        for result in [
+            normalise_site_longitude(data),
+            load_user_yaml_normalised(str(path)),
+            _normalise_phase_a_compatibility(data)[0],
+        ]:
+            expected = deepcopy(original)
+            props = expected["sites"][0]["properties"]
+            props["lng"] = props.pop("lon")
+            assert result == expected
+        assert data == original
+        data["sites"][0]["properties"]["lng"] = None
+        path = _write_yaml(tmp_path, data)
+        for load in [
+            lambda: load_user_yaml_normalised(str(path)),
+            lambda: _normalise_phase_a_compatibility(data),
+        ]:
+            with pytest.raises(ValueError, match=r"sites\[0\].properties"):
+                load()
+
+    def test_reference_only_input_keeps_canonical_fast_path(self):
+        from supy.data_model.core.field_renames import normalise_site_longitude
+
+        data = {
+            "metadata": {"lon": 8, "lng": 9},
+            "sites": [{"properties": {
+                "lng": {"value": 0, "ref": {"lon": "citation"}},
+                "metadata": {"lon": 10, "lng": 11},
+            }}],
+        }
+        original = deepcopy(data)
+        assert normalise_site_longitude(data) is data
+        assert data == original
+
+        props = data["sites"][0]["properties"]
+        props["lon"] = props.pop("lng")
+        original = deepcopy(data)
+        result = normalise_site_longitude(data)
+        assert result is not data
+        assert result["sites"] is not data["sites"]
+        assert result["sites"][0] is not data["sites"][0]
+        assert result["sites"][0]["properties"] is not props
+        assert result["metadata"] is data["metadata"]
+        assert result["sites"][0]["properties"]["lng"] is props["lon"]
+        assert data == original
+
+        owned = deepcopy(data)
+        assert normalise_site_longitude(owned, in_place=True) is owned
+        assert "lon" not in owned["sites"][0]["properties"]
+        assert data == original
+
+    @pytest.mark.parametrize("entry", ["dict", "yaml"])
+    @pytest.mark.parametrize("value", [None, "wrong", -999, float("nan"), float("inf")])
+    def test_invalid_alias_value_is_not_replaced_by_default(
+        self, sample_config_dict, tmp_path, entry, value
+    ):
+        properties = sample_config_dict["sites"][0]["properties"]
+        properties.pop("lng", None)
+        properties["lon"] = {"value": value}
+        with pytest.raises(ValueError, match="lng"):
+            if entry == "yaml":
+                SUEWSConfig.from_yaml(str(_write_yaml(tmp_path, sample_config_dict)))
+            else:
+                SUEWSConfig.from_dict(sample_config_dict)
+
+    def test_phase_a_reports_only_actual_site_alias_folds(self):
+        from supy.data_model.validation.pipeline.phase_a import _normalise_phase_a_compatibility
+
+        data = {
+            "metadata": {"lon": 8},
+            "sites": [
+                {"properties": {"lng": 0.0}},
+                {"properties": {"lon": {"value": 23.5}}},
+                {"properties": {"lon": 0.0}},
+            ],
+        }
+        original = deepcopy(data)
+        normalised, replacements = _normalise_phase_a_compatibility(data)
+        assert replacements == [
+            ("sites[1].properties.lon", "sites[1].properties.lng"),
+            ("sites[2].properties.lon", "sites[2].properties.lng"),
+        ]
+        assert _normalise_phase_a_compatibility(normalised)[1] == []
+        assert data == original
+
+    def test_unchecked_input_folds_spelling_without_resolving_defaults(self, sample_config_dict):
+        properties = sample_config_dict["sites"][0]["properties"]
+        properties.pop("lng", None)
+        properties["lon"] = 0.0
+        config = SUEWSConfig.from_dict(sample_config_dict, use_conditional_validation=False)
+        # This explicit bypass retains raw dictionaries; it is not resolved engine input.
+        assert config.sites[0]["properties"]["lng"] == 0.0
+        assert "lon" not in config.sites[0]["properties"]
 
 
 @pytest.mark.cfg

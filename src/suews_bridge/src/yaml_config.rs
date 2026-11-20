@@ -3056,26 +3056,23 @@ fn apply_site_scalar_overrides(
     site_root: &Value,
     emissions_method: i32,
 ) -> Result<(), String> {
-    if let Some(v) = read_numeric(site_root, &["properties", "lat"]) {
-        site_scalars.lat = v;
+    // SiteProperties resolves these unconditionally, including valid zero
+    // coordinates, altitude and UTC offset. Defaults belong to that model.
+    let at = site_yaml_at(site_root);
+    // Check representation only: never read or choose the alias's value.
+    // Python folds source aliases and rejects duplicates before emission.
+    if get_path(site_root, &["properties", "lon"]).is_some() {
+        return Err(format!(
+            "`{at}.properties.lon` is not a resolved field; use only \
+             `{at}.properties.lng` and resolve source input through SuPy"
+        ));
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "lng"])
-        .or_else(|| read_numeric(site_root, &["properties", "lon"]))
-    {
-        site_scalars.lon = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "alt"]) {
-        site_scalars.alt = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "timezone"]) {
-        site_scalars.timezone = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "surfacearea"]) {
-        site_scalars.surfacearea = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "z"]) {
-        site_scalars.z = v;
-    }
+    site_scalars.lat = require_numeric(site_root, &["properties", "lat"], &at)?;
+    site_scalars.lon = require_numeric(site_root, &["properties", "lng"], &at)?;
+    site_scalars.alt = require_numeric(site_root, &["properties", "alt"], &at)?;
+    site_scalars.timezone = require_numeric(site_root, &["properties", "timezone"], &at)?;
+    site_scalars.surfacearea = require_numeric(site_root, &["properties", "surfacearea"], &at)?;
+    site_scalars.z = require_numeric(site_root, &["properties", "z"], &at)?;
     if let Some(v) = read_numeric(site_root, &["properties", "z0m_in"]) {
         site_scalars.z0m_in = v;
     }
@@ -3410,6 +3407,146 @@ mod tests {
         match get_path_mut(root, &["sites"])? {
             Value::Sequence(items) => items.get_mut(0),
             _ => None,
+        }
+    }
+
+    const REQUIRED_SITE_COORDINATES: [&str; 6] = ["lat", "lng", "alt", "timezone", "z", "surfacearea"];
+
+    #[test]
+    fn resolved_site_coordinates_preserve_bare_and_wrapped_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        // The path reader also checks the genuine relative forcing resource.
+        fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../supy/sample_data/Kc_2012_data_60.txt"),
+            dir.path().join("Kc_2012_data_60.txt"),
+        )
+        .unwrap();
+        for wrapped in [false, true] {
+            for values in [
+                [0.0, 0.0, 0.0, 0.0, 17.0, 23456.0],
+                [-23.5, 142.75, 123.0, 5.5, 29.0, 34567.0],
+            ] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                let props = &mut first_site_mut(&mut root).unwrap()["properties"];
+                for (field, value) in REQUIRED_SITE_COORDINATES.iter().zip(values) {
+                    props[*field] = if wrapped {
+                        serde_yaml::from_str(&format!("{{value: {value}}}")).unwrap()
+                    } else {
+                        Value::from(value)
+                    };
+                }
+                let yaml = serde_yaml::to_string(&root).unwrap();
+                fs::write(&path, &yaml).unwrap();
+                for (reader, result) in [
+                    ("value", load_run_config_from_value(&mut root)),
+                    ("string", load_run_config_from_str(&yaml)),
+                    ("file", load_run_config(&path)),
+                ] {
+                    let sc = result.expect(reader).site_scalars;
+                    assert_eq!(
+                        [sc.lat, sc.lon, sc.alt, sc.timezone, sc.z, sc.surfacearea],
+                        values
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resolved_site_coordinates_reject_invalid_values_at_public_readers() {
+        let invalid = [
+            None,
+            Some("null"),
+            Some("{value: null}"),
+            Some("wrong"),
+            Some("{value: wrong}"),
+            Some("[1, 2]"),
+            Some("{unexpected: 1}"),
+            Some("{value: {value: 1}}"),
+            Some("{ref: citation}"),
+            Some(".nan"),
+            Some(".inf"),
+            Some("-.inf"),
+            Some("{value: .nan}"),
+            Some("{value: .inf}"),
+            Some("{value: -.inf}"),
+        ];
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        for field in REQUIRED_SITE_COORDINATES {
+            for input in invalid {
+                // Match _run_rust._grid_config_jsons: the later site is
+                // passed alone, retaining its gridiv rather than its index.
+                for gridiv in [None, Some(27)] {
+                    let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                    let first = first_site_mut(&mut root).unwrap().clone();
+                    root["sites"].as_sequence_mut().unwrap().push(first);
+                    let mut later = root["sites"][1].clone();
+                    later.as_mapping_mut().unwrap().remove("gridiv");
+                    if let Some(id) = gridiv {
+                        later["gridiv"] = Value::from(id);
+                    }
+                    let props = later["properties"].as_mapping_mut().unwrap();
+                    props.remove(field);
+                    if let Some(yaml) = input {
+                        props.insert(Value::from(field), serde_yaml::from_str(yaml).unwrap());
+                    }
+                    root["sites"] = Value::Sequence(vec![later]);
+                    let at = if gridiv.is_some() {
+                        "sites[gridiv=27]"
+                    } else {
+                        "sites[0]"
+                    };
+                    let expected = format!("`{at}.properties.{field}`");
+                    let yaml = serde_yaml::to_string(&root).unwrap();
+                    fs::write(&path, &yaml).unwrap();
+                    for result in [
+                        load_run_config_from_value(&mut root),
+                        load_run_config_from_str(&yaml),
+                        load_run_config(&path),
+                    ] {
+                        let error = result.expect_err("invalid resolved coordinate must fail");
+                        assert!(error.contains(&expected), "{field} {input:?}: {error}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resolved_site_longitude_rejects_alias_and_ambiguous_input() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        for canonical in [None, Some("null"), Some("0"), Some("23.5")] {
+            for alias in ["null", "0", "23.5"] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                let props = first_site_mut(&mut root).unwrap()["properties"]
+                    .as_mapping_mut()
+                    .unwrap();
+                props.remove("lng");
+                if let Some(value) = canonical {
+                    props.insert(Value::from("lng"), serde_yaml::from_str(value).unwrap());
+                }
+                props.insert(Value::from("lon"), serde_yaml::from_str(alias).unwrap());
+                let yaml = serde_yaml::to_string(&root).unwrap();
+                fs::write(&path, &yaml).unwrap();
+                for result in [
+                    load_run_config_from_value(&mut root),
+                    load_run_config_from_str(&yaml),
+                    load_run_config(&path),
+                ] {
+                    let error = result.expect_err("source longitude alias must be resolved first");
+                    assert!(
+                        error.contains("`sites[gridiv=1].properties.lon`"),
+                        "{canonical:?}/{alias}: {error}"
+                    );
+                    assert!(
+                        error.contains("use only `sites[gridiv=1].properties.lng`"),
+                        "{canonical:?}/{alias}: {error}"
+                    );
+                }
+            }
         }
     }
 
@@ -4316,27 +4453,17 @@ mod tests {
     }
 
     #[test]
-    fn optional_non_finite_scalar_reaches_the_struct() {
-        for (number, expected) in [
-            (".nan", f64::NAN),
-            (".inf", f64::INFINITY),
-            ("-.inf", f64::NEG_INFINITY),
-        ] {
+    fn non_finite_measurement_height_is_rejected_before_site_scalars() {
+        for number in [".nan", ".inf", "-.inf"] {
             for value in [number.to_string(), format!("{{value: {number}}}")] {
                 let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
                 let site = first_site_mut(&mut root).unwrap();
                 *get_path_mut(site, &["properties", "z"]).unwrap() =
                     serde_yaml::from_str(&value).unwrap();
-                let run = load_run_config_from_value(&mut root).expect(&value);
-                if expected.is_nan() {
-                    assert!(
-                        run.site_scalars.z.is_nan(),
-                        "{value}: {}",
-                        run.site_scalars.z
-                    );
-                } else {
-                    assert_eq!(run.site_scalars.z, expected, "{value}");
-                }
+                let error = load_run_config_from_value(&mut root)
+                    .expect_err("measurement height must be finite");
+                assert!(error.contains("sites[gridiv=1].properties.z"), "{value}: {error}");
+                assert!(error.contains("is non-finite"), "{value}: {error}");
             }
         }
     }

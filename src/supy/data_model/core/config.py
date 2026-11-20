@@ -36,6 +36,7 @@ from pathlib import Path
 import warnings
 
 from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
+from .field_renames import normalise_site_longitude
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import DataModelBase, RefValue, SurfaceType
 
@@ -5417,7 +5418,7 @@ class SUEWSConfig(DataModelBase):
         """
         # Work on a copy so the caller's dict is never mutated (validators
         # such as the legacy output_file coercion pop keys in place).
-        config_data = deepcopy(config_data)
+        config_data = normalise_site_longitude(deepcopy(config_data), in_place=True)
 
         # Snapshot the raw user input so site-level completeness checks can
         # distinguish user-declared surfaces from pydantic-factory defaults

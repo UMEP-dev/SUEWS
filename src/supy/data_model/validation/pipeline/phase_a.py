@@ -11,6 +11,7 @@ from .report_writer import REPORT_WRITER
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
+    normalise_site_longitude,
 )
 from ...core.type import NULL_REJECTED_FIELDS
 from ...core.physics_families import (
@@ -373,7 +374,24 @@ def _normalise_phase_a_compatibility(
     config_data: object,
 ) -> tuple[object, list[tuple[str, str]]]:
     """Apply compatibility folds Phase A must share with the runtime loader."""
-    normalised, replacements = _normalise_model_control_subobjects(config_data)
+    normalised = normalise_site_longitude(config_data)
+    replacements: list[tuple[str, str]] = []
+    if normalised is not config_data:
+        # The scoped fold succeeded. Record each consumed source alias once,
+        # using the same rename-report path as the other compatibility folds.
+        for index, site in enumerate(config_data["sites"]):
+            if not isinstance(site, dict):
+                continue
+            properties = site.get("properties")
+            if isinstance(properties, dict) and "lon" in properties:
+                replacements.append(
+                    (
+                        f"sites[{index}].properties.lon",
+                        f"sites[{index}].properties.lng",
+                    )
+                )
+    normalised, control_replacements = _normalise_model_control_subobjects(normalised)
+    replacements.extend(control_replacements)
     normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
     replacements.extend(stebbs_replacements)
     return normalised, replacements
@@ -2367,6 +2385,27 @@ def annotate_missing_parameters(
         # not renamed here: keep its selector and sensor metadata untouched.
         # A mix of legacy and canonical inputs is kept as given and reported.
         raw_user_data = yaml.safe_load(original_yaml_content)
+        # Reject ambiguity before any replacement can select or discard a key.
+        # Dev mode permits experimental physics, not conflicting spellings.
+        try:
+            normalise_site_longitude(raw_user_data)
+        except ValueError as exc:
+            import shutil
+
+            if uptodate_file:
+                shutil.copyfile(user_file, uptodate_file)
+            if report_file:
+                REPORT_WRITER.write(
+                    report_file,
+                    f"# SUEWS Validation Report\n\n## ACTION NEEDED\n{exc}\n",
+                )
+            return _phase_a_failure_report(
+                user_file=user_file,
+                uptodate_file=uptodate_file,
+                report_file=report_file,
+                code="A.INPUT.AMBIGUOUS_LONGITUDE",
+                message=str(exc),
+            )
         legacy_soil = _uses_legacy_observed_soil(raw_user_data)
         soil_conflicts = _soil_contract_conflicts(raw_user_data)
         rename_skip = LEGACY_SOIL_SELECTORS if legacy_soil else ()
@@ -2629,7 +2668,7 @@ def _phase_a_failure_report(
     code: str,
     message: str,
 ):
-    """Build a single-error ``PhaseReport`` for Phase A I/O failures."""
+    """Build a single-error ``PhaseReport`` for early Phase A failures."""
     from .report_schema import Issue, PhaseReport, SEVERITY_ERROR
 
     return PhaseReport(

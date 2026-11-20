@@ -674,3 +674,72 @@ def test_run_explains_null_forcing_file(tmp_path: Path) -> None:
     assert result.exit_code == 1, result.output
     assert "'forcing.file' is null" in result.output
     assert "update_forcing()" in result.output
+
+
+@pytest.mark.parametrize("entry", ["command", "entrypoint"])
+@pytest.mark.parametrize("spelling", ["canonical", "alias", "invalid-both"])
+def test_run_site_longitude_source_boundary(
+    tmp_path: Path, monkeypatch, capsys, entry, spelling
+) -> None:
+    """Exercise normal run loading; stop only at simulation and saving.
+
+    The two positive controls reach the real resolved engine export. The
+    invalid-both input must fail earlier in the same command/entry-point path.
+    Native numerical execution is covered separately, not repeated here.
+    """
+    import yaml
+    from supy._env import trv_supy_module
+    from supy._run_rust import config_to_engine_yaml
+    from supy.cmd.suews_cli import cli, main
+    from supy.suews_sim import SUEWSSimulation
+
+    sample_dir = trv_supy_module / "sample_data"
+    forcing = tmp_path / "Kc_2012_data_60.txt"
+    forcing.write_bytes((sample_dir / forcing.name).read_bytes())
+    data = yaml.safe_load((sample_dir / "sample_config.yml").read_text(encoding="utf-8"))
+    props = data["sites"][0]["properties"]
+    props["lng"] = {"value": 0.0}
+    if spelling == "alias":
+        props["lon"] = props.pop("lng")
+    elif spelling == "invalid-both":
+        props["lng"] = {"value": "invalid"}
+        props["lon"] = {"value": None}
+    path = tmp_path / "config.yml"
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    original = path.read_bytes()
+    original_forcing = forcing.read_bytes()
+    engine_inputs = []
+
+    def capture_engine_input(simulation):
+        engine_inputs.append(yaml.safe_load(config_to_engine_yaml(simulation.config)))
+
+    monkeypatch.setattr(SUEWSSimulation, "run", capture_engine_input)
+    monkeypatch.setattr(SUEWSSimulation, "save", lambda self, **kwargs: [])
+    if entry == "command":
+        result = CliRunner().invoke(cli, ["run", str(path)])
+        exit_code = result.exit_code
+        diagnostics = result.output
+    else:
+        # pyproject.toml registers suews = supy.cmd.suews_cli:main.
+        monkeypatch.setattr(sys, "argv", ["suews", "run", str(path)])
+        with pytest.raises(SystemExit) as exc:
+            main()
+        exit_code = exc.value.code
+        captured = capsys.readouterr()
+        diagnostics = captured.out + captured.err
+
+    assert path.read_bytes() == original
+    assert forcing.read_bytes() == original_forcing
+    if spelling == "invalid-both":
+        assert exit_code == 1, diagnostics
+        assert "sites[0].properties" in diagnostics
+        assert "Both 'lon' and 'lng'" in diagnostics
+        assert "Use only 'lng'" in diagnostics
+        assert engine_inputs == []
+    else:
+        assert exit_code == 0, diagnostics
+        assert len(engine_inputs) == 1
+        resolved = engine_inputs[0]["sites"][0]["properties"]
+        assert "lon" not in resolved
+        longitude = resolved["lng"]
+        assert (longitude["value"] if isinstance(longitude, dict) else longitude) == 0.0

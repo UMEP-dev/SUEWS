@@ -65,6 +65,7 @@ except Exception:
 try:
     from ..data_model.core.config import SUEWSConfig
     from ..data_model.core.field_renames import (
+        normalise_site_longitude,
         read_physics_key,
         fold_stebbs_physics as _fold_stebbs_physics,
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
@@ -80,6 +81,7 @@ except ImportError:
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
     from supy.data_model.core.field_renames import (
+        normalise_site_longitude,
         read_physics_key,
         fold_stebbs_physics as _fold_stebbs_physics,
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
@@ -120,6 +122,10 @@ def validate_single_file(
         target_is_current = (
             schema_version is None or schema_version == CURRENT_SCHEMA_VERSION
         )
+        # This command defaults to the current schema, even for older file
+        # stamps; schema_cli's file-version dispatch is a separate interface.
+        if target_is_current:
+            config = normalise_site_longitude(config, in_place=True)
 
         # Only flag migration pressure when validating against the current
         # schema. An explicit older target version is a schema-only check.

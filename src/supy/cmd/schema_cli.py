@@ -28,6 +28,7 @@ import yaml
 # Import from supy modules
 try:
     from ..data_model.core.config import SUEWSConfig
+    from ..data_model.core.field_renames import normalise_site_longitude
     from ..data_model.configuration.migration import SchemaMigrator, check_migration_needed
     from ..data_model.configuration.publisher import generate_json_schema, save_schema
     from ..data_model.configuration.version import (
@@ -42,6 +43,7 @@ except ImportError:
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
+    from supy.data_model.core.field_renames import normalise_site_longitude
     from supy.data_model.configuration.migration import SchemaMigrator, check_migration_needed
     from supy.data_model.configuration.publisher import generate_json_schema, save_schema
     from supy.data_model.configuration.version import (
@@ -106,6 +108,8 @@ def validate_file_against_schema(
 
         # Use specified version or file's version or current
         version = schema_version or file_schema_version or CURRENT_SCHEMA_VERSION
+        if version == CURRENT_SCHEMA_VERSION:
+            config = normalise_site_longitude(config, in_place=True)
 
         # Generate schema for the target version
         schema = generate_json_schema(version=version)
@@ -122,6 +126,8 @@ def validate_file_against_schema(
         # Default file-backed validation should mirror ``from_yaml()`` so
         # compatible older schema stamps still exercise the current loader's
         # semantic checks (for example gh#1333's sparse-YAML hard failure).
+        # This does not enable current-only aliases in the historical schema
+        # check above: that uses the resolved target version.
         # When the caller explicitly validates against an older target schema,
         # keep this as a schema-only check.
         if schema_version is None or schema_version == CURRENT_SCHEMA_VERSION:

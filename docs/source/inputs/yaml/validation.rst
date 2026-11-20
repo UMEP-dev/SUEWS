@@ -52,6 +52,30 @@ For complete usage options and advanced features, use:
     suews schema migrate --help
     suews schema version --help
 
+Site Longitude and Resolved Engine Input
+----------------------------------------
+
+Use ``sites[*].properties.lng`` for longitude. Python source loading through
+``SUEWSConfig.from_yaml`` and ``SUEWSConfig.from_dict`` also accepts the legacy
+``lon`` spelling at that exact location. Supplying both spellings is an error,
+even when the values agree or one is null. The supplied value receives the
+existing longitude validation; omitting both retains the source model's
+default of -0.13 degrees. Metadata and other namespaces are not renamed.
+
+The normal ``suews validate --pipeline ABC`` path folds a lone alias in Phase A
+and reports the site-specific rename. Phase C alone validates through the
+current model but its annotated YAML copy retains the source spelling.
+Explicit historical schema checks retain their schema-only behaviour.
+
+An annotated validation file is not resolved engine input. Use ``suews run``
+for a source configuration, or reload it through ``SUEWSConfig.from_yaml``
+and export with ``supy._run_rust.config_to_engine_yaml``. The native engine
+requires finite ``lat``, ``lng``, ``alt``, ``timezone``, ``surfacearea`` and
+``z`` in each site's resolved properties, with no ``lon`` key. It accepts
+numeric scalars or a single ``value`` wrapper and does not supply defaults
+for these six fields. Zero coordinates, altitude and UTC offset remain valid;
+the Python model retains responsibility for physical range validation.
+
 Phase B Scientific Fix Policy
 -----------------------------
 

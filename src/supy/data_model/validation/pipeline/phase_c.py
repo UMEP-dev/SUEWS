@@ -28,6 +28,7 @@ def collect_phase_c_issues(input_yaml_file: str):
     try:
         from supy.data_model import SUEWSConfig
         from supy.data_model.core.config import _legacy_yaml_key_suggestion
+        from supy.data_model.core.field_renames import normalise_site_longitude
     except ImportError as exc:
         issues.append(Issue(
             phase="C",
@@ -65,6 +66,22 @@ def collect_phase_c_issues(input_yaml_file: str):
     # Pydantic with the same source path, but without the
     # ValidationError-to-ValueError wrapping.
     config_data.setdefault("_yaml_path", input_yaml_file)
+
+    # This is current-model validation, like from_yaml, even when the source
+    # carries an older stamp. Historical schema-only checks live in the CLIs.
+    try:
+        config_data = normalise_site_longitude(config_data, in_place=True)
+    except ValueError as exc:
+        issues.append(
+            Issue(
+                phase="C",
+                severity=SEVERITY_ERROR,
+                code="C.INPUT.AMBIGUOUS_LONGITUDE",
+                message=str(exc),
+                category="CONFIG_CONSISTENCY",
+            )
+        )
+        return issues
 
     try:
         from pydantic import ValidationError

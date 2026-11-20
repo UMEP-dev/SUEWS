@@ -128,7 +128,8 @@ def load_user_yaml_normalised(path: str) -> Any:
     Returns:
         The parsed YAML with legacy field spellings rewritten to current names
         (or untouched if both a legacy and current spelling are present; see
-        ``normalise_yaml_renames``).
+        ``normalise_yaml_renames``). Ambiguous site longitude spellings raise
+        ValueError with the site path.
     """
     with open(path, "r", encoding="utf-8") as f:
         return normalise_yaml_renames(yaml.safe_load(f))

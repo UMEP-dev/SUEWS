@@ -1,0 +1,352 @@
+"""Unit tests for the Fortran C-API field-binding observer generator (gh#2096)."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+import sys
+
+import pytest
+
+pytestmark = pytest.mark.api
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _load_module(name: str, rel_path: str):
+    """Load a standalone repository script as an importable Python module."""
+    path = REPO_ROOT / rel_path
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+gen = _load_module(
+    "gen_capi_field_observer",
+    "scripts/suews/gen_capi_field_observer.py",
+)
+saved_locals_lint = _load_module(
+    "check_saved_fortran_locals",
+    "scripts/lint/check_saved_fortran_locals.py",
+)
+
+
+def test_generated_observer_artefacts_are_current_and_deterministic() -> None:
+    """Committed observer files match fresh output byte for byte and repeat cleanly."""
+    assert gen.main(["--check"]) == 0
+    f1, r1 = gen.generate_all()
+    f2, r2 = gen.generate_all()
+    assert f1 == f2
+    assert r1 == r2
+    assert gen.FORTRAN_OUT_PATH.read_bytes() == f1.encode("utf-8")
+    assert gen.RUST_OUT_PATH.read_bytes() == r1.encode("utf-8")
+
+
+def test_generated_observer_lives_outside_c_api_and_is_ascii() -> None:
+    """Test-only generated files stay outside src/suews_bridge/c_api and are 100% ASCII."""
+    assert gen.CAPI_DIR not in gen.FORTRAN_OUT_PATH.parents
+    assert gen.CAPI_DIR not in gen.RUST_OUT_PATH.parents
+    for path in (gen.FORTRAN_OUT_PATH, gen.RUST_OUT_PATH):
+        raw = path.read_bytes()
+        raw.decode("ascii")
+        assert b"\r" not in raw
+
+
+def test_generated_fortran_has_zero_implicitly_saved_locals() -> None:
+    """Generated Fortran observer passes the repository SAVE-local lint cleanly."""
+    hits = saved_locals_lint.find_hits(gen.FORTRAN_OUT_PATH.read_text(encoding="utf-8"))
+    assert hits == [], f"unexpected implicit SAVE hits in generated observer: {hits}"
+
+
+def test_manifest_classification_covers_all_49_types() -> None:
+    """All 49 bridge-manifest types are parsed, classified, and audited."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    manifest_entries, leaves_by_type = gen.audit_manifest_and_inventory(
+        gen.MANIFEST_PATH,
+        types_by_lower,
+        gen.CAPI_DIR,
+    )
+    assert len(manifest_entries) == 49
+    assert len(leaves_by_type) == 30
+    assert len(gen.DIRECT_UNPACK_SPECS) == 30
+    assert len(gen.NESTED_IN_PARENT_SPECS) == 8
+    assert len(gen.DRIVER_PRIVATE_UNPACK_SPECS) == 4
+    assert len(gen.NON_UNPACKED_SPECS) == 7
+
+
+def test_parser_handles_valid_kernel_syntax_features() -> None:
+    """Parser handles multi-entity lines, continuations, 0-based bounds, nested types, and TBPs."""
+    src = """\
+module mod_demo
+   implicit none
+   type, public :: INNER_T
+      real(kind(1d0)) :: alpha = 1.0d0, beta
+   end type INNER_T
+
+   type, public :: OUTER_T
+      integer :: n_steps = 0
+      logical :: flag_ok = .true.
+      real(kind(1d0)), dimension(0:23) :: prof_24 = 0.0d0
+      real(kind(1d0)), dimension(0:N_STEPS - 1, 2) :: &
+         mat_2d = 0.0d0
+      real(kind(1d0)), allocatable, dimension(:, :) :: dyn_mat
+      type(INNER_T), dimension(2) :: pair
+      character(len=16) :: tag = 'ok'
+   contains
+      procedure :: reset => outer_reset
+      generic :: init => reset
+      final :: outer_final
+   end type OUTER_T
+end module mod_demo
+"""
+    types = gen.parse_fortran_types(src, "demo.f95", {"n_steps": 144})
+    by_name = {t.name: t for t in types}
+    assert set(by_name) == {"INNER_T", "OUTER_T"}
+
+    inner = by_name["INNER_T"]
+    assert [c.name for c in inner.components] == ["alpha", "beta"]
+
+    outer = by_name["OUTER_T"]
+    comps = {c.name: c for c in outer.components}
+    assert comps["n_steps"].kind == "integer" and comps["n_steps"].rank == 0
+    assert comps["flag_ok"].kind == "logical" and comps["flag_ok"].rank == 0
+    assert comps["prof_24"].bounds == (gen.DimBound(0, 23),)
+    assert comps["mat_2d"].bounds == (gen.DimBound(0, 143), gen.DimBound(1, 2))
+    assert comps["dyn_mat"].allocatable is True and comps["dyn_mat"].rank == 2
+    assert comps["pair"].kind == "derived" and comps["pair"].derived_type == "INNER_T"
+    assert comps["pair"].bounds == (gen.DimBound(1, 2),)
+    assert comps["tag"].kind == "character"
+
+    leaves = gen.expand_type_leaves(
+        "OUTER_T",
+        {t.name.lower(): t for t in types},
+        {},
+    )
+    paths = [leaf.path for leaf in leaves]
+    assert "pair(1)%alpha" in paths
+    assert "pair(1)%beta" in paths
+    assert "pair(2)%alpha" in paths
+    assert "pair(2)%beta" in paths
+
+
+@pytest.mark.parametrize(
+    ("case_name", "body", "match"),
+    [
+        (
+            "pointer_attribute",
+            "real(kind(1d0)), pointer :: p => null()",
+            "unsupported Fortran component attribute",
+        ),
+        (
+            "complex_type",
+            "complex(kind(1d0)) :: z",
+            "unsupported Fortran component type specifier",
+        ),
+        (
+            "double_precision_type",
+            "double precision :: x",
+            "unsupported Fortran component type specifier",
+        ),
+        (
+            "polymorphic_class",
+            "class(base_t), allocatable :: obj",
+            "unsupported Fortran component type specifier",
+        ),
+        (
+            "bare_real_without_kind",
+            "real :: x",
+            "unsupported Fortran component type specifier",
+        ),
+        (
+            "missing_double_colon",
+            "integer x",
+            "missing '::'",
+        ),
+        (
+            "rank_three_array",
+            "real(kind(1d0)), dimension(2, 3, 4) :: cube",
+            "unsupported array rank",
+        ),
+        (
+            "deferred_without_allocatable",
+            "real(kind(1d0)), dimension(:) :: v",
+            "deferred or malformed non-ALLOCATABLE bound",
+        ),
+        (
+            "allocatable_with_fixed_bounds",
+            "real(kind(1d0)), allocatable, dimension(5) :: v",
+            "ALLOCATABLE component must use deferred ':' bounds",
+        ),
+        (
+            "allocatable_scalar",
+            "real(kind(1d0)), allocatable :: s",
+            "ALLOCATABLE scalar",
+        ),
+        (
+            "dual_dimension_specs",
+            "real(kind(1d0)), dimension(4) :: a(4)",
+            "both DIMENSION attribute and entity-level bounds",
+        ),
+        (
+            "unknown_attribute",
+            "real(kind(1d0)), target :: x",
+            "unsupported Fortran component attribute",
+        ),
+        (
+            "preprocessor_directive_in_type",
+            "#ifdef DEBUG\n      integer :: x\n#endif",
+            "preprocessor directive inside TYPE",
+        ),
+        (
+            "duplicate_component",
+            "integer :: foo\n      real(kind(1d0)) :: FOO",
+            "duplicate component",
+        ),
+        (
+            "unresolved_symbolic_bound",
+            "real(kind(1d0)), dimension(NO_SUCH_CONST) :: x",
+            "unresolved symbolic integer constant",
+        ),
+    ],
+)
+def test_parser_fails_loudly_on_unsupported_component_syntax(
+    case_name: str,
+    body: str,
+    match: str,
+) -> None:
+    """Unsupported Fortran component syntax must raise FortranSyntaxError (zero silent skips)."""
+    src = f"""\
+module mod_bad
+   type, public :: BAD_T
+      {body}
+   end type BAD_T
+end module mod_bad
+"""
+    with pytest.raises(gen.FortranSyntaxError, match=match):
+        gen.parse_fortran_types(src, f"{case_name}.f95", {})
+
+
+@pytest.mark.parametrize(
+    ("case_name", "src", "match"),
+    [
+        (
+            "type_extends",
+            """\
+module mod_ext
+   type, extends(base_t) :: CHILD_T
+      integer :: x
+   end type CHILD_T
+end module mod_ext
+""",
+            "unsupported TYPE header attribute",
+        ),
+        (
+            "type_missing_double_colon",
+            """\
+module mod_nodc
+   type BAD_T
+      integer :: x
+   end type BAD_T
+end module mod_nodc
+""",
+            "TYPE declaration missing '::'",
+        ),
+        (
+            "unclosed_type",
+            """\
+module mod_unclosed
+   type, public :: OPEN_T
+      integer :: x
+""",
+            "unclosed TYPE declaration",
+        ),
+        (
+            "mismatched_end_type",
+            """\
+module mod_mismatch
+   type, public :: A_T
+      integer :: x
+   end type B_T
+end module mod_mismatch
+""",
+            "does not match TYPE",
+        ),
+        (
+            "bad_contains_statement",
+            """\
+module mod_tbp
+   type, public :: TBP_T
+      integer :: x
+   contains
+      integer :: sneaky_field
+   end type TBP_T
+end module mod_tbp
+""",
+            "unsupported statement after CONTAINS",
+        ),
+    ],
+)
+def test_parser_fails_loudly_on_unsupported_type_structure(
+    case_name: str,
+    src: str,
+    match: str,
+) -> None:
+    """Unsupported TYPE header/footer/CONTAINS structures must raise FortranSyntaxError."""
+    with pytest.raises(gen.FortranSyntaxError, match=match):
+        gen.parse_fortran_types(src, f"{case_name}.f95", {})
+
+
+def test_coverage_audit_rejects_unreviewed_dropped_component(tmp_path: Path) -> None:
+    """Dropping an assignment in a *_unpack routine fails static coverage audit loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    spec = gen.DIRECT_UNPACK_SPECS["lc_paved_prm"]
+    orig_text = (gen.CAPI_DIR / spec.capi_file).read_text(encoding="utf-8")
+    mutated_text = orig_text.replace(
+        "state%soil%soil_depth = flat(idx)",
+        "! dropped: state%soil%soil_depth = flat(idx)",
+    )
+    assert mutated_text != orig_text
+    (tmp_path / spec.capi_file).write_text(mutated_text, encoding="utf-8")
+
+    leaves = gen.expand_type_leaves(
+        "LC_PAVED_PRM",
+        types_by_lower,
+        gen.REVIEWED_UNBRIDGED_COMPONENTS,
+    )
+    with pytest.raises(gen.CoverageInventoryError, match=r"soil%soil_depth"):
+        gen.audit_direct_unpack_coverage("LC_PAVED_PRM", spec, leaves, tmp_path)
+
+
+def test_coverage_audit_rejects_stale_unbridged_exclusion(tmp_path: Path) -> None:
+    """Marking a component unbridged when *_unpack actually assigns it fails loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    spec = gen.DIRECT_UNPACK_SPECS["lumps_prm"]
+    (tmp_path / spec.capi_file).write_text(
+        (gen.CAPI_DIR / spec.capi_file).read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    bogus_unbridged = dict(gen.REVIEWED_UNBRIDGED_COMPONENTS)
+    bogus_unbridged["lumps_prm", "rain_cover"] = "stale test entry"
+    leaves = gen.expand_type_leaves("LUMPS_PRM", types_by_lower, bogus_unbridged)
+    with pytest.raises(gen.CoverageInventoryError, match="remove stale exclusion"):
+        gen.audit_direct_unpack_coverage("LUMPS_PRM", spec, leaves, tmp_path)
+
+
+def test_coverage_audit_rejects_unclassified_manifest_type(tmp_path: Path) -> None:
+    """Adding an unclassified type to bridge-manifest.json fails inventory audit loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    manifest_data = json.loads(gen.MANIFEST_PATH.read_text(encoding="utf-8"))
+    manifest_data["types"].append({
+        "name": "NEW_UNCLASSIFIED_TYPE",
+        "source": "suews_type_surface.f95",
+    })
+    fake_manifest = tmp_path / "bridge-manifest.json"
+    fake_manifest.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    with pytest.raises(gen.CoverageInventoryError, match="new_unclassified_type"):
+        gen.audit_manifest_and_inventory(fake_manifest, types_by_lower, gen.CAPI_DIR)

@@ -133,7 +133,7 @@ def test_native_carbon_complete_from_first_to_last_step(short_sample_sim, emissi
         biogenic = output.df.loc[:, [("SUEWS", "FcPhoto"), ("SUEWS", "FcRespi")]]
         assert (biogenic == 0).all().all()
     else:
-        # The active, vegetated sample has flux from both processes.
-        # The two general and local formulations need not share a sign here.
+        # Reject a column silently filled with zeros. The sign and the
+        # method-32 photosynthesis value in darkness need separate tests.
         for name in ("FcPhoto", "FcRespi"):
             assert output.df["SUEWS", name].ne(0).any(), f"All-zero {name}"

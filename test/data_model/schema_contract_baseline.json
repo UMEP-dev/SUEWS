@@ -1,6 +1,6 @@
 {
   "description": "Classified Layer 1 schema contract ledger and shrink-only ratchets (#2097, part of #2083). Distinguishes runtime-derived, documented conditional, and legitimately nullable fields from unclassified debt so shrinking ratchets cannot be gamed by inventing static defaults.",
-  "baseline_commit": "31e322fc3c",
+  "baseline_commit": "b438c677c0",
   "validator_warning_swallows": {
     "src/supy/data_model/core/config.py::SUEWSConfig.set_surface_types_validation": {
       "owner_issue": "#2086",
@@ -91,8 +91,7 @@
     },
     "debt_soil_non_water": {
       "owner_issue": "#2077",
-      "owner_pr": "#2080",
-      "reason": "Non-water surface soil parameter without default; PR #2080 adds active-surface validation and DOC_REQUIRED_WHEN."
+      "reason": "Remaining non-water surface soil parameter without default or DOC_REQUIRED_WHEN entry (soil_density plus intermediate NonVegetatedSurfaceProperties/VegetatedSurfaceProperties mixins after PR #2080 graduated the 28 active soil fields)."
     },
     "debt_soil_water": {
       "owner_issue": "#2077",
@@ -178,8 +177,8 @@
     "summary_counts": {
       "derived_runtime": 5,
       "legitimately_optional_nullable": 5,
-      "unclassified_debt": 97,
-      "total": 107
+      "unclassified_debt": 69,
+      "total": 79
     },
     "derived_runtime": {
       "ModelControl.end_time": "derived_run_bounds",
@@ -196,16 +195,8 @@
       "SoilObservationConfig.bulk_density": "optional_soil_obs_bulk_density"
     },
     "unclassified_debt": {
-      "BldgsProperties.saturated_hydraulic_conductivity": "debt_soil_non_water",
       "BldgsProperties.soil_density": "debt_soil_non_water",
-      "BldgsProperties.soil_depth": "debt_soil_non_water",
-      "BldgsProperties.soil_field_capacity": "debt_soil_non_water",
-      "BldgsProperties.soil_store_capacity": "debt_soil_non_water",
-      "BsoilProperties.saturated_hydraulic_conductivity": "debt_soil_non_water",
       "BsoilProperties.soil_density": "debt_soil_non_water",
-      "BsoilProperties.soil_depth": "debt_soil_non_water",
-      "BsoilProperties.soil_field_capacity": "debt_soil_non_water",
-      "BsoilProperties.soil_store_capacity": "debt_soil_non_water",
       "BuildingLayer.soil_store_capacity": "debt_building_layer_soil",
       "CO2Params.emission_co2_metabolism_max": "debt_anthro_co2",
       "CO2Params.emission_co2_metabolism_min": "debt_anthro_co2",
@@ -220,31 +211,19 @@
       "DectrProperties.beta_bio_co2": "debt_biogenic_co2",
       "DectrProperties.resp_a": "debt_biogenic_co2",
       "DectrProperties.resp_b": "debt_biogenic_co2",
-      "DectrProperties.saturated_hydraulic_conductivity": "debt_soil_non_water",
       "DectrProperties.soil_density": "debt_soil_non_water",
-      "DectrProperties.soil_depth": "debt_soil_non_water",
-      "DectrProperties.soil_field_capacity": "debt_soil_non_water",
-      "DectrProperties.soil_store_capacity": "debt_soil_non_water",
       "DectrProperties.theta_bio_co2": "debt_biogenic_co2",
       "EvetrProperties.alpha_bio_co2": "debt_biogenic_co2",
       "EvetrProperties.beta_bio_co2": "debt_biogenic_co2",
       "EvetrProperties.resp_a": "debt_biogenic_co2",
       "EvetrProperties.resp_b": "debt_biogenic_co2",
-      "EvetrProperties.saturated_hydraulic_conductivity": "debt_soil_non_water",
       "EvetrProperties.soil_density": "debt_soil_non_water",
-      "EvetrProperties.soil_depth": "debt_soil_non_water",
-      "EvetrProperties.soil_field_capacity": "debt_soil_non_water",
-      "EvetrProperties.soil_store_capacity": "debt_soil_non_water",
       "EvetrProperties.theta_bio_co2": "debt_biogenic_co2",
       "GrassProperties.alpha_bio_co2": "debt_biogenic_co2",
       "GrassProperties.beta_bio_co2": "debt_biogenic_co2",
       "GrassProperties.resp_a": "debt_biogenic_co2",
       "GrassProperties.resp_b": "debt_biogenic_co2",
-      "GrassProperties.saturated_hydraulic_conductivity": "debt_soil_non_water",
       "GrassProperties.soil_density": "debt_soil_non_water",
-      "GrassProperties.soil_depth": "debt_soil_non_water",
-      "GrassProperties.soil_field_capacity": "debt_soil_non_water",
-      "GrassProperties.soil_store_capacity": "debt_soil_non_water",
       "GrassProperties.theta_bio_co2": "debt_biogenic_co2",
       "IrrigationParams.h_maintain": "debt_irrigation_no_default",
       "IrrigationParams.internalwateruse_h": "debt_irrigation_no_default",
@@ -260,11 +239,7 @@
       "OHMCoefficients.a1": "debt_ohm_coefficients",
       "OHMCoefficients.a2": "debt_ohm_coefficients",
       "OHMCoefficients.a3": "debt_ohm_coefficients",
-      "PavedProperties.saturated_hydraulic_conductivity": "debt_soil_non_water",
       "PavedProperties.soil_density": "debt_soil_non_water",
-      "PavedProperties.soil_depth": "debt_soil_non_water",
-      "PavedProperties.soil_field_capacity": "debt_soil_non_water",
-      "PavedProperties.soil_store_capacity": "debt_soil_non_water",
       "RoofLayer.soil_store_capacity": "debt_building_layer_soil",
       "SnowParams.snow_density_max": "debt_snow_no_default",
       "SnowParams.snow_density_min": "debt_snow_no_default",
@@ -272,11 +247,7 @@
       "StorageDrainParams.drain_coef_1": "debt_storage_drain_no_default",
       "StorageDrainParams.drain_coef_2": "debt_storage_drain_no_default",
       "StorageDrainParams.store_max": "debt_storage_drain_no_default",
-      "SurfaceProperties.saturated_hydraulic_conductivity": "debt_soil_non_water",
       "SurfaceProperties.soil_density": "debt_soil_non_water",
-      "SurfaceProperties.soil_depth": "debt_soil_non_water",
-      "SurfaceProperties.soil_field_capacity": "debt_soil_non_water",
-      "SurfaceProperties.soil_store_capacity": "debt_soil_non_water",
       "VegetatedSurfaceProperties.alpha_bio_co2": "debt_biogenic_co2",
       "VegetatedSurfaceProperties.beta_bio_co2": "debt_biogenic_co2",
       "VegetatedSurfaceProperties.resp_a": "debt_biogenic_co2",

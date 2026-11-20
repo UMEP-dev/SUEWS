@@ -61,6 +61,8 @@ from supy.data_model.validation.required_fields import (
     DOC_REQUIRED_WHEN,
     DYOHM_BUILDING_LAYERS_REQUIRED,
     LAI_CALCULATED_ONLY_REQUIRED,
+    SOIL_OBSERVED_REQUIRED,
+    SOIL_REQUIRED,
     WATER_DISTRIBUTION_REQUIRED,
 )
 
@@ -228,6 +230,7 @@ class RequiredRuleSpec:
     build_active_missing: Callable[[dict[str, Any]], dict[str, Any]]
     build_inactive_missing: Callable[[dict[str, Any]], dict[str, Any]]
     build_active_valid: Callable[[dict[str, Any]], dict[str, Any]]
+    build_alt_inactive_missing: Callable[[dict[str, Any]], dict[str, Any]] | None = None
 
 
 def _make_conductance_spec(field: str) -> RequiredRuleSpec:
@@ -543,12 +546,132 @@ def _make_dls_spec(
     )
 
 
+NON_WATER_SOIL_MODELS: tuple[tuple[str, str], ...] = (
+    # SurfaceProperties is the shared base model in DOC_REQUIRED_WHEN; map it
+    # to a concrete non-water surface (bsoil) alongside all six concrete subclasses.
+    ("SurfaceProperties", "bsoil"),
+    ("PavedProperties", "paved"),
+    ("BldgsProperties", "bldgs"),
+    ("EvetrProperties", "evetr"),
+    ("DectrProperties", "dectr"),
+    ("GrassProperties", "grass"),
+    ("BsoilProperties", "bsoil"),
+)
+
+
+def _make_soil_required_spec(
+    model_name: str, surface: str, field: str
+) -> RequiredRuleSpec:
+    """Build active/inactive/valid YAML cases for a ``SOIL_REQUIRED`` field."""
+    other = "grass" if surface == "paved" else "paved"
+
+    def active_missing(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        _set_surface_fractions(d, **{other: 0.75, surface: 0.25})
+        d["sites"][0]["properties"]["land_cover"][surface].pop(field, None)
+        return d
+
+    def inactive_missing(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        _set_surface_fractions(d, **{other: 1.0})
+        d["sites"][0]["properties"]["land_cover"][surface].pop(field, None)
+        return d
+
+    def active_valid(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        _set_surface_fractions(d, **{other: 0.75, surface: 0.25})
+        return d
+
+    return RequiredRuleSpec(
+        case_id=f"{model_name}.{field}",
+        model_name=model_name,
+        field_name=field,
+        active_method=f"{surface}.sfr > 0",
+        error_pattern=rf"land_cover\.{re.escape(surface)}: {re.escape(field)} is None",
+        build_active_missing=active_missing,
+        build_inactive_missing=inactive_missing,
+        build_active_valid=active_valid,
+    )
+
+
+def _make_soil_field_capacity_spec(
+    model_name: str, surface: str, field: str
+) -> RequiredRuleSpec:
+    """Build active/inactive/valid YAML cases for ``soil_field_capacity``.
+
+    Required when ``surface.sfr > 0`` and ``model.physics.soil_moisture`` is
+    observed (``1``); lawfully omitted under default modelled soil moisture
+    (``0``) or when ``surface.sfr == 0``.
+    """
+    other = "grass" if surface == "paved" else "paved"
+
+    def _enable_observed_sm(d: dict[str, Any]) -> None:
+        d["model"]["physics"]["soil_moisture"] = {"value": 1}
+        props = d["sites"][0]["properties"]
+        props["soil_observation"] = {
+            "layer_depth": {"value": 0.35},
+            "layer_top": {"value": 0.0},
+        }
+        props["land_cover"][other][field] = {"value": 0.45}
+
+    def active_missing(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        _set_surface_fractions(d, **{other: 0.75, surface: 0.25})
+        _enable_observed_sm(d)
+        d["sites"][0]["properties"]["land_cover"][surface].pop(field, None)
+        return d
+
+    def inactive_modelled_missing(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        _set_surface_fractions(d, **{other: 0.75, surface: 0.25})
+        d["model"]["physics"]["soil_moisture"] = "modelled"
+        d["sites"][0]["properties"].pop("soil_observation", None)
+        d["sites"][0]["properties"]["land_cover"][surface].pop(field, None)
+        return d
+
+    def inactive_zero_sfr_missing(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        _set_surface_fractions(d, **{other: 1.0})
+        _enable_observed_sm(d)
+        d["sites"][0]["properties"]["land_cover"][surface].pop(field, None)
+        return d
+
+    def active_valid(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        _set_surface_fractions(d, **{other: 0.75, surface: 0.25})
+        _enable_observed_sm(d)
+        d["sites"][0]["properties"]["land_cover"][surface][field] = {"value": 0.45}
+        return d
+
+    return RequiredRuleSpec(
+        case_id=f"{model_name}.{field}",
+        model_name=model_name,
+        field_name=field,
+        active_method=f"{surface}.sfr > 0 + soil_moisture=1 (OBSERVED)",
+        error_pattern=rf"soil_field_capacity.*{re.escape(surface)} \(missing;",
+        build_active_missing=active_missing,
+        build_inactive_missing=inactive_modelled_missing,
+        build_active_valid=active_valid,
+        build_alt_inactive_missing=inactive_zero_sfr_missing,
+    )
+
+
 ACTIVE_FROM_YAML_SPECS: tuple[RequiredRuleSpec, ...] = (
     *(_make_conductance_spec(field) for field in CONDUCTANCE_REQUIRED),
     _make_lai_spec("lai_max", modelled_only=False),
     *(
         _make_lai_spec(field, modelled_only=True)
         for field in LAI_CALCULATED_ONLY_REQUIRED
+    ),
+    *(
+        _make_soil_required_spec(model_name, surface, field)
+        for model_name, surface in NON_WATER_SOIL_MODELS
+        for field in SOIL_REQUIRED
+    ),
+    *(
+        _make_soil_field_capacity_spec(model_name, surface, field)
+        for model_name, surface in NON_WATER_SOIL_MODELS
+        for field in SOIL_OBSERVED_REQUIRED
     ),
     _make_surface_geom_spec(
         "BldgsProperties",
@@ -668,6 +791,14 @@ def test_doc_required_when_end_to_end_from_yaml(
         "inactive_missing.yml",
     )
     assert isinstance(cfg_inactive, SUEWSConfig)
+
+    if spec.build_alt_inactive_missing is not None:
+        cfg_alt_inactive = _load_from_yaml(
+            spec.build_alt_inactive_missing(compact_sample_dict),
+            tmp_path,
+            "alt_inactive_missing.yml",
+        )
+        assert isinstance(cfg_alt_inactive, SUEWSConfig)
 
     # ACT / ASSERT 3: active condition + explicit valid value -> succeeds cleanly
     cfg_valid = _load_from_yaml(

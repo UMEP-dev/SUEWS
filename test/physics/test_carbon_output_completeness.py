@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 
 from supy import SUEWSOutput
@@ -85,6 +86,16 @@ def test_completeness_rejects_missing_extent(defect):
         assert_complete_carbon(frame, expected_index)
 
 
+def test_missing_interior_row_on_second_grid_is_reported():
+    single = _complete_frame().xs(1, level="grid")
+    frame = pd.concat([single, single], keys=[1, 2], names=["grid", "datetime"])
+    expected_index = frame.index.copy()
+    assert_complete_carbon(frame, expected_index)
+    frame = frame.drop(index=(2, single.index[1]))
+    with pytest.raises(AssertionError, match=r"at grid 2, 2012-01-01 00:05:00"):
+        assert_complete_carbon(frame, expected_index)
+
+
 def test_completeness_accepts_zero_and_ignores_unselected_missing_fields():
     frame = _complete_frame() * 0.0
     frame["SUEWS", "Fcld"] = np.nan
@@ -92,10 +103,6 @@ def test_completeness_accepts_zero_and_ignores_unselected_missing_fields():
 
 
 def test_parquet_null_does_not_hide_missing_carbon(tmp_path):
-    pq = pytest.importorskip(
-        "pyarrow.parquet", reason="Parquet output requires pyarrow"
-    )
-
     frame = _complete_frame()
     expected_index = frame.index.copy()
     frame.loc[expected_index[1], ("SUEWS", "Fc")] = np.nan
@@ -125,3 +132,8 @@ def test_native_carbon_complete_from_first_to_last_step(short_sample_sim, emissi
     if emissions == 2:
         biogenic = output.df.loc[:, [("SUEWS", "FcPhoto"), ("SUEWS", "FcRespi")]]
         assert (biogenic == 0).all().all()
+    else:
+        # The active, vegetated sample has flux from both processes.
+        # The two general and local formulations need not share a sign here.
+        for name in ("FcPhoto", "FcRespi"):
+            assert output.df["SUEWS", name].ne(0).any(), f"All-zero {name}"

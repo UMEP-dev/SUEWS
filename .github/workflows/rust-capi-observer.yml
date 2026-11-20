@@ -20,6 +20,7 @@ on:
       - 'src/suews/Makefile.gfortran'
       - 'scripts/suews/gen_capi_field_observer.py'
       - '.github/workflows/rust-capi-observer.yml'
+  merge_group:
 
 permissions:
   contents: read

@@ -388,26 +388,26 @@ NESTED_IN_PARENT_SPECS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# 4 top-level driver types whose unpack subroutines live privately in
-# ``src/suews_bridge/c_api/driver.f95``. Audited statically here without
-# modifying driver.f95 (concurrent PR #2122 edits driver.f95); direct runtime
-# observer calls can be wired once driver.f95 exports those routines (#2096).
+# 4 top-level driver aggregate types whose unpack subroutines live in
+# ``src/suews_bridge/c_api/driver.f95`` (exported module-level without BIND(C)
+# so the opt-in test observer invokes them directly while production wheels
+# stay free of test symbols; gh#2096).
 DRIVER_PRIVATE_UNPACK_SPECS: dict[str, str] = {
     "suews_config": (
-        "Unpacked by private driver.f95::unpack_config; statically audited "
-        "against SUEWS_CONFIG kernel fields and Rust config.rs (gh#2096)."
+        "Live-observed via suews_obs_unpack_suews_config calling "
+        "driver.f95::unpack_config (gh#2096)."
     ),
     "suews_timer": (
-        "Unpacked by private driver.f95::unpack_timer; statically audited "
-        "against SUEWS_TIMER kernel fields and Rust timer.rs (gh#2096)."
+        "Live-observed via suews_obs_unpack_suews_timer calling "
+        "driver.f95::unpack_timer (gh#2096)."
     ),
     "suews_site": (
-        "Scalars unpacked by private driver.f95::unpack_site_scalars; all 18 "
-        "member structs live-observed via direct *_unpack observers (gh#2096)."
+        "Live-observed via suews_obs_unpack_suews_site calling "
+        "driver.f95::unpack_site_scalars + unpack_site_members across all 18 members (gh#2096)."
     ),
     "suews_state": (
-        "Dispatched by private driver.f95::unpack_state_members; all 12 active "
-        "state members live-observed via direct *_unpack observers (gh#2096)."
+        "Live-observed via suews_obs_unpack_suews_state calling "
+        "driver.f95::unpack_state_members across all 12 active state members (gh#2096)."
     ),
 }
 
@@ -1197,7 +1197,10 @@ def expand_type_leaves(
         tdef = types_by_lower[cur_type_key]
         for comp in tdef.components:
             path = f"{prefix}%{comp.name}" if prefix else comp.name
-            unbridged_reason = unbridged_map.get((root_key, path.lower()))
+            unbridged_reason = unbridged_map.get((
+                root_key,
+                path.lower(),
+            )) or unbridged_map.get((cur_type_key, comp.name.lower()))
             if comp.kind == "derived":
                 assert comp.derived_type is not None
                 sub_key = comp.derived_type.lower()
@@ -1205,15 +1208,15 @@ def expand_type_leaves(
                     raise FortranSyntaxError(
                         f"unknown nested derived type {comp.derived_type!r} in {type_name}%{path}"
                     )
-                if comp.allocatable:
+                if comp.allocatable or unbridged_reason is not None:
                     leaves.append(
                         LeafField(
                             field_id=len(leaves) + 1,
                             path=path,
                             kind="derived",
                             rank=comp.rank,
-                            allocatable=True,
-                            bounds=(),
+                            allocatable=comp.allocatable,
+                            bounds=comp.bounds,
                             bridged=unbridged_reason is None,
                             unbridged_reason=unbridged_reason,
                         )
@@ -1524,6 +1527,10 @@ def audit_manifest_and_inventory(
     _audit_capi_unpack_registry(capi_dir)
     _audit_nested_parent_paths(types_by_lower)
 
+    all_unbridged = {
+        **REVIEWED_UNBRIDGED_COMPONENTS,
+        **REVIEWED_DRIVER_EXCLUDED_COMPONENTS,
+    }
     leaves_by_type: dict[str, list[LeafField]] = {}
     for key, spec in sorted(DIRECT_UNPACK_SPECS.items()):
         tdef = types_by_lower[key]
@@ -1533,8 +1540,14 @@ def audit_manifest_and_inventory(
         audit_direct_unpack_coverage(tdef.name, spec, leaves, capi_dir)
         leaves_by_type[key] = leaves
 
-    # Audit driver-private unpackers statically.
+    # Audit driver aggregate unpackers and expand their leaves for live observers.
     audit_driver_private_unpackers(capi_dir, types_by_lower)
+    for key in sorted(DRIVER_PRIVATE_UNPACK_SPECS):
+        tdef = types_by_lower[key]
+        leaves_by_type[key] = expand_type_leaves(
+            tdef.name, types_by_lower, all_unbridged
+        )
+
     return manifest_entries, leaves_by_type
 
 
@@ -1552,17 +1565,21 @@ def emit_fortran_observer(
 
     # Group kernel TYPE USE imports deterministically by module name.
     kernel_uses: dict[str, list[str]] = {}
-    for key in sorted(DIRECT_UNPACK_SPECS):
+    for key in sorted((*DIRECT_UNPACK_SPECS, *DRIVER_PRIVATE_UNPACK_SPECS)):
         tdef = types_by_lower[key]
         kernel_uses.setdefault(tdef.module, []).append(tdef.name)
     for mod_name in sorted(kernel_uses):
         names = ", ".join(sorted(kernel_uses[mod_name]))
         lines.append(f"   use {mod_name}, only: {names}")
 
-    # Import every public *_unpack routine.
+    # Import every public *_unpack routine plus the driver aggregate unpackers.
     for key in sorted(DIRECT_UNPACK_SPECS):
         spec = DIRECT_UNPACK_SPECS[key]
         lines.append(f"   use {spec.capi_module}, only: {spec.unpack_sub}")
+    lines.append(
+        "   use module_c_api_driver, only: unpack_config, unpack_timer, "
+        "unpack_site_scalars, unpack_site_members, unpack_state_members"
+    )
 
     lines.extend([
         "",
@@ -1578,6 +1595,8 @@ def emit_fortran_observer(
     for key in sorted(DIRECT_UNPACK_SPECS):
         spec = DIRECT_UNPACK_SPECS[key]
         lines.append(f"   public :: suews_obs_unpack_{spec.slug}")
+    for key in sorted(DRIVER_PRIVATE_UNPACK_SPECS):
+        lines.append(f"   public :: suews_obs_unpack_{key}")
 
     lines.extend([
         "",
@@ -1774,6 +1793,51 @@ def emit_fortran_observer(
         "      end do",
         "   end subroutine obs_emit_real_1d",
         "",
+        "   subroutine obs_emit_int_1d( &",
+        "      fid, arr, lb1, ub1, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, &",
+        "      out_meta, n_meta, cap, pos, err)",
+        "      implicit none",
+        "      integer(c_int), intent(in) :: fid",
+        "      integer(c_int), intent(in) :: lb1",
+        "      integer(c_int), intent(in) :: ub1",
+        "      integer, intent(in) :: arr(lb1:ub1)",
+        "      integer(c_int), intent(inout) :: out_fid(*)",
+        "      integer(c_int), intent(inout) :: out_kind(*)",
+        "      integer(c_int), intent(inout) :: out_i1(*)",
+        "      integer(c_int), intent(inout) :: out_i2(*)",
+        "      real(c_double), intent(inout) :: out_f64(*)",
+        "      integer(c_int64_t), intent(inout) :: out_i64(*)",
+        "      integer(c_int), intent(in) :: n_meta",
+        "      integer(c_int), intent(inout) :: out_meta(5, n_meta)",
+        "      integer(c_int), intent(in) :: cap",
+        "      integer(c_int), intent(inout) :: pos",
+        "      integer(c_int), intent(inout) :: err",
+        "      integer(c_int) :: i",
+        "      if (err /= SUEWS_CAPI_OK) return",
+        "      if (fid < 1_c_int .or. fid > n_meta) then",
+        "         err = SUEWS_CAPI_BAD_BUFFER",
+        "         return",
+        "      end if",
+        "      out_meta(1, fid) = 1_c_int",
+        "      out_meta(2, fid) = lb1",
+        "      out_meta(3, fid) = ub1",
+        "      out_meta(4, fid) = 0_c_int",
+        "      out_meta(5, fid) = 0_c_int",
+        "      do i = lb1, ub1",
+        "         if (pos >= cap) then",
+        "            err = SUEWS_CAPI_BAD_BUFFER",
+        "            return",
+        "         end if",
+        "         pos = pos + 1_c_int",
+        "         out_fid(pos) = fid",
+        "         out_kind(pos) = OBS_KIND_INT",
+        "         out_i1(pos) = i",
+        "         out_i2(pos) = 0_c_int",
+        "         out_f64(pos) = 0.0_c_double",
+        "         out_i64(pos) = int(arr(i), c_int64_t)",
+        "      end do",
+        "   end subroutine obs_emit_int_1d",
+        "",
         "   subroutine obs_emit_real_2d( &",
         "      fid, arr, lb1, ub1, lb2, ub2, out_fid, out_kind, out_i1, out_i2, &",
         "      out_f64, out_i64, out_meta, n_meta, cap, pos, err)",
@@ -1832,8 +1896,96 @@ def emit_fortran_observer(
         leaves = leaves_by_type[key]
         lines.extend(_emit_fortran_type_observer(tdef, spec, leaves))
 
+    lines.extend(_emit_fortran_driver_observers(types_by_lower, leaves_by_type))
+
     lines.append("end module module_test_capi_field_observer")
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def _emit_leaf_observations(tdef: FortranTypeDef, leaves: list[LeafField]) -> list[str]:
+    """Emit Fortran read-back calls for every expanded leaf of ``actual``."""
+    lines: list[str] = []
+    common_tail = (
+        "out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, "
+        "out_meta, n_meta, cap, pos, err"
+    )
+    for leaf in leaves:
+        expr = f"actual%{leaf.path}"
+        fid = f"{leaf.field_id}_c_int"
+        if leaf.kind == "derived":
+            if leaf.allocatable:
+                lines.extend([
+                    f"      if (allocated({expr})) then",
+                    f"         call obs_emit_alloc_bounds_1d({fid}, int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), out_meta, n_meta, err)",
+                    "      else",
+                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                    "      end if",
+                ])
+            else:
+                lines.append(
+                    f"      call obs_emit_unallocated({fid}, out_meta, n_meta, err)"
+                )
+            continue
+
+        if leaf.rank == 0:
+            helper = {
+                "real": "obs_emit_real_scalar",
+                "integer": "obs_emit_int_scalar",
+                "logical": "obs_emit_logical_scalar",
+            }.get(leaf.kind)
+            if helper is None:
+                raise FortranSyntaxError(
+                    f"unsupported scalar observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+                )
+            lines.append(f"      call {helper}({fid}, {expr}, {common_tail})")
+        elif leaf.rank == 1:
+            helper = {
+                "real": "obs_emit_real_1d",
+                "integer": "obs_emit_int_1d",
+            }.get(leaf.kind)
+            if helper is None:
+                raise FortranSyntaxError(
+                    f"unsupported rank-1 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+                )
+            emit_call = (
+                f"call {helper}({fid}, {expr}, "
+                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), {common_tail})"
+            )
+            if leaf.allocatable:
+                lines.extend([
+                    f"      if (allocated({expr})) then",
+                    f"         {emit_call}",
+                    "      else",
+                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                    "      end if",
+                ])
+            else:
+                lines.append(f"      {emit_call}")
+        elif leaf.rank == 2:
+            if leaf.kind != "real":
+                raise FortranSyntaxError(
+                    f"unsupported rank-2 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+                )
+            emit_call = (
+                f"call obs_emit_real_2d({fid}, {expr}, "
+                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), "
+                f"int(lbound({expr}, 2), c_int), int(ubound({expr}, 2), c_int), {common_tail})"
+            )
+            if leaf.allocatable:
+                lines.extend([
+                    f"      if (allocated({expr})) then",
+                    f"         {emit_call}",
+                    "      else",
+                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                    "      end if",
+                ])
+            else:
+                lines.append(f"      {emit_call}")
+        else:
+            raise FortranSyntaxError(
+                f"unsupported rank {leaf.rank} on {tdef.name}%{leaf.path}"
+            )
+    return lines
 
 
 def _emit_fortran_type_observer(
@@ -1904,83 +2056,196 @@ def _emit_fortran_type_observer(
         "      end if",
         "",
     ])
-
-    common_tail = "out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err"
-    for leaf in leaves:
-        expr = f"actual%{leaf.path}"
-        fid = f"{leaf.field_id}_c_int"
-        if leaf.kind == "derived":
-            # Only allocatable unbridged derived arrays (e.g. STEBBS_STATE%buildings) reach here.
-            lines.extend([
-                f"      if (allocated({expr})) then",
-                f"         call obs_emit_alloc_bounds_1d({fid}, int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), out_meta, n_meta, err)",
-                "      else",
-                f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                "      end if",
-            ])
-            continue
-
-        if leaf.rank == 0:
-            helper = {
-                "real": "obs_emit_real_scalar",
-                "integer": "obs_emit_int_scalar",
-                "logical": "obs_emit_logical_scalar",
-            }.get(leaf.kind)
-            if helper is None:
-                raise FortranSyntaxError(
-                    f"unsupported scalar observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            lines.append(f"      call {helper}({fid}, {expr}, {common_tail})")
-        elif leaf.rank == 1:
-            if leaf.kind != "real":
-                raise FortranSyntaxError(
-                    f"unsupported rank-1 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            emit_call = (
-                f"call obs_emit_real_1d({fid}, {expr}, "
-                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), {common_tail})"
-            )
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         {emit_call}",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                lines.append(f"      {emit_call}")
-        elif leaf.rank == 2:
-            if leaf.kind != "real":
-                raise FortranSyntaxError(
-                    f"unsupported rank-2 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            emit_call = (
-                f"call obs_emit_real_2d({fid}, {expr}, "
-                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), "
-                f"int(lbound({expr}, 2), c_int), int(ubound({expr}, 2), c_int), {common_tail})"
-            )
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         {emit_call}",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                lines.append(f"      {emit_call}")
-        else:
-            raise FortranSyntaxError(
-                f"unsupported rank {leaf.rank} on {tdef.name}%{leaf.path}"
-            )
-
+    lines.extend(_emit_leaf_observations(tdef, leaves))
     lines.extend([
         "",
         "      n_out = pos",
         f"   end subroutine {sub_name}",
         "",
     ])
+    return lines
+
+
+def _emit_driver_flat_observer(
+    tdef: FortranTypeDef,
+    sub_name: str,
+    unpack_sub: str,
+    leaves: list[LeafField],
+) -> list[str]:
+    """Emit a ``BIND(C)`` observer calling a driver flat unpacker (config/timer)."""
+    spec = DirectUnpackSpec(
+        "driver.f95", "module_c_api_driver", unpack_sub, (), sub_name
+    )
+    # Reuse the identical 0D signature with slug overridden.
+    lines = _emit_fortran_type_observer(tdef, spec, leaves)
+    return [line.replace(f"suews_obs_unpack_{sub_name}", sub_name) for line in lines]
+
+
+def _emit_driver_site_observer(
+    tdef: FortranTypeDef,
+    leaves: list[LeafField],
+) -> list[str]:
+    """Emit ``suews_obs_unpack_suews_site`` calling ``unpack_site_scalars`` + ``unpack_site_members``."""
+    sub_name = "suews_obs_unpack_suews_site"
+    lines: list[str] = [
+        f"   subroutine {sub_name}( &",
+        "      site_scalars_flat, site_scalars_len, site_flat, site_flat_len, &",
+        "      site_toc, site_toc_len, site_member_count, nlayer, ndepth, &",
+        "      out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, &",
+        f"      n_meta, cap, n_out, err) bind(C, name='{sub_name}')",
+        "      implicit none",
+        "      real(c_double), intent(in) :: site_scalars_flat(*)",
+        "      integer(c_int), value, intent(in) :: site_scalars_len",
+        "      real(c_double), intent(in) :: site_flat(*)",
+        "      integer(c_int), value, intent(in) :: site_flat_len",
+        "      integer(c_int), intent(in) :: site_toc(*)",
+        "      integer(c_int), value, intent(in) :: site_toc_len",
+        "      integer(c_int), value, intent(in) :: site_member_count",
+        "      integer(c_int), value, intent(in) :: nlayer",
+        "      integer(c_int), value, intent(in) :: ndepth",
+        "      integer(c_int), intent(out) :: out_fid(*)",
+        "      integer(c_int), intent(out) :: out_kind(*)",
+        "      integer(c_int), intent(out) :: out_i1(*)",
+        "      integer(c_int), intent(out) :: out_i2(*)",
+        "      real(c_double), intent(out) :: out_f64(*)",
+        "      integer(c_int64_t), intent(out) :: out_i64(*)",
+        "      integer(c_int), value, intent(in) :: n_meta",
+        "      integer(c_int), intent(out) :: out_meta(*)",
+        "      integer(c_int), value, intent(in) :: cap",
+        "      integer(c_int), intent(out) :: n_out",
+        "      integer(c_int), intent(out) :: err",
+        f"      type({tdef.name}) :: actual",
+        "      integer(c_int) :: pos",
+        "      integer(c_int) :: unpack_err",
+        "",
+        "      n_out = 0_c_int",
+        "      pos = 0_c_int",
+        "      unpack_err = SUEWS_CAPI_OK",
+        "      err = SUEWS_CAPI_OK",
+        f"      if (n_meta < {len(leaves)}_c_int) then",
+        "         err = SUEWS_CAPI_BAD_BUFFER",
+        "         return",
+        "      end if",
+        "      call unpack_site_scalars(site_scalars_flat, site_scalars_len, actual, unpack_err)",
+        "      if (unpack_err /= SUEWS_CAPI_OK) then",
+        "         err = unpack_err",
+        "         return",
+        "      end if",
+        "      call unpack_site_members( &",
+        "         actual, int(nlayer), int(ndepth), &",
+        "         site_flat, site_flat_len, site_toc, site_toc_len, site_member_count, unpack_err)",
+        "      if (unpack_err /= SUEWS_CAPI_OK) then",
+        "         err = unpack_err",
+        "         return",
+        "      end if",
+        "",
+    ]
+    lines.extend(_emit_leaf_observations(tdef, leaves))
+    lines.extend([
+        "",
+        "      n_out = pos",
+        f"   end subroutine {sub_name}",
+        "",
+    ])
+    return lines
+
+
+def _emit_driver_state_observer(
+    tdef: FortranTypeDef,
+    leaves: list[LeafField],
+) -> list[str]:
+    """Emit ``suews_obs_unpack_suews_state`` calling ``unpack_state_members``."""
+    sub_name = "suews_obs_unpack_suews_state"
+    lines: list[str] = [
+        f"   subroutine {sub_name}( &",
+        "      state_flat, state_flat_len, state_toc, state_toc_len, &",
+        "      state_member_count, nlayer, ndepth, &",
+        "      out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, &",
+        f"      n_meta, cap, n_out, err) bind(C, name='{sub_name}')",
+        "      implicit none",
+        "      real(c_double), intent(in) :: state_flat(*)",
+        "      integer(c_int), value, intent(in) :: state_flat_len",
+        "      integer(c_int), intent(in) :: state_toc(*)",
+        "      integer(c_int), value, intent(in) :: state_toc_len",
+        "      integer(c_int), value, intent(in) :: state_member_count",
+        "      integer(c_int), value, intent(in) :: nlayer",
+        "      integer(c_int), value, intent(in) :: ndepth",
+        "      integer(c_int), intent(out) :: out_fid(*)",
+        "      integer(c_int), intent(out) :: out_kind(*)",
+        "      integer(c_int), intent(out) :: out_i1(*)",
+        "      integer(c_int), intent(out) :: out_i2(*)",
+        "      real(c_double), intent(out) :: out_f64(*)",
+        "      integer(c_int64_t), intent(out) :: out_i64(*)",
+        "      integer(c_int), value, intent(in) :: n_meta",
+        "      integer(c_int), intent(out) :: out_meta(*)",
+        "      integer(c_int), value, intent(in) :: cap",
+        "      integer(c_int), intent(out) :: n_out",
+        "      integer(c_int), intent(out) :: err",
+        f"      type({tdef.name}) :: actual",
+        "      integer(c_int) :: pos",
+        "      integer(c_int) :: unpack_err",
+        "",
+        "      n_out = 0_c_int",
+        "      pos = 0_c_int",
+        "      unpack_err = SUEWS_CAPI_OK",
+        "      err = SUEWS_CAPI_OK",
+        f"      if (n_meta < {len(leaves)}_c_int) then",
+        "         err = SUEWS_CAPI_BAD_BUFFER",
+        "         return",
+        "      end if",
+        "      call unpack_state_members( &",
+        "         actual, int(nlayer), int(ndepth), &",
+        "         state_flat, state_flat_len, state_toc, state_toc_len, state_member_count, unpack_err)",
+        "      if (unpack_err /= SUEWS_CAPI_OK) then",
+        "         err = unpack_err",
+        "         return",
+        "      end if",
+        "",
+    ]
+    lines.extend(_emit_leaf_observations(tdef, leaves))
+    lines.extend([
+        "",
+        "      n_out = pos",
+        f"   end subroutine {sub_name}",
+        "",
+    ])
+    return lines
+
+
+def _emit_fortran_driver_observers(
+    types_by_lower: dict[str, FortranTypeDef],
+    leaves_by_type: dict[str, list[LeafField]],
+) -> list[str]:
+    """Emit the 4 live ``BIND(C)`` observers for driver aggregate unpackers."""
+    lines: list[str] = []
+    lines.extend(
+        _emit_driver_flat_observer(
+            types_by_lower["suews_config"],
+            "suews_obs_unpack_suews_config",
+            "unpack_config",
+            leaves_by_type["suews_config"],
+        )
+    )
+    lines.extend(
+        _emit_driver_flat_observer(
+            types_by_lower["suews_timer"],
+            "suews_obs_unpack_suews_timer",
+            "unpack_timer",
+            leaves_by_type["suews_timer"],
+        )
+    )
+    lines.extend(
+        _emit_driver_site_observer(
+            types_by_lower["suews_site"],
+            leaves_by_type["suews_site"],
+        )
+    )
+    lines.extend(
+        _emit_driver_state_observer(
+            types_by_lower["suews_state"],
+            leaves_by_type["suews_state"],
+        )
+    )
     return lines
 
 
@@ -2059,6 +2324,68 @@ def emit_rust_manifest(
             "        err: *mut i32,",
             "    );",
         ])
+    for drv_slug in ("suews_config", "suews_timer"):
+        lines.extend([
+            f"    pub fn suews_obs_unpack_{drv_slug}(",
+            "        flat: *const f64,",
+            "        n_flat: i32,",
+            "        out_fid: *mut i32,",
+            "        out_kind: *mut i32,",
+            "        out_i1: *mut i32,",
+            "        out_i2: *mut i32,",
+            "        out_f64: *mut f64,",
+            "        out_i64: *mut i64,",
+            "        out_meta: *mut i32,",
+            "        n_meta: i32,",
+            "        cap: i32,",
+            "        n_out: *mut i32,",
+            "        err: *mut i32,",
+            "    );",
+        ])
+    lines.extend([
+        "    pub fn suews_obs_unpack_suews_site(",
+        "        site_scalars_flat: *const f64,",
+        "        site_scalars_len: i32,",
+        "        site_flat: *const f64,",
+        "        site_flat_len: i32,",
+        "        site_toc: *const i32,",
+        "        site_toc_len: i32,",
+        "        site_member_count: i32,",
+        "        nlayer: i32,",
+        "        ndepth: i32,",
+        "        out_fid: *mut i32,",
+        "        out_kind: *mut i32,",
+        "        out_i1: *mut i32,",
+        "        out_i2: *mut i32,",
+        "        out_f64: *mut f64,",
+        "        out_i64: *mut i64,",
+        "        out_meta: *mut i32,",
+        "        n_meta: i32,",
+        "        cap: i32,",
+        "        n_out: *mut i32,",
+        "        err: *mut i32,",
+        "    );",
+        "    pub fn suews_obs_unpack_suews_state(",
+        "        state_flat: *const f64,",
+        "        state_flat_len: i32,",
+        "        state_toc: *const i32,",
+        "        state_toc_len: i32,",
+        "        state_member_count: i32,",
+        "        nlayer: i32,",
+        "        ndepth: i32,",
+        "        out_fid: *mut i32,",
+        "        out_kind: *mut i32,",
+        "        out_i1: *mut i32,",
+        "        out_i2: *mut i32,",
+        "        out_f64: *mut f64,",
+        "        out_i64: *mut i64,",
+        "        out_meta: *mut i32,",
+        "        n_meta: i32,",
+        "        cap: i32,",
+        "        n_out: *mut i32,",
+        "        err: *mut i32,",
+        "    );",
+    ])
 
     lines.extend(["}", "", "pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &["])
     for entry in sorted(manifest_entries, key=lambda item: item["name"].lower()):
@@ -2094,18 +2421,31 @@ def emit_rust_manifest(
         "logical": "ObsKind::Logical",
         "derived": "ObsKind::Derived",
     }
-    for key in sorted(DIRECT_UNPACK_SPECS):
-        spec = DIRECT_UNPACK_SPECS[key]
-        const_name = f"OBS_FIELDS_{spec.slug.upper()}"
-        leaves = leaves_by_type[key]
+    descriptor_tables = [
+        (f"OBS_FIELDS_{DIRECT_UNPACK_SPECS[k].slug.upper()}", leaves_by_type[k])
+        for k in sorted(DIRECT_UNPACK_SPECS)
+    ] + [
+        (f"OBS_FIELDS_{k.upper()}", leaves_by_type[k])
+        for k in sorted(DRIVER_PRIVATE_UNPACK_SPECS)
+    ]
+    for const_name, leaves in descriptor_tables:
         lines.append(f"pub const {const_name}: &[ObsFieldDescriptor] = &[")
         for leaf in leaves:
             bounds_rs = ", ".join(f"({b.lower}, {b.upper})" for b in leaf.bounds)
-            reason_rs = (
-                f"Some({_rs_str(leaf.unbridged_reason)})"
-                if leaf.unbridged_reason is not None
-                else "None"
-            )
+            if leaf.unbridged_reason is None:
+                reason_lines = ["        unbridged_reason: None,"]
+            else:
+                lit = _rs_str(leaf.unbridged_reason)
+                single = f"        unbridged_reason: Some({lit}),"
+                wrapped_inner = f"            {lit},"
+                if len(single) > 100 and len(wrapped_inner) <= 100:
+                    reason_lines = [
+                        "        unbridged_reason: Some(",
+                        wrapped_inner,
+                        "        ),",
+                    ]
+                else:
+                    reason_lines = [single]
             lines.extend([
                 "    ObsFieldDescriptor {",
                 f"        id: {leaf.field_id},",
@@ -2115,7 +2455,7 @@ def emit_rust_manifest(
                 f"        allocatable: {'true' if leaf.allocatable else 'false'},",
                 f"        fixed_bounds: &[{bounds_rs}],",
                 f"        bridged: {'true' if leaf.bridged else 'false'},",
-                f"        unbridged_reason: {reason_rs},",
+                *reason_lines,
                 "    },",
             ])
         lines.extend(["];", ""])
@@ -2195,7 +2535,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(
             f"[OK] C-API field observer artefacts are up to date "
-            f"({len(DIRECT_UNPACK_SPECS)} direct unpack observers, "
+            f"({len(DIRECT_UNPACK_SPECS)} direct + {len(DRIVER_PRIVATE_UNPACK_SPECS)} driver-aggregate live observers, "
             f"{len(DIRECT_UNPACK_SPECS) + len(NESTED_IN_PARENT_SPECS) + len(DRIVER_PRIVATE_UNPACK_SPECS) + len(NON_UNPACKED_SPECS)} "
             "manifest types covered)."
         )

@@ -1,37 +1,39 @@
 //! Generated typed Fortran C-API field-binding observer tests (gh#2096).
 //!
-//! For every directly unpacked Fortran C-API type (30 public `*_unpack`
-//! routines, which also exercise all 8 nested derived types live), each test:
+//! For every unpacked Fortran C-API type across all 49 `bridge-manifest.json`
+//! entries (30 direct `*_unpack` routines, all 8 nested derived types live
+//! inside their parents, and all 4 driver aggregate unpackers in `driver.f95`:
+//! `SUEWS_CONFIG`, `SUEWS_TIMER`, `SUEWS_SITE`, and `SUEWS_STATE`), each test:
 //!
 //! 1. Populates an exhaustive Rust bridge struct literal (no `..Default::default()`)
 //!    with globally distinct non-zero sentinels, explicit logical bit patterns,
 //!    and asymmetric array dimensions (`dim1 != dim2` where configurable or fixed).
-//! 2. Serialises the struct to its flat `f64` C-API buffer via `to_flat()`.
+//! 2. Serialises the struct through the real production Rust encoder (`to_flat()`
+//!    or `sim.rs::encode_site_scalars` / `encode_site_members` / `encode_state_members`).
 //! 3. Calls a test-only generated Fortran `BIND(C)` observer (`suews_obs_unpack_*`)
-//!    that invokes the REAL Fortran `*_unpack` routine into a fresh kernel
-//!    derived-type instance and reads back every named component directly via
-//!    typed Fortran helpers (never via `*_shadow` or `*_pack` roundtrips).
+//!    that invokes the REAL Fortran unpack routine into a fresh kernel derived-type
+//!    instance and reads back every named component directly via typed Fortran
+//!    helpers (never via `*_shadow` or `*_pack` roundtrips).
 //! 4. Asserts BOTH that every named Fortran component holds its exact expected
 //!    sentinel value(s) at the exact expected Fortran indices and bounds, AND
 //!    that every other component holds its own distinct sentinel (catching
-//!    swaps, drops, clobbers, and array-stride transposes).
+//!    swaps, drops, clobbers, TOC misrouting, and array-stride transposes).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use suews_bridge::{
+    encode_site_members_flat, encode_site_scalars_flat, encode_state_members_flat,
     error_entry_default_from_fortran, error_entry_schema_info, error_state_default_from_fortran,
     error_state_schema_info, output_block_schema_info, output_line_schema_info,
     suews_debug_default_from_fortran, suews_debug_schema_info, suews_forcing_schema_info,
-    suews_site_default_from_fortran, suews_site_from_values_payload, suews_site_schema_info,
-    suews_site_to_values_payload, suews_state_block_default_from_fortran,
-    suews_state_block_schema_info, suews_state_default_from_fortran,
-    suews_state_from_values_payload, suews_state_schema_info, suews_state_to_values_payload,
-    AnthroEmisPrm, AnthroEmisState, AnthroHeatPrm, AtmState, BioCo2Prm, BuildingArchetypePrm,
-    ConductancePrm, EhcPrm, FlagState, HeatState, HydroState, IrrigDaywater, IrrigationPrm, LaiPrm,
-    LcBldgPrm, LcBsoilPrm, LcDectrPrm, LcEvetrPrm, LcGrassPrm, LcPavedPrm, LcWaterPrm, LumpsPrm,
-    NhoodState, OhmCoefLc, OhmPrm, OhmState, OutputLine, PhenologyState, RoughnessState, SnowPrm,
-    SnowState, SoilPrm, SolarState, SpartacusLayerPrm, SpartacusPrm, StebbsPrm, StebbsState,
-    SuewsConfig, SuewsTimer, SurfStorePrm, WaterDistPrm, ANOHM_MAX_SAMPLES,
+    suews_site_schema_info, suews_state_block_default_from_fortran, suews_state_block_schema_info,
+    suews_state_schema_info, AnthroEmisPrm, AnthroEmisState, AnthroHeatPrm, AtmState, BioCo2Prm,
+    BuildingArchetypePrm, ConductancePrm, EhcPrm, ErrorState, FlagState, HeatState, HydroState,
+    IrrigDaywater, IrrigationPrm, LaiPrm, LcBldgPrm, LcBsoilPrm, LcDectrPrm, LcEvetrPrm,
+    LcGrassPrm, LcPavedPrm, LcWaterPrm, LumpsPrm, NhoodState, OhmCoefLc, OhmPrm, OhmState,
+    OutputLine, PhenologyState, RoughnessState, SiteScalars, SnowPrm, SnowState, SoilPrm,
+    SolarState, SpartacusLayerPrm, SpartacusPrm, StebbsPrm, StebbsState, SuewsConfig, SuewsSite,
+    SuewsState, SuewsTimer, SurfStorePrm, WaterDistPrm, ANOHM_MAX_SAMPLES,
     ANTHROEMIS_STATE_HDD_LEN, BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
     BUILDING_ARCHETYPE_PRM_PROFILE_STEPS, NSURF, PHENOLOGY_STATE_NVEGSURF,
     PHENOLOGY_STATE_STORE_DRAIN_ROWS, SNOW_STATE_REMOVAL_LEN, STEBBS_PRM_PROFILE_GROUPS,
@@ -53,7 +55,8 @@ use observer_manifest::{
     OBS_FIELDS_LUMPS_PRM, OBS_FIELDS_NHOOD_STATE, OBS_FIELDS_OHM_STATE, OBS_FIELDS_PHENOLOGY_STATE,
     OBS_FIELDS_ROUGHNESS_STATE, OBS_FIELDS_SNOW_PRM, OBS_FIELDS_SNOW_STATE, OBS_FIELDS_SOLAR_STATE,
     OBS_FIELDS_SPARTACUS_LAYER_PRM, OBS_FIELDS_SPARTACUS_PRM, OBS_FIELDS_STEBBS_PRM,
-    OBS_FIELDS_STEBBS_STATE, OBS_FIELDS_SURF_STORE_PRM,
+    OBS_FIELDS_STEBBS_STATE, OBS_FIELDS_SUEWS_CONFIG, OBS_FIELDS_SUEWS_SITE,
+    OBS_FIELDS_SUEWS_STATE, OBS_FIELDS_SUEWS_TIMER, OBS_FIELDS_SURF_STORE_PRM,
 };
 
 const OBS_CAPACITY: usize = 8192;
@@ -124,6 +127,14 @@ impl ExpectedBounds {
             lb2: 0,
             ub2: 0,
         }
+    }
+}
+
+fn join_path(prefix: &str, field: &str) -> String {
+    if prefix.is_empty() {
+        field.to_string()
+    } else {
+        format!("{prefix}%{field}")
     }
 }
 
@@ -233,6 +244,15 @@ impl ExpectedStruct {
         std::array::from_fn(|offset| {
             let val = self.next_real();
             self.record_real_elem(path, lb1 + offset as i32, 0, val);
+            val
+        })
+    }
+
+    fn int_arr_1d<const N: usize>(&mut self, path: &str, lb1: i32) -> [i32; N] {
+        self.record_bounds(path, ExpectedBounds::rank1(lb1, lb1 + N as i32 - 1));
+        std::array::from_fn(|offset| {
+            let val = self.next_int();
+            self.record_int_elem(path, lb1 + offset as i32, 0, i64::from(val));
             val
         })
     }
@@ -522,6 +542,77 @@ fn call_observer_2d(
     buf.into_observed(descriptors)
 }
 
+fn call_observer_site(
+    site_scalars_flat: &[f64],
+    site_flat: &[f64],
+    site_toc: &[i32],
+    member_count: usize,
+    nlayer: usize,
+    ndepth: usize,
+    descriptors: &[ObsFieldDescriptor],
+) -> ObservedOutput {
+    let mut buf = RawObserverBuffers::new(descriptors);
+    unsafe {
+        observer_manifest::suews_obs_unpack_suews_site(
+            site_scalars_flat.as_ptr(),
+            site_scalars_flat.len() as i32,
+            site_flat.as_ptr(),
+            site_flat.len() as i32,
+            site_toc.as_ptr(),
+            site_toc.len() as i32,
+            member_count as i32,
+            nlayer as i32,
+            ndepth as i32,
+            buf.fid.as_mut_ptr(),
+            buf.kind.as_mut_ptr(),
+            buf.i1.as_mut_ptr(),
+            buf.i2.as_mut_ptr(),
+            buf.f64s.as_mut_ptr(),
+            buf.i64s.as_mut_ptr(),
+            buf.meta.as_mut_ptr(),
+            buf.n_meta,
+            OBS_CAPACITY as i32,
+            &mut buf.n_out,
+            &mut buf.err,
+        );
+    }
+    buf.into_observed(descriptors)
+}
+
+fn call_observer_state(
+    state_flat: &[f64],
+    state_toc: &[i32],
+    member_count: usize,
+    nlayer: usize,
+    ndepth: usize,
+    descriptors: &[ObsFieldDescriptor],
+) -> ObservedOutput {
+    let mut buf = RawObserverBuffers::new(descriptors);
+    unsafe {
+        observer_manifest::suews_obs_unpack_suews_state(
+            state_flat.as_ptr(),
+            state_flat.len() as i32,
+            state_toc.as_ptr(),
+            state_toc.len() as i32,
+            member_count as i32,
+            nlayer as i32,
+            ndepth as i32,
+            buf.fid.as_mut_ptr(),
+            buf.kind.as_mut_ptr(),
+            buf.i1.as_mut_ptr(),
+            buf.i2.as_mut_ptr(),
+            buf.f64s.as_mut_ptr(),
+            buf.i64s.as_mut_ptr(),
+            buf.meta.as_mut_ptr(),
+            buf.n_meta,
+            OBS_CAPACITY as i32,
+            &mut buf.n_out,
+            &mut buf.err,
+        );
+    }
+    buf.into_observed(descriptors)
+}
+
 fn assert_observed_matches(
     type_name: &str,
     descriptors: &[ObsFieldDescriptor],
@@ -570,22 +661,38 @@ fn assert_observed_matches(
                 "{type_name}%{}: unbridged leaf missing documented reason",
                 desc.path
             );
-            if desc.allocatable {
+            if desc.allocatable || desc.kind == ObsKind::Derived {
                 if obs_meta.allocated {
                     diagnostics.push(format!(
-                        "{type_name}%{}: unbridged allocatable field was unexpectedly allocated (bounds {:?})",
+                        "{type_name}%{}: unbridged allocatable/derived field was unexpectedly allocated (bounds {:?})",
                         desc.path, obs_meta
                     ));
                 }
-            } else if let Some(&obs_val) = observed.values.get(&(desc.id, 0, 0)) {
-                checked_keys.insert((desc.id, 0, 0));
-                if let ExpectedVal::Real(bits) = obs_val {
-                    if let Some(src) = expected.real_origin.get(&bits) {
-                        diagnostics.push(format!(
-                            "{type_name}%{}: unbridged scalar was clobbered with sentinel from '{src}' ({})",
-                            desc.path,
-                            obs_val.describe()
-                        ));
+            } else {
+                for (&(fid, i1, i2), &obs_val) in &observed.values {
+                    if fid != desc.id {
+                        continue;
+                    }
+                    checked_keys.insert((fid, i1, i2));
+                    let elem_label = format_elem_key(desc.path, i1, i2);
+                    match obs_val {
+                        ExpectedVal::Real(bits) => {
+                            if let Some(src) = expected.real_origin.get(&bits) {
+                                diagnostics.push(format!(
+                                    "{type_name}%{elem_label}: unbridged leaf was clobbered with sentinel from '{src}' ({})",
+                                    obs_val.describe()
+                                ));
+                            }
+                        }
+                        ExpectedVal::Int(v) => {
+                            if let Some(src) = expected.int_origin.get(&v) {
+                                diagnostics.push(format!(
+                                    "{type_name}%{elem_label}: unbridged leaf was clobbered with sentinel from '{src}' ({})",
+                                    obs_val.describe()
+                                ));
+                            }
+                        }
+                        ExpectedVal::Logical(_) => {}
                     }
                 }
             }
@@ -689,11 +796,11 @@ fn assert_observed_matches(
 }
 
 // =============================================================================
-// Reusable builders for nested kernel derived types (all 8 NestedInParent types)
+// Reusable exhaustive builders (used by standalone AND SUEWS_SITE/STATE tests)
 // =============================================================================
 
 fn build_anthro_heat(exp: &mut ExpectedStruct, prefix: &str) -> AnthroHeatPrm {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     AnthroHeatPrm {
         qf0_beu_working: exp.real(&p("qf0_beu_working")),
         qf0_beu_holiday: exp.real(&p("qf0_beu_holiday")),
@@ -724,7 +831,7 @@ fn build_anthro_heat(exp: &mut ExpectedStruct, prefix: &str) -> AnthroHeatPrm {
 }
 
 fn build_irrig_daywater(exp: &mut ExpectedStruct, prefix: &str) -> IrrigDaywater {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     IrrigDaywater {
         monday_flag: exp.real(&p("monday_flag")),
         monday_percent: exp.real(&p("monday_percent")),
@@ -744,7 +851,7 @@ fn build_irrig_daywater(exp: &mut ExpectedStruct, prefix: &str) -> IrrigDaywater
 }
 
 fn build_ohm_coef_lc(exp: &mut ExpectedStruct, prefix: &str) -> OhmCoefLc {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     OhmCoefLc {
         summer_dry: exp.real(&p("summer_dry")),
         summer_wet: exp.real(&p("summer_wet")),
@@ -754,7 +861,7 @@ fn build_ohm_coef_lc(exp: &mut ExpectedStruct, prefix: &str) -> OhmCoefLc {
 }
 
 fn build_ohm_prm(exp: &mut ExpectedStruct, prefix: &str) -> OhmPrm {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     OhmPrm {
         chanohm: exp.real(&p("ch_anohm")),
         cpanohm: exp.real(&p("cp_anohm")),
@@ -762,15 +869,15 @@ fn build_ohm_prm(exp: &mut ExpectedStruct, prefix: &str) -> OhmPrm {
         ohm_threshold_summer_winter: exp.real(&p("ohm_threshsw")),
         ohm_threshold_wet_dry: exp.real(&p("ohm_threshwd")),
         ohm_coef_lc: [
-            build_ohm_coef_lc(exp, &format!("{prefix}%ohm_coef_lc(1)")),
-            build_ohm_coef_lc(exp, &format!("{prefix}%ohm_coef_lc(2)")),
-            build_ohm_coef_lc(exp, &format!("{prefix}%ohm_coef_lc(3)")),
+            build_ohm_coef_lc(exp, &p("ohm_coef_lc(1)")),
+            build_ohm_coef_lc(exp, &p("ohm_coef_lc(2)")),
+            build_ohm_coef_lc(exp, &p("ohm_coef_lc(3)")),
         ],
     }
 }
 
 fn build_soil_prm(exp: &mut ExpectedStruct, prefix: &str) -> SoilPrm {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     SoilPrm {
         soil_depth: exp.real(&p("soil_depth")),
         soil_store_capacity: exp.real(&p("soil_store_capacity")),
@@ -779,7 +886,7 @@ fn build_soil_prm(exp: &mut ExpectedStruct, prefix: &str) -> SoilPrm {
 }
 
 fn build_water_dist_prm(exp: &mut ExpectedStruct, prefix: &str) -> WaterDistPrm {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     WaterDistPrm {
         to_paved: exp.real(&p("to_paved")),
         to_bldg: exp.real(&p("to_bldg")),
@@ -793,7 +900,7 @@ fn build_water_dist_prm(exp: &mut ExpectedStruct, prefix: &str) -> WaterDistPrm 
 }
 
 fn build_bioco2_prm(exp: &mut ExpectedStruct, prefix: &str) -> BioCo2Prm {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     BioCo2Prm {
         beta_bio_co2: exp.real(&p("beta_bioco2")),
         beta_enh_bioco2: exp.real(&p("beta_enh_bioco2")),
@@ -807,7 +914,7 @@ fn build_bioco2_prm(exp: &mut ExpectedStruct, prefix: &str) -> BioCo2Prm {
 }
 
 fn build_lai_prm(exp: &mut ExpectedStruct, prefix: &str) -> LaiPrm {
-    let p = |f: &str| format!("{prefix}%{f}");
+    let p = |f: &str| join_path(prefix, f);
     LaiPrm {
         base_temperature: exp.real(&p("base_temperature")),
         gdd_full: exp.real(&p("gdd_full")),
@@ -820,34 +927,916 @@ fn build_lai_prm(exp: &mut ExpectedStruct, prefix: &str) -> LaiPrm {
     }
 }
 
+fn build_anthro_emis_prm(exp: &mut ExpectedStruct, prefix: &str) -> AnthroEmisPrm {
+    let p = |f: &str| join_path(prefix, f);
+    AnthroEmisPrm {
+        startdls: exp.int(&p("start_dls")),
+        enddls: exp.int(&p("end_dls")),
+        anthroheat: build_anthro_heat(exp, &p("anthro_heat")),
+        ef_umolco2perj: exp.real(&p("ef_umol_co2_per_j")),
+        enef_v_jkm: exp.real(&p("en_ef_v_jkm")),
+        frfossilfuel_heat: exp.real(&p("fr_fossil_fuel_heat")),
+        frfossilfuel_nonheat: exp.real(&p("fr_fossil_fuel_non_heat")),
+        fcef_v_kgkm: exp.real_arr_1d::<2>(&p("fc_ef_v_kgkm"), 1),
+        humactivity_24hr_working: exp.real_arr_1d::<24>(&p("hum_activity_24hr_working"), 0),
+        humactivity_24hr_holiday: exp.real_arr_1d::<24>(&p("hum_activity_24hr_holiday"), 0),
+        maxfcmetab: exp.real(&p("max_fc_metab")),
+        maxqfmetab: exp.real(&p("max_qf_metab")),
+        minfcmetab: exp.real(&p("min_fc_metab")),
+        minqfmetab: exp.real(&p("min_qf_metab")),
+        trafficrate_working: exp.real(&p("traffic_rate_working")),
+        trafficrate_holiday: exp.real(&p("traffic_rate_holiday")),
+        trafficunits: exp.real(&p("traffic_units")),
+        traffprof_24hr_working: exp.real_arr_1d::<24>(&p("traff_prof_24hr_working"), 0),
+        traffprof_24hr_holiday: exp.real_arr_1d::<24>(&p("traff_prof_24hr_holiday"), 0),
+    }
+}
+
+fn build_anthroemis_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    iter_safe: bool,
+) -> AnthroEmisState {
+    let p = |f: &str| join_path(prefix, f);
+    AnthroEmisState {
+        hdd_id: exp.real_arr_1d::<ANTHROEMIS_STATE_HDD_LEN>(&p("HDD_id"), 1),
+        fc: exp.real(&p("Fc")),
+        fc_anthro: exp.real(&p("Fc_anthro")),
+        fc_biogen: exp.real(&p("Fc_biogen")),
+        fc_build: exp.real(&p("Fc_build")),
+        fc_metab: exp.real(&p("Fc_metab")),
+        fc_photo: exp.real(&p("Fc_photo")),
+        fc_point: exp.real(&p("Fc_point")),
+        fc_respi: exp.real(&p("Fc_respi")),
+        fc_traff: exp.real(&p("Fc_traff")),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_atm_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> AtmState {
+    let p = |f: &str| join_path(prefix, f);
+    AtmState {
+        fcld: exp.real(&p("f_cloud")),
+        avcp: exp.real(&p("av_cp")),
+        dens_dry: exp.real(&p("dens_dry")),
+        avdens: exp.real(&p("av_density")),
+        dq: exp.real(&p("dq")),
+        ea_hpa: exp.real(&p("Ea_hPa")),
+        es_hpa: exp.real(&p("Es_hPa")),
+        lv_j_kg: exp.real(&p("lv_J_kg")),
+        lvs_j_kg: exp.real(&p("lv_s_j_kg")),
+        tlv: exp.real(&p("tlv")),
+        psyc_hpa: exp.real(&p("psyc_hPa")),
+        psycice_hpa: exp.real(&p("psyc_ice_h_pa")),
+        s_pa: exp.real(&p("s_Pa")),
+        s_hpa: exp.real(&p("s_hpa")),
+        sice_hpa: exp.real(&p("s_ice_hpa")),
+        vpd_hpa: exp.real(&p("vpd_hPa")),
+        vpd_pa: exp.real(&p("vpd_pa")),
+        u10_ms: exp.real(&p("U10_ms")),
+        u_hbh: exp.real(&p("U_hbh")),
+        t2_c: exp.real(&p("T2_C")),
+        t_half_bldg_c: exp.real(&p("T_half_bldg_C")),
+        q2_gkg: exp.real(&p("q2_gkg")),
+        rh2: exp.real(&p("RH2")),
+        l_mod: exp.real(&p("L_mod")),
+        zl: exp.real(&p("z_l")),
+        ra_h: exp.real(&p("RA_h")),
+        rs: exp.real(&p("RS")),
+        ustar: exp.real(&p("u_star")),
+        tstar: exp.real(&p("t_star")),
+        rb: exp.real(&p("RB")),
+        tair_av: exp.real(&p("Tair_av")),
+        rss_surf: exp.real_arr_1d::<NSURF>(&p("rss_surf"), 1),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_building_archetype_prm(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    iter_safe: bool,
+) -> BuildingArchetypePrm {
+    let p = |f: &str| join_path(prefix, f);
+    BuildingArchetypePrm {
+        buildingcount: exp.real(&p("building_count")),
+        occupants: exp.real(&p("occupants_state")),
+        hhs0: exp.real(&p("hhs0")),
+        age_0_4: exp.real(&p("age_0_4")),
+        age_5_11: exp.real(&p("age_5_11")),
+        age_12_18: exp.real(&p("age_12_18")),
+        age_19_64: exp.real(&p("age_19_64")),
+        age_65plus: exp.real(&p("age_65plus")),
+        stebbs_height: exp.real(&p("stebbs_Height")),
+        footprintarea: exp.real(&p("footprint_area")),
+        wallexternalarea: exp.real(&p("wall_external_area")),
+        ratiointernalvolume: exp.real(&p("internal_volume_ratio")),
+        internalmassarea: exp.real(&p("internal_mass_area")),
+        wwr: exp.real(&p("WWR")),
+        wallthickness: exp.real(&p("wall_thickness")),
+        walleffectiveconductivity: exp.real(&p("wall_effective_conductivity")),
+        walldensity: exp.real(&p("wall_density")),
+        wallcp: exp.real(&p("wall_specific_heat_capacity")),
+        wallextthickness: exp.real(&p("wall_external_thickness")),
+        wallexteffectiveconductivity: exp.real(&p("wall_external_effective_conductivity")),
+        wallextdensity: exp.real(&p("wall_external_density")),
+        wallextcp: exp.real(&p("wall_external_specific_heat_capacity")),
+        walloutercapfrac: exp.real(&p("wall_outer_heat_capacity_fraction")),
+        wallexternalemissivity: exp.real(&p("wall_external_emissivity")),
+        wallinternalemissivity: exp.real(&p("wall_internal_emissivity")),
+        walltransmissivity: exp.real(&p("wall_transmissivity")),
+        wallabsorbtivity: exp.real(&p("wall_absorptivity")),
+        wallreflectivity: exp.real(&p("wall_reflectivity")),
+        roofthickness: exp.real(&p("roof_thickness")),
+        roofeffectiveconductivity: exp.real(&p("roof_effective_conductivity")),
+        roofdensity: exp.real(&p("roof_density")),
+        roofcp: exp.real(&p("roof_specific_heat_capacity")),
+        roofextthickness: exp.real(&p("roof_external_thickness")),
+        roofexteffectiveconductivity: exp.real(&p("roof_external_effective_conductivity")),
+        roofextdensity: exp.real(&p("roof_external_density")),
+        roofextcp: exp.real(&p("roof_external_specific_heat_capacity")),
+        roofoutercapfrac: exp.real(&p("roof_outer_heat_capacity_fraction")),
+        roofexternalemissivity: exp.real(&p("roof_external_emissivity")),
+        roofinternalemissivity: exp.real(&p("roof_internal_emissivity")),
+        rooftransmissivity: exp.real(&p("roof_transmissivity")),
+        roofabsorbtivity: exp.real(&p("roof_absorptivity")),
+        roofreflectivity: exp.real(&p("roof_reflectivity")),
+        floorthickness: exp.real(&p("ground_floor_thickness")),
+        groundflooreffectiveconductivity: exp.real(&p("ground_floor_effective_conductivity")),
+        groundfloordensity: exp.real(&p("ground_floor_density")),
+        groundfloorcp: exp.real(&p("ground_floor_specific_heat_capacity")),
+        windowthickness: exp.real(&p("window_thickness")),
+        windoweffectiveconductivity: exp.real(&p("window_effective_conductivity")),
+        windowdensity: exp.real(&p("window_density")),
+        windowcp: exp.real(&p("window_specific_heat_capacity")),
+        windowexternalemissivity: exp.real(&p("window_external_emissivity")),
+        windowinternalemissivity: exp.real(&p("window_internal_emissivity")),
+        windowtransmissivity: exp.real(&p("window_transmissivity")),
+        windowabsorbtivity: exp.real(&p("window_absorptivity")),
+        windowreflectivity: exp.real(&p("window_reflectivity")),
+        internalmassdensity: exp.real(&p("internal_mass_density")),
+        internalmasscp: exp.real(&p("internal_mass_specific_heat_capacity")),
+        internalmassemissivity: exp.real(&p("internal_mass_emissivity")),
+        maxheatingpower: exp.real(&p("max_heating_power")),
+        watertankwatervolume: exp.real(&p("hot_water_tank_volume")),
+        maximumhotwaterheatingpower: exp.real(&p("maximum_hot_water_heating_power")),
+        heatingsetpointtemperature: exp.real(&p("heating_setpoint_temperature")),
+        coolingsetpointtemperature: exp.real(&p("cooling_setpoint_temperature")),
+        heatingsetpointtemperatureprofile: exp.real_arr_2d_col_major::<
+            BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
+            BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
+        >(&p("heating_setpoint_temperature_profile"), 0, 1),
+        coolingsetpointtemperatureprofile: exp.real_arr_2d_col_major::<
+            BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
+            BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
+        >(&p("cooling_setpoint_temperature_profile"), 0, 1),
+        metabolismprofile: exp.real_arr_2d_col_major::<
+            BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
+            BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
+        >(&p("metabolism_profile"), 0, 1),
+        applianceprofile: exp.real_arr_2d_col_major::<
+            BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
+            BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
+        >(&p("appliance_profile"), 0, 1),
+        lightingpowerdensity: exp.real(&p("lighting_power_density")),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_conductance_prm(exp: &mut ExpectedStruct, prefix: &str) -> ConductancePrm {
+    let p = |f: &str| join_path(prefix, f);
+    ConductancePrm {
+        g_max: exp.real(&p("g_max")),
+        g_k: exp.real(&p("g_k")),
+        g_q_base: exp.real(&p("g_q_base")),
+        g_q_shape: exp.real(&p("g_q_shape")),
+        g_t: exp.real(&p("g_t")),
+        g_sm: exp.real(&p("g_sm")),
+        kmax: exp.real(&p("k_max")),
+        gs_model: exp.int(&p("gs_model")),
+        s1: exp.real(&p("s1")),
+        s2: exp.real(&p("s2")),
+        th: exp.real(&p("TH")),
+        tl: exp.real(&p("TL")),
+    }
+}
+
+fn build_ehc_prm(exp: &mut ExpectedStruct, prefix: &str, nlayer: usize, ndepth: usize) -> EhcPrm {
+    let p = |f: &str| join_path(prefix, f);
+    EhcPrm {
+        nlayer,
+        ndepth,
+        soil_storecap_roof: exp.real_vec_1d(&p("soil_store_capacity_roof"), nlayer),
+        soil_storecap_wall: exp.real_vec_1d(&p("soil_store_capacity_wall"), nlayer),
+        state_limit_roof: exp.real_vec_1d(&p("state_limit_roof"), nlayer),
+        state_limit_wall: exp.real_vec_1d(&p("state_limit_wall"), nlayer),
+        wet_thresh_roof: exp.real_vec_1d(&p("wet_thresh_roof"), nlayer),
+        wet_thresh_wall: exp.real_vec_1d(&p("wet_thresh_wall"), nlayer),
+        tin_roof: exp.real_vec_1d(&p("tin_roof"), nlayer),
+        tin_wall: exp.real_vec_1d(&p("tin_wall"), nlayer),
+        tin_surf: exp.real_vec_1d(&p("tin_surf"), NSURF),
+        k_roof: exp.real_vec_2d_row_major(&p("k_roof"), nlayer, ndepth),
+        k_wall: exp.real_vec_2d_row_major(&p("k_wall"), nlayer, ndepth),
+        k_surf: exp.real_vec_2d_row_major(&p("k_surf"), NSURF, ndepth),
+        cp_roof: exp.real_vec_2d_row_major(&p("cp_roof"), nlayer, ndepth),
+        cp_wall: exp.real_vec_2d_row_major(&p("cp_wall"), nlayer, ndepth),
+        cp_surf: exp.real_vec_2d_row_major(&p("cp_surf"), NSURF, ndepth),
+        dz_roof: exp.real_vec_2d_row_major(&p("dz_roof"), nlayer, ndepth),
+        dz_wall: exp.real_vec_2d_row_major(&p("dz_wall"), nlayer, ndepth),
+        dz_surf: exp.real_vec_2d_row_major(&p("dz_surf"), NSURF, ndepth),
+    }
+}
+
+fn build_flag_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    flag_converge: bool,
+    snow_warning_shown: bool,
+    iter_safe: bool,
+) -> FlagState {
+    let p = |f: &str| join_path(prefix, f);
+    FlagState {
+        flag_converge: exp.logical(&p("flag_converge"), flag_converge),
+        i_iter: exp.int(&p("i_iter")),
+        stebbs_bldg_init: exp.int(&p("stebbs_bldg_init")),
+        snow_warning_shown: exp.logical(&p("snow_warning_shown"), snow_warning_shown),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_heat_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    nlayer: usize,
+    ndepth: usize,
+    iter_safe: bool,
+) -> HeatState {
+    let p = |f: &str| join_path(prefix, f);
+    HeatState {
+        nlayer,
+        ndepth,
+        temp_roof: exp.real_vec_2d_row_major(&p("temp_roof"), nlayer, ndepth),
+        temp_wall: exp.real_vec_2d_row_major(&p("temp_wall"), nlayer, ndepth),
+        temp_surf: exp.real_vec_2d_row_major(&p("temp_surf"), NSURF, ndepth),
+        temp_surf_dyohm: exp.real_vec_2d_row_major(&p("temp_surf_dyohm"), NSURF, ndepth),
+        tsfc_roof: exp.real_vec_1d(&p("tsfc_roof"), nlayer),
+        tsfc_wall: exp.real_vec_1d(&p("tsfc_wall"), nlayer),
+        tsfc_surf: exp.real_vec_1d(&p("tsfc_surf"), NSURF),
+        tsfc_surf_dyohm: exp.real_vec_1d(&p("tsfc_surf_dyohm"), NSURF),
+        tsfc_roof_stepstart: exp.real_vec_1d(&p("tsfc_roof_stepstart"), nlayer),
+        tsfc_wall_stepstart: exp.real_vec_1d(&p("tsfc_wall_stepstart"), nlayer),
+        tsfc_surf_stepstart: exp.real_vec_1d(&p("tsfc_surf_stepstart"), NSURF),
+        qs_roof: exp.real_vec_1d(&p("QS_roof"), nlayer),
+        qn_roof: exp.real_vec_1d(&p("QN_roof"), nlayer),
+        qe_roof: exp.real_vec_1d(&p("qe_roof"), nlayer),
+        qh_roof: exp.real_vec_1d(&p("qh_roof"), nlayer),
+        qh_resist_roof: exp.real_vec_1d(&p("qh_resist_roof"), nlayer),
+        qs_wall: exp.real_vec_1d(&p("QS_wall"), nlayer),
+        qn_wall: exp.real_vec_1d(&p("QN_wall"), nlayer),
+        qe_wall: exp.real_vec_1d(&p("qe_wall"), nlayer),
+        qh_wall: exp.real_vec_1d(&p("qh_wall"), nlayer),
+        qh_resist_wall: exp.real_vec_1d(&p("qh_resist_wall"), nlayer),
+        qs_surf: exp.real_arr_1d::<NSURF>(&p("qs_surf"), 1),
+        qn_surf: exp.real_arr_1d::<NSURF>(&p("QN_surf"), 1),
+        qe0_surf: exp.real_arr_1d::<NSURF>(&p("qe0_surf"), 1),
+        qe_surf: exp.real_arr_1d::<NSURF>(&p("qe_surf"), 1),
+        qh_surf: exp.real_arr_1d::<NSURF>(&p("qh_surf"), 1),
+        qh_resist_surf: exp.real_arr_1d::<NSURF>(&p("qh_resist_surf"), 1),
+        tsurf_ind: exp.real_arr_1d::<NSURF>(&p("tsurf_ind"), 1),
+        qh_lumps: exp.real(&p("QH_LUMPS")),
+        qe_lumps: exp.real(&p("QE_LUMPS")),
+        kclear: exp.real(&p("k_clear")),
+        kup: exp.real(&p("k_up")),
+        ldown: exp.real(&p("l_down")),
+        lup: exp.real(&p("l_up")),
+        qe: exp.real(&p("qe")),
+        qf: exp.real(&p("qf")),
+        qf_sahp: exp.real(&p("QF_SAHP")),
+        qh: exp.real(&p("qh")),
+        qh_residual: exp.real(&p("qh_residual")),
+        qh_resist: exp.real(&p("qh_resist")),
+        qn: exp.real(&p("qn")),
+        qn_snowfree: exp.real(&p("qn_snowfree")),
+        qs: exp.real(&p("qs")),
+        tsfc_c: exp.real(&p("TSfc_C")),
+        tsurf: exp.real(&p("tsurf")),
+        qh_init: exp.real(&p("QH_Init")),
+        roof_in_sw_spc: exp.real_arr_1d::<15>(&p("roof_in_sw_spc"), 1),
+        roof_in_lw_spc: exp.real_arr_1d::<15>(&p("roof_in_lw_spc"), 1),
+        wall_in_sw_spc: exp.real_arr_1d::<15>(&p("wall_in_sw_spc"), 1),
+        wall_in_lw_spc: exp.real_arr_1d::<15>(&p("wall_in_lw_spc"), 1),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_hydro_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    nlayer: usize,
+    iter_safe: bool,
+) -> HydroState {
+    let p = |f: &str| join_path(prefix, f);
+    HydroState {
+        soilstore_surf: exp.real_arr_1d::<NSURF>(&p("soil_store_surf"), 1),
+        state_surf: exp.real_arr_1d::<NSURF>(&p("state_surf"), 1),
+        wuday_id: exp.real_arr_1d::<9>(&p("WUDay_id"), 1),
+        soilstore_roof: exp.real_vec_1d(&p("soil_store_roof"), nlayer),
+        state_roof: exp.real_vec_1d(&p("state_roof"), nlayer),
+        soilstore_wall: exp.real_vec_1d(&p("soil_store_wall"), nlayer),
+        state_wall: exp.real_vec_1d(&p("state_wall"), nlayer),
+        ev_roof: exp.real_vec_1d(&p("ev_roof"), nlayer),
+        ev_wall: exp.real_vec_1d(&p("ev_wall"), nlayer),
+        ev0_surf: exp.real_arr_1d::<NSURF>(&p("ev0_surf"), 1),
+        ev_surf: exp.real_arr_1d::<NSURF>(&p("ev_surf"), 1),
+        wu_surf: exp.real_arr_1d::<NSURF>(&p("wu_surf"), 1),
+        runoff_soil: exp.real_arr_1d::<NSURF>(&p("runoff_soil"), 1),
+        smd_surf: exp.real_arr_1d::<NSURF>(&p("smd_surf"), 1),
+        drain_surf: exp.real_arr_1d::<NSURF>(&p("drain_surf"), 1),
+        drain_per_tstep: exp.real(&p("drain_per_tstep")),
+        ev_per_tstep: exp.real(&p("ev_per_tstep")),
+        wu_ext: exp.real(&p("wu_ext")),
+        wu_int: exp.real(&p("wu_int")),
+        runoff_agveg: exp.real(&p("runoff_ag_veg")),
+        runoff_agimpervious: exp.real(&p("runoff_ag_impervious")),
+        runoff_per_tstep: exp.real(&p("runoff_per_tstep")),
+        runoff_pipes: exp.real(&p("runoff_pipes")),
+        runoff_soil_per_tstep: exp.real(&p("runoff_soil_per_tstep")),
+        runoff_waterbody: exp.real(&p("runoff_waterbody")),
+        smd: exp.real(&p("smd")),
+        soil_state: exp.real(&p("soil_state")),
+        state_per_tstep: exp.real(&p("state_per_tstep")),
+        surf_chang_per_tstep: exp.real(&p("surf_chang_per_tstep")),
+        tot_chang_per_tstep: exp.real(&p("tot_chang_per_tstep")),
+        runoff_per_interval: exp.real(&p("runoff_per_interval")),
+        nwstate_per_tstep: exp.real(&p("nw_state_per_tstep")),
+        soil_moist_cap: exp.real(&p("soil_moist_cap")),
+        vsmd: exp.real(&p("vsmd")),
+        additional_water: exp.real(&p("additional_water")),
+        add_impervious: exp.real(&p("add_impervious")),
+        add_pipes: exp.real(&p("add_pipes")),
+        add_veg: exp.real(&p("add_veg")),
+        add_waterbody: exp.real(&p("add_water_body")),
+        add_water: exp.real_arr_1d::<NSURF>(&p("add_water"), 1),
+        frac_water2runoff: exp.real_arr_1d::<NSURF>(&p("frac_water2runoff"), 1),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_irrigation_prm(exp: &mut ExpectedStruct, prefix: &str) -> IrrigationPrm {
+    let p = |f: &str| join_path(prefix, f);
+    IrrigationPrm {
+        h_maintain: exp.real(&p("h_maintain")),
+        faut: exp.real(&p("f_aut")),
+        ie_a: exp.real_arr_1d::<3>(&p("ie_a"), 1),
+        ie_m: exp.real_arr_1d::<3>(&p("ie_m"), 1),
+        ie_start: exp.int(&p("ie_start")),
+        ie_end: exp.int(&p("ie_end")),
+        internalwateruse_h: exp.real(&p("internalwateruse_h")),
+        irr_daywater: build_irrig_daywater(exp, &p("irr_daywater")),
+        wuprofa_24hr_working: exp.real_arr_1d::<24>(&p("wuprofa_24hr_working"), 0),
+        wuprofa_24hr_holiday: exp.real_arr_1d::<24>(&p("wuprofa_24hr_holiday"), 0),
+        wuprofm_24hr_working: exp.real_arr_1d::<24>(&p("wuprofm_24hr_working"), 0),
+        wuprofm_24hr_holiday: exp.real_arr_1d::<24>(&p("wuprofm_24hr_holiday"), 0),
+    }
+}
+
+fn build_lc_bldg_prm(exp: &mut ExpectedStruct, prefix: &str) -> LcBldgPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LcBldgPrm {
+        sfr: exp.real(&p("sfr")),
+        faibldg: exp.real(&p("fai_building")),
+        bldgh: exp.real(&p("height_building")),
+        emis: exp.real(&p("emis")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
+        soil: build_soil_prm(exp, &p("soil")),
+        state: exp.real(&p("state")),
+        state_limit: exp.real(&p("state_limit")),
+        irrfracbldgs: exp.real(&p("irrigation_fraction_bldgs")),
+        wet_threshold: exp.real(&p("wet_threshold")),
+        waterdist: build_water_dist_prm(exp, &p("waterdist")),
+    }
+}
+
+fn build_lc_bsoil_prm(exp: &mut ExpectedStruct, prefix: &str) -> LcBsoilPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LcBsoilPrm {
+        sfr: exp.real(&p("sfr")),
+        emis: exp.real(&p("emis")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
+        soil: build_soil_prm(exp, &p("soil")),
+        state_limit: exp.real(&p("state_limit")),
+        irrfracbsoil: exp.real(&p("irrigation_fraction_bsoil")),
+        wet_threshold: exp.real(&p("wet_threshold")),
+        waterdist: build_water_dist_prm(exp, &p("waterdist")),
+    }
+}
+
+fn build_lc_dectr_prm(exp: &mut ExpectedStruct, prefix: &str) -> LcDectrPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LcDectrPrm {
+        sfr: exp.real(&p("sfr")),
+        emis: exp.real(&p("emis")),
+        fai_deciduous_tree: exp.real(&p("fai_deciduous_tree")),
+        height_deciduous_tree: exp.real(&p("height_deciduous_tree")),
+        porosity_min_deciduous: exp.real(&p("porosity_min_deciduous")),
+        porosity_max_deciduous: exp.real(&p("porosity_max_deciduous")),
+        alb_min: exp.real(&p("alb_min")),
+        alb_max: exp.real(&p("alb_max")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
+        soil: build_soil_prm(exp, &p("soil")),
+        state_limit: exp.real(&p("state_limit")),
+        capacity_max_deciduous: exp.real(&p("capacity_max_deciduous")),
+        capacity_min_deciduous: exp.real(&p("capacity_min_deciduous")),
+        irrfracdectr: exp.real(&p("irrigation_fraction_dectr")),
+        wet_threshold: exp.real(&p("wet_threshold")),
+        bioco2: build_bioco2_prm(exp, &p("bioco2")),
+        max_conductance: exp.real(&p("max_conductance")),
+        lai: build_lai_prm(exp, &p("lai")),
+        waterdist: build_water_dist_prm(exp, &p("waterdist")),
+    }
+}
+
+fn build_lc_evetr_prm(exp: &mut ExpectedStruct, prefix: &str) -> LcEvetrPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LcEvetrPrm {
+        sfr: exp.real(&p("sfr")),
+        emis: exp.real(&p("emis")),
+        fai_evergreen_tree: exp.real(&p("fai_evergreen_tree")),
+        height_evergreen_tree: exp.real(&p("height_evergreen_tree")),
+        alb_min: exp.real(&p("alb_min")),
+        alb_max: exp.real(&p("alb_max")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
+        soil: build_soil_prm(exp, &p("soil")),
+        state_limit: exp.real(&p("state_limit")),
+        irrfracevetr: exp.real(&p("irrigation_fraction_evetr")),
+        wet_threshold: exp.real(&p("wet_threshold")),
+        bioco2: build_bioco2_prm(exp, &p("bioco2")),
+        max_conductance: exp.real(&p("max_conductance")),
+        lai: build_lai_prm(exp, &p("lai")),
+        waterdist: build_water_dist_prm(exp, &p("waterdist")),
+    }
+}
+
+fn build_lc_grass_prm(exp: &mut ExpectedStruct, prefix: &str) -> LcGrassPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LcGrassPrm {
+        sfr: exp.real(&p("sfr")),
+        emis: exp.real(&p("emis")),
+        alb_min: exp.real(&p("alb_min")),
+        alb_max: exp.real(&p("alb_max")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
+        soil: build_soil_prm(exp, &p("soil")),
+        state_limit: exp.real(&p("state_limit")),
+        irrfracgrass: exp.real(&p("irrigation_fraction_grass")),
+        wet_threshold: exp.real(&p("wet_threshold")),
+        bioco2: build_bioco2_prm(exp, &p("bioco2")),
+        max_conductance: exp.real(&p("max_conductance")),
+        lai: build_lai_prm(exp, &p("lai")),
+        waterdist: build_water_dist_prm(exp, &p("waterdist")),
+    }
+}
+
+fn build_lc_paved_prm(exp: &mut ExpectedStruct, prefix: &str) -> LcPavedPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LcPavedPrm {
+        sfr: exp.real(&p("sfr")),
+        emis: exp.real(&p("emis")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
+        soil: build_soil_prm(exp, &p("soil")),
+        state: exp.real(&p("state")),
+        state_limit: exp.real(&p("state_limit")),
+        irrfracpaved: exp.real(&p("irrigation_fraction_paved")),
+        wet_threshold: exp.real(&p("wet_threshold")),
+        waterdist: build_water_dist_prm(exp, &p("waterdist")),
+    }
+}
+
+fn build_lc_water_prm(exp: &mut ExpectedStruct, prefix: &str) -> LcWaterPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LcWaterPrm {
+        sfr: exp.real(&p("sfr")),
+        emis: exp.real(&p("emis")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
+        soil: build_soil_prm(exp, &p("soil")),
+        state_limit: exp.real(&p("state_limit")),
+        irrfracwater: exp.real(&p("irrigation_fraction_water")),
+        wet_threshold: exp.real(&p("wet_threshold")),
+        flowchange: exp.real(&p("flow_change")),
+    }
+}
+
+fn build_lumps_prm(exp: &mut ExpectedStruct, prefix: &str) -> LumpsPrm {
+    let p = |f: &str| join_path(prefix, f);
+    LumpsPrm {
+        raincover: exp.real(&p("rain_cover")),
+        rainmaxres: exp.real(&p("rain_max_res")),
+        drainrt: exp.real(&p("drain_rate")),
+        veg_type: exp.int(&p("veg_type")),
+    }
+}
+
+fn build_nhood_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> NhoodState {
+    let p = |f: &str| join_path(prefix, f);
+    NhoodState {
+        u_hbh_1dravg: exp.real(&p("U_hbh_1dravg")),
+        qn_1dravg: exp.real(&p("QN_1dravg")),
+        tair_mn_prev: exp.real(&p("Tair_mn_prev")),
+        iter_count: exp.real(&p("iter_count")),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_ohm_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    iter_safe: bool,
+    anohm_coeff_ready: bool,
+) -> OhmState {
+    let p = |f: &str| join_path(prefix, f);
+    let dyn_a1 = [
+        exp.real(&p("a1_paved")),
+        exp.real(&p("a1_bldg")),
+        exp.real(&p("a1_evetr")),
+        exp.real(&p("a1_dectr")),
+        exp.real(&p("a1_grass")),
+        exp.real(&p("a1_bsoil")),
+        exp.real(&p("a1_water")),
+    ];
+    let dyn_a2 = [
+        exp.real(&p("a2_paved")),
+        exp.real(&p("a2_bldg")),
+        exp.real(&p("a2_evetr")),
+        exp.real(&p("a2_dectr")),
+        exp.real(&p("a2_grass")),
+        exp.real(&p("a2_bsoil")),
+        exp.real(&p("a2_water")),
+    ];
+    let dyn_a3 = [
+        exp.real(&p("a3_paved")),
+        exp.real(&p("a3_bldg")),
+        exp.real(&p("a3_evetr")),
+        exp.real(&p("a3_dectr")),
+        exp.real(&p("a3_grass")),
+        exp.real(&p("a3_bsoil")),
+        exp.real(&p("a3_water")),
+    ];
+    OhmState {
+        qn_av: exp.real(&p("qn_av")),
+        dqndt: exp.real(&p("dqndt")),
+        qn_surfs: exp.real_arr_1d::<NSURF>(&p("qn_surfs"), 1),
+        dqndt_surf: exp.real_arr_1d::<NSURF>(&p("dqndt_surf"), 1),
+        qn_s_av: exp.real(&p("qn_s_av")),
+        dqnsdt: exp.real(&p("dqnsdt")),
+        a1: exp.real(&p("a1")),
+        a2: exp.real(&p("a2")),
+        a3: exp.real(&p("a3")),
+        t2_prev: exp.real(&p("t2_prev")),
+        ws_rav: exp.real(&p("ws_rav")),
+        tair_prev: exp.real(&p("tair_prev")),
+        qn_rav: exp.real_arr_1d::<NSURF>(&p("qn_rav"), 1),
+        dyn_a1,
+        dyn_a2,
+        dyn_a3,
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+        anohm_working_day: exp.int(&p("anohm_working_day")),
+        anohm_working_count: exp.int(&p("anohm_working_count")),
+        anohm_working_t_hr: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_tHr"), 1),
+        anohm_working_sd: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_sd"), 1),
+        anohm_working_ta: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_ta"), 1),
+        anohm_working_rh: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_rh"), 1),
+        anohm_working_pres: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_pres"), 1),
+        anohm_working_ws: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_ws"), 1),
+        anohm_working_ah: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_ah"), 1),
+        anohm_coeff_day: exp.int(&p("anohm_coeff_day")),
+        anohm_coeff_count: exp.int(&p("anohm_coeff_count")),
+        anohm_coeff_ready: exp.logical(&p("anohm_coeff_ready"), anohm_coeff_ready),
+        anohm_coeff_t_hr: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_tHr"), 1),
+        anohm_coeff_sd: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_sd"), 1),
+        anohm_coeff_ta: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_ta"), 1),
+        anohm_coeff_rh: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_rh"), 1),
+        anohm_coeff_pres: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_pres"), 1),
+        anohm_coeff_ws: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_ws"), 1),
+        anohm_coeff_ah: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_ah"), 1),
+        anohm_a1_surf: exp.real_arr_1d::<NSURF>(&p("anohm_a1_surf"), 1),
+        anohm_a2_surf: exp.real_arr_1d::<NSURF>(&p("anohm_a2_surf"), 1),
+        anohm_a3_surf: exp.real_arr_1d::<NSURF>(&p("anohm_a3_surf"), 1),
+    }
+}
+
+fn build_phenology_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    iter_safe: bool,
+) -> PhenologyState {
+    let p = |f: &str| join_path(prefix, f);
+    PhenologyState {
+        alb: exp.real_arr_1d::<NSURF>(&p("alb"), 1),
+        lai_id: exp.real_arr_1d::<PHENOLOGY_STATE_NVEGSURF>(&p("lai_id"), 1),
+        gdd_id: exp.real_arr_1d::<PHENOLOGY_STATE_NVEGSURF>(&p("GDD_id"), 1),
+        sdd_id: exp.real_arr_1d::<PHENOLOGY_STATE_NVEGSURF>(&p("SDD_id"), 1),
+        veg_phen_lumps: exp.real(&p("veg_phen_lumps")),
+        porosity_id: exp.real(&p("porosity_id")),
+        decidcap_id: exp.real(&p("decidcap_id")),
+        alb_dectr_id: exp.real(&p("albDecTr_id")),
+        alb_evetr_id: exp.real(&p("albEveTr_id")),
+        alb_grass_id: exp.real(&p("albGrass_id")),
+        tmin_id: exp.real(&p("Tmin_id")),
+        tmax_id: exp.real(&p("Tmax_id")),
+        len_day_id: exp.real(&p("lenDay_id")),
+        temp_veg: exp.real(&p("temp_veg")),
+        store_drain_prm: exp.real_arr_2d_col_major::<NSURF, PHENOLOGY_STATE_STORE_DRAIN_ROWS>(
+            &p("storage_drain_params"),
+            1,
+            1,
+        ),
+        gfunc: exp.real(&p("g_func")),
+        gsc: exp.real(&p("gsc")),
+        g_kdown: exp.real(&p("g_kdown")),
+        g_dq: exp.real(&p("g_dq")),
+        g_ta: exp.real(&p("g_ta")),
+        g_smd: exp.real(&p("g_smd")),
+        g_lai: exp.real(&p("g_lai")),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_roughness_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    iter_safe: bool,
+) -> RoughnessState {
+    let p = |f: &str| join_path(prefix, f);
+    RoughnessState {
+        faibldg_use: exp.real(&p("fai_bldg_use")),
+        faievetree_use: exp.real(&p("fai_evetree_use")),
+        faidectree_use: exp.real(&p("fai_dectree_use")),
+        fai: exp.real(&p("FAI")),
+        pai: exp.real(&p("PAI")),
+        zh: exp.real(&p("Zh")),
+        z0m: exp.real(&p("z0m")),
+        z0v: exp.real(&p("z0v")),
+        zdm: exp.real(&p("zdm")),
+        zzd: exp.real(&p("ZZD")),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_snow_prm(exp: &mut ExpectedStruct, prefix: &str) -> SnowPrm {
+    let p = |f: &str| join_path(prefix, f);
+    SnowPrm {
+        water_holding_capacity_max: exp.real(&p("water_holding_capacity_max")),
+        water_holding_capacity_min: exp.real(&p("water_holding_capacity_min")),
+        narp_emissivity_snow: exp.real(&p("narp_emis_snow")),
+        precip_limit: exp.real(&p("temperature_rain_snow_threshold")),
+        precip_limit_albedo: exp.real(&p("precipitation_threshold_albedo_reset")),
+        snow_albedo_max: exp.real(&p("snow_albedo_max")),
+        snow_albedo_min: exp.real(&p("snow_albedo_min")),
+        snow_density_max: exp.real(&p("snow_density_max")),
+        snow_density_min: exp.real(&p("snow_density_min")),
+        snow_limit_building: exp.real(&p("snow_depth_limit_building")),
+        snow_limit_paved: exp.real(&p("snow_depth_limit_paved")),
+        snowpack_limit: exp.real_arr_1d::<NSURF>(&p("snowpack_limit"), 1),
+        snowprof_24hr_working: exp.real_arr_1d::<24>(&p("snowprof_24hr_working"), 0),
+        snowprof_24hr_holiday: exp.real_arr_1d::<24>(&p("snowprof_24hr_holiday"), 0),
+        tau_cold_snow: exp.real(&p("tau_a")),
+        tau_melting_snow: exp.real(&p("tau_f")),
+        tau_refreezing_snow: exp.real(&p("tau_r")),
+        temp_melt_factor: exp.real(&p("temperature_melt_factor")),
+        rad_melt_factor: exp.real(&p("radiation_melt_factor")),
+    }
+}
+
+fn build_snow_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> SnowState {
+    let p = |f: &str| join_path(prefix, f);
+    SnowState {
+        snowfall_cum: exp.real(&p("snowfall_cum")),
+        snowalb: exp.real(&p("snow_albedo")),
+        ch_snow_per_interval: exp.real(&p("chSnow_per_interval")),
+        mwh: exp.real(&p("mwh")),
+        mwstore: exp.real(&p("melt_water_store")),
+        qn_snow: exp.real(&p("qn_snow")),
+        qm: exp.real(&p("qm")),
+        qm_freez: exp.real(&p("qm_freeze")),
+        qm_rain: exp.real(&p("qm_rain")),
+        swe: exp.real(&p("swe")),
+        z0v_snow: exp.real(&p("z0v_snow")),
+        ra_snow: exp.real(&p("ra_snow")),
+        sice_hpa: exp.real(&p("s_ice_hpa")),
+        snow_removal: exp.real_arr_1d::<SNOW_STATE_REMOVAL_LEN>(&p("snow_removal"), 1),
+        icefrac: exp.real_arr_1d::<NSURF>(&p("ice_frac"), 1),
+        snowdens: exp.real_arr_1d::<NSURF>(&p("snow_density"), 1),
+        snowfrac: exp.real_arr_1d::<NSURF>(&p("snow_fraction"), 1),
+        snowpack: exp.real_arr_1d::<NSURF>(&p("snow_pack"), 1),
+        snowwater: exp.real_arr_1d::<NSURF>(&p("snow_water"), 1),
+        kup_ind_snow: exp.real_arr_1d::<NSURF>(&p("kup_ind_snow"), 1),
+        qn_ind_snow: exp.real_arr_1d::<NSURF>(&p("qn_ind_snow"), 1),
+        delta_qi: exp.real_arr_1d::<NSURF>(&p("delta_qi"), 1),
+        tsurf_ind_snow: exp.real_arr_1d::<NSURF>(&p("Tsurf_ind_snow"), 1),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_solar_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> SolarState {
+    let p = |f: &str| join_path(prefix, f);
+    SolarState {
+        azimuth_deg: exp.real(&p("azimuth_deg")),
+        zenith_deg: exp.real(&p("zenith_deg")),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_spartacus_layer_prm(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    nlayer: usize,
+    nspec: usize,
+) -> SpartacusLayerPrm {
+    let p = |f: &str| join_path(prefix, f);
+    SpartacusLayerPrm {
+        nlayer,
+        nspec,
+        building_frac: exp.real_vec_1d(&p("building_frac"), nlayer),
+        building_scale: exp.real_vec_1d(&p("building_scale"), nlayer),
+        veg_frac: exp.real_vec_1d(&p("veg_frac"), nlayer),
+        veg_scale: exp.real_vec_1d(&p("veg_scale"), nlayer),
+        veg_ext: exp.real_vec_1d(&p("veg_ext"), nlayer),
+        alb_roof: exp.real_vec_1d(&p("alb_roof"), nlayer),
+        emis_roof: exp.real_vec_1d(&p("emis_roof"), nlayer),
+        alb_wall: exp.real_vec_1d(&p("alb_wall"), nlayer),
+        emis_wall: exp.real_vec_1d(&p("emis_wall"), nlayer),
+        roof_albedo_dir_mult_fact: exp.real_vec_2d_row_major(
+            &p("roof_albedo_dir_mult_fact"),
+            nspec,
+            nlayer,
+        ),
+        wall_specular_frac: exp.real_vec_2d_row_major(&p("wall_specular_frac"), nspec, nlayer),
+    }
+}
+
+fn build_spartacus_prm(exp: &mut ExpectedStruct, prefix: &str, nlayer: usize) -> SpartacusPrm {
+    let p = |f: &str| join_path(prefix, f);
+    SpartacusPrm {
+        air_ext_lw: exp.real(&p("air_ext_lw")),
+        air_ext_sw: exp.real(&p("air_ext_sw")),
+        air_ssa_lw: exp.real(&p("air_ssa_lw")),
+        air_ssa_sw: exp.real(&p("air_ssa_sw")),
+        height: exp.real_vec_1d(&p("height"), nlayer + 1),
+        ground_albedo_dir_mult_fact: exp.real(&p("ground_albedo_dir_mult_fact")),
+        n_stream_lw_urban: exp.int(&p("n_stream_lw_urban")),
+        n_stream_sw_urban: exp.int(&p("n_stream_sw_urban")),
+        n_stream_lw_forest: exp.int(&p("n_stream_lw_forest")),
+        n_stream_sw_forest: exp.int(&p("n_stream_sw_forest")),
+        n_vegetation_region_urban: exp.int(&p("n_vegetation_region_urban")),
+        n_vegetation_region_forest: exp.int(&p("n_vegetation_region_forest")),
+        sw_dn_direct_frac: exp.real(&p("sw_dn_direct_frac")),
+        use_sw_direct_albedo: exp.real(&p("use_sw_direct_albedo")),
+        veg_contact_fraction_const: exp.real(&p("veg_contact_fraction_const")),
+        veg_fsd_const: exp.real(&p("veg_fsd_const")),
+        veg_ssa_lw: exp.real(&p("veg_ssa_lw")),
+        veg_ssa_sw: exp.real(&p("veg_ssa_sw")),
+    }
+}
+
+fn build_stebbs_prm(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> StebbsPrm {
+    let p = |f: &str| join_path(prefix, f);
+    StebbsPrm {
+        wall_internal_convection_coefficient: exp.real(&p("wall_internal_convection_coefficient")),
+        roof_internal_convection_coefficient: exp.real(&p("roof_internal_convection_coefficient")),
+        internal_mass_convection_coefficient: exp.real(&p("internal_mass_convection_coefficient")),
+        floor_internal_convection_coefficient: exp
+            .real(&p("floor_internal_convection_coefficient")),
+        window_internal_convection_coefficient: exp
+            .real(&p("window_internal_convection_coefficient")),
+        wall_external_convection_coefficient: exp.real(&p("wall_external_convection_coefficient")),
+        roof_external_convection_coefficient: exp.real(&p("roof_external_convection_coefficient")),
+        window_external_convection_coefficient: exp
+            .real(&p("window_external_convection_coefficient")),
+        ground_depth: exp.real(&p("ground_depth")),
+        external_ground_conductivity: exp.real(&p("external_ground_conductivity")),
+        indoor_air_density: exp.real(&p("indoor_air_density")),
+        indoor_air_cp: exp.real(&p("indoor_air_cp")),
+        metabolism_threshold: exp.real(&p("metabolism_threshold")),
+        latent_sensible_ratio: exp.real(&p("latent_sensible_ratio")),
+        daylight_control: exp.int_as_f64(&p("daylight_control")),
+        lighting_illuminance_threshold: exp.real(&p("lighting_illuminance_threshold")),
+        internal_shading: exp.int_as_f64(&p("internal_shading")),
+        reduction_factor_shading: exp.real(&p("reduction_factor_shading")),
+        temperature_threshold_shading: exp.real(&p("temperature_threshold_shading")),
+        radiation_threshold_shading: exp.real(&p("radiation_threshold_shading")),
+        heating_system_efficiency: exp.real(&p("heating_system_efficiency")),
+        destination_waste_heat: exp.int_as_f64(&p("destination_waste_heat")),
+        fraction_convective_heating: exp.real(&p("fraction_convective_heating")),
+        max_cooling_power: exp.real(&p("max_cooling_power")),
+        cooling_system_cop: exp.real(&p("cooling_system_cop")),
+        ventilation_rate: exp.real(&p("ventilation_rate")),
+        water_tank_wall_thickness: exp.real(&p("hot_water_tank_wall_thickness")),
+        water_tank_surface_area: exp.real(&p("hot_water_tank_surface_area")),
+        hot_water_heating_setpoint_temperature: exp
+            .real(&p("hot_water_heating_setpoint_temperature")),
+        hot_water_tank_wall_emissivity: exp.real(&p("hot_water_tank_wall_emissivity")),
+        dhw_vessel_wall_thickness: exp.real(&p("hot_water_vessel_wall_thickness")),
+        dhw_water_volume: exp.real(&p("hot_water_volume")),
+        dhw_surface_area: exp.real(&p("hot_water_surface_area")),
+        hot_water_flow_rate: exp.real(&p("hot_water_flow_rate")),
+        hot_water_flow_profile: exp
+            .real_arr_2d_col_major::<STEBBS_PRM_PROFILE_GROUPS, STEBBS_PRM_PROFILE_STEPS>(
+                &p("hot_water_flow_profile"),
+                0,
+                1,
+            ),
+        dhw_specific_heat_capacity: exp.real(&p("hot_water_specific_heat_capacity")),
+        hot_water_tank_specific_heat_capacity: exp
+            .real(&p("hot_water_tank_specific_heat_capacity")),
+        dhw_vessel_specific_heat_capacity: exp.real(&p("hot_water_vessel_specific_heat_capacity")),
+        dhw_density: exp.real(&p("hot_water_density")),
+        hot_water_tank_wall_density: exp.real(&p("hot_water_tank_wall_density")),
+        dhw_vessel_density: exp.real(&p("hot_water_vessel_density")),
+        hot_water_tank_wall_conductivity: exp.real(&p("hot_water_tank_wall_conductivity")),
+        hot_water_tank_internal_wall_convection_coefficient: exp
+            .real(&p("hot_water_tank_internal_wall_convection_coefficient")),
+        hot_water_tank_external_wall_convection_coefficient: exp
+            .real(&p("hot_water_tank_external_wall_convection_coefficient")),
+        dhw_vessel_wall_conductivity: exp.real(&p("hot_water_vessel_wall_conductivity")),
+        dhw_vessel_internal_wall_convection_coefficient: exp
+            .real(&p("hot_water_vessel_internal_wall_convection_coefficient")),
+        dhw_vessel_external_wall_convection_coefficient: exp
+            .real(&p("hot_water_vessel_external_wall_convection_coefficient")),
+        dhw_vessel_wall_emissivity: exp.real(&p("hot_water_vessel_wall_emissivity")),
+        hot_water_heating_efficiency: exp.real(&p("hot_water_heating_efficiency")),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_stebbs_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> StebbsState {
+    let p = |f: &str| join_path(prefix, f);
+    StebbsState {
+        kdown2d: exp.real(&p("kdown_2d")),
+        kup2d: exp.real(&p("kup_2d")),
+        kwest: exp.real(&p("k_west")),
+        ksouth: exp.real(&p("k_south")),
+        knorth: exp.real(&p("k_north")),
+        keast: exp.real(&p("k_east")),
+        ldown2d: exp.real(&p("ldown_2d")),
+        lup2d: exp.real(&p("lup_2d")),
+        lwest: exp.real(&p("l_west")),
+        lsouth: exp.real(&p("l_south")),
+        lnorth: exp.real(&p("l_north")),
+        least: exp.real(&p("l_east")),
+        zarray: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>(&p("z_array"), 1),
+        dataout_line_ursl: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>(&p("dataout_line_u_rsl"), 1),
+        dataout_line_trsl: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>(&p("dataout_line_t_rsl"), 1),
+        dataout_line_qrsl: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>(&p("dataout_line_q_rsl"), 1),
+        deep_soil_temperature: exp.real(&p("deep_soil_temperature")),
+        month_mean_air_temperature_diffmax: exp.real(&p("MonthMeanAirTemperature_diffmax")),
+        outdoor_air_start_temperature: exp.real(&p("outdoor_air_start_temperature")),
+        indoor_air_start_temperature: exp.real(&p("indoor_air_start_temperature")),
+        indoor_mass_start_temperature: exp.real(&p("indoor_mass_start_temperature")),
+        wall_indoor_surface_temperature: exp.real(&p("wall_indoor_surface_temperature")),
+        wall_outdoor_surface_temperature: exp.real(&p("wall_outdoor_surface_temperature")),
+        roof_indoor_surface_temperature: exp.real(&p("roof_indoor_surface_temperature")),
+        roof_outdoor_surface_temperature: exp.real(&p("roof_outdoor_surface_temperature")),
+        window_indoor_surface_temperature: exp.real(&p("window_indoor_surface_temperature")),
+        window_outdoor_surface_temperature: exp.real(&p("window_outdoor_surface_temperature")),
+        ground_floor_indoor_surface_temperature: exp
+            .real(&p("ground_floor_indoor_surface_temperature")),
+        ground_floor_outdoor_surface_temperature: exp
+            .real(&p("ground_floor_outdoor_surface_temperature")),
+        water_tank_temperature: exp.real(&p("water_tank_temperature_state")),
+        internal_wall_water_tank_temperature: exp.real(&p("internal_wall_water_tank_temperature")),
+        external_wall_water_tank_temperature: exp.real(&p("external_wall_water_tank_temperature")),
+        mains_water_temperature: exp.real(&p("mains_water_temperature")),
+        domestic_hot_water_temperature_in_use_in_building: exp
+            .real(&p("domestic_hot_water_temperature_in_use_in_building")),
+        internal_wall_dhw_vessel_temperature: exp.real(&p("internal_wall_dhw_vessel_temperature")),
+        external_wall_dhw_vessel_temperature: exp.real(&p("external_wall_dhw_vessel_temperature")),
+        qs_stebbs: exp.real(&p("QS_stebbs")),
+        // Read-only count in flat buffer; Fortran unpack skips it and leaves
+        // STEBBS_STATE%buildings unallocated (verified by unbridged invariant).
+        buildings_count: 7,
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_surf_store_prm(exp: &mut ExpectedStruct, prefix: &str) -> SurfStorePrm {
+    let p = |f: &str| join_path(prefix, f);
+    SurfStorePrm {
+        store_min: exp.real(&p("store_min")),
+        store_max: exp.real(&p("store_max")),
+        store_cap: exp.real(&p("store_cap")),
+        drain_eq: exp.int(&p("drain_eq")),
+        drain_coef_1: exp.real(&p("drain_coef_1")),
+        drain_coef_2: exp.real(&p("drain_coef_2")),
+    }
+}
+
 // =============================================================================
-// 30 live Fortran C-API unpack observer tests (also covering all 8 nested types)
+// 30 live direct *_unpack observer tests (also covering all 8 nested types)
 // =============================================================================
 
 #[test]
 fn observe_anthro_emis_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = AnthroEmisPrm {
-        startdls: exp.int("start_dls"),
-        enddls: exp.int("end_dls"),
-        anthroheat: build_anthro_heat(&mut exp, "anthro_heat"),
-        ef_umolco2perj: exp.real("ef_umol_co2_per_j"),
-        enef_v_jkm: exp.real("en_ef_v_jkm"),
-        frfossilfuel_heat: exp.real("fr_fossil_fuel_heat"),
-        frfossilfuel_nonheat: exp.real("fr_fossil_fuel_non_heat"),
-        fcef_v_kgkm: exp.real_arr_1d::<2>("fc_ef_v_kgkm", 1),
-        humactivity_24hr_working: exp.real_arr_1d::<24>("hum_activity_24hr_working", 0),
-        humactivity_24hr_holiday: exp.real_arr_1d::<24>("hum_activity_24hr_holiday", 0),
-        maxfcmetab: exp.real("max_fc_metab"),
-        maxqfmetab: exp.real("max_qf_metab"),
-        minfcmetab: exp.real("min_fc_metab"),
-        minqfmetab: exp.real("min_qf_metab"),
-        trafficrate_working: exp.real("traffic_rate_working"),
-        trafficrate_holiday: exp.real("traffic_rate_holiday"),
-        trafficunits: exp.real("traffic_units"),
-        traffprof_24hr_working: exp.real_arr_1d::<24>("traff_prof_24hr_working", 0),
-        traffprof_24hr_holiday: exp.real_arr_1d::<24>("traff_prof_24hr_holiday", 0),
-    };
+    let val = build_anthro_emis_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_anthro_emis_prm,
@@ -866,19 +1855,7 @@ fn observe_anthro_emis_prm() {
 fn observe_anthroemis_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = AnthroEmisState {
-            hdd_id: exp.real_arr_1d::<ANTHROEMIS_STATE_HDD_LEN>("HDD_id", 1),
-            fc: exp.real("Fc"),
-            fc_anthro: exp.real("Fc_anthro"),
-            fc_biogen: exp.real("Fc_biogen"),
-            fc_build: exp.real("Fc_build"),
-            fc_metab: exp.real("Fc_metab"),
-            fc_photo: exp.real("Fc_photo"),
-            fc_point: exp.real("Fc_point"),
-            fc_respi: exp.real("Fc_respi"),
-            fc_traff: exp.real("Fc_traff"),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_anthroemis_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_anthroemis_state,
@@ -898,41 +1875,7 @@ fn observe_anthroemis_state() {
 fn observe_atm_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = AtmState {
-            fcld: exp.real("f_cloud"),
-            avcp: exp.real("av_cp"),
-            dens_dry: exp.real("dens_dry"),
-            avdens: exp.real("av_density"),
-            dq: exp.real("dq"),
-            ea_hpa: exp.real("Ea_hPa"),
-            es_hpa: exp.real("Es_hPa"),
-            lv_j_kg: exp.real("lv_J_kg"),
-            lvs_j_kg: exp.real("lv_s_j_kg"),
-            tlv: exp.real("tlv"),
-            psyc_hpa: exp.real("psyc_hPa"),
-            psycice_hpa: exp.real("psyc_ice_h_pa"),
-            s_pa: exp.real("s_Pa"),
-            s_hpa: exp.real("s_hpa"),
-            sice_hpa: exp.real("s_ice_hpa"),
-            vpd_hpa: exp.real("vpd_hPa"),
-            vpd_pa: exp.real("vpd_pa"),
-            u10_ms: exp.real("U10_ms"),
-            u_hbh: exp.real("U_hbh"),
-            t2_c: exp.real("T2_C"),
-            t_half_bldg_c: exp.real("T_half_bldg_C"),
-            q2_gkg: exp.real("q2_gkg"),
-            rh2: exp.real("RH2"),
-            l_mod: exp.real("L_mod"),
-            zl: exp.real("z_l"),
-            ra_h: exp.real("RA_h"),
-            rs: exp.real("RS"),
-            ustar: exp.real("u_star"),
-            tstar: exp.real("t_star"),
-            rb: exp.real("RB"),
-            tair_av: exp.real("Tair_av"),
-            rss_surf: exp.real_arr_1d::<NSURF>("rss_surf", 1),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_atm_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_atm_state,
@@ -947,89 +1890,7 @@ fn observe_atm_state() {
 fn observe_building_archetype_prm() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = BuildingArchetypePrm {
-            buildingcount: exp.real("building_count"),
-            occupants: exp.real("occupants_state"),
-            hhs0: exp.real("hhs0"),
-            age_0_4: exp.real("age_0_4"),
-            age_5_11: exp.real("age_5_11"),
-            age_12_18: exp.real("age_12_18"),
-            age_19_64: exp.real("age_19_64"),
-            age_65plus: exp.real("age_65plus"),
-            stebbs_height: exp.real("stebbs_Height"),
-            footprintarea: exp.real("footprint_area"),
-            wallexternalarea: exp.real("wall_external_area"),
-            ratiointernalvolume: exp.real("internal_volume_ratio"),
-            internalmassarea: exp.real("internal_mass_area"),
-            wwr: exp.real("WWR"),
-            wallthickness: exp.real("wall_thickness"),
-            walleffectiveconductivity: exp.real("wall_effective_conductivity"),
-            walldensity: exp.real("wall_density"),
-            wallcp: exp.real("wall_specific_heat_capacity"),
-            wallextthickness: exp.real("wall_external_thickness"),
-            wallexteffectiveconductivity: exp.real("wall_external_effective_conductivity"),
-            wallextdensity: exp.real("wall_external_density"),
-            wallextcp: exp.real("wall_external_specific_heat_capacity"),
-            walloutercapfrac: exp.real("wall_outer_heat_capacity_fraction"),
-            wallexternalemissivity: exp.real("wall_external_emissivity"),
-            wallinternalemissivity: exp.real("wall_internal_emissivity"),
-            walltransmissivity: exp.real("wall_transmissivity"),
-            wallabsorbtivity: exp.real("wall_absorptivity"),
-            wallreflectivity: exp.real("wall_reflectivity"),
-            roofthickness: exp.real("roof_thickness"),
-            roofeffectiveconductivity: exp.real("roof_effective_conductivity"),
-            roofdensity: exp.real("roof_density"),
-            roofcp: exp.real("roof_specific_heat_capacity"),
-            roofextthickness: exp.real("roof_external_thickness"),
-            roofexteffectiveconductivity: exp.real("roof_external_effective_conductivity"),
-            roofextdensity: exp.real("roof_external_density"),
-            roofextcp: exp.real("roof_external_specific_heat_capacity"),
-            roofoutercapfrac: exp.real("roof_outer_heat_capacity_fraction"),
-            roofexternalemissivity: exp.real("roof_external_emissivity"),
-            roofinternalemissivity: exp.real("roof_internal_emissivity"),
-            rooftransmissivity: exp.real("roof_transmissivity"),
-            roofabsorbtivity: exp.real("roof_absorptivity"),
-            roofreflectivity: exp.real("roof_reflectivity"),
-            floorthickness: exp.real("ground_floor_thickness"),
-            groundflooreffectiveconductivity: exp.real("ground_floor_effective_conductivity"),
-            groundfloordensity: exp.real("ground_floor_density"),
-            groundfloorcp: exp.real("ground_floor_specific_heat_capacity"),
-            windowthickness: exp.real("window_thickness"),
-            windoweffectiveconductivity: exp.real("window_effective_conductivity"),
-            windowdensity: exp.real("window_density"),
-            windowcp: exp.real("window_specific_heat_capacity"),
-            windowexternalemissivity: exp.real("window_external_emissivity"),
-            windowinternalemissivity: exp.real("window_internal_emissivity"),
-            windowtransmissivity: exp.real("window_transmissivity"),
-            windowabsorbtivity: exp.real("window_absorptivity"),
-            windowreflectivity: exp.real("window_reflectivity"),
-            internalmassdensity: exp.real("internal_mass_density"),
-            internalmasscp: exp.real("internal_mass_specific_heat_capacity"),
-            internalmassemissivity: exp.real("internal_mass_emissivity"),
-            maxheatingpower: exp.real("max_heating_power"),
-            watertankwatervolume: exp.real("hot_water_tank_volume"),
-            maximumhotwaterheatingpower: exp.real("maximum_hot_water_heating_power"),
-            heatingsetpointtemperature: exp.real("heating_setpoint_temperature"),
-            coolingsetpointtemperature: exp.real("cooling_setpoint_temperature"),
-            heatingsetpointtemperatureprofile: exp.real_arr_2d_col_major::<
-                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
-                BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
-            >("heating_setpoint_temperature_profile", 0, 1),
-            coolingsetpointtemperatureprofile: exp.real_arr_2d_col_major::<
-                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
-                BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
-            >("cooling_setpoint_temperature_profile", 0, 1),
-            metabolismprofile: exp.real_arr_2d_col_major::<
-                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
-                BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
-            >("metabolism_profile", 0, 1),
-            applianceprofile: exp.real_arr_2d_col_major::<
-                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
-                BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
-            >("appliance_profile", 0, 1),
-            lightingpowerdensity: exp.real("lighting_power_density"),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_building_archetype_prm(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_building_archetype_prm,
@@ -1048,20 +1909,7 @@ fn observe_building_archetype_prm() {
 #[test]
 fn observe_conductance_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = ConductancePrm {
-        g_max: exp.real("g_max"),
-        g_k: exp.real("g_k"),
-        g_q_base: exp.real("g_q_base"),
-        g_q_shape: exp.real("g_q_shape"),
-        g_t: exp.real("g_t"),
-        g_sm: exp.real("g_sm"),
-        kmax: exp.real("k_max"),
-        gs_model: exp.int("gs_model"),
-        s1: exp.real("s1"),
-        s2: exp.real("s2"),
-        th: exp.real("TH"),
-        tl: exp.real("TL"),
-    };
+    let val = build_conductance_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_conductance_prm,
@@ -1080,28 +1928,7 @@ fn observe_conductance_prm() {
 fn observe_ehc_prm() {
     for (nlayer, ndepth) in [(3_usize, 5_usize), (4_usize, 2_usize)] {
         let mut exp = ExpectedStruct::new();
-        let val = EhcPrm {
-            nlayer,
-            ndepth,
-            soil_storecap_roof: exp.real_vec_1d("soil_store_capacity_roof", nlayer),
-            soil_storecap_wall: exp.real_vec_1d("soil_store_capacity_wall", nlayer),
-            state_limit_roof: exp.real_vec_1d("state_limit_roof", nlayer),
-            state_limit_wall: exp.real_vec_1d("state_limit_wall", nlayer),
-            wet_thresh_roof: exp.real_vec_1d("wet_thresh_roof", nlayer),
-            wet_thresh_wall: exp.real_vec_1d("wet_thresh_wall", nlayer),
-            tin_roof: exp.real_vec_1d("tin_roof", nlayer),
-            tin_wall: exp.real_vec_1d("tin_wall", nlayer),
-            tin_surf: exp.real_vec_1d("tin_surf", NSURF),
-            k_roof: exp.real_vec_2d_row_major("k_roof", nlayer, ndepth),
-            k_wall: exp.real_vec_2d_row_major("k_wall", nlayer, ndepth),
-            k_surf: exp.real_vec_2d_row_major("k_surf", NSURF, ndepth),
-            cp_roof: exp.real_vec_2d_row_major("cp_roof", nlayer, ndepth),
-            cp_wall: exp.real_vec_2d_row_major("cp_wall", nlayer, ndepth),
-            cp_surf: exp.real_vec_2d_row_major("cp_surf", NSURF, ndepth),
-            dz_roof: exp.real_vec_2d_row_major("dz_roof", nlayer, ndepth),
-            dz_wall: exp.real_vec_2d_row_major("dz_wall", nlayer, ndepth),
-            dz_surf: exp.real_vec_2d_row_major("dz_surf", NSURF, ndepth),
-        };
+        let val = build_ehc_prm(&mut exp, "", nlayer, ndepth);
         let flat = val.to_flat();
         let observed = call_observer_2d(
             observer_manifest::suews_obs_unpack_ehc_prm,
@@ -1117,18 +1944,14 @@ fn observe_ehc_prm() {
 #[test]
 fn observe_flag_state() {
     for mask in 0_u8..8_u8 {
-        let flag_converge = (mask & 1) != 0;
-        let snow_warning_shown = (mask & 2) != 0;
-        let iter_safe = (mask & 4) != 0;
-
         let mut exp = ExpectedStruct::new();
-        let val = FlagState {
-            flag_converge: exp.logical("flag_converge", flag_converge),
-            i_iter: exp.int("i_iter"),
-            stebbs_bldg_init: exp.int("stebbs_bldg_init"),
-            snow_warning_shown: exp.logical("snow_warning_shown", snow_warning_shown),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_flag_state(
+            &mut exp,
+            "",
+            (mask & 1) != 0,
+            (mask & 2) != 0,
+            (mask & 4) != 0,
+        );
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_flag_state,
@@ -1143,61 +1966,7 @@ fn observe_flag_state() {
 fn observe_heat_state() {
     for (nlayer, ndepth, iter_safe) in [(3_usize, 5_usize, false), (2_usize, 4_usize, true)] {
         let mut exp = ExpectedStruct::new();
-        let val = HeatState {
-            nlayer,
-            ndepth,
-            temp_roof: exp.real_vec_2d_row_major("temp_roof", nlayer, ndepth),
-            temp_wall: exp.real_vec_2d_row_major("temp_wall", nlayer, ndepth),
-            temp_surf: exp.real_vec_2d_row_major("temp_surf", NSURF, ndepth),
-            temp_surf_dyohm: exp.real_vec_2d_row_major("temp_surf_dyohm", NSURF, ndepth),
-            tsfc_roof: exp.real_vec_1d("tsfc_roof", nlayer),
-            tsfc_wall: exp.real_vec_1d("tsfc_wall", nlayer),
-            tsfc_surf: exp.real_vec_1d("tsfc_surf", NSURF),
-            tsfc_surf_dyohm: exp.real_vec_1d("tsfc_surf_dyohm", NSURF),
-            tsfc_roof_stepstart: exp.real_vec_1d("tsfc_roof_stepstart", nlayer),
-            tsfc_wall_stepstart: exp.real_vec_1d("tsfc_wall_stepstart", nlayer),
-            tsfc_surf_stepstart: exp.real_vec_1d("tsfc_surf_stepstart", NSURF),
-            qs_roof: exp.real_vec_1d("QS_roof", nlayer),
-            qn_roof: exp.real_vec_1d("QN_roof", nlayer),
-            qe_roof: exp.real_vec_1d("qe_roof", nlayer),
-            qh_roof: exp.real_vec_1d("qh_roof", nlayer),
-            qh_resist_roof: exp.real_vec_1d("qh_resist_roof", nlayer),
-            qs_wall: exp.real_vec_1d("QS_wall", nlayer),
-            qn_wall: exp.real_vec_1d("QN_wall", nlayer),
-            qe_wall: exp.real_vec_1d("qe_wall", nlayer),
-            qh_wall: exp.real_vec_1d("qh_wall", nlayer),
-            qh_resist_wall: exp.real_vec_1d("qh_resist_wall", nlayer),
-            qs_surf: exp.real_arr_1d::<NSURF>("qs_surf", 1),
-            qn_surf: exp.real_arr_1d::<NSURF>("QN_surf", 1),
-            qe0_surf: exp.real_arr_1d::<NSURF>("qe0_surf", 1),
-            qe_surf: exp.real_arr_1d::<NSURF>("qe_surf", 1),
-            qh_surf: exp.real_arr_1d::<NSURF>("qh_surf", 1),
-            qh_resist_surf: exp.real_arr_1d::<NSURF>("qh_resist_surf", 1),
-            tsurf_ind: exp.real_arr_1d::<NSURF>("tsurf_ind", 1),
-            qh_lumps: exp.real("QH_LUMPS"),
-            qe_lumps: exp.real("QE_LUMPS"),
-            kclear: exp.real("k_clear"),
-            kup: exp.real("k_up"),
-            ldown: exp.real("l_down"),
-            lup: exp.real("l_up"),
-            qe: exp.real("qe"),
-            qf: exp.real("qf"),
-            qf_sahp: exp.real("QF_SAHP"),
-            qh: exp.real("qh"),
-            qh_residual: exp.real("qh_residual"),
-            qh_resist: exp.real("qh_resist"),
-            qn: exp.real("qn"),
-            qn_snowfree: exp.real("qn_snowfree"),
-            qs: exp.real("qs"),
-            tsfc_c: exp.real("TSfc_C"),
-            tsurf: exp.real("tsurf"),
-            qh_init: exp.real("QH_Init"),
-            roof_in_sw_spc: exp.real_arr_1d::<15>("roof_in_sw_spc", 1),
-            roof_in_lw_spc: exp.real_arr_1d::<15>("roof_in_lw_spc", 1),
-            wall_in_sw_spc: exp.real_arr_1d::<15>("wall_in_sw_spc", 1),
-            wall_in_lw_spc: exp.real_arr_1d::<15>("wall_in_lw_spc", 1),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_heat_state(&mut exp, "", nlayer, ndepth, iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_2d(
             observer_manifest::suews_obs_unpack_heat_state,
@@ -1214,50 +1983,7 @@ fn observe_heat_state() {
 fn observe_hydro_state() {
     for (nlayer, iter_safe) in [(3_usize, false), (5_usize, true)] {
         let mut exp = ExpectedStruct::new();
-        let val = HydroState {
-            soilstore_surf: exp.real_arr_1d::<NSURF>("soil_store_surf", 1),
-            state_surf: exp.real_arr_1d::<NSURF>("state_surf", 1),
-            wuday_id: exp.real_arr_1d::<9>("WUDay_id", 1),
-            soilstore_roof: exp.real_vec_1d("soil_store_roof", nlayer),
-            state_roof: exp.real_vec_1d("state_roof", nlayer),
-            soilstore_wall: exp.real_vec_1d("soil_store_wall", nlayer),
-            state_wall: exp.real_vec_1d("state_wall", nlayer),
-            ev_roof: exp.real_vec_1d("ev_roof", nlayer),
-            ev_wall: exp.real_vec_1d("ev_wall", nlayer),
-            ev0_surf: exp.real_arr_1d::<NSURF>("ev0_surf", 1),
-            ev_surf: exp.real_arr_1d::<NSURF>("ev_surf", 1),
-            wu_surf: exp.real_arr_1d::<NSURF>("wu_surf", 1),
-            runoff_soil: exp.real_arr_1d::<NSURF>("runoff_soil", 1),
-            smd_surf: exp.real_arr_1d::<NSURF>("smd_surf", 1),
-            drain_surf: exp.real_arr_1d::<NSURF>("drain_surf", 1),
-            drain_per_tstep: exp.real("drain_per_tstep"),
-            ev_per_tstep: exp.real("ev_per_tstep"),
-            wu_ext: exp.real("wu_ext"),
-            wu_int: exp.real("wu_int"),
-            runoff_agveg: exp.real("runoff_ag_veg"),
-            runoff_agimpervious: exp.real("runoff_ag_impervious"),
-            runoff_per_tstep: exp.real("runoff_per_tstep"),
-            runoff_pipes: exp.real("runoff_pipes"),
-            runoff_soil_per_tstep: exp.real("runoff_soil_per_tstep"),
-            runoff_waterbody: exp.real("runoff_waterbody"),
-            smd: exp.real("smd"),
-            soil_state: exp.real("soil_state"),
-            state_per_tstep: exp.real("state_per_tstep"),
-            surf_chang_per_tstep: exp.real("surf_chang_per_tstep"),
-            tot_chang_per_tstep: exp.real("tot_chang_per_tstep"),
-            runoff_per_interval: exp.real("runoff_per_interval"),
-            nwstate_per_tstep: exp.real("nw_state_per_tstep"),
-            soil_moist_cap: exp.real("soil_moist_cap"),
-            vsmd: exp.real("vsmd"),
-            additional_water: exp.real("additional_water"),
-            add_impervious: exp.real("add_impervious"),
-            add_pipes: exp.real("add_pipes"),
-            add_veg: exp.real("add_veg"),
-            add_waterbody: exp.real("add_water_body"),
-            add_water: exp.real_arr_1d::<NSURF>("add_water", 1),
-            frac_water2runoff: exp.real_arr_1d::<NSURF>("frac_water2runoff", 1),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_hydro_state(&mut exp, "", nlayer, iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_1d(
             observer_manifest::suews_obs_unpack_hydro_state,
@@ -1272,20 +1998,7 @@ fn observe_hydro_state() {
 #[test]
 fn observe_irrigation_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = IrrigationPrm {
-        h_maintain: exp.real("h_maintain"),
-        faut: exp.real("f_aut"),
-        ie_a: exp.real_arr_1d::<3>("ie_a", 1),
-        ie_m: exp.real_arr_1d::<3>("ie_m", 1),
-        ie_start: exp.int("ie_start"),
-        ie_end: exp.int("ie_end"),
-        internalwateruse_h: exp.real("internalwateruse_h"),
-        irr_daywater: build_irrig_daywater(&mut exp, "irr_daywater"),
-        wuprofa_24hr_working: exp.real_arr_1d::<24>("wuprofa_24hr_working", 0),
-        wuprofa_24hr_holiday: exp.real_arr_1d::<24>("wuprofa_24hr_holiday", 0),
-        wuprofm_24hr_working: exp.real_arr_1d::<24>("wuprofm_24hr_working", 0),
-        wuprofm_24hr_holiday: exp.real_arr_1d::<24>("wuprofm_24hr_holiday", 0),
-    };
+    let val = build_irrigation_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_irrigation_prm,
@@ -1298,19 +2011,7 @@ fn observe_irrigation_prm() {
 #[test]
 fn observe_lc_bldg_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LcBldgPrm {
-        sfr: exp.real("sfr"),
-        faibldg: exp.real("fai_building"),
-        bldgh: exp.real("height_building"),
-        emis: exp.real("emis"),
-        ohm: build_ohm_prm(&mut exp, "ohm"),
-        soil: build_soil_prm(&mut exp, "soil"),
-        state: exp.real("state"),
-        state_limit: exp.real("state_limit"),
-        irrfracbldgs: exp.real("irrigation_fraction_bldgs"),
-        wet_threshold: exp.real("wet_threshold"),
-        waterdist: build_water_dist_prm(&mut exp, "waterdist"),
-    };
+    let val = build_lc_bldg_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lc_bldg_prm,
@@ -1323,16 +2024,7 @@ fn observe_lc_bldg_prm() {
 #[test]
 fn observe_lc_bsoil_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LcBsoilPrm {
-        sfr: exp.real("sfr"),
-        emis: exp.real("emis"),
-        ohm: build_ohm_prm(&mut exp, "ohm"),
-        soil: build_soil_prm(&mut exp, "soil"),
-        state_limit: exp.real("state_limit"),
-        irrfracbsoil: exp.real("irrigation_fraction_bsoil"),
-        wet_threshold: exp.real("wet_threshold"),
-        waterdist: build_water_dist_prm(&mut exp, "waterdist"),
-    };
+    let val = build_lc_bsoil_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lc_bsoil_prm,
@@ -1345,27 +2037,7 @@ fn observe_lc_bsoil_prm() {
 #[test]
 fn observe_lc_dectr_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LcDectrPrm {
-        sfr: exp.real("sfr"),
-        emis: exp.real("emis"),
-        fai_deciduous_tree: exp.real("fai_deciduous_tree"),
-        height_deciduous_tree: exp.real("height_deciduous_tree"),
-        porosity_min_deciduous: exp.real("porosity_min_deciduous"),
-        porosity_max_deciduous: exp.real("porosity_max_deciduous"),
-        alb_min: exp.real("alb_min"),
-        alb_max: exp.real("alb_max"),
-        ohm: build_ohm_prm(&mut exp, "ohm"),
-        soil: build_soil_prm(&mut exp, "soil"),
-        state_limit: exp.real("state_limit"),
-        capacity_max_deciduous: exp.real("capacity_max_deciduous"),
-        capacity_min_deciduous: exp.real("capacity_min_deciduous"),
-        irrfracdectr: exp.real("irrigation_fraction_dectr"),
-        wet_threshold: exp.real("wet_threshold"),
-        bioco2: build_bioco2_prm(&mut exp, "bioco2"),
-        max_conductance: exp.real("max_conductance"),
-        lai: build_lai_prm(&mut exp, "lai"),
-        waterdist: build_water_dist_prm(&mut exp, "waterdist"),
-    };
+    let val = build_lc_dectr_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lc_dectr_prm,
@@ -1378,23 +2050,7 @@ fn observe_lc_dectr_prm() {
 #[test]
 fn observe_lc_evetr_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LcEvetrPrm {
-        sfr: exp.real("sfr"),
-        emis: exp.real("emis"),
-        fai_evergreen_tree: exp.real("fai_evergreen_tree"),
-        height_evergreen_tree: exp.real("height_evergreen_tree"),
-        alb_min: exp.real("alb_min"),
-        alb_max: exp.real("alb_max"),
-        ohm: build_ohm_prm(&mut exp, "ohm"),
-        soil: build_soil_prm(&mut exp, "soil"),
-        state_limit: exp.real("state_limit"),
-        irrfracevetr: exp.real("irrigation_fraction_evetr"),
-        wet_threshold: exp.real("wet_threshold"),
-        bioco2: build_bioco2_prm(&mut exp, "bioco2"),
-        max_conductance: exp.real("max_conductance"),
-        lai: build_lai_prm(&mut exp, "lai"),
-        waterdist: build_water_dist_prm(&mut exp, "waterdist"),
-    };
+    let val = build_lc_evetr_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lc_evetr_prm,
@@ -1407,21 +2063,7 @@ fn observe_lc_evetr_prm() {
 #[test]
 fn observe_lc_grass_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LcGrassPrm {
-        sfr: exp.real("sfr"),
-        emis: exp.real("emis"),
-        alb_min: exp.real("alb_min"),
-        alb_max: exp.real("alb_max"),
-        ohm: build_ohm_prm(&mut exp, "ohm"),
-        soil: build_soil_prm(&mut exp, "soil"),
-        state_limit: exp.real("state_limit"),
-        irrfracgrass: exp.real("irrigation_fraction_grass"),
-        wet_threshold: exp.real("wet_threshold"),
-        bioco2: build_bioco2_prm(&mut exp, "bioco2"),
-        max_conductance: exp.real("max_conductance"),
-        lai: build_lai_prm(&mut exp, "lai"),
-        waterdist: build_water_dist_prm(&mut exp, "waterdist"),
-    };
+    let val = build_lc_grass_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lc_grass_prm,
@@ -1434,17 +2076,7 @@ fn observe_lc_grass_prm() {
 #[test]
 fn observe_lc_paved_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LcPavedPrm {
-        sfr: exp.real("sfr"),
-        emis: exp.real("emis"),
-        ohm: build_ohm_prm(&mut exp, "ohm"),
-        soil: build_soil_prm(&mut exp, "soil"),
-        state: exp.real("state"),
-        state_limit: exp.real("state_limit"),
-        irrfracpaved: exp.real("irrigation_fraction_paved"),
-        wet_threshold: exp.real("wet_threshold"),
-        waterdist: build_water_dist_prm(&mut exp, "waterdist"),
-    };
+    let val = build_lc_paved_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lc_paved_prm,
@@ -1457,16 +2089,7 @@ fn observe_lc_paved_prm() {
 #[test]
 fn observe_lc_water_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LcWaterPrm {
-        sfr: exp.real("sfr"),
-        emis: exp.real("emis"),
-        ohm: build_ohm_prm(&mut exp, "ohm"),
-        soil: build_soil_prm(&mut exp, "soil"),
-        state_limit: exp.real("state_limit"),
-        irrfracwater: exp.real("irrigation_fraction_water"),
-        wet_threshold: exp.real("wet_threshold"),
-        flowchange: exp.real("flow_change"),
-    };
+    let val = build_lc_water_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lc_water_prm,
@@ -1479,12 +2102,7 @@ fn observe_lc_water_prm() {
 #[test]
 fn observe_lumps_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = LumpsPrm {
-        raincover: exp.real("rain_cover"),
-        rainmaxres: exp.real("rain_max_res"),
-        drainrt: exp.real("drain_rate"),
-        veg_type: exp.int("veg_type"),
-    };
+    let val = build_lumps_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_lumps_prm,
@@ -1498,13 +2116,7 @@ fn observe_lumps_prm() {
 fn observe_nhood_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = NhoodState {
-            u_hbh_1dravg: exp.real("U_hbh_1dravg"),
-            qn_1dravg: exp.real("QN_1dravg"),
-            tair_mn_prev: exp.real("Tair_mn_prev"),
-            iter_count: exp.real("iter_count"),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_nhood_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_nhood_state,
@@ -1521,74 +2133,7 @@ fn observe_ohm_state() {
         [(false, false), (false, true), (true, false), (true, true)]
     {
         let mut exp = ExpectedStruct::new();
-        let dyn_a1 = [
-            exp.real("a1_paved"),
-            exp.real("a1_bldg"),
-            exp.real("a1_evetr"),
-            exp.real("a1_dectr"),
-            exp.real("a1_grass"),
-            exp.real("a1_bsoil"),
-            exp.real("a1_water"),
-        ];
-        let dyn_a2 = [
-            exp.real("a2_paved"),
-            exp.real("a2_bldg"),
-            exp.real("a2_evetr"),
-            exp.real("a2_dectr"),
-            exp.real("a2_grass"),
-            exp.real("a2_bsoil"),
-            exp.real("a2_water"),
-        ];
-        let dyn_a3 = [
-            exp.real("a3_paved"),
-            exp.real("a3_bldg"),
-            exp.real("a3_evetr"),
-            exp.real("a3_dectr"),
-            exp.real("a3_grass"),
-            exp.real("a3_bsoil"),
-            exp.real("a3_water"),
-        ];
-        let val = OhmState {
-            qn_av: exp.real("qn_av"),
-            dqndt: exp.real("dqndt"),
-            qn_surfs: exp.real_arr_1d::<NSURF>("qn_surfs", 1),
-            dqndt_surf: exp.real_arr_1d::<NSURF>("dqndt_surf", 1),
-            qn_s_av: exp.real("qn_s_av"),
-            dqnsdt: exp.real("dqnsdt"),
-            a1: exp.real("a1"),
-            a2: exp.real("a2"),
-            a3: exp.real("a3"),
-            t2_prev: exp.real("t2_prev"),
-            ws_rav: exp.real("ws_rav"),
-            tair_prev: exp.real("tair_prev"),
-            qn_rav: exp.real_arr_1d::<NSURF>("qn_rav", 1),
-            dyn_a1,
-            dyn_a2,
-            dyn_a3,
-            iter_safe: exp.logical("iter_safe", iter_safe),
-            anohm_working_day: exp.int("anohm_working_day"),
-            anohm_working_count: exp.int("anohm_working_count"),
-            anohm_working_t_hr: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_working_tHr", 1),
-            anohm_working_sd: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_working_sd", 1),
-            anohm_working_ta: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_working_ta", 1),
-            anohm_working_rh: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_working_rh", 1),
-            anohm_working_pres: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_working_pres", 1),
-            anohm_working_ws: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_working_ws", 1),
-            anohm_working_ah: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_working_ah", 1),
-            anohm_coeff_day: exp.int("anohm_coeff_day"),
-            anohm_coeff_count: exp.int("anohm_coeff_count"),
-            anohm_coeff_ready: exp.logical("anohm_coeff_ready", anohm_coeff_ready),
-            anohm_coeff_t_hr: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_coeff_tHr", 1),
-            anohm_coeff_sd: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_coeff_sd", 1),
-            anohm_coeff_ta: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_coeff_ta", 1),
-            anohm_coeff_rh: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_coeff_rh", 1),
-            anohm_coeff_pres: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_coeff_pres", 1),
-            anohm_coeff_ws: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_coeff_ws", 1),
-            anohm_coeff_ah: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>("anohm_coeff_ah", 1),
-            anohm_a1_surf: exp.real_arr_1d::<NSURF>("anohm_a1_surf", 1),
-            anohm_a2_surf: exp.real_arr_1d::<NSURF>("anohm_a2_surf", 1),
-            anohm_a3_surf: exp.real_arr_1d::<NSURF>("anohm_a3_surf", 1),
-        };
+        let val = build_ohm_state(&mut exp, "", iter_safe, anohm_coeff_ready);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_ohm_state,
@@ -1603,35 +2148,7 @@ fn observe_ohm_state() {
 fn observe_phenology_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = PhenologyState {
-            alb: exp.real_arr_1d::<NSURF>("alb", 1),
-            lai_id: exp.real_arr_1d::<PHENOLOGY_STATE_NVEGSURF>("lai_id", 1),
-            gdd_id: exp.real_arr_1d::<PHENOLOGY_STATE_NVEGSURF>("GDD_id", 1),
-            sdd_id: exp.real_arr_1d::<PHENOLOGY_STATE_NVEGSURF>("SDD_id", 1),
-            veg_phen_lumps: exp.real("veg_phen_lumps"),
-            porosity_id: exp.real("porosity_id"),
-            decidcap_id: exp.real("decidcap_id"),
-            alb_dectr_id: exp.real("albDecTr_id"),
-            alb_evetr_id: exp.real("albEveTr_id"),
-            alb_grass_id: exp.real("albGrass_id"),
-            tmin_id: exp.real("Tmin_id"),
-            tmax_id: exp.real("Tmax_id"),
-            len_day_id: exp.real("lenDay_id"),
-            temp_veg: exp.real("temp_veg"),
-            store_drain_prm: exp.real_arr_2d_col_major::<NSURF, PHENOLOGY_STATE_STORE_DRAIN_ROWS>(
-                "storage_drain_params",
-                1,
-                1,
-            ),
-            gfunc: exp.real("g_func"),
-            gsc: exp.real("gsc"),
-            g_kdown: exp.real("g_kdown"),
-            g_dq: exp.real("g_dq"),
-            g_ta: exp.real("g_ta"),
-            g_smd: exp.real("g_smd"),
-            g_lai: exp.real("g_lai"),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_phenology_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_phenology_state,
@@ -1651,19 +2168,7 @@ fn observe_phenology_state() {
 fn observe_roughness_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = RoughnessState {
-            faibldg_use: exp.real("fai_bldg_use"),
-            faievetree_use: exp.real("fai_evetree_use"),
-            faidectree_use: exp.real("fai_dectree_use"),
-            fai: exp.real("FAI"),
-            pai: exp.real("PAI"),
-            zh: exp.real("Zh"),
-            z0m: exp.real("z0m"),
-            z0v: exp.real("z0v"),
-            zdm: exp.real("zdm"),
-            zzd: exp.real("ZZD"),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_roughness_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_roughness_state,
@@ -1682,27 +2187,7 @@ fn observe_roughness_state() {
 #[test]
 fn observe_snow_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = SnowPrm {
-        water_holding_capacity_max: exp.real("water_holding_capacity_max"),
-        water_holding_capacity_min: exp.real("water_holding_capacity_min"),
-        narp_emissivity_snow: exp.real("narp_emis_snow"),
-        precip_limit: exp.real("temperature_rain_snow_threshold"),
-        precip_limit_albedo: exp.real("precipitation_threshold_albedo_reset"),
-        snow_albedo_max: exp.real("snow_albedo_max"),
-        snow_albedo_min: exp.real("snow_albedo_min"),
-        snow_density_max: exp.real("snow_density_max"),
-        snow_density_min: exp.real("snow_density_min"),
-        snow_limit_building: exp.real("snow_depth_limit_building"),
-        snow_limit_paved: exp.real("snow_depth_limit_paved"),
-        snowpack_limit: exp.real_arr_1d::<NSURF>("snowpack_limit", 1),
-        snowprof_24hr_working: exp.real_arr_1d::<24>("snowprof_24hr_working", 0),
-        snowprof_24hr_holiday: exp.real_arr_1d::<24>("snowprof_24hr_holiday", 0),
-        tau_cold_snow: exp.real("tau_a"),
-        tau_melting_snow: exp.real("tau_f"),
-        tau_refreezing_snow: exp.real("tau_r"),
-        temp_melt_factor: exp.real("temperature_melt_factor"),
-        rad_melt_factor: exp.real("radiation_melt_factor"),
-    };
+    let val = build_snow_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_snow_prm,
@@ -1716,32 +2201,7 @@ fn observe_snow_prm() {
 fn observe_snow_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = SnowState {
-            snowfall_cum: exp.real("snowfall_cum"),
-            snowalb: exp.real("snow_albedo"),
-            ch_snow_per_interval: exp.real("chSnow_per_interval"),
-            mwh: exp.real("mwh"),
-            mwstore: exp.real("melt_water_store"),
-            qn_snow: exp.real("qn_snow"),
-            qm: exp.real("qm"),
-            qm_freez: exp.real("qm_freeze"),
-            qm_rain: exp.real("qm_rain"),
-            swe: exp.real("swe"),
-            z0v_snow: exp.real("z0v_snow"),
-            ra_snow: exp.real("ra_snow"),
-            sice_hpa: exp.real("s_ice_hpa"),
-            snow_removal: exp.real_arr_1d::<SNOW_STATE_REMOVAL_LEN>("snow_removal", 1),
-            icefrac: exp.real_arr_1d::<NSURF>("ice_frac", 1),
-            snowdens: exp.real_arr_1d::<NSURF>("snow_density", 1),
-            snowfrac: exp.real_arr_1d::<NSURF>("snow_fraction", 1),
-            snowpack: exp.real_arr_1d::<NSURF>("snow_pack", 1),
-            snowwater: exp.real_arr_1d::<NSURF>("snow_water", 1),
-            kup_ind_snow: exp.real_arr_1d::<NSURF>("kup_ind_snow", 1),
-            qn_ind_snow: exp.real_arr_1d::<NSURF>("qn_ind_snow", 1),
-            delta_qi: exp.real_arr_1d::<NSURF>("delta_qi", 1),
-            tsurf_ind_snow: exp.real_arr_1d::<NSURF>("Tsurf_ind_snow", 1),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_snow_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_snow_state,
@@ -1756,11 +2216,7 @@ fn observe_snow_state() {
 fn observe_solar_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = SolarState {
-            azimuth_deg: exp.real("azimuth_deg"),
-            zenith_deg: exp.real("zenith_deg"),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_solar_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_solar_state,
@@ -1775,25 +2231,7 @@ fn observe_solar_state() {
 fn observe_spartacus_layer_prm() {
     for (nlayer, nspec) in [(3_usize, 5_usize), (4_usize, 2_usize), (3_usize, 1_usize)] {
         let mut exp = ExpectedStruct::new();
-        let val = SpartacusLayerPrm {
-            nlayer,
-            nspec,
-            building_frac: exp.real_vec_1d("building_frac", nlayer),
-            building_scale: exp.real_vec_1d("building_scale", nlayer),
-            veg_frac: exp.real_vec_1d("veg_frac", nlayer),
-            veg_scale: exp.real_vec_1d("veg_scale", nlayer),
-            veg_ext: exp.real_vec_1d("veg_ext", nlayer),
-            alb_roof: exp.real_vec_1d("alb_roof", nlayer),
-            emis_roof: exp.real_vec_1d("emis_roof", nlayer),
-            alb_wall: exp.real_vec_1d("alb_wall", nlayer),
-            emis_wall: exp.real_vec_1d("emis_wall", nlayer),
-            roof_albedo_dir_mult_fact: exp.real_vec_2d_row_major(
-                "roof_albedo_dir_mult_fact",
-                nspec,
-                nlayer,
-            ),
-            wall_specular_frac: exp.real_vec_2d_row_major("wall_specular_frac", nspec, nlayer),
-        };
+        let val = build_spartacus_layer_prm(&mut exp, "", nlayer, nspec);
         let flat = val.to_flat();
         let observed = call_observer_2d(
             observer_manifest::suews_obs_unpack_spartacus_layer_prm,
@@ -1815,26 +2253,7 @@ fn observe_spartacus_layer_prm() {
 fn observe_spartacus_prm() {
     for nlayer in [3_usize, 5_usize] {
         let mut exp = ExpectedStruct::new();
-        let val = SpartacusPrm {
-            air_ext_lw: exp.real("air_ext_lw"),
-            air_ext_sw: exp.real("air_ext_sw"),
-            air_ssa_lw: exp.real("air_ssa_lw"),
-            air_ssa_sw: exp.real("air_ssa_sw"),
-            height: exp.real_vec_1d("height", nlayer + 1),
-            ground_albedo_dir_mult_fact: exp.real("ground_albedo_dir_mult_fact"),
-            n_stream_lw_urban: exp.int("n_stream_lw_urban"),
-            n_stream_sw_urban: exp.int("n_stream_sw_urban"),
-            n_stream_lw_forest: exp.int("n_stream_lw_forest"),
-            n_stream_sw_forest: exp.int("n_stream_sw_forest"),
-            n_vegetation_region_urban: exp.int("n_vegetation_region_urban"),
-            n_vegetation_region_forest: exp.int("n_vegetation_region_forest"),
-            sw_dn_direct_frac: exp.real("sw_dn_direct_frac"),
-            use_sw_direct_albedo: exp.real("use_sw_direct_albedo"),
-            veg_contact_fraction_const: exp.real("veg_contact_fraction_const"),
-            veg_fsd_const: exp.real("veg_fsd_const"),
-            veg_ssa_lw: exp.real("veg_ssa_lw"),
-            veg_ssa_sw: exp.real("veg_ssa_sw"),
-        };
+        let val = build_spartacus_prm(&mut exp, "", nlayer);
         let flat = val.to_flat();
         let observed = call_observer_1d(
             observer_manifest::suews_obs_unpack_spartacus_prm,
@@ -1850,72 +2269,7 @@ fn observe_spartacus_prm() {
 fn observe_stebbs_prm() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = StebbsPrm {
-            wall_internal_convection_coefficient: exp.real("wall_internal_convection_coefficient"),
-            roof_internal_convection_coefficient: exp.real("roof_internal_convection_coefficient"),
-            internal_mass_convection_coefficient: exp.real("internal_mass_convection_coefficient"),
-            floor_internal_convection_coefficient: exp
-                .real("floor_internal_convection_coefficient"),
-            window_internal_convection_coefficient: exp
-                .real("window_internal_convection_coefficient"),
-            wall_external_convection_coefficient: exp.real("wall_external_convection_coefficient"),
-            roof_external_convection_coefficient: exp.real("roof_external_convection_coefficient"),
-            window_external_convection_coefficient: exp
-                .real("window_external_convection_coefficient"),
-            ground_depth: exp.real("ground_depth"),
-            external_ground_conductivity: exp.real("external_ground_conductivity"),
-            indoor_air_density: exp.real("indoor_air_density"),
-            indoor_air_cp: exp.real("indoor_air_cp"),
-            metabolism_threshold: exp.real("metabolism_threshold"),
-            latent_sensible_ratio: exp.real("latent_sensible_ratio"),
-            daylight_control: exp.int_as_f64("daylight_control"),
-            lighting_illuminance_threshold: exp.real("lighting_illuminance_threshold"),
-            internal_shading: exp.int_as_f64("internal_shading"),
-            reduction_factor_shading: exp.real("reduction_factor_shading"),
-            temperature_threshold_shading: exp.real("temperature_threshold_shading"),
-            radiation_threshold_shading: exp.real("radiation_threshold_shading"),
-            heating_system_efficiency: exp.real("heating_system_efficiency"),
-            destination_waste_heat: exp.int_as_f64("destination_waste_heat"),
-            fraction_convective_heating: exp.real("fraction_convective_heating"),
-            max_cooling_power: exp.real("max_cooling_power"),
-            cooling_system_cop: exp.real("cooling_system_cop"),
-            ventilation_rate: exp.real("ventilation_rate"),
-            water_tank_wall_thickness: exp.real("hot_water_tank_wall_thickness"),
-            water_tank_surface_area: exp.real("hot_water_tank_surface_area"),
-            hot_water_heating_setpoint_temperature: exp
-                .real("hot_water_heating_setpoint_temperature"),
-            hot_water_tank_wall_emissivity: exp.real("hot_water_tank_wall_emissivity"),
-            dhw_vessel_wall_thickness: exp.real("hot_water_vessel_wall_thickness"),
-            dhw_water_volume: exp.real("hot_water_volume"),
-            dhw_surface_area: exp.real("hot_water_surface_area"),
-            hot_water_flow_rate: exp.real("hot_water_flow_rate"),
-            hot_water_flow_profile: exp
-                .real_arr_2d_col_major::<STEBBS_PRM_PROFILE_GROUPS, STEBBS_PRM_PROFILE_STEPS>(
-                    "hot_water_flow_profile",
-                    0,
-                    1,
-                ),
-            dhw_specific_heat_capacity: exp.real("hot_water_specific_heat_capacity"),
-            hot_water_tank_specific_heat_capacity: exp
-                .real("hot_water_tank_specific_heat_capacity"),
-            dhw_vessel_specific_heat_capacity: exp.real("hot_water_vessel_specific_heat_capacity"),
-            dhw_density: exp.real("hot_water_density"),
-            hot_water_tank_wall_density: exp.real("hot_water_tank_wall_density"),
-            dhw_vessel_density: exp.real("hot_water_vessel_density"),
-            hot_water_tank_wall_conductivity: exp.real("hot_water_tank_wall_conductivity"),
-            hot_water_tank_internal_wall_convection_coefficient: exp
-                .real("hot_water_tank_internal_wall_convection_coefficient"),
-            hot_water_tank_external_wall_convection_coefficient: exp
-                .real("hot_water_tank_external_wall_convection_coefficient"),
-            dhw_vessel_wall_conductivity: exp.real("hot_water_vessel_wall_conductivity"),
-            dhw_vessel_internal_wall_convection_coefficient: exp
-                .real("hot_water_vessel_internal_wall_convection_coefficient"),
-            dhw_vessel_external_wall_convection_coefficient: exp
-                .real("hot_water_vessel_external_wall_convection_coefficient"),
-            dhw_vessel_wall_emissivity: exp.real("hot_water_vessel_wall_emissivity"),
-            hot_water_heating_efficiency: exp.real("hot_water_heating_efficiency"),
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_stebbs_prm(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_stebbs_prm,
@@ -1930,52 +2284,7 @@ fn observe_stebbs_prm() {
 fn observe_stebbs_state() {
     for iter_safe in [false, true] {
         let mut exp = ExpectedStruct::new();
-        let val = StebbsState {
-            kdown2d: exp.real("kdown_2d"),
-            kup2d: exp.real("kup_2d"),
-            kwest: exp.real("k_west"),
-            ksouth: exp.real("k_south"),
-            knorth: exp.real("k_north"),
-            keast: exp.real("k_east"),
-            ldown2d: exp.real("ldown_2d"),
-            lup2d: exp.real("lup_2d"),
-            lwest: exp.real("l_west"),
-            lsouth: exp.real("l_south"),
-            lnorth: exp.real("l_north"),
-            least: exp.real("l_east"),
-            zarray: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>("z_array", 1),
-            dataout_line_ursl: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>("dataout_line_u_rsl", 1),
-            dataout_line_trsl: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>("dataout_line_t_rsl", 1),
-            dataout_line_qrsl: exp.real_arr_1d::<STEBBS_STATE_RSL_LEN>("dataout_line_q_rsl", 1),
-            deep_soil_temperature: exp.real("deep_soil_temperature"),
-            month_mean_air_temperature_diffmax: exp.real("MonthMeanAirTemperature_diffmax"),
-            outdoor_air_start_temperature: exp.real("outdoor_air_start_temperature"),
-            indoor_air_start_temperature: exp.real("indoor_air_start_temperature"),
-            indoor_mass_start_temperature: exp.real("indoor_mass_start_temperature"),
-            wall_indoor_surface_temperature: exp.real("wall_indoor_surface_temperature"),
-            wall_outdoor_surface_temperature: exp.real("wall_outdoor_surface_temperature"),
-            roof_indoor_surface_temperature: exp.real("roof_indoor_surface_temperature"),
-            roof_outdoor_surface_temperature: exp.real("roof_outdoor_surface_temperature"),
-            window_indoor_surface_temperature: exp.real("window_indoor_surface_temperature"),
-            window_outdoor_surface_temperature: exp.real("window_outdoor_surface_temperature"),
-            ground_floor_indoor_surface_temperature: exp
-                .real("ground_floor_indoor_surface_temperature"),
-            ground_floor_outdoor_surface_temperature: exp
-                .real("ground_floor_outdoor_surface_temperature"),
-            water_tank_temperature: exp.real("water_tank_temperature_state"),
-            internal_wall_water_tank_temperature: exp.real("internal_wall_water_tank_temperature"),
-            external_wall_water_tank_temperature: exp.real("external_wall_water_tank_temperature"),
-            mains_water_temperature: exp.real("mains_water_temperature"),
-            domestic_hot_water_temperature_in_use_in_building: exp
-                .real("domestic_hot_water_temperature_in_use_in_building"),
-            internal_wall_dhw_vessel_temperature: exp.real("internal_wall_dhw_vessel_temperature"),
-            external_wall_dhw_vessel_temperature: exp.real("external_wall_dhw_vessel_temperature"),
-            qs_stebbs: exp.real("QS_stebbs"),
-            // Read-only count in flat buffer; Fortran unpack skips it and leaves
-            // STEBBS_STATE%buildings unallocated (verified by unbridged invariant).
-            buildings_count: 7,
-            iter_safe: exp.logical("iter_safe", iter_safe),
-        };
+        let val = build_stebbs_state(&mut exp, "", iter_safe);
         let flat = val.to_flat();
         let observed = call_observer_0d(
             observer_manifest::suews_obs_unpack_stebbs_state,
@@ -1989,14 +2298,7 @@ fn observe_stebbs_state() {
 #[test]
 fn observe_surf_store_prm() {
     let mut exp = ExpectedStruct::new();
-    let val = SurfStorePrm {
-        store_min: exp.real("store_min"),
-        store_max: exp.real("store_max"),
-        store_cap: exp.real("store_cap"),
-        drain_eq: exp.int("drain_eq"),
-        drain_coef_1: exp.real("drain_coef_1"),
-        drain_coef_2: exp.real("drain_coef_2"),
-    };
+    let val = build_surf_store_prm(&mut exp, "");
     let flat = val.to_flat();
     let observed = call_observer_0d(
         observer_manifest::suews_obs_unpack_surf_store_prm,
@@ -2004,6 +2306,184 @@ fn observe_surf_store_prm() {
         OBS_FIELDS_SURF_STORE_PRM,
     );
     assert_observed_matches("SURF_STORE_PRM", OBS_FIELDS_SURF_STORE_PRM, &exp, &observed);
+}
+
+// =============================================================================
+// 4 live driver.f95 aggregate receiver observer tests
+// (SUEWS_CONFIG, SUEWS_TIMER, SUEWS_SITE scalars + 18-member TOC, SUEWS_STATE 12-member TOC)
+// =============================================================================
+
+#[test]
+fn observe_suews_config() {
+    for (use_sw_direct_albedo, flag_test) in
+        [(false, false), (false, true), (true, false), (true, true)]
+    {
+        let mut exp = ExpectedStruct::new();
+        let cfg = SuewsConfig {
+            rsl_method: exp.int("RSLMethod"),
+            emissions_method: exp.int("EmissionsMethod"),
+            rough_len_heat_method: exp.int("RoughLenHeatMethod"),
+            rough_len_mom_method: exp.int("RoughLenMomMethod"),
+            fai_method: exp.int("FAIMethod"),
+            smd_method: exp.int("SMDMethod"),
+            water_use_method: exp.int("WaterUseMethod"),
+            net_radiation_method: exp.int("NetRadiationMethod"),
+            stability_method: exp.int("StabilityMethod"),
+            storage_heat_method: exp.int("StorageHeatMethod"),
+            diagnose: exp.int("Diagnose"),
+            snow_use: exp.int("SnowUse"),
+            use_sw_direct_albedo: exp.logical("use_sw_direct_albedo", use_sw_direct_albedo),
+            ohm_inc_qf: exp.int("ohmIncQF"),
+            diag_qs: exp.int("DiagQS"),
+            evap_method: exp.int("EvapMethod"),
+            lai_method: exp.int("LAImethod"),
+            rsl_level: exp.int("RSLLevel"),
+            stebbs_method: exp.int("stebbsmethod"),
+            rc_method: exp.int("rcmethod"),
+            setpoint_method: exp.int("setpointmethod"),
+            flag_test: exp.logical("flag_test", flag_test),
+            kdown_split_method: exp.int("KdownSplitMethod"),
+            forcing_timestamp_reference: exp.int("ForcingTimestampReference"),
+        };
+        let flat = cfg.to_flat();
+        assert_eq!(SuewsConfig::from_flat(&flat).unwrap(), cfg);
+        let observed = call_observer_0d(
+            observer_manifest::suews_obs_unpack_suews_config,
+            &flat,
+            OBS_FIELDS_SUEWS_CONFIG,
+        );
+        assert_observed_matches("SUEWS_CONFIG", OBS_FIELDS_SUEWS_CONFIG, &exp, &observed);
+    }
+}
+
+#[test]
+fn observe_suews_timer() {
+    let mut exp = ExpectedStruct::new();
+    let timer = SuewsTimer {
+        id: exp.int("id"),
+        imin: exp.int("imin"),
+        isec: exp.int("isec"),
+        it: exp.int("it"),
+        iy: exp.int("iy"),
+        tstep: exp.int("tstep"),
+        tstep_prev: exp.int("tstep_prev"),
+        dt_since_start: exp.int("dt_since_start"),
+        dt_since_start_prev: exp.int("dt_since_start_prev"),
+        nsh: exp.int("nsh"),
+        nsh_real: exp.real("nsh_real"),
+        tstep_real: exp.real("tstep_real"),
+        dectime: exp.real("dectime"),
+        dayofweek_id: exp.int_arr_1d::<3>("dayofWeek_id", 1),
+        dls: exp.int("DLS"),
+        new_day: exp.int("new_day"),
+    };
+    let flat = timer.to_flat();
+    assert_eq!(SuewsTimer::from_flat(&flat).unwrap(), timer);
+    let observed = call_observer_0d(
+        observer_manifest::suews_obs_unpack_suews_timer,
+        &flat,
+        OBS_FIELDS_SUEWS_TIMER,
+    );
+    assert_observed_matches("SUEWS_TIMER", OBS_FIELDS_SUEWS_TIMER, &exp, &observed);
+}
+
+#[test]
+fn observe_suews_site() {
+    // Asymmetric vertical/thermal dimensions (nlayer=3, ndepth=5); driver.f95 uses kernel nspec=1.
+    let nlayer = 3_usize;
+    let ndepth = 5_usize;
+    let nspec = 1_usize;
+
+    let mut exp = ExpectedStruct::new();
+    let scalars = SiteScalars {
+        lat: exp.real("lat"),
+        lon: exp.real("lon"),
+        alt: exp.real("alt"),
+        timezone: exp.real("timezone"),
+        surfacearea: exp.real("surfacearea"),
+        z: exp.real("z"),
+        z0m_in: exp.real("z0m_in"),
+        zdm_in: exp.real("zdm_in"),
+        pipecapacity: exp.real("pipecapacity"),
+        runofftowater: exp.real("runofftowater"),
+        narp_trans_site: exp.real("narp_trans_site"),
+        co2_point_source: exp.real("CO2PointSource"),
+        flowchange: exp.real("flow_change"),
+        n_buildings: exp.real("n_buildings"),
+        h_std: exp.real("h_std"),
+        lambda_c: exp.real("lambda_c"),
+        sfr_surf: exp.real_arr_1d::<NSURF>("sfr_surf", 1),
+        gridiv: exp.int("gridiv"),
+    };
+    let site = SuewsSite {
+        spartacus: build_spartacus_prm(&mut exp, "spartacus", nlayer),
+        lumps: build_lumps_prm(&mut exp, "lumps"),
+        ehc: build_ehc_prm(&mut exp, "ehc", nlayer, ndepth),
+        spartacus_layer: build_spartacus_layer_prm(&mut exp, "spartacus_layer", nlayer, nspec),
+        surf_store: build_surf_store_prm(&mut exp, "surf_store"),
+        irrigation: build_irrigation_prm(&mut exp, "irrigation"),
+        anthroemis: build_anthro_emis_prm(&mut exp, "anthroemis"),
+        snow: build_snow_prm(&mut exp, "snow"),
+        conductance: build_conductance_prm(&mut exp, "conductance"),
+        lc_paved: build_lc_paved_prm(&mut exp, "lc_paved"),
+        lc_bldg: build_lc_bldg_prm(&mut exp, "lc_bldg"),
+        lc_dectr: build_lc_dectr_prm(&mut exp, "lc_dectr"),
+        lc_evetr: build_lc_evetr_prm(&mut exp, "lc_evetr"),
+        lc_grass: build_lc_grass_prm(&mut exp, "lc_grass"),
+        lc_bsoil: build_lc_bsoil_prm(&mut exp, "lc_bsoil"),
+        lc_water: build_lc_water_prm(&mut exp, "lc_water"),
+        building_archtype: build_building_archetype_prm(&mut exp, "building_archtype", true),
+        stebbs: build_stebbs_prm(&mut exp, "stebbs", false),
+    };
+
+    let scalars_flat = encode_site_scalars_flat(&scalars);
+    let (site_flat, site_toc) = encode_site_members_flat(&site).unwrap();
+    let observed = call_observer_site(
+        &scalars_flat,
+        &site_flat,
+        &site_toc,
+        18,
+        nlayer,
+        ndepth,
+        OBS_FIELDS_SUEWS_SITE,
+    );
+    assert_observed_matches("SUEWS_SITE", OBS_FIELDS_SUEWS_SITE, &exp, &observed);
+    assert_eq!(suews_site_schema_info().unwrap().member_names.len(), 18);
+}
+
+#[test]
+fn observe_suews_state() {
+    let nlayer = 3_usize;
+    let ndepth = 5_usize;
+
+    let mut exp = ExpectedStruct::new();
+    let state = SuewsState {
+        error_state: ErrorState::default(),
+        flag_state: build_flag_state(&mut exp, "flagState", true, false, true),
+        anthroemis_state: build_anthroemis_state(&mut exp, "anthroemisState", false),
+        ohm_state: build_ohm_state(&mut exp, "ohmState", true, false),
+        solar_state: build_solar_state(&mut exp, "solarState", false),
+        atm_state: build_atm_state(&mut exp, "atmState", true),
+        phenology_state: build_phenology_state(&mut exp, "phenState", false),
+        snow_state: build_snow_state(&mut exp, "snowState", true),
+        hydro_state: build_hydro_state(&mut exp, "hydroState", nlayer, false),
+        heat_state: build_heat_state(&mut exp, "heatState", nlayer, ndepth, true),
+        roughness_state: build_roughness_state(&mut exp, "roughnessState", false),
+        stebbs_state: build_stebbs_state(&mut exp, "stebbsState", true),
+        nhood_state: build_nhood_state(&mut exp, "nhoodState", false),
+    };
+
+    let (state_flat, state_toc) = encode_state_members_flat(&state).unwrap();
+    let observed = call_observer_state(
+        &state_flat,
+        &state_toc,
+        13,
+        nlayer,
+        ndepth,
+        OBS_FIELDS_SUEWS_STATE,
+    );
+    assert_observed_matches("SUEWS_STATE", OBS_FIELDS_SUEWS_STATE, &exp, &observed);
+    assert_eq!(suews_state_schema_info().unwrap().member_names.len(), 13);
 }
 
 // =============================================================================
@@ -2020,8 +2500,8 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
 
     let mut seen_names: BTreeSet<String> = BTreeSet::new();
     let mut direct_names: BTreeSet<String> = BTreeSet::new();
+    let mut driver_names: BTreeSet<String> = BTreeSet::new();
     let mut nested_count = 0_usize;
-    let mut driver_count = 0_usize;
     let mut non_unpacked_count = 0_usize;
 
     for entry in MANIFEST_TYPES {
@@ -2040,14 +2520,16 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
                 direct_names.insert(entry.name.to_ascii_lowercase());
             }
             ManifestCoverage::NestedInParent => nested_count += 1,
-            ManifestCoverage::DriverPrivateUnpack => driver_count += 1,
+            ManifestCoverage::DriverPrivateUnpack => {
+                driver_names.insert(entry.name.to_ascii_lowercase());
+            }
             ManifestCoverage::NonUnpacked => non_unpacked_count += 1,
         }
     }
 
     assert_eq!(direct_names.len(), 30);
     assert_eq!(nested_count, 8);
-    assert_eq!(driver_count, 4);
+    assert_eq!(driver_names.len(), 4);
     assert_eq!(non_unpacked_count, 7);
 
     let all_direct_tables: [(&str, &[ObsFieldDescriptor]); 30] = [
@@ -2083,14 +2565,27 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
         ("surf_store_prm", OBS_FIELDS_SURF_STORE_PRM),
     ];
 
-    let tested_names: BTreeSet<String> = all_direct_tables
+    let all_driver_tables: [(&str, &[ObsFieldDescriptor]); 4] = [
+        ("suews_config", OBS_FIELDS_SUEWS_CONFIG),
+        ("suews_site", OBS_FIELDS_SUEWS_SITE),
+        ("suews_state", OBS_FIELDS_SUEWS_STATE),
+        ("suews_timer", OBS_FIELDS_SUEWS_TIMER),
+    ];
+
+    let tested_direct: BTreeSet<String> = all_direct_tables
         .iter()
         .map(|(name, _)| (*name).to_string())
         .collect();
-    assert_eq!(tested_names, direct_names);
+    assert_eq!(tested_direct, direct_names);
 
-    let mut total_leaves = 0_usize;
-    let mut unbridged_leaves = 0_usize;
+    let tested_driver: BTreeSet<String> = all_driver_tables
+        .iter()
+        .map(|(name, _)| (*name).to_string())
+        .collect();
+    assert_eq!(tested_driver, driver_names);
+
+    let mut direct_leaves = 0_usize;
+    let mut direct_unbridged = 0_usize;
     for (name, table) in all_direct_tables {
         assert!(!table.is_empty(), "{name}: descriptor table is empty");
         for (idx, desc) in table.iter().enumerate() {
@@ -2100,14 +2595,14 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
                 "{name}: non-sequential field id on {}",
                 desc.path
             );
-            total_leaves += 1;
+            direct_leaves += 1;
             if !desc.bridged {
                 assert!(
                     desc.unbridged_reason.is_some(),
                     "{name}%{}: unbridged leaf missing reason",
                     desc.path
                 );
-                unbridged_leaves += 1;
+                direct_unbridged += 1;
             }
             if desc.kind == ObsKind::Derived {
                 assert!(
@@ -2119,13 +2614,32 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
         }
     }
     assert!(
-        total_leaves > 700,
-        "unexpectedly small leaf count {total_leaves}"
+        direct_leaves > 700,
+        "unexpectedly small direct leaf count {direct_leaves}"
     );
     assert_eq!(
-        unbridged_leaves, 6,
-        "expected exactly 6 reviewed unbridged kernel leaves across all 30 direct types"
+        direct_unbridged, 6,
+        "expected exactly 6 reviewed unbridged leaves across the 30 direct types"
     );
+
+    for (name, table) in all_driver_tables {
+        assert!(!table.is_empty(), "{name}: descriptor table is empty");
+        for (idx, desc) in table.iter().enumerate() {
+            assert_eq!(
+                desc.id,
+                (idx + 1) as i32,
+                "{name}: non-sequential field id on {}",
+                desc.path
+            );
+            if !desc.bridged {
+                assert!(
+                    desc.unbridged_reason.is_some(),
+                    "{name}%{}: unbridged leaf missing reason",
+                    desc.path
+                );
+            }
+        }
+    }
 }
 
 #[test]
@@ -2154,76 +2668,6 @@ fn standalone_nested_type_codecs_roundtrip_distinct_sentinels() {
 
     let wd = build_water_dist_prm(&mut exp, "wd");
     assert_eq!(WaterDistPrm::from_flat(&wd.to_flat()).unwrap(), wd);
-}
-
-#[test]
-fn driver_private_types_distinct_sentinel_codecs() {
-    for (use_sw_direct_albedo, flag_test) in
-        [(false, false), (false, true), (true, false), (true, true)]
-    {
-        let cfg = SuewsConfig {
-            rsl_method: 101,
-            emissions_method: 102,
-            rough_len_heat_method: 103,
-            rough_len_mom_method: 104,
-            fai_method: 105,
-            smd_method: 106,
-            water_use_method: 107,
-            net_radiation_method: 108,
-            stability_method: 109,
-            storage_heat_method: 110,
-            diagnose: 111,
-            snow_use: 112,
-            use_sw_direct_albedo,
-            ohm_inc_qf: 113,
-            diag_qs: 114,
-            evap_method: 115,
-            lai_method: 116,
-            rsl_level: 117,
-            stebbs_method: 118,
-            rc_method: 119,
-            setpoint_method: 120,
-            flag_test,
-            kdown_split_method: 121,
-            forcing_timestamp_reference: 122,
-        };
-        assert_eq!(SuewsConfig::from_flat(&cfg.to_flat()).unwrap(), cfg);
-    }
-
-    let timer = SuewsTimer {
-        id: 201,
-        imin: 202,
-        isec: 203,
-        it: 204,
-        iy: 205,
-        tstep: 206,
-        tstep_prev: 207,
-        dt_since_start: 208,
-        dt_since_start_prev: 209,
-        nsh: 210,
-        nsh_real: 1001.125,
-        tstep_real: 1002.1875,
-        dectime: 1003.25,
-        dayofweek_id: [211, 212, 213],
-        dls: 214,
-        new_day: 215,
-    };
-    assert_eq!(SuewsTimer::from_flat(&timer.to_flat()).unwrap(), timer);
-
-    let site_schema = suews_site_schema_info().unwrap();
-    assert_eq!(site_schema.member_names.len(), 18);
-    let site = suews_site_default_from_fortran().unwrap();
-    let site_payload = suews_site_to_values_payload(&site);
-    assert_eq!(suews_site_from_values_payload(&site_payload).unwrap(), site);
-
-    let state_schema = suews_state_schema_info().unwrap();
-    assert_eq!(state_schema.member_names.len(), 13);
-    let state = suews_state_default_from_fortran().unwrap();
-    let state_payload = suews_state_to_values_payload(&state);
-    assert_eq!(
-        suews_state_from_values_payload(&state_payload).unwrap(),
-        state
-    );
 }
 
 #[test]
@@ -2272,4 +2716,29 @@ fn observer_rejects_truncated_flat_buffer() {
         "truncated EHC flat buffer must return non-zero error code"
     );
     assert!(obs_ehc.values.is_empty());
+
+    let obs_cfg = call_observer_0d(
+        observer_manifest::suews_obs_unpack_suews_config,
+        &short,
+        OBS_FIELDS_SUEWS_CONFIG,
+    );
+    assert_ne!(obs_cfg.err, SUEWS_CAPI_OK);
+    assert!(obs_cfg.values.is_empty());
+
+    let obs_timer = call_observer_0d(
+        observer_manifest::suews_obs_unpack_suews_timer,
+        &short,
+        OBS_FIELDS_SUEWS_TIMER,
+    );
+    assert_ne!(obs_timer.err, SUEWS_CAPI_OK);
+    assert!(obs_timer.values.is_empty());
+
+    let empty_toc = [0_i32; 2];
+    let obs_site = call_observer_site(&short, &short, &empty_toc, 18, 3, 5, OBS_FIELDS_SUEWS_SITE);
+    assert_ne!(obs_site.err, SUEWS_CAPI_OK);
+    assert!(obs_site.values.is_empty());
+
+    let obs_state = call_observer_state(&short, &empty_toc, 13, 3, 5, OBS_FIELDS_SUEWS_STATE);
+    assert_ne!(obs_state.err, SUEWS_CAPI_OK);
+    assert!(obs_state.values.is_empty());
 }

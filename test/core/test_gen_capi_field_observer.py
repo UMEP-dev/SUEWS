@@ -71,7 +71,7 @@ def test_manifest_classification_covers_all_49_types() -> None:
         gen.CAPI_DIR,
     )
     assert len(manifest_entries) == 49
-    assert len(leaves_by_type) == 30
+    assert len(leaves_by_type) == 34
     assert len(gen.DIRECT_UNPACK_SPECS) == 30
     assert len(gen.NESTED_IN_PARENT_SPECS) == 8
     assert len(gen.DRIVER_PRIVATE_UNPACK_SPECS) == 4
@@ -350,3 +350,18 @@ def test_coverage_audit_rejects_unclassified_manifest_type(tmp_path: Path) -> No
 
     with pytest.raises(gen.CoverageInventoryError, match="new_unclassified_type"):
         gen.audit_manifest_and_inventory(fake_manifest, types_by_lower, gen.CAPI_DIR)
+
+
+def test_driver_audit_rejects_dropped_site_scalar(tmp_path: Path) -> None:
+    """Dropping a scalar assignment in driver.f95::unpack_site_scalars fails audit loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    orig_driver = (gen.CAPI_DIR / "driver.f95").read_text(encoding="utf-8")
+    mutated = orig_driver.replace(
+        "site%lat = flat(1)",
+        "! dropped: site%lat = flat(1)",
+    )
+    assert mutated != orig_driver
+    (tmp_path / "driver.f95").write_text(mutated, encoding="utf-8")
+
+    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_SITE%lat"):
+        gen.audit_driver_private_unpackers(tmp_path, types_by_lower)

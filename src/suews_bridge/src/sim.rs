@@ -508,6 +508,26 @@ fn encode_site_scalars(site_scalars: &SiteScalars) -> [f64; SUEWS_CAPI_SITE_SCAL
     out
 }
 
+/// Test-only helper exposing the real `SiteScalars` flat encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_site_scalars_flat(site_scalars: &SiteScalars) -> Vec<f64> {
+    encode_site_scalars(site_scalars).to_vec()
+}
+
+/// Test-only helper exposing the real `SuewsSite` TOC encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_site_members_flat(site: &SuewsSite) -> Result<(Vec<f64>, Vec<i32>), BridgeError> {
+    let buf = encode_site_members(site)?;
+    Ok((buf.flat, buf.toc))
+}
+
+/// Test-only helper exposing the real `SuewsState` TOC encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_state_members_flat(state: &SuewsState) -> Result<(Vec<f64>, Vec<i32>), BridgeError> {
+    let buf = encode_state_members(state)?;
+    Ok((buf.flat, buf.toc))
+}
+
 fn decode_state_members(
     state_template: &SuewsState,
     state_flat: &[f64],

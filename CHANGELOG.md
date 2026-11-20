@@ -57,6 +57,7 @@ EXAMPLES:
 ### 19 Nov 2026
 
 - [doc] Record runtime-derived defaults (`StorageDrainParams.store_cap` derived from `store_max`, and vegetated `InitialState*.alb_id` derived from initial LAI and albedo limits) in `supy.data_model.validation.derived_fields` so the generated configuration reference reports `:Status: Optional; derived from ...` instead of claiming they have no default and are unchecked (#2076)
+- [maintenance] Replace index-only range loops with slice iterators across nine `suews_bridge` codec modules (`anthroemis`, `atm`, `building_archetype_prm`, `core`, `heat_state`, `hydro_state`, `phenology`, `snow`, `stebbs_prm`) to satisfy Rust 1.100 `clippy::needless_range_loop`; no behaviour or layout changes
 
 ### 18 Nov 2026
 

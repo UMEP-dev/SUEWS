@@ -3,7 +3,7 @@
 > **Canonical Rules Notice**
 >
 > Active sizing, workflow, and code-design rules supersede this guide whenever an example drifts. Always read:
-> - Rules: [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/code-design.md`](../.claude/rules/code-design.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/labels.md`](../.claude/rules/labels.md)
+> - Rules: [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md), [`.claude/rules/pr-description.md`](../.claude/rules/pr-description.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/code-design.md`](../.claude/rules/code-design.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/labels.md`](../.claude/rules/labels.md)
 > - Skills: `/triage-issue` ([`.claude/skills/triage-issue/SKILL.md`](../.claude/skills/triage-issue/SKILL.md)), `/fix-issue` ([`.claude/skills/fix-issue/SKILL.md`](../.claude/skills/fix-issue/SKILL.md)), `/audit-pr` ([`.claude/skills/audit-pr/SKILL.md`](../.claude/skills/audit-pr/SKILL.md)), `/split-pr` ([`.claude/skills/split-pr/SKILL.md`](../.claude/skills/split-pr/SKILL.md)), and `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md))
 
 ## Overview
@@ -143,6 +143,7 @@ Label each child with the repository's four-tier labels (`1-*`, `2-*`, `3-*`, `4
 - [ ] New files added to `meson.build`; `python scripts/suews/gen_fortran_deps.py` run if Fortran `USE` edges changed
 - [ ] Every new `test/**/*.py` file carries `pytestmark = pytest.mark.api` or `pytest.mark.physics`
 - [ ] `make format` and `make test-smoke` (plus `make test` where applicable) pass locally
+- [ ] PR description follows `.claude/rules/pr-description.md` (`## Why`, `## What changed` + known limits, `## How to review`, PR-specific `## Verification`; plus `## Stack` for stacked slices)
 - [ ] Classification label (`0-physics:change` or `0-numerics:change`), matching PR-body section (`## Scientific evidence` or numerical change table), and same-PR fixture refresh included if model physics or reference outputs moved (`.claude/rules/physics-change-evidence.md`)
 - [ ] Schema version bumped and upgrader registered if `src/supy/data_model/` changed structurally
 

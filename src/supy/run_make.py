@@ -7,12 +7,25 @@ from collections.abc import Iterator, Mapping
 import contextlib
 import errno
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
 import platform
 import subprocess
 import sys
+
+# Load by sibling path: Meson executes these scripts directly, and tests load
+# them with spec_from_file_location without adding this directory to sys.path.
+_DEPFILE_HELPER = Path(__file__).resolve().with_name("_build_depfile.py")
+_depfile_spec = importlib.util.spec_from_file_location(
+    "_suews_build_depfile", _DEPFILE_HELPER
+)
+assert _depfile_spec is not None and _depfile_spec.loader is not None
+_depfile_module = importlib.util.module_from_spec(_depfile_spec)
+_depfile_spec.loader.exec_module(_depfile_module)
+write_depfile = _depfile_module.write_depfile
+_escape_depfile_token = _depfile_module._escape_depfile_token
 
 BUILD_PROFILES = ("release", "checked")
 DEFAULT_BUILD_PROFILE = "release"
@@ -347,11 +360,6 @@ def _suews_build_lock(suews_dir: Path) -> Iterator[None]:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
-def _escape_depfile_token(token: str) -> str:
-    """Escape a path for Ninja/Make depfile consumption."""
-    return token.replace("$", "$$").replace(" ", "\\ ")
-
-
 def collect_ext_lib_inputs(suews_dir: Path) -> list[Path]:
     """Return sorted vendored source/build inputs under ``suews_dir/ext_lib``."""
     ext_lib_dir = suews_dir / "ext_lib"
@@ -370,24 +378,11 @@ def collect_ext_lib_inputs(suews_dir: Path) -> list[Path]:
 
 def collect_depfile_inputs(suews_dir: Path) -> list[Path]:
     """Return sorted depfile inputs including ``ext_lib`` and shared fingerprint."""
-    deps = collect_ext_lib_inputs(suews_dir)
+    deps = [*collect_ext_lib_inputs(suews_dir), _DEPFILE_HELPER]
     fp_path = fingerprint_path_for_suews(suews_dir).resolve()
     if fp_path.is_file():
         deps.append(fp_path)
     return sorted(set(deps))
-
-
-def write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
-    """Write a single-target Ninja-compatible depfile."""
-    depfile.parent.mkdir(parents=True, exist_ok=True)
-    target_tok = _escape_depfile_token(target.replace("\\", "/"))
-    dep_toks = [_escape_depfile_token(p.as_posix()) for p in deps]
-    content = (
-        f"{target_tok}: " + " \\\n  ".join(dep_toks) + "\n"
-        if dep_toks
-        else f"{target_tok}:\n"
-    )
-    depfile.write_text(content, encoding="utf-8")
 
 
 def _run_make_with_retry(

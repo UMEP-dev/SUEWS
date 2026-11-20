@@ -385,6 +385,7 @@ clean: clean-obj clean-mods clean-lib clean-bin clean-ext
 
 clean-obj:
 	find . -name "*.o" -type f -delete
+	rm -f .suews_build_fingerprint
 
 
 clean-lib:

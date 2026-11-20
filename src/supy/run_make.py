@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+import contextlib
+import errno
 import hashlib
 import json
 import os
@@ -126,6 +128,8 @@ def _run_make(
 _EXT_LIB_SOURCE_SUFFIXES = {".f90", ".f95", ".f", ".c", ".h", ".inc", ".mk"}
 _MAKE_ENV_KEYS = ("PROFILE", "SINGLE_PRECISION", "NETCDF4")
 _BUILD_ARTIFACT_PATTERNS = ("*.o", "*.mod", "lib*.a")
+BUILD_FINGERPRINT_FILENAME = ".suews_build_fingerprint"
+BUILD_LOCK_FILENAME = ".suews_build.lock"
 
 
 def _is_build_config_file(path: Path) -> bool:
@@ -180,9 +184,9 @@ def compute_build_fingerprint(
     return hashlib.sha256(encoded).hexdigest()
 
 
-def fingerprint_path_for_stamp(stamp_file: Path) -> Path:
-    """Return the fingerprint file path beside Meson's ``stamp_file``."""
-    return stamp_file.with_name(f"{stamp_file.name}.fingerprint")
+def fingerprint_path_for_suews(suews_dir: Path) -> Path:
+    """Return the shared object-tree fingerprint path inside ``suews_dir``."""
+    return suews_dir / BUILD_FINGERPRINT_FILENAME
 
 
 def clean_build_artifacts(suews_dir: Path) -> list[Path]:
@@ -198,11 +202,10 @@ def clean_build_artifacts(suews_dir: Path) -> list[Path]:
 
 def invalidate_stale_artifacts(
     suews_dir: Path,
-    stamp_file: Path,
     fingerprint: str,
 ) -> list[Path]:
-    """Clean compiled artefacts when the build-config fingerprint changed."""
-    fp_path = fingerprint_path_for_stamp(stamp_file)
+    """Clean compiled artefacts when the shared ``suews_dir`` fingerprint changed."""
+    fp_path = fingerprint_path_for_suews(suews_dir)
     previous = (
         fp_path.read_text(encoding="utf-8").strip() if fp_path.is_file() else None
     )
@@ -215,12 +218,54 @@ def invalidate_stale_artifacts(
     return removed
 
 
-def write_build_fingerprint(stamp_file: Path, fingerprint: str) -> Path:
-    """Write ``fingerprint`` beside ``stamp_file`` inside Meson's build tree."""
-    fp_path = fingerprint_path_for_stamp(stamp_file)
-    fp_path.parent.mkdir(parents=True, exist_ok=True)
-    fp_path.write_text(f"{fingerprint}\n", encoding="utf-8")
+def write_build_fingerprint(suews_dir: Path, fingerprint: str) -> Path:
+    """Write ``fingerprint`` beside the shared objects in ``suews_dir``.
+
+    Leave the file untouched when its content already matches ``fingerprint`` so
+    its modification time stays stable across incremental builds with the same
+    configuration.
+    """
+    fp_path = fingerprint_path_for_suews(suews_dir)
+    expected = f"{fingerprint}\n"
+    if fp_path.is_file() and fp_path.read_text(encoding="utf-8") == expected:
+        return fp_path
+    fp_path.write_text(expected, encoding="utf-8")
     return fp_path
+
+
+@contextlib.contextmanager
+def _suews_build_lock(suews_dir: Path) -> Iterator[None]:
+    """Serialise concurrent builds sharing the in-tree ``suews_dir`` objects."""
+    lock_path = suews_dir / BUILD_LOCK_FILENAME
+    with lock_path.open("a+b") as lock_file:
+        if os.name == "nt":
+            import msvcrt  # noqa: PLC0415
+
+            lock_file.seek(0)
+            if lock_path.stat().st_size == 0:
+                lock_file.write(b"\0")
+                lock_file.flush()
+            lock_file.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError as exc:
+                    if exc.errno != errno.EDEADLK:
+                        raise
+            try:
+                yield
+            finally:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl  # noqa: PLC0415
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _escape_depfile_token(token: str) -> str:
@@ -244,6 +289,15 @@ def collect_ext_lib_inputs(suews_dir: Path) -> list[Path]:
     return inputs
 
 
+def collect_depfile_inputs(suews_dir: Path) -> list[Path]:
+    """Return sorted depfile inputs including ``ext_lib`` and shared fingerprint."""
+    deps = collect_ext_lib_inputs(suews_dir)
+    fp_path = fingerprint_path_for_suews(suews_dir).resolve()
+    if fp_path.is_file():
+        deps.append(fp_path)
+    return sorted(set(deps))
+
+
 def write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
     """Write a single-target Ninja-compatible depfile."""
     depfile.parent.mkdir(parents=True, exist_ok=True)
@@ -255,6 +309,66 @@ def write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
         else f"{target_tok}:\n"
     )
     depfile.write_text(content, encoding="utf-8")
+
+
+def _run_make_with_retry(
+    profile_args: list[str],
+    suews_dir: Path,
+    fc: str | None,
+    jobs: int,
+) -> None:
+    """Run ``make`` and retry once after cleaning if stale ``.mod`` files fail."""
+    # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
+    # Fortran module files (*.mod) that cannot be read by the new compiler.
+    result = _run_make(profile_args, suews_dir, fc, jobs)
+    if result.returncode == 0:
+        return
+
+    stale_mod_patterns = (
+        "created by a different version of GNU Fortran",
+        "Cannot read module file",
+    )
+    if any(pat in result.stdout for pat in stale_mod_patterns):
+        sys.stdout.write(
+            "\nDetected stale Fortran build artifacts; cleaning *.o and *.mod and retrying.\n"
+        )
+        clean = _run_make(["clean-obj", "clean-mods"], suews_dir, fc)
+        if clean.returncode != 0:
+            raise subprocess.CalledProcessError(
+                clean.returncode, clean.args, output=clean.stdout
+            )
+
+        retry = _run_make(profile_args, suews_dir, fc, jobs)
+        if retry.returncode != 0:
+            raise subprocess.CalledProcessError(
+                retry.returncode, retry.args, output=retry.stdout
+            )
+        return
+
+    raise subprocess.CalledProcessError(
+        result.returncode, result.args, output=result.stdout
+    )
+
+
+def _record_build_outputs(
+    suews_dir: Path,
+    raw_stamp: str,
+    stamp_file: Path,
+    depfile: Path | None,
+    fingerprint: str,
+) -> None:
+    """Persist shared fingerprint, touch Meson's stamp, and write depfile."""
+    # Record the active shared object-tree fingerprint before updating
+    # Meson's per-builddir stamp so mtime(stamp) >= mtime(fingerprint).
+    fp_path = write_build_fingerprint(suews_dir, fingerprint)
+    stamp_file.parent.mkdir(parents=True, exist_ok=True)
+    stamp_file.touch()
+    stamp_stat = stamp_file.stat()
+    fp_stat = fp_path.stat()
+    if stamp_stat.st_mtime_ns < fp_stat.st_mtime_ns:
+        os.utime(stamp_file, ns=(fp_stat.st_atime_ns, fp_stat.st_mtime_ns))
+    if depfile is not None:
+        write_depfile(depfile, raw_stamp, collect_depfile_inputs(suews_dir))
 
 
 def main() -> None:
@@ -276,50 +390,17 @@ def main() -> None:
         f"make jobs: {jobs}\n"
     )
 
-    fingerprint = compute_build_fingerprint(suews_dir, fc, profile, profile_args)
-    removed = invalidate_stale_artifacts(suews_dir, stamp_file, fingerprint)
-    if removed:
-        sys.stdout.write(
-            f"Build configuration changed; cleaned {len(removed)} compiled "
-            "Fortran/C build artefacts before rebuild.\n"
-        )
-
-    # Run make and propagate failures so Meson can fail fast.
-    # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
-    # Fortran module files (*.mod) that cannot be read by the new compiler.
-    result = _run_make(profile_args, suews_dir, fc, jobs)
-    if result.returncode != 0:
-        output = result.stdout
-        stale_mod_patterns = (
-            "created by a different version of GNU Fortran",
-            "Cannot read module file",
-        )
-        if any(pat in output for pat in stale_mod_patterns):
+    with _suews_build_lock(suews_dir):
+        fingerprint = compute_build_fingerprint(suews_dir, fc, profile, profile_args)
+        removed = invalidate_stale_artifacts(suews_dir, fingerprint)
+        if removed:
             sys.stdout.write(
-                "\nDetected stale Fortran build artifacts; cleaning *.o and *.mod and retrying.\n"
-            )
-            clean = _run_make(["clean-obj", "clean-mods"], suews_dir, fc)
-            if clean.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    clean.returncode, clean.args, output=clean.stdout
-                )
-
-            retry = _run_make(profile_args, suews_dir, fc, jobs)
-            if retry.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    retry.returncode, retry.args, output=retry.stdout
-                )
-        else:
-            raise subprocess.CalledProcessError(
-                result.returncode, result.args, output=result.stdout
+                f"Build configuration changed; cleaned {len(removed)} compiled "
+                "Fortran/C build artefacts before rebuild.\n"
             )
 
-    # Ensure an output file exists so Meson can track this custom target.
-    stamp_file.parent.mkdir(parents=True, exist_ok=True)
-    write_build_fingerprint(stamp_file, fingerprint)
-    stamp_file.touch()
-    if depfile is not None:
-        write_depfile(depfile, raw_stamp, collect_ext_lib_inputs(suews_dir))
+        _run_make_with_retry(profile_args, suews_dir, fc, jobs)
+        _record_build_outputs(suews_dir, raw_stamp, stamp_file, depfile, fingerprint)
 
 
 if __name__ == "__main__":

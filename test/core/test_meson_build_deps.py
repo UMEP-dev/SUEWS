@@ -272,8 +272,6 @@ def test_run_make_invalidate_stale_artifacts_cleans_only_on_change(
     # ARRANGE
     helper = _load_helper("suews_run_make", "src/supy/run_make.py")
     suews_dir = _make_synthetic_suews_tree(tmp_path)
-    build_dir = tmp_path / "meson-build"
-    stamp_file = build_dir / "src" / "supy" / "suews_objects"
 
     src_f95 = suews_dir / "src" / "suews_phys_lai.f95"
     src_c = suews_dir / "src" / "strptime.c"
@@ -292,23 +290,24 @@ def test_run_make_invalidate_stale_artifacts_cleans_only_on_change(
     fp_o3 = helper.compute_build_fingerprint(
         suews_dir, fc=None, profile="release", profile_args=["DEBUG="], environ={}
     )
-    fp_file = helper.write_build_fingerprint(stamp_file, fp_o3)
+    fp_file = helper.write_build_fingerprint(suews_dir, fp_o3)
 
-    # ACT 1: unchanged fingerprint preserves compiled artefacts and writes nothing into suews_dir
-    removed_same = helper.invalidate_stale_artifacts(suews_dir, stamp_file, fp_o3)
+    # ACT 1: unchanged fingerprint preserves compiled artefacts and depfile tracks shared stamp
+    removed_same = helper.invalidate_stale_artifacts(suews_dir, fp_o3)
+    depfile_inputs = set(helper.collect_depfile_inputs(suews_dir))
 
     # ASSERT 1
     assert removed_same == []
     assert all(art.is_file() for art in artifacts)
-    assert fp_file.parent == stamp_file.parent
-    assert not list(suews_dir.rglob("*.fingerprint"))
+    assert fp_file == suews_dir / helper.BUILD_FINGERPRINT_FILENAME
+    assert fp_file.resolve() in depfile_inputs
 
     # ACT 2: changing Makefile.gfortran flags invalidates and removes all compiled artefacts
     (suews_dir / "Makefile.gfortran").write_text("OPTFLAGS = -O0\n", encoding="utf-8")
     fp_o0 = helper.compute_build_fingerprint(
         suews_dir, fc=None, profile="release", profile_args=["DEBUG="], environ={}
     )
-    removed_changed = helper.invalidate_stale_artifacts(suews_dir, stamp_file, fp_o0)
+    removed_changed = helper.invalidate_stale_artifacts(suews_dir, fp_o0)
 
     # ASSERT 2
     assert set(removed_changed) == set(artifacts)
@@ -316,3 +315,63 @@ def test_run_make_invalidate_stale_artifacts_cleans_only_on_change(
     assert not fp_file.exists()
     assert src_f95.is_file()
     assert src_c.is_file()
+
+
+def test_run_make_cross_builddir_profile_switch_invalidates_shared_objects(
+    tmp_path: Path,
+) -> None:
+    # ARRANGE: two independent build dirs sharing one src/suews object tree
+    helper = _load_helper("suews_run_make", "src/supy/run_make.py")
+    suews_dir = _make_synthetic_suews_tree(tmp_path)
+    build_a = tmp_path / "build-release"
+    build_b = tmp_path / "build-checked"
+    (build_a / "src" / "supy").mkdir(parents=True)
+    (build_b / "src" / "supy").mkdir(parents=True)
+
+    lai_o = suews_dir / "src" / "suews_phys_lai.o"
+    lai_mod = suews_dir / "mod" / "module_phys_lai.mod"
+    phys_a = suews_dir / "lib" / "libsuewsphys.a"
+    rad_o = (
+        suews_dir / "ext_lib" / "spartacus-surface" / "radsurf" / "radsurf_urban_sw.o"
+    )
+    shared_artifacts = [lai_o, lai_mod, phys_a, rad_o]
+
+    fp_release = helper.compute_build_fingerprint(
+        suews_dir, fc=None, profile="release", profile_args=["DEBUG="], environ={}
+    )
+    fp_checked = helper.compute_build_fingerprint(
+        suews_dir, fc=None, profile="checked", profile_args=["DEBUG=1"], environ={}
+    )
+
+    # ACT 1: build dir A builds release and writes its Meson stamp + shared fingerprint
+    for art in shared_artifacts:
+        art.write_bytes(b"release-obj")
+    helper.write_build_fingerprint(suews_dir, fp_release)
+    (build_a / "src" / "supy" / "suews_objects").touch()
+
+    # ACT 2: build dir B builds checked against the same src/suews tree
+    removed_by_b = helper.invalidate_stale_artifacts(suews_dir, fp_checked)
+    for art in shared_artifacts:
+        art.write_bytes(b"checked-obj")
+    helper.write_build_fingerprint(suews_dir, fp_checked)
+    (build_b / "src" / "supy" / "suews_objects").touch()
+
+    # ACT 3: build dir A returns in release; must detect B's checked objects and clean
+    removed_by_a_return = helper.invalidate_stale_artifacts(suews_dir, fp_release)
+
+    # ASSERT
+    assert set(removed_by_b) == set(shared_artifacts)
+    assert set(removed_by_a_return) == set(shared_artifacts)
+    assert not any(art.exists() for art in shared_artifacts)
+    assert not helper.fingerprint_path_for_suews(suews_dir).exists()
+
+
+def test_gitignore_and_makefile_handle_shared_suews_build_state() -> None:
+    # ARRANGE
+    gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+    makefile = SUEWS_MAKEFILE.read_text(encoding="utf-8")
+
+    # ASSERT
+    assert "src/suews/.suews_build_fingerprint" in gitignore
+    assert "src/suews/.suews_build.lock" in gitignore
+    assert "rm -f .suews_build_fingerprint" in makefile

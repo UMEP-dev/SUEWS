@@ -1,5 +1,7 @@
-"""Adverse controls exercise the existing physics checks through their entry points."""
+"""Pair intact output with failures that identify each deliberate mutation."""
 
+from functools import partial
+import re
 from types import SimpleNamespace
 
 import numpy as np
@@ -43,6 +45,8 @@ def frames():
 
 def _damage(output, column, defect):
     result = output.copy()
+    if defect is None:
+        return result
     if defect == "missing":
         return result.drop(columns=[column])
     if defect == "row":
@@ -52,6 +56,20 @@ def _damage(output, column, defect):
     else:
         result.loc[result.index[1], column] = defect
     return result
+
+
+def _check_outcome(run, expected):
+    if expected is None:
+        run()
+    else:
+        with pytest.raises(AssertionError, match=re.escape(expected)):
+            run()
+
+
+def _invalid_cell(index, defect):
+    if defect == "all_nan":
+        return index[0], "nan"
+    return index[1], str(defect)
 
 
 @pytest.mark.core
@@ -65,40 +83,60 @@ def _damage(output, column, defect):
     ],
 )
 @pytest.mark.parametrize(
-    "defect", [np.nan, np.inf, -999.0, "missing", "all_nan", "row"]
+    "defect", [None, np.nan, np.inf, -999.0, "missing", "all_nan", "row"]
 )
 def test_wind_entry_rejects_damage(monkeypatch, frames, entry, column, defect):
     output, state, forcing = frames
+    # Three profiles simulate only the first two forcing steps.
+    output, forcing = output.iloc[:2], forcing.iloc[:2]
     damaged = _damage(output, column, defect)
     monkeypatch.setattr(wind, "run_simulation", lambda *a, **kw: (damaged, None))
     args = (10.0, 1.0, 7.0) if entry == "test_wind_speeds_positive" else ()
-    with pytest.raises(AssertionError):
-        getattr(wind.TestWindProfiles(), entry)((state, forcing), *args)
+    expected = None
+    if defect == "missing":
+        expected = f"Missing wind output columns for grids=[1]: {[column]}"
+    elif defect == "row":
+        expected = (
+            "Incomplete wind output rows (grid, datetime): "
+            f"missing={output.index[-1:].tolist()}, unexpected=[], duplicates=[]"
+        )
+    elif defect is not None:
+        row, value = _invalid_cell(output.index, defect)
+        expected = f"Invalid wind output: {column} at grid/time={row}: {value}"
+    run = partial(getattr(wind.TestWindProfiles(), entry), (state, forcing), *args)
+    _check_outcome(run, expected)
 
 
 @pytest.mark.core
 @pytest.mark.parametrize(
     "column", [("SUEWS", "State"), ("debug", "ss_Paved_next"), ("SUEWS", "Rain")]
 )
-@pytest.mark.parametrize("defect", [np.nan, np.inf, -999.0, "missing"])
+@pytest.mark.parametrize("defect", [None, np.nan, np.inf, -999.0, "missing"])
 @pytest.mark.parametrize("entry", ["sweep", "core"])
 def test_water_entry_rejects_damage(monkeypatch, frames, column, defect, entry):
     output, state, forcing = frames
     damaged = _damage(output, column, defect)
-    with pytest.raises((AssertionError, KeyError)):
-        if entry == "sweep":
-            monkeypatch.setattr(sweep, "patch_physics", lambda *a: state)
-            monkeypatch.setattr(
-                sweep, "run_simulation", lambda *a, **kw: (damaged, None)
-            )
-            sweep.test_option_value_runs_finite_and_conserves_water(
-                "control", SimpleNamespace(name="control"), None, (state, forcing)
-            )
-        else:
-            test = core.TestPhysicalValidation()
-            test.df_output, test.df_state_init = damaged, state
-            test.df_forcing_week = forcing
-            test.test_water_balance_consistency()
+    if entry == "sweep":
+        monkeypatch.setattr(sweep, "patch_physics", lambda *a: state)
+        monkeypatch.setattr(sweep, "run_simulation", lambda *a, **kw: (damaged, None))
+        run = partial(
+            sweep.test_option_value_runs_finite_and_conserves_water,
+            "control",
+            SimpleNamespace(name="control"),
+            None,
+            (state, forcing),
+        )
+    else:
+        test = core.TestPhysicalValidation()
+        test.df_output, test.df_state_init = damaged, state
+        test.df_forcing_week = forcing
+        run = test.test_water_balance_consistency
+    expected = None
+    if defect == "missing":
+        expected = f"Missing water balance columns for grid=1: {[column]}"
+    elif defect is not None:
+        expected = f"Invalid water balance input: {column} at grid=1, time={forcing.index[1]}: {defect}"
+    _check_outcome(run, expected)
 
 
 @pytest.mark.core
@@ -112,9 +150,23 @@ def test_water_first_interval_has_no_predecessor(frames):
     test.test_water_balance_consistency()
 
 
+def _qs_diagnostic(index, defect):
+    if defect is None:
+        return None
+    if defect == "missing":
+        return "Missing DyOHM QS column for grid=1"
+    if defect == "row":
+        return (
+            "Incomplete or misordered DyOHM QS rows (grid, datetime): "
+            f"missing={index[-1:].tolist()}, unexpected=[], duplicates=[]"
+        )
+    row, value = _invalid_cell(index, defect)
+    return f"Invalid DyOHM QS: grid/time={row}: {value}"
+
+
 @pytest.mark.core
 @pytest.mark.parametrize(
-    "defect", [np.nan, np.inf, -999.0, "missing", "all_nan", "row"]
+    "defect", [None, np.nan, np.inf, -999.0, "missing", "all_nan", "row"]
 )
 def test_dyohm_sensitivity_rejects_damage(monkeypatch, frames, defect):
     output, state, forcing = frames
@@ -125,13 +177,15 @@ def test_dyohm_sensitivity_rejects_damage(monkeypatch, frames, defect):
     results = iter([baseline, changed, baseline.copy()])
     monkeypatch.setattr(dyohm, "load_sample_frames", lambda: (state, forcing))
     monkeypatch.setattr(dyohm, "_run_storage_case", lambda *a, **kw: next(results))
-    with pytest.raises((AssertionError, KeyError)):
-        dyohm.test_dyohm_uses_building_material_not_wall(8)
+    _check_outcome(
+        partial(dyohm.test_dyohm_uses_building_material_not_wall, 8),
+        _qs_diagnostic(baseline.index, defect),
+    )
 
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    "defect", [np.nan, np.inf, -999.0, "missing", "all_nan", "row"]
+    "defect", [None, np.nan, np.inf, -999.0, "missing", "all_nan", "row"]
 )
 def test_dyohm_relative_sensitivity_rejects_damage(monkeypatch, frames, defect):
     _, state, _ = frames
@@ -145,8 +199,10 @@ def test_dyohm_relative_sensitivity_rejects_damage(monkeypatch, frames, defect):
     results = iter([baseline, baseline.copy(), baseline.copy(), changed])
     monkeypatch.setattr(dyohm, "load_sample_frames", lambda: (state, forcing))
     monkeypatch.setattr(dyohm, "_run_storage_case", lambda *a, **kw: next(results))
-    with pytest.raises((AssertionError, KeyError)):
-        dyohm.test_dyohm_building_qs_behavior_relative_to_ohm()
+    _check_outcome(
+        dyohm.test_dyohm_building_qs_behavior_relative_to_ohm,
+        _qs_diagnostic(baseline.index, defect),
+    )
 
 
 @pytest.fixture

@@ -232,6 +232,14 @@ CONTAINS
                LAIMax => [evetrPrm%lai%lai_max, &
                           dectrPrm%lai%lai_max, &
                           grassPrm%lai%lai_max], &
+
+               GDDBase => [evetrPrm%lai%gdd_base, &
+                           dectrPrm%lai%gdd_base, &
+                           grassPrm%lai%gdd_base], &
+               SDDBase => [evetrPrm%lai%sdd_base, &
+                           dectrPrm%lai%sdd_base, &
+                           grassPrm%lai%sdd_base], &   
+   
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, &
                                 bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, &
@@ -335,16 +343,18 @@ CONTAINS
                   ! This was revised and checked on 16 Feb 2014 by LJ
                   !------------------------------------------------------------------------------
                   IF (execute_subroutines) THEN
-                     CALL update_GDDLAI( &
-                        id, LAICalcYes, & !input
-                        lat, [lai_evetr, lai_dectr, lai_grass], &
-                        Tmin_id, Tmax_id, lenDay_id, &
-                        BaseT, BaseTe, &
-                        GDDFull, SDDFull, &
-                        LAIMin, LAIMax, LAIPower, LAIType, &
-                        LAI_id_prev, &
-                        GDD_id, SDD_id, & !inout
-                        LAI_id) !output
+                     CALL update_gddlai( &
+                        id=id, lai_calc_yes=LAICalcYes, & !input
+                        lat=lat, lai_obs=[lai_evetr, lai_dectr, lai_grass], &
+                        t_min_id_prev=Tmin_id, t_max_id_prev=Tmax_id, &
+                        len_day_id_prev=lenDay_id, &
+                        base_t_gdd=BaseT, base_t_sdd=BaseTe, &
+                        gdd_base=GDDBase, sdd_base=SDDBase, &
+                        lai_min=LAIMin, lai_max=LAIMax, &
+                        lai_power=LAIPower, lai_type=LAIType, &
+                        lai_id_prev=LAI_id_prev, &
+                        gdd_id=GDD_id, sdd_id=SDD_id, & !inout
+                        lai_id_next=LAI_id) !output
                      IF (supy_error_flag()) RETURN
 
                      CALL update_Veg( &

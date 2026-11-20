@@ -133,19 +133,27 @@ python scripts/lint/check_rust_optional_reads.py --write-baseline
   Note that `yaml_path_display` consults `FIELD_RENAMES` only (not `FIELD_COMPAT_ALIASES`), so any strict read of a STEBBS or building-archetype field whose current name lives in `FIELD_COMPAT_ALIASES` must name that key explicitly in its error message (lines 350-356).
 - STEBBS and building archetype: map-based. `apply_stebbs_overrides` (line 2526) and `apply_building_archetype_overrides` (line 2461) pass each YAML key through `normalise_field_name` (line 558) and `set_mapped_value` (line 678). A matching name can be picked up without a new assignment, **but map-based loading alone does not satisfy BR-02**: an absent or `null` key keeps the shadow default, and an unmatched key is currently dropped without a message. For any new field consumed under active options, enforce its presence explicitly (for example with `require_numeric` / `require_i32` when the option is active) rather than relying on the shadow initialiser.
 
-Choose between a direct required read (BR-02) and an option-gated read (BR-02/BR-03) according to whether the kernel always consumes the parameter or reads it only under specific physics switches:
+Choose between an unconditionally required read (BR-02) and a conditional or option-gated read (BR-02/BR-03) according to whether the kernel always consumes the parameter or reads it only under specific physics switches or active land-cover surfaces:
 
 ```rust
-// Required parameter (always consumed by the kernel, BR-02):
+// Unconditionally required parameter (consumed every timestep, BR-02):
+// `properties.land_cover.water.flowchange` is reported every timestep even when
+// `water.sfr == 0` (see `apply_site_scalar_overrides`, lines 3061-3080).
+// `yaml_path_display` preserves the public path
+// `sites[gridiv=...].properties.land_cover.water.flowchange`.
 let site_at = site_yaml_at(site_root);
-let lc_at = format!("{site_at}.properties.land_cover.paved");
-soil.soil_store_capacity = require_numeric(lc_root, &["soilstorecap"], &lc_at)?;
+site_scalars.flowchange = require_numeric(
+    site_root,
+    &["properties", "land_cover", "water", "flowchange"],
+    &site_at,
+)?;
 
-// Option-gated parameter (consumed only under active physics options, BR-02/BR-03):
-// Check the active method or switch (set in apply_config_overrides) via a named
-// predicate before calling require_*. When the option is off and the kernel does
-// not read the field, leave it explicitly absent (f64::NAN, LAYER_VALUE_ABSENT,
-// or Option::None) -- never call a legacy read_* fallback or invent a number.
+// Conditional / option-gated parameter (BR-02/BR-03):
+// Check the active physics method, switch (set in `apply_config_overrides`), or
+// active-surface condition (`sfr > 0.0`) before calling `require_*`. When the
+// option is inactive and the kernel does not read the field, leave it explicitly
+// absent (`f64::NAN`, `LAYER_VALUE_ABSENT`, or `Option::None`) -- never call a
+// legacy `read_*` fallback or invent a number.
 site_scalars.co2_point_source = if emissions_method_uses_co2_point_source(emissions_method) {
     require_numeric(
         site_root,
@@ -157,8 +165,9 @@ site_scalars.co2_point_source = if emissions_method_uses_co2_point_source(emissi
 };
 ```
 
+Per-surface land-cover parameters (for example `soil_store_capacity` or `soil_depth` in `apply_soil_overrides`, line 854) are likewise conditional, not unconditionally required: gate required reads on the surface being active (`sfr > 0.0`, excluding `water` where applicable) so valid configurations with an inactive surface (`sfr == 0`) are not rejected.
 Existing named option predicates in `src/suews_bridge/src/yaml_config.rs` follow this pattern: `vertical_layers_are_read` (line 1056), `vegetation_layers_are_read` (line 1064), `ehc_is_on` (line 1072), `facet_layers_are_read` (line 1082), and `emissions_method_uses_co2_point_source` (line 2988), with `LAYER_VALUE_ABSENT` (line 732) as the `f64::NAN` marker for unread layer entries.
-When carrying an inactive scalar as `f64::NAN`, check that the type's `from_flat` validation accepts it; otherwise represent the conditional field as `Option<T>`.
+Before carrying an inactive scalar as `f64::NAN`, confirm both that the type's `from_flat` validation accepts it and that the kernel does not multiply or aggregate the inactive slot (otherwise represent the conditional field as `Option<T>` and check the kernel contract per BR-03).
 
 Site-level scalars passed outside the member types (`lat`, `z`, `z0m_in`, ...) are a separate fixed buffer: `SiteScalars` in `src/suews_bridge/src/sim.rs`, read by `apply_site_scalar_overrides` (line 2992), encoded by `encode_site_scalars` (`sim.rs:488`) and unpacked by `unpack_site_scalars` (`c_api/driver.f95:1147`), with the length pair `SUEWS_CAPI_SITE_SCALARS_LEN` (`sim.rs:126` and `driver.f95:64`).
 
@@ -210,7 +219,7 @@ Silent (the run goes ahead with a wrong value):
 - [ ] Range check in `from_flat` if the value has a valid set.
 - [ ] Nested type: every parent's LEN, slice bounds and inlined pack/unpack updated.
 - [ ] `FIELD_RENAMES` (Rust and Python) and its count test updated if the names differ.
-- [ ] YAML reader: strict `require_*` helper (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, or `require_sequence`) added for always-required fields and active option-gated branches (with explicit absence such as `f64::NAN` / `LAYER_VALUE_ABSENT` / `Option::None` when inactive); no new legacy optional `read_*` calls (`python scripts/lint/check_rust_optional_reads.py` passes, lowering the baseline via `--write-baseline` if migrating an existing site); for map-based STEBBS/archetype blocks, presence validated explicitly in addition to name matching.
+- [ ] YAML reader: strict `require_*` helper (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, or `require_sequence`) added for unconditionally required fields and active option- or surface-gated branches (with explicit absence such as `f64::NAN` / `LAYER_VALUE_ABSENT` / `Option::None` when inactive); no new legacy optional `read_*` calls (`python scripts/lint/check_rust_optional_reads.py` passes, lowering the baseline via `--write-baseline` if migrating an existing site); for map-based STEBBS/archetype blocks, presence validated explicitly in addition to name matching.
 - [ ] Pydantic field with a documented default, or required (conditionally on the options that use it); no application default in Rust or the shadow; schema version and migration if the schema changed.
 - [ ] Missing/null/malformed/wrong-length inputs and option branches checked; audit evidence records the affected BR rules and unresolved gaps.
 - [ ] Wiring test with distinct values; `cargo test --features physics` and `make test-smoke` pass.

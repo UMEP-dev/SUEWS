@@ -118,6 +118,12 @@ integer(c_int), parameter :: SUEWS_CAPI_NHOOD_STATE_LEN = 5_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_RSL_LEN = 30_c_int
 
 public :: suews_cal_multitsteps_c
+! Module-level Fortran exports (non-BIND(C)) for the opt-in test-only C-API field observer.
+public :: unpack_config
+public :: unpack_timer
+public :: unpack_site_scalars
+public :: unpack_site_members
+public :: unpack_state_members
 
 contains
 

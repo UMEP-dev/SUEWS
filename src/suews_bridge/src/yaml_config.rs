@@ -3536,7 +3536,7 @@ mod tests {
                     load_run_config_from_str(&yaml),
                     load_run_config(&path),
                 ] {
-                    let error = result.expect_err("source longitude alias must be resolved first");
+                    let error = result.expect_err("resolved site input must use lng");
                     assert!(
                         error.contains("`sites[gridiv=1].properties.lon`"),
                         "{canonical:?}/{alias}: {error}"

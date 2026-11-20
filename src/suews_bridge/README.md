@@ -259,28 +259,12 @@ boundary is still being completed in #1991/#2002; some omitted values can
 still retain legacy bridge fallbacks. Acceptance by the engine does not
 establish that incomplete input is valid.
 
-For source configurations using the former standalone spelling
-`sites[*].properties.lon`, use `suews run` or load with
-`SUEWSConfig.from_yaml` / `SUEWSConfig.from_dict` before calling
-`supy._run_rust.config_to_engine_yaml`. The data model folds that spelling
-to `lng` on input; providing both `lon` and `lng` is an error, even if
-their values agree. Other namespaces and reference metadata are untouched.
-This adds alias tolerance to Python source loading: the earlier native
-reader tried `lng` first and then `lon`, whereas the Python site model
-declared only `lng` and forbade extra fields. It does not preserve native
-fallback or duplicate-key precedence. The folded value goes through the
-existing `lng` type and range validation.
-
-Annotated validation YAML and resolved engine YAML are different artefacts.
-Normal Phase C copies the source with a standard header, so its updated
-YAML retains the input longitude spelling and value. ABC folds an input
-alias in Phase A and records the site-specific rename in its report.
-Reload accepted annotated YAML with `SUEWSConfig.from_yaml` and call
-`config_to_engine_yaml` to produce engine input.
-Resolved engine input uses only `lng` and must supply finite `lat`, `lng`,
-`alt`, `timezone`, `surfacearea` and `z` values. Zero coordinates, altitude
-and UTC offset remain valid. Missing source longitude retains the data
-model's default of -0.13 degrees; Rust supplies no longitude default.
+Resolved site input requires finite `lat`, `lng`, `alt`, `timezone`, `surfacearea`
+and `z`. Both the public configuration and the standalone engine use `lng`
+for longitude. In an old standalone input that uses `lon`, replace that key
+with `lng` and retain the intended longitude value. Zero coordinates, altitude
+and UTC offset remain valid. The public data model supplies the source defaults
+when exporting a configuration through `supy._run_rust.config_to_engine_yaml`.
 
 To build a runnable engine (needs the SUEWS physics library, e.g. `make dev`):
 

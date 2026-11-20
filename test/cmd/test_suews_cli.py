@@ -683,8 +683,8 @@ def test_run_site_longitude_source_boundary(
 ) -> None:
     """Exercise normal run loading; stop only at simulation and saving.
 
-    The two positive controls reach the real resolved engine export. The
-    invalid-both input must fail earlier in the same command/entry-point path.
+    The canonical input reaches the real resolved engine export. An unknown
+    site longitude key must fail even when a valid canonical key is present.
     Native numerical execution is covered separately, not repeated here.
     """
     import yaml
@@ -702,8 +702,7 @@ def test_run_site_longitude_source_boundary(
     if spelling == "alias":
         props["lon"] = props.pop("lng")
     elif spelling == "invalid-both":
-        props["lng"] = {"value": "invalid"}
-        props["lon"] = {"value": None}
+        props["lon"] = {"value": 0.0}
     path = tmp_path / "config.yml"
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     original = path.read_bytes()
@@ -730,11 +729,10 @@ def test_run_site_longitude_source_boundary(
 
     assert path.read_bytes() == original
     assert forcing.read_bytes() == original_forcing
-    if spelling == "invalid-both":
+    if spelling in {"alias", "invalid-both"}:
         assert exit_code == 1, diagnostics
-        assert "sites[0].properties" in diagnostics
-        assert "Both 'lon' and 'lng'" in diagnostics
-        assert "Use only 'lng'" in diagnostics
+        assert "lon" in diagnostics
+        assert "extra" in diagnostics.lower()
         assert engine_inputs == []
     else:
         assert exit_code == 0, diagnostics

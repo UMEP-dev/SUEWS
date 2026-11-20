@@ -1842,44 +1842,6 @@ def rename_keys_recursive(
     return data
 
 
-def normalise_site_longitude(data: Any, *, in_place: bool = False) -> Any:
-    """Fold longitude only at sites[*].properties, without changing input.
-
-    ``lon`` was accepted by the standalone reader. Python source loaders
-    fold it here so resolved engine exports contain only ``lng``. Annotated
-    source copies (for example normal Phase C output) may retain ``lon``.
-    This is not a recursive rename: metadata may also use ``lon``.
-    Reject both spellings even when their values agree or one is null.
-    Canonical input is returned by reference; alias input copies only the
-    changed containers. Unchanged metadata and values are shared, not edited.
-    Use ``in_place=True`` only for an already-owned input mapping.
-    """
-    result = data
-    if not isinstance(result, dict) or not isinstance(result.get("sites"), list):
-        return result
-    for index, site in enumerate(result["sites"]):
-        if not isinstance(site, dict):
-            continue
-        properties = site.get("properties")
-        if not isinstance(properties, dict) or "lon" not in properties:
-            continue
-        if "lng" in properties:
-            raise ValueError(
-                f"Both 'lon' and 'lng' are present at sites[{index}].properties. "
-                "Use only 'lng' for longitude; remove 'lon'."
-            )
-        if not in_place:
-            if result is data:
-                result = dict(data)
-                result["sites"] = list(data["sites"])
-            site = dict(site)
-            properties = dict(properties)
-            site["properties"] = properties
-            result["sites"][index] = site
-        properties["lng"] = properties.pop("lon")
-    return result
-
-
 def normalise_yaml_renames(data: Any) -> Any:
     """Rewrite legacy field spellings in a loaded YAML mapping to current names.
 
@@ -1894,13 +1856,10 @@ def normalise_yaml_renames(data: Any) -> Any:
     If both a legacy and its current spelling are present (ambiguous), the data
     is returned unchanged so the downstream validation path reports the
     conflict, rather than this normalisation step raising. This guarantees the
-    helper can only resolve rename-blindness for these recursive renames.
-    Site longitude is scoped separately and ambiguous lon/lng input raises
-    immediately so validation cannot silently choose either value.
+    helper can only resolve rename-blindness, never introduce a new failure.
     """
     if not isinstance(data, dict):
         return data
-    data = normalise_site_longitude(data)
     try:
         normalised = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
     except ValueError:

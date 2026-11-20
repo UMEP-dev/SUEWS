@@ -343,10 +343,25 @@ class SurfaceProperties(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    def _is_active_surface(self) -> bool:
+        """Return True when this surface has positive area fraction (``sfr > 0``)."""
+        raw = self.sfr.value if isinstance(self.sfr, RefValue) else self.sfr
+        if raw is None or isinstance(raw, bool):
+            return False
+        try:
+            return float(raw) > 0.0
+        except (TypeError, ValueError):
+            return False
+
     def validate_water_distribution(
         self, surface_type: SurfaceType | None = None
     ) -> None:
-        """Validate this surface's water distribution against its surface type."""
+        """Validate this surface's water distribution against its surface type.
+
+        Owning destinations and unit-sum completeness are required only when
+        this surface has positive area fraction (``sfr > 0``). Disallowed
+        destinations and invalid supplied values are always rejected.
+        """
         resolved_type = surface_type or self._surface_type
         if resolved_type is None:
             raise ValueError(
@@ -356,14 +371,22 @@ class SurfaceProperties(DataModelBase):
             if self.waterdist is not None:
                 raise ValueError("Water surface should not have water distribution")
             return
+
+        is_active = self._is_active_surface()
         if self.waterdist is None:
-            raise ValueError(f"Water distribution required for {resolved_type.value}")
+            if is_active:
+                raise ValueError(
+                    f"Water distribution required for {resolved_type.value}"
+                )
+            return
         if not isinstance(self.waterdist, WaterDistribution):
             raise ValueError(
                 f"Invalid water distribution for {resolved_type.value}: "
                 f"expected WaterDistribution, got {type(self.waterdist).__name__}"
             )
-        self.waterdist.validate_distribution(resolved_type)
+        self.waterdist.validate_distribution(
+            resolved_type, require_complete=is_active
+        )
 
     def set_surface_type(self, surface_type: SurfaceType):
         self._surface_type = surface_type

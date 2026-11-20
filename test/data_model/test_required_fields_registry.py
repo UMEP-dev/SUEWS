@@ -302,14 +302,18 @@ def test_physics_conditions_name_their_option(
 
 
 def test_water_distribution_conditions_name_the_right_surfaces() -> None:
-    """Each destination's condition lists exactly the surfaces that need it."""
+    """Each destination's condition lists the owning surfaces and sfr > 0 rule."""
     # ARRANGE / ACT / ASSERT
     for surface, fields in WATER_DISTRIBUTION_REQUIRED.items():
         for field in WaterDistribution.model_fields:
             if not field.startswith("to_"):
                 continue
-            named = f"``{surface}``" in required_when("WaterDistribution", field)
+            condition = required_when("WaterDistribution", field)
+            named = f"``{surface}``" in condition
             assert named == (field in fields), (surface, field)
+            assert "``sfr > 0``" in condition
+            assert "``sfr == 0``" in condition
+            assert "disallowed destinations" in condition
 
 
 def _load_sample_raw() -> dict:
@@ -510,12 +514,14 @@ def test_water_distribution_water_surface_null_allowed_non_null_rejected(
         SUEWSConfig.from_yaml(str(path_bad))
 
 
-@pytest.mark.parametrize("bad_value", [-0.1, -999.0, float("nan")])
+@pytest.mark.parametrize(
+    "bad_value", [-0.1, -999.0, float("nan"), float("inf"), 1.5]
+)
 def test_water_distribution_invalid_numeric_values_rejected(
     bad_value: float, tmp_path: Path
 ) -> None:
-    """Negative, sentinel (-999), and NaN waterdist fractions are rejected."""
-    # ARRANGE
+    """Negative, sentinel (-999), >1, inf, and NaN waterdist fractions are rejected."""
+    # ARRANGE: YAML/dict construction path
     raw = _load_sample_raw()
     raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]["to_runoff"] = {
         "value": bad_value
@@ -523,11 +529,44 @@ def test_water_distribution_invalid_numeric_values_rejected(
     cfg_path = tmp_path / "invalid_numeric.yml"
     cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
 
-    # ACT / ASSERT
-    with pytest.raises(ValueError):
+    # ACT / ASSERT: parse-time rejection names to_runoff
+    with pytest.raises(ValueError, match="to_runoff"):
         SUEWSConfig.from_yaml(str(cfg_path))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="to_runoff"):
         SUEWSConfig.from_dict(raw)
+
+    # ARRANGE / ACT / ASSERT: non-vacuous direct validate_distribution & handoff
+    # check after in-place mutation (bypassing Pydantic ge=0, le=1 parsing).
+    cfg_live = SUEWSConfig.from_dict(_load_sample_raw())
+    dist = cfg_live.sites[0].properties.land_cover.paved.waterdist
+    dist.to_runoff = RefValue(value=bad_value)
+    exact_pattern = (
+        r"Invalid water distribution value for to_runoff on paved: "
+        r"expected a finite fraction in \[0, 1\]"
+    )
+    with pytest.raises(ValueError, match=exact_pattern):
+        dist.validate_distribution(SurfaceType.PAVED)
+    with pytest.raises(ValueError, match=exact_pattern):
+        cfg_live.validate_for_engine()
+
+
+@pytest.mark.parametrize("bad_bool", [True, False])
+def test_water_distribution_bool_value_rejected_after_mutation(bad_bool: bool) -> None:
+    """Boolean values assigned to waterdist fractions are rejected explicitly."""
+    # ARRANGE
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    dist = cfg.sites[0].properties.land_cover.paved.waterdist
+    dist.to_runoff = RefValue(value=bad_bool)
+
+    # ACT / ASSERT
+    exact_pattern = (
+        r"Invalid water distribution value for to_runoff on paved: "
+        r"expected a finite fraction in \[0, 1\]"
+    )
+    with pytest.raises(ValueError, match=exact_pattern):
+        dist.validate_distribution(SurfaceType.PAVED)
+    with pytest.raises(ValueError, match=exact_pattern):
+        cfg.validate_for_engine()
 
 
 def _apply_mutable_waterdist_case(cfg: SUEWSConfig, case: str) -> None:
@@ -609,6 +648,8 @@ def test_water_distribution_in_place_mutations_rejected_at_all_handoffs(
     with pytest.raises(ValueError, match=expected_pattern):
         cfg.validate_water_distributions()
     with pytest.raises(ValueError, match=expected_pattern):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match=expected_pattern):
         cfg.to_df_state()
     with pytest.raises(ValueError, match=expected_pattern):
         run_rust.config_to_engine_yaml(cfg)
@@ -618,6 +659,77 @@ def test_water_distribution_in_place_mutations_rejected_at_all_handoffs(
     with pytest.raises(ValueError, match=expected_pattern):
         sim.update_config(cfg, auto_load_forcing=False)
     assert sim.config is None
+
+
+def test_water_distribution_inactive_surface_omission_and_activation_handoffs() -> None:
+    """Inactive (sfr == 0) surfaces may omit owning destinations until activated."""
+    # ARRANGE: evetr and bsoil have sfr == 0 in sample_config.yml.
+    run_rust = import_module("supy._run_rust")
+    raw = _load_sample_raw()
+    lc = raw["sites"][0]["properties"]["land_cover"]
+    assert lc["evetr"]["sfr"]["value"] == pytest.approx(0.0)
+    assert lc["bsoil"]["sfr"]["value"] == pytest.approx(0.0)
+    del lc["evetr"]["waterdist"]["to_soilstore"]
+    lc["bsoil"]["waterdist"] = {}
+
+    # ACT: inactive omission loads and exports cleanly across all handoffs.
+    cfg = SUEWSConfig.from_dict(raw)
+    cfg.validate_for_engine()
+    df_state = cfg.to_df_state()
+    assert df_state.loc[1, ("waterdist", "(7, 2)")] == pytest.approx(0.0)
+    assert df_state.loc[1, ("waterdist", "(7, 5)")] == pytest.approx(0.0)
+    assert run_rust.config_to_engine_yaml(cfg)
+    grid_ids, grid_jsons = run_rust._grid_config_jsons(cfg)
+    assert grid_ids == [1]
+    assert len(grid_jsons) == 1
+
+    # Disallowed destinations remain refused even on inactive (sfr == 0) surfaces.
+    raw_disallowed = _load_sample_raw()
+    raw_disallowed["sites"][0]["properties"]["land_cover"]["evetr"]["waterdist"][
+        "to_runoff"
+    ] = {"value": 0.0}
+    with pytest.raises(
+        ValueError,
+        match=r"sites\[0\] \(KCL, gridiv=1\): Invalid surface configuration for evetr: "
+        r"Disallowed water distribution field to_runoff for evetr",
+    ):
+        SUEWSConfig.from_dict(raw_disallowed)
+
+    # Activating evetr from sfr=0 to sfr=0.05 (keeping sum(sfr)=1) fails at every handoff
+    # naming sites[0], site name, gridiv, surface, and missing destination.
+    cfg.sites[0].properties.land_cover.evetr.sfr = RefValue(value=0.05)
+    cfg.sites[0].properties.land_cover.paved.sfr = RefValue(value=0.38)
+    expected = (
+        r"sites\[0\] \(KCL, gridiv=1\): Invalid surface configuration for evetr: "
+        r"Missing required field to_soilstore for evetr"
+    )
+    with pytest.raises(ValueError, match=expected):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match=expected):
+        cfg.to_df_state()
+    with pytest.raises(ValueError, match=expected):
+        run_rust.config_to_engine_yaml(cfg)
+    with pytest.raises(ValueError, match=expected):
+        run_rust._grid_config_jsons(cfg)
+    sim = SUEWSSimulation()
+    with pytest.raises(ValueError, match=expected):
+        sim.update_config(cfg, auto_load_forcing=False)
+    assert sim.config is None
+
+
+def test_validate_for_engine_enforces_non_null_ref_values_and_waterdist() -> None:
+    """SUEWSConfig.validate_for_engine owns both RefValue null and waterdist checks."""
+    # ARRANGE: mutate min_res_bioco2.value = None under active biogenic CO2 (method 22).
+    raw = _load_sample_raw()
+    raw["model"]["physics"]["emissions"] = {"value": 22}
+    cfg = SUEWSConfig.from_dict(raw)
+    cfg.sites[0].properties.land_cover.grass.min_res_bioco2.value = None
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match="min_res_bioco2"):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match="min_res_bioco2"):
+        cfg.to_df_state()
 
 
 def test_water_distribution_valid_multi_step_mutation_passes_all_handoffs() -> None:

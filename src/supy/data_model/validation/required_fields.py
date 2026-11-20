@@ -272,11 +272,12 @@ SOIL_REQUIRED: RequirementTable = {
 # observed soil moisture is selected.
 SOIL_OBSERVED_REQUIRED: tuple[str, ...] = ("soil_field_capacity",)
 
-# Water-distribution destinations each surface must give when its waterdist
-# block is supplied; an omitted block takes surface-specific defaults. Keyed by
-# surface type value; the water surface has no distribution. Any destination
+# Water-distribution destinations each active surface (sfr > 0) must give when
+# its waterdist block is supplied; an omitted block takes surface-specific
+# defaults, and inactive surfaces (sfr == 0) may omit owning destinations. Keyed
+# by surface type value; the water surface has no distribution. Any destination
 # outside a surface's tuple (self-routing or the opposite terminal field) must
-# be omitted or null.
+# be omitted or null regardless of sfr.
 WATER_DISTRIBUTION_REQUIRED: dict[str, tuple[str, ...]] = {
     "paved": (
         "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",
@@ -404,8 +405,11 @@ def _water_distribution_conditions() -> dict[str, str]:
             filter(None, (", ".join(surfaces[:-1]), surfaces[-1]))
         )
         conditions[field] = (
-            f"``waterdist`` is given for a {listed} surface; an omitted "
-            "``waterdist`` block takes surface-specific defaults"
+            f"``waterdist`` is given for an active {listed} surface "
+            "(``sfr > 0``); an omitted ``waterdist`` block takes "
+            "surface-specific defaults, inactive surfaces (``sfr == 0``) may "
+            "omit owning destinations, and disallowed destinations "
+            "(self-routing or the opposite terminal field) must be omitted or null"
         )
     return conditions
 

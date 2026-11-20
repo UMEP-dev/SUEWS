@@ -4801,6 +4801,15 @@ class SUEWSConfig(DataModelBase):
                 continue
 
             site_name = getattr(site, "name", f"Site {site_index}")
+            raw_gridiv = getattr(site, "gridiv", None)
+            gridiv = (
+                raw_gridiv.value if isinstance(raw_gridiv, RefValue) else raw_gridiv
+            )
+            site_label = (
+                f"sites[{site_index}] ({site_name}, gridiv={gridiv})"
+                if gridiv is not None
+                else f"sites[{site_index}] ({site_name})"
+            )
             for surface_name, surface_type in _LAND_COVER_SURFACE_TYPES:
                 surface_prop = getattr(land_cover, surface_name, None)
                 if surface_prop is None:
@@ -4812,7 +4821,7 @@ class SUEWSConfig(DataModelBase):
                         surface_prop.validate_water_distribution(surface_type)
                 except ValueError as exc:
                     errors.append(
-                        f"{site_name}: Invalid surface configuration for "
+                        f"{site_label}: Invalid surface configuration for "
                         f"{surface_name}: {exc}"
                     )
 
@@ -4822,17 +4831,17 @@ class SUEWSConfig(DataModelBase):
     def validate_water_distributions(self) -> None:
         """Validate water distributions across all sites and land-cover surfaces.
 
-        Re-checks every site's seven surface ``waterdist`` blocks (required
-        destinations, disallowed destinations, finite ``[0, 1]`` bounds, unit
-        sum, and absence on ``water``) so in-place mutations made after
-        ``SUEWSConfig`` construction cannot reach the engine or ``df_state``
-        unchecked.
+        Re-checks every site's seven surface ``waterdist`` blocks (owning
+        destinations and unit sum when ``sfr > 0``, disallowed destinations and
+        finite ``[0, 1]`` bounds regardless of ``sfr``, and absence on
+        ``water``) so in-place mutations made after ``SUEWSConfig``
+        construction cannot reach the engine or ``df_state`` unchecked.
 
         Raises
         ------
         ValueError
-            If any site has a missing, disallowed, out-of-range, or non-unit
-            water distribution.
+            If any site has a missing (on an active ``sfr > 0`` surface),
+            disallowed, out-of-range, or non-unit water distribution.
         """
         self._validate_land_cover_surfaces(set_surface_types=False)
 

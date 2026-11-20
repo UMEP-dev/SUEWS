@@ -174,42 +174,34 @@ class WaterDistribution(DataModelBase):
                 if getattr(self, key) is None:
                     setattr(self, key, value)
 
-    def validate_distribution(self, surface_type: SurfaceType) -> None:
-        """Validate water distribution destinations and unit sum for a surface."""
-        if surface_type == SurfaceType.WATER:
-            raise ValueError("Water surface should not have water distribution")
+    @staticmethod
+    def _validate_fraction_value(
+        field: str, surface_type: SurfaceType, raw: object
+    ) -> float:
+        """Validate that a supplied water-distribution fraction is finite in [0, 1]."""
+        if isinstance(raw, bool) or not isinstance(raw, numbers.Real):
+            raise ValueError(
+                f"Invalid water distribution value for {field} on "
+                f"{surface_type.value}: expected a finite fraction in [0, 1], "
+                f"got {raw!r}"
+            )
+        numeric = float(raw)
+        if not math.isfinite(numeric) or not 0.0 <= numeric <= 1.0:
+            raise ValueError(
+                f"Invalid water distribution value for {field} on "
+                f"{surface_type.value}: expected a finite fraction in [0, 1], "
+                f"got {raw!r}"
+            )
+        return numeric
 
-        fields = WATER_DISTRIBUTION_REQUIRED[surface_type.value]
-        values = []
+    def _validate_disallowed_destinations(
+        self, surface_type: SurfaceType, required_fields: set[str]
+    ) -> None:
+        """Reject any non-null disallowed destination (self-routing or opposite terminal).
 
-        # Check required fields are present, numeric, finite, and within [0, 1]
-        for field in fields:
-            value = getattr(self, field)
-            raw = value.value if isinstance(value, RefValue) else value
-            if raw is None:
-                raise ValueError(
-                    f"Missing required field {field} for {surface_type.value}"
-                )
-            if isinstance(raw, bool) or not isinstance(raw, numbers.Real):
-                raise ValueError(
-                    f"Invalid water distribution value for {field} on "
-                    f"{surface_type.value}: expected a finite fraction in [0, 1], "
-                    f"got {raw!r}"
-                )
-            numeric = float(raw)
-            if not math.isfinite(numeric) or not 0.0 <= numeric <= 1.0:
-                raise ValueError(
-                    f"Invalid water distribution value for {field} on "
-                    f"{surface_type.value}: expected a finite fraction in [0, 1], "
-                    f"got {raw!r}"
-                )
-            values.append(numeric)
-
-        # Reject any disallowed destination for this surface (self-routing or
-        # the wrong terminal field: to_soilstore on impervious surfaces, or
-        # to_runoff on pervious surfaces). Omitted, null, and {value: null}
-        # all unwrap to None and remain accepted for legacy/round-trip YAML.
-        required_fields = set(fields)
+        Omitted, ``None``, and ``{value: null}`` all unwrap to ``None`` and
+        remain accepted for legacy/round-trip YAML compatibility.
+        """
         for field in type(self).model_fields:
             if not field.startswith("to_") or field in required_fields:
                 continue
@@ -220,6 +212,58 @@ class WaterDistribution(DataModelBase):
                     f"Disallowed water distribution field {field} for "
                     f"{surface_type.value} (got {raw}); omit it or set it to null"
                 )
+
+    def validate_distribution(
+        self, surface_type: SurfaceType, *, require_complete: bool = True
+    ) -> None:
+        """Validate water distribution destinations and unit sum for a surface.
+
+        Parameters
+        ----------
+        surface_type : SurfaceType
+            Surface that owns this water distribution block.
+        require_complete : bool, optional
+            When True (active surface, ``sfr > 0``), every owning destination
+            must be present and sum to ``1.0``. When False (inactive surface,
+            ``sfr == 0``), owning destinations may be omitted or null while
+            disallowed destinations and invalid supplied values remain rejected.
+        """
+        if surface_type == SurfaceType.WATER:
+            raise ValueError("Water surface should not have water distribution")
+
+        fields = WATER_DISTRIBUTION_REQUIRED[surface_type.value]
+        required_fields = set(fields)
+        self._validate_disallowed_destinations(surface_type, required_fields)
+
+        values: list[float] = []
+        missing_fields: list[str] = []
+        for field in fields:
+            value = getattr(self, field)
+            raw = value.value if isinstance(value, RefValue) else value
+            if raw is None:
+                missing_fields.append(field)
+                continue
+            values.append(self._validate_fraction_value(field, surface_type, raw))
+
+        if not require_complete:
+            total = sum(values)
+            if not missing_fields:
+                if not math.isclose(total, 1.0, rel_tol=1e-5):
+                    raise ValueError(f"Water distribution sum must be 1.0, got {total}")
+            elif total > 1.0 + 1e-5:
+                raise ValueError(f"Water distribution sum must be 1.0, got {total}")
+            return
+
+        if missing_fields:
+            if len(missing_fields) == 1:
+                raise ValueError(
+                    f"Missing required field {missing_fields[0]} for "
+                    f"{surface_type.value}"
+                )
+            joined = ", ".join(missing_fields)
+            raise ValueError(
+                f"Missing required fields {joined} for {surface_type.value}"
+            )
 
         # Validate sum
         total = sum(values)
@@ -270,7 +314,9 @@ class WaterDistribution(DataModelBase):
             else self.to_runoff
         )
         to_soilstore_or_runoff = to_runoff if to_soilstore is None else to_soilstore
-        list_waterdist_value.append(to_soilstore_or_runoff)
+        list_waterdist_value.append(
+            0.0 if to_soilstore_or_runoff is None else to_soilstore_or_runoff
+        )
 
         # 2. Create param_tuples and values - only add non-None values following the order of the list
         for i, value in enumerate(list_waterdist_value):

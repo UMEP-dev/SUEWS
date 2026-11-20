@@ -26,7 +26,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from supy import SUEWSSimulation
+from supy import SUEWSSimulation, suews_sim as suews_sim_module
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.type import RefValue
 
@@ -222,13 +222,17 @@ def test_invalid_water_distribution_refused_before_run(
 def test_mutable_disallowed_destination_refused_at_handoff(
     when: str,
     one_day_forcing: pd.DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """In-place mutation adding paved.to_soilstore=0.0 is refused before execution."""
     # ARRANGE
     cfg = SUEWSConfig.from_dict(deepcopy(_load_sample_raw()))
 
     # ACT / ASSERT
-    pattern = r"Disallowed water distribution field to_soilstore for paved"
+    pattern = (
+        r"sites\[0\] \(KCL, gridiv=1\): Invalid surface configuration for paved: "
+        r"Disallowed water distribution field to_soilstore for paved"
+    )
     if when == "before-update-config":
         cfg.sites[0].properties.land_cover.paved.waterdist.to_soilstore = RefValue(
             value=0.0
@@ -247,8 +251,86 @@ def test_mutable_disallowed_destination_refused_at_handoff(
         value=0.0
     )
     sim.update_forcing(one_day_forcing.copy())
+
+    def _forbid_rust_runner(*_args, **_kwargs):
+        raise AssertionError(
+            "SUEWSSimulation.run() must reject invalid waterdist before "
+            "invoking run_suews_rust_chunked"
+        )
+
+    monkeypatch.setattr(suews_sim_module, "run_suews_rust_chunked", _forbid_rust_runner)
     with pytest.raises(ValueError, match=pattern):
         sim.run(end_date=one_day_forcing.index[-1])
+
+
+@pytest.mark.core
+def test_inactive_surface_omitted_waterdist_runs_and_activation_fails(
+    one_day_forcing: pd.DataFrame,
+    control_run: dict,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Inactive surfaces (sfr == 0) may omit owning destinations; activating sfr > 0 fails."""
+    # ARRANGE: evetr and bsoil have sfr == 0 in sample_config.yml.
+    raw_omitted_dest = deepcopy(_load_sample_raw())
+    lc = raw_omitted_dest["sites"][0]["properties"]["land_cover"]
+    assert lc["evetr"]["sfr"]["value"] == pytest.approx(0.0)
+    assert lc["bsoil"]["sfr"]["value"] == pytest.approx(0.0)
+    del lc["evetr"]["waterdist"]["to_soilstore"]
+    lc["bsoil"]["waterdist"] = {}
+
+    raw_omitted_block = deepcopy(_load_sample_raw())
+    del raw_omitted_block["sites"][0]["properties"]["land_cover"]["evetr"]["waterdist"]
+
+    # ACT / ASSERT (a): both inactive omission forms load, close water balance,
+    # and match the intact control runoff identically.
+    for label, raw_case in (
+        ("omitted-dest", raw_omitted_dest),
+        ("omitted-block", raw_omitted_block),
+    ):
+        sim, df_output = _run_wet_day(
+            raw_case, one_day_forcing, tmp_path / f"inactive_{label}.yml"
+        )
+        residual = _water_balance_residual_mm(sim, df_output)
+        runoff = df_output.loc[GRID, "SUEWS"]["RO"]
+        assert float(residual.abs().max()) < WATER_CLOSURE_TOLERANCE_MM
+        np.testing.assert_allclose(
+            runoff.to_numpy(),
+            control_run["runoff"].to_numpy(),
+            rtol=0.0,
+            atol=WATER_CLOSURE_TOLERANCE_MM,
+        )
+
+    # ACT / ASSERT (b): activating evetr from sfr=0 to sfr=0.05 (keeping sum(sfr)=1)
+    # must fail at both update_config() and sim.run() naming site, surface, and field.
+    expected = (
+        r"sites\[0\] \(KCL, gridiv=1\): Invalid surface configuration for evetr: "
+        r"Missing required field to_soilstore for evetr"
+    )
+    cfg_before = SUEWSConfig.from_dict(deepcopy(raw_omitted_dest))
+    cfg_before.sites[0].properties.land_cover.evetr.sfr = RefValue(value=0.05)
+    cfg_before.sites[0].properties.land_cover.paved.sfr = RefValue(value=0.38)
+    sim_before = SUEWSSimulation()
+    with pytest.raises(ValueError, match=expected):
+        sim_before.update_config(cfg_before, auto_load_forcing=False)
+    assert sim_before.config is None
+
+    cfg_after = SUEWSConfig.from_dict(deepcopy(raw_omitted_dest))
+    sim_after = SUEWSSimulation()
+    sim_after.update_config(cfg_after, auto_load_forcing=False)
+    sim_after.update_forcing(one_day_forcing.copy())
+    sim_after.config.sites[0].properties.land_cover.evetr.sfr = RefValue(value=0.05)
+    sim_after.config.sites[0].properties.land_cover.paved.sfr = RefValue(value=0.38)
+
+    def _forbid_rust_runner(*_args, **_kwargs):
+        raise AssertionError(
+            "SUEWSSimulation.run() must reject activated incomplete surface "
+            "before invoking run_suews_rust_chunked"
+        )
+
+    monkeypatch.setattr(suews_sim_module, "run_suews_rust_chunked", _forbid_rust_runner)
+    with pytest.raises(ValueError, match=expected):
+        sim_after.run(end_date=one_day_forcing.index[-1])
 
 
 @pytest.mark.core

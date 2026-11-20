@@ -21,23 +21,33 @@ on:
       - 'src/suews/Makefile.gfortran'
       - 'scripts/suews/gen_capi_field_observer.py'
       - '.github/workflows/rust-capi-observer.yml'
-  merge_group:
+  workflow_call:
+    inputs:
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: rust-capi-observer-${{ github.event.pull_request.number || github.ref }}
+  # Include github.workflow so standalone pull_request runs and folded
+  # workflow_call runs from build-publish_to_pypi.yml never cancel each other.
+  group: rust-capi-observer-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   capi-observer:
     name: C-API field-binding observer
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       - name: Check generated observer artefacts

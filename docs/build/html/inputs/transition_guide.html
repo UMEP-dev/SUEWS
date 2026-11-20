@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-20T13:49:33+00:00" />
-    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.20.dev19 documentation</title>
+    <meta property="article:modified_time" content="2026-11-20T19:47:11+00:00" />
+    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.20.dev23 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=4e37cb97"></script>
+    <script src="../_static/documentation_options.js?v=99ca7a2e"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.7. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.20.dev19" />
+  <meta name="docsearch:version" content="2026.11.20.dev23" />
     <meta name="docbuild:last-update" content="2026-11-20"/>
   
     
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.20.dev19, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57582ecdb23393412ea0919caec220cd349d9edc" style="color: #31708f;">57582ec</a>).
+        (2026.11.20.dev23, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b182735a1ef1537fef24404e0e0788b0adb140e" style="color: #31708f;">5b18273</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -157,8 +157,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev19 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev19 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev23 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev23 documentation - Home"/>
   
   
 </a></div>
@@ -868,24 +868,27 @@ lives in <a class="reference internal" href="../contributing/schema/schema_versi
 surface (<code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> and <code class="docutils literal notranslate"><span class="pre">bsoil</span></code>)
 in configurations loaded from YAML or a dict. Leaving any of them out or
 setting it to <code class="docutils literal notranslate"><span class="pre">null</span></code> now stops loading with an error naming the site,
-surface and field, and the Rust bridge enforces the same requirement on
-resolved engine YAML. Inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) and <code class="docutils literal notranslate"><span class="pre">water</span></code> are
-exempt.</p>
+surface and field, and supplying <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> as <code class="docutils literal notranslate"><span class="pre">0</span></code> on an active
+non-water surface with positive <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code> is also refused. The
+Rust bridge enforces the same requirements on resolved engine YAML. Inactive
+surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) and <code class="docutils literal notranslate"><span class="pre">water</span></code> are exempt, and <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> of <code class="docutils literal notranslate"><span class="pre">0</span></code>
+remains permitted when <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code> is <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p>
 <p>Previously, an omitted or null soil parameter reached the water-balance kernel
 as <code class="docutils literal notranslate"><span class="pre">0.0</span></code> via the Rust bridge. Run the converter to upgrade an older YAML:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>old.yml<span class="w"> </span>-o<span class="w"> </span>new.yml<span class="w"> </span>--from<span class="w"> </span><span class="m">2026</span>.6.dev10
 </pre></div>
 </div>
-<p>The migration from <code class="docutils literal notranslate"><span class="pre">2026.6.dev10</span></code> preserves all supplied soil parameters and
-reference metadata and leaves inactive (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) and <code class="docutils literal notranslate"><span class="pre">water</span></code> surfaces
-untouched. When <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> is missing or <code class="docutils literal notranslate"><span class="pre">null</span></code> on an active non-water
-surface with positive <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code>, migration stops without writing
-an output file and reports each affected site and surface: substituting <code class="docutils literal notranslate"><span class="pre">0.0</span></code>
-for <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> under positive soil capacity breaks wet-day soil water
-balance. Supply a positive <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> (in mm) for each reported surface and
-re-run the converter. Other missing or <code class="docutils literal notranslate"><span class="pre">null</span></code> soil parameters on active
-non-water surfaces (including <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> when <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code> is
-<code class="docutils literal notranslate"><span class="pre">0</span></code> or omitted) are written explicitly as <code class="docutils literal notranslate"><span class="pre">0.0</span></code> while preserving reference
+<p>The migration from <code class="docutils literal notranslate"><span class="pre">2026.6.dev10</span></code> preserves valid supplied soil parameters
+and reference metadata and leaves inactive (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) and <code class="docutils literal notranslate"><span class="pre">water</span></code>
+surfaces untouched. When <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> is missing, <code class="docutils literal notranslate"><span class="pre">null</span></code>, or explicitly
+supplied as <code class="docutils literal notranslate"><span class="pre">0</span></code> on an active non-water surface with positive
+<code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code>, migration stops without writing an output file and
+reports each affected site and surface: using <code class="docutils literal notranslate"><span class="pre">0.0</span></code> for <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code>
+under positive soil capacity breaks wet-day soil water balance. Supply a
+positive <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> (in mm) for each reported surface and re-run the
+converter. Other missing or <code class="docutils literal notranslate"><span class="pre">null</span></code> soil parameters on active non-water
+surfaces (including <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> when <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code> is <code class="docutils literal notranslate"><span class="pre">0</span></code> or
+omitted) are written explicitly as <code class="docutils literal notranslate"><span class="pre">0.0</span></code> while preserving reference
 metadata.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev10">
@@ -1575,8 +1578,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.20.dev19 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57582ecdb23393412ea0919caec220cd349d9edc">57582ec</a> |
+  <p>Version: 2026.11.20.dev23 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b182735a1ef1537fef24404e0e0788b0adb140e">5b18273</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

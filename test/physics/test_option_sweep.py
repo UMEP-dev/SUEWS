@@ -207,12 +207,38 @@ def water_balance_residual_mm(df_output, df_state, grid=1):
     soil store from the debug group plus the surface water state -- the same
     accounting `test_core_physics.test_water_balance_consistency` uses.
     """
-    suews = df_output.loc[grid, "SUEWS"]
-    df_soil_store = df_output.loc[grid, "debug"].filter(regex=r"^ss_.*_next$")
-    soil_store = df_soil_store.dot(df_state.sfr_surf.iloc[0].values)
+    columns = [("SUEWS", name) for name in ("State", "Rain", "Irr", "Evap", "RO")]
+    columns += [
+        ("debug", f"ss_{surface}_next")
+        for surface in ("Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water")
+    ]
+    missing = [col for col in columns if col not in df_output.columns]
+    assert not missing, f"Missing water balance columns for grid={grid}: {missing}"
+    water = df_output.loc[grid, columns]
+    assert len(water) >= 2 and water.index.is_unique, (
+        f"Water balance needs unique intervals for grid={grid}: {water.index.tolist()}"
+    )
+    assert water.index.is_monotonic_increasing, (
+        f"Water balance times are not chronological for grid={grid}"
+    )
+    values = water.to_numpy(dtype=float)
+    invalid = np.argwhere(~np.isfinite(values) | (values == -999))
+    assert not invalid.size, "Invalid water balance input: " + "; ".join(
+        f"{columns[col]} at grid={grid}, time={water.index[row]}: {values[row, col]}"
+        for row, col in invalid[:5]
+    )
+    fractions = df_state["sfr_surf"].loc[grid, [f"({i},)" for i in range(7)]]
+    weights = fractions.to_numpy(dtype=float)
+    invalid_fractions = fractions.index[~np.isfinite(weights) | (weights == -999)]
+    assert invalid_fractions.empty, (
+        f"Invalid sfr_surf at grid={grid}: {invalid_fractions.tolist()}"
+    )
+    suews = water["SUEWS"]
+    soil_store = water["debug"].dot(weights)
     total_store = soil_store + suews.State
     net_input = suews.Rain + suews.Irr - suews.Evap - suews.RO
-    return float((total_store.diff().dropna() - net_input).abs().max())
+    # Only the first output has no predecessor; inputs were checked above.
+    return float((total_store.diff().iloc[1:] - net_input.iloc[1:]).abs().max())
 
 
 @pytest.mark.parametrize(("field", "value"), list(_sweep_params()))
@@ -228,6 +254,13 @@ def test_option_value_runs_finite_and_conserves_water(
     df_output, _ = run_simulation(df_forcing, df_state, serial_mode=True)
 
     # ASSERT
+    actual_times = df_output.loc[1].index
+    assert actual_times.equals(df_forcing.index), (
+        "Incomplete or misordered water output rows for grid=1: "
+        f"missing={df_forcing.index.difference(actual_times).tolist()}, "
+        f"unexpected={actual_times.difference(df_forcing.index).tolist()}"
+    )
+    residual = water_balance_residual_mm(df_output, df_state)
     suews = df_output.loc[1, "SUEWS"].drop(
         columns=list(SUEWS_COLUMNS_ABSENT_FROM_SAMPLE)
     )
@@ -238,7 +271,6 @@ def test_option_value_runs_finite_and_conserves_water(
         f"{field}={value.name} produced non-finite SUEWS output in {non_finite}"
     )
 
-    residual = water_balance_residual_mm(df_output, df_state)
     assert residual < WATER_CLOSURE_TOLERANCE_MM, (
         f"{field}={value.name}: water balance not closed, max residual "
         f"{residual:.3e} mm"

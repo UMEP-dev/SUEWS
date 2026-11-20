@@ -98,44 +98,44 @@ impl SnowState {
             ..Self::default()
         };
 
-        for i in 0..SNOW_STATE_REMOVAL_LEN {
-            state.snow_removal[i] = next();
+        for slot in &mut state.snow_removal {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.icefrac[i] = next();
+        for slot in &mut state.icefrac {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowdens[i] = next();
+        for slot in &mut state.snowdens {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowfrac[i] = next();
+        for slot in &mut state.snowfrac {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowpack[i] = next();
+        for slot in &mut state.snowpack {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowwater[i] = next();
+        for slot in &mut state.snowwater {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.kup_ind_snow[i] = next();
+        for slot in &mut state.kup_ind_snow {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.qn_ind_snow[i] = next();
+        for slot in &mut state.qn_ind_snow {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.delta_qi[i] = next();
+        for slot in &mut state.delta_qi {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.tsurf_ind_snow[i] = next();
+        for slot in &mut state.tsurf_ind_snow {
+            *slot = next();
         }
 
         state.iter_safe = next() >= 0.5;

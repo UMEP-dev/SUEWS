@@ -190,9 +190,14 @@ read from the base branch.
    it unreliable). If any check fails, stop and escalate -- never push to or edit a
    branch/PR you do not own. Then push to `origin`.
 5. If the branch already has a PR you own, update the PR body when needed.
-   Otherwise create one with a concise title, issue link (`Fixes #<issue>` only
-   when the PR should close it; otherwise `Refs #<issue>`), fix summary,
-   validation status, and known limitations.
+   Otherwise create one with a concise, human-authored title (no AI branding)
+   and a description following `.claude/rules/pr-description.md` (`Fixes #<issue>`
+   only when merging closes it; otherwise `Refs #<issue>`, `## Why`,
+   `## What changed` with known limits, `## How to review`, PR-specific
+   `## Verification`, and any conditional section such as
+   `## Scientific evidence` or `## Numerical change` per
+   `.claude/rules/physics-change-evidence.md`). Format posted GitHub prose as
+   one line per paragraph.
 
 ### 5. Audit, Address, Re-Audit
 

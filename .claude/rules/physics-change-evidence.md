@@ -99,33 +99,62 @@ A PR is neither `0-physics:change` nor `0-numerics:change` when it:
 
 ### What a `0-physics:change` PR MUST carry
 
-#### 1. A "Scientific evidence" section in the PR body
+#### 1. A "Scientific evidence" section in the PR body (and supporting comments)
 
-The PR description must include a section (heading `## Scientific evidence`)
-covering:
+`## Scientific evidence` sits inside the standard pull request structure defined by `.claude/rules/pr-description.md`. [decision: software maintainer, 2026-11-19]
+Present scientific evidence at a depth proportional to the change's physical reach: [decision: software maintainer, 2026-11-19]
 
-- **Which physical quantities change** and through which mechanism (the physical
-  chain, e.g. "kdown partition -> longwave cascade -> indoor air temperature ->
-  threshold-driven cooling load").
-- **A before/after comparison** of the affected outputs -- a figure or a small
-  table of the moved values (old vs new), not just "outputs changed".
-- **The expected sign and magnitude**, with the physical reasoning for why the
-  new direction and size are correct (not merely different).
+- **Level 1 -- narrow or single-module fix** (one routine, local initialisation, or a bounded regime): put the complete evidence directly in `## Scientific evidence` inside the PR body. [decision: software maintainer, 2026-11-19]
+- **Level 2 -- formulation, parameterisation, or multi-site / cross-module change**: keep `## Scientific evidence` in the PR body as an executive scientific brief readable in two to three minutes, and place large per-site tables, derivations, and diagnostic figures in `<details>` blocks or structured, linked PR comments. [decision: software maintainer, 2026-11-19]
 
-A copy-paste skeleton:
+In both levels, `## Scientific evidence` must cover: [decision: software maintainer, 2026-11-19]
+
+- **Quantities changed and physical mechanism:** the affected variables (with units), the physical causal chain (for example "kdown partition -> longwave cascade -> indoor air temperature -> threshold-driven cooling load"), and the literature reference or equation when introducing or changing a formulation.
+- **Before/after comparison with provenance:** a compact table (and figures for Level 2 where they clarify the claim) comparing old and new values between a stated **baseline commit SHA** and **PR head commit SHA**, with physical reasoning for why the new sign and magnitude are expected -- honestly reporting regressions and runtime/iteration costs alongside improvements. [procedure: Principle 1]
+- **Conservation, physical bounds, and known limits:** confirm energy and water budget closure (`Rn = QH + QE + QS + QF`, water balance) and stability/convergence behaviour where affected, and state regimes the change does not solve or leaves to follow-up issues. [procedure: Principle 1]
+- **Reference-fixture impact summary:** which vendored fixtures moved, summary magnitude (for example share of moved rows and maximum flux/temperature shifts), and how they were regenerated, reminding reviewers that regenerated CSV diffs need not be read line by line.
+- **Domain-owner sign-off and review ask:** the required role from `MAINTAINERS.md` and the specific scientific question the reviewer should verify. [procedure: Principle 2]
+- **Evidence index (Level 2 only):** a short list of links to supporting PR comments (figures, per-site tables, method notes), stating what each comment covers and which commit SHA it reflects. [procedure: Principle 1]
+
+##### Diagnostic figures standard
+
+When a physics PR includes diagnostic figures: [decision: software maintainer, 2026-11-19]
+
+- **Do not commit evaluation figures into the PR's git branch.**
+  Host diagnostic PNG/PDF figures on the public repository's `gh-artifacts` orphan branch (`pr/<PR>/...`, embedded via `raw.githubusercontent.com/UMEP-dev/SUEWS/gh-artifacts/...`) or as GitHub web attachments, so evaluation plots do not bloat git history or clutter the code diff. [decision: software maintainer, 2026-11-19]
+- **Respect observational data licensing.**
+  Never plot restricted or non-redistributable observational time series publicly; plot model outputs, public forcing, or derived summary metrics (for example RMSE change or bias difference against observations) and note that restriction explicitly above the figures. [decision: software maintainer, 2026-11-19]
+- **Provide a self-contained caption on every figure.**
+  Give every embedded image meaningful alt text and a two-to-four-sentence caption naming the site(s) or dataset, time period, relevant model switches/configuration, baseline and PR commit SHAs, and the physical takeaway the plot demonstrates. [procedure: Principle 1]
+- **Include only plots that answer the physical claim.**
+  Prefer: (a) regime or functional response curves (for example resistance against wind speed before/after), (b) representative or worst-case episode time series showing key states, fluxes, and forcing together, (c) multi-site or multi-configuration distributions (such as per-site RMSE change or iteration-limit counts) showing both gains and regressions, or (d) conservation/residual diagnostics. [decision: software maintainer, 2026-11-19]
+
+##### Revision provenance and superseding
+
+Every evidence table and figure comment must state the baseline commit SHA and PR head commit SHA (plus build environment where relevant). [procedure: Principle 1]
+If a subsequent commit alters the physics outputs, do not leave earlier figures or tables looking current: update the headline numbers in `## Scientific evidence` to match the new head, add a short `**Changed on <date>:**` note explaining what shifted and why, and mark superseded evidence comments clearly or link the refreshed comment from the evidence index. [procedure: Principle 1]
+
+##### Copy-paste skeleton
 
 ```markdown
 ## Scientific evidence
 
+**Baseline vs head:** `<base-sha>` vs `<head-sha>` (<build/environment if relevant>)
 **Quantities changed:** <variable(s), units>
-**Mechanism:** <physical chain from the code change to the output shift>
+**Mechanism:** <physical chain from the code change to the output shift; literature ref/equation if formulation changed>
 
-| Output | Before | After | Expected? |
-|--------|--------|-------|-----------|
-| <var>  | <old>  | <new> | <sign/magnitude reasoning> |
+| Output / metric | Before | After | Expected? |
+|-----------------|--------|-------|-----------|
+| <var (unit)>    | <old>  | <new> | <sign/magnitude reasoning; include any regressions/costs> |
 
-**Reference fixtures refreshed in this PR:** <paths, or "none expected">
-**Domain owner sign-off:** <@handle> (<subsystem>)
+**Conservation, costs, and known limits:** <energy/water closure, stability/runtime impact, regimes not addressed>
+**Reference fixtures refreshed in this PR:** <paths, summary shifts, regeneration source, or "none expected">
+**Domain owner sign-off:** <role per MAINTAINERS.md> (<subsystem>) -- <specific scientific check requested>
+
+<!-- Level 2 only -- omit for narrow Level 1 fixes -->
+**Supporting comments (at `<head-sha>`):**
+- [Evidence figures](<comment-url>): <what each figure shows>
+- [Per-site / multi-config tables](<comment-url>): <scope and summary>
 ```
 
 #### 2. Domain-owner sign-off
@@ -227,7 +256,8 @@ When reviewing a PR that touches physics source, physics-affecting defaults, or 
 - Classify the diff against the triggers above (`0-physics:change`, `0-numerics:change`, or verified formulation-preserving bit-identical refactor).
 - For a **physics change** (`0-physics:change`):
   - Confirm `0-physics:change` is present alone (propose/flag if missing; flag as `[blocking]` if `0-numerics:change` was applied to a formulation, build-environment, or above-threshold change, or if both labels are present).
-  - Confirm `## Scientific evidence` covers quantities + mechanism, before/after comparison, and expected sign/magnitude reasoning (a bare "outputs changed, fixture updated" is `[blocking]`).
+  - Confirm `## Scientific evidence` covers quantities + mechanism, before/after comparison with baseline and PR head SHAs, expected sign/magnitude reasoning (including any regressions, conservation/costs, and known limits), and fixture refresh summary (a bare "outputs changed, fixture updated" is `[blocking]`). [decision: software maintainer, 2026-11-19]
+  - When diagnostic figures or linked evidence comments are attached, confirm figures are not committed to the code branch, carry self-contained captions with commit provenance, respect observational data-licensing guards, and have no silently stale superseded numbers (`[major]` if missing provenance/captions or stale; `[blocking]` if restricted observational time series are exposed). [decision: software maintainer, 2026-11-19]
   - Confirm domain-owner sign-off is present for any owned subsystem (`MAINTAINERS.md`) -> `[blocking]` until resolved.
   - Confirm all moved reference fixtures (and `provenance.json`) are refreshed in this PR (or an explicitly linked PR) and `physics-full` is green.
 - For a **numerical change** (`0-numerics:change`):
@@ -317,7 +347,8 @@ collect with.
 
 ## Related
 
+- `.claude/rules/pr-description.md` -- unified PR description structure, writing principles, and `## How to review` / `## Verification` rules that `## Scientific evidence` and `## Numerical change` slot into.
 - `.claude/rules/python/schema-versioning.md` -- the parallel gate for data-model shape changes (its "do not bump" list mirrors the "Neither class" list here).
 - `.claude/rules/ci/conventions.md` -- CI workflow conventions for the matrix and required-check wiring.
 - `.claude/rules/autonomous-workflow.md` -- the `0-` automation label namespace and gating model that `0-physics:change` and `0-numerics:change` join.
-- gh#1570, gh#1575 -- the motivating case.
+- gh#1570, gh#1575 -- the motivating case; gh#1956 -- Level 2 presentation example.

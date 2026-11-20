@@ -188,8 +188,9 @@ After approval, push the child branches and open the PRs:
 - Independent children: base each on `<base>`.
 - Stacked children: base each PR on its parent child branch; note the stacking in
   the PR body so a reviewer reads them in order.
-- Link every child to the original (`Refs #<original>`), and list the stack in
-  each child body. Schema/sample-config/build/CHANGELOG changes should be their
+- Write each child PR description per `.claude/rules/pr-description.md`,
+  link every child to the original (`Refs #<original>`), and include a
+  `## Stack` section listing the series order in each child body. Schema/sample-config/build/CHANGELOG changes should be their
   own child (schema bumps already warrant a dedicated change per
   `.claude/rules/python/schema-versioning.md`; see also the "one PR per logical
   group" rule in `.claude/rules/naming-convention.md`).

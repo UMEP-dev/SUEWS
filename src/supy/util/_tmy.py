@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .._post import _resample_output
+from ..units import convert
 
 # Logger for this module
 logger = logging.getLogger(__name__)
@@ -431,6 +432,30 @@ def read_epw(
     return df_tmy
 
 
+def _derive_epw_dewpoint_and_pressure(
+    df_tmy: pd.DataFrame,
+    atmosp_mod,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Derive EPW dew point temperature (degC) and station pressure (Pa).
+
+    Converts ``Q2`` from SUEWS output units (``g kg-1``) to ``atmosp``'s SI
+    reference unit (``kg kg-1``) up front so ``atmosp.calculate`` does not
+    require the optional ``cfunits`` dependency (``atmosp[units]``).
+    """
+    t_kelvin = convert(df_tmy["T2"].values, "degC", "K")
+    qv_kg_per_kg = convert(df_tmy["Q2"].values, "g kg-1", "kg kg-1")
+    rh_pct = df_tmy["RH2"].values
+    dew_point_degc = convert(
+        atmosp_mod.calculate("Td", T=t_kelvin, qv=qv_kg_per_kg, RH=rh_pct, rho=1.23),
+        "K",
+        "degC",
+    )
+    station_pressure_pa = atmosp_mod.calculate(
+        "p", T=t_kelvin, qv=qv_kg_per_kg, RH=rh_pct, rho=1.23
+    )
+    return dew_point_degc, station_pressure_pa
+
+
 # generate EPW file from `df_TMY`
 def gen_epw(
     df_output: pd.DataFrame,
@@ -549,25 +574,9 @@ def gen_epw(
     # assign timezone info
     df_tmy.index = df_tmy.index.tz_localize(tz * 3600)
 
-    # adding necessary variables that can be derive from supy output
-    df_tmy["Dew Point Temperature"] = (
-        atmosp.calculate(
-            "Td",
-            T=df_tmy["T2"].values + 273.15,
-            qv=df_tmy["Q2"].values,
-            qv_unit="g/kg",
-            RH=df_tmy["RH2"].values,
-            rho=1.23,
-        )
-        - 273.15
-    )
-    df_tmy["Atmospheric Station Pressure"] = atmosp.calculate(
-        "p",
-        T=df_tmy["T2"].values + 273.15,
-        qv=df_tmy["Q2"].values,
-        qv_unit="g/kg",
-        RH=df_tmy["RH2"].values,
-        rho=1.23,
+    # adding necessary variables that can be derived from supy output
+    df_tmy["Dew Point Temperature"], df_tmy["Atmospheric Station Pressure"] = (
+        _derive_epw_dewpoint_and_pressure(df_tmy, atmosp)
     )
 
     # processing solar radiation components

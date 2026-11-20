@@ -376,4 +376,156 @@ mod tests {
         );
         assert!(!missing_dir.exists());
     }
+
+    fn load_canonical_output_catalogue() -> (Vec<String>, HashMap<String, Vec<String>>) {
+        let output_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../supy/data_model/output");
+        let version_py = fs::read_to_string(output_dir.join("version.py"))
+            .expect("read src/supy/data_model/output/version.py");
+        let version = version_py
+            .lines()
+            .find_map(|line| {
+                let rest = line.trim().strip_prefix("CURRENT_OUTPUT_VERSION")?;
+                let (_, rhs) = rest.split_once('=')?;
+                let quoted = rhs.trim().strip_prefix('"')?.strip_suffix('"')?;
+                Some(quoted.to_string())
+            })
+            .expect("parse CURRENT_OUTPUT_VERSION from version.py");
+
+        let catalogue_path = output_dir
+            .join("artefacts")
+            .join(&version)
+            .join("catalogue.json");
+        let catalogue_text = fs::read_to_string(&catalogue_path).unwrap_or_else(|e| {
+            panic!(
+                "read canonical output catalogue {}: {e}",
+                catalogue_path.display()
+            )
+        });
+        let catalogue: serde_json::Value = serde_json::from_str(&catalogue_text)
+            .expect("parse canonical output catalogue JSON");
+
+        let vars = catalogue
+            .get("variables")
+            .and_then(serde_json::Value::as_array)
+            .expect("catalogue.json must contain a 'variables' array");
+
+        let mut by_group: HashMap<String, Vec<(usize, String)>> = HashMap::new();
+        for entry in vars {
+            let group = entry
+                .get("group")
+                .and_then(serde_json::Value::as_str)
+                .expect("catalogue variable missing string 'group'");
+            let name = entry
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .expect("catalogue variable missing string 'name'");
+            let ordinal = entry
+                .get("ordinal")
+                .and_then(serde_json::Value::as_u64)
+                .expect("catalogue variable missing integer 'ordinal'")
+                as usize;
+            by_group
+                .entry(group.to_string())
+                .or_default()
+                .push((ordinal, name.to_string()));
+        }
+
+        let mut ordered: HashMap<String, Vec<String>> = HashMap::new();
+        for (group, mut entries) in by_group {
+            entries.sort_by_key(|(ord, _)| *ord);
+            let names: Vec<String> = entries
+                .into_iter()
+                .enumerate()
+                .map(|(expected_ord, (ord, name))| {
+                    assert_eq!(
+                        ord, expected_ord,
+                        "non-contiguous ordinal in catalogue group '{group}'"
+                    );
+                    name
+                })
+                .collect();
+            ordered.insert(group, names);
+        }
+
+        let datetime_vars = ordered
+            .get("datetime")
+            .cloned()
+            .expect("catalogue must contain 'datetime' group");
+        (datetime_vars, ordered)
+    }
+
+    #[test]
+    fn suews_output_names_and_group_widths_match_canonical_catalogue() {
+        let (datetime_vars, groups) = load_canonical_output_catalogue();
+        assert_eq!(datetime_vars.len(), 5);
+
+        let canonical_suews = groups
+            .get("SUEWS")
+            .expect("catalogue must contain 'SUEWS' group");
+        assert_eq!(canonical_suews.len(), OUTPUT_SUEWS_COLS - 5);
+
+        // Write a real Arrow IPC file with slot-indexed values and verify the
+        // serialised schema and named column values against the independent
+        // published output contract catalogue (catches swaps such as QH <-> QE).
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let slot_values: Vec<f64> = (0..OUTPUT_ALL_COLS).map(|idx| idx as f64).collect();
+        let out_path = write_output_arrow(dir.path(), &slot_values, 1)
+            .expect("write_output_arrow should succeed");
+
+        let file = File::open(&out_path).expect("open written Arrow IPC file");
+        let reader = FileReader::try_new(file, None).expect("parse Arrow IPC file");
+        let schema = reader.schema();
+        let actual_names: Vec<&str> = schema.fields().iter().map(|f| f.name().as_str()).collect();
+
+        assert_eq!(&actual_names[..5], &["iy", "id", "it", "imin", "dectime"]);
+
+        let actual_suews = &actual_names[5..OUTPUT_SUEWS_COLS];
+        let mismatches: Vec<(usize, &str, &str)> = canonical_suews
+            .iter()
+            .zip(actual_suews.iter())
+            .enumerate()
+            .filter_map(|(i, (want, &got))| {
+                if want != got {
+                    Some((i + 5, want.as_str(), got))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert!(
+            mismatches.is_empty(),
+            "Arrow SUEWS column order drifted from canonical output catalogue: {mismatches:?}"
+        );
+
+        let batches: Vec<RecordBatch> = reader
+            .collect::<Result<_, _>>()
+            .expect("read Arrow record batch");
+        assert_eq!(batches.len(), 1);
+        let batch = &batches[0];
+        for (ord, expected_name) in canonical_suews.iter().enumerate() {
+            let col_idx = batch
+                .schema()
+                .index_of(expected_name)
+                .unwrap_or_else(|e| panic!("missing canonical column '{expected_name}': {e}"));
+            assert_eq!(col_idx, ord + 5);
+            let arr = batch
+                .column(col_idx)
+                .as_any()
+                .downcast_ref::<Float64Array>()
+                .expect("Arrow column should be Float64Array");
+            assert_eq!(arr.value(0), (ord + 5) as f64);
+        }
+
+        // Every output group width must equal its canonical variable count + 5 datetime columns.
+        for &(group, ncols) in OUTPUT_GROUP_LAYOUT {
+            let canonical_group = groups
+                .get(group)
+                .unwrap_or_else(|| panic!("canonical catalogue missing group '{group}'"));
+            assert_eq!(
+                ncols,
+                canonical_group.len() + 5,
+                "OUTPUT_GROUP_LAYOUT width mismatch for group '{group}'"
+            );
+        }
+    }
 }

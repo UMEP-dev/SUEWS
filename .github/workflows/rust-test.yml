@@ -10,12 +10,13 @@ name: Rust test
 #
 # Unlike clippy, cargo test links, so it needs the SUEWS Fortran static
 # libraries and .mod files: the job builds them with `make -C src/suews all`
-# before testing with both `--features physics` (how the bridge is built for
-# SuPy) and `--features physics,arrow-output` (the standalone engine's Arrow
-# output feature set, gh#2093), so neither feature-off nor feature-on builds
-# can regress. Only the SHA-pinned actions/checkout is used (satisfies
-# workflow-security.yml); gfortran comes from apt and Rust from the runner's
-# preinstalled rustup.
+# before testing both `--features physics` (without optional Arrow output)
+# and `--features physics,arrow-output` (matching the `physics,arrow-output`
+# features enabled alongside `python-extension` in
+# `src/supy/build_rust_bridge.py`, gh#2093), so neither feature-off nor
+# feature-on builds can regress. Only the SHA-pinned actions/checkout is used
+# (satisfies workflow-security.yml); gfortran comes from apt and Rust from
+# the runner's preinstalled rustup.
 
 on:
   pull_request:
@@ -28,6 +29,9 @@ on:
       - 'src/suews/Makefile.gfortran'
       # The Rust tests compile these resolved fixtures in with include_str!.
       - 'test/fixtures/bridge/**'
+      # output_io tests check SUEWS column names and widths against the
+      # published output contract catalogue.
+      - 'src/supy/data_model/output/**'
       - '.github/workflows/rust-test.yml'
 
 permissions:

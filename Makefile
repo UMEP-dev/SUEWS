@@ -88,7 +88,9 @@ dev:
 			echo ""; \
 		fi \
 	fi; \
-	# Uninstall first if build directory is missing (post-clean state) \
+	# Uninstall first if build directory is missing (post-clean state); otherwise \
+	# invalidate stale Meson stamps if build env (e.g. SUEWS_INIT_REAL or \
+	# SUEWS_BUILD_PROFILE) changed since the last build. \
 	if [ ! -d "build/$$PYVER" ]; then \
 		echo "Build directory missing for $$PYVER - performing clean reinstall..."; \
 		if command -v uv >/dev/null 2>&1; then \
@@ -96,6 +98,8 @@ dev:
 		else \
 			$(PYTHON) -m pip uninstall supy -y 2>/dev/null || true; \
 		fi \
+	else \
+		$(PYTHON) src/supy/run_make.py --sync-builddir src/suews "build/$$PYVER"; \
 	fi
 	@# Install build dependencies first (required for --no-build-isolation).
 	@# setuptools builds sdist-only dependencies, e.g. numexpr (via atmosp) on CPython 3.15.
@@ -177,6 +181,7 @@ rebuild-meson:
 		fi; \
 	else \
 		echo "Rebuilding changed Fortran sources..."; \
+		$(PYTHON) src/supy/run_make.py --sync-builddir src/suews "build/$$PYVER"; \
 		BRIDGE_SO=$$(ls build/$$PYVER/src/supy/suews_bridge.* 2>/dev/null | head -1); \
 		if [ -n "$$BRIDGE_SO" ] && [ -d "src/suews_bridge/src" ]; then \
 			STALE=$$(find src/suews_bridge/src src/suews_bridge/c_api \

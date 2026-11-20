@@ -1,0 +1,73 @@
+name: Rust C-API field observer
+
+# Verify that the generated test-only Fortran C-API field-binding observer stays
+# current with canonical kernel TYPE declarations and passes all 38 observer
+# tests (30 direct *_unpack routines, 4 driver aggregate unpackers, manifest
+# coverage, nested-type codec checks, and negative bounds; covering all 49
+# bridged types in bridge-manifest.json; gh#2096).
+#
+# Kept separate from rust-test.yml so the observer compiles and links ONLY under
+# the opt-in `capi-observer` Cargo feature and never enters shipped wheel or
+# default CLI builds.
+
+on:
+  pull_request:
+    paths:
+      - 'src/suews_bridge/**'
+      - 'src/suews/src/**'
+      - 'src/suews/ext_lib/**'
+      - 'src/suews/Makefile'
+      - 'src/suews/Makefile.deps'
+      - 'src/suews/Makefile.gfortran'
+      - 'scripts/suews/gen_capi_field_observer.py'
+      - '.github/workflows/rust-capi-observer.yml'
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-capi-observer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capi-observer:
+    name: C-API field-binding observer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Check generated observer artefacts
+        run: |
+          set -eu
+          python3 scripts/suews/gen_capi_field_observer.py --check
+
+      - name: Install gfortran
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install -y gfortran
+          gfortran --version
+          rustc --version
+          cargo --version
+
+      - name: Build SUEWS Fortran libraries
+        run: make -C src/suews all -j"$(nproc)"
+
+      - name: Run C-API field observer tests
+        run: |
+          set -eu
+          if ! cargo test \
+                --manifest-path src/suews_bridge/Cargo.toml \
+                --features physics,capi-observer \
+                --test capi_field_observer; then
+            echo "::error::C-API field-binding observer tests failed in src/suews_bridge/."
+            echo "Reproduce locally:"
+            echo "    python3 scripts/suews/gen_capi_field_observer.py --check"
+            echo "    make -C src/suews all"
+            echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer"
+            exit 1
+          fi

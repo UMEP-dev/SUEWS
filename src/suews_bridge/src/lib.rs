@@ -136,6 +136,8 @@ pub use output_io::*;
 pub use output_line::*;
 pub use phenology::*;
 pub use roughness::*;
+#[cfg(feature = "capi-observer")]
+pub use sim::{encode_site_members_flat, encode_site_scalars_flat, encode_state_members_flat};
 #[cfg(feature = "physics")]
 pub use sim::{
     run_from_config_str_and_forcing, run_from_config_str_and_forcing_into,

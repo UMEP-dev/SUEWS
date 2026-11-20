@@ -20,6 +20,11 @@ python = ["dep:pyo3"]
 python-extension = ["python", "pyo3/extension-module"]
 physics = []
 arrow-output = ["dep:arrow"]
+capi-observer = ["physics"]
+
+[[test]]
+name = "capi_field_observer"
+required-features = ["capi-observer"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

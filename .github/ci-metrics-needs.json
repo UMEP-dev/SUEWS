@@ -41,6 +41,9 @@
   "Encoding audit / *": [
     "Detect code changes"
   ],
+  "Fortran uninitialized lint / *": [
+    "Detect code changes"
+  ],
   "Physics-change label": [
     "Determine build matrix"
   ],
@@ -57,11 +60,16 @@
     "Detect code changes",
     "Determine build matrix",
     "Encoding audit / *",
+    "Fortran uninitialized lint / *",
     "Physics-change label",
+    "Rust C-API field observer / *",
     "Rust clippy / *",
     "Rust test / *",
     "Schema version audit / *",
     "Workflow security / *"
+  ],
+  "Rust C-API field observer / *": [
+    "Detect code changes"
   ],
   "Rust clippy / *": [
     "Detect code changes"

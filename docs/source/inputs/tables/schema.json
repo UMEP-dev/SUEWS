@@ -13599,7 +13599,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev11. Development schema requiring soil_depth, soil_store_capacity and saturated_hydraulic_conductivity on every active (sfr > 0) non-water surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting any of them used to reach the kernel as 0.0 via the Rust bridge. The (2026.6.dev10 -> 2026.6.dev11) migration writes 0.0 explicitly wherever an active non-water surface omits or nulls one of these three fields, preserving existing values and reference metadata.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev12. Within-grid water routing (#2086, #2117). An explicit numeric zero in an unused destination is removed during migration. On paved and building surfaces it could previously override the supplied runoff fraction, changing the simulated runoff and water balance.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13652,20 +13652,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev11",
+  "title": "SUEWS Configuration Schema v2026.6.dev12",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev11.json",
-  "version": "2026.6.dev11",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev12.json",
+  "version": "2026.6.dev12",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev11"
+    "schema_version": "2026.6.dev12"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev11",
+      "schema_version": "2026.6.dev12",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

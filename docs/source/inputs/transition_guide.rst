@@ -239,14 +239,19 @@ The other five applicable destinations each receive zero in this example.
    to_grass: 0.02
    to_soilstore: {value: 0.0}  # unused on paved surfaces
 
-The intended split is 98% to runoff and 2% to grass. On one wet sample day,
-the old calculation lost 4.827 mm from the grid's daily runoff, leaving the
-same deficit in its water balance. With the corrected reader, this example
-and a copy with the last line removed give identical results. The size of
-the difference for another site depends on its surface fractions, drainage
-and weather. A paved or building block that already omits the unused field
-needs no routing edit for this correction. Keep zeros for applicable
-destinations, including a genuine zero runoff fraction.
+The intended split is 98% to runoff and 2% to grass. On a sample day with
+11.2 mm of rain, the older reader produced 3.589 mm of grid runoff with
+all three lines present. Removing only the unused last line gave 8.416 mm.
+The missing 4.827 mm also appeared as a deficit in the grid water balance.
+With the corrected reader, both files give 8.416 mm and the balance closes.
+The size of the difference at another site depends on its surface fractions,
+drainage and weather.
+
+Migration removes the unused ``to_soilstore`` zero from this block. It keeps
+``to_runoff: 0.98``, ``to_grass: 0.02`` and any zero for an applicable
+destination, including a genuine zero runoff fraction. A previously valid
+paved or building block that already omitted the unused field needs no edit
+to its fractions for this correction.
 
 These commands write and validate an upgraded copy beside the original.
 That keeps relative forcing paths rooted in the same directory.

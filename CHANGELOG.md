@@ -57,6 +57,7 @@ EXAMPLES:
 ### 19 Nov 2026
 
 - [maintenance] Replace index-only range loops with slice iterators across nine `suews_bridge` codec modules (`anthroemis`, `atm`, `building_archetype_prm`, `core`, `heat_state`, `hydro_state`, `phenology`, `snow`, `stebbs_prm`) to satisfy Rust 1.100 `clippy::needless_range_loop`; no behaviour or layout changes
+- [maintenance] Add a static ratchet (`scripts/lint/check_rust_optional_reads.py` and `scripts/lint/rust_optional_reads_baseline.json`) pinning legacy optional YAML reader counts in `src/suews_bridge/src/yaml_config.rs` per function so new PRs cannot add silent fallback reads while #1991/#2002 migrates read sites to `require_*` (#1991, #2077)
 
 ### 18 Nov 2026
 

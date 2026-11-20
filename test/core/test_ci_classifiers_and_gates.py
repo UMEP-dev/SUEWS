@@ -421,6 +421,8 @@ def test_path_filters_positive_only_and_closes_classifier_gaps() -> None:
         "encoding-audit.yml",
         "workflow-security.yml",
         "dependency-audit.yml",
+        "fortran-uninit.yml",
+        "rust-capi-observer.yml",
     ):
         assert _matches_category(filters, "ci", f".github/workflows/{wf}"), wf
 
@@ -463,6 +465,82 @@ def test_path_filters_positive_only_and_closes_classifier_gaps() -> None:
         filters, "dependency_audit", "scripts/security/audit_python_startup.py"
     )
     assert not _matches_category(filters, "dependency_audit", "src/supy/suews_sim.py")
+
+    assert _matches_category(
+        filters, "fortran_uninit", "src/suews/src/suews_phys_resist.f95"
+    )
+    assert _matches_category(
+        filters, "fortran_uninit", "scripts/lint/fortran_uninit_baseline.json"
+    )
+    assert _matches_category(filters, "fortran_uninit", "src/suews_bridge/build.rs")
+    assert not _matches_category(filters, "fortran_uninit", "docs/source/index.rst")
+
+    assert _matches_category(
+        filters, "rust_capi_observer", "scripts/suews/gen_capi_field_observer.py"
+    )
+    assert _matches_category(
+        filters, "rust_capi_observer", "src/suews_bridge/tests/capi_field_observer.rs"
+    )
+    assert not _matches_category(filters, "rust_capi_observer", "docs/source/index.rst")
+
+
+def _sample_paths_for_workflow_glob(pattern: str) -> list[str]:
+    """Generate representative concrete repo-relative paths for a GitHub paths glob."""
+    if pattern == "**.py":
+        return ["top.py", "src/supy/mod.py", ".github/scripts/tool.py"]
+    if pattern.endswith("/**"):
+        prefix = pattern[:-3]
+        return [f"{prefix}/probe.txt", f"{prefix}/nested/probe.txt"]
+    if "*" in pattern:
+        return [pattern.replace("*", "probe")]
+    return [pattern]
+
+
+def test_folded_path_filters_cover_every_workflow_trigger_path_and_wiring_files() -> (
+    None
+):
+    """Every folded path-filter covers its workflow's pull_request.paths and wiring files."""
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+    folded_path_workflows = {
+        "rust_test": "rust-test.yml",
+        "rust_clippy": "rust-clippy.yml",
+        "encoding_audit": "encoding-audit.yml",
+        "workflow_security": "workflow-security.yml",
+        "dependency_audit": "dependency-audit.yml",
+        "fortran_uninit": "fortran-uninit.yml",
+        "rust_capi_observer": "rust-capi-observer.yml",
+    }
+
+    for category, workflow_name in folded_path_workflows.items():
+        wf = yaml.safe_load(
+            (REPO_ROOT / ".github/workflows" / workflow_name).read_text(
+                encoding="utf-8"
+            )
+        )
+        triggers = wf[True] if True in wf else wf["on"]
+        wf_paths = triggers["pull_request"]["paths"]
+        assert wf_paths, workflow_name
+
+        # Every path trigger declared on the standalone workflow must also match
+        # the corresponding category in .github/path-filters.yml.
+        for wf_pattern in wf_paths:
+            for sample in _sample_paths_for_workflow_glob(str(wf_pattern)):
+                assert _matches_category(filters, category, sample), (
+                    f"{workflow_name} path {wf_pattern!r} (sample {sample!r}) "
+                    f"is not covered by path-filters.yml category {category!r}"
+                )
+
+        # Changes to the caller workflow or path-filters itself must exercise
+        # every path-filtered folded check instead of skipping it.
+        for wiring_file in (
+            ".github/workflows/build-publish_to_pypi.yml",
+            ".github/path-filters.yml",
+        ):
+            assert _matches_category(filters, category, wiring_file), (
+                f"{category!r} in .github/path-filters.yml must match {wiring_file!r}"
+            )
 
 
 # ---- Ready tests-only PR tier selection & pytest collection parity ----
@@ -955,7 +1033,7 @@ def _synth_job(name: str, created: int, started: int, completed: int) -> dict[st
 
 
 def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() -> None:
-    """All 7 consolidated producers use self-repository workflow_call and match metrics."""
+    """All 9 consolidated producers use self-repository workflow_call and match metrics."""
     caller = yaml.safe_load(
         (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
             encoding="utf-8"
@@ -971,47 +1049,69 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
             "$/.github/workflows/rust-test.yml",
             False,
             "RUST_TEST_RESULT",
+            ("RUST_TEST_CHANGED", "rust-test-changed"),
         ),
         "rust_clippy": (
             "Rust clippy",
             "$/.github/workflows/rust-clippy.yml",
             True,
             "RUST_CLIPPY_RESULT",
+            ("RUST_CLIPPY_CHANGED", "rust-clippy-changed"),
         ),
         "schema_version_audit": (
             "Schema version audit",
             "$/.github/workflows/schema-version-audit.yml",
             True,
             "SCHEMA_AUDIT_RESULT",
+            None,
         ),
         "data_interface_audit": (
             "Data-interface version audit",
             "$/.github/workflows/data-interface-version-audit.yml",
             False,
             "DATA_INTERFACE_AUDIT_RESULT",
+            None,
         ),
         "encoding_audit": (
             "Encoding audit",
             "$/.github/workflows/encoding-audit.yml",
             True,
             "ENCODING_AUDIT_RESULT",
+            ("ENCODING_AUDIT_CHANGED", "encoding-audit-changed"),
         ),
         "workflow_security": (
             "Workflow security",
             "$/.github/workflows/workflow-security.yml",
             False,
             "WORKFLOW_SECURITY_RESULT",
+            ("WORKFLOW_SECURITY_CHANGED", "workflow-security-changed"),
         ),
         "dependency_audit": (
             "Dependency and startup audit",
             "$/.github/workflows/dependency-audit.yml",
             False,
             "DEPENDENCY_AUDIT_RESULT",
+            ("DEPENDENCY_AUDIT_CHANGED", "dependency-audit-changed"),
+        ),
+        "fortran_uninit": (
+            "Fortran uninitialized lint",
+            "$/.github/workflows/fortran-uninit.yml",
+            False,
+            "FORTRAN_UNINIT_RESULT",
+            ("FORTRAN_UNINIT_CHANGED", "fortran-uninit-changed"),
+        ),
+        "rust_capi_observer": (
+            "Rust C-API field observer",
+            "$/.github/workflows/rust-capi-observer.yml",
+            False,
+            "RUST_CAPI_OBSERVER_RESULT",
+            ("RUST_CAPI_OBSERVER_CHANGED", "rust-capi-observer-changed"),
         ),
     }
 
     pr_gate = caller["jobs"]["pr-gate"]
     pr_gate_step = next(s for s in pr_gate["steps"] if "run" in s)
+    assert pr_gate_step["env"]["EVENT_NAME"] == "${{ github.event_name }}"
     report_needs = set(caller["jobs"]["report_scheduled_run"]["needs"])
 
     for job_id, (
@@ -1019,6 +1119,7 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
         uses_ref,
         needs_pr_read,
         result_env,
+        changed_spec,
     ) in expected_producers.items():
         job = caller["jobs"][job_id]
         assert job["name"] == display_name
@@ -1032,9 +1133,22 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
             assert "merge_head_ref" in job["with"]
         assert job_id in pr_gate["needs"]
         assert pr_gate_step["env"][result_env] == f"${{{{ needs.{job_id}.result }}}}"
+        if changed_spec is not None:
+            changed_env, output_key = changed_spec
+            assert pr_gate_step["env"][changed_env] == (
+                f"${{{{ needs.detect-changes.outputs.{output_key} }}}}"
+            )
         assert job_id not in report_needs
         assert f"{display_name} / *" in declared_needs
         assert f"{display_name} / *" in declared_needs["PR build validation"]
+
+        # None of the 9 folded workflows should also declare standalone merge_group,
+        # otherwise merge_group double-executes them (and runs them on docs-only merges).
+        wf_file = REPO_ROOT / uses_ref.removeprefix("$/")
+        wf_data = yaml.safe_load(wf_file.read_text(encoding="utf-8"))
+        wf_triggers = wf_data[True] if True in wf_data else wf_data["on"]
+        assert "workflow_call" in wf_triggers, wf_file.name
+        assert "merge_group" not in wf_triggers, wf_file.name
 
     # benchmark-regression.yml stays deferred per gh#2094
     assert all(
@@ -1042,7 +1156,8 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
         for job in caller["jobs"].values()
     )
 
-    # Verify determine_matrix forwards TESTS_CHANGED to determine-matrix.sh
+    # Verify determine_matrix forwards TESTS_CHANGED and fortran_uninit passes base_sha
+    assert "base_sha" in caller["jobs"]["fortran_uninit"]["with"]
     set_matrix = next(
         s
         for s in caller["jobs"]["determine_matrix"]["steps"]
@@ -1086,6 +1201,18 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
                 45,
             ),
             _synth_job(
+                "Fortran uninitialized lint / Fortran -Wuninitialized ratchet (GCC 14.2.0)",
+                10,
+                12,
+                55,
+            ),
+            _synth_job(
+                "Rust C-API field observer / C-API field-binding observer",
+                10,
+                12,
+                65,
+            ),
+            _synth_job(
                 "Build and test (manylinux x86_64) / cp312-manylinux x86_64",
                 20,
                 22,
@@ -1103,15 +1230,18 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
     metrics = analyse_run(run, full_jobs, declared_needs=declared_needs)
     assert metrics["observed_critical_path"]["target_job"] == "PR build validation"
     by_name = {j["name"]: j for j in metrics["jobs"]}
+    gate_deps = by_name["PR build validation"]["declared_dependencies"]
+    assert "Rust test / cargo test (suews_bridge)" in gate_deps
+    assert "Schema version audit / Require schema version bump" in gate_deps
     assert (
-        "Rust test / cargo test (suews_bridge)"
-        in by_name["PR build validation"]["declared_dependencies"]
+        "Fortran uninitialized lint / Fortran -Wuninitialized ratchet (GCC 14.2.0)"
+        in gate_deps
     )
-    assert (
-        "Schema version audit / Require schema version bump"
-        in by_name["PR build validation"]["declared_dependencies"]
-    )
-    assert by_name["Rust test / cargo test (suews_bridge)"][
+    assert "Rust C-API field observer / C-API field-binding observer" in gate_deps
+    assert by_name[
+        "Fortran uninitialized lint / Fortran -Wuninitialized ratchet (GCC 14.2.0)"
+    ]["declared_dependencies"] == ["Detect code changes"]
+    assert by_name["Rust C-API field observer / C-API field-binding observer"][
         "declared_dependencies"
     ] == ["Detect code changes"]
 
@@ -1167,6 +1297,8 @@ def test_reusable_workflows_with_concurrency_isolate_group_by_workflow() -> None
 
     assert {
         "encoding-audit.yml",
+        "fortran-uninit.yml",
+        "rust-capi-observer.yml",
         "rust-clippy.yml",
         "rust-test.yml",
         "schema-version-audit.yml",

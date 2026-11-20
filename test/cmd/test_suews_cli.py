@@ -731,7 +731,6 @@ def _write_waterdist_cli_cases(tmp_path: Path) -> tuple[Path, Path, Path]:
     return path_zero, path_inactive, path_nonzero
 
 
-@pytest.mark.medium
 def test_schema_export_cli_displays_waterdistribution_rules(tmp_path: Path) -> None:
     """``suews schema export`` exposes the synced WaterDistribution rules."""
     runner = CliRunner()
@@ -746,7 +745,6 @@ def test_schema_export_cli_displays_waterdistribution_rules(tmp_path: Path) -> N
     _assert_waterdist_schema_rules(exported)
 
 
-@pytest.mark.medium
 def test_schema_envelope_cli_displays_waterdistribution_rules() -> None:
     """``suews schema --format json`` exposes the synced WaterDistribution rules."""
     runner = CliRunner()
@@ -780,7 +778,6 @@ def test_inspect_cli_waterdist_rules(tmp_path: Path) -> None:
     assert any("to_soilstore" in str(err) for err in bad_env["errors"]), bad_env
 
 
-@pytest.mark.medium
 def test_validate_cli_waterdist_rules(tmp_path: Path) -> None:
     """``suews validate -p C --dry-run --format json`` enforces load-time waterdist rules."""
     path_zero, path_inactive, path_nonzero = _write_waterdist_cli_cases(tmp_path)

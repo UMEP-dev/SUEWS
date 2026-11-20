@@ -1,10 +1,10 @@
 from typing import Optional
 import pandas as pd
-from pydantic import ConfigDict, BaseModel, Field
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from pydantic import ConfigDict, Field
+from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
 
 
-class OHMCoefficients(BaseModel):
+class OHMCoefficients(DataModelBase):
     """Objective Hysteresis Model coefficients."""
 
     model_config = ConfigDict(title="OHM Coefficients")
@@ -90,7 +90,7 @@ class OHMCoefficients(BaseModel):
         return cls(**params)
 
 
-class OHM_Coefficient_season_wetness(BaseModel):
+class OHM_Coefficient_season_wetness(DataModelBase):
     """OHM coefficients for different seasonal and wetness conditions."""
 
     model_config = ConfigDict(title="Seasonal/Wetness OHM Coefficients")

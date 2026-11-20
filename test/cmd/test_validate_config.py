@@ -1010,17 +1010,21 @@ def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
 def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> None:
     """gh#1467: the consolidated CLI JSON sidecar carries non-error issues.
 
-    Dropping the optional ``sites[0].properties.h_std`` makes the run
-    succeed (exit 0) while Phase A records a non-error ``A.MISSING_PARAM``
-    warning. That informational message must appear in the JSON sidecar,
-    not only in the text report. Anchored on the deterministic ``h_std``
-    signal (the sample config's Phase B issues are environment-dependent).
+    Dropping the genuinely optional ``emission_factor_co2_fuel`` (inactive under
+    the sample config's non-biogenic emissions method) makes the run succeed
+    (exit 0) while Phase A records a non-error ``A.MISSING_PARAM`` warning.
+    That informational message must appear in the JSON sidecar, not only in the
+    text report. Anchored on this deterministic signal (the sample config's
+    Phase B issues are environment-dependent; gh#2087 stopped Phase A from
+    null-filling defaulted non-optional fields such as ``h_std``).
     """
     from supy.cmd.validate_config import cli as validate_cli
 
     with _sample_yaml_path() as sample:
         data = yaml.safe_load(sample.read_text(encoding="utf-8"))
-    data["sites"][0]["properties"].pop("h_std")
+    data["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
+        "emission_factor_co2_fuel"
+    )
 
     config_path = tmp_path / "myconfig.yml"
     _write_yaml(config_path, data)
@@ -1042,10 +1046,10 @@ def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> No
     all_issues = [i for p in payload["phases"] for i in p["issues"]]
     assert any(
         i["code"] == "A.MISSING_PARAM"
-        and "h_std" in (i.get("yaml_path") or "")
+        and "emission_factor_co2_fuel" in (i.get("yaml_path") or "")
         and i["severity"] != "ERROR"
         for i in all_issues
-    ), f"h_std informational issue missing from sidecar: {all_issues}"
+    ), f"emission_factor_co2_fuel informational issue missing from sidecar: {all_issues}"
 
     # gh#1467: the consolidated sidecar must not publish paths to files that
     # no longer exist. In a multi-phase run the intermediate temp reports and
@@ -1090,7 +1094,9 @@ def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
 
     with _sample_yaml_path() as sample:
         data = yaml.safe_load(sample.read_text(encoding="utf-8"))
-    data["sites"][0]["properties"].pop("h_std")  # -> A.MISSING_PARAM (info)
+    data["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
+        "emission_factor_co2_fuel"
+    )  # -> A.MISSING_PARAM (info)
     data["sites"][0]["properties"]["bogus_extra_param"] = 42  # -> C.PYDANTIC error
 
     config_path = tmp_path / "bad.yml"
@@ -1387,16 +1393,18 @@ def test_validate_accepts_omitted_null_rejecting_field(
 
 
 def test_missing_block_gets_no_null_for_null_rejecting_field() -> None:
-    """A block Phase A fills in skips the null-rejecting fields (gh#2001)."""
+    """A block Phase A fills in skips the null-rejecting fields (gh#2001, gh#2087)."""
     from supy.data_model.validation.pipeline.phase_a import (
         create_clean_missing_param_annotation,
     )
 
     lines = create_clean_missing_param_annotation(
-        "evetr", {"state": {"value": 0.0}, "sdd_id": {"value": 0}}
+        "evetr",
+        {"alb_id": {"value": 0.1}, "state": {"value": 0.0}, "sdd_id": {"value": 0}},
     )
-    assert lines[:2] == ["evetr:", "  state:"], lines
+    assert lines[:2] == ["evetr:", "  alb_id:"], lines
     assert not any("sdd_id" in line for line in lines), lines
+    assert not any("state" in line for line in lines), lines
 
 
 def test_default_export_survives_annual_mean_science_fix(tmp_path, monkeypatch):

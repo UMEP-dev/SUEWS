@@ -1,15 +1,28 @@
-from typing import TypeVar, Optional, Generic, Union, Any
-from pydantic import (
-    ConfigDict,
-    BaseModel,
-    Field,
-    field_validator,
-    model_validator,
-    model_serializer,
+from enum import Enum
+import types
+from typing import (
+    Annotated,
+    Any,
+    ClassVar,
+    Generic,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
 )
+
 import numpy as np
 import pandas as pd
-from enum import Enum
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_serializer,
+)
 
 _REF_VALUE_UNSET = object()
 
@@ -235,13 +248,13 @@ def FlexibleRefValue(type_param):
     return Union[RefValue[type_param], type_param]
 
 
-def reject_null_value(value, field_name: str):
-    """Reject ``{value: null}`` on a field the model always needs a number for.
+def reject_null_value(value, field_name: str, *, expected_kind: str = "number"):
+    """Reject ``{value: null}`` on a field that does not accept ``None``.
 
     ``RefValue.value`` is ``Optional`` so that genuinely optional fields can
-    carry ``null``. On a required numeric field a ``null`` would reach the
-    Rust bridge as a missing key and be replaced by the bridge's own fallback,
-    so it is rejected here instead (gh#2001).
+    carry ``null``. On a non-optional field a ``null`` would reach the Rust
+    bridge as a missing key and be replaced by the bridge's own fallback, so
+    it is rejected here instead (gh#2001, gh#2087).
 
     Parameters
     ----------
@@ -249,6 +262,8 @@ def reject_null_value(value, field_name: str):
         The validated field value.
     field_name : str
         Name used in the error message.
+    expected_kind : str, optional
+        Noun phrase describing the expected type (``"number"`` or ``"value"``).
 
     Returns
     -------
@@ -263,17 +278,114 @@ def reject_null_value(value, field_name: str):
     inner = value.value if isinstance(value, RefValue) else value
     if inner is None:
         raise ValueError(
-            f"{field_name} needs a number; null is not accepted "
+            f"{field_name} needs a {expected_kind}; null is not accepted "
             "(omit the field to use its default)"
         )
     return value
 
 
-# Names of the fields whose validators reject ``{value: null}``, filled in by
-# ``null_rejecting_validator`` as the models are defined. The validation
-# pipeline reads it so that it never writes a null placeholder for one of
-# them: omitting such a field already gives its default (gh#2001).
-NULL_REJECTED_FIELDS: set = set()
+# Names of defaulted non-optional RefValue fields that reject ``{value: null}``,
+# populated automatically by ``DataModelBase.__pydantic_init_subclass__`` (and
+# ``null_rejecting_validator``) as models are defined. The validation pipeline
+# reads it so Phase A never writes a null placeholder over a field whose
+# omission already supplies a model default (gh#2001, gh#2087).
+NULL_REJECTED_FIELDS: set[str] = set()
+
+
+def _unwrap_annotated(annotation: Any) -> Any:
+    while get_origin(annotation) is Annotated:
+        annotation = get_args(annotation)[0]
+    return annotation
+
+
+def _is_numeric_type(tp: Any) -> bool:
+    tp = _unwrap_annotated(tp)
+    if tp in {int, float}:
+        return True
+    origin = get_origin(tp)
+    if origin in {Union, types.UnionType}:
+        return all(_is_numeric_type(arg) for arg in get_args(tp))
+    if origin is Literal:
+        args = get_args(tp)
+        return bool(args) and all(
+            isinstance(a, (int, float)) and not isinstance(a, bool) for a in args
+        )
+    if isinstance(tp, type) and issubclass(tp, Enum):
+        return not issubclass(tp, str) and all(
+            isinstance(m.value, (int, float)) and not isinstance(m.value, bool)
+            for m in tp
+        )
+    return False
+
+
+def _classify_non_optional_ref_field(annotation: Any) -> str | None:
+    """Return ``'number'`` or ``'value'`` for non-Optional RefValue fields, else ``None``."""
+    ann = _unwrap_annotated(annotation)
+    origin = get_origin(ann)
+    if origin in {Union, types.UnionType}:
+        args = tuple(_unwrap_annotated(a) for a in get_args(ann))
+    else:
+        args = (ann,)
+    if type(None) in args:
+        return None
+    has_ref = False
+    non_ref_args = []
+    for arg in args:
+        arg_origin = get_origin(arg)
+        if (
+            arg is RefValue
+            or arg_origin is RefValue
+            or (isinstance(arg, type) and issubclass(arg, RefValue))
+        ):
+            has_ref = True
+        else:
+            non_ref_args.append(arg)
+    if not has_ref:
+        return None
+    if non_ref_args and all(_is_numeric_type(a) for a in non_ref_args):
+        return "number"
+    return "value"
+
+
+class DataModelBase(BaseModel):
+    """Base class for SUEWS configuration models enforcing non-null ``RefValue`` fields.
+
+    ``RefValue.value`` stays ``Optional[T]`` so genuinely ``Optional[FlexibleRefValue(T)]``
+    fields can still carry ``{value: null}`` (for inactive physics blocks or
+    round-trips). Any field typed as non-optional ``FlexibleRefValue(T)`` rejects
+    ``{value: null}`` automatically at validation time, and defaulted ones are
+    registered in ``NULL_REJECTED_FIELDS`` so ``suews validate`` Phase A never
+    overwrites omitted defaults with null placeholders (gh#2087).
+    """
+
+    _non_optional_ref_fields: ClassVar[dict[str, str]] = {}
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:  # noqa: PLW3201
+        """Record non-optional RefValue fields and register defaulted ones."""
+        super().__pydantic_init_subclass__(**kwargs)
+        non_opt: dict[str, str] = {}
+        for field_name, field_info in cls.model_fields.items():
+            kind = _classify_non_optional_ref_field(field_info.annotation)
+            if kind is None:
+                continue
+            non_opt[field_name] = kind
+            if not field_info.is_required():
+                NULL_REJECTED_FIELDS.add(field_name)
+        cls._non_optional_ref_fields = non_opt
+
+    @field_validator("*", mode="after")
+    @classmethod
+    def _reject_null_on_non_optional_ref_field(cls, v: Any, info: ValidationInfo) -> Any:
+        if isinstance(v, RefValue) and v.value is None:
+            field_name = info.field_name
+            if field_name is not None and field_name in cls._non_optional_ref_fields:
+                return reject_null_value(
+                    v,
+                    field_name,
+                    expected_kind=cls._non_optional_ref_fields[field_name],
+                )
+        return v
 
 
 def null_rejecting_validator(field_name: str):

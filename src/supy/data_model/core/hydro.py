@@ -1,14 +1,24 @@
 from pydantic import (
-    BaseModel, ConfigDict, Field, PrivateAttr, model_serializer, model_validator,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    model_serializer,
+    model_validator,
 )
 from typing import Optional
 import pandas as pd
-from .type import RefValue, Reference, SurfaceType, FlexibleRefValue
+from .type import (
+    DataModelBase,
+    FlexibleRefValue,
+    Reference,
+    RefValue,
+    SurfaceType,
+)
 from ..validation.required_fields import WATER_DISTRIBUTION_REQUIRED
 import math
 
 
-class WaterDistribution(BaseModel):
+class WaterDistribution(DataModelBase):
     """Water routing between surface types."""
 
     model_config = ConfigDict(title="Water Distribution")
@@ -313,7 +323,7 @@ class WaterDistribution(BaseModel):
         return instance
 
 
-class StorageDrainParams(BaseModel):
+class StorageDrainParams(DataModelBase):
     """Parameters for surface water storage drainage."""
 
     model_config = ConfigDict(title="Drainage Parameters")

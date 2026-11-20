@@ -11,11 +11,11 @@ from typing import Optional, Literal, List, Union
 import pandas as pd
 import warnings
 from .type import (
+    DataModelBase,
     RefValue,
     Reference,
     FlexibleRefValue,
     df_from_cols,
-    null_rejecting_validator,
 )
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
 from ..._env import logger_supy
@@ -32,7 +32,7 @@ from .field_renames import (
 )
 
 
-class ThermalLayers(BaseModel):
+class ThermalLayers(DataModelBase):
     """Five material layers and their thermal properties for a surface facet.
 
     The material layers are ordered from the exposed surface inward. They extend
@@ -182,7 +182,7 @@ class ThermalLayers(BaseModel):
         return cls(dz=dz, k=k, rho_cp=rho_cp)
 
 
-class SurfaceProperties(BaseModel):
+class SurfaceProperties(DataModelBase):
     """Base properties for all surface types"""
 
     model_config = ConfigDict(title="Surface Properties")
@@ -728,7 +728,7 @@ class PavedProperties(
 
 
 class BuildingLayer(
-    BaseModel
+    DataModelBase
 ):  # May need to move VWD for material layers here for referencing
     @model_validator(mode="before")
     @classmethod
@@ -1086,8 +1086,6 @@ class WaterProperties(NonVegetatedSurfaceProperties):
         json_schema_extra={"unit": "mm h-1", "display_name": "Flow Change"},
     )
 
-    _flowchange_not_null = null_rejecting_validator("flowchange")
-
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert water surface properties to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
@@ -1125,7 +1123,7 @@ class WallLayer(BuildingLayer):
     _facet_type: Literal["wall"] = "wall"
 
 
-class VerticalLayers(BaseModel):
+class VerticalLayers(DataModelBase):
     """SPARTACUS-Surface vertical layers and their roof and wall facets.
 
     The layers divide the height range from ground level to the maximum building

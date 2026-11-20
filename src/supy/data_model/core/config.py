@@ -37,7 +37,7 @@ import warnings
 
 from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
-from .type import SurfaceType
+from .type import DataModelBase, RefValue, SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
 from ..validation.required_fields import (
@@ -461,7 +461,7 @@ def _strip_internal_fields(data, model_cls):
         data.pop(key, None)
 
 
-class SUEWSConfig(BaseModel):
+class SUEWSConfig(DataModelBase):
     """Main SUEWS configuration."""
 
     # extra="allow" exists solely for the private bookkeeping keys below;
@@ -3790,6 +3790,67 @@ class SUEWSConfig(BaseModel):
                             )
 
         issues.extend(self._iter_co2_point_source_issues())
+        issues.extend(self._iter_biogenic_co2_null_issues())
+        return issues
+
+    def _iter_biogenic_co2_null_issues(self) -> list[dict[str, str]]:
+        """Return an issue when ``min_res_bioco2`` is explicitly null under active biogenic CO2.
+
+        ``min_res_bioco2`` carries a documented default of ``0.1`` and remains
+        ``Optional`` only so Phase B can nullify inactive biogenic blocks when
+        CO2 is disabled (methods 0-6). Under active biogenic CO2 methods
+        (11-16, 21-26, 31-36, 41-46), an explicit ``null`` or ``{value: null}``
+        on an active vegetated surface would drop the key from engine YAML and
+        silently deliver ``0.0`` instead of ``0.1`` (gh#2087).
+        """
+        if not getattr(self, "sites", None):
+            return []
+
+        physics = getattr(getattr(self, "model", None), "physics", None)
+        method = getattr(physics, "emissions", None)
+        method = getattr(method, "value", method)
+        method = getattr(method, "value", method)
+        if not isinstance(method, int) or (
+            method // 10 not in CO2_POINT_SOURCE_METHOD_FAMILIES
+            or method % 10 not in CO2_POINT_SOURCE_METHOD_DIGITS
+        ):
+            return []
+
+        issues: list[dict[str, str]] = []
+        for i, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"site[{i}]")
+            land_cover = getattr(getattr(site, "properties", None), "land_cover", None)
+            if land_cover is None:
+                continue
+            for surf_name in ("evetr", "dectr", "grass"):
+                surface = getattr(land_cover, surf_name, None)
+                if surface is None:
+                    continue
+                sfr_val = _unwrap_value(getattr(surface, "sfr", None))
+                if sfr_val is None or float(sfr_val) <= 0.0:
+                    continue
+                raw = getattr(surface, "min_res_bioco2", None)
+                if raw is None or (isinstance(raw, RefValue) and raw.value is None):
+                    issues.append(
+                        {
+                            "error_text": (
+                                f"sites[{i}] ({site_name}), land_cover.{surf_name}: "
+                                f"min_res_bioco2 needs a number when emissions method "
+                                f"{method} is active; null is not accepted "
+                                "(omit the field to use its default)"
+                            ),
+                            "path": f"sites[{i}]/properties/land_cover/{surf_name}",
+                            "param": "min_res_bioco2",
+                            "message": (
+                                f"min_res_bioco2 is null on active {surf_name} "
+                                f"surface under emissions method {method}"
+                            ),
+                            "fix": (
+                                "Supply a finite value or omit min_res_bioco2 "
+                                "to use its default (0.1)"
+                            ),
+                        }
+                    )
         return issues
 
     def _iter_co2_point_source_issues(self) -> List[Dict[str, str]]:

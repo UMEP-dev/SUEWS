@@ -4532,12 +4532,14 @@ sites:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.48}
           alb: {value: 0.08}
         bldgs:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.25}
           alb: {value: 0.15}
           bldgh: {value: 3.5}
@@ -4608,12 +4610,14 @@ sites:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.48}
           alb: {value: 0.08}
         bldgs:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.25}
           alb: {value: 0.15}
           bldgh: {value: 3.5}
@@ -4713,6 +4717,9 @@ sites:
           sfr: {value: 0.0}
         grass:
           sfr: {value: 1.0}
+          soil_depth: {value: 350.0}
+          soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           lai:
             lai_max: {value: 4.5}
         bsoil:

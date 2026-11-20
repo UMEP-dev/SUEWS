@@ -177,12 +177,12 @@ Referenced from workflows as:
 Categories are defined in `.github/path-filters.yml`:
 
 - **fortran** -- Fortran physics and extension source (triggers multiplatform build) [fact: git grep -n src/suews/ext_lib .github/path-filters.yml]
-- **rust** -- Rust FFI bridge and `c_api` wrappers (`src/suews_bridge/src/**`, `src/suews_bridge/c_api/**`, `Cargo.toml`, `Cargo.lock`, `build.rs`; triggers multiplatform build) [fact: git grep -n src/suews_bridge/c_api .github/path-filters.yml]
+- **rust** -- Rust FFI bridge, `bridge-manifest.json`, and `c_api` wrappers (`src/suews_bridge/src/**`, `src/suews_bridge/c_api/**`, `src/suews_bridge/bridge-manifest.json`, `Cargo.toml`, `Cargo.lock`, `build.rs`; triggers multiplatform build) [fact: git grep -n "bridge-manifest.json" .github/path-filters.yml]
 - **python** -- pure Python source and `mcp/**` (single-platform build) [fact: git grep -n "'mcp/" .github/path-filters.yml]
 - **util** -- utility modules (`src/supy/util/**`, single-platform build) [fact: git grep -n src/supy/util/ .github/path-filters.yml]
 - **build** -- build system files affecting wheel output: `meson.build`, `meson_options.txt`, `src/supy/meson.build`, `get_ver_git.py` (multiplatform build) [fact: git grep -n get_ver_git.py .github/path-filters.yml]
 - **pyproject** -- `pyproject.toml` (classified by content via `.github/scripts/classify_pyproject.py` in workflow) [fact: git grep -n classify_pyproject.py .github/workflows/build-publish_to_pypi.yml]
-- **ci** -- CI workflows, `.github/scripts/**`, `Makefile`, `scripts/suews/**` (single-platform build) [fact: git grep -n scripts/suews/ .github/path-filters.yml]
+- **ci** -- CI workflows, `.github/scripts/**`, `Makefile`, `scripts/lint/**`, `scripts/security/**`, `scripts/suews/**` (single-platform build) [fact: git grep -n scripts/lint/ .github/path-filters.yml]
 - **tests** -- test files (`test/**`, single-platform build) [fact: git grep -n "'test/" .github/path-filters.yml]
 - **docs** -- documentation source
 - **site** -- static site content
@@ -329,7 +329,7 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 
 - `fortran`, `rust`, or `build`-system: `PR_PLATFORMS` (3), test tier **standard** [fact: git grep -n "Ready PR with fortran/build changes" .github/scripts/determine-matrix.sh]
 - `python` or `util`: `MINIMAL_PLATFORMS` (1), test tier **standard** [fact: git grep -n "Ready PR with python/util changes" .github/scripts/determine-matrix.sh]
-- `ci` or `tests` only: `MINIMAL_PLATFORMS` (1), test tier **smoke** [fact: git grep -n "Ready PR with ci/tests-only changes" .github/scripts/determine-matrix.sh]
+- `tests` or `ci` only: `MINIMAL_PLATFORMS` (1), test tier **standard** (so newly added or edited non-smoke unit/API/lint tests run on ready PRs rather than being deferred to the merge queue) [fact: git grep -n "Ready PR with tests changes" .github/scripts/determine-matrix.sh && git grep -n "Ready PR with ci-only changes" .github/scripts/determine-matrix.sh]
 - Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
 - **`0-physics:change` / `0-numerics:change` label override (gh#1576)**: a ready PR carrying either label forces `build_wheels` (even when `needs-build` is false) and runs test tier **physics-full**, requiring a green wheel build in `pr-gate` so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml]
 

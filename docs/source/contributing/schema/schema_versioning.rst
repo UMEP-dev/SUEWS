@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev10"`` describes the shape of the configuration
+``schema_version: "2026.6.dev11"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev10"
+   schema_version: "2026.6.dev11"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -59,7 +59,10 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — ``2026.6.dev8`` comes after ``2026.6.dev7``,
+as a floating-point number -- ``2026.6.dev11`` comes after ``2026.6.dev10``,
+which comes after ``2026.6.dev9``,
+which comes after ``2026.6.dev8``,
+which comes after ``2026.6.dev7``,
 which comes after ``2026.6.dev6``,
 which comes after ``2026.6.dev5``,
 which comes after ``2026.6.dev4``,
@@ -116,7 +119,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev10 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev11 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -125,13 +128,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev10.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev11.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev10.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev11.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -181,7 +184,21 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev10** (current; development)
+**Schema 2026.6.dev11** (current; development)
+   Requires ``soil_depth``, ``soil_store_capacity`` and
+   ``saturated_hydraulic_conductivity`` on every active (``sfr > 0``) non-water
+   surface (``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass`` and ``bsoil``)
+   in configurations loaded from YAML or a dict (#2077, #2001, #2002). Omitting
+   any of them used to reach the water-balance kernel as ``0.0`` via the Rust
+   bridge. The ``(2026.6.dev10 -> 2026.6.dev11)`` handler refuses to substitute
+   ``0.0`` when ``soil_depth`` is missing or null on an active surface with
+   positive ``soil_store_capacity`` (reporting each affected site and surface
+   so the user can supply ``soil_depth``), preserves supplied values and
+   inactive/``water`` surfaces unchanged, and writes ``0.0`` explicitly for
+   other missing or null active soil parameters while preserving references.
+   See :ref:`schema_dev11_soil_parameters`.
+
+**Schema 2026.6.dev10** (development)
    The model uses an explicit surface storage capacity (``store_cap``) even when
    it differs from the maximum (``store_max``). An omitted capacity still takes
    its value from the maximum. See :ref:`schema_dev10_storage_capacity`.

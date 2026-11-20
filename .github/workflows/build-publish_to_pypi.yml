@@ -215,9 +215,14 @@ jobs:
       util-changed: ${{ steps.filter.outputs.util }}
       build-changed: ${{ steps.decide.outputs.build-changed }}
       ci-changed: ${{ steps.filter.outputs.ci }}
-      tests-changed: ${{ steps.filter.outputs.tests }}
+      tests-changed: ${{ steps.decide.outputs.tests-changed }}
       docs-changed: ${{ steps.filter.outputs.docs }}
       site-changed: ${{ steps.filter.outputs.site }}
+      rust-test-changed: ${{ steps.filter.outputs.rust_test }}
+      rust-clippy-changed: ${{ steps.filter.outputs.rust_clippy }}
+      encoding-audit-changed: ${{ steps.filter.outputs.encoding_audit }}
+      workflow-security-changed: ${{ steps.filter.outputs.workflow_security }}
+      dependency-audit-changed: ${{ steps.filter.outputs.dependency_audit }}
       fortran-files: ${{ steps.filter.outputs.fortran_files }}
       rust-files: ${{ steps.filter.outputs.rust_files }}
       python-files: ${{ steps.filter.outputs.python_files }}
@@ -239,7 +244,7 @@ jobs:
           filters: .github/path-filters.yml
           list-files: 'json'
 
-      # Content-aware: only [build-system] / [tool.cibuildwheel] need multiplatform builds
+      # Content-aware: classify build-system/cibuildwheel/meson-python, package metadata/scripts/optional-deps, and pytest config
       - name: Classify pyproject.toml changes
         id: classify-pyproject
         if: steps.filter.outputs.pyproject == 'true'
@@ -264,6 +269,7 @@ jobs:
           FILTER_UTIL: ${{ steps.filter.outputs.util }}
           FILTER_CI: ${{ steps.filter.outputs.ci }}
           FILTER_TESTS: ${{ steps.filter.outputs.tests }}
+          TEST_RELEVANT: ${{ steps.classify-pyproject.outputs.test_relevant || 'false' }}
         run: |
           BUILD_CHANGED=false
           if [[ "${FILTER_BUILD}" == "true" ]] || \
@@ -279,11 +285,17 @@ jobs:
           fi
           echo "python-changed=$PYTHON_CHANGED" >> $GITHUB_OUTPUT
 
+          TESTS_CHANGED=false
+          if [[ "${FILTER_TESTS}" == "true" ]] || \
+             [[ "${TEST_RELEVANT}" == "true" ]]; then
+            TESTS_CHANGED=true
+          fi
+          echo "tests-changed=$TESTS_CHANGED" >> $GITHUB_OUTPUT
+
           FORTRAN="${FILTER_FORTRAN}"
           RUST="${FILTER_RUST}"
           UTIL="${FILTER_UTIL}"
           CI="${FILTER_CI}"
-          TESTS="${FILTER_TESTS}"
 
           NEEDS_BUILD=false
           if [[ "$FORTRAN" == "true" ]] || \
@@ -292,7 +304,7 @@ jobs:
              [[ "$UTIL" == "true" ]] || \
              [[ "$BUILD_CHANGED" == "true" ]] || \
              [[ "$CI" == "true" ]] || \
-             [[ "$TESTS" == "true" ]]; then
+             [[ "$TESTS_CHANGED" == "true" ]]; then
             NEEDS_BUILD=true
           fi
           echo "needs-build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
@@ -394,6 +406,7 @@ jobs:
           UTIL_CHANGED: ${{ needs.detect-changes.outputs.util-changed || 'false' }}
           BUILD_CHANGED: ${{ needs.detect-changes.outputs.build-changed || 'false' }}
           CI_CHANGED: ${{ needs.detect-changes.outputs.ci-changed || 'false' }}
+          TESTS_CHANGED: ${{ needs.detect-changes.outputs.tests-changed || 'false' }}
           INPUT_MATRIX_CONFIG: ${{ inputs.matrix_config }}
           INPUT_PLAT_LINUX: ${{ inputs.plat_linux }}
           INPUT_PLAT_MACOS_INTEL: ${{ inputs.plat_macos_intel }}
@@ -1068,12 +1081,116 @@ jobs:
           fi
           exit $status
 
+  # Folded Rust, schema, and audit producers (gh#2094 Stage 1a/1b, W1-1a).
+  # Each producer invokes the existing workflow via self-repository workflow_call
+  # ($/...) with explicit base_sha/head_sha and live PR label lookup so both
+  # pull_request and merge_group execute the same checks without duplicating
+  # definitions. benchmark-regression.yml is intentionally deferred because it
+  # depends on restricted Zenodo sandbox credentials unavailable to fork PRs.
+  # Stage 2 (W1-1b) turns pr-gate.sh fail-closed on these producer results once
+  # Stage 1 is live on master.
+  rust_test:
+    name: Rust test
+    needs: [detect-changes]
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group') &&
+      needs.detect-changes.outputs.rust-test-changed == 'true'
+    uses: $/.github/workflows/rust-test.yml
+    with:
+      head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
+
+  rust_clippy:
+    name: Rust clippy
+    needs: [detect-changes]
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group') &&
+      needs.detect-changes.outputs.rust-clippy-changed == 'true'
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: $/.github/workflows/rust-clippy.yml
+    with:
+      base_sha: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+      head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
+      pr_number: ${{ github.event.pull_request.number && format('{0}', github.event.pull_request.number) || '' }}
+      merge_head_ref: ${{ github.event.merge_group.head_ref }}
+
+  schema_version_audit:
+    name: Schema version audit
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: $/.github/workflows/schema-version-audit.yml
+    with:
+      base_sha: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+      head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
+      pr_number: ${{ github.event.pull_request.number && format('{0}', github.event.pull_request.number) || '' }}
+      merge_head_ref: ${{ github.event.merge_group.head_ref }}
+
+  data_interface_audit:
+    name: Data-interface version audit
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    uses: $/.github/workflows/data-interface-version-audit.yml
+    with:
+      base_sha: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+      head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
+
+  encoding_audit:
+    name: Encoding audit
+    needs: [detect-changes]
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group') &&
+      needs.detect-changes.outputs.encoding-audit-changed == 'true'
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: $/.github/workflows/encoding-audit.yml
+    with:
+      base_sha: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+      head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
+      pr_number: ${{ github.event.pull_request.number && format('{0}', github.event.pull_request.number) || '' }}
+      merge_head_ref: ${{ github.event.merge_group.head_ref }}
+
+  workflow_security:
+    name: Workflow security
+    needs: [detect-changes]
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group') &&
+      needs.detect-changes.outputs.workflow-security-changed == 'true'
+    uses: $/.github/workflows/workflow-security.yml
+    with:
+      head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
+
+  dependency_audit:
+    name: Dependency and startup audit
+    needs: [detect-changes]
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group') &&
+      needs.detect-changes.outputs.dependency-audit-changed == 'true'
+    uses: $/.github/workflows/dependency-audit.yml
+    with:
+      head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
+
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, build_mcp, check_test_markers, check_physics_label, detect-changes, determine_matrix]
+    needs:
+      - build_wheels
+      - build_mcp
+      - check_test_markers
+      - check_physics_label
+      - detect-changes
+      - determine_matrix
+      - rust_test
+      - rust_clippy
+      - schema_version_audit
+      - data_interface_audit
+      - encoding_audit
+      - workflow_security
+      - dependency_audit
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -1094,6 +1211,13 @@ jobs:
           TEST_BRIDGE_RESULT: ${{ needs.build_wheels.result }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           PHYSICS_LABEL_RESULT: ${{ needs.check_physics_label.result }}
+          RUST_TEST_RESULT: ${{ needs.rust_test.result }}
+          RUST_CLIPPY_RESULT: ${{ needs.rust_clippy.result }}
+          SCHEMA_AUDIT_RESULT: ${{ needs.schema_version_audit.result }}
+          DATA_INTERFACE_AUDIT_RESULT: ${{ needs.data_interface_audit.result }}
+          ENCODING_AUDIT_RESULT: ${{ needs.encoding_audit.result }}
+          WORKFLOW_SECURITY_RESULT: ${{ needs.workflow_security.result }}
+          DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency_audit.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
           PHYSICS_CHANGE: ${{ needs.determine_matrix.outputs.physics_change || 'false' }}
         run: bash .github/scripts/pr-gate.sh

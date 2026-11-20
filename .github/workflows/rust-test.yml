@@ -33,22 +33,33 @@ on:
       # published output contract catalogue.
       - 'src/supy/data_model/output/**'
       - '.github/workflows/rust-test.yml'
+  workflow_call:
+    inputs:
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: rust-test-${{ github.event.pull_request.number || github.ref }}
+  # Include github.workflow so standalone pull_request runs and folded
+  # workflow_call runs from build-publish_to_pypi.yml never cancel each other.
+  group: rust-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
     name: cargo test (suews_bridge)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       - name: Install gfortran

@@ -9,35 +9,94 @@ name: Schema version audit
 on:
   # Run unconditionally so a required check succeeds for unrelated PRs and so
   # path-filter edge cases (especially renames) still reach the audit script.
+  # Include labeled/unlabeled so adding or removing 0-ci:schema-audit-ok after
+  # PR creation re-evaluates cleanly without needing a close+reopen (gh#2094).
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_call:
+    inputs:
+      base_sha:
+        description: 'Base commit SHA to compare against'
+        required: false
+        type: string
+        default: ''
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
+      pr_number:
+        description: 'Pull request number for live bypass-label lookup'
+        required: false
+        type: string
+        default: ''
+      merge_head_ref:
+        description: 'merge_group head_ref for single-PR bypass-label lookup'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  # Include github.workflow so standalone pull_request runs and folded
+  # workflow_call runs from build-publish_to_pypi.yml never cancel each other.
+  group: schema-version-audit-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-schema-bump:
     name: Require schema version bump
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Decide whether to skip (PR has bypass label)
         id: bypass
+        shell: bash
         env:
-          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
+          MERGE_HEAD_REF: ${{ inputs.merge_head_ref || github.event.merge_group.head_ref }}
+          MERGE_BASE_SHA: ${{ inputs.base_sha || github.event.merge_group.base_sha }}
+          BYPASS_LABEL: '0-ci:schema-audit-ok'
         run: |
-          set -eu
-          echo "Labels on this PR: $LABELS"
-          if printf '%s' "$LABELS" | grep -q '"0-ci:schema-audit-ok"'; then
+          set -euo pipefail
+          pr_num=""
+          if [[ "${PR_NUMBER:-}" =~ ^[0-9]+$ ]]; then
+            pr_num="$PR_NUMBER"
+          elif [[ "$EVENT_NAME" == "merge_group" ]]; then
+            parsed_pr="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            ref_base_sha="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-[0-9]+-([0-9a-f]+)$#\1#p')"
+            if [[ "$parsed_pr" =~ ^[0-9]+$ && -n "${MERGE_BASE_SHA:-}" && "$ref_base_sha" == "$MERGE_BASE_SHA" ]]; then
+              pr_num="$parsed_pr"
+            fi
+          fi
+
+          if [[ -z "$pr_num" ]]; then
+            echo "No single-PR context for bypass label lookup; running schema bump check."
+            echo "bypass=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matched="$(gh api --paginate "repos/${REPO}/issues/${pr_num}/labels?per_page=100" --jq '[.[].name]' \
+            | jq -rs --arg wanted "$BYPASS_LABEL" '[(add // [])[] | select(. == $wanted)] | length')"
+          if [[ "$matched" -gt 0 ]]; then
             echo "bypass=true" >> "$GITHUB_OUTPUT"
-            echo "PR carries label '0-ci:schema-audit-ok'; skipping schema bump check."
+            echo "PR #${pr_num} carries label '${BYPASS_LABEL}'; skipping schema bump check."
           else
             echo "bypass=false" >> "$GITHUB_OUTPUT"
+            echo "PR #${pr_num} does not carry label '${BYPASS_LABEL}'; running schema bump check."
           fi
 
       - name: Checkout full history
         if: steps.bypass.outputs.bypass != 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -47,19 +106,49 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Fetch base ref
+      - name: Resolve comparison base
+        id: base
         if: steps.bypass.outputs.bypass != 'true'
+        shell: bash
         env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ inputs.base_sha || github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
         run: |
-          set -eu
-          git fetch --no-tags origin "$BASE_REF"
+          set -euo pipefail
+          # On pull_request, GitHub checks out a synthetic 2-parent merge commit
+          # (HEAD^1 = current target tip, HEAD^2 = pull_request.head.sha), whereas
+          # pull_request.base.sha can lag behind HEAD^1 after master advances.
+          # Match HEAD^2 == PR_HEAD_SHA so a PR branch whose own tip is a merge
+          # commit is never mistaken for GitHub's synthetic merge commit, and on
+          # merge_group keep explicit base_sha (incl. multi-PR batches).
+          HEAD_SECOND_PARENT="$(git rev-parse --verify -q HEAD^2 2>/dev/null || true)"
+          if [[ "${EVENT_NAME:-}" == "pull_request" && -n "${PR_HEAD_SHA:-}" && "$HEAD_SECOND_PARENT" == "$PR_HEAD_SHA" ]]; then
+            HEAD_BASE_SHA="$(git rev-parse HEAD^1)"
+            echo "Resolved comparison base from synthetic PR merge HEAD^1: ${HEAD_BASE_SHA}"
+            echo "ref=${HEAD_BASE_SHA}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${BASE_SHA:-}" ]]; then
+            if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              git fetch --no-tags origin "$BASE_SHA"
+            fi
+            echo "Resolved comparison base from explicit BASE_SHA: ${BASE_SHA}"
+            echo "ref=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${BASE_REF:-}" ]]; then
+            git fetch --no-tags origin "$BASE_REF"
+            echo "Resolved comparison base from BASE_REF: origin/${BASE_REF}"
+            echo "ref=origin/${BASE_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Cannot determine comparison base SHA or ref."
+            exit 1
+          fi
 
       - name: Run schema-bump audit
         if: steps.bypass.outputs.bypass != 'true'
+        shell: bash
         env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          COMPARE_BASE: ${{ steps.base.outputs.ref }}
         run: |
-          set -eu
+          set -euo pipefail
           python scripts/lint/check_schema_version_bump.py \
-            --base "origin/$BASE_REF"
+            --base "$COMPARE_BASE"

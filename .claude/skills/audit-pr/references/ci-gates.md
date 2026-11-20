@@ -143,7 +143,9 @@ workflow's `on:` / `paths:` rather than assuming.
     via `python test/fixtures/sample_short/make_sample_short.py`).
   - Maintainer-gated when: the `data_model/core/` diff is genuinely non-structural
     (docstrings, comments, validator-rule tightening, internal refactor). Label:
-    `0-ci:schema-audit-ok`. Subject to the payload race below.
+    `0-ci:schema-audit-ok`. The workflow subscribes to `labeled`/`unlabeled` and
+    queries live PR labels via the API, so applying the label re-evaluates
+    cleanly without a close/reopen.
 - **`Validate data-interface version histories`** (`data-interface-version-audit.yml`)
   - Fires on: every `pull_request` (unconditional).
   - Enforces: append-only forcing/output semantic-version histories
@@ -301,27 +303,28 @@ both change. Query them (Step 1) at review time.
 
 ## The bypass-label payload race
 
-Two gates read their bypass label from the **static event payload** captured when
-the triggering event fired -- `${{ toJSON(github.event.pull_request.labels.*.name) }}`
--- and subscribe only to the default `pull_request` types (`opened`, `synchronize`,
-`reopened`):
+One remaining standalone gate reads its bypass label from the **static event
+payload** captured when the triggering event fired --
+`${{ toJSON(github.event.pull_request.labels.*.name) }}` -- and subscribes only
+to the default `pull_request` types (`opened`, `synchronize`, `reopened`):
 
-- `schema-version-audit.yml` (`0-ci:schema-audit-ok`)
 - `knowledge-pack-audit.yml` (`0-ci:knowledge-pack-audit-ok`)
 
 So a label applied *after* the run started is invisible to it, and the gate stays
 red even though the label is plainly on the PR.
 
-- Preferred: apply the label at creation -- `gh pr create ... --label "0-ci:schema-audit-ok"`.
+- Preferred: apply the label at creation -- `gh pr create ... --label "0-ci:knowledge-pack-audit-ok"`.
 - Already failed: push a commit (fires `synchronize`) or
   `gh pr close {pr} && gh pr reopen {pr}` (fires `reopened`). Either regenerates a
   payload carrying the current labels.
 - **`gh run rerun` does not help** -- it replays the stale payload. Recommending it
   costs the author a cycle and looks like the fix failed.
 
-`encoding-audit.yml` and `rust-clippy.yml` do include `labeled`/`unlabeled` in their
-trigger types, so labelling those re-triggers them directly. Check the workflow's
-`types:` line before advising a re-trigger.
+`schema-version-audit.yml`, `encoding-audit.yml`, and `rust-clippy.yml` include
+`labeled`/`unlabeled` in their trigger types and query live PR labels via the
+API, so labelling those re-triggers them directly (and re-running folded jobs in
+`build-publish_to_pypi.yml` also reads the current label state). Check the
+workflow's `types:` line before advising a re-trigger.
 
 ---
 

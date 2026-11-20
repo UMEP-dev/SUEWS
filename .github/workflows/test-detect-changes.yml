@@ -147,8 +147,9 @@ jobs:
             echo ""
             echo "NOTE: pyproject.toml changed. In real CI, content classification"
             echo "determines whether this triggers multiplatform (build-system/"
-            echo "cibuildwheel), single-platform (dependencies), or no build"
-            echo "(tooling/optional-deps). This local test cannot classify content."
+            echo "cibuildwheel/meson-python), single-platform (dependencies/"
+            echo "requires-python/scripts/optional-dependencies/pytest.ini_options),"
+            echo "or no build (tooling/metadata). This local test cannot classify content."
           fi
           echo ""
 
@@ -167,10 +168,8 @@ jobs:
             echo "--- Ready PR ---"
             if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
               echo "  platforms: reduced (3), test tier: standard"
-            elif [[ "$PYTHON" == "true" ]] || [[ "$UTIL" == "true" ]]; then
-              echo "  platforms: minimal (1), test tier: standard"
             else
-              echo "  platforms: minimal (1), test tier: smoke"
+              echo "  platforms: minimal (1), test tier: standard"
             fi
           else
             echo "(no build required - PR gate passes without building)"

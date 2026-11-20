@@ -12,8 +12,15 @@
 #                            chained behind each platform's wheel build inside that job
 #   CHECK_MARKERS_RESULT  -- needs.check_test_markers.result
 #   PHYSICS_LABEL_RESULT  -- needs.check_physics_label.result
-#   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
-#   PHYSICS_CHANGE        -- needs.determine_matrix.outputs.physics_change (optional; defaults to false)
+#   NEEDS_BUILD                  -- needs.detect-changes.outputs.needs-build
+#   PHYSICS_CHANGE               -- needs.determine_matrix.outputs.physics_change (optional; defaults to false)
+#   RUST_TEST_RESULT             -- needs.rust_test.result (optional; Stage 1 observability)
+#   RUST_CLIPPY_RESULT           -- needs.rust_clippy.result (optional; Stage 1 observability)
+#   SCHEMA_AUDIT_RESULT          -- needs.schema_version_audit.result (optional; Stage 1 observability)
+#   DATA_INTERFACE_AUDIT_RESULT  -- needs.data_interface_audit.result (optional; Stage 1 observability)
+#   ENCODING_AUDIT_RESULT        -- needs.encoding_audit.result (optional; Stage 1 observability)
+#   WORKFLOW_SECURITY_RESULT     -- needs.workflow_security.result (optional; Stage 1 observability)
+#   DEPENDENCY_AUDIT_RESULT      -- needs.dependency_audit.result (optional; Stage 1 observability)
 
 set -euo pipefail
 
@@ -21,6 +28,13 @@ CHECK_MARKERS_RESULT="${CHECK_MARKERS_RESULT:-skipped}"
 PHYSICS_LABEL_RESULT="${PHYSICS_LABEL_RESULT:-skipped}"
 BUILD_MCP_RESULT="${BUILD_MCP_RESULT:-skipped}"
 PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
+RUST_TEST_RESULT="${RUST_TEST_RESULT:-unset}"
+RUST_CLIPPY_RESULT="${RUST_CLIPPY_RESULT:-unset}"
+SCHEMA_AUDIT_RESULT="${SCHEMA_AUDIT_RESULT:-unset}"
+DATA_INTERFACE_AUDIT_RESULT="${DATA_INTERFACE_AUDIT_RESULT:-unset}"
+ENCODING_AUDIT_RESULT="${ENCODING_AUDIT_RESULT:-unset}"
+WORKFLOW_SECURITY_RESULT="${WORKFLOW_SECURITY_RESULT:-unset}"
+DEPENDENCY_AUDIT_RESULT="${DEPENDENCY_AUDIT_RESULT:-unset}"
 
 echo "=== Job Results ==="
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
@@ -29,6 +43,13 @@ echo "build_mcp: ${BUILD_MCP_RESULT}"
 echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "check_physics_label: ${PHYSICS_LABEL_RESULT}"
+echo "rust_test: ${RUST_TEST_RESULT}"
+echo "rust_clippy: ${RUST_CLIPPY_RESULT}"
+echo "schema_version_audit: ${SCHEMA_AUDIT_RESULT}"
+echo "data_interface_audit: ${DATA_INTERFACE_AUDIT_RESULT}"
+echo "encoding_audit: ${ENCODING_AUDIT_RESULT}"
+echo "workflow_security: ${WORKFLOW_SECURITY_RESULT}"
+echo "dependency_audit: ${DEPENDENCY_AUDIT_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
 echo "physics_change: ${PHYSICS_CHANGE}"
 echo ""
@@ -131,6 +152,32 @@ else
     done
   fi
 fi
+
+# Stage 1 observability for consolidated Rust, schema, and audit producers
+# (gh#2094 Stage 1a/1b). Unset results from older workflow callers on open PRs
+# and non-success results are logged without failing the gate here; Stage 2
+# (W1-1b) turns these checks fail-closed once Stage 1 interfaces are on master.
+echo "Recording consolidated audit/Rust producer status (Stage 1 observability)..."
+for entry in \
+  "rust_test:${RUST_TEST_RESULT}" \
+  "rust_clippy:${RUST_CLIPPY_RESULT}" \
+  "schema_version_audit:${SCHEMA_AUDIT_RESULT}" \
+  "data_interface_audit:${DATA_INTERFACE_AUDIT_RESULT}" \
+  "encoding_audit:${ENCODING_AUDIT_RESULT}" \
+  "workflow_security:${WORKFLOW_SECURITY_RESULT}" \
+  "dependency_audit:${DEPENDENCY_AUDIT_RESULT}"; do
+  name="${entry%%:*}"
+  status="${entry#*:}"
+  if [[ "${status}" == "success" ]]; then
+    echo "[OK] ${name}: success"
+  elif [[ "${status}" == "skipped" ]]; then
+    echo "[INFO] ${name}: skipped (paths unchanged)"
+  elif [[ "${status}" == "unset" ]] || [[ -z "${status}" ]]; then
+    echo "[INFO] ${name}: not reported by caller workflow (pre-Stage-1 base)"
+  else
+    echo "::warning::Consolidated producer '${name}' finished with status '${status}' (Stage 1 observability; fail-closed enforcement deferred to Stage 2 W1-1b, gh#2094)."
+  fi
+done
 
 echo ""
 if [[ "$VALIDATION_PASSED" == "true" ]]; then

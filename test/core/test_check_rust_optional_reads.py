@@ -87,7 +87,13 @@ EXPECTED = {
 }
 
 
-def _make_repo(tmp_path: Path, source: str, baseline: dict | None = None) -> Path:
+def _make_repo(
+    tmp_path: Path,
+    source: str,
+    baseline: dict | None = None,
+    *,
+    totals: dict[str, int] | None = None,
+) -> Path:
     """Build a throwaway repo root with one yaml_config.rs and a baseline."""
     target = tmp_path / check_rust_optional_reads.TARGET_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -95,7 +101,14 @@ def _make_repo(tmp_path: Path, source: str, baseline: dict | None = None) -> Pat
     baseline_path = tmp_path / check_rust_optional_reads.BASELINE_PATH
     baseline_path.parent.mkdir(parents=True, exist_ok=True)
     if baseline is not None:
-        payload = {"functions": baseline}
+        payload = {
+            "totals": (
+                check_rust_optional_reads._totals(baseline)
+                if totals is None
+                else totals
+            ),
+            "functions": baseline,
+        }
         baseline_path.write_text(json.dumps(payload), encoding="utf-8")
     return tmp_path
 
@@ -276,6 +289,23 @@ def test_stale_baseline_fails(tmp_path, capsys):
 
     assert _run(repo) == 1
     assert "apply_soil_overrides: read_numeric 3 -> 2" in capsys.readouterr().err
+
+
+def test_mismatched_or_missing_baseline_totals_fails(tmp_path, capsys):
+    """Hand-merged totals that disagree with per-function sums must fail."""
+    stale_totals = {
+        **check_rust_optional_reads._totals(EXPECTED),
+        "read_numeric": 999,
+    }
+    repo = _make_repo(tmp_path, SOURCE, EXPECTED, totals=stale_totals)
+
+    assert _run(repo) == 1
+    assert "baseline totals out of sync" in capsys.readouterr().err
+
+    baseline_path = repo / check_rust_optional_reads.BASELINE_PATH
+    baseline_path.write_text(json.dumps({"functions": EXPECTED}), encoding="utf-8")
+    assert _run(repo) == 1
+    assert "baseline totals out of sync" in capsys.readouterr().err
 
 
 def test_write_baseline_round_trips(tmp_path):

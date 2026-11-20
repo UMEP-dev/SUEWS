@@ -40,6 +40,10 @@ permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: schema-version-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-schema-bump:
     name: Require schema version bump

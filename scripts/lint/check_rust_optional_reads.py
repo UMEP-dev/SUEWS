@@ -454,6 +454,27 @@ def _write_baseline(path: Path, counts: dict[str, dict[str, int]]) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+def _load_baseline(path: Path) -> dict[str, dict[str, int]] | None:
+    """Load the baseline JSON and confirm recorded totals match per-function sums."""
+    if not path.is_file():
+        print(f"[X] baseline {BASELINE_PATH.as_posix()} not found", file=sys.stderr)
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    functions = payload["functions"]
+    expected_totals = _totals(functions)
+    recorded_totals = payload.get("totals")
+    if recorded_totals != expected_totals:
+        print(
+            "[X] baseline totals out of sync with per-function counts: "
+            f"recorded={recorded_totals}, expected={expected_totals}",
+            file=sys.stderr,
+        )
+        print("", file=sys.stderr)
+        print(REMEDIATION, file=sys.stderr)
+        return None
+    return functions
+
+
 def _print_report(counts: dict[str, dict[str, int]]) -> None:
     totals = _totals(counts)
     print("Legacy optional readers (totals):")
@@ -501,11 +522,10 @@ def main(argv: list[str]) -> int:
         _write_baseline(baseline_path, actual)
         print(f"[OK] wrote {BASELINE_PATH.as_posix()}: {_totals(actual)}")
         return 0
-    if not baseline_path.is_file():
-        print(f"[X] baseline {BASELINE_PATH.as_posix()} not found", file=sys.stderr)
+    baseline = _load_baseline(baseline_path)
+    if baseline is None:
         return 1
 
-    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))["functions"]
     increases, decreases = compare(actual, baseline)
     if increases or decreases:
         if increases:

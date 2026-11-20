@@ -140,12 +140,14 @@ Detailed checklist for comprehensive PR review.
 - [ ] Concise description of change
 - [ ] Issue/PR linked where applicable
 
-### PR Description
+### PR Description (`.claude/rules/pr-description.md`)
 
-- [ ] Clear summary of changes
-- [ ] Scientific rationale (if physics changes)
-- [ ] Testing approach described
-- [ ] Breaking changes noted
+- [ ] Leads with `## Why` (human problem and motivation, not patch mechanics)
+- [ ] `## What changed` summarises design and user-facing/breaking/experimental impact plus `Out of scope / known limits`
+- [ ] `## How to review` gives reading order, skip/skim guidance, and any open decision needed
+- [ ] `## Verification` gives PR-specific checks (commit SHA, reported vs confirmed, no copy-pasted batch boilerplate)
+- [ ] Conditional sections present when triggered (`## Scientific evidence` with commit provenance/figure hygiene, `## Numerical change`, `## Bridge contract`, `## Schema migration`, `## Stack`)
+- [ ] Public-safe text (no internal tracker IDs, local paths, or private host names)
 
 ### User Documentation
 

@@ -14,6 +14,7 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 |   |-- labels.md
 |   |-- naming-convention.md
 |   |-- physics-change-evidence.md
+|   |-- pr-description.md
 |   |-- review-convergence.md
 |   |-- work-sizing.md
 |   |-- changelog/format.md

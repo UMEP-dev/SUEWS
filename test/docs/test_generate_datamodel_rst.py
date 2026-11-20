@@ -8,10 +8,19 @@ import re
 
 import pytest
 
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.hydro import StorageDrainParams
+from supy.data_model.core.model import OutputControl
 from supy.data_model.core.physics_families import PHYSICS_FAMILIES, resolve_scalar_name
 from supy.data_model.core.physics_orthogonal import (
     coerce_orthogonal_to_flat,
     fold_storage_heat_ohm_inc_qf,
+)
+from supy.data_model.core.state import (
+    InitialStateDectr,
+    InitialStateEvetr,
+    InitialStateGrass,
+    InitialStateVeg,
 )
 from supy.data_model.parameter_examples import (
     get_all_parameter_examples,
@@ -492,15 +501,6 @@ def test_every_recorded_derived_default_reaches_the_reference(
 
 def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
     """Every derived-default entry names a real field with runtime resolution."""
-    from supy.data_model.core.config import SUEWSConfig
-    from supy.data_model.core.hydro import StorageDrainParams
-    from supy.data_model.core.state import (
-        InitialStateDectr,
-        InitialStateEvetr,
-        InitialStateGrass,
-        InitialStateVeg,
-    )
-
     # ARRANGE
     models = {
         "StorageDrainParams": StorageDrainParams,
@@ -508,6 +508,7 @@ def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
         "InitialStateEvetr": InitialStateEvetr,
         "InitialStateDectr": InitialStateDectr,
         "InitialStateGrass": InitialStateGrass,
+        "OutputControl": OutputControl,
     }
 
     # ACT / ASSERT - every recorded field exists and lookup works
@@ -523,12 +524,43 @@ def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
     dumped = drain.model_dump(exclude_none=True, mode="json")
     assert dumped["store_cap"]["value"] == pytest.approx(0.73)
 
-    # Runtime check 2: InitialState*.alb_id is derived from LAI/albedo limits
-    cfg = SUEWSConfig(sites=[{}])
-    for surface in ("evetr", "dectr", "grass"):
-        state = getattr(cfg.sites[0].initial_states, surface)
-        alb = state.alb_id.value if hasattr(state.alb_id, "value") else state.alb_id
-        assert alb is not None
+    # Runtime check 2: InitialState*.alb_id follows opposite LAI directions for
+    # trees (increasing with LAI) and grass (decreasing with LAI).
+    cfg = SUEWSConfig(
+        sites=[
+            {
+                "properties": {
+                    "land_cover": {
+                        "evetr": {
+                            "alb_min": 0.10,
+                            "alb_max": 0.30,
+                            "lai": {"lai_min": 0.5, "lai_max": 5.5},
+                        },
+                        "grass": {
+                            "alb_min": 0.10,
+                            "alb_max": 0.30,
+                            "lai": {"lai_min": 0.5, "lai_max": 5.5},
+                        },
+                    }
+                },
+                "initial_states": {
+                    "evetr": {"lai_id": 4.0, "alb_id": None},
+                    "grass": {"lai_id": 4.0, "alb_id": None},
+                },
+            }
+        ]
+    )
+    evetr_alb = cfg.sites[0].initial_states.evetr.alb_id
+    grass_alb = cfg.sites[0].initial_states.grass.alb_id
+    evetr_val = evetr_alb.value if hasattr(evetr_alb, "value") else evetr_alb
+    grass_val = grass_alb.value if hasattr(grass_alb, "value") else grass_alb
+    # ratio = (4.0 - 0.5) / (5.5 - 0.5) = 0.7 -> tree: 0.10 + 0.20*0.7 = 0.24, grass: 0.30 - 0.20*0.7 = 0.16
+    assert evetr_val == pytest.approx(0.24)
+    assert grass_val == pytest.approx(0.16)
+
+    # Runtime check 3: OutputControl.freq stays None on the model so SUEWSOutput.save
+    # can apply the 3600 s native fallback or preserve a fixed resampled interval.
+    assert OutputControl().freq is None
 
 
 @pytest.mark.parametrize(

@@ -133,8 +133,8 @@ impl AtmState {
             ..Self::default()
         };
 
-        for i in 0..NSURF {
-            state.rss_surf[i] = next();
+        for slot in &mut state.rss_surf {
+            *slot = next();
         }
         state.iter_safe = next() >= 0.5;
 

@@ -167,11 +167,11 @@ impl OhmState {
             ..Self::default()
         };
 
-        for i in 0..NSURF {
-            state.qn_surfs[i] = next();
+        for slot in &mut state.qn_surfs {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dqndt_surf[i] = next();
+        for slot in &mut state.dqndt_surf {
+            *slot = next();
         }
 
         state.qn_s_av = next();
@@ -183,17 +183,17 @@ impl OhmState {
         state.ws_rav = next();
         state.tair_prev = next();
 
-        for i in 0..NSURF {
-            state.qn_rav[i] = next();
+        for slot in &mut state.qn_rav {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dyn_a1[i] = next();
+        for slot in &mut state.dyn_a1 {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dyn_a2[i] = next();
+        for slot in &mut state.dyn_a2 {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dyn_a3[i] = next();
+        for slot in &mut state.dyn_a3 {
+            *slot = next();
         }
 
         state.iter_safe = next() >= 0.5;

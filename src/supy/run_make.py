@@ -3,7 +3,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+import contextlib
+import errno
+import hashlib
+import json
 import os
 from pathlib import Path
 import platform
@@ -121,12 +125,260 @@ def _run_make(
     return result
 
 
+_EXT_LIB_SOURCE_SUFFIXES = {".f90", ".f95", ".f", ".c", ".h", ".inc", ".mk"}
+_MAKE_ENV_KEYS = ("PROFILE", "SINGLE_PRECISION", "NETCDF4")
+_BUILD_ARTIFACT_PATTERNS = ("*.o", "*.mod", "lib*.a")
+BUILD_FINGERPRINT_FILENAME = ".suews_build_fingerprint"
+BUILD_LOCK_FILENAME = ".suews_build.lock"
+
+
+def _is_build_config_file(path: Path) -> bool:
+    """Return True if ``path`` is a Makefile or included ``.mk`` fragment."""
+    return path.is_file() and (
+        path.name.startswith("Makefile") or path.suffix.lower() == ".mk"
+    )
+
+
+def collect_build_config_files(suews_dir: Path) -> list[Path]:
+    """Return sorted Makefile and build-configuration files under ``suews_dir``."""
+    config_files: list[Path] = [
+        path for path in suews_dir.iterdir() if _is_build_config_file(path)
+    ]
+
+    ext_lib_dir = suews_dir / "ext_lib"
+    if ext_lib_dir.is_dir():
+        config_files.extend(
+            path for path in ext_lib_dir.rglob("*") if _is_build_config_file(path)
+        )
+
+    return sorted(
+        config_files,
+        key=lambda path: path.relative_to(suews_dir).as_posix(),
+    )
+
+
+def compute_build_fingerprint(
+    suews_dir: Path,
+    fc: str | None,
+    profile: str,
+    profile_args: list[str],
+    environ: Mapping[str, str] | None = None,
+) -> str:
+    """Compute a deterministic SHA-256 fingerprint of effective build inputs."""
+    source_env = os.environ if environ is None else environ
+    file_hashes = [
+        [
+            path.relative_to(suews_dir).as_posix(),
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+        ]
+        for path in collect_build_config_files(suews_dir)
+    ]
+    payload = {
+        "fc": fc or "",
+        "profile": profile,
+        "profile_args": list(profile_args),
+        "make_env": {key: source_env.get(key, "") for key in _MAKE_ENV_KEYS},
+        "files": file_hashes,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def fingerprint_path_for_suews(suews_dir: Path) -> Path:
+    """Return the shared object-tree fingerprint path inside ``suews_dir``."""
+    return suews_dir / BUILD_FINGERPRINT_FILENAME
+
+
+def clean_build_artifacts(suews_dir: Path) -> list[Path]:
+    """Remove compiled Fortran/C objects, modules, and archives under ``suews_dir``."""
+    removed: list[Path] = []
+    for pattern in _BUILD_ARTIFACT_PATTERNS:
+        for path in sorted(suews_dir.rglob(pattern)):
+            if path.is_file() and not path.is_symlink():
+                path.unlink()
+                removed.append(path)
+    return sorted(removed)
+
+
+def invalidate_stale_artifacts(
+    suews_dir: Path,
+    fingerprint: str,
+) -> list[Path]:
+    """Clean compiled artefacts when the shared ``suews_dir`` fingerprint changed."""
+    fp_path = fingerprint_path_for_suews(suews_dir)
+    previous = (
+        fp_path.read_text(encoding="utf-8").strip() if fp_path.is_file() else None
+    )
+    if previous == fingerprint:
+        return []
+
+    removed = clean_build_artifacts(suews_dir)
+    if fp_path.exists():
+        fp_path.unlink()
+    return removed
+
+
+def write_build_fingerprint(suews_dir: Path, fingerprint: str) -> Path:
+    """Write ``fingerprint`` beside the shared objects in ``suews_dir``.
+
+    Leave the file untouched when its content already matches ``fingerprint`` so
+    its modification time stays stable across incremental builds with the same
+    configuration.
+    """
+    fp_path = fingerprint_path_for_suews(suews_dir)
+    expected = f"{fingerprint}\n"
+    if fp_path.is_file() and fp_path.read_text(encoding="utf-8") == expected:
+        return fp_path
+    fp_path.write_text(expected, encoding="utf-8")
+    return fp_path
+
+
+@contextlib.contextmanager
+def _suews_build_lock(suews_dir: Path) -> Iterator[None]:
+    """Serialise concurrent builds sharing the in-tree ``suews_dir`` objects."""
+    lock_path = suews_dir / BUILD_LOCK_FILENAME
+    with lock_path.open("a+b") as lock_file:
+        if os.name == "nt":
+            import msvcrt  # noqa: PLC0415
+
+            lock_file.seek(0)
+            if lock_path.stat().st_size == 0:
+                lock_file.write(b"\0")
+                lock_file.flush()
+            lock_file.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError as exc:
+                    if exc.errno != errno.EDEADLK:
+                        raise
+            try:
+                yield
+            finally:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl  # noqa: PLC0415
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def _escape_depfile_token(token: str) -> str:
+    """Escape a path for Ninja/Make depfile consumption."""
+    return token.replace("$", "$$").replace(" ", "\\ ")
+
+
+def collect_ext_lib_inputs(suews_dir: Path) -> list[Path]:
+    """Return sorted vendored source/build inputs under ``suews_dir/ext_lib``."""
+    ext_lib_dir = suews_dir / "ext_lib"
+    if not ext_lib_dir.is_dir():
+        return []
+    inputs: list[Path] = []
+    for path in sorted(ext_lib_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() in _EXT_LIB_SOURCE_SUFFIXES or path.name.startswith(
+            "Makefile"
+        ):
+            inputs.append(path.resolve())
+    return inputs
+
+
+def collect_depfile_inputs(suews_dir: Path) -> list[Path]:
+    """Return sorted depfile inputs including ``ext_lib`` and shared fingerprint."""
+    deps = collect_ext_lib_inputs(suews_dir)
+    fp_path = fingerprint_path_for_suews(suews_dir).resolve()
+    if fp_path.is_file():
+        deps.append(fp_path)
+    return sorted(set(deps))
+
+
+def write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
+    """Write a single-target Ninja-compatible depfile."""
+    depfile.parent.mkdir(parents=True, exist_ok=True)
+    target_tok = _escape_depfile_token(target.replace("\\", "/"))
+    dep_toks = [_escape_depfile_token(p.as_posix()) for p in deps]
+    content = (
+        f"{target_tok}: " + " \\\n  ".join(dep_toks) + "\n"
+        if dep_toks
+        else f"{target_tok}:\n"
+    )
+    depfile.write_text(content, encoding="utf-8")
+
+
+def _run_make_with_retry(
+    profile_args: list[str],
+    suews_dir: Path,
+    fc: str | None,
+    jobs: int,
+) -> None:
+    """Run ``make`` and retry once after cleaning if stale ``.mod`` files fail."""
+    # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
+    # Fortran module files (*.mod) that cannot be read by the new compiler.
+    result = _run_make(profile_args, suews_dir, fc, jobs)
+    if result.returncode == 0:
+        return
+
+    stale_mod_patterns = (
+        "created by a different version of GNU Fortran",
+        "Cannot read module file",
+    )
+    if any(pat in result.stdout for pat in stale_mod_patterns):
+        sys.stdout.write(
+            "\nDetected stale Fortran build artifacts; cleaning *.o and *.mod and retrying.\n"
+        )
+        clean = _run_make(["clean-obj", "clean-mods"], suews_dir, fc)
+        if clean.returncode != 0:
+            raise subprocess.CalledProcessError(
+                clean.returncode, clean.args, output=clean.stdout
+            )
+
+        retry = _run_make(profile_args, suews_dir, fc, jobs)
+        if retry.returncode != 0:
+            raise subprocess.CalledProcessError(
+                retry.returncode, retry.args, output=retry.stdout
+            )
+        return
+
+    raise subprocess.CalledProcessError(
+        result.returncode, result.args, output=result.stdout
+    )
+
+
+def _record_build_outputs(
+    suews_dir: Path,
+    raw_stamp: str,
+    stamp_file: Path,
+    depfile: Path | None,
+    fingerprint: str,
+) -> None:
+    """Persist shared fingerprint, touch Meson's stamp, and write depfile."""
+    # Record the active shared object-tree fingerprint before updating
+    # Meson's per-builddir stamp so mtime(stamp) >= mtime(fingerprint).
+    fp_path = write_build_fingerprint(suews_dir, fingerprint)
+    stamp_file.parent.mkdir(parents=True, exist_ok=True)
+    stamp_file.touch()
+    stamp_stat = stamp_file.stat()
+    fp_stat = fp_path.stat()
+    if stamp_stat.st_mtime_ns < fp_stat.st_mtime_ns:
+        os.utime(stamp_file, ns=(fp_stat.st_atime_ns, fp_stat.st_mtime_ns))
+    if depfile is not None:
+        write_depfile(depfile, raw_stamp, collect_depfile_inputs(suews_dir))
+
+
 def main() -> None:
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: run_make.py <suews_dir> <stamp_file>")
+    if len(sys.argv) not in {3, 4}:
+        raise SystemExit("Usage: run_make.py <suews_dir> <stamp_file> [depfile]")
 
     suews_dir = Path(sys.argv[1]).resolve()
-    stamp_file = Path(sys.argv[2])
+    raw_stamp = sys.argv[2]
+    stamp_file = Path(raw_stamp)
+    depfile = Path(sys.argv[3]) if len(sys.argv) == 4 else None
 
     fc = _pick_suews_fc()
     profile = build_profile_from_env()
@@ -138,39 +390,17 @@ def main() -> None:
         f"make jobs: {jobs}\n"
     )
 
-    # Run make and propagate failures so Meson can fail fast.
-    # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
-    # Fortran module files (*.mod) that cannot be read by the new compiler.
-    result = _run_make(profile_args, suews_dir, fc, jobs)
-    if result.returncode != 0:
-        output = result.stdout
-        stale_mod_patterns = (
-            "created by a different version of GNU Fortran",
-            "Cannot read module file",
-        )
-        if any(pat in output for pat in stale_mod_patterns):
+    with _suews_build_lock(suews_dir):
+        fingerprint = compute_build_fingerprint(suews_dir, fc, profile, profile_args)
+        removed = invalidate_stale_artifacts(suews_dir, fingerprint)
+        if removed:
             sys.stdout.write(
-                "\nDetected stale Fortran build artifacts; cleaning *.o and *.mod and retrying.\n"
-            )
-            clean = _run_make(["clean-obj", "clean-mods"], suews_dir, fc)
-            if clean.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    clean.returncode, clean.args, output=clean.stdout
-                )
-
-            retry = _run_make(profile_args, suews_dir, fc, jobs)
-            if retry.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    retry.returncode, retry.args, output=retry.stdout
-                )
-        else:
-            raise subprocess.CalledProcessError(
-                result.returncode, result.args, output=result.stdout
+                f"Build configuration changed; cleaned {len(removed)} compiled "
+                "Fortran/C build artefacts before rebuild.\n"
             )
 
-    # Ensure an output file exists so Meson can track this custom target.
-    stamp_file.parent.mkdir(parents=True, exist_ok=True)
-    stamp_file.touch()
+        _run_make_with_retry(profile_args, suews_dir, fc, jobs)
+        _record_build_outputs(suews_dir, raw_stamp, stamp_file, depfile, fingerprint)
 
 
 if __name__ == "__main__":

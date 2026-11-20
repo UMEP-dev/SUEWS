@@ -8,12 +8,12 @@ the coupling is pinned here.
 
 from __future__ import annotations
 
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 import yaml
 
-from supy._env import trv_supy_module
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.human_activity import (
     AnthropogenicEmissions,
@@ -36,6 +36,7 @@ from supy.data_model.core.surface import (
     SurfaceProperties,
     ThermalLayers,
 )
+from supy.data_model.core.type import SurfaceType
 from supy.data_model.validation.required_fields import (
     BUILDING_REQUIRED,
     BUILDING_REQUIRED_PROVIDED_FAI,
@@ -311,7 +312,7 @@ def test_water_distribution_conditions_name_the_right_surfaces() -> None:
 
 def _load_sample_raw() -> dict:
     return yaml.safe_load(
-        (trv_supy_module / "sample_data" / "sample_config.yml").read_text(
+        (files("supy") / "sample_data" / "sample_config.yml").read_text(
             encoding="utf-8"
         )
     )
@@ -362,8 +363,169 @@ def test_water_distribution_non_unit_sum_rejected_by_from_yaml(
     cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
 
     # ACT / ASSERT
-    with pytest.raises(ValueError, match="Water distribution sum must be 1.0"):
+    with pytest.raises(ValueError, match=r"Water distribution sum must be 1\.0"):
         SUEWSConfig.from_yaml(str(cfg_path))
+
+
+@pytest.mark.parametrize(
+    ("case", "payload"),
+    [
+        ("omitted", None),
+        ("null", None),
+        ("wrapped-null", {"value": None}),
+    ],
+)
+def test_water_distribution_null_or_omitted_disallowed_terminal_accepted(
+    case: str, payload: object, tmp_path: Path
+) -> None:
+    """Omitted, null, and wrapped-null inactive terminal aliases load and keep to_runoff."""
+    # ARRANGE
+    raw = _load_sample_raw()
+    dist = raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]
+    if case != "omitted":
+        dist["to_soilstore"] = payload
+    if case == "wrapped-null":
+        dist["to_paved"] = {"value": None}
+    cfg_path = tmp_path / f"paved_soilstore_{case}.yml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    # ACT
+    cfg_yaml = SUEWSConfig.from_yaml(str(cfg_path))
+    cfg_dict = SUEWSConfig.from_dict(raw)
+
+    # ASSERT - to_df_state must preserve to_runoff=0.98 and self-slot=0.0 (no NaN)
+    for cfg in (cfg_yaml, cfg_dict):
+        df_state = cfg.to_df_state()
+        assert df_state.loc[1, ("waterdist", "(0, 0)")] == pytest.approx(0.0)
+        assert df_state.loc[1, ("waterdist", "(7, 0)")] == pytest.approx(0.98)
+
+
+@pytest.mark.parametrize(
+    ("case", "payload"),
+    [
+        ("zero", {"value": 0.0}),
+        ("bare-zero", 0.0),
+        ("half", {"value": 0.5}),
+        ("bare-half", 0.5),
+    ],
+)
+def test_water_distribution_paved_soilstore_beside_runoff_rejected(
+    case: str, payload: object, tmp_path: Path
+) -> None:
+    """Any numeric paved.waterdist.to_soilstore (including 0.0) is rejected."""
+    # ARRANGE
+    raw = _load_sample_raw()
+    raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"][
+        "to_soilstore"
+    ] = payload
+    cfg_path = tmp_path / f"paved_soilstore_{case}.yml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    # ACT / ASSERT
+    pattern = r"Disallowed water distribution field to_soilstore for paved"
+    with pytest.raises(ValueError, match=pattern):
+        SUEWSConfig.from_yaml(str(cfg_path))
+    with pytest.raises(ValueError, match=pattern):
+        SUEWSConfig.from_dict(raw)
+
+
+@pytest.mark.parametrize(
+    ("surface", "disallowed_field"),
+    [
+        ("paved", "to_soilstore"),
+        ("paved", "to_paved"),
+        ("bldgs", "to_soilstore"),
+        ("bldgs", "to_bldgs"),
+        ("dectr", "to_runoff"),
+        ("dectr", "to_dectr"),
+        ("evetr", "to_runoff"),
+        ("evetr", "to_evetr"),
+        ("grass", "to_runoff"),
+        ("grass", "to_grass"),
+        ("bsoil", "to_runoff"),
+        ("bsoil", "to_bsoil"),
+    ],
+)
+@pytest.mark.parametrize("raw_value", [0.0, 0.5])
+def test_water_distribution_disallowed_destinations_rejected_all_surfaces(
+    surface: str, disallowed_field: str, raw_value: float, tmp_path: Path
+) -> None:
+    """Every non-water surface rejects self-routing and the opposite terminal field."""
+    # ARRANGE
+    raw = _load_sample_raw()
+    raw["sites"][0]["properties"]["land_cover"][surface]["waterdist"][
+        disallowed_field
+    ] = {"value": raw_value}
+    cfg_path = tmp_path / f"{surface}_{disallowed_field}_{raw_value}.yml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    # ACT / ASSERT
+    pattern = rf"Disallowed water distribution field {disallowed_field} for {surface}"
+    with pytest.raises(ValueError, match=pattern):
+        SUEWSConfig.from_yaml(str(cfg_path))
+
+
+def test_water_distribution_disallowed_rejected_on_direct_init() -> None:
+    """Direct WaterDistribution(surface_type, ...) also rejects disallowed fields."""
+    # ACT / ASSERT
+    with pytest.raises(
+        ValueError, match="Disallowed water distribution field to_soilstore for paved"
+    ):
+        WaterDistribution(SurfaceType.PAVED, to_soilstore=0.0)
+    with pytest.raises(
+        ValueError, match="Disallowed water distribution field to_paved for paved"
+    ):
+        WaterDistribution(SurfaceType.PAVED, to_paved=0.5)
+    with pytest.raises(
+        ValueError, match="Disallowed water distribution field to_runoff for grass"
+    ):
+        WaterDistribution(SurfaceType.GRASS, to_runoff=0.0)
+
+
+def test_water_distribution_water_surface_null_allowed_non_null_rejected(
+    tmp_path: Path,
+) -> None:
+    """water.waterdist: null loads cleanly while any mapping is rejected."""
+    # ARRANGE
+    raw_null = _load_sample_raw()
+    raw_null["sites"][0]["properties"]["land_cover"]["water"]["waterdist"] = None
+    path_null = tmp_path / "water_null.yml"
+    path_null.write_text(yaml.safe_dump(raw_null), encoding="utf-8")
+
+    raw_bad = _load_sample_raw()
+    raw_bad["sites"][0]["properties"]["land_cover"]["water"]["waterdist"] = {
+        "to_paved": {"value": 0.5}
+    }
+    path_bad = tmp_path / "water_bad.yml"
+    path_bad.write_text(yaml.safe_dump(raw_bad), encoding="utf-8")
+
+    # ACT / ASSERT
+    cfg = SUEWSConfig.from_yaml(str(path_null))
+    assert cfg.sites[0].properties.land_cover.water.waterdist is None
+    with pytest.raises(
+        ValueError, match="Water surface should not have water distribution"
+    ):
+        SUEWSConfig.from_yaml(str(path_bad))
+
+
+@pytest.mark.parametrize("bad_value", [-0.1, -999.0, float("nan")])
+def test_water_distribution_invalid_numeric_values_rejected(
+    bad_value: float, tmp_path: Path
+) -> None:
+    """Negative, sentinel (-999), and NaN waterdist fractions are rejected."""
+    # ARRANGE
+    raw = _load_sample_raw()
+    raw["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]["to_runoff"] = {
+        "value": bad_value
+    }
+    cfg_path = tmp_path / "invalid_numeric.yml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError):
+        SUEWSConfig.from_yaml(str(cfg_path))
+    with pytest.raises(ValueError):
+        SUEWSConfig.from_dict(raw)
 
 
 def test_shading_conditions_follow_the_shared_modes() -> None:

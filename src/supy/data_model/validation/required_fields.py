@@ -274,7 +274,9 @@ SOIL_OBSERVED_REQUIRED: tuple[str, ...] = ("soil_field_capacity",)
 
 # Water-distribution destinations each surface must give when its waterdist
 # block is supplied; an omitted block takes surface-specific defaults. Keyed by
-# surface type value; the water surface has no distribution.
+# surface type value; the water surface has no distribution. Any destination
+# outside a surface's tuple (self-routing or the opposite terminal field) must
+# be omitted or null.
 WATER_DISTRIBUTION_REQUIRED: dict[str, tuple[str, ...]] = {
     "paved": (
         "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",

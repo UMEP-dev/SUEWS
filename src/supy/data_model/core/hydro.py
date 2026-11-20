@@ -173,7 +173,7 @@ class WaterDistribution(DataModelBase):
                     setattr(self, key, value)
 
     def validate_distribution(self, surface_type: SurfaceType) -> None:
-        """Validate water distribution based on surface type"""
+        """Validate water distribution destinations and unit sum for a surface."""
         if surface_type == SurfaceType.WATER:
             raise ValueError("Water surface should not have water distribution")
 
@@ -190,6 +190,22 @@ class WaterDistribution(DataModelBase):
                 )
             values.append(raw)
 
+        # Reject any disallowed destination for this surface (self-routing or
+        # the wrong terminal field: to_soilstore on impervious surfaces, or
+        # to_runoff on pervious surfaces). Omitted, null, and {value: null}
+        # all unwrap to None and remain accepted for legacy/round-trip YAML.
+        required_fields = set(fields)
+        for field in type(self).model_fields:
+            if not field.startswith("to_") or field in required_fields:
+                continue
+            value = getattr(self, field)
+            raw = value.value if isinstance(value, RefValue) else value
+            if raw is not None:
+                raise ValueError(
+                    f"Disallowed water distribution field {field} for "
+                    f"{surface_type.value} (got {raw}); omit it or set it to null"
+                )
+
         # Validate sum
         total = sum(values)
         if not math.isclose(total, 1.0, rel_tol=1e-5):
@@ -200,7 +216,7 @@ class WaterDistribution(DataModelBase):
 
         Args:
             grid_id: Grid ID for the DataFrame index
-            surf_idx: Surface index (0=paved, 1=bldgs, 2=dectr, 3=evetr, 4=grass, 5=bsoil, 6=water)
+            surf_idx: Surface index (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil, 6=water)
 
         Returns:
             pd.DataFrame: DataFrame containing water distribution parameters with MultiIndex columns
@@ -210,9 +226,10 @@ class WaterDistribution(DataModelBase):
         values = []
 
         # Add all non-None distribution parameters using a two-step process
-        # 1. Collect all non-None values
+        # 1. Collect all non-None values (unwrapping RefValue so {value: null}
+        # behaves the same as None and never shadows the active terminal field)
         list_waterdist_value = []
-        for i, attr in enumerate([
+        for attr in (
             "to_paved",
             "to_bldgs",
             "to_evetr",
@@ -220,19 +237,24 @@ class WaterDistribution(DataModelBase):
             "to_grass",
             "to_bsoil",
             "to_water",
-            # "to_soilstore",
-            # "to_runoff",
-        ]):
+        ):
             value = getattr(self, attr)
-            if value is None:
-                list_waterdist_value.append(0.0)
-            else:
-                list_waterdist_value.append(value)
+            raw = value.value if isinstance(value, RefValue) else value
+            list_waterdist_value.append(0.0 if raw is None else raw)
 
-        # either to_soilstore or to_runoff must be provided - the other must be 0
-        to_soilstore_or_runoff = (
-            self.to_runoff if self.to_soilstore is None else self.to_soilstore
+        # Impervious surfaces route remainder to to_runoff; pervious surfaces to
+        # to_soilstore.
+        to_soilstore = (
+            self.to_soilstore.value
+            if isinstance(self.to_soilstore, RefValue)
+            else self.to_soilstore
         )
+        to_runoff = (
+            self.to_runoff.value
+            if isinstance(self.to_runoff, RefValue)
+            else self.to_runoff
+        )
+        to_soilstore_or_runoff = to_runoff if to_soilstore is None else to_soilstore
         list_waterdist_value.append(to_soilstore_or_runoff)
 
         # 2. Create param_tuples and values - only add non-None values following the order of the list
@@ -243,11 +265,6 @@ class WaterDistribution(DataModelBase):
 
         # Create MultiIndex columns
         columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
-
-        # Convert RefValue to float
-        values = [
-            value.value if isinstance(value, RefValue) else value for value in values
-        ]
 
         # Create DataFrame with single row
         df = pd.DataFrame(

@@ -253,13 +253,44 @@ destination, including a genuine zero runoff fraction. A previously valid
 paved or building block that already omitted the unused field needs no edit
 to its fractions for this correction.
 
-These commands write and validate an upgraded copy beside the original.
-That keeps relative forcing paths rooted in the same directory.
+Choose the command from the version recorded at the top of your YAML file.
+Keep the converted copy beside the original so relative forcing paths still
+point to the same files. Use a fresh output filename when you repeat a
+conversion, so a file left by an earlier run cannot be mistaken for its result.
+
+**The file says** ``schema_version: 2026.6.dev11``. The first command writes
+``site.migrated.yml``. Confirm that this new file exists. The migration
+summary can say ``Needs review`` even after writing it. Read the diagnostics
+and run the second command to check the saved configuration:
 
 .. code-block:: bash
 
    suews schema migrate site.yml --target-version 2026.6.dev12
    suews validate -p C --dry-run site.migrated.yml --format json
+
+**The file has no schema version.** Some older YAMLs are treated as current
+when their version cannot be inferred. In that case ``suews schema migrate``
+can exit successfully without creating a copy. The corrected reader still
+uses the supplied runoff fraction when it loads the original. Inspect paved
+and building ``waterdist`` blocks for the unused ``to_soilstore`` zero. You
+can check this file directly with ``suews validate -p C --dry-run site.yml
+--format json``. To create a versioned copy, check the release or schema
+that produced the file in your run records. For example, if it was written
+with ``2026.6.dev11``, use the explicit source version below. The converter
+writes the current schema of the installed software. Substitute the actual
+source version if it differs from this example.
+
+.. code-block:: bash
+
+   suews convert -i site.yml -o site.migrated.yml --from 2026.6.dev11
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+**The file already says** ``schema_version: 2026.6.dev12``. A migration to
+the same version creates no copy. Validate the original directly:
+
+.. code-block:: bash
+
+   suews validate -p C --dry-run site.yml --format json
 
 Check each site and surface named in a validation error. An inapplicable
 non-zero fraction needs a decision about where that water should go. Within

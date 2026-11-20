@@ -1,6 +1,7 @@
 """Water-distribution schema dev12 migration boundaries (gh#2117)."""
 
 from copy import deepcopy
+import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -301,3 +302,31 @@ def test_public_cli_migration_on_real_multisite_input(
         assert migrated["schema_version"] == "2026.6.dev12"
         assert all("to_paved" not in _dist(migrated, site=i) for i in range(2))
         SUEWSConfig.from_yaml(str(output))
+
+
+def test_pinned_schema_export_keeps_dev11_water_help(tmp_path):
+    runner = CliRunner()
+    for version in ("2026.6.dev12", "2026.6.dev11", "2026.6.dev12"):
+        path = tmp_path / "schema.json"
+        result = runner.invoke(
+            cli, ["schema", "export", "--version", version, "-o", str(path)]
+        )
+        assert result.exit_code == 0, result.output
+        schema = json.loads(path.read_text(encoding="utf-8"))
+        assert schema["version"] == schema["examples"][0]["schema_version"] == version
+        definitions = schema["$defs"]
+        routing = definitions["WaterDistribution"]
+        building = definitions["BldgsProperties"]["properties"]["waterdist"]
+        historical = version == "2026.6.dev11"
+        if historical:
+            assert routing["description"] == "Water routing between surface types."
+            assert "description" not in building
+        else:
+            assert "sfr > 0" in routing["description"]
+            assert "sfr > 0" in building["description"]
+        for name, field in routing["properties"].items():
+            if name.startswith("to_"):
+                assert ("sfr > 0" in field["description"]) is not historical
+        for surface in ("Bsoil", "Dectr", "Evetr", "Grass", "Paved", "Water"):
+            waterdist = definitions[f"{surface}Properties"]["properties"]["waterdist"]
+            assert ("sfr > 0" in waterdist["description"]) is not historical

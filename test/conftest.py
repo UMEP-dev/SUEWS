@@ -344,6 +344,25 @@ def _invocation_targets_full_test_tree(config):
     return True
 
 
+def pytest_deselected(items):
+    """Record items deselected by ``-m``/``-k`` so full-tree marker lint sees them.
+
+    Built-in mark/keyword filtering runs in ``pytest_collection_modifyitems``
+    before ``pytest_collection_finish``, removing unmarked tests from
+    ``session.items`` on invocations such as ``pytest -m physics test/``.
+    Capturing deselected items here lets ``pytest_collection_finish`` check
+    the full collected set after all ``pytest_collection_modifyitems`` hooks
+    (including directory-level auto-markers such as ``test/umep/conftest.py``)
+    have run (gh#2092).
+    """
+    for item in items:
+        bucket = getattr(item.session, "_gh1300_deselected_items", None)
+        if bucket is None:
+            bucket = []
+            item.session._gh1300_deselected_items = bucket
+        bucket.append(item)
+
+
 def pytest_collection_finish(session):
     """Enforce that every collected test carries `physics` or `api` (gh#1300).
 
@@ -355,8 +374,11 @@ def pytest_collection_finish(session):
     if not _invocation_targets_full_test_tree(session.config):
         return
 
+    all_items = list(session.items)
+    all_items.extend(getattr(session, "_gh1300_deselected_items", ()))
+
     missing_files = []
-    for item in session.items:
+    for item in all_items:
         marker_names = {m.name for m in item.iter_markers()}
         if "physics" in marker_names or "api" in marker_names:
             continue

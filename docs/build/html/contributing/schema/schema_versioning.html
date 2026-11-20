@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-18T12:03:31+00:00" />
-    <title>2.2. YAML Configuration Schema Versioning &#8212; SUEWS 2026.11.20.dev12 documentation</title>
+    <meta property="article:modified_time" content="2026-11-20T13:49:33+00:00" />
+    <title>2.2. YAML Configuration Schema Versioning &#8212; SUEWS 2026.11.20.dev15 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=86f048de"></script>
+    <script src="../../_static/documentation_options.js?v=13e5ca0f"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="2.1. Configuration Schema Development" href="schema-developer.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.20.dev12" />
-    <meta name="docbuild:last-update" content="2026-11-18"/>
+  <meta name="docsearch:version" content="2026.11.20.dev15" />
+    <meta name="docbuild:last-update" content="2026-11-20"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.20.dev12, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e322fc3c7320d8360af2d69f2096931ba3a758" style="color: #31708f;">31e322f</a>).
+        (2026.11.20.dev15, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/82394e8b9cad74ece708a3ca75f0ad31b496e490" style="color: #31708f;">82394e8</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev12 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev12 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev15 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev15 documentation - Home"/>
   
   
 </a></div>
@@ -683,7 +683,7 @@ migration handler that upgrades older YAMLs to the current shape.</p></li>
 compatibility matrix.</p></li>
 </ul>
 <p>Schema version is distinct from the SUEWS model version. A line such as
-<code class="docutils literal notranslate"><span class="pre">schema_version:</span> <span class="pre">&quot;2026.6.dev10&quot;</span></code> describes the shape of the configuration
+<code class="docutils literal notranslate"><span class="pre">schema_version:</span> <span class="pre">&quot;2026.6.dev11&quot;</span></code> describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 <code class="docutils literal notranslate"><span class="pre">2026.4.3</span></code>) describes the model code. One schema may validate many
 model releases.</p>
@@ -692,7 +692,7 @@ model releases.</p>
 <h2><span class="section-number">2.2.2. </span>Schema Version Field<a class="headerlink" href="#schema-version-field" title="Link to this heading">#</a></h2>
 <p>Add the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field to the top level of your configuration:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_urban_config</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">"2026.6.dev10"</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">"2026.6.dev11"</span>
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Urban climate simulation for central London</span>
 <span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="c1"># ... model configuration ...</span>
@@ -710,7 +710,10 @@ tell which shape the file targets.</p>
 <p>Schema labels use <strong>CalVer</strong> (<code class="docutils literal notranslate"><span class="pre">YYYY.M</span></code>, with <code class="docutils literal notranslate"><span class="pre">.devN</span></code> labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — <code class="docutils literal notranslate"><span class="pre">2026.6.dev8</span></code> comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev7</span></code>,
+as a floating-point number – <code class="docutils literal notranslate"><span class="pre">2026.6.dev11</span></code> comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev10</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev9</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev8</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev7</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev6</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev5</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev4</span></code>,
@@ -760,19 +763,19 @@ separate table to update.</p>
 <dl>
 <dt><strong>Current version</strong></dt><dd><p>Configuration loads with no warning.</p>
 </dd>
-<dt><strong>Older schema with a registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Configuration uses schema 2026.5, current is 2026.6.dev10 (compatible)
+<dt><strong>Older schema with a registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Configuration uses schema 2026.5, current is 2026.6.dev11 (compatible)
 </pre></div>
 </div>
 <p>A migration path is available. Upgrade the file with
 <a class="reference internal" href="../../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> before loading it if it uses retired selectors or
 field names; a compatibility message does not apply the migration itself.</p>
 </dd>
-<dt><strong>Older schema with no registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev10.
+<dt><strong>Older schema with no registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev11.
 Consider updating your configuration.
 </pre></div>
 </div>
 </dd>
-<dt><strong>Newer schema than this SUEWS knows about</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev10.
+<dt><strong>Newer schema than this SUEWS knows about</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev11.
 Please update SUEWS or use an older configuration.
 </pre></div>
 </div>
@@ -820,7 +823,20 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl>
-<dt><strong>Schema 2026.6.dev10</strong> (current; development)</dt><dd><p>The model uses an explicit surface storage capacity (<code class="docutils literal notranslate"><span class="pre">store_cap</span></code>) even when
+<dt><strong>Schema 2026.6.dev11</strong> (current; development)</dt><dd><p>Requires <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code>, <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code> and
+<code class="docutils literal notranslate"><span class="pre">saturated_hydraulic_conductivity</span></code> on every active (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>) non-water
+surface (<code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> and <code class="docutils literal notranslate"><span class="pre">bsoil</span></code>)
+in configurations loaded from YAML or a dict (#2077, #2001, #2002). Omitting
+any of them used to reach the water-balance kernel as <code class="docutils literal notranslate"><span class="pre">0.0</span></code> via the Rust
+bridge. The <code class="docutils literal notranslate"><span class="pre">(2026.6.dev10</span> <span class="pre">-&gt;</span> <span class="pre">2026.6.dev11)</span></code> handler refuses to substitute
+<code class="docutils literal notranslate"><span class="pre">0.0</span></code> when <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code> is missing or null on an active surface with
+positive <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code> (reporting each affected site and surface
+so the user can supply <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code>), preserves supplied values and
+inactive/<code class="docutils literal notranslate"><span class="pre">water</span></code> surfaces unchanged, and writes <code class="docutils literal notranslate"><span class="pre">0.0</span></code> explicitly for
+other missing or null active soil parameters while preserving references.
+See <a class="reference internal" href="../../inputs/transition_guide.html#schema-dev11-soil-parameters"><span class="std std-ref">Upgrading to Schema 2026.6.dev11</span></a>.</p>
+</dd>
+<dt><strong>Schema 2026.6.dev10</strong> (development)</dt><dd><p>The model uses an explicit surface storage capacity (<code class="docutils literal notranslate"><span class="pre">store_cap</span></code>) even when
 it differs from the maximum (<code class="docutils literal notranslate"><span class="pre">store_max</span></code>). An omitted capacity still takes
 its value from the maximum. See <a class="reference internal" href="../../inputs/transition_guide.html#schema-dev10-storage-capacity"><span class="std std-ref">Upgrading to Schema 2026.6.dev10</span></a>.</p>
 </dd>
@@ -1132,7 +1148,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-18.
+  Last updated on 2026-11-20.
   <br/>
 </p>
   </div>
@@ -1140,8 +1156,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.20.dev12 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e322fc3c7320d8360af2d69f2096931ba3a758">31e322f</a> |
+  <p>Version: 2026.11.20.dev15 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/82394e8b9cad74ece708a3ca75f0ad31b496e490">82394e8</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

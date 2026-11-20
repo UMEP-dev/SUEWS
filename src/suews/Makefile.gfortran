@@ -55,6 +55,19 @@ DEBUGFLAGS = -ggdb -g -fcheck=all -finit-real=zero
 
 endif
 
+# Real-variable initialisation mode: `zero` for all shipped release/checked
+# builds; `snan` is an opt-in override reserved for the isolated nightly
+# no-trap sNaN pilot (.github/workflows/fortran-snan-nightly.yml).
+SUEWS_INIT_REAL ?= zero
+ifneq ($(SUEWS_INIT_REAL),zero)
+ifneq ($(SUEWS_INIT_REAL),snan)
+$(error SUEWS_INIT_REAL must be 'zero' or 'snan', got '$(SUEWS_INIT_REAL)')
+endif
+endif
+ifeq ($(SUEWS_INIT_REAL),snan)
+DEBUGFLAGS := $(subst -finit-real=zero,-finit-real=snan,$(DEBUGFLAGS))
+endif
+
 # source code suffix: gfortran can work with f95 files
 suffix_code = .f95
 

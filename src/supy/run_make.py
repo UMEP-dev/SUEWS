@@ -17,6 +17,8 @@ import sys
 BUILD_PROFILES = ("release", "checked")
 DEFAULT_BUILD_PROFILE = "release"
 BUILD_PROFILE_ENV = "SUEWS_BUILD_PROFILE"
+INIT_REAL_ENV = "SUEWS_INIT_REAL"
+DEFAULT_INIT_REAL = "zero"
 MAKE_JOBS_ENV = "SUEWS_MAKE_JOBS"
 # Cap on the default job count. The module dependency graph is mostly a
 # chain (types -> utilities -> physics -> driver), so jobs beyond this add
@@ -126,30 +128,52 @@ def _run_make(
 
 
 _EXT_LIB_SOURCE_SUFFIXES = {".f90", ".f95", ".f", ".c", ".h", ".inc", ".mk"}
-_MAKE_ENV_KEYS = ("PROFILE", "SINGLE_PRECISION", "NETCDF4")
+# Compile-flag environment variables read by src/suews/Makefile* together with
+# their effective default when unset (matching Makefile.gfortran's `?=` rules).
+_MAKE_ENV_DEFAULTS: dict[str, str] = {
+    "PROFILE": "",
+    "SINGLE_PRECISION": "",
+    "NETCDF4": "",
+    INIT_REAL_ENV: DEFAULT_INIT_REAL,
+}
+_MAKE_ENV_KEYS = tuple(_MAKE_ENV_DEFAULTS)
+_IGNORED_BUILD_CONFIG_NAMES = frozenset({"Makefile.deps"})
+_IGNORED_EXT_LIB_DIRS = frozenset({"doc", "docs", "test", "tests"})
 _BUILD_ARTIFACT_PATTERNS = ("*.o", "*.mod", "lib*.a")
 BUILD_FINGERPRINT_FILENAME = ".suews_build_fingerprint"
 BUILD_LOCK_FILENAME = ".suews_build.lock"
 
 
 def _is_build_config_file(path: Path) -> bool:
-    """Return True if ``path`` is a Makefile or included ``.mk`` fragment."""
-    return path.is_file() and (
-        path.name.startswith("Makefile") or path.suffix.lower() == ".mk"
-    )
+    """Return True if ``path`` is a build Makefile or included ``.mk`` fragment.
+
+    Excludes ``Makefile.deps`` (module dependency edges only; GNU Make rebuilds
+    affected targets incrementally without wiping all compiled objects).
+    """
+    if not path.is_file() or path.name in _IGNORED_BUILD_CONFIG_NAMES:
+        return False
+    return path.name.startswith("Makefile") or path.suffix.lower() == ".mk"
 
 
 def collect_build_config_files(suews_dir: Path) -> list[Path]:
-    """Return sorted Makefile and build-configuration files under ``suews_dir``."""
+    """Return sorted build-configuration Makefiles under ``suews_dir``.
+
+    Excludes ``Makefile.deps`` (dependency edges handled incrementally by Make)
+    and unused documentation/test Makefiles under ``ext_lib``.
+    """
     config_files: list[Path] = [
         path for path in suews_dir.iterdir() if _is_build_config_file(path)
     ]
 
     ext_lib_dir = suews_dir / "ext_lib"
     if ext_lib_dir.is_dir():
-        config_files.extend(
-            path for path in ext_lib_dir.rglob("*") if _is_build_config_file(path)
-        )
+        for path in ext_lib_dir.rglob("*"):
+            if not _is_build_config_file(path):
+                continue
+            rel_parent_parts = path.relative_to(ext_lib_dir).parent.parts
+            if any(part in _IGNORED_EXT_LIB_DIRS for part in rel_parent_parts):
+                continue
+            config_files.append(path)
 
     return sorted(
         config_files,
@@ -173,11 +197,14 @@ def compute_build_fingerprint(
         ]
         for path in collect_build_config_files(suews_dir)
     ]
+    make_env = {
+        key: source_env.get(key, default) for key, default in _MAKE_ENV_DEFAULTS.items()
+    }
     payload = {
         "fc": fc or "",
         "profile": profile,
         "profile_args": list(profile_args),
-        "make_env": {key: source_env.get(key, "") for key in _MAKE_ENV_KEYS},
+        "make_env": make_env,
         "files": file_hashes,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -216,6 +243,58 @@ def invalidate_stale_artifacts(
     if fp_path.exists():
         fp_path.unlink()
     return removed
+
+
+def sync_builddir_for_env(
+    suews_dir: Path,
+    build_dir: Path,
+    *,
+    fc: str | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> list[Path]:
+    """Invalidate Meson builddir stamps when the live env fingerprint changed.
+
+    Ninja tracks file mtimes rather than environment variables such as
+    ``SUEWS_INIT_REAL`` or ``SUEWS_BUILD_PROFILE``. Running this before
+    ``ninja`` or editable reinstall preserves zero-work no-op rebuilds when
+    the environment is unchanged while forcing a clean Fortran rebuild and
+    Rust-bridge relink when the build configuration changes in the same build
+    directory.
+    """
+    if not build_dir.is_dir():
+        return []
+
+    resolved_fc = _pick_suews_fc() if fc is None and environ is None else fc
+    profile = build_profile_from_env(environ)
+    profile_args = make_args_for_profile(profile)
+    fingerprint = compute_build_fingerprint(
+        suews_dir, resolved_fc, profile, profile_args, environ=environ
+    )
+    fp_path = fingerprint_path_for_suews(suews_dir)
+    previous = (
+        fp_path.read_text(encoding="utf-8").strip() if fp_path.is_file() else None
+    )
+    if previous == fingerprint:
+        return []
+
+    supy_build = build_dir / "src" / "supy"
+    candidates: list[Path] = []
+    stamp = supy_build / "suews_objects"
+    if stamp.is_file():
+        candidates.append(stamp)
+    if supy_build.is_dir():
+        candidates.extend(sorted(supy_build.glob("suews_bridge.*")))
+        candidates.extend(sorted(supy_build.glob("suews-engine*")))
+    bin_dir = supy_build / "bin"
+    if bin_dir.is_dir():
+        candidates.extend(sorted(bin_dir.glob("suews*")))
+
+    removed: list[Path] = []
+    for path in candidates:
+        if path.is_file() and not path.is_symlink():
+            path.unlink()
+            removed.append(path)
+    return sorted(removed)
 
 
 def write_build_fingerprint(suews_dir: Path, fingerprint: str) -> Path:
@@ -372,8 +451,24 @@ def _record_build_outputs(
 
 
 def main() -> None:
+    if len(sys.argv) == 4 and sys.argv[1] == "--sync-builddir":
+        suews_dir = Path(sys.argv[2]).resolve()
+        build_dir = Path(sys.argv[3]).resolve()
+        with _suews_build_lock(suews_dir):
+            removed = sync_builddir_for_env(suews_dir, build_dir)
+        if removed:
+            sys.stdout.write(
+                f"Build configuration changed for {build_dir.name}; "
+                f"invalidated {len(removed)} Meson stamp/bridge artefact(s) "
+                "before rebuild.\n"
+            )
+        return
+
     if len(sys.argv) not in {3, 4}:
-        raise SystemExit("Usage: run_make.py <suews_dir> <stamp_file> [depfile]")
+        raise SystemExit(
+            "Usage: run_make.py <suews_dir> <stamp_file> [depfile] | "
+            "run_make.py --sync-builddir <suews_dir> <build_dir>"
+        )
 
     suews_dir = Path(sys.argv[1]).resolve()
     raw_stamp = sys.argv[2]

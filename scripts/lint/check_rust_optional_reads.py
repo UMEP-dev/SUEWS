@@ -17,9 +17,9 @@ against `scripts/lint/rust_optional_reads_baseline.json`:
 - a count below its baseline also fails, so the baseline cannot drift above the
   tree: lower it in the same diff with `--write-baseline`.
 
-Only production code (before top-level `#[cfg(test)]`) is scanned; comments,
-string literals, and the optional-reader helper definitions themselves are
-excluded.
+Only production code (excluding `#[cfg(test)]`-annotated items) is scanned;
+comments, string literals, and the optional-reader helper definitions
+themselves are excluded.
 
 Exits 0 when every count equals its baseline, 1 otherwise.
 """
@@ -46,24 +46,21 @@ GATED_READERS: tuple[str, ...] = (
 # Definitions of the legacy optional readers themselves (plus thin wrappers that
 # only forward finiteness). Callers inside these functions are implementation
 # details of the helpers, not YAML read sites.
-HELPER_FUNCTIONS: frozenset[str] = frozenset(
-    {
-        "read_numeric",
-        "read_finite_numeric",
-        "read_i32",
-        "read_string",
-        "read_numeric_sequence",
-        "read_sized_numeric_sequence",
-    }
-)
+HELPER_FUNCTIONS: frozenset[str] = frozenset({
+    "read_numeric",
+    "read_finite_numeric",
+    "read_i32",
+    "read_string",
+    "read_numeric_sequence",
+    "read_sized_numeric_sequence",
+})
 
-_CALL_PATTERN = re.compile(
-    r"(?<!\w)(" + "|".join(GATED_READERS) + r")\s*\("
-)
+_CALL_PATTERN = re.compile(r"(?<!\w)(" + "|".join(GATED_READERS) + r")\s*\(")
 _FN_DEF_PATTERN = re.compile(
     r"\b(?:pub(?:\([^)]*\))?\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\b"
 )
 _CFG_TEST_PATTERN = re.compile(r"#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]")
+_IDENT_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 REMEDIATION = """\
 New YAML read sites in src/suews_bridge/src/yaml_config.rs must use the strict
@@ -188,18 +185,141 @@ def strip_rust_comments_and_strings(source: str) -> str:
     return "".join(out)
 
 
-def _strip_cfg_test(cleaned: str) -> str:
-    """Return production code before any top-level `#[cfg(test)]` block."""
-    depth = 0
-    for idx, ch in enumerate(cleaned):
-        if depth == 0 and ch == "#":
-            if _CFG_TEST_PATTERN.match(cleaned, idx):
-                return cleaned[:idx]
-        elif ch == "{":
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos].isspace():
+        pos += 1
+    return pos
+
+
+def _skip_balanced(text: str, pos: int, open_ch: str, close_ch: str) -> int:
+    """Advance past a balanced `open_ch ... close_ch` group starting at `pos`."""
+    n = len(text)
+    depth = 1
+    pos += 1
+    while pos < n and depth > 0:
+        if text[pos] == open_ch:
             depth += 1
+        elif text[pos] == close_ch:
+            depth -= 1
+        pos += 1
+    return pos
+
+
+def _skip_outer_attributes(text: str, pos: int) -> int:
+    """Skip any stacked outer `#[...]` attributes starting at `pos`."""
+    n = len(text)
+    pos = _skip_ws(text, pos)
+    while pos < n and text[pos] == "#":
+        bracket = _skip_ws(text, pos + 1)
+        if bracket >= n or text[bracket] != "[":
+            break
+        pos = _skip_ws(text, _skip_balanced(text, bracket, "[", "]"))
+    return pos
+
+
+def _is_semicolon_terminated_item(text: str, pos: int) -> bool:
+    """Return True for items that end at `;` even when they contain `{...}`."""
+    n = len(text)
+    pos = _skip_ws(text, pos)
+    match = _IDENT_PATTERN.match(text, pos)
+    if not match:
+        return False
+    kw = match.group(0)
+    pos = _skip_ws(text, match.end())
+    if kw == "pub":
+        if pos < n and text[pos] == "(":
+            pos = _skip_ws(text, _skip_balanced(text, pos, "(", ")"))
+        match = _IDENT_PATTERN.match(text, pos)
+        if not match:
+            return False
+        kw = match.group(0)
+        pos = _skip_ws(text, match.end())
+
+    if kw in {"use", "type", "static", "let"}:
+        return True
+    if kw == "const":
+        next_ident = _IDENT_PATTERN.match(text, pos)
+        return not (next_ident and next_ident.group(0) in {"fn", "unsafe", "extern"})
+    return False
+
+
+def _skip_to_semicolon(text: str, pos: int) -> int:
+    """Scan past the terminating `;` at depth 0, respecting nested delimiters."""
+    n = len(text)
+    j = pos
+    paren = bracket = brace = 0
+    while j < n:
+        ch = text[j]
+        if ch == "(":
+            paren += 1
+        elif ch == ")":
+            paren = max(0, paren - 1)
+        elif ch == "[":
+            bracket += 1
+        elif ch == "]":
+            bracket = max(0, bracket - 1)
+        elif ch == "{":
+            brace += 1
         elif ch == "}":
-            depth = max(0, depth - 1)
-    return cleaned
+            if paren == 0 and bracket == 0 and brace == 0:
+                return j
+            brace = max(0, brace - 1)
+        elif ch == ";" and paren == 0 and bracket == 0 and brace == 0:
+            return j + 1
+        j += 1
+    return n
+
+
+def _skip_annotated_item(text: str, pos: int) -> int:
+    """Return the index immediately after the item annotated by `#[cfg(test)]`."""
+    n = len(text)
+    j = _skip_outer_attributes(text, pos)
+    if j >= n:
+        return n
+    if _is_semicolon_terminated_item(text, j):
+        return _skip_to_semicolon(text, j)
+
+    paren = bracket = 0
+    while j < n:
+        ch = text[j]
+        if ch == "(":
+            paren += 1
+        elif ch == ")":
+            paren = max(0, paren - 1)
+        elif ch == "[":
+            bracket += 1
+        elif ch == "]":
+            bracket = max(0, bracket - 1)
+        elif paren == 0 and bracket == 0:
+            if ch == ";":
+                return j + 1
+            if ch == "}":
+                return j
+            if ch == "{":
+                return _skip_balanced(text, j, "{", "}")
+        j += 1
+    return n
+
+
+def _strip_cfg_test(cleaned: str) -> str:
+    """Strip each `#[cfg(test)]`-annotated item while preserving surrounding code."""
+    out: list[str] = []
+    n = len(cleaned)
+    i = 0
+
+    while i < n:
+        if cleaned[i] == "#":
+            match = _CFG_TEST_PATTERN.match(cleaned, i)
+            if match:
+                end = _skip_annotated_item(cleaned, match.end())
+                out.extend("\n" if c == "\n" else " " for c in cleaned[i:end])
+                i = end
+                continue
+        out.append(cleaned[i])
+        i += 1
+
+    return "".join(out)
 
 
 def _iter_top_level_functions(cleaned: str) -> tuple[list[tuple[str, str]], str]:

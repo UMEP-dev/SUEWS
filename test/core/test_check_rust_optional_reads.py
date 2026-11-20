@@ -118,9 +118,9 @@ def test_counts_production_calls_and_ignores_helpers_comments_strings_and_tests(
 def test_single_line_and_impl_calls_are_counted():
     """Single-line functions and calls inside impl blocks cannot bypass the scan."""
     source = (
-        "fn inline_reader(v: &Value) { let _ = read_numeric(v, &[\"a\"]); }\n"
+        'fn inline_reader(v: &Value) { let _ = read_numeric(v, &["a"]); }\n'
         "impl Loader {\n"
-        "    fn hidden(v: &Value) { let _ = read_i32(v, &[\"b\"]); }\n"
+        '    fn hidden(v: &Value) { let _ = read_i32(v, &["b"]); }\n'
         "}\n"
     )
     counts = check_rust_optional_reads.count_optional_reads(source)
@@ -154,7 +154,7 @@ def test_new_function_with_optional_read_fails(tmp_path, capsys):
     """A function absent from the baseline is allowed zero legacy optional reads."""
     extra = SOURCE.replace(
         "#[cfg(test)]",
-        'fn apply_new_overrides(v: &Value) {\n'
+        "fn apply_new_overrides(v: &Value) {\n"
         '    let _ = read_numeric(v, &["gdd_base"]);\n'
         "}\n\n#[cfg(test)]",
     )
@@ -162,6 +162,108 @@ def test_new_function_with_optional_read_fails(tmp_path, capsys):
 
     assert _run(repo) == 1
     assert "apply_new_overrides: read_numeric 0 -> 1" in capsys.readouterr().err
+
+
+def test_production_function_after_cfg_test_module_is_detected(tmp_path, capsys):
+    """Production code placed after `#[cfg(test)] mod tests { ... }` cannot escape."""
+    extra = (
+        SOURCE
+        + "\nfn report_numeric_setting(root: &Value) -> Option<f64> {\n"
+        + '    read_numeric(root, &["test_setting"])\n'
+        + "}\n"
+    )
+    repo = _make_repo(tmp_path, extra, EXPECTED)
+
+    assert _run(repo) == 1
+    assert "report_numeric_setting: read_numeric 0 -> 1" in capsys.readouterr().err
+
+
+def test_production_code_before_between_and_after_cfg_test_items():
+    """Only `#[cfg(test)]`-annotated items are stripped, never following prod code."""
+    source = """\
+fn before_tests(root: &Value) {
+    let _ = read_numeric(root, &["before"]);
+}
+
+#[cfg(test)]
+pub(crate) fn fixture_helper(root: &Value) {
+    let _ = read_numeric(root, &["ignored_helper"]);
+}
+
+fn between_tests(root: &Value) {
+    let _ = read_i32(root, &["between"]);
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+mod tests {
+    #[test]
+    fn braces_in_strings_and_comments_do_not_break_stripping() {
+        let _s = "} fn fake_prod(r: &Value) { read_numeric(r, &[\\"x\\"]); }";
+        let _r = r#"} read_i32(r, &["y"])"#;
+        let _c = '}';
+        // } read_string(r, &["z"])
+        /* nested /* } */ } read_numeric(r, &["w"]) */
+        let _ = read_numeric(&Value::Null, &["ignored_in_mod"]);
+    }
+}
+
+fn after_tests(root: &Value) {
+    let _ = read_string(root, &["after"]);
+}
+"""
+    counts = check_rust_optional_reads.count_optional_reads(source)
+
+    assert counts == {
+        "after_tests": {"read_string": 1},
+        "before_tests": {"read_numeric": 1},
+        "between_tests": {"read_i32": 1},
+    }
+
+
+def test_cfg_test_semicolon_and_nested_items_preserve_following_production_code():
+    """Semicolon-terminated, array-arg, const-fn and impl `#[cfg(test)]` items."""
+    source = """\
+#[cfg(test)]
+mod external_tests;
+
+#[cfg(test)]
+use super::{alpha, beta};
+
+#[cfg(test)]
+const TEST_SENTINEL: Dummy = Dummy { val: 1 };
+
+#[cfg(test)]
+pub(crate) const fn test_const_helper() -> usize {
+    42
+}
+
+#[cfg(test)]
+fn array_arg_helper(_buf: [u8; 4], root: &Value) {
+    let _ = read_numeric(root, &["ignored_array_helper"]);
+}
+
+fn after_semicolon_and_helpers(root: &Value) {
+    let _ = read_numeric(root, &["kept_after_helpers"]);
+}
+
+impl Loader {
+    #[cfg(test)]
+    fn test_only_method(&self, root: &Value) {
+        let _ = read_numeric(root, &["ignored_method"]);
+    }
+
+    fn prod_method(&self, root: &Value) {
+        let _ = read_i32(root, &["kept_method"]);
+    }
+}
+"""
+    counts = check_rust_optional_reads.count_optional_reads(source)
+
+    assert counts == {
+        "<other>": {"read_i32": 1},
+        "after_semicolon_and_helpers": {"read_numeric": 1},
+    }
 
 
 def test_stale_baseline_fails(tmp_path, capsys):

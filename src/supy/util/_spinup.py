@@ -58,6 +58,8 @@ def get_spinup_state(
             df_forcing.index.max(),
             freq=df_forcing.index.freq,
         )
+    else:
+        df_forcing_spinup = df_forcing
 
     # print(df_forcing_spinup.index.min(), df_forcing_spinup.index.max())
 

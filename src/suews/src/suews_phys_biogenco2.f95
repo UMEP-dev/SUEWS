@@ -99,6 +99,15 @@ CONTAINS
       PAR_umolm2s1 = JtoumolPAR*KdntoPAR*avKdn
       VegFracSum = sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf)
 
+      ! In the general model an empty canopy has no photosynthesis or
+      ! vegetation respiration. Its relative area and LAI are undefined.
+      IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36 .AND. VegFracSum == 0.0D0) THEN
+         Fc_photo = 0.0D0
+         Fc_respi = 0.0D0
+         Fc_biogen = 0.0D0
+         RETURN
+      END IF
+
       ! Calculate active vegetation surface -----------------------
       !Now this is zero always when LAI in its minimum values. This needs to vary between the summer time maximum and some minimum value
       !especially in the case of evergreen trees (i.e. in early March LAI can be in its minimum value, but air temperature and radiation

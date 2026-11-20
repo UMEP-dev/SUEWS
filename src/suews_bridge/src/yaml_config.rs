@@ -853,9 +853,11 @@ fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) -> Res
 /// Active non-water surfaces (`sfr > 0.0`) participate in the soil water
 /// balance (`suews_phys_waterdist.f95` loops over `1..nsurf-1` and skips
 /// `sfr == 0`), so missing, null, non-numeric or non-finite values fail with
-/// the canonical YAML path (#1991, #2002, #2077). Inactive surfaces
-/// (`sfr == 0.0`) and `water` carry `0.0` when omitted or null, while still
-/// rejecting malformed non-null values.
+/// the canonical YAML path (#1991, #2002, #2077). When `soil_store_capacity`
+/// is positive on an active non-water surface, an explicit zero `soil_depth`
+/// is also rejected because horizontal soil water redistribution divides by
+/// `soil_depth`. Inactive surfaces (`sfr == 0.0`), zero-capacity surfaces and
+/// `water` remain permitted, while malformed non-null values still fail.
 fn apply_soil_overrides(
     soil: &mut crate::soil::SoilPrm,
     lc_root: &Value,
@@ -877,6 +879,14 @@ fn apply_soil_overrides(
     soil.soil_depth = read_field("soildepth")?;
     soil.soil_store_capacity = read_field("soilstorecap")?;
     soil.saturated_hydraulic_conductivity = read_field("sathydraulicconduct")?;
+    if active && soil.soil_store_capacity > 0.0 && soil.soil_depth == 0.0 {
+        return Err(format!(
+            "`{}` must not be 0 when surface fraction is positive and `{}` is positive ({})",
+            yaml_path_display(at, &["soildepth"]),
+            yaml_path_display(at, &["soilstorecap"]),
+            soil.soil_store_capacity,
+        ));
+    }
     Ok(())
 }
 
@@ -5616,5 +5626,103 @@ mod tests {
         assert!((run_cfg.site.lc_paved.soil.soil_depth - 412.5).abs() < 1.0e-12);
         assert!((run_cfg.site.lc_paved.soil.soil_store_capacity - 173.25).abs() < 1.0e-12);
         assert!((run_cfg.site.lc_paved.soil.saturated_hydraulic_conductivity - 0.00275).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn active_non_water_surface_rejects_zero_soil_depth_with_positive_capacity() {
+        for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"] {
+            for literal in ["0", "0.0", "-0.0", "{value: 0.0}"] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+                let site = first_site_mut(&mut root).expect("fixture has site");
+                let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                    .expect("surface block exists");
+                *get_path_mut(lc, &["sfr"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.1}").unwrap();
+                *get_path_mut(lc, &["soil_store_capacity"]).unwrap() =
+                    serde_yaml::from_str("{value: 150.0}").unwrap();
+                *get_path_mut(lc, &["soil_depth"]).unwrap() =
+                    serde_yaml::from_str(literal).unwrap();
+                let err = load_run_config_from_value(&mut root)
+                    .expect_err("zero soil_depth on active positive-capacity surface must fail");
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.{surface}.soil_depth`"
+                    )),
+                    "{surface} ({literal}): {err}"
+                );
+                assert!(
+                    err.contains("must not be 0"),
+                    "{surface} ({literal}): {err}"
+                );
+                assert!(
+                    err.contains("soil_store_capacity"),
+                    "{surface} ({literal}): {err}"
+                );
+            }
+        }
+
+        // Legacy fused keys must also fail and report the canonical soil_depth path.
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+        let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
+        remove_key(grass, "soil_depth");
+        remove_key(grass, "soil_store_capacity");
+        if let Value::Mapping(map) = grass {
+            map.insert(
+                Value::String("soildepth".to_string()),
+                serde_yaml::from_str("{value: 0.0}").unwrap(),
+            );
+            map.insert(
+                Value::String("soilstorecap".to_string()),
+                serde_yaml::from_str("{value: 150.0}").unwrap(),
+            );
+        }
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("legacy zero soildepth with positive soilstorecap must fail");
+        assert!(
+            err.contains("`sites[gridiv=1].properties.land_cover.grass.soil_depth`"),
+            "{err}"
+        );
+        assert!(!err.contains("soildepth"), "{err}");
+    }
+
+    #[test]
+    fn zero_soil_depth_allowed_when_inactive_zero_capacity_or_water() {
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+
+        // Zero capacity on an active non-water surface permits zero soil_depth.
+        let paved = get_path_mut(site, &["properties", "land_cover", "paved"]).unwrap();
+        *get_path_mut(paved, &["soil_store_capacity"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+        *get_path_mut(paved, &["soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+
+        // Inactive non-water surface permits zero soil_depth even with positive capacity.
+        let bsoil = get_path_mut(site, &["properties", "land_cover", "bsoil"]).unwrap();
+        *get_path_mut(bsoil, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+        *get_path_mut(bsoil, &["soil_store_capacity"]).unwrap() =
+            serde_yaml::from_str("{value: 150.0}").unwrap();
+        *get_path_mut(bsoil, &["soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+
+        // Water surface permits zero soil_depth even when active with positive capacity.
+        let water = get_path_mut(site, &["properties", "land_cover", "water"]).unwrap();
+        *get_path_mut(water, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.05}").unwrap();
+        *get_path_mut(water, &["soil_store_capacity"]).unwrap() =
+            serde_yaml::from_str("{value: 150.0}").unwrap();
+        *get_path_mut(water, &["soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("zero capacity, inactive, and water surfaces must allow zero soil_depth");
+        assert_eq!(run_cfg.site.lc_paved.soil.soil_depth, 0.0);
+        assert_eq!(run_cfg.site.lc_paved.soil.soil_store_capacity, 0.0);
+        assert_eq!(run_cfg.site.lc_bsoil.soil.soil_depth, 0.0);
+        assert_eq!(run_cfg.site.lc_water.soil.soil_depth, 0.0);
+        assert!(run_cfg.site.lc_grass.soil.soil_depth > 0.0);
     }
 }

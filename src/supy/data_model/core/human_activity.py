@@ -3,7 +3,14 @@ from pydantic_core import PydanticUndefined
 from typing import Optional, Union
 import pandas as pd
 import warnings
-from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols, combine_df_states
+from .type import (
+    DataModelBase,
+    RefValue,
+    Reference,
+    FlexibleRefValue,
+    df_from_cols,
+    merge_df_state_cols,
+)
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
 from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
 from ..validation.core.utils import (
@@ -83,17 +90,7 @@ class IrrigationParams(
 
     ref: Optional[Reference] = None
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert irrigation parameters to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-
-        Returns:
-            pd.DataFrame: DataFrame containing irrigation parameters
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {
             ("gridiv", "0"): grid_id,
             ("h_maintain", "0"): (
@@ -128,21 +125,33 @@ class IrrigationParams(
                 else 0.0
             ),
         }
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        merge_df_state_cols(
+            cols, self.daywatper._to_df_state_cols(grid_id, "daywatper"), fill_na=True
+        )
+        merge_df_state_cols(
+            cols, self.daywat._to_df_state_cols(grid_id, "daywat"), fill_na=True
+        )
+        merge_df_state_cols(
+            cols, self.wuprofa_24hr._to_df_state_cols(grid_id, "wuprofa_24hr"), fill_na=True
+        )
+        merge_df_state_cols(
+            cols, self.wuprofm_24hr._to_df_state_cols(grid_id, "wuprofm_24hr"), fill_na=True
+        )
+        return dict(sorted(cols.items()))
 
-        df_daywatper = self.daywatper.to_df_state(grid_id, "daywatper")
-        df_daywat = self.daywat.to_df_state(grid_id, "daywat")
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert irrigation parameters to DataFrame state format.
 
-        df_state = combine_df_states(df_state, df_daywatper)
-        df_state = combine_df_states(df_state, df_daywat)
+        Args:
+            grid_id: Grid ID for the DataFrame index
 
-        df_wuprofa_24hr = self.wuprofa_24hr.to_df_state(grid_id, "wuprofa_24hr")
-        df_wuprofm_24hr = self.wuprofm_24hr.to_df_state(grid_id, "wuprofm_24hr")
-
-        df_state = combine_df_states(df_state, df_wuprofa_24hr)
-        df_state = combine_df_states(df_state, df_wuprofm_24hr)
-
-        return df_state
+        Returns:
+            pd.DataFrame: DataFrame containing irrigation parameters
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "IrrigationParams":
@@ -365,24 +374,11 @@ class AnthropogenicHeat(
 
     ref: Optional[Reference] = None
 
-    # DayProfile coulmns need to be fixed
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert anthropogenic heat parameters to DataFrame state format.
-
-        Args:
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            pd.DataFrame: DataFrame containing anthropogenic heat parameters.
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {
             ("gridiv", "0"): grid_id,
             ("popdensnighttime", "0"): self.popdensnighttime,
         }
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
         day_profiles = {
             "qf0_beu": self.qf0_beu,
             "qf_a": self.qf_a,
@@ -396,18 +392,33 @@ class AnthropogenicHeat(
             "popdensdaytime": self.popdensdaytime,
         }
         for param_name, profile in day_profiles.items():
-            df_day_profile = profile.to_df_state(grid_id, param_name)
-            df_state = combine_df_states(df_state, df_day_profile)
-
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
         hourly_profiles = {
             "ahprof_24hr": self.ahprof_24hr,
             "popprof_24hr": self.popprof_24hr,
         }
         for param_name, profile in hourly_profiles.items():
-            df_hourly_profile = profile.to_df_state(grid_id, param_name)
-            df_state = combine_df_states(df_state, df_hourly_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
+        return dict(sorted(cols.items()))
 
-        return df_state
+    # DayProfile coulmns need to be fixed
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert anthropogenic heat parameters to DataFrame state format.
+
+        Args:
+            grid_id (int): Grid ID for the DataFrame index.
+
+        Returns:
+            pd.DataFrame: DataFrame containing anthropogenic heat parameters.
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "AnthropogenicHeat":
@@ -614,18 +625,7 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
 
     ref: Optional[Reference] = None
 
-    # DayProfile coulmns need to be fixed
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert CO2 parameters to DataFrame state format.
-
-        Args:
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            pd.DataFrame: DataFrame containing CO2 parameters.
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         scalar_params = {
             "co2pointsource": self.emission_co2_point_source.value
             if isinstance(self.emission_co2_point_source, RefValue)
@@ -681,25 +681,41 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
         cols = {("gridiv", "0"): grid_id}
         for param_name, value in scalar_params.items():
             cols[(param_name, "0")] = value
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         day_profiles = {
             "fcef_v_kgkm": self.emission_factor_co2_vehicle,
             "trafficrate": self.traffic_rate,
         }
         for param_name, profile in day_profiles.items():
-            df_day_profile = profile.to_df_state(grid_id, param_name)
-            df_state = combine_df_states(df_state, df_day_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
 
         hourly_profiles = {
             "traffprof_24hr": self.profile_traffic_24hr,
             "humactivity_24hr": self.profile_human_activity_24hr,
         }
         for param_name, profile in hourly_profiles.items():
-            df_hourly_profile = profile.to_df_state(grid_id, param_name)
-            df_state = combine_df_states(df_state, df_hourly_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
 
-        return df_state
+        return dict(sorted(cols.items()))
+
+    # DayProfile coulmns need to be fixed
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert CO2 parameters to DataFrame state format.
+
+        Args:
+            grid_id (int): Grid ID for the DataFrame index.
+
+        Returns:
+            pd.DataFrame: DataFrame containing CO2 parameters.
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "CO2Params":
@@ -789,17 +805,7 @@ class AnthropogenicEmissions(DataModelBase):
 
     ref: Optional[Reference] = None
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert anthropogenic emissions parameters to DataFrame state format.
-
-        Args:
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            pd.DataFrame: DataFrame containing anthropogenic emissions parameters.
-        """
-        # Set start and end daylight saving times
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {
             ("gridiv", "0"): grid_id,
             ("startdls", "0"): (
@@ -817,20 +823,23 @@ class AnthropogenicEmissions(DataModelBase):
                 else 0.0
             ),
         }
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        merge_df_state_cols(cols, self.heat._to_df_state_cols(grid_id))
+        merge_df_state_cols(cols, self.co2._to_df_state_cols(grid_id))
+        return cols
 
-        # Add heat parameters
-        df_heat = self.heat.to_df_state(grid_id)
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert anthropogenic emissions parameters to DataFrame state format.
 
-        # Add CO2 parameters
-        df_co2 = self.co2.to_df_state(grid_id)
+        Args:
+            grid_id (int): Grid ID for the DataFrame index.
 
-        df_state = pd.concat([df_state, df_heat, df_co2], axis=1)
-
-        # Drop duplicate columns if necessary
-        df_state = df_state.loc[:, ~df_state.columns.duplicated()]
-
-        return df_state
+        Returns:
+            pd.DataFrame: DataFrame containing anthropogenic emissions parameters.
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "AnthropogenicEmissions":

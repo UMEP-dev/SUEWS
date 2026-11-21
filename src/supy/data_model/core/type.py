@@ -507,6 +507,29 @@ def combine_df_states(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
     ).reindex(columns=left.columns.union(right.columns))
 
 
+def merge_df_state_cols(
+    target: dict, source: dict, *, fill_na: bool = False
+) -> None:
+    """Merge single-grid column entries into *target* without intermediate frames.
+
+    With ``fill_na=False`` (default), preserves first-seen values matching
+    ``pd.concat(..., axis=1)`` followed by ``~columns.duplicated(keep="first")``.
+    With ``fill_na=True``, fills missing or NA values matching
+    ``combine_df_states`` on aligned single-row frames.
+    """
+    if not fill_na:
+        for k, v in source.items():
+            target.setdefault(k, v)
+        return
+    for k, v in source.items():
+        if k not in target:
+            target[k] = v
+        else:
+            cur = target[k]
+            if pd.api.types.is_scalar(cur) and pd.isna(cur):
+                target[k] = v
+
+
 def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(

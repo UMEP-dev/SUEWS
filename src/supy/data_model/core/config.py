@@ -38,7 +38,7 @@ import warnings
 from ._yaml_io import safe_load_yaml
 from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
-from .type import DataModelBase, RefValue, SurfaceType
+from .type import DataModelBase, RefValue, SurfaceType, df_from_cols, merge_df_state_cols
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
 from ..validation.required_fields import (
@@ -5795,36 +5795,41 @@ class SUEWSConfig(DataModelBase):
 
         # Proceed with DataFrame conversion
         try:
-            list_df_site = []
-            for i in range(len(self.sites)):
-                grid_id = self.sites[i].gridiv
-                df_site = self.sites[i].to_df_state(grid_id)
-                df_model = self.model.to_df_state(grid_id)
-                direct_fraction_positions = [
-                    idx
-                    for idx, col in enumerate(df_model.columns)
-                    if col == ("sw_dn_direct_frac", "0")
-                ]
-                if direct_fraction_positions:
-                    direct_fraction = df_model.iloc[0, direct_fraction_positions[0]]
-                    df_site[("sw_dn_direct_frac", "0")] = direct_fraction
-                df_site = pd.concat([df_site, df_model], axis=1)
-                # Remove duplicate columns immediately after combining site+model
-                # This prevents InvalidIndexError when concatenating multiple sites (axis=0)
-                df_site = df_site.loc[:, ~df_site.columns.duplicated()]
-                list_df_site.append(df_site)
+            grid_ids = []
+            site_col_dicts = []
+            for site in self.sites:
+                grid_id = site.gridiv
+                grid_ids.append(grid_id)
+                site_cols = site._to_df_state_cols(grid_id)
+                model_cols = self.model._to_df_state_cols(grid_id)
+                if ("sw_dn_direct_frac", "0") in model_cols:
+                    site_cols[("sw_dn_direct_frac", "0")] = model_cols[
+                        ("sw_dn_direct_frac", "0")
+                    ]
+                merge_df_state_cols(site_cols, model_cols)
+                site_cols[("config", "0")] = self.name
+                site_cols[("description", "0")] = self.description
+                site_col_dicts.append(site_cols)
 
-            df = pd.concat(list_df_site, axis=0)
-
-            # Add metadata columns using batch-concat pattern to avoid fragmentation warning
-            metadata_df = pd.DataFrame(
-                {
-                    ("config", "0"): self.name,
-                    ("description", "0"): self.description,
-                },
-                index=df.index,
-            )
-            df = pd.concat([df, metadata_df], axis=1)
+            if not site_col_dicts:
+                df = pd.concat([], axis=0)
+            elif len(site_col_dicts) == 1:
+                df = df_from_cols(
+                    site_col_dicts[0], index=pd.Index(grid_ids, name="grid")
+                )
+            else:
+                ordered_cols: list = []
+                seen_cols: set = set()
+                for sc in site_col_dicts:
+                    for k in sc:
+                        if k not in seen_cols:
+                            seen_cols.add(k)
+                            ordered_cols.append(k)
+                combined = {
+                    k: [sc.get(k, np.nan) for sc in site_col_dicts]
+                    for k in ordered_cols
+                }
+                df = df_from_cols(combined, index=pd.Index(grid_ids, name="grid"))
         except Exception as e:
             if use_conditional_validation and not strict:
                 warnings.warn(

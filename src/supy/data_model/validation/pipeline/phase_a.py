@@ -2417,6 +2417,41 @@ def create_analysis_report(
     return "\n".join(report_lines)
 
 
+_STANDARD_DATA_CACHE: dict[tuple[str, int, int, int], object] = {}
+
+
+def _load_normalised_standard_data(standard_file: str):
+    """Load and normalise *standard_file*, reusing stat-validated parsed trees.
+
+    Keyed on ``(realpath, st_mtime_ns, st_size, id(safe_load_yaml))`` so edits,
+    missing/malformed files, or monkeypatched loaders never return stale data.
+    Returns a deep copy so callers never share mutable state.
+    """
+    path_standard = Path(standard_file)
+    st = path_standard.stat()
+    cache_key = (
+        str(path_standard.resolve()),
+        st.st_mtime_ns,
+        st.st_size,
+        id(safe_load_yaml),
+    )
+    cached = _STANDARD_DATA_CACHE.get(cache_key)
+    if cached is not None:
+        return deepcopy(cached)
+
+    with open(standard_file, "r", encoding="utf-8") as f:
+        standard_data = safe_load_yaml(f)
+    flatten_physics_in_config(standard_data)
+    standard_data_no_ref = _strip_ref_blocks(standard_data)
+    standard_data_no_ref, _ = _normalise_phase_a_compatibility(standard_data_no_ref)
+    flatten_physics_in_config(standard_data_no_ref)
+
+    if len(_STANDARD_DATA_CACHE) >= 4:
+        _STANDARD_DATA_CACHE.clear()
+    _STANDARD_DATA_CACHE[cache_key] = standard_data_no_ref
+    return deepcopy(standard_data_no_ref)
+
+
 def annotate_missing_parameters(
     user_file,
     standard_file,
@@ -2490,11 +2525,9 @@ def annotate_missing_parameters(
                 allow_unicode=True,
             )
             original_yaml_content = stream.getvalue()
-        with open(standard_file, "r", encoding="utf-8") as f:
-            standard_data = safe_load_yaml(f)
-        # Collapse readable physics names in both trees before structure diffs.
+        standard_data_no_ref = _load_normalised_standard_data(standard_file)
+        # Collapse readable physics names before structure diffs.
         flatten_physics_in_config(user_data)
-        flatten_physics_in_config(standard_data)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
         return _phase_a_failure_report(
@@ -2540,9 +2573,6 @@ def annotate_missing_parameters(
         forcing_warnings.append(RUNTIME_FORCING_WARNING)
 
     user_data_no_ref = _strip_ref_blocks(user_data)
-    standard_data_no_ref = _strip_ref_blocks(standard_data)
-    standard_data_no_ref, _ = _normalise_phase_a_compatibility(standard_data_no_ref)
-    flatten_physics_in_config(standard_data_no_ref)
 
     missing_params = find_missing_parameters(
         user_data_no_ref, standard_data_no_ref, _normalised=True

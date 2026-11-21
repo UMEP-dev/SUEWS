@@ -1,7 +1,14 @@
 import math
 from typing import Optional
 from pydantic import ConfigDict, Field, computed_field, model_validator
-from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols, combine_df_states
+from .type import (
+    DataModelBase,
+    RefValue,
+    Reference,
+    FlexibleRefValue,
+    df_from_cols,
+    merge_df_state_cols,
+)
 from .profile import (
     HourlyProfile,
     DayProfile,
@@ -217,17 +224,7 @@ class Conductance(DataModelBase):
 
     ref: Optional[Reference] = Reference(ref="Test ref", DOI="test doi", ID="test id")
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert conductance parameters to DataFrame state format.
-
-        Args:
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            pd.DataFrame: DataFrame containing conductance parameters.
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         scalar_params = {
             "g_max": self.g_max,
             "g_k": self.g_k,
@@ -241,16 +238,28 @@ class Conductance(DataModelBase):
             "tl": self.tl,
             "th": self.th,
         }
-
         cols = {("gridiv", "0"): grid_id}
         for param_name, value in scalar_params.items():
             if value is not None:
                 val = value.value if isinstance(value, RefValue) else value
             else:
-                val = 0.0  # Default to 0.0 for DataFrame compatibility
+                val = 0.0
             cols[(param_name, "0")] = val
+        return cols
 
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert conductance parameters to DataFrame state format.
+
+        Args:
+            grid_id (int): Grid ID for the DataFrame index.
+
+        Returns:
+            pd.DataFrame: DataFrame containing conductance parameters.
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "Conductance":
@@ -333,6 +342,13 @@ class LAIPowerCoefficients(DataModelBase):
             self.senescence_sdd if self.senescence_sdd is not None else 0.1,
         ]
 
+    def _to_df_state_cols(self, grid_id: int, veg_idx: int) -> dict:
+        cols = {("gridiv", "0"): grid_id}
+        for i, value in enumerate(self.to_list()):
+            val = value.value if isinstance(value, RefValue) else value
+            cols[("laipower", f"({i}, {veg_idx})")] = val
+        return cols
+
     def to_df_state(self, grid_id: int, veg_idx: int) -> pd.DataFrame:
         """Convert LAI power coefficients to DataFrame state format.
 
@@ -343,13 +359,10 @@ class LAIPowerCoefficients(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing LAI power coefficients
         """
-        # Set power coefficients in order
-        cols = {("gridiv", "0"): grid_id}
-        for i, value in enumerate(self.to_list()):
-            val = value.value if isinstance(value, RefValue) else value
-            cols[("laipower", f"({i}, {veg_idx})")] = val
-
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, veg_idx),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(
@@ -454,20 +467,8 @@ class LAIParams(DataModelBase):
             return apply_field_renames(values, LAIPARAMS_RENAMES, cls.__name__)
         return values
 
-    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
-        """Convert LAI parameters to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-            surf_idx: Surface index for vegetation (2: EVETR, 3: DECTR, 4: GRASS)
-
-        Returns:
-            pd.DataFrame: DataFrame containing LAI parameters
-        """
-        # Adjust index for vegetation surfaces (surface index - 2)
+    def _to_df_state_cols(self, grid_id: int, surf_idx: int) -> dict:
         veg_idx = surf_idx - 2
-
-        # Set basic LAI parameters
         lai_params = {
             "baset": self.base_temperature,
             "gddfull": self.gdd_full,
@@ -477,13 +478,11 @@ class LAIParams(DataModelBase):
             "laimax": self.lai_max,
             "laitype": self.lai_type,
         }
-
         cols = {("gridiv", "0"): grid_id}
         for param, value in lai_params.items():
             if value is not None:
                 val = value.value if isinstance(value, RefValue) else value
             else:
-                # Default values for None
                 defaults = {
                     "baset": 10.0,
                     "gddfull": 100.0,
@@ -494,17 +493,24 @@ class LAIParams(DataModelBase):
                 }
                 val = defaults.get(param, 0.0)
             cols[(param, f"({veg_idx},)")] = val
-
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
-        # Add LAI power coefficients using the LAIPowerCoefficients to_df_state method
         if self.lai_power:
-            df_power = self.lai_power.to_df_state(grid_id, veg_idx)
-            if ("gridiv", "0") in df_power.columns:
-                df_power = df_power.drop(columns=[("gridiv", "0")])
-            df_state = pd.concat([df_state, df_power], axis=1)
+            merge_df_state_cols(cols, self.lai_power._to_df_state_cols(grid_id, veg_idx))
+        return cols
 
-        return df_state
+    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
+        """Convert LAI parameters to DataFrame state format.
+
+        Args:
+            grid_id: Grid ID for the DataFrame index
+            surf_idx: Surface index for vegetation (2: EVETR, 3: DECTR, 4: GRASS)
+
+        Returns:
+            pd.DataFrame: DataFrame containing LAI parameters
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, surf_idx),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(
@@ -664,17 +670,17 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             )
         return values
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert vegetated surface properties to DataFrame state format."""
-        # Get base properties
-        df_state = super().to_df_state(grid_id)
-
-        # Add vegetation-specific properties
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = super()._to_df_state_cols(grid_id)
         surf_idx = self.get_surface_index()
-
-        # add ordinary float properties
-        cols = {}
-        for attr, col_name in [
+        defaults = {
+            "beta_bioco2": 0.6,
+            "alpha_bioco2": 0.8,
+            "resp_a": 1.0,
+            "resp_b": 1.1,
+            "theta_bioco2": 1.2,
+        }
+        for attr, col_name in (
             ("beta_bio_co2", "beta_bioco2"),
             ("beta_enh_bioco2", "beta_enh_bioco2"),
             ("alpha_bio_co2", "alpha_bioco2"),
@@ -686,27 +692,21 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             ("min_res_bioco2", "min_res_bioco2"),
             ("ie_a", "ie_a"),
             ("ie_m", "ie_m"),
-        ]:
+        ):
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                # Default values for None vegetation parameters
-                defaults = {
-                    "beta_bioco2": 0.6,
-                    "alpha_bioco2": 0.8,
-                    "resp_a": 1.0,
-                    "resp_b": 1.1,
-                    "theta_bioco2": 1.2,
-                }
                 val = defaults.get(col_name, 0.0)
             cols[(col_name, f"({surf_idx - 2},)")] = val
+        merge_df_state_cols(cols, self.lai._to_df_state_cols(grid_id, surf_idx))
+        return dict(sorted(cols.items()))
 
-        df_veg = df_from_cols(cols, index=df_state.index)
-        df_lai = self.lai.to_df_state(grid_id, surf_idx)
-        df_state = pd.concat([df_state, df_veg, df_lai], axis=1).sort_index(axis=1)
-
-        return df_state
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert vegetated surface properties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(
@@ -781,44 +781,32 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
             return apply_field_renames(values, EVETRPROPERTIES_RENAMES, cls.__name__)
         return values
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert evergreen tree properties to DataFrame state format."""
-        df_state = super().to_df_state(grid_id)
-
-        # Collect all values to assign
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = super()._to_df_state_cols(grid_id)
         defaults = {"faievetree": 0.1, "evetreeh": 15.0}
-        values_to_assign = {}
-
-        for attr, col_name in [
+        for attr, col_name in (
             ("fai_evergreen_tree", "faievetree"),
             ("height_evergreen_tree", "evetreeh"),
-        ]:
+        ):
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = defaults.get(col_name, 0.0)
-            values_to_assign[(col_name, "0")] = val
-
-        values_to_assign[("albmin_evetr", "0")] = (
+            cols[(col_name, "0")] = val
+        cols[("albmin_evetr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        values_to_assign[("albmax_evetr", "0")] = (
+        cols[("albmax_evetr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
+        return dict(sorted(cols.items()))
 
-        # Create new columns DataFrame and merge (avoids PerformanceWarning)
-        new_cols = {col: [val] for col, val in values_to_assign.items()}
-        new_df = pd.DataFrame(new_cols, index=[grid_id])
-        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
-
-        # Drop existing columns from df_state that we're updating, then concat
-        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
-        if cols_to_drop:
-            df_state = df_state.drop(columns=cols_to_drop)
-        df_state = pd.concat([df_state, new_df], axis=1)
-
-        return df_state.sort_index(axis=1)
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert evergreen tree properties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "EvetrProperties":
@@ -907,48 +895,36 @@ class DectrProperties(VegetatedSurfaceProperties):
             return apply_field_renames(values, DECTRPROPERTIES_RENAMES, cls.__name__)
         return values
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert deciduous tree properties to DataFrame state format."""
-        df_state = super().to_df_state(grid_id)
-
-        # Collect all values to assign
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = super()._to_df_state_cols(grid_id)
         defaults = {"faidectree": 0.1, "dectreeh": 15.0}
-        values_to_assign = {}
-
-        for attr, col_name in [
+        for attr, col_name in (
             ("fai_deciduous_tree", "faidectree"),
             ("height_deciduous_tree", "dectreeh"),
             ("porosity_min_deciduous", "pormin_dec"),
             ("porosity_max_deciduous", "pormax_dec"),
             ("capacity_max_deciduous", "capmax_dec"),
             ("capacity_min_deciduous", "capmin_dec"),
-        ]:
+        ):
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = defaults.get(col_name, field_val)
-            values_to_assign[(col_name, "0")] = val
-
-        values_to_assign[("albmin_dectr", "0")] = (
+            cols[(col_name, "0")] = val
+        cols[("albmin_dectr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        values_to_assign[("albmax_dectr", "0")] = (
+        cols[("albmax_dectr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
+        return dict(sorted(cols.items()))
 
-        # Create new columns DataFrame and merge (avoids PerformanceWarning)
-        new_cols = {col: [val] for col, val in values_to_assign.items()}
-        new_df = pd.DataFrame(new_cols, index=[grid_id])
-        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
-
-        # Drop existing columns from df_state that we're updating, then concat
-        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
-        if cols_to_drop:
-            df_state = df_state.drop(columns=cols_to_drop)
-        df_state = pd.concat([df_state, new_df], axis=1)
-
-        return df_state.sort_index(axis=1)
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert deciduous tree properties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "DectrProperties":
@@ -988,36 +964,21 @@ class GrassProperties(VegetatedSurfaceProperties):
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = super()._to_df_state_cols(grid_id)
+        cols[("albmin_grass", "0")] = (
+            self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
+        )
+        cols[("albmax_grass", "0")] = (
+            self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
+        )
+        return dict(sorted(cols.items()))
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass properties to DataFrame state format."""
-        df_state = super().to_df_state(grid_id)
-
-        # Collect all values to assign
-        values_to_assign = {
-            ("albmin_grass", "0"): (
-                self.alb_min.value
-                if isinstance(self.alb_min, RefValue)
-                else self.alb_min
-            ),
-            ("albmax_grass", "0"): (
-                self.alb_max.value
-                if isinstance(self.alb_max, RefValue)
-                else self.alb_max
-            ),
-        }
-
-        # Create new columns DataFrame and merge (avoids PerformanceWarning)
-        new_cols = {col: [val] for col, val in values_to_assign.items()}
-        new_df = pd.DataFrame(new_cols, index=[grid_id])
-        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
-
-        # Drop existing columns from df_state that we're updating, then concat
-        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
-        if cols_to_drop:
-            df_state = df_state.drop(columns=cols_to_drop)
-        df_state = pd.concat([df_state, new_df], axis=1)
-
-        return df_state.sort_index(axis=1)
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "GrassProperties":
@@ -1202,17 +1163,7 @@ class SnowParams(DataModelBase):
             )
         return values
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert snow parameters to DataFrame state format.
-
-        Args:
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            pd.DataFrame: DataFrame containing snow parameters.
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         scalar_params = {
             "crwmax": self.water_holding_capacity_max,
             "crwmin": self.water_holding_capacity_min,
@@ -1232,42 +1183,52 @@ class SnowParams(DataModelBase):
             "radmeltfact": self.radiation_melt_factor,
         }
         cols = {("gridiv", "0"): grid_id}
+        defaults = {
+            "preciplimit": 2.2,
+            "snowdensmin": 100.0,
+            "snowdensmax": 400.0,
+        }
         for param_name, value in scalar_params.items():
             if value is not None:
                 val = value.value if isinstance(value, RefValue) else value
             else:
-                # Default values for None snow parameters
-                defaults = {
-                    "preciplimit": 2.2,
-                    "snowdensmin": 100.0,
-                    "snowdensmax": 400.0,
-                }
                 val = defaults.get(param_name, 0.0)
             cols[(param_name, "0")] = val
 
-        # Snow's OHM parameters live at surface index 7 (df_state convention).
-        for col, value in [
+        for col, value in (
             ("ohm_threshsw", self.ohm_threshold_summer_winter),
             ("ohm_threshwd", self.ohm_threshold_wet_dry),
-        ]:
+        ):
             if value is not None:
                 val = value.value if isinstance(value, RefValue) else value
             else:
                 val = 0.0
             cols[(col, "(7,)")] = val
 
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
         ohm_coef = (
             self.ohm_coef if self.ohm_coef is not None else _default_snow_ohm_coef()
         )
-        df_ohm = ohm_coef.to_df_state(grid_id, 7)
-        df_state = combine_df_states(df_state, df_ohm)
+        merge_df_state_cols(cols, ohm_coef._to_df_state_cols(grid_id, 7), fill_na=True)
+        merge_df_state_cols(
+            cols,
+            self.snow_profile_24hr._to_df_state_cols(grid_id, "snowprof_24hr"),
+            fill_na=True,
+        )
+        return dict(sorted(cols.items()))
 
-        df_hourly_profile = self.snow_profile_24hr.to_df_state(grid_id, "snowprof_24hr")
-        df_state = combine_df_states(df_state, df_hourly_profile)
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert snow parameters to DataFrame state format.
 
-        return df_state
+        Args:
+            grid_id (int): Grid ID for the DataFrame index.
+
+        Returns:
+            pd.DataFrame: DataFrame containing snow parameters.
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "SnowParams":
@@ -1391,10 +1352,14 @@ class LandCover(DataModelBase):
     #         raise ValueError(f"Land cover fractions must sum to 1.0 (got {total:.6f}): {details}")
     #     return self
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = {}
+        for lc in ("paved", "bldgs", "dectr", "evetr", "grass", "bsoil", "water"):
+            merge_df_state_cols(cols, getattr(self, lc)._to_df_state_cols(grid_id))
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert land cover to DataFrame state format"""
-        # df_state = init_df_state(grid_id)
-
         list_df_state = []
         for lc in ["paved", "bldgs", "dectr", "evetr", "grass", "bsoil", "water"]:
             df_state = getattr(self, lc).to_df_state(grid_id)
@@ -2056,7 +2021,7 @@ class ArchetypeProperties(DataModelBase):
         **ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
     }
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         string_fields = {"archetype_name"}
         ten_minute_profile_fields = {
             "profile_metabolism",
@@ -2088,8 +2053,6 @@ class ArchetypeProperties(DataModelBase):
             ).lower()
             cols[(col_name, "0")] = value
 
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
         for field_name in ten_minute_profile_fields:
             profile = getattr(self, field_name)
             if profile is None:
@@ -2097,10 +2060,16 @@ class ArchetypeProperties(DataModelBase):
             col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(
                 field_name, field_name
             ).lower()
-            df_profile = profile.to_df_state(grid_id, col_name)
-            df_state = combine_df_states(df_state, df_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, col_name), fill_na=True
+            )
 
-        return df_state
+        return dict(sorted(cols.items()))
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
@@ -2760,16 +2729,10 @@ class StebbsProperties(DataModelBase):
                 raise ValueError(message)
         return self
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert StebbsProperties to DataFrame state format."""
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         tenmin_profile_fields = {"profile_appliance", "profile_flow_hot_water"}
-        # deep_soil_temperature is computed and emitted to the bridge only.
         excluded_fields = tenmin_profile_fields | {"ref", "deep_soil_temperature"}
 
-        # scalar fields -- legacy DF column is the lowercased PascalCase form
-        # via `_STEBBS_LEGACY_COL_NAMES` (e.g. `volume_hot_water` ->
-        # `dhwwatervolume`). The Fortran/Rust bridge still keys on the fused
-        # lowercase spelling; renaming bridge columns is Tier B/C work.
         cols = {("gridiv", "0"): grid_id}
         for field_name in type(self).model_fields:
             if field_name in excluded_fields:
@@ -2779,18 +2742,22 @@ class StebbsProperties(DataModelBase):
             col_name = self._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
             cols[(col_name, "0")] = value
 
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
-        # 10-minute profile fields
         for field_name in tenmin_profile_fields:
             profile = getattr(self, field_name)
             if profile is None:
                 continue
             col_name = self._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
-            df_profile = profile.to_df_state(grid_id, col_name)
-            df_state = combine_df_states(df_state, df_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, col_name), fill_na=True
+            )
 
-        return df_state
+        return dict(sorted(cols.items()))
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert StebbsProperties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
@@ -2970,17 +2937,7 @@ class SPARTACUSParams(DataModelBase):
 
     ref: Optional[Reference] = None
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert SPARTACUS parameters to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-
-        Returns:
-            pd.DataFrame: DataFrame containing SPARTACUS parameters
-        """
-        # Map SPARTACUS parameters to DataFrame columns
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         spartacus_params = {
             "air_ext_lw": self.air_ext_lw,
             "air_ext_sw": self.air_ext_sw,
@@ -3000,14 +2957,25 @@ class SPARTACUSParams(DataModelBase):
             "veg_ssa_lw": self.veg_ssa_lw,
             "veg_ssa_sw": self.veg_ssa_sw,
         }
-
-        # Assign each parameter to its corresponding column in the DataFrame
         cols = {("gridiv", "0"): grid_id}
         for param_name, value in spartacus_params.items():
             val = value.value if isinstance(value, RefValue) else value
             cols[(param_name, "0")] = val
+        return cols
 
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert SPARTACUS parameters to DataFrame state format.
+
+        Args:
+            grid_id: Grid ID for the DataFrame index
+
+        Returns:
+            pd.DataFrame: DataFrame containing SPARTACUS parameters
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "SPARTACUSParams":
@@ -3103,14 +3071,21 @@ class SoilObservationConfig(DataModelBase):
                 raise ValueError(f"{name} must be finite")
         return self
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Preserve layer bounds and optional conversion metadata in state."""
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {("gridiv", "0"): grid_id}
         for attr, col_name in self._FIELD_TO_COLUMN.items():
             field_val = getattr(self, attr)
             if field_val is not None:
-                cols[(col_name, "0")] = field_val.value if isinstance(field_val, RefValue) else field_val
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+                cols[(col_name, "0")] = (
+                    field_val.value if isinstance(field_val, RefValue) else field_val
+                )
+        return cols
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Preserve layer bounds and optional conversion metadata in state."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> Optional["SoilObservationConfig"]:
@@ -3161,6 +3136,14 @@ class LUMPSParams(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = {("gridiv", "0"): grid_id}
+        for attr in ("raincover", "rainmaxres", "drainrt", "veg_type"):
+            field_val = getattr(self, attr)
+            val = field_val.value if isinstance(field_val, RefValue) else field_val
+            cols[(attr, "0")] = val
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert LUMPS parameters to DataFrame state format.
 
@@ -3170,14 +3153,9 @@ class LUMPSParams(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing LUMPS parameters
         """
-        # Add all attributes
-        cols = {("gridiv", "0"): grid_id}
-        for attr in ["raincover", "rainmaxres", "drainrt", "veg_type"]:
-            field_val = getattr(self, attr)
-            val = field_val.value if isinstance(field_val, RefValue) else field_val
-            cols[(attr, "0")] = val
-
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "LUMPSParams":
@@ -3390,11 +3368,9 @@ class SiteProperties(DataModelBase):
 
         return values
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert site properties to DataFrame state format"""
-        # simple attributes
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {("gridiv", "0"): grid_id}
-        for var in [
+        for var in (
             "lat",
             "lng",
             "alt",
@@ -3409,51 +3385,36 @@ class SiteProperties(DataModelBase):
             "n_buildings",
             "h_std",
             "lambda_c",
-        ]:
+        ):
             field_val = getattr(self, var)
             val = field_val.value if isinstance(field_val, RefValue) else field_val
-
-            # Handle TimezoneOffset enum
             if var == "timezone" and isinstance(val, TimezoneOffset):
-                val = val.value  # Get the float value from the enum
+                val = val.value
+            cols[(var, "0")] = val
 
-            cols[(f"{var}", "0")] = val
+        for sub in (
+            self.lumps,
+            self.spartacus,
+            self.conductance,
+            self.irrigation,
+            self.anthropogenic_emissions,
+            self.snow,
+            self.land_cover,
+            self.vertical_layers,
+            self.stebbs,
+            self.building_archetype,
+        ):
+            merge_df_state_cols(cols, sub._to_df_state_cols(grid_id))
 
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
-        # complex attributes
-        df_lumps = self.lumps.to_df_state(grid_id)
-        df_spartacus = self.spartacus.to_df_state(grid_id)
-        df_conductance = self.conductance.to_df_state(grid_id)
-        df_irrigation = self.irrigation.to_df_state(grid_id)
-        df_anthropogenic_emissions = self.anthropogenic_emissions.to_df_state(grid_id)
-        df_snow = self.snow.to_df_state(grid_id)
-        df_land_cover = self.land_cover.to_df_state(grid_id)
-        df_vertical_layers = self.vertical_layers.to_df_state(grid_id)
-        df_stebbs = self.stebbs.to_df_state(grid_id)
-        df_building_archetype = self.building_archetype.to_df_state(grid_id)
-
-        dfs_to_concat = [
-            df_state,
-            df_lumps,
-            df_spartacus,
-            df_conductance,
-            df_irrigation,
-            df_anthropogenic_emissions,
-            df_snow,
-            df_land_cover,
-            df_vertical_layers,
-            df_stebbs,
-            df_building_archetype,
-        ]
-
-        # Optional soil observation config (only when SMDMethod > 0)
         if self.soil_observation is not None:
-            df_soil_obs = self.soil_observation.to_df_state(grid_id)
-            dfs_to_concat.append(df_soil_obs)
+            merge_df_state_cols(cols, self.soil_observation._to_df_state_cols(grid_id))
+        return cols
 
-        df_state = pd.concat(dfs_to_concat, axis=1)
-        return df_state
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert site properties to DataFrame state format"""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "SiteProperties":
@@ -3541,14 +3502,14 @@ class Site(DataModelBase):
         description="Initial conditions for model state variables",
     )
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = {("gridiv", "0"): grid_id}
+        merge_df_state_cols(cols, self.properties._to_df_state_cols(grid_id))
+        merge_df_state_cols(cols, self.initial_states._to_df_state_cols(grid_id))
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site to DataFrame state format"""
-        df_state = df_from_cols(
-            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
         )
-        df_site_properties = self.properties.to_df_state(grid_id)
-        df_initial_states = self.initial_states.to_df_state(grid_id)
-        df_state = pd.concat([df_state, df_site_properties, df_initial_states], axis=1)
-        # Drop duplicate columns while preserving first occurrence
-        df_state = df_state.loc[:, ~df_state.columns.duplicated(keep="first")]
-        return df_state

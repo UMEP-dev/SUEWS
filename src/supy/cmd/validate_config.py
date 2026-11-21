@@ -94,6 +94,9 @@ except ImportError:
 # Sentinel used by the critical-physics-presence check below; module-level
 # so identity comparison stays stable across calls.
 _PHYSICS_KEY_MISSING = object()
+# Capture the default function object so monkeypatching ``check_migration_needed``
+# in tests still calls the patched 1-argument callable directly.
+_DEFAULT_CHECK_MIGRATION_NEEDED = check_migration_needed
 
 console = Console()
 
@@ -117,7 +120,6 @@ def validate_single_file(
         # Load configuration
         with open(file_path, "r", encoding="utf-8") as f:
             config = safe_load_yaml(f)
-        flatten_physics_in_config(config)
 
         target_is_current = (
             schema_version is None or schema_version == CURRENT_SCHEMA_VERSION
@@ -125,19 +127,30 @@ def validate_single_file(
 
         # Only flag migration pressure when validating against the current
         # schema. An explicit older target version is a schema-only check.
-        if target_is_current and check_migration_needed(str(file_path)):
-            if ValidationError:
-                errors.append(
-                    ValidationError(
-                        code=ErrorCode.SCHEMA_VERSION_MISMATCH,
-                        message="Configuration uses old schema version and may need migration",
-                        location=str(file_path),
-                    )
+        # Reuse the already-parsed document before flattening when the default
+        # helper is active, avoiding a duplicate full YAML parse.
+        if target_is_current:
+            if check_migration_needed is _DEFAULT_CHECK_MIGRATION_NEEDED:
+                needs_migration = check_migration_needed(
+                    str(file_path), _parsed_config=config
                 )
             else:
-                errors.append(
-                    "Configuration uses old schema version and may need migration"
-                )
+                needs_migration = check_migration_needed(str(file_path))
+            if needs_migration:
+                if ValidationError:
+                    errors.append(
+                        ValidationError(
+                            code=ErrorCode.SCHEMA_VERSION_MISMATCH,
+                            message="Configuration uses old schema version and may need migration",
+                            location=str(file_path),
+                        )
+                    )
+                else:
+                    errors.append(
+                        "Configuration uses old schema version and may need migration"
+                    )
+
+        flatten_physics_in_config(config)
 
         # Validate against schema
         validator = jsonschema.Draft7Validator(schema)

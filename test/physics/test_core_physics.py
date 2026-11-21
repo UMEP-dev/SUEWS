@@ -25,7 +25,11 @@ import numpy as np
 import pytest
 from test_option_sweep import water_balance_residual_mm
 
-pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-BALANCE", "C-RESPONSE"),
+]
 
 
 class TestPhysicalValidation(TestCase):

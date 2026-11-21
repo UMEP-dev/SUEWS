@@ -14,7 +14,11 @@ import yaml
 from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-VALID", "C-EMIT")]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-EMIT"),
+]
 
 # (path inside sites[0], field, default when omitted)
 CASES = [

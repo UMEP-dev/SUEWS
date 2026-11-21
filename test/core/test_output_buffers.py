@@ -40,7 +40,10 @@ from supy._run_rust import (
 
 # ruff: enable[import-private-name]
 
-pytestmark = [pytest.mark.physics, pytest.mark.contract("C-OUTPUT", "C-ISOLATION", "C-RESTART")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.contract("C-OUTPUT", "C-ISOLATION", "C-RESTART"),
+]
 
 _run_rust = import_module("supy._run_rust")
 

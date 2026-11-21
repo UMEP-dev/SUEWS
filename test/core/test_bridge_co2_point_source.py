@@ -11,7 +11,12 @@ import yaml
 from supy import SUEWSSimulation
 
 _run_rust = import_module("supy._run_rust")
-pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.rust, pytest.mark.contract("C-BIND")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.rust,
+    pytest.mark.contract("C-BIND"),
+]
 
 
 _OBSERVED_QF = np.linspace(10.0, 32.0, 12)

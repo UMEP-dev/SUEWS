@@ -21,7 +21,10 @@ import pytest
 import supy as sp
 from supy.data_model.core.model import StorageHeatMethod
 
-pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE", "C-RESTART", "C-ISOLATION")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.contract("C-RESPONSE", "C-RESTART", "C-ISOLATION"),
+]
 
 ANOHM_METHOD = 3
 OHM_METHOD = 1

@@ -5,7 +5,11 @@ import numpy as np
 import pytest
 from supy import SUEWSSimulation
 
-pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE", "C-BIND")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-RESPONSE", "C-BIND"),
+]
 
 # SPARTACUS radiation_constants.F90, in W m-2 K-4.
 STEFAN_BOLTZMANN = 5.67037321e-8

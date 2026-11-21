@@ -19,7 +19,11 @@ import yaml
 from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-EMIT", "C-ROUNDTRIP")]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-EMIT", "C-ROUNDTRIP"),
+]
 
 OCCUPANCY_FIELDS = (
     "hhs0",

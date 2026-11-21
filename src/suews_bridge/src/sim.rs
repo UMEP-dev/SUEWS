@@ -1448,7 +1448,7 @@ pub fn run_simulation_into(
     })
 }
 
-// contract: C-STRICT, C-NATIVE-ERROR, C-OUTPUT
+// contract: C-STRICT, C-NATIVE-ERROR, C-OUTPUT, C-RESTART
 #[cfg(test)]
 mod tests {
     use super::{

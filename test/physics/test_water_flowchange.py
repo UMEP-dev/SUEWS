@@ -4,7 +4,10 @@ from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE", "C-CLOCK", "C-BIND")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.contract("C-BALANCE", "C-RESPONSE", "C-CLOCK", "C-BIND"),
+]
 
 
 def _run_flow(make_sim, flow, snow_use, tstep):

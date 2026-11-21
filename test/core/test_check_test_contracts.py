@@ -238,5 +238,6 @@ def test_repository_tree_is_fully_tagged():
     """Every test file declares known contracts without scan or registry errors."""
     report = checker.check_tree(Path(__file__).resolve().parents[2])
     assert not (report["untagged"] or report["unknown_ids"] or report["errors"]), (
-        "Test-contract tags must reference test/contracts.yml.\n" + checker.render_report(report)
+        "Test-contract tags must reference test/contracts.yml.\n"
+        + checker.render_report(report)
     )

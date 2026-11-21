@@ -10,7 +10,11 @@ from threading import Barrier
 
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-NATIVE-ERROR", "C-ISOLATION")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-NATIVE-ERROR", "C-ISOLATION"),
+]
 
 
 @pytest.fixture(scope="module")

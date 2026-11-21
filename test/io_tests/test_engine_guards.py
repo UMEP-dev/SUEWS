@@ -15,7 +15,11 @@ import yaml
 from supy.data_model import SUEWSConfig
 
 _run_rust = import_module("supy._run_rust")
-pytestmark = [pytest.mark.physics, pytest.mark.api, pytest.mark.contract("C-STRICT", "C-FORCING", "C-NATIVE-ERROR")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.api,
+    pytest.mark.contract("C-STRICT", "C-FORCING", "C-NATIVE-ERROR"),
+]
 
 
 def _locate_suews_engine() -> Path:

@@ -1,5 +1,4 @@
 #![cfg(feature = "physics")]
-// contract: C-BIND, C-EMIT, C-WARMSTART
 //! Exhaustive discrete Jacobian, slot-ownership, delta-fidelity, and
 //! NaN-poison integration tests for `EngineYAML -> RunConfig` loading in
 //! `suews_bridge::yaml_config`.
@@ -45,6 +44,7 @@
 //!    cross-facet overwrite, swapping two 1-to-1 fields, introducing a
 //!    non-unit/zeroed delta, leaking a baseline or perturbation `NaN`, or
 //!    corrupting a batched probe fails the invariant checker immediately.
+// contract: C-BIND, C-EMIT, C-WARMSTART
 
 use rayon::prelude::*;
 use serde_yaml::Value;

@@ -1,4 +1,3 @@
-// contract: C-CAPI
 //! Hand-maintained typed Fortran C-API field-binding observer tests (gh#2096).
 //!
 //! For every unpacked Fortran C-API type across all 49 `bridge-manifest.json`
@@ -19,6 +18,7 @@
 //!    sentinel value(s) at the exact expected Fortran indices and bounds, AND
 //!    that every other component holds its own distinct sentinel (catching
 //!    swaps, drops, clobbers, TOC misrouting, and array-stride transposes).
+// contract: C-CAPI, C-CODEC, C-SCHEMA
 
 use std::collections::{BTreeMap, BTreeSet};
 

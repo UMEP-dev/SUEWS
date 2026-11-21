@@ -162,15 +162,19 @@ The bridge marshals data between Fortran flat arrays and typed Rust structs:
 
 ## C-API field-binding observer
 
-`.github/workflows/rust-capi-observer.yml` (`#2096` / `#2123`) is currently an
-advisory standalone workflow on `pull_request` (branch protection requires only
-`PR build validation` in `.github/workflows/build-publish_to_pypi.yml`) and
-also triggers on `merge_group`. Its `pull_request.paths` filter lists
-`src/suews_bridge/**`, `src/suews/src/**`, `src/suews/ext_lib/**`,
-`src/suews/Makefile`, `src/suews/Makefile.deps`, `src/suews/Makefile.gfortran`,
-`scripts/suews/gen_capi_field_observer.py`, and
-`.github/workflows/rust-capi-observer.yml`
-[fact: git grep -n "pull_request:\|merge_group:\|Makefile\|rust-capi-observer.yml" .github/workflows/rust-capi-observer.yml && git grep -n "PR build validation" .github/workflows/build-publish_to_pypi.yml].
+The [parent build workflow](../../../.github/workflows/build-publish_to_pypi.yml)
+(`#2144`) calls the reusable
+[observer workflow](../../../.github/workflows/rust-capi-observer.yml) for
+`pull_request` and `merge_group` when the
+[`rust_capi_observer` path filter](../../../.github/path-filters.yml) matches.
+It passes the merge-group head SHA (or `github.sha`) to the child. The parent's
+`PR build validation` job depends on `rust_capi_observer` and passes its result
+and changed flag to [pr-gate.sh](../../../.github/scripts/pr-gate.sh), whose
+`check_path_filtered_producer` enforces success when the filter matches.
+The standalone observer retains its path-filtered `pull_request` trigger; it
+has no standalone `merge_group` trigger. Merge-queue enforcement comes through
+the parent, not the standalone run
+[fact: git grep -n "rust_capi_observer:\|RUST_CAPI_OBSERVER\|head_sha:" .github/workflows/build-publish_to_pypi.yml .github/scripts/pr-gate.sh && git grep -n "pull_request:\|workflow_call:\|merge_group:" .github/workflows/rust-capi-observer.yml].
 It checks that every Rust encoder and Fortran `c_api/*_unpack` routine delivers
 globally distinct sentinels to the exact named Fortran kernel component rather
 than relying on `*_shadow` or `*_pack` round trips.
@@ -201,6 +205,12 @@ than relying on `*_shadow` or `*_pack` round trips.
   (`non_unpacked_types_inventory_and_codecs`), and 1 truncated-buffer rejection
   check (`observer_rejects_truncated_flat_buffer`)
   [fact: python3 scripts/suews/gen_capi_field_observer.py --check && git grep -c "^#\[test" src/suews_bridge/tests/capi_field_observer.rs].
+  Thus 42 types have live receiver coverage (30 direct + 8 nested + 4 driver
+  aggregates); the 7 non-unpacked types have inventory/schema/default/codec
+  checks, not live receiver evidence
+  [fact: inspect `manifest_covers_all_49_bridged_types_with_zero_gaps` and
+  `non_unpacked_types_inventory_and_codecs` in
+  [the harness](../../../src/suews_bridge/tests/capi_field_observer.rs)].
 - **Regenerate and verify** after changing any bridged Fortran `TYPE`,
   `c_api/*_unpack` routine, Rust struct/codec, or `bridge-manifest.json` entry
   (update `tests/capi_field_observer.rs` as well if struct fields or bridged

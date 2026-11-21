@@ -382,6 +382,40 @@ def test_wrong_container_types_are_reported(tree, capsys, name, keys, value):
     assert any(r["ledger"] == "J1" for r in checker.extract_records(tree)[0])
 
 
+@pytest.mark.parametrize(
+    "name, constant",
+    [
+        (checker.OBSERVER, "REVIEWED_UNBRIDGED_COMPONENTS"),
+        (checker.OBSERVER, "REVIEWED_DRIVER_EXCLUDED_COMPONENTS"),
+        ("test/data_model/test_legacy_table_roundtrip.py", "_MLM_ALLOWED"),
+    ],
+)
+def test_wrong_python_constant_types_are_reported(tree, capsys, name, constant):
+    path = tree / name
+    source = path.read_text(encoding="utf-8")
+    module = ast.parse(source)
+    node = next(
+        item
+        for item in module.body
+        if isinstance(item, (ast.Assign, ast.AnnAssign))
+        and any(
+            isinstance(target, ast.Name) and target.id == constant
+            for target in (
+                item.targets if isinstance(item, ast.Assign) else [item.target]
+            )
+        )
+    )
+    lines = source.splitlines(keepends=True)
+    lines[node.lineno - 1 : node.end_lineno] = [f"{constant} = []\n"]
+    path.write_text("".join(lines), encoding="utf-8")
+    assert checker.main(["--root", str(tree), "--report"]) == 0
+    diagnostic = capsys.readouterr().out.split("## Errors", 1)[1]
+    assert name in diagnostic
+    assert constant in diagnostic
+    assert "must be a mapping" in diagnostic
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+
+
 def test_unrelated_repeated_assignments_are_allowed(tmp_path):
     (tmp_path / "ledger.py").write_text(
         'OTHER = []\nDEPENDENCY = {"old"}\n'

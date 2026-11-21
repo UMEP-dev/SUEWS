@@ -362,7 +362,7 @@ def _observer_records(root):
     expected = Counter()
     records = []
     for name, entries in values.items():
-        for (table, field), reason in entries.items():
+        for (table, field), reason in _container(entries, dict, OBSERVER, name).items():
             records.append(_record("O", f"{table}.{field}", OBSERVER))
             expected[table, field, reason] += 1
             if name == "REVIEWED_UNBRIDGED_COMPONENTS":
@@ -419,7 +419,7 @@ def _python_ledger_records(root):
         if ledger == "T2":
             keys = [
                 f"{version}/{field}"
-                for version, fields in values.items()
+                for version, fields in _container(values, dict, path, name).items()
                 for field in fields
             ]
         else:

@@ -49,6 +49,9 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 |   |-- lint-code/         # Operation: static style and contract linters
 |   |-- verify-build/      # Operation: build graph and packaging checks
 |   |-- audit-docs/        # Operation: docs ASCII + bib topic-tag checks
+|   |-- exercise-docs/     # Operation: compile pages, run journeys, draft findings
+|   |   |-- SKILL.md
+|   |   `-- references/    # Record format, illustrative example and pilot
 |   |-- log-changes/       # Operation: CHANGELOG management
 |   `-- suews/             # User-facing simulation skill (bundled into plugins/suews/)
 |
@@ -109,8 +112,12 @@ Subagent frontmatter uses `color:` (never `colour:`) and omits `model:` so subag
 Skills run on demand and perform multi-step workflows or atomic checks when invoked via `/skill-name`:
 
 - **Workflow skills (orchestrators)**: `/fix-issue`, `/triage-issue`, `/triage-pr`, `/audit-pr`, `/split-pr`, `/queue-pr`, `/prep-release`, `/republish-docs`.
-- **Operation skills (building blocks)**: `/lint-code`, `/verify-build`, `/audit-docs`, `/log-changes`.
+- **Operation skills (building blocks)**: `/lint-code`, `/verify-build`, `/audit-docs`, `/exercise-docs`, `/log-changes`.
 - **User-facing plugin skill**: `/suews` (packaged into `plugins/suews/` via `make plugin`, verified by `test/mcp/test_packaging_manifests.py`).
+
+`/exercise-docs` is a manual, findings-only compile -> run -> diagnose procedure;
+see `.claude/skills/exercise-docs/SKILL.md` for its approved design and gates.
+[decision: software maintainer, 2026-11-21]
 
 For whole-repository or subsystem audits at a pinned SHA (as distinct from `/audit-pr` diff review), follow `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`.
 
@@ -134,6 +141,13 @@ prep-release (release workflow)
 
 republish-docs (docs workflow)
   `-- docs-sync + release-docs-anchor  (move tag to a clean anchor)
+
+exercise-docs (manual, findings only; procedure: Principle 1)
+  |-- optional API triage              (hand-written pages, capped included credit)
+  |-- independent page compiles       (quoted steps + assertions; cached)
+  |-- machine run                     (fresh execution environment)
+  |-- diagnose + draft report         (never repair or post)
+  `-- code-text targets               (handoff to #2168 checker)
 
 pre-commit-check.sh (PreToolUse on git commit)
   |-- ruff check + ruff format --check (staged Python)

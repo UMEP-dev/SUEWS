@@ -42,15 +42,40 @@ def _state_to_object(value: str) -> Any:
     return json.loads(value)
 
 
+def _format_duplicate_grid_key_error(
+    grid_id: int,
+    first_key: Any,
+    second_key: Any,
+) -> str:
+    """Format an actionable error for two distinct keys sharing a grid ID."""
+    first_text = ascii(first_key)
+    second_text = ascii(second_key)
+    if first_text == second_text:
+        first_text = f"{type(first_key).__name__}({first_text})"
+        second_text = f"{type(second_key).__name__}({second_text})"
+    return (
+        f"Duplicate checkpoint grid ID after normalisation: {grid_id} "
+        f"(keys {first_text} and {second_text})"
+    )
+
+
 def _normalise_grid_states(grid_states: Mapping[Any, Any]) -> dict[int, str]:
     if not grid_states:
         raise ValueError("SUEWSCheckpoint requires at least one grid state.")
 
     normalised: dict[int, str] = {}
+    seen_keys: dict[int, Any] = {}
     for grid_id, state in grid_states.items():
         public_id = int(grid_id)
         if public_id in normalised:
-            raise ValueError(f"Duplicate checkpoint grid ID after normalisation: {public_id}")
+            raise ValueError(
+                _format_duplicate_grid_key_error(
+                    public_id,
+                    seen_keys[public_id],
+                    grid_id,
+                )
+            )
+        seen_keys[public_id] = grid_id
         normalised[public_id] = _state_to_json(state)
     return normalised
 

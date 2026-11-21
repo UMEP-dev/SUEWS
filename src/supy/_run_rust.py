@@ -14,6 +14,8 @@ import json
 
 import yaml
 
+from .suews_checkpoint import _format_duplicate_grid_key_error
+
 # Use C-based YAML dumper when available (5-10x faster than pure Python)
 _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
@@ -1127,11 +1129,15 @@ def _check_state_grid_ids(
 
 def _normalise_state_grid_ids(states: dict[Any, str]) -> dict[int, str]:
     """Normalise public restart keys without silently discarding aliases."""
-    normalised = {}
+    normalised: dict[int, str] = {}
+    seen_keys: dict[int, Any] = {}
     for key, state in states.items():
         grid_id = _normalise_grid_id(key)
         if grid_id in normalised:
-            raise ValueError(f"Duplicate checkpoint grid ID after normalisation: {grid_id}")
+            raise ValueError(
+                _format_duplicate_grid_key_error(grid_id, seen_keys[grid_id], key)
+            )
+        seen_keys[grid_id] = key
         normalised[grid_id] = state
     return normalised
 

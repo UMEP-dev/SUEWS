@@ -121,17 +121,11 @@ print("Site properties configured")
 # Load meteorological observations from the US-AR1 site.
 # The forcing file contains hourly observations for 2010.
 #
-# .. warning::
-#
-#    The bundled file still contains populated legacy ``xsmd`` values and
-#    currently fails at ``update_forcing()``. Migration to ``sm`` (kg |m^-2|)
-#    requires the original soil-moisture unit and represented layer bounds;
-#    see :ref:`units_migration_observed_soil`.
-#    The historical tutorial cites the `AmeriFlux US-AR1 dataset
-#    <https://doi.org/10.17190/AMF/1246137>`_, but does not document how its
-#    soil observations became ``xsmd``. AmeriFlux defines ``SWC`` as volumetric
-#    percent; this alone does not establish the unit of the processed file
-#    or its layer bounds. These must be resolved before conversion.
+# The ``xsmd`` column is left missing (``-999``) because its unit and
+# represented soil-layer depth are undocumented; no conversion is assumed.
+# This tutorial uses the sample configuration's
+# ``model.physics.soil_moisture: modelled`` option, so it does not require
+# observed soil moisture. See :ref:`units_migration_observed_soil`.
 #
 # .. note::
 #

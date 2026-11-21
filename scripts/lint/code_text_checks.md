@@ -27,8 +27,15 @@ Start at `supy.__all__`, recursively follow exported modules, and inspect export
 callables and public class methods. Where a module has no `__all__`, use its
 module-level definitions and re-exports. Private implementation module names
 never exclude a re-exported object. Constants and properties have no callable
-signature and are outside parameter checks. Aliases are reported at each public
-exposure. Missing exports and unresolved source declarations are unsupported.
+signature and are outside parameter checks. Function and class aliases are
+reported at each public exposure. Public class members are checked once at their
+defining class, including members reached through a subclass whose parent is not
+exported. Members defined by classes outside `supy` are excluded before checks
+run. The report's `excluded_out_of_scope` summary gives their count and reasons;
+the CLI prints it as one summary line, with no per-member findings. This count
+measures excluded member exposures, so a third-party method inherited by several
+exported classes contributes once per exposure. Missing exports and unresolved
+source declarations remain unsupported.
 
 Use numpydoc 1.9.0's `FunctionDoc` and `Validator.parameter_mismatches`, selecting
 PR01 (missing documented parameters) and PR02 (unknown documented parameters).
@@ -38,7 +45,7 @@ normalises comma spacing in grouped names and initialises only the validator
 fields used by parameter checks, avoiding its general installed-docstring reader.
 Signature resolution is checked first
 because numpydoc itself treats introspection failure as an empty signature.
-Decorated, overloaded, inherited and generated constructor signatures are
+Decorated, overloaded and generated or inherited constructor signatures are
 reported as unsupported rather than assumed to match.
 
 ## Bounded prose grammar

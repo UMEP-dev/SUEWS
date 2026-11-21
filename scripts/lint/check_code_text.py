@@ -233,11 +233,40 @@ def exported_names(tree: ast.Module) -> list[str]:
     return [name for name in names if not name.startswith("_")]
 
 
+def class_members(
+    obj: type, seen: set[tuple[type, str]], excluded: Counter
+) -> Iterator[tuple[str, object]]:
+    """Resolve ownership before exposing a member to any text check."""
+    for member in sorted(dir(obj)):
+        if member.startswith("_"):
+            continue
+        raw = inspect.getattr_static(obj, member)
+        target = raw.__func__ if isinstance(raw, staticmethod | classmethod) else raw
+        if not callable(target):
+            continue
+        owner = next(cls for cls in obj.__mro__ if member in vars(cls))
+        if not (owner.__module__ == "supy" or owner.__module__.startswith("supy.")):
+            excluded["member defined outside supy"] += 1
+            continue
+        key = (owner, member)
+        if key in seen:
+            continue
+        seen.add(key)
+        definition = f"{owner.__module__}.{owner.__qualname__}.{member}"
+        yield definition, target
+
+
 def public_objects(
-    revision: Revision, module: ModuleType, seen: set[str] | None = None
+    revision: Revision,
+    module: ModuleType,
+    seen: set[str] | None = None,
+    members_seen: set[tuple[type, str]] | None = None,
+    excluded: Counter | None = None,
 ) -> Iterator[tuple[str, object, Source, str | None]]:
-    """Walk exported modules and class callables, including inherited members."""
+    """Walk exports, excluding external members and visiting owned definitions once."""
     seen = set() if seen is None else seen
+    members_seen = set() if members_seen is None else members_seen
+    excluded = Counter() if excluded is None else excluded
     if module.__name__ in seen or module.__name__ not in revision.modules:
         return
     seen.add(module.__name__)
@@ -262,29 +291,23 @@ def public_objects(
             yield public, None, anchor, f"export lookup failed: {type(exc).__name__}"
             continue
         if isinstance(obj, ModuleType):
-            yield from public_objects(revision, obj, seen)
+            yield from public_objects(revision, obj, seen, members_seen, excluded)
         elif callable(obj):
             yield public, obj, anchor, None
             if inspect.isclass(obj):
-                for member in sorted(dir(obj)):
-                    if member.startswith("_"):
-                        continue
-                    raw = inspect.getattr_static(obj, member)
-                    target = (
-                        raw.__func__
-                        if isinstance(raw, staticmethod | classmethod)
-                        else raw
-                    )
-                    if callable(target):
-                        reason = "inherited member" if member not in vars(obj) else None
-                        yield f"{public}.{member}", target, anchor, reason
+                for definition, target in class_members(obj, members_seen, excluded):
+                    yield definition, target, anchor, None
         elif obj is None:
             yield public, None, anchor, "export unavailable"
 
 
-def python_results(revision: Revision, module: ModuleType) -> Iterator[dict]:
+def python_results(
+    revision: Revision, module: ModuleType, excluded: Counter | None = None
+) -> Iterator[dict]:
     """Check the exported Python surface without executing examples."""
-    for public, obj, anchor, initial_reason in public_objects(revision, module):
+    for public, obj, anchor, initial_reason in public_objects(
+        revision, module, excluded=excluded
+    ):
         reason = initial_reason
         try:
             source = revision.locate(obj)
@@ -564,7 +587,10 @@ def main() -> None:
     version = importlib.import_module("supy._version_scm")
     installed_commit = getattr(version, "__commit_hash__", "unknown")
 
-    findings = list(python_results(revision, supy)) + list(cli_results(revision, cli))
+    excluded = Counter()
+    findings = list(python_results(revision, supy, excluded)) + list(
+        cli_results(revision, cli)
+    )
     counts = Counter(f["status"] for f in findings)
     report = {
         "revision": revision.sha,
@@ -572,6 +598,10 @@ def main() -> None:
         "installed_commit": installed_commit,
         "installed_matches_revision": revision.sha.startswith(installed_commit),
         "counts": {status: counts[status] for status in STATUSES},
+        "excluded_out_of_scope": {
+            "count": sum(excluded.values()),
+            "reasons": dict(sorted(excluded.items())),
+        },
         "results": findings,
         "mismatches": [f for f in findings if f["status"] == "mismatch"],
     }
@@ -580,6 +610,7 @@ def main() -> None:
         encoding="utf-8",
     )
     print(json.dumps(report["counts"]))
+    print("excluded_out_of_scope: " + json.dumps(report["excluded_out_of_scope"]))
 
 
 if __name__ == "__main__":

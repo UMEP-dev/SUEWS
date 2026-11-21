@@ -1,6 +1,7 @@
 """Contract tests for the reporting-only static code-text checker."""
 
 import ast
+from collections import Counter
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -203,7 +204,7 @@ def test_export_scope_includes_private_implementation():
     names = {name for name, _, _, _ in checks.public_objects(revision, supy)}
     assert "supy.util.attribute_t2" in names
     assert "supy.SUEWSSimulation" in names
-    assert "supy.data_model.SUEWSConfig.from_yaml" in names
+    assert "supy.data_model.core.config.SUEWSConfig.from_yaml" in names
 
 
 def test_revision_source_survives_worktree_edit(tmp_path):
@@ -236,7 +237,7 @@ def test_revision_source_survives_worktree_edit(tmp_path):
 
 
 def test_source_fixture_reports_unsupported_and_literal_default(tmp_path):
-    """Decorators, overloads and inherited methods cannot masquerade as passes."""
+    """Unresolved declarations stay unsupported; owned inherited text is checked."""
     source = '''\
 __all__ = ["decorated", "overloaded", "Child", "literal_default"]
 def identity(func):
@@ -286,11 +287,72 @@ def literal_default(value=3):
     revision = checks.Revision(tmp_path, "HEAD")
     findings = list(checks.python_results(revision, module))
     by_key = {(f["object"], f["check"]): f for f in findings}
-    for name in ("decorated", "overloaded", "Child.method"):
+    for name in ("decorated", "overloaded"):
         assert by_key[f"supy.{name}", "parameters"]["status"] == "unsupported"
+    assert by_key["supy.Parent.method", "parameters"]["status"] == "mismatch"
     default = by_key["supy.literal_default", "default:value"]
     assert default["status"] == "mismatch"
     assert default["detail"] == {"declared": 3, "stated": 4}
     assert default["revision"] == revision.sha
     assert default["file"] == "src/supy/__init__.py"
     assert "Default: 4." in default["source"]
+
+
+def test_inherited_member_scope(tmp_path):
+    """External members vanish; shared supy definitions are checked exactly once."""
+    source = '''\
+from pydantic import BaseModel
+__all__ = ["Child", "Sibling", "Parent"]
+class Parent(BaseModel):
+    def owned(self, value):
+        """Accept a value.
+
+        Parameters
+        ----------
+        value : int
+            Value to accept.
+        """
+class Child(Parent):
+    """First exposure of inherited members."""
+class Sibling(Parent):
+    """Second exposure of inherited members."""
+'''
+    package = tmp_path / "src/supy"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text(source, encoding="utf-8")
+    for args in (
+        ["init", "-q"],
+        ["add", "."],
+        [
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+    ):
+        subprocess.run(
+            ["git", "-C", str(tmp_path), *args], check=True, capture_output=True
+        )
+    module = ModuleType("supy")
+    exec(compile(source, "fixture.py", "exec"), module.__dict__)
+    revision = checks.Revision(tmp_path, "HEAD")
+    excluded = Counter()
+    findings = list(checks.python_results(revision, module, excluded))
+    owned = [f for f in findings if f["object"] == "supy.Parent.owned"]
+    assert len(owned) == 1
+    assert owned[0]["status"] == "ok"
+    assert owned[0]["definition"] == "supy.Parent.owned"
+    assert "def owned(self, value)" in owned[0]["source"]
+    assert not any(f["object"].endswith(".model_dump") for f in findings)
+    assert not any(f["detail"].get("reason") == "inherited member" for f in findings)
+    external_per_class = sum(
+        not name.startswith("_")
+        and callable(getattr(module.Parent, name))
+        and name != "owned"
+        for name in dir(module.Parent)
+    )
+    assert excluded == {"member defined outside supy": 3 * external_per_class}
+    assert external_per_class > 0

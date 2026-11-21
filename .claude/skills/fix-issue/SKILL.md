@@ -100,15 +100,25 @@ skills directly.
 ### 2. Scope And Implement
 
 1. Map the issue to touched areas and read the relevant repo rules. If the fix
-   will touch `src/supy/data_model/`, read
-   `.claude/rules/python/schema-versioning.md` now and plan any
+   will touch `src/supy/data_model/` or `src/supy/sample_data/sample_config.yml`,
+   read `.claude/rules/python/schema-versioning.md` now and plan any
    `CURRENT_SCHEMA_VERSION` bump, `SCHEMA_VERSIONS` entry, `yaml_upgrade.py`
-   handler, `sample_config.yml` resync, and docs churn into the same change set.
-   Do not defer these to the audit stage; the `schema-version-audit.yml` CI gate
-   and `audit-pr` will otherwise bounce the PR back.
-2. Select supporting skills as needed:
+   handler, `sample_config.yml` resync, regenerated
+   `test/fixtures/sample_short/sample_config_short.yml`
+   (`python test/fixtures/sample_short/make_sample_short.py` -- required whenever
+   `sample_config.yml` changes so `test_sample_short_fixture.py` stays green),
+   and docs churn into the same change set. Do not defer these to the audit
+   stage; the `schema-version-audit.yml` CI gate and `audit-pr` will otherwise
+   bounce the PR back.
+2. Select supporting skills and specialist `.claude/agents/` reviewers as needed:
    - `suews` for configuration, simulation, validation, or diagnostics.
-   - `lint-code` for style and file-type conventions.
+   - `lint-code` for style, static contract linters, and file-type conventions.
+   - the `fortran-error-state-reviewer` agent (read-only) when the diff touches
+     Fortran (`src/suews/**/*.f9*` or `src/suews_bridge/c_api/**/*.f9*`), to
+     enforce `.claude/rules/fortran/error-reporting.md`.
+   - the `schema-migration-checker` agent (read-only) when the diff touches
+     `src/supy/data_model/` or `src/supy/sample_data/sample_config.yml`, to
+     confirm whether a bump is required and that all migration artefacts moved.
    - the `docs-reviewer` agent (drift mode, edits allowed) when the diff touches
      the user-facing surface: `src/supy/data_model/`, physics options, output or
      forcing registries, `src/supy/util/converter/`, the public API or CLI.
@@ -139,12 +149,21 @@ Run validation appropriate to the touched files, with `make test-smoke` as the
 pre-commit baseline. Escalate to the full `make test` when the fix touches test
 files, core physics modules, or `src/supy/data_model/` (per
 `.claude/rules/00-project-essentials.md`). Add targeted checks as needed:
-`pytest`, `ruff check`, `fprettify --diff`, the `docs-reviewer` agent,
-`verify-build`, or SUEWS validate/diagnose tools. If validation fails because
-of the fix, repair and rerun. If validation is blocked by environment setup,
-record a public-safe description of the blocker in the PR body, with any
-absolute local paths, host names, or internal references replaced by neutral
-phrasing (e.g. "the editable build step failed in the local toolchain").
+`pytest`, `ruff check`, `fprettify --diff`, `fortran-error-state-reviewer` (when
+Fortran changed), `schema-migration-checker` (when data-model YAML/Pydantic
+changed, plus `python test/fixtures/sample_short/make_sample_short.py` if
+`sample_config.yml` changed), the `docs-reviewer` agent, `verify-build`, or
+SUEWS validate/diagnose tools. If validation fails because
+of the fix, repair and rerun within the bound in
+`.claude/rules/autonomous-workflow.md` ("Checks"); at the bound, stop and report
+under `Remaining:`. Do not weaken a check to make it pass; what may change with
+the code, and what needs its own pull request, is in the same file ("Gates").
+If validation is blocked by environment setup, record a public-safe description
+of the blocker in the PR body, with any absolute local paths, host names, or
+internal references replaced by neutral phrasing (e.g. "the editable build step
+failed in the local toolchain").
+Before committing, apply the matched items of `dev-ref/REGRESSION_CHECKLIST.md`,
+read from the base branch.
 
 ### 4. Commit And Open/Update PR
 
@@ -171,9 +190,14 @@ phrasing (e.g. "the editable build step failed in the local toolchain").
    it unreliable). If any check fails, stop and escalate -- never push to or edit a
    branch/PR you do not own. Then push to `origin`.
 5. If the branch already has a PR you own, update the PR body when needed.
-   Otherwise create one with a concise title, issue link (`Fixes #<issue>` only
-   when the PR should close it; otherwise `Refs #<issue>`), fix summary,
-   validation status, and known limitations.
+   Otherwise create one with a concise, human-authored title (no AI branding)
+   and a description following `.claude/rules/pr-description.md` (`Fixes #<issue>`
+   only when merging closes it; otherwise `Refs #<issue>`, `## Why`,
+   `## What changed` with known limits, `## How to review`, PR-specific
+   `## Verification`, and any conditional section such as
+   `## Scientific evidence` or `## Numerical change` per
+   `.claude/rules/physics-change-evidence.md`). Format posted GitHub prose as
+   one line per paragraph.
 
 ### 5. Audit, Address, Re-Audit
 
@@ -183,10 +207,11 @@ recurring-signature check is the oscillation guard.
 
 1. Once a PR exists, run `audit-pr` as a private PR-readiness audit. It may draft
    comments, but do not post them without approval.
-2. Classify audit findings:
-   - valid blocking/major findings: fix them before PR-ready;
+2. Classify audit findings (`audit-pr` emits `blocking | major | minor | nit`):
+   - valid `blocking`/`major` findings: fix them before PR-ready;
    - broad or ambiguous findings: stop and ask for human judgement;
-   - minor or false-positive findings: record why they do not block;
+   - `minor`/`nit` findings or findings dismissed as `false-positive` (a consumer
+     disposition here): record why they do not block;
    - if `audit-pr`'s Size Gate recommends a split (the PR is oversized or
      bundled): stop the address-and-re-audit loop and hand off to `split-pr`
      rather than fixing findings against an unreviewable diff. This mirrors the
@@ -204,8 +229,9 @@ recurring-signature check is the oscillation guard.
    maximum of 3 iterations. The
    operative gate is whether any valid blocking/major finding remains, which the
    per-finding `[severity]` field reports: a `needs-attention` verdict carrying
-   only minor/false-positive findings still resolves to PR-ready once each is
-   recorded per step 5.2. If valid findings remain after the 3rd iteration, stop
+   only `minor`/`nit` findings (or findings dismissed as `false-positive`) still
+   resolves to PR-ready once each is recorded per step 5.2. If valid findings
+   remain after the 3rd iteration, stop
    with `Remaining` set to the persisting findings and do not call the PR ready.
 5. Exit early when a finding with an identical signature (same file/location plus
    same problem) recurs across two consecutive audits, or when a finding requires

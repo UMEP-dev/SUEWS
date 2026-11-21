@@ -13,11 +13,12 @@ Labels follow a four-tier hierarchy. Use no label outside it.
 - `2-*` area: one or more (`2-module:*`, `2-infra:*`, `2-doc:*`, `2-meta:*`).
 - `3-*` priority: exactly one on an open issue (`3-P0`, `3-P1`, `3-P2`).
 - `4-*` status: exactly one on an open issue (`4-ready`, `4-in-progress`,
-  `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-deferred`).
+  `4-needs-deps`, `4-needs-discussion`, `4-needs-science`, `4-needs-obs`,
+  `4-deferred`). [fact: gh label list -R UMEP-dev/SUEWS --search 4-needs-obs]
 
-`0-*` labels are automation and CI metadata (`0-physics:change`,
-`0-ci:schema-audit-ok`, `0-auto:audited`, `0-pr:*` and similar). Apply one only
-where a rule or skill calls for it; they do not count towards the four tiers.
+`0-*` labels are automation and CI metadata (`0-physics:change`, `0-numerics:change`, `0-ci:schema-audit-ok`, `0-auto:audited`, `0-pr:*` and similar).
+Apply one only where a rule or skill calls for it; they do not count towards the four tiers.
+Automation skills must check `gh label list` before applying optional `0-*` labels (`0-auto:*`, `0-pr:*`, `0-ci:*`, `0-physics:change`, `0-numerics:change`), skip any label not yet created by a maintainer, and never create missing labels. [decision: software maintainer, 2026-11-18]
 
 Untiered labels such as `design-sensitive`, `mechanical` and `hard-gate` were
 removed from the repository and must not be recreated or applied. Express what
@@ -27,10 +28,8 @@ checklist, not as a label.
 
 ## Pull requests
 
-A PR carries one `1-*` type and the `2-*` areas it touches, plus any `0-*` label
-its own rules require (for example `0-physics:change` when it moves model output
-or a reference fixture). Priority and status labels belong on the issue the PR
-addresses, not on the PR.
+A PR carries one `1-*` type and the `2-*` areas it touches, plus any `0-*` label its own rules require (for example `0-physics:change` or `0-numerics:change` when it moves model output or a reference fixture; see `.claude/rules/physics-change-evidence.md`). [decision: software maintainer, 2026-11-18]
+Priority and status labels belong on the issue the PR addresses, not on the PR.
 
 ## Keep status current
 

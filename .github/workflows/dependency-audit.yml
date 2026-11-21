@@ -12,6 +12,13 @@ on:
   schedule:
     - cron: '30 5 * * 1'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -20,6 +27,7 @@ jobs:
   audit:
     name: Audit Python dependency intake (${{ matrix.python }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Requirement markers select different pins per interpreter (pyarrow has
     # separate floors for 3.14 and 3.15), so audit the set an existing
     # interpreter resolves and the one the newest supported CPython resolves.
@@ -31,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6

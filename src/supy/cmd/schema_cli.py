@@ -71,6 +71,10 @@ def read_yaml_file(file_path: Path) -> Tuple[dict, Optional[str]]:
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
+        if not isinstance(config, dict):
+            raise click.ClickException(
+                f"YAML file {file_path} must contain a mapping at top level"
+            )
         schema_version = config.get("schema_version")
         return config, schema_version
     except yaml.YAMLError as e:
@@ -269,6 +273,8 @@ def version(ctx, files, update, target_version, backup):
     if update:
         table.add_column("Action", style="yellow")
 
+    failures: list[tuple[str, str]] = []
+
     for file_path in files:
         path = Path(file_path)
 
@@ -307,6 +313,7 @@ def version(ctx, files, update, target_version, backup):
                 table.add_row(path.name, current_version, status)
 
         except Exception as e:
+            failures.append((path.name, str(e)))
             if update:
                 table.add_row(path.name, "Error", f"[red]✗ {str(e)}[/red]", "Skipped")
             else:
@@ -314,6 +321,12 @@ def version(ctx, files, update, target_version, backup):
 
     if not quiet:
         console.print(table)
+
+    if failures:
+        if quiet:
+            for name, message in failures:
+                click.echo(f"{name}: {message}", err=True)
+        ctx.exit(1)
 
 
 @cli.command()
@@ -338,7 +351,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
 
     Examples:
         suews schema migrate old_config.yml
-        suews schema migrate configs/*.yml --target-version 2.0 --output-dir migrated/
+        suews schema migrate configs/*.yml --output-dir migrated/
     """
     verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
@@ -346,7 +359,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     target = target_version or CURRENT_SCHEMA_VERSION
     output_path = Path(output_dir) if output_dir else None
 
-    if output_path:
+    if output_path and not dry_run:
         output_path.mkdir(parents=True, exist_ok=True)
 
     if not quiet:
@@ -355,6 +368,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
 
     migrator = SchemaMigrator()
     results = []
+    failures: list[tuple[str, str]] = []
 
     for file_path in track(files, description="Migrating...", disable=quiet):
         path = Path(file_path)
@@ -372,12 +386,13 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                 ))
                 continue
 
-            # Perform migration
-            if not dry_run:
-                migrated = migrator.migrate(
-                    config, from_version=current_version, to_version=target
-                )
+            # Perform migration in memory first so --dry-run validates the
+            # migration path and transforms without touching disk.
+            migrated = migrator.migrate(
+                config, from_version=current_version, to_version=target
+            )
 
+            if not dry_run:
                 # Determine output path
                 if output_path:
                     out_file = output_path / path.name
@@ -413,6 +428,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                 ))
 
         except Exception as e:
+            failures.append((path.name, str(e)))
             results.append((path.name, "Error", f"[red]✗ {str(e)}[/red]"))
 
     # Display results
@@ -426,6 +442,12 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
             table.add_row(name, migration, status)
 
         console.print(table)
+
+    if failures:
+        if quiet:
+            for name, message in failures:
+                click.echo(f"{name}: {message}", err=True)
+        ctx.exit(1)
 
 
 @cli.command()
@@ -520,7 +542,7 @@ def info(ctx):
     console.print("  • Check version: [cyan]suews schema version config.yml[/cyan]")
     console.print("  • Validate configs: [cyan]suews validate config.yml[/cyan]")
     console.print(
-        "  • Migrate: [cyan]suews schema migrate old.yml --target-version 2.0[/cyan]"
+        f"  • Migrate: [cyan]suews schema migrate old.yml --target-version {CURRENT_SCHEMA_VERSION}[/cyan]"
     )
     console.print("  • Export schema: [cyan]suews schema export -o schema.json[/cyan]")
 

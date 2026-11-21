@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from functools import cache
 from importlib import import_module
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
@@ -934,16 +935,24 @@ class _KeptOutputStore:
         )
 
 
-def config_to_engine_yaml(config: SUEWSConfig) -> str:
-    """Return the resolved YAML the Rust engine receives for *config*.
+def _engine_config_dict(config: SUEWSConfig) -> dict:
+    """Validate and serialise the model for native execution."""
+    config.validate_for_engine()
+    return config.model_dump(exclude_none=True, mode="json")
 
-    This is the hand-off between the data model and the bridge: the validated
-    configuration, with every data-model default filled in, dumped exactly as
-    ``suews run`` and the library backend pass it to the engine. The
-    standalone ``suews-engine run`` binary expects input in this form (gh#2004).
+
+def config_to_engine_yaml(config: SUEWSConfig, *, for_file_output: bool = True) -> str:
+    """Return resolved YAML for standalone file execution or a buffer-only run.
+
+    For file execution, capture the current directory when the source omits
+    its output directory. Supplied paths keep their spelling. A buffer-only
+    run has no destination to resolve.
     """
+    data = _engine_config_dict(config)
+    if for_file_output and config.model.control.output.dir is None:
+        data["model"]["control"]["output"]["dir"] = str(Path.cwd())
     return yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
+        data,
         default_flow_style=False,
         sort_keys=False,
         Dumper=_yaml_Dumper,
@@ -967,7 +976,7 @@ def run_suews_rust(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = config_to_engine_yaml(config)
+    config_yaml = config_to_engine_yaml(config, for_file_output=False)
     forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
 
     df_output, state_json, raw_warnings = _run_grid_into(
@@ -1123,7 +1132,7 @@ def _grid_config_jsons(config: SUEWSConfig) -> tuple[list[int], list[str]]:
     legacy fused spellings (gh#1322), so the Pydantic dump is submitted
     verbatim.
     """
-    config_dict = config.model_dump(exclude_none=True, mode="json")
+    config_dict = _engine_config_dict(config)
     list_grid_ids = []
     list_config_jsons = []
     for site in config.sites:
@@ -1205,7 +1214,7 @@ def run_suews_rust_with_state(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = config_to_engine_yaml(config)
+    config_yaml = config_to_engine_yaml(config, for_file_output=False)
     forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
 
     df_output, new_state_json, raw_warnings = _run_grid_into(

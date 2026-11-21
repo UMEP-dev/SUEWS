@@ -2,6 +2,10 @@
 paths:
   - .github/workflows/**/*.yml
   - .github/workflows/**/*.yaml
+  - .github/actions/**/*
+  - .github/scripts/**/*
+  - .github/path-filters.yml
+  - .github/ci-metrics-needs.json
 ---
 
 # CI/GitHub Actions Conventions
@@ -129,12 +133,12 @@ Example of what NOT to do:
 ```yaml
 python:
   - 'src/supy/*.py'
-  - '!src/supy/_supy_driver_wrapper.py'   # BUG: matches ALL non-wrapper files
+  - '!src/supy/run_make.py'   # BUG: matches ALL non-run_make.py files
 ```
 
-The `!` pattern alone returns `true` for `.github/path-filters.yml`, `scripts/test.sh`, etc. -- any file that isn't `_supy_driver_wrapper.py`.
+The `!` pattern alone returns `true` for `.github/path-filters.yml`, `Makefile`, etc. -- any file that isn't `run_make.py`. [fact: git ls-files --error-unmatch src/supy/run_make.py]
 
-**Why `predicate-quantifier: 'every'` doesn't help:** This v3.0.2 option requires ALL patterns to match a file. It fixes negation for single-directory categories, but breaks multi-directory categories (a file in `src/supy/` would fail because it doesn't match `src/supy/dts/**`).
+**Why `predicate-quantifier: 'every'` doesn't help:** This v3.0.2 option requires ALL patterns to match a file. It fixes negation for single-directory categories, but breaks multi-directory categories (a file in `src/supy/` would fail because it doesn't match `src/supy/data_model/**`). [fact: git grep -n src/supy/data_model/ .github/path-filters.yml]
 
 See [dorny/paths-filter#184](https://github.com/dorny/paths-filter/issues/184) and [#97](https://github.com/dorny/paths-filter/issues/97).
 
@@ -146,13 +150,17 @@ Define each category with explicit positive patterns. Accept minor overlap betwe
 # In .github/path-filters.yml
 fortran:
   - 'src/suews/src/**'
-  - 'src/supy_driver/**'
-  - 'src/supy/_supy_driver_wrapper.py'  # also matches python -- harmless
+  - 'src/suews/ext_lib/**'
+  - 'src/supy/run_make.py'  # also matches python -- harmless
+
+rust:
+  - 'src/suews_bridge/src/**'
+  - 'src/suews_bridge/c_api/**'
 
 python:
-  - 'src/supy/*.py'    # includes _supy_driver_wrapper.py -- acceptable overlap
-  - 'src/supy/dts/**'
+  - 'src/supy/*.py'         # includes run_make.py -- acceptable overlap
   - 'src/supy/data_model/**'
+  - 'src/supy/cmd/**'
 ```
 
 Referenced from workflows as:
@@ -168,19 +176,20 @@ Referenced from workflows as:
 
 Categories are defined in `.github/path-filters.yml`:
 
-- **fortran** -- compiled extension source (triggers multiplatform build)
-- **python** -- pure Python source (single-platform build)
-- **util** -- utility modules (single-platform build)
-- **build** -- build system files: meson, env.yml (multiplatform build)
-- **pyproject** -- pyproject.toml (classified by content in workflow)
-- **ci** -- CI workflows and tooling (single-platform build)
-- **tests** -- test files (single-platform build)
+- **fortran** -- Fortran physics and extension source (triggers multiplatform build) [fact: git grep -n src/suews/ext_lib .github/path-filters.yml]
+- **rust** -- Rust FFI bridge, `bridge-manifest.json`, and `c_api` wrappers (`src/suews_bridge/src/**`, `src/suews_bridge/c_api/**`, `src/suews_bridge/bridge-manifest.json`, `Cargo.toml`, `Cargo.lock`, `build.rs`; triggers multiplatform build) [fact: git grep -n "bridge-manifest.json" .github/path-filters.yml]
+- **python** -- pure Python source and `mcp/**` (single-platform build) [fact: git grep -n "'mcp/" .github/path-filters.yml]
+- **util** -- utility modules (`src/supy/util/**`, single-platform build) [fact: git grep -n src/supy/util/ .github/path-filters.yml]
+- **build** -- build system files affecting wheel output: `meson.build`, `meson_options.txt`, `src/supy/meson.build`, `get_ver_git.py` (multiplatform build) [fact: git grep -n get_ver_git.py .github/path-filters.yml]
+- **pyproject** -- `pyproject.toml` (classified by content via `.github/scripts/classify_pyproject.py` in workflow) [fact: git grep -n classify_pyproject.py .github/workflows/build-publish_to_pypi.yml]
+- **ci** -- CI workflows, `.github/scripts/**`, `Makefile`, `scripts/lint/**`, `scripts/security/**`, `scripts/suews/**` (single-platform build) [fact: git grep -n scripts/lint/ .github/path-filters.yml]
+- **tests** -- test files (`test/**`, single-platform build) [fact: git grep -n "'test/" .github/path-filters.yml]
 - **docs** -- documentation source
 - **site** -- static site content
 
 ### Overlapping filter categories
 
-A single file can match multiple categories. The build decision logic ORs categories and picks the strictest platform requirement (fortran triggers multiplatform).
+A single file can match multiple categories. The build decision logic ORs categories and picks the strictest platform requirement (`fortran`, `rust`, and `build` trigger multiplatform). [fact: git grep -n FORTRAN_CHANGED.*RUST_CHANGED.*BUILD_CHANGED .github/scripts/determine-matrix.sh]
 
 ### Testing path filters locally
 
@@ -261,7 +270,7 @@ The main build workflow responds to these events:
 
 ### Docs-only changes skip wheel builds
 
-The `needs-build` condition includes `fortran`, `python`, `util`, `build`, `pyproject`, `ci`, and `tests` but NOT `docs` or `site`. Changes that only affect documentation paths do not trigger wheel builds. Docs are validated by the separate `pages-deploy.yml` workflow.
+The `needs-build` condition includes `fortran`, `rust`, `python`, `util`, `build`, `pyproject`, `ci`, and `tests` but NOT `docs` or `site`. [fact: git grep -n "RUST\" == \"true\"" .github/workflows/build-publish_to_pypi.yml] Changes that only affect documentation paths do not trigger wheel builds. Docs are validated by the separate `pages-deploy.yml` workflow.
 
 ### Release notes are not documentation
 
@@ -286,7 +295,7 @@ Test tiers control which pytest markers run during CI builds. Defined via pytest
 - **core** (`-m "(smoke or core) and not slow"`) -- core physics and logic, includes smoke (~2-3 min)
 - **cfg** (`-m "(smoke or cfg) and not slow"`) -- config/schema validation, includes smoke (~2-3 min)
 - **standard** (`-m "core or not slow"`) -- all non-slow tests plus essential core regressions (~5-10 min)
-- **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`.
+- **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics/numerics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 - **all** (no filter) -- full suite including slow tests (~15-30 min)
 
 Importance and cost are independent. The cost markers are defined by the CPU
@@ -311,27 +320,26 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 
 ### Draft pull requests (fastest feedback)
 
-- fortran changes: PR_PLATFORMS (3), test tier **core**
-- build-system changes: PR_PLATFORMS (3), test tier **cfg**
-- python / util / ci / tests: MINIMAL (1), test tier **smoke**
-- Python versions: BOOKEND (2)
+- `fortran` or `rust` changes: `PR_PLATFORMS` (3), test tier **core** [fact: git grep -n "Draft PR with fortran/rust changes" .github/scripts/determine-matrix.sh]
+- `build`-system changes: `PR_PLATFORMS` (3), test tier **cfg** [fact: git grep -n "Draft PR with build-system changes" .github/scripts/determine-matrix.sh]
+- `python` / `util` / `ci` / `tests`: `MINIMAL_PLATFORMS` (1), test tier **smoke** [fact: git grep -n "Draft PR with python/util/ci/tests changes" .github/scripts/determine-matrix.sh]
+- Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
 
 ### Ready (non-draft) pull requests
 
-- fortran or build-system: PR_PLATFORMS (3), test tier **standard**
-- python or util: MINIMAL (1), test tier **standard**
-- ci or tests only: MINIMAL (1), test tier **smoke**
-- Python versions: BOOKEND (2)
-- **`0-physics:change` label override (gh#1576)**: a ready PR carrying this label runs test tier **physics-full** instead, so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python.
+- `fortran`, `rust`, or `build`-system: `PR_PLATFORMS` (3), test tier **standard** [fact: git grep -n "Ready PR with fortran/build changes" .github/scripts/determine-matrix.sh]
+- `python` or `util`: `MINIMAL_PLATFORMS` (1), test tier **standard** [fact: git grep -n "Ready PR with python/util changes" .github/scripts/determine-matrix.sh]
+- `tests` or `ci` only: `MINIMAL_PLATFORMS` (1), test tier **standard** (so newly added or edited non-smoke unit/API/lint tests run on ready PRs rather than being deferred to the merge queue) [fact: git grep -n "Ready PR with tests changes" .github/scripts/determine-matrix.sh && git grep -n "Ready PR with ci-only changes" .github/scripts/determine-matrix.sh]
+- Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
+- **`0-physics:change` / `0-numerics:change` label override (gh#1576)**: a ready PR carrying either label forces `build_wheels` (even when `needs-build` is false) and runs test tier **physics-full**, requiring a green wheel build in `pr-gate` so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml]
 
 ### Merge queue (`merge_group`)
 
-Always: PR_PLATFORMS (3), the abi3 build floor (1 Python), test tier
-**standard**. No path-based differentiation -- the merge queue uses a fixed
-reduced matrix to validate the merge commit. Ready-PR CI has already exercised
-both Python bookends; the queue repeats the combined tree on the floor only.
+- Package, build, or CI changes (`fortran`, `rust`, `build`, `python`, `util`, or `ci`): `PR_PLATFORMS` (3), the abi3 build floor (1 Python), test tier **standard**. [fact: git grep -n "Merge queue validation - reduced platforms" .github/scripts/determine-matrix.sh]
+- Tests-only or other non-package changes across the queued group: `MINIMAL_PLATFORMS` (1, Linux x86_64), the abi3 build floor (1 Python), test tier **standard** -- wheels are byte-for-byte identical to what `master` already validated across OS families, so one Linux build runs the new tests while the nightly still covers every platform. [fact: git grep -n "tests-only change, minimal platform" .github/scripts/determine-matrix.sh]
+- Ready-PR CI has already exercised both Python bookends; the queue repeats the combined tree on the abi3 floor only. [fact: git grep -n 'API_PYTHON="$BUILD_PYTHON"' .github/scripts/determine-matrix.sh]
 
-**Exception (gh#1576):** when the queued PR carries `0-physics:change`, the merge queue runs test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from the queue ref and validated before the label is queried; if it cannot be identified (e.g. a batched group), the queue fails safe to **physics-full**.
+**Exception (gh#1576):** when the queued PR carries `0-physics:change` or `0-numerics:change`, the merge queue forces `build_wheels` on `PR_PLATFORMS` (3) with test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from `gh-readonly-queue/<base>/pr-<n>-<sha>` when `<sha>` matches `merge_group.base_sha` (a single-PR queue diff); if the queue ref spans multiple PRs or cannot be parsed, the queue fails safe to **physics-full**. [fact: git grep -n 'MERGE_PLATFORMS="$PR_PLATFORMS"' .github/scripts/determine-matrix.sh && git grep -n "ref_base_sha" .github/workflows/build-publish_to_pypi.yml]
 
 ### Nightly schedule / tag push
 
@@ -398,7 +406,7 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 
 **What merge queue covers:**
 
-- 3 platforms: Linux x86_64, macOS ARM64, Windows AMD64
+- 3 platforms (`PR_PLATFORMS`: Linux x86_64, macOS ARM64, Windows AMD64) when package, build, or CI paths changed; 1 platform (`MINIMAL_PLATFORMS`: Linux x86_64) when only tests or other non-package files changed across the queued group [fact: git grep -n 'MERGE_PLATFORMS="$MINIMAL_PLATFORMS"' .github/scripts/determine-matrix.sh]
 - 1 Python version: 3.12 (the abi3 floor and oldest supported)
 - standard test tier: all non-slow tests plus essential `core` regressions
 
@@ -406,7 +414,7 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 
 - macOS Intel x86_64 (legacy platform, declining user base)
 - Python 3.13, 3.14 and 3.15 (3.15 is covered by the ready-PR bookends; 3.13 and 3.14 by nightly/release CI)
-- non-core `slow` tests -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576)
+- non-core `slow` tests -- **except** for PRs labelled `0-physics:change` or `0-numerics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576) [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 
 **Rationale:** Full matrix (4 platforms x 4 Python = 16 jobs), or even
 repeating both bookends on all three queue platforms, duplicates work already
@@ -427,7 +435,7 @@ oldest supported Python; nightly and release CI retain cross-version coverage.
   including api tests on macOS Intel (`api_buildplat` = `buildplat` there).
 - If a nightly fails, the issue is visible in the Actions tab and can be addressed before the next release.
 
-**When to reconsider:** If a platform-specific bug reaches master via the merge queue and causes user impact before the nightly catches it, consider either adding macOS Intel to PR_PLATFORMS (increases merge queue from 6 to 8 jobs) or running the full matrix on merge queue for fortran-touching changes only.
+**When to reconsider:** If a platform-specific bug reaches master via the merge queue and causes user impact before the nightly catches it, consider either adding macOS Intel to `PR_PLATFORMS` (increases merge queue from 6 to 8 jobs) or running the full matrix on merge queue for `fortran`- or `rust`-touching changes only. [decision: software maintainer, 2026-11-17]
 
 ---
 
@@ -465,12 +473,14 @@ which the nightly restores nothing from but still saves, under "Build Caches".
 
 Only the genuine test tiers and the infrastructure they need. The alert
 watches exactly `report_scheduled_run`'s needs other than `cost_markers`, which
-it reads only for its drift count: `build_wheels`,
-`build_wheels_checked`, `test_api_cross_python`, `check_test_markers`,
-`build_mcp`, `create_nightly_tag` and `deploy_testpypi`. The matrix and tag
-jobs they depend on (`determine_matrix`, `detect-changes`,
-`verify-release-tag`) are not in that list, but a failure there skips the
-needed jobs, which reaches the alert as a non-success result.
+it reads only for its drift count: `create_nightly_tag`,
+`build_wheels` (which chains both the wheel build and the per-platform
+`api cross-CPython` lane inside `build-wheels-reusable.yml`),
+`build_wheels_checked`, `build_mcp`, `check_test_markers`, and
+`deploy_testpypi`. The matrix and tag jobs they depend on
+(`determine_matrix`, `detect-changes`, `verify-release-tag`) are not in that
+list, but a failure there skips the needed jobs, which reaches the alert as a
+non-success result. [fact: git grep -n "needs: \\[create_nightly_tag, build_wheels" .github/workflows/build-publish_to_pypi.yml]
 
 The recording jobs -- `tolerance_spread` and `cost_markers` -- carry
 `continue-on-error: true` and never count as a failure: neither feeds `pr-gate`,
@@ -498,9 +508,7 @@ jobs.
 A new check that costs more than a minute or two of runner time goes to the
 nightly first, as a recording job that never gates. Give it a PR-tier
 counterpart only when it must gate merges -- that is, when landing the failure
-it detects would be worse than the delay it adds to every PR. The physics tier
-is the worked example: `slow` physics tests run nightly, and gate a PR only
-through the `0-physics:change` label (gh#1576), never by default.
+it detects would be worse than the delay it adds to every PR. The physics tier is the worked example: `slow` physics tests run nightly, and gate a PR only through the `0-physics:change` or `0-numerics:change` label (gh#1576), never by default. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 
 The corollary is that the nightly's own reliability is a first-class concern.
 The verification criterion for this arrangement is thirty consecutive green
@@ -543,8 +551,8 @@ jobs:
 Use `github.event_name` and ref checks for event-specific behaviour:
 
 ```yaml
-- name: Upload release artifacts
-  if: startsWith(github.ref, 'refs/tags/v')
+- name: Upload release artefacts
+  if: startsWith(github.ref, 'refs/tags/20')
   uses: actions/upload-artifact@v4
 ```
 
@@ -558,8 +566,8 @@ When configuring repository rulesets, avoid using `~ALL` for tag protection patt
 
 **Better Approach:**
 
-- Protect specific production tag patterns (e.g., `v*` for releases)
-- Allow CI to create internal tags (e.g., `nightly-*`, `dev-*`)
+- Protect specific production CalVer tag patterns (e.g., `[0-9]*` release tags without a `v` prefix; SUEWS uses CalVer tags such as `2026.1.28`) [decision: software maintainer, 2026-11-17]
+- Allow CI workflows with explicit permissions to create internal dev tags (e.g., `YYYY.M.D.dev` / `*.dev*`) and keep plugin tags (`agent/v*`) separate [decision: software maintainer, 2026-11-17]
 - Test ruleset impact on automated workflows before enabling
 
 ---
@@ -705,6 +713,6 @@ check) renders as one entry already and needs no reusable workflow.
 
 ## Project-Specific Workflow Details
 
-For versioning strategy (nightly `.devN` builds, production tags), UMEP/QGIS compatibility (dual wheel builds), and merge queue behaviour, see the header comments in:
+For versioning strategy (nightly `.dev` builds, production CalVer tags), UMEP/QGIS compatibility (single `cp312-abi3` wheel strategy), and merge queue behaviour, see the top header comment block in: [fact: git grep -n cp312-abi3 .github/workflows/build-publish_to_pypi.yml]
 
-- `.github/workflows/build-publish_to_pypi.yml` (lines 1-147)
+- `.github/workflows/build-publish_to_pypi.yml`

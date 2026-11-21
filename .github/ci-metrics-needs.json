@@ -31,8 +31,21 @@
     "Detect code changes",
     "Verify tag is on master"
   ],
+  "Data-interface version audit / *": [],
+  "Dependency and startup audit / *": [
+    "Detect code changes"
+  ],
   "Determine build matrix": [
     "Detect code changes"
+  ],
+  "Encoding audit / *": [
+    "Detect code changes"
+  ],
+  "Fortran uninitialized lint / *": [
+    "Detect code changes"
+  ],
+  "Physics-change label": [
+    "Determine build matrix"
   ],
   "Post CI summary comment": [
     "Detect code changes",
@@ -42,10 +55,34 @@
     "Build and test (*) / *",
     "Build MCP package",
     "Check pytest marker axis",
+    "Data-interface version audit / *",
+    "Dependency and startup audit / *",
+    "Detect code changes",
+    "Determine build matrix",
+    "Encoding audit / *",
+    "Fortran uninitialized lint / *",
+    "Physics-change label",
+    "Rust C-API field observer / *",
+    "Rust clippy / *",
+    "Rust test / *",
+    "Schema version audit / *",
+    "Workflow security / *"
+  ],
+  "Rust C-API field observer / *": [
     "Detect code changes"
   ],
+  "Rust clippy / *": [
+    "Detect code changes"
+  ],
+  "Rust test / *": [
+    "Detect code changes"
+  ],
+  "Schema version audit / *": [],
   "Tolerance spread / *": [
     "Determine build matrix",
     "Build and test (*) / cp*"
+  ],
+  "Workflow security / *": [
+    "Detect code changes"
   ]
 }

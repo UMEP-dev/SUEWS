@@ -78,11 +78,37 @@ The tool automatically detects the configuration format based on file extension:
 
 Resolved input is the caller contract: defaults belong in the data model, and callers must pass the engine a complete, resolved configuration. Enforcement of this contract at the engine boundary is still being completed; some omitted values can still retain legacy bridge fallbacks. Acceptance by the engine does not establish that an incomplete configuration is valid.
 
+The resolved ``model.control.forcing.timestamp_reference`` must explicitly contain
+``local_standard_time`` or ``utc`` (a bare string or a ``value`` wrapper).
+The engine rejects missing, null, malformed and unknown values with the full
+field path. The source configuration still defaults to ``local_standard_time``
+through the data model. The values ``follow`` and ``daylight`` apply only to
+``model.control.output.timestamp_reference``, which labels saved output.
+
+If you kept a resolved file from an earlier release, run the original source
+configuration with ``suews run source.yml``. To save a new resolved file for
+``suews-engine``, use the current SuPy installation and keep the new file
+beside the source so supplied relative paths still resolve correctly:
+
+.. code-block:: python
+
+   from pathlib import Path
+   from supy.data_model import SUEWSConfig
+   from supy._run_rust import config_to_engine_yaml
+
+   source = Path("source.yml")
+   config = SUEWSConfig.from_yaml(source)
+   source.with_name("resolved.yml").write_text(config_to_engine_yaml(config), encoding="utf-8")
+
 .. Maintainer tracking: engine-boundary enforcement remains in #1991/#2002.
 
 .. note::
 
    The SuPy package also contains a ``suews-engine`` binary, the Rust runtime that ``suews run`` drives. It is a developer and test tool, not a user command: ``suews-engine run`` expects a configuration that has already been resolved in this way, and does not perform data-model validation or resolution for a hand-written YAML file. To run a configuration, use ``suews run``.
+
+   File execution requires a string at ``model.control.output.dir`` (a ``value`` wrapper is also accepted). Export with ``config_to_engine_yaml`` from ``supy._run_rust``. When the source omits the output directory, the export captures the absolute process working directory. A saved export retains that destination even when launched from another directory. Supplied paths are preserved: ``.`` and relative paths resolve against the engine configuration file's directory, and absolute paths remain absolute. Keep the export beside its source configuration to retain the base for supplied relative paths.
+
+   Ordinary model dumps and ``to_yaml()`` remain portable source exports and leave an omitted directory unset. Buffer-only library calls return arrays and leave an omitted directory unset, including when the current working directory is unavailable. The public Python ``save(path)`` argument still takes precedence over the configured directory.
 
 For detailed usage and examples, see the :doc:`/workflow` guide.
 

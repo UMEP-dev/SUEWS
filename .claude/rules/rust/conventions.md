@@ -1,7 +1,9 @@
 ---
 paths:
   - src/suews_bridge/**/*.rs
+  - src/suews_bridge/c_api/**/*.f9*
   - src/suews_bridge/Cargo.toml
+  - src/suews_bridge/Cargo.lock
   - src/suews_bridge/build.rs
 ---
 
@@ -63,6 +65,7 @@ No `rust-toolchain.toml` -- uses system Rust. CI installs via rustup.
 - `python-extension` -- enables `python` and PyO3's extension-module linking
 - `python` -- enables PyO3; the dependency selects the Python 3.12+ stable ABI
 - `arrow-output` -- enables Apache Arrow IPC output format
+- `capi-observer` -- test-only feature (implies `physics`; mutually exclusive with `python-extension` in `build.rs`) that compiles `test_observer/capi_field_observer.f95` for the `capi_field_observer` integration test [fact: git grep -n "capi-observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs]
 
 The maturin build uses `python-extension` + `physics`.
 
@@ -80,7 +83,8 @@ Follow the existing pattern (e.g. `ohm_state.rs` or `heat_state.rs`):
 3. Add `#[pyclass]` and PyO3 methods if Python-visible (`to_dict`, `from_dict`, `to_values_payload`, `from_values_payload`)
 4. Register in `lib.rs` module list and Python module
 5. Add corresponding Fortran C API functions in `c_api/` if new physics calculations are needed
-6. Update `build.rs` Fortran source list if new `.f95` files added to `c_api/`
+6. Update `src/suews_bridge/build.rs` Fortran source list if new `.f95` facades are added to `c_api/`, and the derived type's entry in `src/suews_bridge/bridge-manifest.json` (`python scripts/suews/check_bridge_manifest.py`) when a public Fortran type becomes bridged [fact: git grep -n c_api/driver.f95 src/suews_bridge/build.rs && git grep -n "\"status\": \"bridged\"" src/suews_bridge/bridge-manifest.json]
+7. Regenerate and verify the C-API field-binding observer artefacts and test harness (see "C-API field-binding observer" below) whenever a bridged Fortran `TYPE`, `c_api/*_unpack` routine, Rust struct/codec, or `bridge-manifest.json` entry changes [fact: git grep -n "gen_capi_field_observer.py" .github/workflows/rust-capi-observer.yml]
 
 ---
 
@@ -153,6 +157,76 @@ The bridge marshals data between Fortran flat arrays and typed Rust structs:
   crate-level set.
 - **Bypass.** A maintainer may add the `0-ci:clippy-ok` label to skip the gate
   for a PR.
+
+---
+
+## C-API field-binding observer
+
+The [parent build workflow](../../../.github/workflows/build-publish_to_pypi.yml)
+(`#2144`) calls the reusable
+[observer workflow](../../../.github/workflows/rust-capi-observer.yml) for
+`pull_request` and `merge_group` when the
+[`rust_capi_observer` path filter](../../../.github/path-filters.yml) matches.
+It passes the merge-group head SHA (or `github.sha`) to the child. The parent's
+`PR build validation` job depends on `rust_capi_observer` and passes its result
+and changed flag to [pr-gate.sh](../../../.github/scripts/pr-gate.sh), whose
+`check_path_filtered_producer` enforces success when the filter matches.
+The standalone observer retains its path-filtered `pull_request` trigger; it
+has no standalone `merge_group` trigger. Merge-queue enforcement comes through
+the parent, not the standalone run
+[fact: git grep -n "rust_capi_observer:\|RUST_CAPI_OBSERVER\|head_sha:" .github/workflows/build-publish_to_pypi.yml .github/scripts/pr-gate.sh && git grep -n "pull_request:\|workflow_call:\|merge_group:" .github/workflows/rust-capi-observer.yml].
+It checks that every Rust encoder and Fortran `c_api/*_unpack` routine delivers
+globally distinct sentinels to the exact named Fortran kernel component rather
+than relying on `*_shadow` or `*_pack` round trips.
+
+- **Generated test artefacts (do not hand-edit).** The stdlib-only generator
+  `scripts/suews/gen_capi_field_observer.py` parses canonical `TYPE`
+  declarations in `src/suews/src/suews_type_*.f95` and `suews_ctrl_type.f95`
+  and emits two deterministic ASCII files under `src/suews_bridge/test_observer/`
+  (`capi_field_observer.f95` and `observer_manifest.rs`), outside `c_api/`
+  [fact: git grep -n "test_observer" scripts/suews/gen_capi_field_observer.py].
+  `.gitattributes` pins `src/suews_bridge/test_observer/** text eol=lf` so
+  `--check` byte-for-byte freshness stays portable across platforms
+  [fact: git grep -n "test_observer" .gitattributes].
+- **Production isolation.** `capi-observer` implies `physics` and is mutually
+  exclusive with `python-extension`: `build.rs` panics if both are enabled, so
+  `libsuews_capi_observer.a` compiles and links only under the opt-in test
+  feature and never enters shipped wheels or default CLI builds
+  [fact: git grep -n "capi-observer\|suews_capi_observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs].
+- **Coverage and harness.** `src/suews_bridge/tests/capi_field_observer.rs`
+  holds 38 `#[test]` functions across all 49 bridged types inventoried in
+  `src/suews_bridge/bridge-manifest.json`: 30 direct `*_unpack` runtime
+  observers, 4 driver-aggregate runtime observers (`SUEWS_CONFIG`,
+  `SUEWS_TIMER`, `SUEWS_SITE`, `SUEWS_STATE`, exercising the 8 nested derived
+  types live inside their parent unpackers), 1 manifest-coverage check over all
+  49 entries, 1 standalone nested-type codec round-trip check
+  (`standalone_nested_type_codecs_roundtrip_distinct_sentinels`), 1 inventory
+  and codec check for the 7 non-unpacked types
+  (`non_unpacked_types_inventory_and_codecs`), and 1 truncated-buffer rejection
+  check (`observer_rejects_truncated_flat_buffer`)
+  [fact: python3 scripts/suews/gen_capi_field_observer.py --check && git grep -c "^#\[test" src/suews_bridge/tests/capi_field_observer.rs].
+  Thus 42 types have live receiver coverage (30 direct + 8 nested + 4 driver
+  aggregates); the 7 non-unpacked types have inventory/schema/default/codec
+  checks, not live receiver evidence
+  [fact: inspect `manifest_covers_all_49_bridged_types_with_zero_gaps` and
+  `non_unpacked_types_inventory_and_codecs` in
+  [the harness](../../../src/suews_bridge/tests/capi_field_observer.rs)].
+- **Regenerate and verify** after changing any bridged Fortran `TYPE`,
+  `c_api/*_unpack` routine, Rust struct/codec, or `bridge-manifest.json` entry
+  (update `tests/capi_field_observer.rs` as well if struct fields or bridged
+  types change) [procedure: Principle 1]:
+
+```bash
+# Regenerate test_observer/capi_field_observer.f95 and observer_manifest.rs
+python3 scripts/suews/gen_capi_field_observer.py
+
+# Verify committed artefacts match fresh generator output byte for byte
+python3 scripts/suews/gen_capi_field_observer.py --check
+
+# Build Fortran kernel libraries and run all 38 observer tests
+make -C src/suews all
+cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer
+```
 
 ---
 

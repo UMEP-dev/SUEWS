@@ -65,6 +65,7 @@ labels, flag it as a status conflict and suggest the primary status.
 - `4-needs-discussion`: needs a maintainer/catch-up decision before execution.
 - `4-needs-science`: needs scientific input, evidence, benchmark decision, or
   model-design judgement.
+- `4-needs-obs`: needs observational data for validation.
 - `4-deferred`: valid issue, but not planned for near-term work. Use this for
   old feature requests, broad master issues, unowned nice-to-haves, and work that
   is technically clear but not a current support priority.

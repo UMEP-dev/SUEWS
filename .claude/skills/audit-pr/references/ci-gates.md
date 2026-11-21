@@ -121,22 +121,41 @@ is red *for this diff*, the remedy, and who can apply it.
 Workflow-to-remedy map for the gates that most often stop a SUEWS PR. Check names
 are the job display names as they appear in `gh pr checks` -- which is the job's
 `name:` where it has one, and the job *key* where it does not (see `validate`
-below). "Fires on" lists the principal trigger paths, not the exhaustive set; most
-gates also list their own workflow file and lint script, but not all do
-(`validate-claude-md.yml` omits its own workflow file, and lists its lint script
-under `pull_request` only). Read the workflow's `paths:` rather than assuming.
+below). "Fires on" lists the principal trigger paths (or notes unconditional
+`pull_request` workflows where the script itself filters paths). Read the
+workflow's `on:` / `paths:` rather than assuming.
 
 - **`Require schema version bump`** (`schema-version-audit.yml`)
-  - Fires on: `src/supy/data_model/**`, `sample_config.yml`, the two schema doc
-    pages, the lint script, the workflow itself.
-  - Enforces: a structural YAML-surface change moves `CURRENT_SCHEMA_VERSION`; and,
-    if the version did move, that the user-facing schema docs moved with it.
-  - Author-fixable when: the diff renames, removes, retypes, or requires a public
-    field, or restructures a nested section. Full checklist in
-    `.claude/rules/python/schema-versioning.md`.
-  - Maintainer-gated when: the `data_model` diff is genuinely non-structural
+  - Fires on: every `pull_request` (workflow runs unconditionally;
+    `scripts/lint/check_schema_version_bump.py` fast-skips unless YAML-owned
+    models under `src/supy/data_model/core/` -- excluding forcing validation and
+    DataFrame rename helpers -- or `src/supy/sample_data/sample_config.yml`
+    changed, or `CURRENT_SCHEMA_VERSION` moved).
+  - Enforces: a structural YAML-surface change under `src/supy/data_model/core/`
+    or `sample_config.yml` moves `CURRENT_SCHEMA_VERSION`; and, if the version
+    did move, that the user-facing schema docs (`schema_versioning.rst` or
+    `transition_guide.rst`) moved with it. Forcing and output contracts are
+    outside this gate (see `Validate data-interface version histories` below).
+  - Author-fixable when: the diff renames, removes, retypes, requires, or changes
+    the default behaviour of a public YAML field, or restructures a nested
+    section. Full checklist in `.claude/rules/python/schema-versioning.md`
+    (remember to regenerate `test/fixtures/sample_short/sample_config_short.yml`
+    via `python test/fixtures/sample_short/make_sample_short.py`).
+  - Maintainer-gated when: the `data_model/core/` diff is genuinely non-structural
     (docstrings, comments, validator-rule tightening, internal refactor). Label:
-    `0-ci:schema-audit-ok`. Subject to the payload race below.
+    `0-ci:schema-audit-ok`. The workflow subscribes to `labeled`/`unlabeled` and
+    queries live PR labels via the API, so applying the label re-evaluates
+    cleanly without a close/reopen.
+- **`Validate data-interface version histories`** (`data-interface-version-audit.yml`)
+  - Fires on: every `pull_request` (unconditional).
+  - Enforces: append-only forcing/output semantic-version histories
+    (`scripts/lint/check_data_interface_version_history.py`), output contract
+    artefact parity (`scripts/lint/check_output_contract_artefacts.py`), and
+    forcing contract artefact + RST parity
+    (`scripts/lint/check_forcing_contract_artefacts.py`,
+    `docs/generate_forcing_variable_rst.py --check`).
+  - Author-fixable only (no bypass label): update the version history, regenerate
+    the contract artefacts, and/or run `python docs/generate_forcing_variable_rst.py`.
 - **`Require knowledge-pack rebuild`** (`knowledge-pack-audit.yml`)
   - Fires on: `src/supy/data_model/**`, `src/supy/cmd/**`, `src/supy/knowledge/**`.
   - Enforces: that a pack rebuild still succeeds and binds to the current git SHA.
@@ -154,17 +173,24 @@ under `pull_request` only). Read the workflow's `paths:` rather than assuming.
     `0-ci:knowledge-pack-audit-ok`. Subject to the payload race below.
 - **`Require explicit encoding on text I/O`** (`encoding-audit.yml`)
   - Fires on: any `**.py`.
-  - Enforces: `ruff PLW1514` plus a `read_text`/`write_text` sweep -- no implicit
-    locale encoding.
+  - Enforces: `ruff PLW1514` plus `scripts/lint/check_pathlib_encoding.py`
+    (`read_text`/`write_text` sweep) -- no implicit locale encoding.
   - Author-fixable: add `encoding="utf-8"`. This is nearly always the right fix.
   - Bypass label `0-ci:encoding-audit-ok` is referenced by the workflow but does not
     currently exist in the repository, so proposing it means asking a maintainer to
     create the label first. Prefer the code fix.
 - **`cargo clippy (suews_bridge)`** (`rust-clippy.yml`)
   - Fires on: `src/suews_bridge/**`.
-  - Enforces: clippy with warnings denied.
+  - Enforces: clippy with warnings denied (`SUEWS_BRIDGE_LINT_ONLY=1`).
   - Author-fixable: fix the lint, or justify a scoped `#[allow]`.
   - Bypass label `0-ci:clippy-ok` is likewise referenced but not yet created.
+- **`cargo test (suews_bridge)`** (`rust-test.yml`)
+  - Fires on: `src/suews_bridge/**`, `src/suews/src/**`, `src/suews/ext_lib/**`,
+    `src/suews/Makefile*`, `.github/workflows/rust-test.yml`.
+  - Enforces: builds SUEWS Fortran static libraries (`make -C src/suews all`) and
+    runs Rust unit/C-API tests (`cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics`).
+  - Author-fixable only -- no bypass label exists. Fix the Rust unit test, C-API
+    buffer/type mismatch, or Fortran dependency edge.
 - **`Require Rust/Python registry parity`** (`rust-yaml-aliases-audit.yml`)
   - Fires on: `field_renames.py`, `physics_families.py`, `field_renames.rs`.
   - Enforces three independent checks, each with its own remedy -- read the failure
@@ -194,20 +220,76 @@ under `pull_request` only). Read the workflow's `paths:` rather than assuming.
   - See `.claude/rules/dependency-safety.md`. A startup-hook hit is never a bypass
     case -- stop and escalate.
 - **`validate`** (`validate-claude-md.yml`; the job has no display name, so it
-  renders as `validate` under the "Validate CLAUDE.md" workflow)
-  - Fires on: `CLAUDE.md`, `.claude/rules/**`, and (on `pull_request` only) its own
-    lint script.
-  - Enforces: integrity plus a content-reduction guard. The guard fails only when
-    the reduction exceeds 20% **and** one or more of the required rule files is
-    missing; a large reduction with all rule files present is accepted as
-    intentional restructuring.
-  - Author-fixable: restore the removed content, or restore the missing rule files.
-    The job never reads the PR body, so "justify it in the PR" is not a remedy.
-- **`Check pytest marker axis`** (`build-publish_to_pypi.yml`)
-  - Enforces `scripts/lint/check_test_markers.py` -- physics/api marker coverage on
-    tests. It is a `needs:` of `PR build validation`, so a red one turns the single
-    ruleset-required check red too.
-  - Author-fixable: add the missing marker to the new or moved test.
+  renders as `validate` under the "Validate shared agent instructions" workflow)
+  - Fires on (pull requests and pushes to `master`): `AGENTS.md`, `CLAUDE.md`,
+    `MAINTAINERS.md`, `.impeccable.md`, `.claude/README.md`,
+    `.claude/settings.json`, `.claude/scripts/**`, `.claude/reference/**`,
+    `.claude/hooks/**`, `.claude/agents/**`, `.claude/rules/**`,
+    `.claude/skills/**/*.md`, `dev-ref/**/*.md`, and
+    `.github/workflows/validate-claude-md.yml`.
+  - Enforces: `.claude/scripts/test_validate_agents_md.py`,
+    `.claude/scripts/validate-claude-md.py`, plus a content-reduction guard on
+    `AGENTS.md` (failing only when the reduction exceeds 20% **and** one or more
+    required `.claude/rules/` files is missing). The validator also fails when:
+    a `.claude/rules/**/*.md` file and its `AGENTS.md` "Shared rule files" entry
+    (including `paths:` scopes) are out of step; a path under `AGENTS.md`
+    "References" or a `$CLAUDE_PROJECT_DIR` hook target in
+    `.claude/settings.json` does not exist; a `.claude/agents/*.md` file lacks
+    `name` or `description` in its frontmatter, sets `model:`, or uses `colour:`;
+    a shared governance file has a non-ASCII line; or a handle listed in
+    `MAINTAINERS.md` appears in `AGENTS.md`, `.claude/**/*.md` or
+    `dev-ref/**/*.md`.
+  - Author-fixable: fix the broken cross-reference / compatibility loader, restore
+    removed content, restore missing rule files, or replace a named person with
+    the role and a pointer to `MAINTAINERS.md`. The job never reads the PR
+    body, so "justify it in the PR" is not a remedy.
+- **`supply-proof`** and **`harness-and-history`** (`benchmark-regression.yml`,
+  "Benchmark regression")
+  - Fires on: `benchmark/**`, `.github/workflows/benchmark-regression.yml` (plus
+    nightly schedule and `workflow_dispatch`; `supply-proof` skips on fork PRs).
+  - Enforces: restricted Zenodo sandbox fetch (`benchmark/check_supply.py`),
+    benchmark harness unit tests (`pytest benchmark/tests`), and historical
+    sweep consistency across recorded releases (`benchmark/check_regression.py --sweep`).
+  - Author-fixable when: a `benchmark/**` edit broke harness tests or violated
+    `benchmark/regression_thresholds.json` sweep invariants; infrastructure when
+    Zenodo sandbox is unreachable.
+- **`Check pytest marker axis`** (`check_test_markers` in `build-publish_to_pypi.yml`)
+  - Enforces four standalone static lints (`needs:` of `PR build validation`):
+    `scripts/lint/check_test_markers.py` (physics/api marker coverage),
+    `scripts/lint/check_packaged_data_paths.py` (no `<module>.__file__` data
+    access), `scripts/lint/check_saved_fortran_locals.py` (no implicit/explicit
+    Fortran `SAVE` locals), and `scripts/lint/check_fortran_literals.py`
+    (per-file physical-constant literal counts equal
+    `scripts/lint/fortran_literals_baseline.json`).
+  - Author-fixable: add the missing pytest marker, switch to `importlib.resources`,
+    split declaration-initialised Fortran locals into executable assignments, or
+    replace a new constant literal with a named `PARAMETER` in
+    `suews_ctrl_const.f95` (lower the baseline with `--write-baseline` when a
+    count drops; `.claude/rules/fortran/conventions.md`).
+- **`Physics-change label`** (`check_physics_label` in `build-publish_to_pypi.yml`)
+  - Enforces `.claude/rules/physics-change-evidence.md` (`needs:` of `PR build validation`):
+    fails if stored reference outputs (`test/fixtures/data_test/sample_output_2012-*.csv`,
+    `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change
+    without **exactly one** of `0-physics:change` or `0-numerics:change`, fails if a PR
+    carries both labels simultaneously or if a labelled ready PR / `merge_group` run did not
+    execute `test_tier=physics-full` (and `PR build validation` requires `build_wheels == success`
+    whenever either label is present), and warns on unlabelled `suews_phys_*.f9*` edits.
+  - Maintainer-gated + author-fixable (no cosmetic bypass): for formulation, build-environment,
+    or above-threshold changes, add `## Scientific evidence` to the PR body and have a
+    maintainer apply `0-physics:change`; for constant precision, unit conversion, or
+    floating-point representation changes strictly below `0.5%` scale-relative and `0.5 W m-2`
+    absolute flux difference, add the per-variable numerical change table and have a
+    maintainer apply `0-numerics:change`. Both `determine_matrix` and `check_physics_label`
+    query live PR labels via the API, and `build-publish_to_pypi.yml` does not trigger on
+    label events -- so after adding or changing either label, click "Re-run all jobs" (or push
+    a commit / close and reopen the PR) so `determine_matrix` and `build_wheels` run `physics-full`
+    (never re-run `check_physics_label` alone).
+- **`Build MCP package`** (`build_mcp` in `build-publish_to_pypi.yml`)
+  - Enforces (`needs:` of `build_wheels` and `PR build validation`): runs
+    `python3 get_ver_git.py` and `python -m build mcp` to produce the
+    `suews-mcp-dist` artefact installed by the cross-CPython `api` test lane.
+  - Author-fixable: fix packaging metadata or imports under `mcp/` (`mcp/pyproject.toml`,
+    `mcp/src/suews_mcp/**`).
 - **`PR build validation`** and the wheel/test matrix
   (`build-publish_to_pypi.yml`, `build-wheels-reusable.yml`,
   `test-api-cross-python-reusable.yml`)
@@ -221,27 +303,28 @@ both change. Query them (Step 1) at review time.
 
 ## The bypass-label payload race
 
-Two gates read their bypass label from the **static event payload** captured when
-the triggering event fired -- `${{ toJSON(github.event.pull_request.labels.*.name) }}`
--- and subscribe only to the default `pull_request` types (`opened`, `synchronize`,
-`reopened`):
+One remaining standalone gate reads its bypass label from the **static event
+payload** captured when the triggering event fired --
+`${{ toJSON(github.event.pull_request.labels.*.name) }}` -- and subscribes only
+to the default `pull_request` types (`opened`, `synchronize`, `reopened`):
 
-- `schema-version-audit.yml` (`0-ci:schema-audit-ok`)
 - `knowledge-pack-audit.yml` (`0-ci:knowledge-pack-audit-ok`)
 
 So a label applied *after* the run started is invisible to it, and the gate stays
 red even though the label is plainly on the PR.
 
-- Preferred: apply the label at creation -- `gh pr create ... --label "0-ci:schema-audit-ok"`.
+- Preferred: apply the label at creation -- `gh pr create ... --label "0-ci:knowledge-pack-audit-ok"`.
 - Already failed: push a commit (fires `synchronize`) or
   `gh pr close {pr} && gh pr reopen {pr}` (fires `reopened`). Either regenerates a
   payload carrying the current labels.
 - **`gh run rerun` does not help** -- it replays the stale payload. Recommending it
   costs the author a cycle and looks like the fix failed.
 
-`encoding-audit.yml` and `rust-clippy.yml` do include `labeled`/`unlabeled` in their
-trigger types, so labelling those re-triggers them directly. Check the workflow's
-`types:` line before advising a re-trigger.
+`schema-version-audit.yml`, `encoding-audit.yml`, and `rust-clippy.yml` include
+`labeled`/`unlabeled` in their trigger types and query live PR labels via the
+API, so labelling those re-triggers them directly (and re-running folded jobs in
+`build-publish_to_pypi.yml` also reads the current label state). Check the
+workflow's `types:` line before advising a re-trigger.
 
 ---
 
@@ -256,9 +339,9 @@ trigger types, so labelling those re-triggers them directly. Check the workflow'
 - **Do not propose a bypass to dodge a real change.** The label is for diffs that
   do not need the bump, never for diffs that need it and would rather not. Verify
   the non-structural claim against the diff yourself before writing the sentence.
-- **Do not propose a bypass at all for `0-physics:change`.** Per
-  `.claude/rules/physics-change-evidence.md` that gate has no cosmetic bypass; it is
-  satisfied by supplying the evidence.
+- **Do not propose a cosmetic bypass for `0-physics:change` or `0-numerics:change`.** Per
+  `.claude/rules/physics-change-evidence.md` neither label can be waived, and `0-numerics:change`
+  must never be proposed for a formulation change or an output shift at or above the numerical threshold.
 - **Do not re-run, close/reopen, or push to a PR you do not own** to clear a check.
   Those are author or maintainer actions; the review names them, the review does not
   perform them.

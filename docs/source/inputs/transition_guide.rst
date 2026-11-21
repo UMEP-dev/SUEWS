@@ -217,6 +217,153 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev12_water_routing:
+
+Runoff from paved and building surfaces in schema 2026.6.dev12
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Check the ``waterdist`` blocks under ``sites[*].properties.land_cover.paved``
+and ``sites[*].properties.land_cover.bldgs`` if you use runoff from earlier
+simulations. Some YAML files retain a zero in the unused ``to_soilstore``
+column from a legacy routing table. Older versions read this zero in place
+of ``to_runoff``. A simulation could finish successfully while sending too
+little water to runoff. Schema ``2026.6.dev12`` uses the runoff fraction you
+supplied.
+
+For example, these are three entries from a paved-surface routing block.
+The other five applicable destinations each receive zero in this example.
+
+.. code-block:: yaml
+
+   to_runoff: 0.98
+   to_grass: 0.02
+   to_soilstore: {value: 0.0}  # unused on paved surfaces
+
+The intended split is 98% to runoff and 2% to grass. On a sample day with
+11.2 mm of rain, the older reader produced 3.589 mm of grid runoff with
+all three lines present. Removing only the unused last line gave 8.416 mm.
+The missing 4.827 mm also appeared as a deficit in the grid water balance.
+With the corrected reader, both files give 8.416 mm and the balance closes.
+The size of the difference at another site depends on its surface fractions,
+drainage and weather.
+
+Migration removes the unused ``to_soilstore`` zero from this block. It keeps
+``to_runoff: 0.98``, ``to_grass: 0.02`` and any zero for an applicable
+destination, including a genuine zero runoff fraction. A previously valid
+paved or building block that already omitted the unused field needs no edit
+to its fractions for this correction.
+
+Choose the command from the version recorded at the top of your YAML file.
+Keep the converted copy beside the original so relative forcing paths still
+point to the same files. Use a fresh output filename when you repeat a
+conversion, so a file left by an earlier run cannot be mistaken for its result.
+
+**The file says** ``schema_version: 2026.6.dev11``. The first command writes
+``site.migrated.yml``. Confirm that this new file exists. The migration
+summary can say ``Needs review`` even after writing it. Read the diagnostics
+and run the second command to check the saved configuration:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev12
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+**The file has no schema version.** Some older YAMLs are treated as current
+when their version cannot be inferred. In that case ``suews schema migrate``
+can exit successfully without creating a copy. The corrected reader still
+uses the supplied runoff fraction when it loads the original. Inspect paved
+and building ``waterdist`` blocks for the unused ``to_soilstore`` zero. You
+can check this file directly with ``suews validate -p C --dry-run site.yml
+--format json``. To create a versioned copy, check the release or schema
+that produced the file in your run records. For example, if it was written
+with ``2026.6.dev11``, use the explicit source version below. The converter
+writes the current schema of the installed software. Substitute the actual
+source version if it differs from this example.
+
+.. code-block:: bash
+
+   suews convert -i site.yml -o site.migrated.yml --from 2026.6.dev11
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+**The file already says** ``schema_version: 2026.6.dev12``. A migration to
+the same version creates no copy. Validate the original directly:
+
+.. code-block:: bash
+
+   suews validate -p C --dry-run site.yml --format json
+
+Check each site and surface named in a validation error. An inapplicable
+non-zero fraction needs a decision about where that water should go. Within
+a supplied routing block, all seven applicable fractions must be present
+and sum to one on a surface with positive area. A surface with zero area can
+leave destinations unspecified until it becomes active. See the
+:ref:`complete routing example and list of destinations <waterdist_yaml_rules>`.
+
+To reproduce an archived calculation, keep the original YAML, forcing and
+software version together. Changing the schema label alone cannot restore
+the old reader. To assess the effect on a study, run the migrated copy with
+the same forcing and dates and compare daily sums of runoff (``RO``, mm)
+for each grid, alongside the water balance.
+
+.. _schema_dev11_soil_parameters:
+
+Upgrading to Schema 2026.6.dev11
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev11`` requires ``soil_depth``, ``soil_store_capacity`` and
+``saturated_hydraulic_conductivity`` on every active (``sfr > 0``) non-water
+surface (``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass`` and ``bsoil``)
+in configurations loaded from YAML or a dict. Leaving any of them out or
+setting it to ``null`` now stops loading with an error naming the site,
+surface and field, and supplying ``soil_depth`` as ``0`` on an active
+non-water surface with positive ``soil_store_capacity`` is also refused. The
+Rust bridge enforces the same requirements on resolved engine YAML. Inactive
+surfaces (``sfr == 0``) and ``water`` are exempt, and ``soil_depth`` of ``0``
+remains permitted when ``soil_store_capacity`` is ``0``.
+
+Previously, an omitted or null soil parameter reached the water-balance kernel
+as ``0.0`` via the Rust bridge. Run the converter to upgrade an older YAML:
+
+.. code-block:: bash
+
+   suews convert -i old.yml -o new.yml --from 2026.6.dev10
+
+The migration from ``2026.6.dev10`` preserves valid supplied soil parameters
+and reference metadata and leaves inactive (``sfr == 0``) and ``water``
+surfaces untouched. When ``soil_depth`` is missing, ``null``, or explicitly
+supplied as ``0`` on an active non-water surface with positive
+``soil_store_capacity``, migration stops without writing an output file and
+reports each affected site and surface: using ``0.0`` for ``soil_depth``
+under positive soil capacity breaks wet-day soil water balance. Supply a
+positive ``soil_depth`` (in mm) for each reported surface and re-run the
+converter. Other missing or ``null`` soil parameters on active non-water
+surfaces (including ``soil_depth`` when ``soil_store_capacity`` is ``0`` or
+omitted) are written explicitly as ``0.0`` while preserving reference
+metadata.
+
+.. _schema_dev10_storage_capacity:
+
+Upgrading to Schema 2026.6.dev10
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In a surface's ``storage_drain_params``, the model now reads the current water
+storage capacity from ``store_cap``. Earlier versions read ``store_max`` even
+when a different capacity was supplied. For example, with ``store_max`` of
+0.48 mm and ``store_cap`` of 2.0 mm, threshold drainage (``drain_eq`` 1) now
+uses 2.0 mm. This change can also affect evaporation method 1, storage heat
+method 3 and the building surface under storage heat method 5 with facets.
+
+Run the converter to update the version recorded in the file:
+
+.. code-block:: bash
+
+   suews convert -i old.yml -o new.yml --from 2026.6.dev9
+
+The upgrade retains both explicit values, including zero, and their references.
+If the capacity was omitted, it stays omitted and follows the current maximum.
+To reproduce an earlier run that used unequal values, start from the configuration
+with ``store_cap`` set to the former ``store_max`` value.
+
 .. _schema_dev9_soil_migration:
 
 Upgrading to Schema 2026.6.dev9
@@ -804,6 +951,85 @@ families, so the orthogonal form rejects unsupported "CO2-only"
 combinations rather than assigning misleading semantics. Non-biogenic
 flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
 but their CO2 fluxes are discarded by the driver.
+
+.. _waterdist_yaml_rules:
+
+Within-grid water distribution (``waterdist``)
+----------------------------------------------
+
+In legacy tabular input (``SUEWS_WithinGridWaterDist.txt``; see
+:ref:`SUEWS_WithinGridWaterDist`), each surface row carried all nine
+destination columns, placing explicit zeros on the self-routing diagonal and in
+the unused terminal column (``ToSoilStore`` on impervious surfaces;
+``ToRunoff`` on pervious surfaces).
+
+In YAML configurations, each non-water surface under
+``sites[*].properties.land_cover.<surface>.waterdist`` specifies only its seven
+applicable destinations: the other six surfaces plus ``to_runoff`` for
+impervious surfaces (``paved``, ``bldgs``) or ``to_soilstore`` for pervious
+surfaces (``evetr``, ``dectr``, ``grass``, ``bsoil``). The ``water`` surface
+does not take a ``waterdist`` block.
+
+Worked example for an active ``paved`` surface routing 98% of drainage to
+surface runoff and 2% to grass:
+
+.. code-block:: yaml
+
+   sites:
+     - name: "ExampleSite"
+       properties:
+         land_cover:
+           paved:
+             sfr:
+               value: 0.43
+             waterdist:
+               to_bldgs:
+                 value: 0.0
+               to_dectr:
+                 value: 0.0
+               to_evetr:
+                 value: 0.0
+               to_grass:
+                 value: 0.02
+               to_bsoil:
+                 value: 0.0
+               to_water:
+                 value: 0.0
+               to_runoff:
+                 value: 0.98
+
+YAML validation enforces three rules:
+
+1. **Active vs. inactive surfaces (``sfr > 0`` vs. ``sfr == 0``):** All seven
+   applicable destinations (finite fractions in ``[0, 1]`` summing to ``1.0``)
+   are required only when the surface is active (``sfr > 0``) and a
+   ``waterdist`` block is supplied. Omitting the entire ``waterdist`` block
+   applies surface-specific defaults. Inactive surfaces (``sfr == 0``) may omit
+   applicable destinations (or supply an empty ``waterdist`` block).
+2. **Inapplicable destinations at YAML or model load:** Self-routing
+   (``to_<self>``), ``to_soilstore`` on impervious surfaces, and ``to_runoff``
+   on pervious surfaces should be omitted or set to ``null``. For compatibility
+   with files migrated from legacy nine-column tables, an explicit numeric zero
+   (``0``, ``0.0``, ``-0.0``, or ``{value: 0.0}``) in an inapplicable slot is
+   normalised to absent (``None``) when loading through
+   ``SUEWSConfig.from_yaml``, ``SUEWSConfig.from_dict``, or ``SUEWSConfig(...)``
+   while leaving the applicable routed fractions untouched. For example, adding
+   ``to_soilstore: {value: 0.0}`` alongside ``to_runoff: 0.98`` and
+   ``to_grass: 0.02`` above clears ``to_soilstore`` to ``None`` on load and
+   preserves the exact ``0.98`` runoff fraction. Any non-zero, boolean, or
+   non-finite value in an inapplicable slot raises :class:`ValueError`.
+3. **Post-load live mutations:** After loading, editing a live configuration in
+   place to introduce any inapplicable destination (including
+   ``paved.waterdist.to_soilstore = RefValue(value=0.0)`` or
+   ``paved.waterdist.to_paved = RefValue(value=0.0)``) or raising ``sfr`` from
+   ``0`` to ``> 0`` on a surface whose applicable destinations are missing
+   raises :class:`ValueError` before engine execution. These invariants are
+   re-checked at :meth:`~supy.SUEWSSimulation.update_config`,
+   :meth:`~supy.SUEWSSimulation.run`, ``SUEWSConfig.to_df_state``, and engine
+   serialisation via ``SUEWSConfig.validate_for_engine``. Valid multi-step
+   in-place edits (for example, shifting ``0.02`` from ``to_runoff`` to
+   ``to_grass`` across two assignments so the final sum is ``1.0``) remain
+   supported.
 
 Forcing and output units
 ------------------------

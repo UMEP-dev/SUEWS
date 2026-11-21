@@ -36,16 +36,14 @@ def _sample() -> Traversable:
 
 
 @_requires_suews_cli
-def test_fresh_sample_is_all_assumed() -> None:
+def test_fresh_sample_is_all_assumed(tmp_path: Path) -> None:
     """The bundled sample, unedited, flags location / land_cover / forcing as assumed."""
     from suews_mcp.tools import assess_readiness
 
-    # `assess_readiness` shells out to the `suews` CLI, so both the
-    # config and the project root must be real filesystem paths.
+    # Run the bundled example as a project inside the test's authorised root.
     with as_file(_sample_dir()) as sample_dir:
-        env = assess_readiness(
-            str(sample_dir / "sample_config.yml"), project_root=str(sample_dir)
-        )
+        project = shutil.copytree(sample_dir, tmp_path / "sample")
+    env = assess_readiness(str(project / "sample_config.yml"), project_root=str(project))
     assert env["status"] == "success", env.get("errors")
     data = env["data"]
     assert data["ready"] is False

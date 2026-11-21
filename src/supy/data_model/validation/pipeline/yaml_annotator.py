@@ -48,7 +48,7 @@ class ValidationIssue:
             "conductance": {
                 "g_max": {
                     "value": 3.5,
-                    "_comment": "maximum surface conductance (mm/s)",
+                    "_comment": "surface conductance scaling coefficient (dimensionless)",
                 },
                 "g_k": {"value": 200.0, "_comment": "solar radiation coefficient"},
                 "g_q_base": {"value": 0.13, "_comment": "VPD coefficient base"},
@@ -92,7 +92,7 @@ class ValidationIssue:
                     "_comment": "senescence degree days for leaf-off (degC d)",
                 },
             },
-            "g_max": {"value": 3.5, "_comment": "maximum surface conductance (mm/s)"},
+            "g_max": {"value": 3.5, "_comment": "surface conductance scaling coefficient (dimensionless)"},
             "g_k": {"value": 200.0, "_comment": "solar radiation coefficient"},
             "g_q_base": {"value": 0.13, "_comment": "VPD coefficient base"},
             "g_q_shape": {"value": 0.7, "_comment": "VPD coefficient shape"},
@@ -135,6 +135,18 @@ class ValidationIssue:
             "height_deciduous_tree": {
                 "value": 12.0,
                 "_comment": "deciduous tree height in meters",
+            },
+            "soil_depth": {
+                "value": 350.0,
+                "_comment": "soil depth beneath surface (mm)",
+            },
+            "soil_store_capacity": {
+                "value": 150.0,
+                "_comment": "maximum soil water storage capacity (kg m-2)",
+            },
+            "saturated_hydraulic_conductivity": {
+                "value": 0.0005,
+                "_comment": "saturated hydraulic conductivity (mm s-1)",
             },
             "emission_co2_point_source": {"value": 0.0, "_comment": "point source CO2 emissions"},
             "emission_factor_co2_fuel": {

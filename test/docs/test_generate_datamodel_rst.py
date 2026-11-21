@@ -3,19 +3,44 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import re
 
 import pytest
 
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.hydro import StorageDrainParams, WaterDistribution
+from supy.data_model.core.model import OutputControl
 from supy.data_model.core.physics_families import PHYSICS_FAMILIES, resolve_scalar_name
+from supy.data_model.core.site import (
+    DectrProperties,
+    EvetrProperties,
+    GrassProperties,
+)
+from supy.data_model.core.surface import (
+    BldgsProperties,
+    BsoilProperties,
+    PavedProperties,
+    WaterProperties,
+)
 from supy.data_model.core.physics_orthogonal import (
     coerce_orthogonal_to_flat,
     fold_storage_heat_ohm_inc_qf,
 )
+from supy.data_model.core.state import (
+    InitialStateDectr,
+    InitialStateEvetr,
+    InitialStateGrass,
+    InitialStateVeg,
+)
 from supy.data_model.parameter_examples import (
     get_all_parameter_examples,
     get_parameter_examples,
+)
+from supy.data_model.validation.derived_fields import (
+    DOC_DERIVED_DEFAULT,
+    derived_default,
 )
 from supy.data_model.validation.required_fields import DOC_REQUIRED_WHEN
 
@@ -263,8 +288,9 @@ def test_field_without_default_or_rule_is_not_called_optional(monkeypatch) -> No
     # ARRANGE
     module = _load_generator_module()
     monkeypatch.setattr(module, "required_when", lambda model, field: "")
+    monkeypatch.setattr(module, "derived_default", lambda model, field: "")
     field_doc = {
-        "name": "store_cap",
+        "name": "drain_coef_1",
         "type": "Optional[FlexibleRefValue(float)]",
         "default": None,
     }
@@ -276,6 +302,32 @@ def test_field_without_default_or_rule_is_not_called_optional(monkeypatch) -> No
     # ASSERT
     assert status == module.STATUS_NO_DEFAULT
     assert "optional" not in status.lower()
+    assert status.isascii()
+    assert default_line == (None, None)
+
+
+def test_derived_default_field_reports_its_source(monkeypatch) -> None:
+    """A runtime-derived field reports its derivation rather than no default."""
+    # ARRANGE
+    module = _load_generator_module()
+    monkeypatch.setattr(module, "required_when", lambda model, field: "")
+    monkeypatch.setattr(
+        module,
+        "derived_default",
+        lambda model, field: (
+            "``store_max`` when omitted"
+            if (model, field) == ("StorageDrainParams", "store_cap")
+            else ""
+        ),
+    )
+    field_doc = {"name": "store_cap", "default": None}
+
+    # ACT
+    status = module.RSTGenerator._format_status(field_doc, "StorageDrainParams")
+    default_line = module.RSTGenerator._format_default(field_doc)
+
+    # ASSERT
+    assert status == "Optional; derived from ``store_max`` when omitted"
     assert status.isascii()
     assert default_line == (None, None)
 
@@ -433,6 +485,94 @@ def test_every_recorded_requirement_reaches_the_reference(generated_reference) -
 
     # ASSERT
     assert not missing
+
+
+def test_every_recorded_derived_default_reaches_the_reference(
+    generated_reference,
+) -> None:
+    """Every runtime-derived field must report its derivation on its doc page."""
+    # ARRANGE
+    output_dir, _ = generated_reference
+
+    # ACT
+    missing = []
+    for model_name, fields in DOC_DERIVED_DEFAULT.items():
+        page = output_dir / f"{model_name.lower()}.rst"
+        blocks = (
+            _option_blocks(page.read_text(encoding="utf-8")) if page.exists() else {}
+        )
+        for field, source in fields.items():
+            expected = f":Status: Optional; derived from {source}"
+            normalised = " ".join(blocks.get(field, "").split())
+            if expected not in normalised:
+                missing.append(f"{model_name}.{field}")
+
+    # ASSERT
+    assert not missing
+
+
+def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
+    """Every derived-default entry names a real field with runtime resolution."""
+    # ARRANGE
+    models = {
+        "StorageDrainParams": StorageDrainParams,
+        "InitialStateVeg": InitialStateVeg,
+        "InitialStateEvetr": InitialStateEvetr,
+        "InitialStateDectr": InitialStateDectr,
+        "InitialStateGrass": InitialStateGrass,
+        "OutputControl": OutputControl,
+    }
+
+    # ACT / ASSERT - every recorded field exists and lookup works
+    assert set(DOC_DERIVED_DEFAULT) == set(models)
+    for model_name, fields in DOC_DERIVED_DEFAULT.items():
+        for field in fields:
+            assert field in models[model_name].model_fields
+            assert derived_default(model_name, field) == fields[field]
+    assert not derived_default("StorageDrainParams", "not_a_field")
+
+    # Runtime check 1: StorageDrainParams.store_cap resolves to store_max in engine dump
+    drain = StorageDrainParams(store_max=0.73)
+    dumped = drain.model_dump(exclude_none=True, mode="json")
+    assert dumped["store_cap"]["value"] == pytest.approx(0.73)
+
+    # Runtime check 2: InitialState*.alb_id follows opposite LAI directions for
+    # trees (increasing with LAI) and grass (decreasing with LAI).
+    cfg = SUEWSConfig(
+        sites=[
+            {
+                "properties": {
+                    "land_cover": {
+                        "evetr": {
+                            "alb_min": 0.10,
+                            "alb_max": 0.30,
+                            "lai": {"lai_min": 0.5, "lai_max": 5.5},
+                        },
+                        "grass": {
+                            "alb_min": 0.10,
+                            "alb_max": 0.30,
+                            "lai": {"lai_min": 0.5, "lai_max": 5.5},
+                        },
+                    }
+                },
+                "initial_states": {
+                    "evetr": {"lai_id": 4.0, "alb_id": None},
+                    "grass": {"lai_id": 4.0, "alb_id": None},
+                },
+            }
+        ]
+    )
+    evetr_alb = cfg.sites[0].initial_states.evetr.alb_id
+    grass_alb = cfg.sites[0].initial_states.grass.alb_id
+    evetr_val = evetr_alb.value if hasattr(evetr_alb, "value") else evetr_alb
+    grass_val = grass_alb.value if hasattr(grass_alb, "value") else grass_alb
+    # ratio = (4.0 - 0.5) / (5.5 - 0.5) = 0.7 -> tree: 0.10 + 0.20*0.7 = 0.24, grass: 0.30 - 0.20*0.7 = 0.16
+    assert evetr_val == pytest.approx(0.24)
+    assert grass_val == pytest.approx(0.16)
+
+    # Runtime check 3: OutputControl.freq stays None on the model so SUEWSOutput.save
+    # can apply the 3600 s native fallback or preserve a fixed resampled interval.
+    assert OutputControl().freq is None
 
 
 @pytest.mark.parametrize(
@@ -654,8 +794,8 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
     sheets = {example["source"]["sheet"] for example in examples}
 
     # ASSERT
-    assert len(index) == 108
-    assert len(examples) == 554
+    assert len(index) == 101
+    assert len(examples) == 546
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -671,14 +811,13 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
         "SnowLimPatch",
         "Soil",
         "Vegetation Growth",
-        "Water State",
         "Water Storage",
     }
     assert len(get_parameter_examples("Conductance", "g_max")) == 3
     assert len(get_parameter_examples("SnowParams", "radiation_melt_factor")) == 1
     assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 9
     assert len(get_parameter_examples("PavedProperties", "snowpack_limit")) == 1
-    assert len(get_parameter_examples("WaterProperties", "state_limit")) == 2
+    assert get_parameter_examples("WaterProperties", "state_limit") == []
     assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 8
 
 
@@ -716,6 +855,29 @@ def test_parameter_example_catalogue_excludes_unreliable_references() -> None:
         "90240991",
         "90241000",
         "99240099",
+    }
+
+
+def test_parameter_example_catalogue_excludes_uncited_state_limits() -> None:
+    """Legacy state limits absent from the cited papers never reach docs."""
+    # ACT
+    record_ids = {
+        record_id
+        for field_examples in get_all_parameter_examples().values()
+        for example in field_examples
+        for record_id in example["source"]["record_ids"]
+    }
+
+    # ASSERT
+    assert not record_ids & {
+        42240000,
+        42240041,
+        42240042,
+        42240043,
+        42240044,
+        42240045,
+        42240046,
+        42240057,
     }
 
 
@@ -898,6 +1060,7 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
     }
 
     # ASSERT
+    assert fields["Conductance"]["g_max"]["unit"] == "1"
     assert fields["Conductance"]["g_k"]["unit"] == "W m-2"
     assert fields["Conductance"]["g_sm"]["unit"] == "m2 kg-1"
     assert fields["Conductance"]["g_q_base"]["unit"] == "model-dependent"
@@ -951,3 +1114,117 @@ def test_generated_config_reference_never_claims_optional(tmp_path) -> None:
         if "None (optional)" in page.read_text(encoding="utf-8")
     ]
     assert not offenders
+
+
+def test_generated_waterdistribution_rst_matches_validation_contract(tmp_path) -> None:
+    """Generated waterdistribution.rst states sfr>0, zero-normalisation, and post-load rules."""
+    # ARRANGE
+    module = _load_generator_module()
+    doc_data = module.ModelDocExtractor().extract_all_models()
+
+    # ACT
+    module.RSTGenerator(doc_data).generate_all_rst(tmp_path, style="hybrid")
+    page = (tmp_path / "waterdistribution.rst").read_text(encoding="utf-8")
+
+    # ASSERT
+    assert ":ref:`waterdist_yaml_rules`" in page
+    assert "``sfr > 0``" in page
+    assert "``sfr == 0``" in page
+    assert "normalised to absent" in page
+    assert "post-load" in page
+    assert "to_runoff:" in page
+    assert "value: 0.98" in page
+    assert "to_grass:" in page
+    assert "value: 0.02" in page
+    for field in (
+        "to_paved",
+        "to_bldgs",
+        "to_dectr",
+        "to_evetr",
+        "to_grass",
+        "to_bsoil",
+        "to_water",
+        "to_runoff",
+        "to_soilstore",
+    ):
+        assert f".. input:option:: {field}" in page
+    assert ":Status: Required when" in page
+
+
+def test_waterdist_user_docs_and_committed_schema_match_implementation() -> None:
+    """Maintained user docs and committed schema.json agree with WaterDistribution rules."""
+    # ARRANGE / ACT
+    transition_guide = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "transition_guide.rst"
+    ).read_text(encoding="utf-8")
+    yaml_index = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "yaml" / "index.rst"
+    ).read_text(encoding="utf-8")
+    yaml_validation = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "yaml" / "validation.rst"
+    ).read_text(encoding="utf-8")
+    legacy_table = (
+        PROJECT_ROOT
+        / "docs"
+        / "source"
+        / "inputs"
+        / "tables"
+        / "SUEWS_SiteInfo"
+        / "SUEWS_WithinGridWaterDist.rst"
+    ).read_text(encoding="utf-8")
+    committed_schema = json.loads(
+        (
+            PROJECT_ROOT / "docs" / "source" / "inputs" / "tables" / "schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    live_wd_schema = WaterDistribution.model_json_schema()
+
+    # ASSERT: transition_guide carries anchor, worked paved example, and all three rules
+    assert ".. _waterdist_yaml_rules:" in transition_guide
+    assert "value: 0.98" in transition_guide
+    assert "value: 0.02" in transition_guide
+    assert "``sfr > 0``" in transition_guide
+    assert "``sfr == 0``" in transition_guide
+    assert "normalised to absent (``None``)" in transition_guide
+    assert "Post-load live mutations" in transition_guide
+
+    # ASSERT: yaml/index.rst qualifies missing-parameter autofill for waterdist
+    assert ":ref:`waterdist_yaml_rules`" in yaml_index
+    assert "mandatory active-surface routing fields" in yaml_index.lower()
+    assert "not silently filled" in yaml_index
+
+    # ASSERT: yaml/validation.rst documents the waterdist Phase C & post-load rules
+    assert ":ref:`waterdist_yaml_rules`" in yaml_validation
+    assert "``sfr > 0``" in yaml_validation
+    assert "normalised to absent at YAML load" in yaml_validation
+
+    # ASSERT: legacy SUEWS_WithinGridWaterDist.txt docs stay intact and cross-link YAML
+    assert "diagonal elements should be zero" in legacy_table
+    assert ":ref:`waterdist_yaml_rules`" in legacy_table
+
+    # ASSERT: committed schema.json WaterDistribution metadata stays synced with live model
+    committed_wd = committed_schema["$defs"]["WaterDistribution"]
+    assert committed_wd["description"] == live_wd_schema["description"]
+    assert committed_wd["title"] == live_wd_schema["title"]
+    for field_name in WaterDistribution.model_fields:
+        if not field_name.startswith("to_"):
+            continue
+        assert (
+            committed_wd["properties"][field_name]["description"]
+            == live_wd_schema["properties"][field_name]["description"]
+        )
+    for surface_cls in (
+        PavedProperties,
+        BldgsProperties,
+        EvetrProperties,
+        DectrProperties,
+        GrassProperties,
+        BsoilProperties,
+        WaterProperties,
+    ):
+        assert (
+            committed_schema["$defs"][surface_cls.__name__]["properties"]["waterdist"][
+                "description"
+            ]
+            == surface_cls.model_fields["waterdist"].description
+        )

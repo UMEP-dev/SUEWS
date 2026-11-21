@@ -82,20 +82,20 @@ impl PhenologyState {
 
         let mut state = Self::default();
 
-        for i in 0..NSURF {
-            state.alb[i] = next();
+        for slot in &mut state.alb {
+            *slot = next();
         }
 
-        for i in 0..PHENOLOGY_STATE_NVEGSURF {
-            state.lai_id[i] = next();
+        for slot in &mut state.lai_id {
+            *slot = next();
         }
 
-        for i in 0..PHENOLOGY_STATE_NVEGSURF {
-            state.gdd_id[i] = next();
+        for slot in &mut state.gdd_id {
+            *slot = next();
         }
 
-        for i in 0..PHENOLOGY_STATE_NVEGSURF {
-            state.sdd_id[i] = next();
+        for slot in &mut state.sdd_id {
+            *slot = next();
         }
 
         state.veg_phen_lumps = next();
@@ -109,9 +109,9 @@ impl PhenologyState {
         state.len_day_id = next();
         state.temp_veg = next();
 
-        for surf in 0..NSURF {
-            for row in 0..PHENOLOGY_STATE_STORE_DRAIN_ROWS {
-                state.store_drain_prm[surf][row] = next();
+        for surface_rows in &mut state.store_drain_prm {
+            for slot in surface_rows {
+                *slot = next();
             }
         }
 
@@ -146,8 +146,8 @@ impl PhenologyState {
         flat.push(self.len_day_id);
         flat.push(self.temp_veg);
 
-        for surf in 0..NSURF {
-            flat.extend_from_slice(&self.store_drain_prm[surf]);
+        for surface_rows in &self.store_drain_prm {
+            flat.extend_from_slice(surface_rows);
         }
 
         flat.push(self.gfunc);

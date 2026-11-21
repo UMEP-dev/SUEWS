@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev9"
+CURRENT_SCHEMA_VERSION = "2026.6.dev12"
 
 # Schema version history and descriptions.
 #
@@ -186,6 +186,29 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "explicit whole-store layer bounds in metres, optional SI density and "
         "surface field capacity; retire sensor saturation capacity. Active legacy "
         "observations require confirmed bounds and a completed forcing manifest."
+    ),
+    "2026.6.dev10": (
+        "Surface water storage (#2018). The model reads the current capacity "
+        "from store_cap and uses store_max when the capacity is omitted. "
+        "Upgrading preserves both explicit values and their references."
+    ),
+    "2026.6.dev11": (
+        "Development schema requiring soil_depth, soil_store_capacity and "
+        "saturated_hydraulic_conductivity on every active (sfr > 0) non-water "
+        "surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting "
+        "any of them used to reach the kernel as 0.0 via the Rust bridge. "
+        "The (2026.6.dev10 -> 2026.6.dev11) migration requires the user to "
+        "supply soil_depth (reporting each affected site and surface) when it "
+        "is missing or null on an active surface with positive "
+        "soil_store_capacity, preserves supplied values and inactive/water "
+        "surfaces unchanged, and writes explicit 0.0 for other missing or null "
+        "active soil parameters (preserving reference metadata)."
+    ),
+    "2026.6.dev12": (
+        "Within-grid water routing (#2086, #2117). An explicit numeric zero "
+        "in an unused destination is removed during migration. On paved and "
+        "building surfaces it could previously override the supplied runoff "
+        "fraction, changing the simulated runoff and water balance."
     ),
 }
 

@@ -642,6 +642,7 @@ temp_test.npz
 
 # CLAUDE.md protection
 CLAUDE.md.backup
+AGENTS.md.backup
 .claude/snapshots/
 
 # Generated JSON Schemas (published to GitHub Pages, not stored in repo)
@@ -680,3 +681,7 @@ site/schemas/
 # It is a build artifact (regenerated locally / in CI before publishing), so the
 # duplicated skill copy is not committed; only the plugin manifests + assets are.
 plugins/suews/skills/
+
+# In-tree Fortran/C build-config fingerprint and lock managed by src/supy/run_make.py
+src/suews/.suews_build_fingerprint
+src/suews/.suews_build.lock

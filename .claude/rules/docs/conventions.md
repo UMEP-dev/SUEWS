@@ -21,15 +21,24 @@ redirects to `/stable/`.
 
 | Output | Tracked? | Source and regeneration |
 |--------|----------|-------------------------|
-| `docs/source/inputs/yaml/config-reference/` | no | `docs/generate_datamodel_rst.py`, from the Pydantic models |
-| `docs/source/outputs/variables/*.rst` | no | `docs/generate_output_variable_rst.py`, from `OUTPUT_REGISTRY` |
+| `docs/source/inputs/yaml/config-reference/` | no | `docs/generate_datamodel_rst.py`, from the Pydantic models (`make -C docs generate-rst`) [fact: git grep -n "^generate-rst:" docs/Makefile] |
+| `docs/source/outputs/variables/*.rst` | no | `docs/generate_output_variable_rst.py`, from `OUTPUT_REGISTRY` (`make -C docs generate-rst`) [fact: git grep -n "^generate-rst:" docs/Makefile] |
+| `docs/source/auto_examples/` | no | Sphinx-Gallery build output from `docs/source/tutorials/` (`make docs`) [fact: git check-ignore -v docs/source/auto_examples/x] |
+| `docs/source/api/_autosummary/` | no | Sphinx `autosummary` stub generation during `make docs` [fact: git check-ignore -v docs/source/api/_autosummary/x] |
+| `docs/source/_static/suews-config-ui/` | no | Bundled configuration editor UI build output [fact: git check-ignore -v docs/source/_static/suews-config-ui/x] |
+| `site/schemas/` | no | Exported JSON schemas generated for the static site [fact: git check-ignore -v site/schemas/x] |
 | `docs/source/data-structures/df_forcing.rst` | yes | `docs/generate_forcing_variable_rst.py`, from `FORCING_REGISTRY`; CI runs it with `--check` |
 | `docs/source/inputs/tables/schema.json` | yes | `suews schema export -o docs/source/inputs/tables/schema.json` |
+| `docs/source/inputs/tables/SUEWS_SiteInfo/csv-table/*.csv` | yes | Derived from `SUEWS_SiteInfo/Input_Options.rst` by `docs/source/conf.py::gen_csv_suews`, which runs on Read the Docs builds [fact: git grep -n "def gen_csv_suews" docs/source/conf.py && git grep -n Input_Options.rst docs/source/conf.py] |
+| `docs/source/assets/img/ohm_coefficient_transitions.png` | yes | `python docs/plot_ohm_transitions.py` [fact: git ls-files --error-unmatch docs/plot_ohm_transitions.py docs/source/assets/img/ohm_coefficient_transitions.png] |
 
-The two untracked sets rebuild on `make docs` (`make generate-rst` in
-`docs/`). `schema.json` is not refreshed by `make generate-rst`; regenerate it
-explicitly (see `release-docs-sanity.md`). To change generated content, change
-the generator or its source registry, never the output.
+Untracked RST/Sphinx outputs rebuild during `make docs` (`make -C docs generate-rst`
+refreshes `config-reference/` and `outputs/variables/`). Committed generated
+artefacts (`schema.json`, `df_forcing.rst`, `csv-table/*.csv`, and generated
+figures) are not refreshed by `make generate-rst`; regenerate them explicitly
+when their source changes (see `release-docs-sanity.md` for `schema.json`). To
+change generated content, change the generator or its source registry/`Input_Options.rst`,
+never the generated output. [fact: git grep -n "^generate-rst:" docs/Makefile]
 
 ## RST
 
@@ -69,8 +78,8 @@ wrapper, never `supy`/`SUPY` in prose). First mention on a page: "SUEWS
 
 Tutorials use ``:class:`~supy.SUEWSSimulation` `` as the primary interface (full
 guidance: `rules/python/api-approach.md`). Quick-start tutorials are pure OOP;
-impact-study tutorials modify `sim.config` directly. A tutorial that extracts
-DataFrames states why in its module docstring:
+impact-study tutorials modify `sim.config` / `sim.update_config(...)`. [fact: git grep -n sim.update_config docs/source/tutorials] A tutorial
+that extracts DataFrames states why in its module docstring:
 
 ```python
 """

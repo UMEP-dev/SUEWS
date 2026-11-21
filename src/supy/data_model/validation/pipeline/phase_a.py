@@ -54,6 +54,17 @@ PHYSICS_OPTIONS = {
     "setpoint",
 }
 
+_PUBLIC_PHYSICS_DISPLAY_NAMES = {
+    "snow_use": "snow",
+    "ohm_inc_qf": "storage_heat.ohm.include_qf",
+    "laimethod": "leaf_area_index",
+}
+
+
+def _display_physics_param_name(param_name: str) -> str:
+    """Map internal flattened physics keys to their public YAML names for diagnostics."""
+    return _PUBLIC_PHYSICS_DISPLAY_NAMES.get(param_name, param_name)
+
 ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
 
 _MISSING = object()
@@ -770,6 +781,21 @@ def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
     return extra_params
 
 
+def _has_placeholder_leaves(value: object) -> bool:
+    """Return True if a missing block has at least one non-null-rejected leaf."""
+    if not isinstance(value, dict):
+        return True
+    for key, subval in value.items():
+        if key in NULL_REJECTED_FIELDS:
+            continue
+        if isinstance(subval, dict):
+            if _has_placeholder_leaves(subval):
+                return True
+        else:
+            return True
+    return False
+
+
 def find_missing_parameters(user_data, standard_data, current_path=""):
     missing_params = []
     if current_path == "":
@@ -784,12 +810,19 @@ def find_missing_parameters(user_data, standard_data, current_path=""):
             full_path = f"{current_path}.{key}" if current_path else key
             if _is_default_backed_control_path(full_path):
                 continue
-            # Omitting a null-rejecting field gives its default, so it is not
-            # missing, and a null placeholder would fail Phase C (gh#2001).
-            if key in NULL_REJECTED_FIELDS:
+            is_physics = is_physics_option(full_path)
+            # Omitting a defaulted null-rejecting field gives its model default,
+            # so it is not missing and a null placeholder would fail Phase C
+            # (gh#2001, gh#2087). Critical physics options remain reported.
+            if not is_physics and key in NULL_REJECTED_FIELDS:
                 continue
             if key not in user_dict:
-                is_physics = is_physics_option(full_path)
+                if (
+                    not is_physics
+                    and isinstance(standard_value, dict)
+                    and not _has_placeholder_leaves(standard_value)
+                ):
+                    continue
                 missing_params.append((full_path, standard_value, is_physics))
             elif isinstance(standard_value, dict) and isinstance(
                 user_dict.get(key), dict
@@ -881,14 +914,14 @@ def flatten_missing_dict(data, current_path=""):
     missing_params = []
     if isinstance(data, dict):
         for key, value in data.items():
-            if key in NULL_REJECTED_FIELDS:
-                continue
             full_path = f"{current_path}.{key}" if current_path else key
+            is_physics = is_physics_option(full_path)
+            if not is_physics and key in NULL_REJECTED_FIELDS:
+                continue
             if isinstance(value, dict):
                 nested_missing = flatten_missing_dict(value, full_path)
                 missing_params.extend(nested_missing)
             else:
-                is_physics = is_physics_option(full_path)
                 missing_params.append((full_path, value, is_physics))
     else:
         is_physics = is_physics_option(current_path)
@@ -1151,38 +1184,59 @@ def create_uptodate_yaml_header():
     return header
 
 
-def create_clean_missing_param_annotation(param_name, standard_value):
-    """Create missing parameter annotation without inline comments for clean YAML."""
-    lines = []
+def _format_missing_mapping_lines(
+    mapping: dict,
+    indent_level: int = 1,
+    *,
+    skip_null_rejected: bool = True,
+) -> list[str]:
+    """Recursively render null placeholders while skipping null-rejected fields."""
+    indent = "  " * indent_level
+    child_lines: list[str] = []
+    for key, value in mapping.items():
+        # A missing parent block gets no null placeholder for a field
+        # that rejects null; its default applies instead (gh#2001, gh#2087).
+        if skip_null_rejected and key in NULL_REJECTED_FIELDS:
+            continue
+        formatted_key = format_yaml_key(key)
+        if isinstance(value, dict):
+            nested = _format_missing_mapping_lines(
+                value,
+                indent_level + 1,
+                skip_null_rejected=skip_null_rejected,
+            )
+            if nested:
+                child_lines.append(f"{indent}{formatted_key}:")
+                child_lines.extend(nested)
+        else:
+            default_value = get_null_placeholder()
+            child_lines.append(f"{indent}{formatted_key}: {default_value}")
+    return child_lines
 
+
+def create_clean_missing_param_annotation(
+    param_name,
+    standard_value,
+    *,
+    skip_null_rejected: bool = True,
+):
+    """Create missing parameter annotation without inline comments for clean YAML."""
     if param_name in ["qn_surfs", "dqndt_surf"]:
         null_array = ["null"] * 7
-        lines.append(f"{param_name}: [{', '.join(null_array)}]")
-        return lines
+        return [f"{param_name}: [{', '.join(null_array)}]"]
 
     if isinstance(standard_value, dict):
-        lines.append(f"{param_name}:")
-        for key, value in standard_value.items():
-            # A missing parent block gets no null placeholder for a field
-            # that rejects null; its default applies instead (gh#2001).
-            if key in NULL_REJECTED_FIELDS:
-                continue
-            formatted_key = format_yaml_key(key)
-            if isinstance(value, dict):
-                lines.append(f"  {formatted_key}:")
-                for subkey, subvalue in value.items():
-                    if subkey in NULL_REJECTED_FIELDS:
-                        continue
-                    formatted_subkey = format_yaml_key(subkey)
-                    default_value = get_null_placeholder()
-                    lines.append(f"    {formatted_subkey}: {default_value}")
-            else:
-                default_value = get_null_placeholder()
-                lines.append(f"  {formatted_key}: {default_value}")
-    else:
-        default_value = get_null_placeholder()
-        lines.append(f"{param_name}: {default_value}")
-    return lines
+        child_lines = _format_missing_mapping_lines(
+            standard_value,
+            indent_level=1,
+            skip_null_rejected=skip_null_rejected,
+        )
+        if not child_lines:
+            return []
+        return [f"{param_name}:", *child_lines]
+
+    default_value = get_null_placeholder()
+    return [f"{param_name}: {default_value}"]
 
 
 def get_null_placeholder():
@@ -1965,7 +2019,9 @@ def create_uptodate_yaml_with_missing_params(
                 indent = get_section_indent(lines, insert_position)
 
             annotation_lines = create_clean_missing_param_annotation(
-                param_name, standard_value
+                param_name,
+                standard_value,
+                skip_null_rejected=not is_physics,
             )
             indented_lines = []
             for line in annotation_lines:
@@ -2136,7 +2192,7 @@ def create_analysis_report(
             )
             for param_path, standard_value, is_physics in missing_params:
                 if is_physics:
-                    param_name = param_path.split(".")[-1]
+                    param_name = _display_physics_param_name(param_path.split(".")[-1])
                     report_lines.append(
                         f"-- {param_name} has been added to the updated YAML and set to null"
                     )
@@ -2481,7 +2537,7 @@ def annotate_missing_parameters(
         if critical_params:
             print("Action needed: CRITICAL parameters missing:")
             for param_path, standard_value, _ in critical_params:
-                param_name = param_path.split(".")[-1]
+                param_name = _display_physics_param_name(param_path.split(".")[-1])
                 print(f"  - {param_name}")
         if dimension_errors:
             print("Action needed: DIMENSION MISMATCH errors:")

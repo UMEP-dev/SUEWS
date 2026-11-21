@@ -47,14 +47,30 @@ except ImportError:
         """Fall back to recording no condition."""
         return ""
 
+try:
+    from supy.data_model.validation.derived_fields import derived_default
+except ImportError:
+    print(
+        "WARNING: the installed supy has no derived-default field registry, "
+        "so runtime-derived defaults will be omitted from the generated "
+        "configuration reference. Rebuild supy from this checkout (make dev) "
+        "to include them.",
+        file=sys.stderr,
+    )
+
+    def derived_default(model_name: str, field_name: str) -> str:
+        """Fall back to recording no runtime derivation."""
+        return ""
+
 
 # Every parameter entry carries one "Status" line:
 # required by its type, required under a condition the validation layer
 # records (see supy.data_model.validation.required_fields), optional because a
-# default exists, or without a default and unchecked.
+# literal or runtime-derived default exists, or without a default and unchecked.
 STATUS_LABEL = "Status"
 STATUS_REQUIRED = "Required"
 STATUS_REQUIRED_WHEN = "Required when {condition}"
+STATUS_DERIVED = "Optional; derived from {source}"
 STATUS_OPTIONAL = "Optional"
 # A parameter with no default that no validator checks. Such parameters are
 # declared Optional only so that a partial configuration still loads, which is
@@ -220,6 +236,9 @@ class RSTGenerator:
 
         if model_name == "ModelPhysics":
             lines.extend(self._format_modelphysics_selector_guide())
+
+        if model_name == "WaterDistribution":
+            lines.extend(self._format_waterdistribution_guide())
 
         # Add fields directly; the page and option directives already provide
         # the necessary structure, so a generic "Parameters" label is redundant.
@@ -414,6 +433,59 @@ class RSTGenerator:
             "   ``snow_use``, ``storage_heat.ohm.include_qf`` over flat "
             "   ``ohm_inc_qf``, and ``stebbs.parameter_source`` over "
             "   ``stebbs.parameters``.",
+            "",
+        ]
+
+    @staticmethod
+    def _format_waterdistribution_guide() -> list[str]:
+        """Format a worked YAML example and cross-reference for WaterDistribution."""
+        return [
+            ".. seealso::",
+            "",
+            "   See :ref:`waterdist_yaml_rules` for migration from legacy "
+            "nine-column tables, active vs. inactive surface rules "
+            "(``sfr > 0`` vs. ``sfr == 0``), load-time zero normalisation, "
+            "and post-load validation before engine execution.",
+            "",
+            ".. rubric:: Worked example (active paved surface)",
+            "",
+            "An active ``paved`` surface (impervious) routing 98% of drainage "
+            "to ``to_runoff`` and 2% to ``to_grass`` supplies its seven "
+            "applicable destinations and omits inapplicable ``to_paved`` and "
+            "``to_soilstore``:",
+            "",
+            ".. code-block:: yaml",
+            "",
+            "   sites:",
+            "     - name: ExampleSite",
+            "       properties:",
+            "         land_cover:",
+            "           paved:",
+            "             sfr:",
+            "               value: 0.43",
+            "             waterdist:",
+            "               to_bldgs:",
+            "                 value: 0.0",
+            "               to_dectr:",
+            "                 value: 0.0",
+            "               to_evetr:",
+            "                 value: 0.0",
+            "               to_grass:",
+            "                 value: 0.02",
+            "               to_bsoil:",
+            "                 value: 0.0",
+            "               to_water:",
+            "                 value: 0.0",
+            "               to_runoff:",
+            "                 value: 0.98",
+            "",
+            "At YAML or model load, an explicit ``0.0`` in an inapplicable "
+            "slot such as ``to_soilstore: {value: 0.0}`` on ``paved`` is "
+            "normalised to absent (``None``) while preserving ``to_runoff: "
+            "0.98``. Non-zero or invalid inapplicable values fail at load, "
+            "and post-load live mutations introducing inapplicable slots "
+            "(including ``0.0``) or raising ``sfr`` from ``0`` to ``> 0`` "
+            "without applicable destinations fail before engine execution.",
             "",
         ]
 
@@ -881,6 +953,8 @@ class RSTGenerator:
         - Fields declared without a default (Pydantic-required): ``"Required"``
         - Fields the validation layer requires under a recorded condition:
           ``"Required when ..."``, whether or not they carry a default
+        - Fields whose omitted value is derived from other inputs at runtime:
+          ``"Optional; derived from ..."``
         - Other fields with a default: ``"Optional"``
         - Other fields with ``default=None``: ``STATUS_NO_DEFAULT``
         - Nested models: ``None``, as the structure link describes them
@@ -888,8 +962,9 @@ class RSTGenerator:
         Args:
             field_doc: Field documentation dictionary
             model_name: Name of the model declaring the field, used to look up
-                a conditional requirement. Omitted for callers that have no
-                model context, which simply skips that lookup.
+                a conditional requirement or derived default. Omitted for
+                callers that have no model context, which simply skips those
+                lookups.
         """
         if field_doc.get("nested_model"):
             return None
@@ -898,9 +973,14 @@ class RSTGenerator:
         if str(default) == "PydanticUndefined":
             return STATUS_REQUIRED
 
-        condition = required_when(model_name, field_doc.get("name", ""))
+        field_name = field_doc.get("name", "")
+        condition = required_when(model_name, field_name)
         if condition:
             return STATUS_REQUIRED_WHEN.format(condition=condition)
+
+        source = derived_default(model_name, field_name)
+        if source:
+            return STATUS_DERIVED.format(source=source)
 
         if default is None:
             return STATUS_NO_DEFAULT

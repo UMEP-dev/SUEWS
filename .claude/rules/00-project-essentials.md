@@ -1,46 +1,26 @@
 # SUEWS Project Essentials
 
-Rules that apply to ALL Claude Code sessions in this repository.
+Rules that apply to all coding-agent sessions in this repository. [decision: software maintainer, 2026-11-17]
 
 ---
 
 ## Style
 
-- **British English** for documentation, comments, file names, and communication
-  - Exception: Scientific computing terms follow numpy/scipy conventions (e.g., "analyze" not "analyse")
-- **ASCII-only output** in print/logging functions, validation reports, and all generated files
-  - Use `->` not `→` for arrows
-  - Use `[X]` not `✗` for failure indicators
-  - Use `[OK]` not `✓` for success indicators
-  - Reason: Ensures compatibility across all platforms and encodings
+- **British English** in prose, documentation, comments, docstrings, file names, and log messages (`organise`, `colour`, `behaviour`, `artefact`) [decision: software maintainer, 2026-11-17]
+  - Exception: preserve upstream numpy/scipy/pandas/matplotlib API spellings (`analyze`, `normalize`, `color`) where dictated by library conventions [decision: software maintainer, 2026-11-17]
+- **ASCII-only output** (`0x00..0x7F`) in print/logging functions, validation reports, rules/docs source, and all generated files [decision: software maintainer, 2026-11-17]
+  - Use `->` instead of Unicode arrows (`U+2192`)
+  - Use `[X]` instead of Unicode cross marks (`U+2717`)
+  - Use `[OK]` instead of Unicode checkmarks (`U+2713`)
+  - Reason: ensures compatibility across all platforms and encodings
 
-## Variant-Neutral Naming
+## Identifier and Parameter Naming
 
-Avoid British/American spelling variants (-ise/-ize) in identifiers. Use neutral alternatives:
+`.claude/rules/naming-convention.md` is the single source of truth for SUEWS variable, parameter, and YAML field naming: [fact: git grep -n "^## Rule [1-6]" .claude/rules/naming-convention.md]
 
-| Avoid | Use Instead |
-|-------|-------------|
-| initialise/initialize | `init`, `setup`, `prepare` |
-| finalise/finalize | `complete`, `finish`, `cleanup` |
-| normalise/normalize | `scale`, `adjust`, `rescale` |
-| analyse/analyze | `examine`, `process`, `compute` |
-| optimise/optimize | `improve`, `tune`, `refine` |
-
-## Identifier Naming (Python)
-
-Word separation, abbreviations, and redundant suffixes: see
-`.claude/rules/naming-convention.md` (Rules 1 and 6), the canonical
-reference that supersedes the tables formerly duplicated here.
-
-### YAML surface is single-convention snake_case
-
-All user-facing YAML fields — including STEBBS `building_archetype` and `stebbs` blocks — use `snake_case`. The pre-gh#1334 PascalCase exception for STEBBS is retired; mixing two conventions in the same YAML confused users more than it aligned with Fortran TYPE members, and the Fortran/Rust bridge preserves legacy column names via `_ARCHETYPE_LEGACY_COL_NAMES` / `_STEBBS_LEGACY_COL_NAMES` ClassVars without any user-visible cost.
-
-Fortran TYPE members and Rust struct field names are cross-layer naming concerns tracked separately in #1324/#1325/#1326 (Tier B/C/D).
-
-### Legacy identifiers
-
-Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soildepth`) exist for historical reasons. Renaming these requires a dedicated PR with a deprecation path — do not rename them inline. See #1256 for the full inventory and migration plan.
+- **Single-convention `snake_case`**: separate every word with `_` across Python identifiers and all user-facing YAML fields (including STEBBS `building_archetype` and `stebbs` blocks), with physical quantity leading (`temperature_wall_internal`, `thickness_wall_outer`). [fact: git grep -n "every meaningful word" .claude/rules/naming-convention.md && git grep -n "physical quantity comes first" .claude/rules/naming-convention.md]
+- **Variant-neutral SUEWS identifiers**: prefer neutral verbs (`init`, `prepare`, `scale`, `compute`, `tune`) over `-ise`/`-ize` spelling pairs in SUEWS-owned names. [decision: software maintainer, 2026-11-17]
+- **Protected legacy identifiers**: fused historical names (e.g. `netradiationmethod`, `storageheatmethod`, `soildepth`) require a dedicated PR with a `yaml_upgrade` migration path (`#1256`) -- do not rename them inline. Cross-layer Fortran TYPE and Rust struct field migrations are tracked in `#1324`/`#1325`/`#1326`. [decision: software maintainer, 2026-11-17]
 
 ## Git
 
@@ -61,13 +41,24 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
   `test/mcp`, `test/docs`, `test/knowledge`, and `test/umep`. When you touch
   one of those, run its directory directly (e.g. `pytest test/cmd`) or
   `make test-all`
-- Include new source files in `meson.build`:
-  - Python files (.py) in `src/supy/`
-  - Fortran files (.f90, .f95) in `src/suews/src/`
-- After adding a Fortran file or a `USE` statement, regenerate the module
-  dependency edges that keep `make -j` safe:
-  `python scripts/suews/gen_fortran_deps.py` (writes `src/suews/Makefile.deps`;
-  `test/core/test_fortran_deps.py` fails when it is stale)
+- **Register new source files in build manifests**:
+  - Python files (`.py`) under `src/supy/`: add to `src/supy/meson.build` (`py.install_sources`) [fact: git grep -n py.install_sources src/supy/meson.build]
+  - Fortran kernel files (`.f95`) under `src/suews/src/`: add to `src/suews/Makefile` and `src/supy/meson.build`, then regenerate `src/suews/Makefile.deps` via `python scripts/suews/gen_fortran_deps.py` (`test/core/test_fortran_deps.py` fails when stale) [fact: git grep -n suews_phys_ohm src/suews/Makefile src/supy/meson.build]
+  - Fortran C-API facade files (`.f95`) under `src/suews_bridge/c_api/`: add to `src/suews_bridge/build.rs` [fact: git grep -n c_api/driver.f95 src/suews_bridge/build.rs]
+  - A new `TYPE, PUBLIC` derived type in `src/suews/src/*.f95`: add it to `src/suews_bridge/bridge-manifest.json` (`python scripts/suews/check_bridge_manifest.py` checks coverage) [fact: git grep -n "TYPE_PUBLIC_RE = " scripts/suews/check_bridge_manifest.py]
+- After adding or modifying any Fortran `USE` statement, rerun `python scripts/suews/gen_fortran_deps.py` so `make -j` module edges stay accurate [fact: git grep -n Makefile.deps scripts/suews/gen_fortran_deps.py]
+- **Record how a commit was verified.** End each agent-authored commit message
+  with a trailer
+  `Verified: <commands run and their result>`, for example
+  `Verified: make test-smoke (passed)`, or `Verified: none (<reason>)`.
+  `Verified: none` records a skipped check; it does not excuse a check this
+  section requires.
+  The trailer is a report, not a confirmation: CI or a reviewer confirms
+  (`AGENTS.md`, Principle 1). `git log --grep "Verified: none"` then lists
+  commits that carried no check.
+  This is a decision (Ting Sun, 17 Nov 2026): a commit does not show which checks
+  an agent actually ran; it is overturned if a hook or CI records the same
+  information automatically.
 
 ## Quick Start
 
@@ -81,11 +72,11 @@ The available skills are listed in `.claude/README.md` ("Available Skills").
 ## Build System Notes
 
 - `FCFLAGS` env var is NOT forwarded through `make dev` -> meson-python pipeline
-  - Fortran compiler flags live in `src/suews/Makefile.gfortran`, selected by
-    the build profile: `SUEWS_BUILD_PROFILE=release` (`-O3`, no checks, the
-    default) or `checked` (runtime checks; the nightly physics tier builds it
-    too). `src/supy/run_make.py` and `src/suews_bridge/build.rs` read the
-    same variable
+  - Compiler flags are set per build profile (`SUEWS_BUILD_PROFILE=release`, the
+    default, or `checked`, which the nightly physics tier also builds); the
+    per-surface flags for the kernel and the C-API facades are stated in
+    `.claude/rules/fortran/conventions.md` ("Compiler flags and
+    `SUEWS_BUILD_PROFILE`") [fact: git grep -n "Compiler flags and .SUEWS_BUILD_PROFILE." .claude/rules/fortran/conventions.md && git grep -n SUEWS_BUILD_PROFILE src/suews/Makefile.gfortran src/suews_bridge/build.rs src/supy/run_make.py]
   - Checked build locally, for debugging physics: `SUEWS_BUILD_PROFILE=checked make dev`
 - `make clean` removes `build/` but meson-python may cache compiled extensions elsewhere
   - For a truly clean rebuild: `make clean && pip cache purge && make dev`

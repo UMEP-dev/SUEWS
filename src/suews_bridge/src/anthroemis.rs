@@ -55,8 +55,8 @@ impl AnthroEmisState {
             value
         };
 
-        for i in 0..ANTHROEMIS_STATE_HDD_LEN {
-            state.hdd_id[i] = next();
+        for slot in &mut state.hdd_id {
+            *slot = next();
         }
         state.fc = next();
         state.fc_anthro = next();

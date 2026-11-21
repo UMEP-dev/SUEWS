@@ -31,6 +31,12 @@ It applies in both modes; the sections below give the pipeline's detail.
   The place kept is the one higher in the authority order in `AGENTS.md`; inside a change with another goal, the duplicate is reported instead.
 - Where two places contradict each other, follow the higher one for the task in hand and report the contradiction.
   Neither is silently picked, and neither is silently corrected.
+- A pull request that adds a rule states its origin in the PR body: the pull requests, issues or recorded incident it comes from, at least two or one recorded incident, or the named person whose decision it records.
+  The threshold is a decision (Ting Sun, 17 Nov 2026): rules written after a single occurrence keep growing the rule files; it is overturned if a lesson this threshold kept out later causes an incident.
+  A rule that comes from a review miss or an incident also says how it is recognised: from a diff, for a rule a reviewer applies, or from the agent's own actions, for a rule an agent applies while working.
+  A lesson that cannot be recognised either way belongs in the documentation, not in a rule.
+- Rules are pruned: a duplicate is replaced by a pointer, as above; a statement now enforced by CI or a hook, or whose reason no longer holds, is removed in its own pull request, which names the enforcing check or says why the reason lapsed.
+  Instruction files only grow if nobody removes anything.
 
 ### Evidence (Principle 1)
 
@@ -58,6 +64,11 @@ It applies in both modes; the sections below give the pipeline's detail.
 - Expected values (reference fixtures, snapshots) change only with the evidence the owning rule requires.
 - A claim that needs several steps (for example "this removed text has no other home") states the steps.
   Only a question for which no steps can be stated is a judgement under Principle 2, and it goes to a named person at once.
+- A fix loop on a failing check is bounded.
+  After three fix attempts on the same failure, the agent stops, records each attempt and its result in the pull request or report, and escalates to a named person.
+  The bound is a decision (Ting Sun, 17 Nov 2026): a loop still failing after three attempts is usually heading the wrong way rather than one attempt short; it is overturned if the record shows fourth or later attempts often succeed.
+  A fix attempt changes the code under test; editing the check instead is governed by "Gates", not by this bound.
+- A check that passes and fails on the same commit in the same environment is a defect to diagnose, not to route around (`tests/patterns.md`, "Flaky Tests").
 
 ### Gates (Principle 2)
 
@@ -73,8 +84,14 @@ It applies in both modes; the sections below give the pipeline's detail.
 - A decision that is waiting stays visible: the pull request or issue says who it waits on and for what.
   There is no time limit on the answer.
 - A change to model output values, or to what a user of the model can see (names, units, defaults and semantics of interfaces, YAML fields and output variables; runtime dependencies), is accepted by a named person.
-  For a physics change, a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge.
+  For a physics change (`0-physics:change`), a pull request carrying the evidence its rule requires is the prepared decision, and the wait is at merge; a numerical-only change within the round-off threshold (`0-numerics:change`, see `physics-change-evidence.md`) needs no domain-owner sign-off or scientific-evidence section, while merge itself remains human-gated. [decision: software maintainer, 2026-11-18]
   A structural schema or data-model migration is a design choice with no evidence to prepare first, so the wait is before implementation.
+- A change does not edit the checks that judge it.
+  A pull request that changes code does not, in the same pull request, loosen a tolerance, weaken or remove an assertion of an existing test, add a skip or xfail to an existing test, or change `AGENTS.md`, a file under `.claude/` or a required CI check.
+  Here code means everything except tests, `AGENTS.md`, `.claude/`, `dev-ref/`, the documentation and CI configuration.
+  Such an edit goes in its own pull request that says why the check or rule should change.
+  Exempt: tests added for the new behaviour, an assertion changed to the intended new behaviour with the reason stated in the PR body, an assertion removed together with the behaviour it tested, and a fixture or snapshot refresh carrying the evidence its owning rule requires (for physics fixtures, `physics-change-evidence.md`).
+- A reviewer judges the rest of a change against the rules on the base branch, not those on the change's own head; a change to the rules themselves is reviewed as a proposal, including its consistency with the other files on the head.
 
 ### Agents (Principles 1 and 3)
 
@@ -110,11 +127,14 @@ issue backlog for readiness, triage-pr grooms the draft and stalled PR backlog f
 disposition. It is a router, not a reviewer: it assigns each PR one of five verdicts
 (`advance`, `continue`, `defer`, `close`, `escalate`) and routes live PRs into the
 existing stages -- `advance` -> audit-pr / split-pr / queue-pr (and the user-level
-prep-pr where applicable); `continue` -> fix-issue / author. `defer` parks the PR
-with a named revisit trigger; `close` and `escalate` are always human-gated. It
-never merges and never closes (terminates at "disposition assigned plus live PRs
-handed off"). The always-human-gated list in the Gating model section already
-covers its close and escalate terminals.
+`prep-pr` where installed; otherwise `audit-pr` + `queue-pr` is the portable
+repository-native path); `continue` -> fix-issue / author. [decision: software maintainer, 2026-11-17] `defer` parks the PR
+with a named revisit trigger; `close` and `escalate` are always human-gated.
+Unattended comment, ready-state, or label mutations in `triage-pr` apply only to
+PRs owned by the operator or automation account; third-party PR metadata edits and
+comments remain human-gated. [procedure: Principle 2] It never merges and never closes (terminates at
+"disposition assigned plus live PRs handed off"). The always-human-gated list in
+the Gating model section already covers its close and escalate terminals.
 
 ---
 
@@ -164,10 +184,14 @@ without reading prose:
   ```
 
   `Verdict: close` and `Verdict: escalate` are human terminals: labels
-  `0-pr:close-proposed` / `0-pr:escalate` are applied; no further automated
-  action. Downstream skills pick up `Verdict: advance` (via `Route:
-  prep-pr|split-pr|queue-pr`) and `Verdict: continue` (via `Route: fix-issue`)
-  without reading prose.
+  `0-pr:close-proposed` / `0-pr:escalate` are applied (on operator/automation-owned
+  PRs where those labels exist); no further automated action. [procedure: Principle 2] Downstream skills
+  pick up `Verdict: advance` (via `Route: prep-pr|split-pr|queue-pr`, falling back
+  to the portable repository-native `audit-pr` + `queue-pr` path when user-level
+  `prep-pr` is not installed) and `Verdict: continue` (via `Route: fix-issue`)
+  without reading prose. [decision: software maintainer, 2026-11-17] Unattended comment and label mutations apply only to PRs
+  owned by the operator/automation account; third-party PR comments and metadata
+  remain human-gated. [procedure: Principle 2]
 
 ---
 
@@ -277,19 +301,13 @@ already exist and never creates labels. If a label is absent, the verdict is
 recorded in the marker comment and verdict block only, with a note that the label
 is missing.
 
-## The 0-physics:change classification label
+## The 0-physics:change and 0-numerics:change classification labels
 
-`0-physics:change` is a classification label in the `0-` automation namespace,
-independent of the `0-pr:*` disposition family (a PR can carry both). It marks
-that a PR changes model physics or moves a reference output, and it activates the
-evidence gate in `.claude/rules/physics-change-evidence.md`: a `## Scientific
-evidence` PR-body section, domain-owner sign-off for any owned subsystem (named in
-`MAINTAINERS.md`), the reference-fixture refresh travelling in the same PR, and
-the full `-m physics` CI tier (including `slow`) running as a required check
-before merge. `triage-pr` and `audit-pr` apply it when the diff matches the
-physics-change triggers; a maintainer creates the label once and the autonomous
-tier never creates labels. It is additive (applied once, not swapped) and is not
-counted as substantive work in the `Applied:` field. Unlike
-`0-ci:schema-audit-ok`, there is no cosmetic bypass: the gate is satisfied by
-providing the evidence, not by waiving it. Domain-owner sign-off on a
-physics-change PR is part of the always-human-gated merge gate.
+`0-physics:change` and `0-numerics:change` are mutually exclusive classification labels in the `0-` automation namespace, independent of the `0-pr:*` disposition family (a PR can carry one classification label alongside a `0-pr:*` label). [decision: software maintainer, 2026-11-18]
+Their definitions and thresholds live in `.claude/rules/physics-change-evidence.md`:
+
+- `0-physics:change` marks a PR that changes process formulation (equations, parameterisation form, process partitioning, scheme dispatch, calibrated coefficients, physics-affecting defaults) or moves any model output / vendored reference fixture without satisfying all conditions of `0-numerics:change`: it activates `## Scientific evidence`, domain-owner sign-off (`MAINTAINERS.md`), same-PR fixture refresh, and the `physics-full` CI tier. Domain-owner sign-off on a `0-physics:change` PR is part of the always-human-gated merge gate. [decision: software maintainer, 2026-11-18]
+- `0-numerics:change` marks a PR that changes no process formulation -- only constant precision, unit conversions, or floating-point representation -- and moves all reference outputs strictly below `0.5%` scale-relative (with `Lob` / `L_MOD_RSL` judged by `zL` / `zeta`) and `0.5 W m-2` absolute flux difference: it requires same-PR fixture refresh, a per-variable numerical change table in the PR body, and the `physics-full` CI tier, without `## Scientific evidence` or domain-owner sign-off. [decision: software maintainer, 2026-11-19]
+
+`triage-pr` applies a missing classification label on operator/automation-owned PRs only when neither `0-physics:change` nor `0-numerics:change` is already present (and `audit-pr`, which is read-only in autonomous mode, proposes or flags it); on a conflict, automation preserves the existing label(s) untouched and flags the proposed change for a maintainer to decide and record, while a maintainer creates each label once and the autonomous tier never creates labels. [procedure: Principle 2]
+Neither label is counted as substantive work in the `Applied:` field, and unlike `0-ci:schema-audit-ok` neither is a cosmetic bypass: CI requires **exactly one** of `0-physics:change` or `0-numerics:change` on reference-fixture updates (failing if both are present) and runs `physics-full` for both. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]

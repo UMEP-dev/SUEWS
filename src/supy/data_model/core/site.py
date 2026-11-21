@@ -1,7 +1,7 @@
 import math
 from typing import Optional
-from pydantic import ConfigDict, BaseModel, Field, computed_field, model_validator
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from pydantic import ConfigDict, Field, computed_field, model_validator
+from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
 from .profile import (
     HourlyProfile,
     DayProfile,
@@ -65,7 +65,7 @@ import pytz
 import warnings
 
 
-class VegetationParams(BaseModel):
+class VegetationParams(DataModelBase):
     """Vegetation phenology parameters."""
 
     model_config = ConfigDict(title="Vegetation Parameters")
@@ -112,7 +112,7 @@ class VegetationParams(BaseModel):
     ref: Optional[Reference] = None
 
 
-class Conductance(BaseModel):
+class Conductance(DataModelBase):
     """Surface conductance parameters for water vapour and heat exchange.
 
     These parameters control the resistance to water vapour transfer from surfaces,
@@ -123,10 +123,15 @@ class Conductance(BaseModel):
 
     g_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum surface conductance for photosynthesis",
+        description=(
+            "Fitted scaling coefficient for surface conductance: it multiplies "
+            "the product of the environmental response functions and the "
+            "LAI-weighted sum of the per-surface maximum conductances "
+            "(max_conductance). It is not itself a conductance."
+        ),
         json_schema_extra={
-            "unit": "mm s-1",
-            "display_name": "Maximum Surface Conductance",
+            "unit": "1",
+            "display_name": "Surface Conductance Scaling Coefficient",
         },
     )
     g_k: Optional[FlexibleRefValue(float)] = Field(
@@ -279,7 +284,7 @@ class Conductance(BaseModel):
         return cls(**scalar_params)
 
 
-class LAIPowerCoefficients(BaseModel):
+class LAIPowerCoefficients(DataModelBase):
     """Power law coefficients for LAI calculation."""
 
     model_config = ConfigDict(title="LAI Power Coefficients")
@@ -378,7 +383,7 @@ class LAIPowerCoefficients(BaseModel):
         )
 
 
-class LAIParams(BaseModel):
+class LAIParams(DataModelBase):
     model_config = ConfigDict(title="LAI")
 
     # Default laimax for DataFrame serialisation when field value is None.
@@ -759,7 +764,11 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     _surface_type: Literal[SurfaceType.EVETR] = SurfaceType.EVETR
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.EVETR),
-        description="Water distribution for evergreen trees",
+        description=(
+            "Water distribution for evergreen trees (pervious: routes to other "
+            "surfaces and to_soilstore when sfr > 0; to_evetr/to_runoff "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -881,7 +890,11 @@ class DectrProperties(VegetatedSurfaceProperties):
     _surface_type: Literal[SurfaceType.DECTR] = SurfaceType.DECTR
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.DECTR),
-        description="Water distribution for deciduous trees",
+        description=(
+            "Water distribution for deciduous trees (pervious: routes to other "
+            "surfaces and to_soilstore when sfr > 0; to_dectr/to_runoff "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -968,7 +981,10 @@ class GrassProperties(VegetatedSurfaceProperties):
     _surface_type: Literal[SurfaceType.GRASS] = SurfaceType.GRASS
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.GRASS),
-        description="Water distribution for grass",
+        description=(
+            "Water distribution for grass (pervious: routes to other surfaces "
+            "and to_soilstore when sfr > 0; to_grass/to_runoff inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -1027,7 +1043,7 @@ def _default_snow_ohm_coef() -> "OHM_Coefficient_season_wetness":
     )
 
 
-class SnowParams(BaseModel):
+class SnowParams(DataModelBase):
     model_config = ConfigDict(title="Snow")
 
     water_holding_capacity_max: FlexibleRefValue(float) = Field(
@@ -1314,7 +1330,7 @@ class SnowParams(BaseModel):
         return cls(snow_profile_24hr=snow_profile_24hr, **ohm_params, **scalar_params)
 
 
-class LandCover(BaseModel):
+class LandCover(DataModelBase):
     """Surface properties for the seven SUEWS land cover types.
 
     SUEWS divides the urban surface into seven distinct surface types, each with
@@ -1412,7 +1428,7 @@ class LandCover(BaseModel):
         return cls(**params)
 
 
-class ArchetypeProperties(BaseModel):
+class ArchetypeProperties(DataModelBase):
     """Urban morphology and archetype properties."""
 
     model_config = ConfigDict(title="Archetype Properties")
@@ -2155,7 +2171,7 @@ class ArchetypeProperties(BaseModel):
         return cls(**params)
 
 
-class StebbsProperties(BaseModel):
+class StebbsProperties(DataModelBase):
     """STEBBS (Surface Temperature Energy Balance for Building Surfaces) model parameters.
 
     Controls the building energy balance calculations including internal heating/cooling,
@@ -2817,7 +2833,7 @@ class StebbsProperties(BaseModel):
         return cls(**params)
 
 
-class SPARTACUSParams(BaseModel):
+class SPARTACUSParams(DataModelBase):
     """SPARTACUS radiation model parameters.
 
     Controls the SPARTACUS-Surface radiation scheme for detailed
@@ -3038,7 +3054,7 @@ class SPARTACUSParams(BaseModel):
         return cls(**params)
 
 
-class SoilObservationConfig(BaseModel):
+class SoilObservationConfig(DataModelBase):
     """Bounds of a whole-store liquid-water observation and conversion metadata.
 
     Density and fine-earth fraction are provenance for upstream conversion;
@@ -3111,7 +3127,7 @@ class SoilObservationConfig(BaseModel):
         return cls(**params) if params else None
 
 
-class LUMPSParams(BaseModel):
+class LUMPSParams(DataModelBase):
     """LUMPS model parameters for surface moisture."""
 
     model_config = ConfigDict(title="LUMPS Parameters")
@@ -3185,7 +3201,7 @@ class LUMPSParams(BaseModel):
         return cls(**params)
 
 
-class SiteProperties(BaseModel):
+class SiteProperties(DataModelBase):
     """Physical and geographical characteristics of the simulation site.
 
     Defines the location, dimensions, surface characteristics, and environmental
@@ -3502,7 +3518,7 @@ class SiteProperties(BaseModel):
         return cls(**params)
 
 
-class Site(BaseModel):
+class Site(DataModelBase):
     """Site configuration for SUEWS simulations.
 
     Represents the complete configuration for a single SUEWS simulation site,

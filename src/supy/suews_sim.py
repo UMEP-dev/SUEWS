@@ -264,6 +264,7 @@ class SUEWSSimulation:
 
         else:
             # Assume it's a SUEWSConfig object
+            config.validate_for_engine()
             self._config = config
             self._config_identity = None
             self._df_state_init = self._config.to_df_state()
@@ -976,6 +977,8 @@ class SUEWSSimulation:
                         grid_vals = df_state_for_cfg.index.get_level_values(0)
                     df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
                 self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
+
+        self._config.validate_for_engine()
 
         # A streamed run saves as it goes: resolve where and what it writes,
         # and reject settings it cannot reproduce, before any work is done.

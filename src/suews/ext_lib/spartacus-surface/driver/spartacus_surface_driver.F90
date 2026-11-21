@@ -24,8 +24,10 @@ program spartacus_surface_driver
   ! --------------------------------------------------------
 
   use parkind1,                     only : jprb ! Working precision
+  use iso_c_binding,                only : c_int, c_char
+  use iso_fortran_env,              only : error_unit
 
-  use radiation_io,                 only : nulout
+  use radiation_io,                 only : nulout, radiation_error
   use radsurf_config,               only : config_type
   use spartacus_surface_config,     only : driver_config_type
   use radsurf_canopy_properties,    only : canopy_properties_type
@@ -41,6 +43,18 @@ program spartacus_surface_driver
   use print_matrix_mod, only : print_vector, print_matrix
   
   implicit none
+
+  interface
+    function tls_error_code() result(code) bind(C, name="suews_tls_error_code")
+      import c_int
+      integer(c_int) :: code
+    end function
+    subroutine tls_error_message(buffer, length) bind(C, name="suews_tls_error_message")
+      import c_int, c_char
+      character(kind=c_char), intent(out) :: buffer(*)
+      integer(c_int), value :: length
+    end subroutine
+  end interface
 
   ! Derived types for the inputs to the radiation scheme
   type(config_type)                 :: config
@@ -77,6 +91,10 @@ program spartacus_surface_driver
   integer, external :: omp_get_thread_num
 
   ! Loop index for repeats (for benchmarking)
+  logical :: radiation_failed
+  logical :: error_captured
+  integer(c_int) :: first_error_code
+  character(len=512) :: first_error_message
   integer :: jrepeat
 
   integer :: ncol, ntotlay
@@ -85,6 +103,11 @@ program spartacus_surface_driver
   ! --------------------------------------------------------
   ! Section 2: Configure
   ! --------------------------------------------------------
+
+  radiation_failed = .false.
+  error_captured = .false.
+  first_error_code = 0_c_int
+  first_error_message = ''
 
   ! Check program called with correct number of arguments
   if (command_argument_count() < 3) then
@@ -99,9 +122,11 @@ program spartacus_surface_driver
 
   ! Read "radsurf" namelist into radiation configuration type
   call config%read(file_name=file_name)
+  if (radiation_error()) go to 900
   
   ! Read "radsurf_driver" namelist into radiation driver config type
   call driver_config%read(file_name)
+  if (radiation_error()) go to 900
 
   ! Print out configuration information
   if (driver_config%iverbose >= 2) then
@@ -119,6 +144,7 @@ program spartacus_surface_driver
   ! Act on any information in the configuration, e.g. loading config
   ! files
   call config%consolidate()
+  if (radiation_error()) go to 900
   
   ! --------------------------------------------------------
   ! Section 3: Read input data file
@@ -132,6 +158,7 @@ program spartacus_surface_driver
 
   ! Open the file and configure the way it is read
   call file%open(trim(file_name), iverbose=driver_config%iverbose)
+  if (radiation_error()) go to 900
 
   ! Get NetCDF output file name
   call get_command_argument(3, file_name, status=istatus)
@@ -143,6 +170,7 @@ program spartacus_surface_driver
   call read_input(file, config, driver_config, ncol, ntotlay, &
        &  canopy_props, sw_spectral_props, lw_spectral_props, &
        &  top_flux_dn_sw, top_flux_dn_direct_sw, top_flux_dn_lw)
+  if (radiation_error()) go to 900
 
   ! Set first and last columns to process
   if (driver_config%iendcol < 1 .or. driver_config%iendcol > ncol) then
@@ -194,8 +222,13 @@ program spartacus_surface_driver
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
         
-      !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
+      !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) REDUCTION(.or.:radiation_failed) SCHEDULE(RUNTIME)
       do jblock = 1, nblock
+        if (radiation_error()) then
+          call capture_radiation_error()
+          radiation_failed = .true.
+          cycle
+        end if
         ! Specify the range of columns to process.
         istartcol = (jblock-1) * driver_config%nblocksize &
              &    + driver_config%istartcol
@@ -213,6 +246,11 @@ program spartacus_surface_driver
           ! Gas optics and spectral emission
           call calc_simple_spectrum_lw(config, canopy_props, lw_spectral_props, &
                &                       istartcol, iendcol)
+          if (radiation_error()) then
+            call capture_radiation_error()
+            radiation_failed = .true.
+            cycle
+          end if
         end if
         
         ! Call the SPARTACUS-Surface radiation scheme
@@ -220,9 +258,15 @@ program spartacus_surface_driver
              &       sw_spectral_props, lw_spectral_props, bc_out, &
              &       istartcol, iendcol, sw_norm_dir, sw_norm_diff, &
              &       lw_internal, lw_norm)
+        if (radiation_error()) then
+          call capture_radiation_error()
+          radiation_failed = .true.
+          cycle
+        end if
         
       end do
       !$OMP END PARALLEL DO
+      if (radiation_failed) go to 900
         
     else
       ! Run radiation scheme serially
@@ -235,20 +279,26 @@ program spartacus_surface_driver
            &       sw_spectral_props, lw_spectral_props, bc_out, &
            &       istartcol, iendcol, sw_norm_dir, sw_norm_diff, &
            &       lw_internal, lw_norm)
+      if (radiation_error()) go to 900
       
     end if
 
     ! Scale the normalized fluxes
     if (config%do_sw) then
       call sw_norm_dir%scale(canopy_props%nlay, top_flux_dn_direct_sw)
+      if (radiation_error()) go to 900
       call sw_norm_diff%scale(canopy_props%nlay, &
            &  top_flux_dn_sw - top_flux_dn_direct_sw)
+      if (radiation_error()) go to 900
       call sw_flux%sum(sw_norm_dir, sw_norm_diff)
+      if (radiation_error()) go to 900
     end if
 
     if (config%do_lw) then
       call lw_norm%scale(canopy_props%nlay, top_flux_dn_lw)
+      if (radiation_error()) go to 900
       call lw_flux%sum(lw_internal, lw_norm)
+      if (radiation_error()) go to 900
     end if
 
   end do
@@ -279,9 +329,35 @@ program spartacus_surface_driver
 
   call save_canopy_fluxes(trim(file_name), config, canopy_props, &
        &  sw_flux, lw_flux, iverbose=driver_config%iverbose)
+  if (radiation_error()) go to 900
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '--------------------------------------------------------------------------------'
   end if
 
+900 if (radiation_error() .or. radiation_failed) then
+    if (radiation_error()) call capture_radiation_error()
+    write(error_unit,'(a,i0,2a)') 'SPARTACUS error ', first_error_code, ': ', trim(first_error_message)
+    stop 1
+  end if
+
+contains
+
+  recursive subroutine capture_radiation_error()
+    character(kind=c_char) :: buffer(len(first_error_message))
+    integer :: i
+
+    ! Read TLS on the failing thread. Only the first worker to enter this
+    ! critical region supplies the diagnostic; printing stays at the CLI exit.
+    !$OMP CRITICAL(spartacus_first_error)
+    if (.not. error_captured) then
+      first_error_code = tls_error_code()
+      call tls_error_message(buffer, int(size(buffer), c_int))
+      do i = 1, size(buffer)
+        first_error_message(i:i) = buffer(i)
+      end do
+      error_captured = .true.
+    end if
+    !$OMP END CRITICAL(spartacus_first_error)
+  end subroutine capture_radiation_error
 end program spartacus_surface_driver

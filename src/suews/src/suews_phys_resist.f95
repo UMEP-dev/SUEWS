@@ -184,7 +184,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: avkdn !Average downwelling shortwave radiation
       REAL(KIND(1D0)), INTENT(in) :: Tair !Air temperature
       REAL(KIND(1D0)), INTENT(in) :: Kmax !Annual maximum hourly solar radiation
-      REAL(KIND(1D0)), INTENT(in) :: G_max !Fitted parameters related to max surface resistance
+      REAL(KIND(1D0)), INTENT(in) :: G_max !Dimensionless fitted coefficient: scales LAI-weighted max conductance to surface conductance [-]
       REAL(KIND(1D0)), INTENT(in) :: G_k !Fitted parameters related to incoming solar radiation
       REAL(KIND(1D0)), INTENT(in) :: g_q_base !Fitted parameters related to humidity deficit, base value
       REAL(KIND(1D0)), INTENT(in) :: g_q_shape !Fitted parameters related to humidity deficit, shape parameter
@@ -232,6 +232,10 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: notUsed = -55
       ! REAL(KIND(1d0)),PARAMETER :: notUsedi=-55.5
 
+      RS = -999.0D0
+      gsc = -999.0D0
+      gfunc = -999.0D0
+      g_lai = -999.0D0
       ! initialisation
       g_dq = 0.5
       g_ta = 0.5
@@ -428,6 +432,7 @@ CONTAINS
 
       ELSEIF (gsModel < 1 .OR. gsModel > 4) THEN
          CALL errorHint(71, 'Value of gsModel not recognised.', notUsed, NotUsed, gsModel, modState)
+         RETURN
       END IF
 
       RS = 1./(gsc/1000.) ![s m-1]

@@ -11,11 +11,11 @@ from typing import Optional, Literal, List, Union
 import pandas as pd
 import warnings
 from .type import (
+    DataModelBase,
     RefValue,
     Reference,
     FlexibleRefValue,
     df_from_cols,
-    null_rejecting_validator,
 )
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
 from ..._env import logger_supy
@@ -32,7 +32,7 @@ from .field_renames import (
 )
 
 
-class ThermalLayers(BaseModel):
+class ThermalLayers(DataModelBase):
     """Five material layers and their thermal properties for a surface facet.
 
     The material layers are ordered from the exposed surface inward. They extend
@@ -182,7 +182,7 @@ class ThermalLayers(BaseModel):
         return cls(dz=dz, k=k, rho_cp=rho_cp)
 
 
-class SurfaceProperties(BaseModel):
+class SurfaceProperties(DataModelBase):
     """Base properties for all surface types"""
 
     model_config = ConfigDict(title="Surface Properties")
@@ -305,7 +305,11 @@ class SurfaceProperties(BaseModel):
     )
     waterdist: Optional[WaterDistribution] = Field(
         default=None,  # TODO: Can this be None?
-        description="Water distribution parameters",
+        description=(
+            "Within-grid water routing fractions (applicable destinations "
+            "required when sfr > 0; inapplicable 0 normalises to absent at "
+            "load; non-zero or post-load edits fail)."
+        ),
     )
     storage_drain_params: StorageDrainParams = Field(
         default_factory=StorageDrainParams,
@@ -313,8 +317,16 @@ class SurfaceProperties(BaseModel):
     )
     snowpack_limit: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
-        description="Limit of snow that can be held on surface",
-        json_schema_extra={"unit": "kg m-2", "display_name": "Snow Pack Limit"},
+        description=(
+            "Snow water equivalent at and above which the surface is fully snow "
+            "covered; below it, while snow is melting, the snow-covered fraction "
+            "follows the snow depletion curve. It does not cap the snowpack. Not "
+            "used for the water surface."
+        ),
+        json_schema_extra={
+            "unit": "kg m-2",
+            "display_name": "Snow Depletion Threshold",
+        },
     )
     thermal_layers: ThermalLayers = Field(
         default_factory=ThermalLayers,
@@ -335,17 +347,64 @@ class SurfaceProperties(BaseModel):
 
     ref: Optional[Reference] = None
 
-    def set_surface_type(self, surface_type: SurfaceType):
-        self._surface_type = surface_type
-        if self._surface_type == SurfaceType.WATER:
+    def _is_active_surface(self) -> bool:
+        """Return True when this surface has positive area fraction (``sfr > 0``)."""
+        raw = self.sfr.value if isinstance(self.sfr, RefValue) else self.sfr
+        if raw is None or isinstance(raw, bool):
+            return False
+        try:
+            return float(raw) > 0.0
+        except (TypeError, ValueError):
+            return False
+
+    def validate_water_distribution(
+        self,
+        surface_type: SurfaceType | None = None,
+        *,
+        normalise_zero_disallowed: bool = False,
+    ) -> None:
+        """Validate this surface's water distribution against its surface type.
+
+        Owning destinations and unit-sum completeness are required only when
+        this surface has positive area fraction (``sfr > 0``). When
+        ``normalise_zero_disallowed`` is True (YAML or model load), explicit
+        numeric zeros in inapplicable destinations are normalised to absent
+        (``None``); when False (post-load handoff validation), any non-null
+        inapplicable destination including ``0.0`` is rejected.
+        """
+        resolved_type = surface_type or self._surface_type
+        if resolved_type is None:
+            raise ValueError(
+                "Surface type must be set before validating water distribution"
+            )
+        if resolved_type == SurfaceType.WATER:
             if self.waterdist is not None:
                 raise ValueError("Water surface should not have water distribution")
-        else:
-            if self.waterdist is None:
+            return
+
+        is_active = self._is_active_surface()
+        if self.waterdist is None:
+            if is_active:
                 raise ValueError(
-                    f"Water distribution required for {self._surface_type.value}"
+                    f"Water distribution required for {resolved_type.value}"
                 )
-            self.waterdist.validate_distribution(self._surface_type)
+            return
+        if not isinstance(self.waterdist, WaterDistribution):
+            raise ValueError(
+                f"Invalid water distribution for {resolved_type.value}: "
+                f"expected WaterDistribution, got {type(self.waterdist).__name__}"
+            )
+        self.waterdist.validate_distribution(
+            resolved_type,
+            require_complete=is_active,
+            normalise_zero_disallowed=normalise_zero_disallowed,
+        )
+
+    def set_surface_type(self, surface_type: SurfaceType):
+        self._surface_type = surface_type
+        self.validate_water_distribution(
+            surface_type, normalise_zero_disallowed=True
+        )
 
     def get_surface_type(self) -> SurfaceType:
         return self._surface_type
@@ -642,7 +701,11 @@ class PavedProperties(
     _surface_type: Literal[SurfaceType.PAVED] = SurfaceType.PAVED
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.PAVED),
-        description="Water distribution fractions for paved surfaces",
+        description=(
+            "Water distribution for paved surfaces (impervious: routes to other "
+            "surfaces and to_runoff when sfr > 0; to_paved/to_soilstore "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -720,7 +783,7 @@ class PavedProperties(
 
 
 class BuildingLayer(
-    BaseModel
+    DataModelBase
 ):  # May need to move VWD for material layers here for referencing
     @model_validator(mode="before")
     @classmethod
@@ -964,6 +1027,11 @@ class BldgsProperties(
     )  # We need to check if there is a building - and then this has to be greather than 0, accordingly.
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.BLDGS),
+        description=(
+            "Water distribution for building surfaces (impervious: routes to "
+            "other surfaces and to_runoff when sfr > 0; to_bldgs/to_soilstore "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -1044,7 +1112,11 @@ class BsoilProperties(
     _surface_type: Literal[SurfaceType.BSOIL] = SurfaceType.BSOIL
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.BSOIL),
-        description="Water distribution for bare soil",
+        description=(
+            "Water distribution for bare soil (pervious: routes to other "
+            "surfaces and to_soilstore when sfr > 0; to_bsoil/to_runoff "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -1077,8 +1149,6 @@ class WaterProperties(NonVegetatedSurfaceProperties):
         description="Change in water flow for water bodies",
         json_schema_extra={"unit": "mm h-1", "display_name": "Flow Change"},
     )
-
-    _flowchange_not_null = null_rejecting_validator("flowchange")
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert water surface properties to DataFrame state format."""
@@ -1117,7 +1187,7 @@ class WallLayer(BuildingLayer):
     _facet_type: Literal["wall"] = "wall"
 
 
-class VerticalLayers(BaseModel):
+class VerticalLayers(DataModelBase):
     """SPARTACUS-Surface vertical layers and their roof and wall facets.
 
     The layers divide the height range from ground level to the maximum building

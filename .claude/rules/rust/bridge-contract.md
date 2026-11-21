@@ -2,6 +2,12 @@
 paths:
   - src/suews_bridge/**
   - src/supy/_run_rust.py
+  - src/supy/cmd/rust_bridge.py
+  - src/supy/suews_checkpoint.py
+  - src/supy/build_rust_bridge.py
+  - src/suews/src/suews_type_*.f95
+  - src/suews/src/suews_ctrl_type.f95
+  - src/suews/src/suews_ctrl_const.f95
   - dev-ref/RUST_BRIDGE*.md
 ---
 
@@ -24,7 +30,7 @@ current implementation already meets them.
 | BR-01 | Keep scientific equations and option semantics in their owning model layer; keep configuration defaults, migrations and validation in the Python data model. Bridge code may marshal, validate representation, invoke the kernel and report its result. | Identify the owning operation and all callers. Explain any new calculation or dependency; move it to its owner if it is not transport. |
 | BR-02 | Consume resolved input. A required missing, null, malformed or incorrectly sized value must produce an actionable error with its path and, where applicable, index or expected length. Do not add numerical fallbacks, silent key drops, truncation or padding that supplies model values. | Exercise valid non-default input and each relevant failure case through Python and engine entry points. Trace the value to the kernel member, not just the YAML reader. |
 | BR-03 | Represent conditional absence explicitly. A field may be absent only when the selected options make it unused; its contract must establish that the kernel will not read it. | Record the enabling condition and representation, and check both option branches. Allocation zeros and scratch buffers are permissible only when written before consumption; they must not become missing-input defaults. |
-| BR-04 | Preserve names, field order, dimensions, units and schema versions across every mapping, including nested parents and the site-member table of contents. | Trace Python/YAML -> Rust -> flat buffer -> facade unpack -> kernel member. Use distinct non-default values and a kernel-facing wiring check. Length checks and round trips alone do not prove the mapping. |
+| BR-04 | Preserve names, field order, dimensions, units and schema versions across every mapping, including nested parents and the site-member table of contents. | Trace Python/YAML -> Rust -> flat buffer -> facade unpack -> kernel member. Use distinct non-default values and a kernel-facing wiring check. Length checks and round trips alone do not prove the mapping. For the flat buffer -> facade unpack -> kernel member leg, regenerate and run the C-API field-binding observer (see [conventions.md](conventions.md), "C-API field-binding observer"). [procedure: Principle 1] |
 | BR-05 | Prove FFI buffer validity at the safe boundary: checked sizes and integer conversions, layout/stride, writable output, non-overlap, lifetime and exclusive mutation for the duration of the call. | Locate validation before each affected unsafe call and document its assumptions. Check malformed shapes, overflow, aliasing and error propagation where relevant. Do not widen `unsafe` or release the GIL without re-establishing those assumptions. |
 | BR-06 | Keep cold-start resolution separate from restart. Restart must preserve the complete state and elapsed timer, reject incompatible envelopes, and never silently initialise missing members. | Check version/member/dimension validation and split-run equivalence against an uninterrupted run. Check timestep compatibility. Distinguish documented inactive sentinels from invalid active values. |
 | BR-07 | Preserve the forcing and output contracts. Use owning registries and generated widths; keep conversion, interpolation and file-format policy in the relevant I/O layer. | Check column order, units, timestamps, cumulative/average/instantaneous semantics and memory layout. Compare Python and engine routes where they implement the same contract. Do not infer correctness from equal array sizes. |
@@ -67,3 +73,7 @@ Rust inspection is not an additional gate. Existing
 [schema migration](../python/schema-versioning.md) and release requirements
 still apply. A proposal needing a new scientific default, unit policy or state
 meaning must return to that owner rather than being decided inside the bridge.
+
+Fortran-to-Rust equivalence is tested differentially; how, and how an approved
+difference is recorded, is in [tests/patterns.md](../tests/patterns.md),
+"Differential and Property Tests".

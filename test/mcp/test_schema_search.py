@@ -7,6 +7,8 @@ from typing import Any
 
 import pytest
 
+from supy.data_model.core.hydro import WaterDistribution
+
 pytestmark = pytest.mark.api
 
 
@@ -120,3 +122,41 @@ def test_shallow_truncates_long_string_scalars() -> None:
     result = _shallow({"description": "x" * 250})
 
     assert result["description"] == ("x" * 200) + "..."
+
+
+def test_search_schema_surfaces_waterdistribution_rules_without_truncation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MCP ``search_schema`` displays the live WaterDistribution contract clearly."""
+    mcp_schema_search = pytest.importorskip("suews_mcp.tools.schema_search")
+    live_wd_schema = WaterDistribution.model_json_schema()
+    live_schema = {
+        "$defs": {
+            "WaterDistribution": {
+                key: value for key, value in live_wd_schema.items() if key != "$defs"
+            }
+        }
+    }
+    monkeypatch.setattr(mcp_schema_search, "_SCHEMA_CACHE", {})
+    monkeypatch.setattr(
+        mcp_schema_search,
+        "run_suews_cli",
+        lambda *_args, **_kwargs: _schema_envelope(live_schema),
+    )
+
+    for query, suffix in (
+        ("WaterDistribution", "$defs.WaterDistribution"),
+        ("to_soilstore", "$defs.WaterDistribution.properties.to_soilstore"),
+        ("to_runoff", "$defs.WaterDistribution.properties.to_runoff"),
+    ):
+        result = mcp_schema_search.search_schema(query)
+        assert result["status"] == "success"
+        match = next(
+            item for item in result["data"]["matches"] if item["path"] == suffix
+        )
+        desc = match["value"]["description"]
+        assert "sfr > 0" in desc
+        assert "0 normalises to absent at load" in desc
+        assert "non-zero or post-load edits fail" in desc
+        if suffix != "$defs.WaterDistribution":
+            assert not desc.endswith("...")

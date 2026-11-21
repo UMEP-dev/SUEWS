@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 import yaml
 
 from ..._env import _user_warning_stacklevel
@@ -29,7 +29,7 @@ from .physics_orthogonal import (
     fold_kdown_split_constant_direct_fraction,
     fold_storage_heat_ohm_inc_qf,
 )
-from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
+from .type import DataModelBase, FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -778,7 +778,7 @@ for enum_class in [
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
 
-class StebbsPhysics(BaseModel):
+class StebbsPhysics(DataModelBase):
     """
     STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.
 
@@ -853,11 +853,14 @@ class StebbsPhysics(BaseModel):
             return fold_stebbs_public_key_aliases(values, cls.__name__)
         return values
 
-    @field_validator("enabled", "parameters", mode="after")
+    @field_validator("enabled", "parameters", mode="before")
     @classmethod
     def _require_master_switch_values(cls, value):
-        inner = value.value if isinstance(value, RefValue) else value
-        if inner is None:
+        if value is None:
+            raise ValueError("STEBBS enabled/parameters switches cannot be null")
+        if isinstance(value, RefValue) and value.value is None:
+            raise ValueError("STEBBS enabled/parameters switches cannot be null")
+        if isinstance(value, dict) and "value" in value and value["value"] is None:
             raise ValueError("STEBBS enabled/parameters switches cannot be null")
         return value
 
@@ -869,7 +872,7 @@ class StebbsPhysics(BaseModel):
         return coerce_nested_to_flat(info.field_name, value)
 
 
-class ModelPhysics(BaseModel):
+class ModelPhysics(DataModelBase):
     """
     Model physics configuration options.
     """
@@ -1376,7 +1379,7 @@ class OutputTimestampReference(StrEnum):
     DAYLIGHT = "daylight"
 
 
-class OutputControl(BaseModel):
+class OutputControl(DataModelBase):
     """Configuration block for model output files.
 
     Renamed from ``OutputConfig`` and lifted out of the legacy
@@ -1572,7 +1575,7 @@ class ForcingTimestampReference(StrEnum):
     UTC = "utc"
 
 
-class ForcingControl(BaseModel):
+class ForcingControl(DataModelBase):
     """Configuration block for meteorological forcing input.
 
     Groups forcing-related fields, such as sub-hourly disaggregation and
@@ -1628,7 +1631,7 @@ class ForcingControl(BaseModel):
     )
 
 
-class ModelControl(BaseModel):
+class ModelControl(DataModelBase):
     model_config = ConfigDict(title="Model Control", validate_assignment=True)
 
     @model_validator(mode="before")
@@ -1890,7 +1893,7 @@ class ModelControl(BaseModel):
         return instance
 
 
-class Model(BaseModel):
+class Model(DataModelBase):
     model_config = ConfigDict(title="Model Configuration", validate_assignment=True)
 
     control: ModelControl = Field(

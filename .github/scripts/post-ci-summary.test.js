@@ -36,8 +36,8 @@ test('every tier emitted by determine-matrix.sh has a description', () => {
 
 test('physics-full renders with its description, not the bare token', () => {
   const body = buildBody(envFor({ TEST_TIER: 'physics-full' }), ctx);
-  assert.match(body, /\| \*\*Test tier\*\* \| physics-full \(full physics tier incl\. slow; 0-physics:change label\) \|/);
-  assert.match(body, /0-physics:change label -> full physics tier/);
+  assert.match(body, /\| \*\*Test tier\*\* \| physics-full \(full physics tier incl\. slow; 0-physics:change \/ 0-numerics:change\) \|/);
+  assert.match(body, /0-physics:change or 0-numerics:change label -> full physics tier/);
 });
 
 test('matrix descriptor follows buildplat, not the draft flag', () => {

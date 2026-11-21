@@ -1,11 +1,14 @@
-from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing import Optional, Dict
 import pandas as pd
-from .type import Reference, df_from_cols
+from .type import DataModelBase, Reference, df_from_cols
 
 
-class DayProfile(BaseModel):
-    """Daily values that can vary by day of year."""
+class DayProfile(DataModelBase):
+    """Scalar values keyed by ``working_day`` and ``holiday``.
+
+    See :doc:`/inputs/yaml/temporal-profiles` for day selection and field uses.
+    """
 
     model_config = ConfigDict(title="Daily Profile")
 
@@ -74,8 +77,11 @@ class DayProfile(BaseModel):
         return cls(**params)
 
 
-class WeeklyProfile(BaseModel):
-    """Weekly pattern for 7-day variations."""
+class WeeklyProfile(DataModelBase):
+    """Seven daily values keyed by lowercase weekday names, Monday to Sunday.
+
+    See :doc:`/inputs/yaml/temporal-profiles` for storage order and field uses.
+    """
 
     model_config = ConfigDict(title="Weekly Profile")
 
@@ -151,7 +157,7 @@ class WeeklyProfile(BaseModel):
         return cls(**params)
 
 
-class HourlyProfile(BaseModel):
+class HourlyProfile(DataModelBase):
     """24-hour profile for diurnal variations.
 
     Holds two sets of 24 hourly values, one for working days
@@ -167,6 +173,8 @@ class HourlyProfile(BaseModel):
     ``profile_traffic_24hr`` and ``profile_human_activity_24hr``.
     The 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint
     subclasses instead.
+
+    See :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.
     """
 
     model_config = ConfigDict(title="Hourly Profile")
@@ -261,9 +269,13 @@ class HourlyProfile(BaseModel):
 
         # Create an instance of HourlyProfile
         return cls(working_day=working_day, holiday=holiday)
-    
-class TenMinuteProfile(BaseModel):
-    """10-minute profile for diurnal variations (144 values per day)."""
+
+
+class TenMinuteProfile(DataModelBase):
+    """Two 10-minute mappings, ``working_day`` and ``holiday``, keyed ``"1"`` to ``"144"``.
+
+    See :doc:`/inputs/yaml/temporal-profiles` for slot timing and field uses.
+    """
 
     model_config = ConfigDict(title="Ten Minute Profile")
 
@@ -358,7 +370,10 @@ class TenMinuteProfile(BaseModel):
 
 
 class HeatingSetpointProfile(TenMinuteProfile):
-    """10-minute profile for heating setpoints (default: off)."""
+    """Heating setpoints in two day-type mappings with 10-minute keys ``"1"`` to ``"144"``.
+
+    See :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.
+    """
 
     model_config = ConfigDict(title="Heating Setpoint Profile")
 
@@ -370,7 +385,10 @@ class HeatingSetpointProfile(TenMinuteProfile):
 
 
 class CoolingSetpointProfile(TenMinuteProfile):
-    """10-minute profile for cooling setpoints (default: off)."""
+    """Cooling setpoints in two day-type mappings with 10-minute keys ``"1"`` to ``"144"``.
+
+    See :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.
+    """
 
     model_config = ConfigDict(title="Cooling Setpoint Profile")
 

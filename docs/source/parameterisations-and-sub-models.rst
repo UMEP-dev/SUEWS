@@ -323,7 +323,7 @@ After generation, runoff is routed according to the water distribution matrix (`
 - Fractions directed to soil storage (for pervious surfaces)
 - Overflow routing to water bodies via the ``RunoffToWater`` parameter
 
-The total runoff from a grid cell includes contributions from all surface types, subject to pipe capacity limitations.
+The total runoff from a grid cell includes contributions from all surface types, subject to pipe capacity limitations. For YAML ``waterdist`` keys, active-surface requirements (``sfr > 0``), load-time zero normalisation, and post-load validation rules, see :ref:`waterdist_yaml_rules` and :doc:`/inputs/yaml/config-reference/waterdistribution`.
 
 Snowmelt
 --------

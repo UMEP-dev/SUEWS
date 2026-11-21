@@ -1,8 +1,15 @@
 //! Restart envelope: complete model state plus elapsed timer, not cold-start
 //! configuration. A missing member or incompatible version must not fall back
-//! to a freshly initialised state. Timer validation here is complemented by
-//! timestep compatibility checks in `sim` and nested member checks in
-//! `suews_state`; preserve all three when changing restart representation.
+//! to a freshly initialised state (`BR-06`). Timer validation here is
+//! complemented by timestep compatibility checks in `sim` and nested 13-member
+//! state checks in `suews_state`; preserve all three when changing restart
+//! representation.
+//!
+//! On the Python side, `src/supy/suews_checkpoint.py::SUEWSCheckpoint` wraps
+//! one JSON envelope string per grid ID and mirrors
+//! [`SUEWS_CHECKPOINT_SCHEMA_VERSION`]. Float deserialisation relies on
+//! `serde_json`'s `float_roundtrip` feature so chunked/restarted runs stay
+//! bit-exact across JSON boundaries.
 
 use crate::error::BridgeError;
 use crate::suews_state::{
@@ -11,19 +18,33 @@ use crate::suews_state::{
 use crate::timer::SuewsTimer;
 use serde_json::{json, Map, Value};
 
+/// Current JSON envelope schema version carrying both elapsed timer metadata
+/// and the complete nested `SuewsState` payload.
 pub const SUEWS_CHECKPOINT_SCHEMA_VERSION: u32 = 2;
 
+/// Elapsed timing metadata carried alongside model state across restart
+/// boundaries.
+///
+/// Mirrors the continuation fields of [`SuewsTimer`] needed to resume a
+/// multi-segment run without resetting rolling averages or day-boundary flags.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CheckpointTimer {
+    /// Elapsed simulation seconds since the original run started (`>= 0`).
     pub dt_since_start: i32,
+    /// Elapsed seconds at the previous timestep (`0 <= dt_since_start_prev <= dt_since_start`).
     pub dt_since_start_prev: i32,
+    /// Model timestep duration in seconds (`> 0`).
     pub tstep: i32,
+    /// Day-boundary flag carried into the next segment (`0` or `1`).
     pub new_day: i32,
 }
 
+/// Decoded restart checkpoint containing the validated model state and timer.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsCheckpointData {
+    /// Complete 13-member SUEWS model state snapshot.
     pub state: SuewsState,
+    /// Validated elapsed timer metadata from the preceding segment.
     pub timer: CheckpointTimer,
 }
 
@@ -33,6 +54,8 @@ fn invalid_envelope(message: impl Into<String>) -> BridgeError {
     }
 }
 
+/// Read a required JSON integer field from the `timer` object and verify it
+/// fits in `i32`.
 fn parse_i32_field(object: &Map<String, Value>, name: &str) -> Result<i32, BridgeError> {
     let value = object
         .get(name)
@@ -42,6 +65,8 @@ fn parse_i32_field(object: &Map<String, Value>, name: &str) -> Result<i32, Bridg
         .map_err(|_| invalid_envelope(format!("timer.{name} is outside the i32 range")))
 }
 
+/// Enforce domain invariants on elapsed timer fields before serialising or
+/// after parsing a checkpoint envelope.
 fn validate_timer(timer: CheckpointTimer) -> Result<CheckpointTimer, BridgeError> {
     if timer.dt_since_start < 0 {
         return Err(invalid_envelope(
@@ -67,6 +92,11 @@ fn validate_timer(timer: CheckpointTimer) -> Result<CheckpointTimer, BridgeError
     Ok(timer)
 }
 
+/// Serialise a post-run model `state` and `timer` into a schema-version-2 JSON
+/// checkpoint envelope.
+///
+/// Inactive `NaN` state entries are encoded as JSON `null`; `+/-Inf` values
+/// fail with [`BridgeError::NonFiniteCheckpointValue`].
 pub fn suews_checkpoint_to_json(
     state: &SuewsState,
     timer: &SuewsTimer,
@@ -94,6 +124,12 @@ pub fn suews_checkpoint_to_json(
     })
 }
 
+/// Deserialise and validate a schema-version-2 JSON checkpoint envelope.
+///
+/// Rejects legacy version-1 state-only payloads with
+/// [`BridgeError::LegacyCheckpointMissingTimer`], unknown schema versions with
+/// [`BridgeError::UnsupportedCheckpointVersion`], and malformed timers or
+/// incomplete state member sets before returning [`SuewsCheckpointData`].
 pub fn suews_checkpoint_from_json(json_text: &str) -> Result<SuewsCheckpointData, BridgeError> {
     let checkpoint: Value = serde_json::from_str(json_text)
         .map_err(|error| invalid_envelope(format!("invalid JSON: {error}")))?;

@@ -1,5 +1,6 @@
 """Validate reviewed bindings and fail closed on stale or unbound instructions."""
 
+from copy import deepcopy
 from pathlib import Path
 
 import yaml
@@ -20,6 +21,8 @@ def load(path: Path) -> dict:
             p for step in journey["steps"] for p in step.get("promises", [])
         ]
         for promise in promises:
+            if promise.get("delta") == "expected_delta":
+                promise["delta"] = deepcopy(data["expected_delta"])
             if promise["kind"] == "creates" and not promise.get("delta"):
                 raise ValueError("A creates promise requires a content delta")
     return data

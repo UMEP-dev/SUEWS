@@ -1,3 +1,4 @@
+:doc-source: hand-written
 :orphan:
 
 SUEWS-SPARTACUS (SS) input files

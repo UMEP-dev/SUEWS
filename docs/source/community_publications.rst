@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _community_publications:
 
 Community Publications

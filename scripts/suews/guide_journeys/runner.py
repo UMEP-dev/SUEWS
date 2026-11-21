@@ -25,6 +25,7 @@ from .manifest import (
     validate_probes,
 )
 from .oracle import evaluate, require_provenance, sha256, snapshot
+from .python_session import PythonSession
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
 from .summary import failed_summary, summarise
@@ -110,6 +111,17 @@ def run_steps(
 ) -> tuple[list[dict], str | None]:
     """Stop on the first failed promise and retain each later consumer as unrun."""
     validate_probes(specs, {s["id"] for s in specs if s["kind"] == "documented"})
+    session = PythonSession(work, env)
+    try:
+        return execute_steps(specs, work, env, pinned, session)
+    finally:
+        session.close()
+
+
+def execute_steps(
+    specs: list[dict], work: Path, env: dict, pinned: dict, session: PythonSession
+) -> tuple[list[dict], str | None]:
+    """Observe steps within the caller-owned interpreter lifetime."""
     certified = dict(pinned)
     records = []
     stopped = False
@@ -130,7 +142,11 @@ def run_steps(
             record.update(status="failed", stderr=str(error), after=before)
             stopped = True
             continue
-        process = execute(spec["command"], work, env)
+        process = (
+            session.execute(spec)
+            if spec.get("span_type") == "python"
+            else execute(spec["command"], work, env)
+        )
         after = snapshot(work)
         record.update(process, after=after)
         promises = [evaluate(p, before, after, work, process) for p in spec["promises"]]

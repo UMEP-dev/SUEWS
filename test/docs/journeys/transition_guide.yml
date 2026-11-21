@@ -289,9 +289,6 @@ fixtures:
   zero-area-dev12:
     path: test/fixtures/guide_journeys/zero-area-dev12.yml
     sha256: 02c10251b6a0b83961bf6971728510a342fb561b250155e13943b3df51468fe1
-  stale-dev11:
-    path: test/fixtures/guide_journeys/stale-dev11.yml
-    sha256: f174e603b40ed9d3dfd80ba9a09f7dc87705954dcb1c61f51289702ac907e168
   stale-dev12:
     path: test/fixtures/guide_journeys/stale-dev12.yml
     sha256: 10e2aa91e3a7eeb7e1f1dd3978479d4f77d0b497478dcf1ec135bb5fb93637ec

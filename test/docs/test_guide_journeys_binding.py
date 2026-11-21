@@ -161,3 +161,19 @@ def test_manifest_rejects_weak_promises(tmp_path, mutation):
     path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
         load(path)
+
+
+def test_named_delta_is_loaded_for_every_creation_promise():
+    """Creation steps and outcomes read the one hand-written migration delta."""
+    manifest = load(MANIFEST)
+    creates = [
+        p
+        for j in manifest["journeys"]
+        for p in j.get("outcomes", [])
+        + [p for step in j["steps"] for p in step["promises"]]
+        if p["kind"] == "creates"
+    ]
+    assert creates
+    assert all(p["delta"] == manifest["expected_delta"] for p in creates)
+    creates[0]["delta"]["set"]["schema_version"] = "changed"
+    assert manifest["expected_delta"]["set"]["schema_version"] == "2026.6.dev12"

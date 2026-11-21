@@ -3,7 +3,7 @@
 import inspect
 
 
-def audit() -> dict:
+def audit(spec: dict, delta: dict) -> dict:
     """Probe the public migrator with hand-written deltas, independently of its handler."""
     from copy import deepcopy  # noqa: PLC0415 - executed inside the isolated wheel venv
     import json  # noqa: PLC0415 - executed inside the isolated wheel venv
@@ -16,49 +16,38 @@ def audit() -> dict:
     )
     from supy.data_model.core.type import SurfaceType  # noqa: PLC0415
 
-    source = yaml.safe_load(Path("site.yml").read_text(encoding="utf-8"))
+    source = yaml.safe_load(Path(spec["source"]).read_text(encoding="utf-8"))
     migrator = SchemaMigrator()
     partition = {}
-    for name, indicator in {
-        "explicit_older": {"schema_version": "2026.6.dev11"},
-        "explicit_current": {"schema_version": "2026.6.dev12"},
-        "explicit_newer": {"schema_version": "2099.1"},
-        "legacy_version": {"version": "old"},
-        "legacy_config_version": {"config_version": "old"},
-        "no_indicator": {},
-    }.items():
+    for name, branch in spec["partition"].items():
         partition[name] = {
-            "detected": migrator.auto_detect_version(indicator),
-            "migration_coverage": "missed"
-            if name in {"explicit_newer", "legacy_version", "legacy_config_version"}
-            else "journeys",
+            "detected": migrator.auto_detect_version(branch["indicator"]),
+            "expected": branch["expected"],
+            "migration_coverage": branch["migration_coverage"],
         }
     case = deepcopy(source)
-    case["schema_version"] = "2026.6.dev11"
+    case["schema_version"] = spec["from_version"]
     cover = case["sites"][0]["properties"]["land_cover"]
     deletions = []
-    for surface in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
-        field = "to_" + surface
-        cover[surface]["waterdist"][field] = {
-            "value": 0.0,
-            "ref": {"desc": "audit provenance", "ID": "audit"},
-        }
-        deletions.append((surface, field))
-    for surface in ("evetr", "dectr", "grass", "bsoil"):
-        cover[surface]["waterdist"]["to_runoff"] = 0.0
-        deletions.append((surface, "to_runoff"))
+    for effect in spec["undocumented_effects"]:
+        for surface in effect["surfaces"]:
+            field = effect["field"].format(surface=surface)
+            cover[surface]["waterdist"][field] = deepcopy(effect["value"])
+            deletions.append((surface, field))
     expected = deepcopy(case)
-    expected["schema_version"] = "2026.6.dev12"
+    expected.update(delta["set"])
     for surface, field in deletions:
         del expected["sites"][0]["properties"]["land_cover"][surface]["waterdist"][
             field
         ]
-    # The pinned dev11 journey example has one additional documented drop.
-    expected["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"].pop(
-        "to_soilstore", None
-    )
+    for path in delta["remove"]:
+        parts = path.split("/")
+        parent = expected
+        for key in parts[:-1]:
+            parent = parent[int(key)] if isinstance(parent, list) else parent[key]
+        del parent[parts[-1]]
     observed = migrator.migrate(
-        case, from_version="2026.6.dev11", to_version="2026.6.dev12"
+        case, from_version=spec["from_version"], to_version=spec["to_version"]
     )
     return {
         "surface_enum_available": [surface.value for surface in SurfaceType],
@@ -76,8 +65,8 @@ def audit() -> dict:
 def inspection_program() -> str:
     """Capture production logging separately from the audit's structured evidence."""
     return (
-        "import contextlib,io,json\n"
+        "import contextlib,io,json,sys\n"
         + inspect.getsource(audit)
-        + "\nlog=io.StringIO()\nwith contextlib.redirect_stdout(log):\n    result=audit()\n"
+        + "\nlog=io.StringIO()\nwith contextlib.redirect_stdout(log):\n    result=audit(*json.loads(sys.argv[1]))\n"
         + "result['stdout']=log.getvalue()\nprint(json.dumps(result))"
     )

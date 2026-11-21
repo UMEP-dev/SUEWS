@@ -328,11 +328,7 @@ journeys:
     - kind: creates
       path: site.migrated.yml
       source: site.yml
-      delta:
-        remove:
-        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-        set:
-          schema_version: 2026.6.dev12
+      delta: expected_delta
     - kind: unchanged
       path: site.yml
   - id: validate-migrated
@@ -349,11 +345,7 @@ journeys:
   - kind: creates
     path: site.migrated.yml
     source: site.yml
-    delta:
-      remove:
-      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-      set:
-        schema_version: 2026.6.dev12
+    delta: expected_delta
   - kind: unchanged
     path: site.yml
   choices:
@@ -367,11 +359,7 @@ journeys:
     - kind: creates
       path: site.migrated.yml
       source: site.yml
-      delta:
-        remove:
-        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-        set:
-          schema_version: 2026.6.dev12
+      delta: expected_delta
     - kind: unchanged
       path: site.yml
   - id: validate-converted
@@ -388,11 +376,7 @@ journeys:
   - kind: creates
     path: site.migrated.yml
     source: site.yml
-    delta:
-      remove:
-      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-      set:
-        schema_version: 2026.6.dev12
+    delta: expected_delta
   - kind: unchanged
     path: site.yml
   choices:
@@ -520,11 +504,7 @@ journeys:
     - kind: creates
       path: site.migrated.yml
       source: site.yml
-      delta:
-        remove:
-        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-        set:
-          schema_version: 2026.6.dev12
+      delta: expected_delta
     - kind: unchanged
       path: site.yml
     command_index: 0
@@ -547,11 +527,7 @@ journeys:
   - kind: creates
     path: site.migrated.yml
     source: site.yml
-    delta:
-      remove:
-      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-      set:
-        schema_version: 2026.6.dev12
+    delta: expected_delta
   - kind: unchanged
     path: site.yml
   choices:
@@ -572,11 +548,7 @@ journeys:
     - kind: creates
       path: site.migrated.yml
       source: site.yml
-      delta:
-        remove:
-        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-        set:
-          schema_version: 2026.6.dev12
+      delta: expected_delta
     - kind: unchanged
       path: site.yml
     command_index: 0
@@ -599,11 +571,7 @@ journeys:
   - kind: creates
     path: site.migrated.yml
     source: site.yml
-    delta:
-      remove:
-      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
-      set:
-        schema_version: 2026.6.dev12
+    delta: expected_delta
   - kind: unchanged
     path: site.yml
   choices:
@@ -701,16 +669,43 @@ schema_versions:
 behaviour_audit:
   journey: tagged-dev11
   source_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  source: site.yml
+  from_version: 2026.6.dev11
+  to_version: 2026.6.dev12
   partition:
-  - explicit_older
-  - explicit_current
-  - explicit_newer
-  - legacy_version
-  - legacy_config_version
-  - no_indicator
+    explicit_older:
+      indicator: {schema_version: 2026.6.dev11}
+      expected: 2026.6.dev11
+      migration_coverage: journeys
+    explicit_current:
+      indicator: {schema_version: 2026.6.dev12}
+      expected: 2026.6.dev12
+      migration_coverage: journeys
+    explicit_newer:
+      indicator: {schema_version: '2099.1'}
+      expected: '2099.1'
+      migration_coverage: missed
+    legacy_version:
+      indicator: {version: old}
+      expected: '0.0'
+      migration_coverage: missed
+    legacy_config_version:
+      indicator: {config_version: old}
+      expected: '0.0'
+      migration_coverage: missed
+    no_indicator:
+      indicator: {}
+      expected: 2026.6.dev12
+      migration_coverage: journeys
   undocumented_effects:
-  - self-routing numeric zeros
-  - pervious to_runoff numeric zeros
+  - name: self-routing numeric zeros
+    surfaces: [paved, bldgs, evetr, dectr, grass, bsoil]
+    field: 'to_{surface}'
+    value: {value: 0.0, ref: {desc: audit provenance, ID: audit}}
+  - name: pervious to_runoff numeric zeros
+    surfaces: [evetr, dectr, grass, bsoil]
+    field: to_runoff
+    value: 0.0
 forcing_resource:
   package: supy
   path: sample_data/Kc_2012_data_60.txt

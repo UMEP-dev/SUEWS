@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 import time
 
+import yaml
+
 from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
@@ -155,27 +157,26 @@ def run_journey(
     args: argparse.Namespace,
 ) -> dict:
     """Install, execute and record one independent reader path."""
-    text = (root / manifest["guide"]).read_text(encoding="utf-8")
-    if journey.get("historical"):
-        history = manifest["historical"]
-        path = root / history["path"]
-        if sha256(path) != history["sha256"]:
-            raise ValueError("Historical guide checksum mismatch")
-        text = path.read_text(encoding="utf-8")
-        specs = historical_steps(text, manifest, journey)
-    else:
-        specs = resolve_steps(document, manifest, journey)
-    record = new_record(manifest, args.revision, journey, text)
-    if journey.get("historical"):
-        record.update(
-            guide_path=history["path"],
-            revision_reviewed=history["revision"],
-            revision_run=history["revision"],
-        )
-    record["wheel_sha256"] = sha256(args.wheel)
+    record = new_record(manifest, args.revision, journey, "")
     started = time.monotonic()
-    record["steps"] = [unrun_step(spec) for spec in specs]
     try:
+        text = (root / manifest["guide"]).read_text(encoding="utf-8")
+        if journey.get("historical"):
+            history = manifest["historical"]
+            record.update(
+                guide_path=history["path"], revision_reviewed=history["revision"]
+            )
+            path = root / history["path"]
+            if sha256(path) != history["sha256"]:
+                raise ValueError("Historical guide checksum mismatch")
+            text = path.read_text(encoding="utf-8")
+            record["guide_text"] = text
+            specs = historical_steps(text, manifest, journey)
+        else:
+            record["guide_text"] = text
+            specs = resolve_steps(document, manifest, journey)
+        record["wheel_sha256"] = sha256(args.wheel)
+        record["steps"] = [unrun_step(spec) for spec in specs]
         for fixture_id in journey["inputs"].values():
             fixture = manifest["fixtures"][fixture_id]
             fixture_bytes(root, manifest["fixtures"], fixture_id)
@@ -223,8 +224,18 @@ def run_journey(
         record["accepted"] = passed
         if "expected_failure" in journey:
             assess_replay(record, journey, specs[1], work, env)
-    except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:
+    except (
+        ValueError,
+        OSError,
+        RuntimeError,
+        KeyError,
+        IndexError,
+        TypeError,
+        yaml.YAMLError,
+        subprocess.SubprocessError,
+    ) as error:
         record["status"] = "failed"
+        record["accepted"] = False
         record["failure"] = f"{type(error).__name__}: {error}"
     record["seconds"] = time.monotonic() - started
     write(args.output / (journey["id"] + ".json"), record)
@@ -248,10 +259,45 @@ def main() -> int:
     )
     args = parser.parse_args()
     root = Path.cwd().resolve()
-    manifest = load(args.manifest)
-    text = (root / manifest["guide"]).read_text(encoding="utf-8")
-    document = Document(text, manifest["title"])
-    stale = check(document, manifest, args.revision)
+    if not args.check:
+        if not all((args.wheel, args.wheelhouse, args.output)):
+            parser.error("--wheel, --wheelhouse and --output are required for journeys")
+        args.output = args.output.resolve()
+        args.wheel = args.wheel.resolve()
+        args.wheelhouse = args.wheelhouse.resolve()
+        if args.output.is_relative_to(root):
+            parser.error("Journey output must be outside the checkout")
+        if args.output.exists():
+            parser.error(
+                "Use a fresh output directory; previous evidence is never overwritten"
+            )
+        args.output.mkdir(parents=True)
+    try:
+        manifest = load(args.manifest)
+        text = (root / manifest["guide"]).read_text(encoding="utf-8")
+        document = Document(text, manifest["title"])
+        stale = check(document, manifest, args.revision)
+    except (
+        ValueError,
+        OSError,
+        KeyError,
+        IndexError,
+        TypeError,
+        yaml.YAMLError,
+    ) as error:
+        record = new_record(
+            {"guide": str(args.manifest), "envelope": {"reviewed_revision": None}},
+            args.revision,
+            {"id": "setup"},
+            "",
+        )
+        record.update(
+            status="failed", accepted=False, failure=f"{type(error).__name__}: {error}"
+        )
+        if not args.check:
+            write(args.output / "setup.json", record)
+        print(json.dumps(record, indent=2))
+        return 1
     if args.check:
         print(
             json.dumps(
@@ -265,18 +311,6 @@ def main() -> int:
             )
         )
         return bool(stale)
-    if not all((args.wheel, args.wheelhouse, args.output)):
-        parser.error("--wheel, --wheelhouse and --output are required for journeys")
-    args.output = args.output.resolve()
-    args.wheel = args.wheel.resolve()
-    args.wheelhouse = args.wheelhouse.resolve()
-    if args.output.is_relative_to(root):
-        parser.error("Journey output must be outside the checkout")
-    if args.output.exists():
-        parser.error(
-            "Use a fresh output directory; previous evidence is never overwritten"
-        )
-    args.output.mkdir(parents=True)
     if stale:
         record = new_record(manifest, args.revision, {"id": "staleness"}, text)
         record.update(status="stale", failure=stale)

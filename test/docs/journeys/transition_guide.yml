@@ -23,6 +23,7 @@ steps:
   command: 1
   consumes:
   - site.migrated.yml
+  - Kc_2012_data_60.txt
   conditions:
   - tagged-condition
   - directory
@@ -37,6 +38,7 @@ steps:
     --format json``'
   consumes:
   - site.yml
+  - Kc_2012_data_60.txt
   conditions:
   - untagged-condition
   - directory
@@ -61,6 +63,7 @@ steps:
   command: 1
   consumes:
   - site.migrated.yml
+  - Kc_2012_data_60.txt
   conditions:
   - untagged-condition
   - directory
@@ -73,6 +76,7 @@ steps:
   command: 0
   consumes:
   - site.yml
+  - Kc_2012_data_60.txt
   conditions:
   - current-condition
   - directory
@@ -151,3 +155,196 @@ historical:
   revision: bd584e0d2c8d709a09453960a3bb85522af28da0
   source_first_line: 222
   block: 1
+journeys:
+- id: tagged-dev11
+  inputs:
+    site.yml: tagged-dev11
+  steps:
+  - id: migrate
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta:
+        remove:
+        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+        set:
+          schema_version: 2026.6.dev12
+    - kind: unchanged
+      path: site.yml
+  - id: validate-migrated
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta:
+      remove:
+      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+      set:
+        schema_version: 2026.6.dev12
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - tagged-dev11
+- id: untagged-known
+  inputs:
+    site.yml: untagged-dev11
+  steps:
+  - id: convert
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta:
+        remove:
+        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+        set:
+          schema_version: 2026.6.dev12
+    - kind: unchanged
+      path: site.yml
+  - id: validate-converted
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta:
+      remove:
+      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+      set:
+        schema_version: 2026.6.dev12
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - untagged-known
+- id: untagged-unknown
+  inputs:
+    site.yml: untagged-dev11
+  steps:
+  - id: validate-original-inline
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  - id: unknown-skip-probe
+    promises:
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+    - kind: diagnostic
+      stream: stdout
+      pattern: Skipped
+    probe: suews schema migrate site.yml --target-version 2026.6.dev12
+    consumes:
+    - site.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - untagged-unknown
+- id: current-dev12
+  inputs:
+    site.yml: dev12
+  steps:
+  - id: validate-current
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  - id: repeat-probe
+    promises:
+    - kind: unchanged
+      path: .
+    - kind: absent
+      path: site.migrated.yml
+    - kind: diagnostic
+      stream: stdout
+      pattern: Skipped
+    probe: suews schema migrate site.yml --target-version 2026.6.dev12
+    consumes:
+    - site.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - current-dev12
+- id: recovery-nonzero
+  inputs:
+    site.yml: nonzero-dev11
+  steps:
+  - id: migrate
+    promises:
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+    - kind: diagnostic
+      stream: stdout
+      pattern: sites\[0\].*paved.*to_soilstore
+    exit_status: 1
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - recovery-nonzero
+- id: recovery-zero-area
+  inputs:
+    site.yml: zero-area-dev12
+  steps:
+  - id: validate-current
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - recovery-zero-area

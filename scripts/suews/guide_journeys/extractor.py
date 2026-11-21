@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import hashlib
 import io
 import re
-import textwrap
 
 from docutils import nodes
 from docutils.core import publish_doctree
@@ -13,10 +12,25 @@ from docutils.core import publish_doctree
 COMMAND = re.compile(r"^(suews|pip|python|import)(?:\s|$)")
 
 
+def common_dedent(text: str) -> str:
+    """Remove the common source margin without altering blank lines in strings."""
+    margins = re.findall(r"(?m)^([ \t]*)\S", text)
+    if not margins:
+        return text
+    margin = margins[0]
+    for other in margins[1:]:
+        while not other.startswith(margin):
+            margin = margin[:-1]
+    return "\n".join(
+        line[len(margin) :] if line.startswith(margin) else line
+        for line in text.split("\n")
+    )
+
+
 def digest(text: str) -> str:
     """Hash source, removing only common indentation and CRLF differences."""
     return hashlib.sha256(
-        textwrap.dedent(text.replace("\r\n", "\n")).encode()
+        common_dedent(text.replace("\r\n", "\n")).encode()
     ).hexdigest()
 
 
@@ -81,7 +95,7 @@ def section(text: str, title: str) -> Span:
 class Document:
     """Bind RST comment anchors to their next sibling and retain raw source."""
 
-    def __init__(self, text: str, title: str):
+    def __init__(self, text: str, title: str) -> None:
         """Parse only the bound section; unrelated Sphinx directives are inert."""
         self.envelope = section(text, title)
         self.tree = publish_doctree(
@@ -114,19 +128,18 @@ class Document:
         # Docutils reports block line numbers inconsistently across node kinds.
         # Search from its recorded vicinity, preserving literal indentation.
         lines = self.envelope.text.splitlines()
-        wanted = textwrap.dedent(raw).splitlines()
+        wanted = common_dedent(raw).splitlines()
         candidates = [
             i
             for i in range(len(lines))
-            if textwrap.dedent("\n".join(lines[i : i + len(wanted)]))
-            == "\n".join(wanted)
+            if common_dedent("\n".join(lines[i : i + len(wanted)])) == "\n".join(wanted)
         ]
         if not candidates:
             raise ValueError(f"Cannot locate source: {raw!r}")
         hint = (node.line or 1) - 1
         index = min(candidates, key=lambda i: abs(i - hint))
         return Span(
-            textwrap.dedent(raw),
+            common_dedent(raw),
             self.envelope.first + index,
             self.envelope.first + index + len(wanted) - 1,
         )

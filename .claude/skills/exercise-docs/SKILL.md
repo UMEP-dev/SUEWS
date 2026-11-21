@@ -39,7 +39,8 @@ python -m scripts.suews.guide_journeys.runner \
 Set these variables to recorded inputs, not guessed paths. Use a new
 run output directory outside the checkout (`RUN_OUTPUT`); keep run manifests
 there and leave its `results` child absent for `runner.arguments` to create.
-Keep scratch and the running report in `.context/exercise-docs-out`. Consult
+Keep scratch and the running report in the gitignored
+`.context/exercise-docs-out`; run output stays outside the checkout. Consult
 `dev-ref/guide-journeys/20261121-getting_started_report.md`, Verification, for
 the recorded wheel build command (`python -m pip wheel`) and build inputs.
 Record the command actually used and the resulting wheel SHA-256 for every run. [procedure: Principle 1]
@@ -63,13 +64,13 @@ not permission to guess or execute. Record the blocked region and ask the softwa
 maintainer to settle classification. Do not add labels as part of this skill. [procedure: Principle 1]
 
 The label dependency is #2162: open `docs/source/_ext/doc_source.py` and
-`scripts/lint/check_doc_sources.py` on `sunt05/doc-source-labels` until available
-in the target tree (`git show BRANCH:PATH`). These files define the label handling;
-do not infer that a dependency branch is merged. [procedure: Principle 1]
+`scripts/lint/check_doc_sources.py` at the dependency revision recorded in that
+issue (`git show REV:PATH`). These files define the label handling;
+verify their availability in the target tree rather than assuming integration. [procedure: Principle 1]
 
 For text in code (docstrings or CLI help), delegate the check to
 `scripts/lint/check_code_text.py` and read `scripts/lint/code_text_checks.md`,
-from dependency branch `sunt05/code-text-checks` (#2168) until integrated.
+at the dependency revision recorded in #2168.
 Use its documented command and environment, record the checker revision, and
 select the requested commands/objects from its report without inventing filtering
 flags. Its scope and unsupported/needs-reading statuses remain authoritative;

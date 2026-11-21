@@ -46,6 +46,7 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 |   |-- queue-pr/          # Workflow: PR coordination and merge-queue preflight
 |   |-- prep-release/      # Workflow: release pre-flight + tag
 |   |-- republish-docs/    # Workflow: move release docs tag to clean anchor
+|   |-- exercise-docs/     # Workflow: reader journeys -> draft evidence
 |   |-- lint-code/         # Operation: static style and contract linters
 |   |-- verify-build/      # Operation: build graph and packaging checks
 |   |-- audit-docs/        # Operation: docs ASCII + bib topic-tag checks
@@ -134,6 +135,10 @@ prep-release (release workflow)
 
 republish-docs (docs workflow)
   `-- docs-sync + release-docs-anchor  (move tag to a clean anchor)
+
+exercise-docs (manual docs workflow)
+  |-- guide_journeys                  (source-bound reader journeys)
+  `-- check_code_text.py              (CLI help / docstring checks)
 
 pre-commit-check.sh (PreToolUse on git commit)
   |-- ruff check + ruff format --check (staged Python)

@@ -217,6 +217,82 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev13_drainage_coefficients:
+
+Upgrading to Schema 2026.6.dev13
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev12`` covers water routing. Upgrading a dev11 file to dev13
+applies that migration before the drainage coefficient check. For a
+non-water land surface with ``sfr > 0`` and ``drain_eq`` equal to
+1, 2 or 3, both ``storage_drain_params.drain_coef_1`` and
+``storage_drain_params.drain_coef_2`` must be supplied as finite numbers.
+Previously an omitted coefficient silently reached the model as zero and could
+change runoff and evaporation. A coefficient explicitly set to zero remains
+valid; its meaning depends on the selected equation.
+
+Loading a configuration and running after an in-memory mutation both check this
+requirement. Python reports a missing coefficient on the first site's paved
+surface as ``sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_1``.
+The standalone engine identifies the same surface by grid ID, for example
+``sites[gridiv=1].properties.land_cover.paved.storage_drain_params.drain_coef_1``.
+Water and zero-area surfaces can retain an omitted coefficient.
+
+Before execution, every active non-water surface must also provide its
+``storage_drain_params`` block. Sparse construction, loading, updates, annotation
+and DataFrame round-trips may retain an omitted block, including when the area
+is explicitly positive. They do not establish that the configuration can run.
+An empty mapping or a block containing only reference metadata or nulls also
+retains that incomplete status. Saving and reloading YAML preserves the
+reference attached to a null value. Engine YAML/JSON export and execution
+reject the unresolved block. DataFrame round-trips retain it as missing
+values. Neither conversion invents zero coefficients.
+
+Declared equations 1--3 with missing coefficients still fail configuration
+validation. Their errors join the existing diagnostic report so unrelated input
+defects remain visible and requested annotated YAML is still produced.
+Native resolved YAML must give ``sfr`` for each configured land surface;
+omission is not evidence of zero area.
+
+``drain_eq`` is an integer field. Whole-number floats such as ``3.0`` remain
+accepted; active-surface native input and mutable handoff now reject fractions,
+including near-integers. Previously native input could pass ``3.5`` through to
+Fortran, which truncates it with ``INT`` and executes equation 3. This could
+bypass an exact-selector coefficient check. The loader now reports the selector
+path before the kernel is called, without rounding or choosing an equation.
+
+This change does not assign scientific meaning to integer selectors outside
+1, 2 and 3, or turn ``0`` into a supported no-drainage option. Their existing
+transport is retained; a wet run with such a selector is not established as
+valid. Explicit zero coefficients retain their existing acceptance: for example,
+a zero exponent in equation 3 gives a constant rate before the existing water
+availability cap. No new default or sign restriction is introduced. The storage
+capacity fallback from ``store_max`` when ``store_cap`` is omitted is unchanged.
+
+With schema dev13 installed, upgrade a versioned dev11 or dev12 file beside its
+original. For a file named ``site.yml``, confirm that the first command wrote
+``site.migrated.yml``, then check the saved configuration:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev13
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+The second command checks current water-routing and drainage requirements.
+Explicitly selecting an older ``--schema-version`` on the validation command
+checks the saved JSON Schema structure. A missing active runoff fraction, for
+example, can pass that historical structure check and fail model validation
+after migration.
+
+Migration preserves supplied coefficients, including legacy ``storedrainprm``
+input and reference metadata. For a declared equation 1, 2 or 3, a missing or
+null required coefficient stops migration with its path: supply the input and
+retry. When the entire block is absent, migration preserves that omission
+and the structural check above can pass. Before running that site, supply
+``storage_drain_params`` on each active non-water surface. Otherwise
+``suews run site.migrated.yml`` reports the missing block's path. Supplied
+malformed values remain subject to load-time validation.
+
 .. _schema_dev12_water_routing:
 
 Runoff from paved and building surfaces in schema 2026.6.dev12
@@ -253,7 +329,10 @@ destination, including a genuine zero runoff fraction. A previously valid
 paved or building block that already omitted the unused field needs no edit
 to its fractions for this correction.
 
-Choose the command from the version recorded at the top of your YAML file.
+The following commands apply to an installation using schema dev12. With
+dev13 installed, follow :ref:`schema_dev13_drainage_coefficients` to check
+both the water routing and the drainage coefficients. Choose the command
+from the version recorded at the top of your YAML file.
 Keep the converted copy beside the original so relative forcing paths still
 point to the same files. Use a fresh output filename when you repeat a
 conversion, so a file left by an earlier run cannot be mistaken for its result.

@@ -264,7 +264,7 @@ class SUEWSSimulation:
 
         else:
             # Assume it's a SUEWSConfig object
-            config.validate_for_engine()
+            config.validate_for_serialisation()
             self._config = config
             self._config_identity = None
             self._df_state_init = self._config.to_df_state()

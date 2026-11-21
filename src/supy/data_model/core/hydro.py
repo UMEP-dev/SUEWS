@@ -524,6 +524,12 @@ class WaterDistribution(DataModelBase):
         return instance
 
 
+DRAINAGE_COEFFICIENT_REQUIREMENT = (
+    ". Required and finite on active non-water surfaces using equations "
+    "1, 2 or 3. Explicit zero is allowed."
+)
+
+
 class StorageDrainParams(DataModelBase):
     """Parameters for surface water storage drainage."""
 
@@ -584,6 +590,7 @@ class StorageDrainParams(DataModelBase):
         default=None,
         description=(
             "Drainage coefficient 1; interpretation and units depend on drain_eq"
+            + DRAINAGE_COEFFICIENT_REQUIREMENT
         ),
         json_schema_extra={
             "unit": "equation-dependent",
@@ -594,6 +601,7 @@ class StorageDrainParams(DataModelBase):
         default=None,
         description=(
             "Drainage coefficient 2; interpretation and units depend on drain_eq"
+            + DRAINAGE_COEFFICIENT_REQUIREMENT
         ),
         json_schema_extra={
             "unit": "equation-dependent",
@@ -602,6 +610,20 @@ class StorageDrainParams(DataModelBase):
     )
 
     ref: Optional[Reference] = None
+
+    def is_placeholder(self) -> bool:
+        """Return whether the block provides no physical input beyond factory defaults."""
+        for name, field in type(self).model_fields.items():
+            if name == "ref":
+                continue
+            value = getattr(self, name)
+            if isinstance(value, RefValue):
+                value = value.value
+            if value is not None and (
+                name in self.model_fields_set or value != field.default
+            ):
+                return False
+        return True
 
     def _current_store_cap(self):
         """Resolve the capacity from the current inputs without changing them."""
@@ -615,6 +637,17 @@ class StorageDrainParams(DataModelBase):
 
     @model_serializer(mode="wrap")
     def _dump_storage(self, handler, info):
+        if self.is_placeholder():
+            # Preserve supplied metadata and nulls without emitting factory values.
+            supplied = {
+                k: v for k, v in handler(self).items() if k in self.model_fields_set
+            }
+            if info.round_trip:
+                # Dropping the value key leaves a wrapped null unreadable as a RefValue.
+                for name, leaf in supplied.items():
+                    if name != "ref" and isinstance(leaf, dict):
+                        leaf.setdefault("value", None)
+            return supplied
         # Saved YAML and partial updates must preserve the original input.
         # A resolved engine dump needs the capacity even when it was omitted.
         if info.round_trip or info.exclude_unset:
@@ -655,6 +688,11 @@ class StorageDrainParams(DataModelBase):
             index=pd.Index([grid_id], name="grid"), columns=columns, dtype=float
         )
 
+        # An all-missing block is a partial-configuration marker, not an
+        # implicit equation/zero coefficient. Retain it across DF round-trips.
+        if self.is_placeholder():
+            return df
+
         # Fill values
         for i, var in enumerate([
             "store_min",
@@ -670,7 +708,8 @@ class StorageDrainParams(DataModelBase):
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                val = 0.0  # Default to 0.0 for DataFrame compatibility
+                # Missing coefficients must not become executable zeros.
+                val = float("nan") if var in ("drain_coef_1", "drain_coef_2") else 0.0
             df.loc[grid_id, ("storedrainprm", f"({i}, {surf_idx})")] = val
 
         return df
@@ -706,8 +745,14 @@ class StorageDrainParams(DataModelBase):
             for param, idx in param_map.items()
         }
 
-        # Conver params to RefValue
-        params = {key: RefValue(value) for key, value in params.items()}
+        if all(pd.isna(value) for value in params.values()):
+            return cls()
+        # Missing coefficients stay absent; declared finite zeros stay values.
+        params = {
+            key: None if key in ("drain_coef_1", "drain_coef_2") and pd.isna(value)
+            else RefValue(value)
+            for key, value in params.items()
+        }
 
         # Create an instance using the extracted parameters
         return cls(**params)

@@ -12051,7 +12051,7 @@
             }
           ],
           "default": null,
-          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 1",
           "title": "Drain Coef 1",
           "unit": "equation-dependent"
@@ -12069,7 +12069,7 @@
             }
           ],
           "default": null,
-          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 2",
           "title": "Drain Coef 2",
           "unit": "equation-dependent"
@@ -13599,7 +13599,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev12. Within-grid water routing (#2086, #2117). An explicit numeric zero in an unused destination is removed during migration. On paved and building surfaces it could previously override the supplied runoff fraction, changing the simulated runoff and water balance.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev13. Require finite drain_coef_1 and drain_coef_2 for active non-water surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains accepted. Diagnose missing active drainage blocks and fractional native/mutable selectors without assigning new equation semantics. Migration preserves supplied values and refuses to invent missing blocks or coefficients; inactive surfaces and water are unchanged.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13652,20 +13652,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev12",
+  "title": "SUEWS Configuration Schema v2026.6.dev13",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev12.json",
-  "version": "2026.6.dev12",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev13.json",
+  "version": "2026.6.dev13",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev12"
+    "schema_version": "2026.6.dev13"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev12",
+      "schema_version": "2026.6.dev13",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

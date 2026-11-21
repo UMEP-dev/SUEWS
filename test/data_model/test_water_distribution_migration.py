@@ -68,7 +68,7 @@ def test_only_inapplicable_numeric_zeros_are_removed(surface, zero, capsys):
     cfg = _partial(surface, dist)
     original = deepcopy(cfg)
 
-    result = SchemaMigrator().migrate(cfg)
+    result = SchemaMigrator().migrate(cfg, to_version="2026.6.dev12")
 
     assert _dist(result, surface) == {
         "to_water": dist["to_water"],
@@ -299,7 +299,7 @@ def test_public_cli_migration_on_real_multisite_input(
     else:
         assert result.exit_code == 0, result.output
         migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
-        assert migrated["schema_version"] == "2026.6.dev12"
+        assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
         assert all("to_paved" not in _dist(migrated, site=i) for i in range(2))
         SUEWSConfig.from_yaml(str(output))
 

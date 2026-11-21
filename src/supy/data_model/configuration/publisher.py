@@ -20,6 +20,7 @@ from datetime import datetime
 from packaging.version import Version
 
 from ..core import SUEWSConfig
+from ..core.hydro import DRAINAGE_COEFFICIENT_REQUIREMENT
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
 
@@ -69,6 +70,14 @@ def generate_json_schema(
     # Filter internal fields if requested
     if not include_internal:
         schema = _filter_internal_fields(schema)
+
+    # The conditional drainage requirement was introduced in dev13.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev13"):
+        fields = schema["$defs"]["StorageDrainParams"]["properties"]
+        for name in ("drain_coef_1", "drain_coef_2"):
+            fields[name]["description"] = fields[name]["description"].removesuffix(
+                DRAINAGE_COEFFICIENT_REQUIREMENT
+            )
 
     # Add examples
     schema["examples"] = [_get_minimal_example(version)]

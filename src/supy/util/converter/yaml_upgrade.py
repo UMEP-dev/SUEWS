@@ -2087,7 +2087,7 @@ _HANDLERS[("2026.6.dev10", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev10_to_2
 
 
 # Preserve every dev11 target, including private soil migration context, before
-# composing the water-distribution delta onto current-target routes.
+# composing the water-distribution delta onto the fixed dev12 routes.
 def _with_water_distribution_delta(handler):
     @wraps(handler)
     def migrate(cfg, *, migration_context=None):
@@ -2101,9 +2101,64 @@ def _with_water_distribution_delta(handler):
 for (_source, _target), _handler in list(_HANDLERS.items()):
     if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
         _HANDLERS[(_source, "2026.6.dev11")] = _handler
-        _HANDLERS[(_source, _target)] = _with_water_distribution_delta(_handler)
-_HANDLERS[("2026.6.dev11", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev11_to_2026_6_dev12
+        _HANDLERS[(_source, "2026.6.dev12")] = _with_water_distribution_delta(_handler)
+_HANDLERS[("2026.6.dev11", "2026.6.dev12")] = _migrate_2026_6_dev11_to_2026_6_dev12
 
+
+def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
+    """Preserve supplied drainage coefficients; never infer them from omission."""
+    result = deepcopy(cfg)
+    missing = []
+    for i, site in enumerate(result.get("sites", []) or []):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        for name in NON_WATER_SURFACES:
+            surface = land_cover.get(name)
+            if not isinstance(surface, dict) or _active_surface_sfr(surface) is None:
+                continue
+            params = surface.get("storage_drain_params", surface.get("storedrainprm"))
+            if params is None:
+                # Migration also serves partial configuration/annotation work.
+                # Preserve omission; engine validation requires the block later.
+                continue
+            if (
+                not isinstance(params, dict)
+                or _unwrap_scalar(params.get("drain_eq")) not in (1, 2, 3)
+            ):
+                continue
+            for field in ("drain_coef_1", "drain_coef_2"):
+                if _unwrap_scalar(params.get(field)) is None:
+                    missing.append(
+                        f"sites[{i}].properties.land_cover.{name}.storage_drain_params.{field}"
+                    )
+    if missing:
+        raise YamlUpgradeError(
+            "Cannot migrate drainage coefficients to schema 2026.6.dev13: "
+            + "; ".join(missing)
+            + ". Supply the missing drainage block or coefficients before migration. "
+            "Explicit zero is allowed; omission does not establish a zero coefficient."
+        )
+    return result
+
+
+def _with_drainage_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev12_to_2026_6_dev13(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == "2026.6.dev12" and _source != _target:
+        _HANDLERS[(_source, CURRENT_SCHEMA_VERSION)] = _with_drainage_delta(_handler)
+_HANDLERS[("2026.6.dev12", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev12_to_2026_6_dev13
 
 # ---------------------------------------------------------------------------
 # Public API

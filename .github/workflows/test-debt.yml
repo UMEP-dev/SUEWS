@@ -1,0 +1,111 @@
+name: Recorded test debt
+
+# Detection only (Ting Sun, 2026-11-21): no issue writes or reopening.
+# This independent workflow is not wired into an existing required check.
+on:
+  pull_request:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: test-debt-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    name: Inventory recorded defects
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+      - name: Install parser
+        run: python -m pip install 'PyYAML==6.0.3'
+      - name: Check links and report counts
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/lint/check_test_debt.py --strict --json test-debt.json | tee test-debt.md
+      - name: Publish inventory summary
+        if: always()
+        run: |
+          if test -f test-debt.md; then
+            cat test-debt.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        if: always()
+        with:
+          name: recorded-test-debt
+          path: |
+            test-debt.json
+            test-debt.md
+          if-no-files-found: error
+          retention-days: 14
+
+  owners:
+    name: Check recorded defect owners
+    needs: inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      # pull_request runs the PR's own workflow definition, so its owner check
+      # is advisory for the PR, as every CI check is. The trusted audit is the
+      # scheduled run on the default branch; the token only reads issues.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: recorded-test-debt
+          path: inventory
+      - name: Verify owner existence and open state
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('inventory/test-debt.json', 'utf8'));
+            if (!Array.isArray(report.issues) || report.issues.length > 1000 ||
+                !report.issues.every(n => Number.isSafeInteger(n) && n > 0) ||
+                !report.summary || report.summary.errors !== 0 ||
+                !['defect', 'coverage_gap', 'accepted_exception'].every(
+                  k => Number.isSafeInteger(report.summary[k]) && report.summary[k] >= 0)) {
+              throw new Error('Invalid or incomplete debt inventory');
+            }
+            const rows = [['Issue', 'Owner state']];
+            const failures = [];
+            for (const number of [...new Set(report.issues)].sort((a, b) => a - b)) {
+              let state;
+              try {
+                const {data} = await github.rest.issues.get({
+                  ...context.repo, issue_number: number
+                });
+                state = data.pull_request ? 'is a pull request' : data.state;
+                if (data.number !== number || state !== 'open') failures.push(`#${number}: ${state}`);
+              } catch (error) {
+                state = `unverified (HTTP ${Number(error.status) || 'unknown'})`;
+                failures.push(`#${number}: ${state}`);
+              }
+              rows.push([`#${number}`, state]);
+            }
+            const prefix = failures.length ? 'FAILED owner audit' : 'green';
+            await core.summary
+              .addHeading('Recorded test debt: owner audit')
+              .addRaw(`${prefix} with ${report.summary.defect} recorded defects; ` +
+                `${report.summary.coverage_gap} coverage gaps; ` +
+                `${report.summary.accepted_exception} accepted exceptions.\n\n`)
+              .addRaw('Detection only: a closed owner fails this audit; no issue is reopened. ' +
+                'The schedule audits the default branch. These counts are not unique bugs ' +
+                'or evidence that model tests pass.\n\n')
+              .addTable(rows).write();
+            if (failures.length) core.setFailed(failures.join('; '));

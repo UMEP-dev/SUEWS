@@ -90,23 +90,23 @@
       "reason": "Optional nested sub-model or temporal profile that may be None when its governing physics option is inactive."
     },
     "debt_opt_stebbs_archetype": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "STEBBS archetype numeric field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_stebbs_props": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "STEBBS numeric/enum field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_surface_thresholds": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "Surface/snow threshold parameter typed Optional[FlexibleRefValue] with non-None default; explicit null bypasses DataModelBase null rejection."
     },
     "debt_opt_bioco2_enh": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "Biogenic CO2 enhancement parameter typed Optional[FlexibleRefValue] with non-None default without active-method null guard."
     },
     "debt_opt_surface_init_temp": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2003",
       "reason": "SurfaceInitialState temperature typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_building_layer_optical": {
@@ -114,7 +114,7 @@
       "reason": "BuildingLayer optical property typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_plain_scalars": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "Plain Optional scalar/metadata field carrying a non-None default (profiles, archetype_name, legacy Conductance.ref placeholder)."
     }
   },

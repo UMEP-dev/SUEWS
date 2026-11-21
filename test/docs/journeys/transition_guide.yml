@@ -278,19 +278,31 @@ fixtures:
     path: test/fixtures/guide_journeys/tagged-dev11.yml
     sha256: 32ee276339e7501939f724e72d244053bcd60cf27944375b23cd69306d521c85
   untagged-dev11:
-    path: test/fixtures/guide_journeys/untagged-dev11.yml
+    base: tagged-dev11
+    replacements:
+    - before: "schema_version: '2026.6.dev11'\n"
+      after: ""
     sha256: 51e71e9b5a3b236f2ffd5a10ae061346ce83b6e67f964d782df7159a81135acf
   dev12:
     path: test/fixtures/guide_journeys/dev12.yml
     sha256: 90a6cb94829c95227546f1e6878f5bc41d5f3cee8f1be2969cc22a5a4fb8954c
   nonzero-dev11:
-    path: test/fixtures/guide_journeys/nonzero-dev11.yml
+    base: tagged-dev11
+    replacements:
+    - before: "          to_soilstore: {value: 0.0}\n"
+      after: "          to_soilstore: {value: 0.1}\n"
     sha256: 03acb6d9f0222be13b8b44eabf264f3e509cb477767bd7097718bbd621ad3cbb
   zero-area-dev12:
-    path: test/fixtures/guide_journeys/zero-area-dev12.yml
+    base: dev12
+    replacements:
+    - before: "        waterdist:\n          to_paved:\n            value: 0.0\n          to_bldgs:\n            value: 0.0\n          to_dectr:\n            value: 0.0\n          to_evetr:\n            value: 0.0\n          to_grass:\n            value: 0.0\n          to_water:\n            value: 0.0\n          to_soilstore:\n            value: 1.0\n"
+      after: "        waterdist: {}\n"
     sha256: 02c10251b6a0b83961bf6971728510a342fb561b250155e13943b3df51468fe1
   stale-dev12:
-    path: test/fixtures/guide_journeys/stale-dev12.yml
+    base: dev12
+    replacements:
+    - before: "name: sample_config\n"
+      after: "name: unrelated_archived_run\n"
     sha256: 10e2aa91e3a7eeb7e1f1dd3978479d4f77d0b497478dcf1ec135bb5fb93637ec
 historical:
   path: test/fixtures/guide_journeys/earlier-guide.rst

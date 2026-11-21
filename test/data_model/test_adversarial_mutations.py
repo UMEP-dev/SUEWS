@@ -1477,7 +1477,6 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
             ("bare_null",),
         ),
         ("sites[0].properties.land_cover.bldgs.thermal_layers.dz[0]", ("omit",)),
-        ("sites[0].initial_states.dqndt_surf[0]", ("omit",)),
         ("sites[0].properties.land_cover.dectr.lai.sdd_full", ("omit",)),
     ),
     "irrigation_and_dls": (
@@ -1568,7 +1567,6 @@ def test_wrapped_array_collector_covers_required_arrays() -> None:
         "sites[0].properties.vertical_layers.building_frac[0]",
         "sites[0].properties.vertical_layers.height[3]",
         "sites[0].properties.vertical_layers.roofs[0].thermal_layers.dz[0]",
-        "sites[0].initial_states.dqndt_surf[0]",
         "sites[0].initial_states.hdd_id[11]",
         "model.control.output.groups[0]",
     )

@@ -2775,6 +2775,14 @@ fn apply_state_overrides(
         return Ok(());
     };
     let initial_at = format!("{}.initial_states", site_yaml_at(site_root));
+    for name in ["qn_surfs", "dqndt_surf"] {
+        if get_path(initial_states_root, &[name]).is_some() {
+            return Err(format!(
+                "{initial_at}.{name} is internal radiation memory and cannot be supplied \
+                 for a fresh run. Remove the field; use a complete checkpoint for continuation."
+            ));
+        }
+    }
 
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         if let Some(v) = read_numeric(initial_states_root, &[surface_name, "soilstore"]) {

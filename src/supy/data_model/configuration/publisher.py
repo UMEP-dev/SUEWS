@@ -66,6 +66,10 @@ def generate_json_schema(
     if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev12"):
         _restore_historical_water_descriptions(schema["$defs"])
 
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev13"):
+        # The new input prohibition must not be backdated onto old exports.
+        schema["$defs"]["InitialStates"].pop("not", None)
+
     # Filter internal fields if requested
     if not include_internal:
         schema = _filter_internal_fields(schema)

@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.6.dev12'
+schema_version: '2026.6.dev13'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -3869,22 +3869,6 @@ sites:
         value: 5.0
       tin:
         value: 5.0
-    dqndt_surf:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    qn_surfs:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
     hdd_id:
     - 13.5
     - 13.5

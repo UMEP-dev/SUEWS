@@ -95,3 +95,29 @@ def test_malformed_created_yaml_is_a_recordable_failure(tmp_path):
     )
     assert not result["passed"]
     assert "content_error" in result["observed"]
+
+
+def test_nonzero_recovery_diagnostic_requires_migration_failure(tmp_path):
+    """The real diagnostic wording and field path matter, including wrapped cells."""
+    import yaml
+
+    manifest = yaml.safe_load(
+        (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    journey = next(j for j in manifest["journeys"] if j["id"] == "recovery-nonzero")
+    promise = next(
+        p for p in journey["steps"][0]["promises"] if p["kind"] == "diagnostic"
+    )
+    diagnostic = "Cannot migrate configuration to schema 2026.6.dev12: sites[0] (KCL, gridiv=1) properties.land_cover.paved.waterdist.to_soilstore: Disallowed water distribution field to_soilstore for paved (got 0.1)"
+    for text in (
+        diagnostic,
+        diagnostic.replace(
+            "properties.", "\n\u2502          \u2502           \u2502 properties."
+        ),
+    ):
+        assert evaluate(promise, {}, {}, tmp_path, {"stdout": text})["passed"]
+    assert not evaluate(
+        promise, {}, {}, tmp_path, {"stdout": "sites[0] paved to_soilstore"}
+    )["passed"]

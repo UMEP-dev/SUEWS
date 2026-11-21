@@ -167,15 +167,17 @@ choices:
   journeys:
   - recovery-zero-area
 - id: earlier-clean
+  historical: true
   kind: directory state
-  source_anchor: transition_guide/directory
+  source_document: test/fixtures/guide_journeys/earlier-guide.rst
   values:
   - clean directory
   journeys:
   - earlier-clean
 - id: earlier-stale
+  historical: true
   kind: directory state
-  source_anchor: transition_guide/directory
+  source_document: test/fixtures/guide_journeys/earlier-guide.rst
   values:
   - stale output present
   journeys:
@@ -236,8 +238,24 @@ choices:
   - untagged-unknown
   - earlier-clean
   - earlier-stale
+- id: building-to-soilstore
+  kind: named alternative
+  source_anchor: transition_guide/delta
+  values: [building to_soilstore zero]
+  journeys: []
+- id: stale-output
+  kind: directory state
+  source_anchor: transition_guide/directory
+  values: [stale output present]
+  journeys: []
 combinations:
+- id: corrected-untagged-stale-output
+  choices: [no-version-indicator, stale-output]
+  journeys: []
+  reason: No corrected journey starts with a stale output.
 - id: untagged-stale-output
+  historical: true
+  source_document: test/fixtures/guide_journeys/earlier-guide.rst
   choices:
   - no-version-indicator
   - earlier-stale

@@ -91,7 +91,9 @@ def compare(installed: dict, declared: dict) -> dict:
     return result
 
 
-def coverage(manifest: dict, records: list[dict], stale: list[str]) -> dict:
+def coverage(
+    manifest: dict, records: list[dict], stale: list[str], step_counts: dict
+) -> dict:
     """Keep exercised single choices distinct from dependent combinations."""
     attempted = {
         r["journey_id"]
@@ -100,7 +102,13 @@ def coverage(manifest: dict, records: list[dict], stale: list[str]) -> dict:
     }
     choices = []
     for choice in manifest["choices"]:
-        exercised = sorted(attempted.intersection(choice.get("journeys", [])))
+        eligible = (
+            attempted
+            if choice.get("historical")
+            else attempted
+            - {j["id"] for j in manifest["journeys"] if j.get("historical")}
+        )
+        exercised = sorted(eligible.intersection(choice.get("journeys", [])))
         status = (
             "stale"
             if stale
@@ -124,11 +132,17 @@ def coverage(manifest: dict, records: list[dict], stale: list[str]) -> dict:
         if s["kind"] == "documented" and s["status"] != "unrun"
     }
     return {
-        "documented_steps": len(manifest["steps"]),
-        "bound_steps": len(manifest["steps"]),
+        **step_counts,
         "executed_steps": sorted(executed),
-        "choices": choices,
-        "combinations": combinations,
+        "choices": [c for c in choices if not c.get("historical")],
+        "historical_choices": [c for c in choices if c.get("historical")],
+        "combinations": {
+            k: [c for c in v if not c.get("historical")]
+            for k, v in combinations.items()
+        },
+        "historical_combinations": {
+            k: [c for c in v if c.get("historical")] for k, v in combinations.items()
+        },
         "promise_edits": manifest["promise_edits"],
         "durations": {
             r["journey_id"]: {

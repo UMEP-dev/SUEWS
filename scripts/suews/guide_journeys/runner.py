@@ -10,7 +10,7 @@ import time
 from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
-from .manifest import check, load
+from .manifest import check, load, step_coverage
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
@@ -295,7 +295,7 @@ def main() -> int:
             record = run_journey(root, manifest, document, journey, args)
             records.append(record)
             print(f"{journey['id']}: {record['status']}", flush=True)
-    summary = summarise(manifest, records, stale)
+    summary = summarise(manifest, records, stale, step_coverage(document, manifest))
     write(args.output / "summary.json", summary)
     print(json.dumps(summary, indent=2, ensure_ascii=True))
     inventory_stale = any(

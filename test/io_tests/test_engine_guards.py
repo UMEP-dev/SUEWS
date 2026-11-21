@@ -8,6 +8,7 @@ import shutil
 import subprocess
 
 import numpy as np
+import pandas as pd
 from pyarrow import ipc
 import pytest
 import yaml
@@ -81,6 +82,80 @@ def _prepare_engine_inputs(
     config_path = run_dir / "sample_config.yml"
     config_path.write_text(resolved_yaml, encoding="utf-8")
     return config_path
+
+
+@pytest.mark.parametrize("field", ["raincover", "rainmaxres", "drainrt", "veg_type"])
+@pytest.mark.parametrize("route", ["file", "buffer", "resume"])
+def test_resolved_lumps_requires_each_field(
+    tmp_path, sample_forcing_parsed, field, route
+):
+    """File, fresh buffer and checkpointed runs must identify the missing input."""
+    path = _prepare_engine_inputs(tmp_path)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    site = data["sites"][0]
+    site["gridiv"] = 27
+    intact = yaml.safe_dump(data)
+    del site["properties"]["lumps"][field]
+    payload = yaml.safe_dump(data)
+    expected = f"`sites[gridiv=27].properties.lumps.{field}` is missing"
+    if route == "file":
+        path.write_text(payload, encoding="utf-8")
+        result = subprocess.run(
+            [_locate_suews_engine(), "run", path], capture_output=True, text=True
+        )
+        assert result.returncode != 0
+        assert expected in result.stderr
+        assert not (tmp_path / "suews_output.arrow").exists()
+    else:
+        _, forcing = sample_forcing_parsed(4)
+        block = _run_rust._prepare_forcing_block(forcing)
+        native = _run_rust._check_rust_available()
+        run = native.run_suews
+        args = (block[:2].ravel(order="C").tolist(), 2)
+        if route == "resume":
+            _, checkpoint, length, _ = run(intact, *args)
+            assert length == 2
+            run = native.run_suews_with_state
+            args = (block[2:].ravel(order="C").tolist(), 2, checkpoint)
+        assert run(intact, *args)[2] == 2
+        with pytest.raises(RuntimeError) as exc:
+            run(payload, *args)
+        assert expected in str(exc.value)
+
+
+def test_lumps_default_and_supplied_vegetation_reach_the_energy_fluxes(
+    short_sample_yaml_path, sample_forcing_parsed
+):
+    """Compare complete valid outputs, then perturb only the vegetation selector."""
+    source = yaml.safe_load(short_sample_yaml_path.read_text(encoding="utf-8"))
+    props = source["sites"][0]["properties"]
+    del props["lumps"]
+    _, forcing = sample_forcing_parsed(288)
+
+    def run():
+        config = SUEWSConfig.from_dict(source)
+        grid = int(config.sites[0].gridiv)
+        output, _, _ = _run_rust.run_suews_rust(config, forcing, grid)
+        return output
+
+    default = run()
+    props["lumps"] = {
+        "raincover": 0.25,
+        "rainmaxres": 0.25,
+        "drainrt": 0.25,
+        "veg_type": 1,
+    }
+    explicit = run()
+    pd.testing.assert_frame_equal(default, explicit, check_exact=True)
+    props["lumps"]["veg_type"] = 2
+    alternative = run()
+    for field in ("QHlumps", "QElumps"):
+        baseline = default[("SUEWS", field)].to_numpy()
+        changed = alternative[("SUEWS", field)].to_numpy()
+        for values in (baseline, changed):
+            assert values.shape == (len(forcing),)
+            assert np.isfinite(values).all() and (values != -999).all()
+        assert (changed != baseline).any()
 
 
 def _read_arrow_columns(arrow_path: Path, columns: list[str]) -> dict[str, np.ndarray]:

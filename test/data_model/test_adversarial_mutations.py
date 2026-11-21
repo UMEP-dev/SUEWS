@@ -46,7 +46,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 import copy
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date
 from functools import lru_cache
 from importlib import import_module
 import json
@@ -57,10 +57,12 @@ import sys
 from typing import Any
 import warnings
 
+import pandas as pd
 from pydantic import ValidationError
 import pytest
 import yaml
 
+from supy._run_period import resolve_run_period  # ruff: ignore[import-private-name]
 from supy.data_model.core import Site, SUEWSConfig
 from supy.data_model.core.site import SoilObservationConfig
 
@@ -2488,26 +2490,24 @@ def _doy_in_fortran_irrigation_season(
     return not (ie_end <= doy <= ie_start)
 
 
-def _coerce_calendar_date(raw: Any) -> date:
-    """Parse a YAML or Pydantic ``start_time`` / ``end_time`` value to a date."""
-    val = _unwrap(raw)
-    if isinstance(val, datetime):
-        return val.date()
-    if isinstance(val, date):
-        return val
-    text = str(val).strip()
-    return datetime.fromisoformat(text).date()
-
-
-def _simulation_dates_for_config(doc: dict[str, Any]) -> tuple[date, ...]:
-    """Return every inclusive calendar date in ``model.control``'s run window."""
+def _daily_update_dates_for_anchor(doc: dict[str, Any]) -> tuple[date, ...]:
+    """Days with a last timestep on the anchors' midnight-aligned forcing grid."""
     control = doc["model"]["control"]
-    start_d = _coerce_calendar_date(control["start_time"])
-    end_d = _coerce_calendar_date(control["end_time"])
-    if end_d < start_d:
-        return ()
-    span = (end_d - start_d).days + 1
-    return tuple(start_d + timedelta(days=offset) for offset in range(span))
+    period = resolve_run_period(
+        _unwrap(control["start_time"]),
+        _unwrap(control["end_time"]),
+        pd.DatetimeIndex([]),
+    )
+    assert period.start is not None and period.end is not None
+    step = pd.Timedelta(seconds=int(_unwrap(control["tstep"])))
+    midnights = pd.date_range(
+        period.start.normalize(), period.end.normalize(), freq="D"
+    )
+    # Fortran calls update_WaterUse when time_now + tstep falls on the next day.
+    updates = midnights + pd.Timedelta(days=1) - step
+    return tuple(
+        stamp.date() for stamp in updates if period.start <= stamp <= period.end
+    )
 
 
 def _h_maintain_eligible_dates(
@@ -2519,7 +2519,7 @@ def _h_maintain_eligible_dates(
 
     Mirrors ``src/suews/src/suews_phys_dailystate.f95:195-201,589-602``:
     1. ``water_use`` is modelled (``0`` or ``"modelled"``).
-    2. For a simulation date ``d``, ``DayWat(wd) == 1.0`` where ``wd`` is the
+    2. The run reaches the daily update on ``d`` and ``DayWat(wd) == 1.0``, where ``wd`` is the
        Fortran ``Day_Of_Week`` index (``1..7``) indexing ``[monday..sunday]``.
     3. ``doy`` passes the hemispheric ``(lat, ie_start, ie_end)`` season test.
     """
@@ -2538,7 +2538,7 @@ def _h_maintain_eligible_dates(
     daywat = irr["daywat"]
     daywat_vals = [float(_unwrap(daywat[slot])) for slot in _DAYWAT_SLOTS]
 
-    sim_dates = dates if dates is not None else _simulation_dates_for_config(doc)
+    sim_dates = dates if dates is not None else _daily_update_dates_for_anchor(doc)
     eligible: list[date] = []
     for sim_day in sim_dates:
         wd = _fortran_day_of_week(sim_day)
@@ -2555,7 +2555,7 @@ def test_h_maintain_ledger_matches_fortran_gating_predicate(tmp_path: Path) -> N
 
     In ``update_WaterUse`` (``src/suews/src/suews_phys_dailystate.f95:195-201,589-631``),
     ponding demand ``WUDay_P`` from ``H_maintain`` executes on simulation date ``d``
-    iff ``WaterUseMethod == 0`` (``water_use=modelled``), ``DayWat(wd) == 1.0``,
+    on its last timestep, iff ``WaterUseMethod == 0`` (``water_use=modelled``), ``DayWat(wd) == 1.0``,
     and ``doy`` passes the hemispheric ``(lat, Ie_start, Ie_end)`` season gate;
     neither ``faut == 0`` nor ``irrigation_fraction == 0`` disables ``H_maintain``.
     """
@@ -2605,6 +2605,32 @@ def test_h_maintain_ledger_matches_fortran_gating_predicate(tmp_path: Path) -> N
             via_yaml=True,
         )
         assert omit_res.outcome == "dropped"
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "step_seconds", "expected"),
+    [
+        ("2012-04-11 07:00", "2012-04-11 12:00", 300, ()),
+        ("2012-04-11", "2012-04-11 23:50", 300, ()),
+        ("2012-04-11 23:45", "2012-04-11 23:55", 300, (date(2012, 4, 11),)),
+        ("2012-04-11", "2012-04-11 23:50", 600, (date(2012, 4, 11),)),
+        ("2012-04-11 23:55", "2012-04-12 12:00", 600, ()),
+        ("2012-04-11", "2012-04-11", 300, (date(2012, 4, 11),)),
+    ],
+)
+def test_h_maintain_daily_update_cutoff(
+    start: str, end: str, step_seconds: int, expected: tuple[date, ...]
+) -> None:
+    """A date can contribute demand only if the run includes its daily update."""
+    # ARRANGE
+    doc = build_anchor_dict("irrigation_and_dls")
+    doc["model"]["control"].update(start_time=start, end_time=end, tstep=step_seconds)
+
+    # ACT
+    eligible = _h_maintain_eligible_dates(doc)
+
+    # ASSERT
+    assert eligible == expected
 
 
 def test_h_maintain_season_and_weekday_gate_controls() -> None:

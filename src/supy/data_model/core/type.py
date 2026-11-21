@@ -478,6 +478,35 @@ def null_rejecting_validator(field_name: str):
     return field_validator(field_name, mode="after")(_reject)
 
 
+def combine_df_states(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
+    """Fill missing state values without aligning every disjoint profile column.
+
+    State components normally share an index and only the grid identifier.
+    Keep pandas' null and dtype resolution for shared columns; columns present
+    on just one side need no element-wise combination. Unusual axes retain the
+    general pandas operation. No input frame is mutated or cached.
+    """
+    if (
+        not left.index.equals(right.index)
+        or not left.columns.is_unique
+        or not right.columns.is_unique
+        or left.empty
+        or right.empty
+    ):
+        return left.combine_first(right)
+    shared = left.columns.intersection(right.columns)
+    left_only = left.columns.difference(right.columns)
+    right_only = right.columns.difference(left.columns)
+    return pd.concat(
+        [
+            left.loc[:, left_only],
+            left.loc[:, shared].combine_first(right.loc[:, shared]),
+            right.loc[:, right_only],
+        ],
+        axis=1,
+    ).reindex(columns=left.columns.union(right.columns))
+
+
 def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(

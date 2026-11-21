@@ -35,6 +35,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
+from ._yaml_io import safe_load_yaml
 from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import DataModelBase, RefValue, SurfaceType
@@ -2015,10 +2016,8 @@ class SUEWSConfig(DataModelBase):
     def _check_raw_yaml_for_cp_field(self, yaml_path: str, surface_path: str) -> bool:
         """Check if the raw YAML file has 'cp' instead of 'rho_cp' in thermal_layers."""
         try:
-            import yaml
-
             with open(yaml_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+                data = safe_load_yaml(f)
 
             # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
             path_parts = surface_path.replace("[", "/").replace("]", "").split("/")
@@ -2404,7 +2403,12 @@ class SUEWSConfig(DataModelBase):
         ):
             return False
 
-        shm = getattr(self.model.physics.storage_heat, "value", None)
+        shm = getattr(
+            self.model.physics.storage_heat,
+            "value",
+            self.model.physics.storage_heat,
+        )
+        shm = getattr(shm, "value", shm)
         try:
             shm = int(shm)
         except (TypeError, ValueError):
@@ -2649,12 +2653,14 @@ class SUEWSConfig(DataModelBase):
                 th = getattr(bldgs, "thermal_layers", None)
                 for arr in DYOHM_BUILDING_LAYERS_REQUIRED:
                     field = getattr(th, arr, None) if th else None
-                    vals = getattr(field, "value", None) if field else None
+                    vals = getattr(field, "value", field)
                     if (
                         not isinstance(vals, list)
                         or len(vals) == 0
                         or any(
-                            not isinstance(v, (int, float)) or not np.isfinite(v)
+                            not isinstance(v, (int, float))
+                            or isinstance(v, bool)
+                            or not np.isfinite(v)
                             for v in vals
                         )
                     ):
@@ -2669,15 +2675,14 @@ class SUEWSConfig(DataModelBase):
         for arr in ("qn_surfs", "dqndt_surf"):
             field = getattr(states, arr, None) if states else None
             # Handle both RefValue with .value and plain list
-            if hasattr(field, "value"):
-                vals = field.value
-            else:
-                vals = field
+            vals = getattr(field, "value", field)
             if (
                 not isinstance(vals, list)
                 or len(vals) == 0
                 or any(
-                    not isinstance(v, (int, float)) or not np.isfinite(v)
+                    not isinstance(v, (int, float))
+                    or isinstance(v, bool)
+                    or not np.isfinite(v)
                     for v in vals
                 )
             ):
@@ -2688,8 +2693,14 @@ class SUEWSConfig(DataModelBase):
                 )
 
         if storage_heat_method in DYOHM_BUILDING_METHODS:
-            lam = getattr(getattr(props, "lambda_c", None), "value", None)
-            if lam in (None, ""):
+            lam_field = getattr(props, "lambda_c", None)
+            lam = getattr(lam_field, "value", lam_field)
+            if (
+                lam in (None, "")
+                or not isinstance(lam, (int, float))
+                or isinstance(lam, bool)
+                or not np.isfinite(lam)
+            ):
                 issues.append(
                     f"{site_name}: storage_heat_method {storage_heat_method} (DyOHM building) selected -> "
                     "properties.lambda_c must be set and non-null"
@@ -3432,7 +3443,12 @@ class SUEWSConfig(DataModelBase):
 
         return critical_issues
 
-    def _iter_critical_null_site_param_issues(self) -> List[Dict[str, str]]:
+    def _iter_critical_null_site_param_issues(
+        self,
+        *,
+        include_programmatic: bool = False,
+        require_land_cover: bool = True,
+    ) -> list[dict[str, str]]:
         """Return structured issues for critical null site-level parameters.
 
         Complements :meth:`_check_critical_null_physics_params` (which covers
@@ -3514,7 +3530,7 @@ class SUEWSConfig(DataModelBase):
         """
         issues: List[Dict[str, str]] = []
 
-        if getattr(self, "_yaml_raw", None) is None:
+        if not include_programmatic and getattr(self, "_yaml_raw", None) is None:
             return issues
 
         if not getattr(self, "sites", None):
@@ -3580,8 +3596,16 @@ class SUEWSConfig(DataModelBase):
             surfaces still materialise with ``sfr=1/7`` via
             ``default_factory``. Invalid shorthand (for example
             ``bldgs: 0.3``) is excluded here; pydantic rejects it before
-            these checks run.
+            these checks run. When ``include_programmatic`` is True (at the
+            execution handoff boundary), every site surface is validated even
+            without a raw YAML snapshot.
             """
+            if include_programmatic:
+                if require_land_cover:
+                    return True
+                props = getattr(self.sites[site_index], "properties", None)
+                fields_set = getattr(props, "model_fields_set", set())
+                return "land_cover" in fields_set
             raw_lc = _raw_land_cover(site_index)
             if raw_lc is None:
                 return False
@@ -3836,7 +3860,11 @@ class SUEWSConfig(DataModelBase):
                                 fix=fix,
                             )
 
-        issues.extend(self._iter_co2_point_source_issues())
+        issues.extend(
+            self._iter_co2_point_source_issues(
+                include_programmatic=include_programmatic
+            )
+        )
         issues.extend(self._iter_biogenic_co2_null_issues())
         return issues
 
@@ -3846,6 +3874,161 @@ class SUEWSConfig(DataModelBase):
         bioco2_issues = self._iter_biogenic_co2_null_issues()
         if bioco2_issues:
             raise ValueError("; ".join(issue["error_text"] for issue in bioco2_issues))
+
+    @staticmethod
+    def _is_finite_in_range(value: Any, low: float, high: float) -> bool:
+        """Return whether *value* is a non-bool finite number in ``[low, high]``."""
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(float(value))
+            and low <= float(value) <= high
+        )
+
+    def _check_execution_scalar_bounds(self) -> list[str]:
+        """Re-check core scalar bounds bypassed by ``model_construct()`` or mutations."""
+        bound_errors: list[str] = []
+        for idx, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {idx}")
+            props = getattr(site, "properties", None)
+            if props is None:
+                continue
+            for coord, low, high in (("lat", -90.0, 90.0), ("lng", -180.0, 180.0)):
+                val = _unwrap_value(getattr(props, coord, None))
+                if val is not None and not self._is_finite_in_range(val, low, high):
+                    bound_errors.append(
+                        f"{site_name}: {coord} ({val!r}) must be finite and in "
+                        f"[{int(low)}, {int(high)}]"
+                    )
+            land_cover = getattr(props, "land_cover", None)
+            if land_cover is None:
+                continue
+            for surf_name in (
+                "paved",
+                "bldgs",
+                "evetr",
+                "dectr",
+                "grass",
+                "bsoil",
+                "water",
+            ):
+                surf = getattr(land_cover, surf_name, None)
+                if surf is None:
+                    continue
+                for field_name in ("sfr", "emis"):
+                    raw = _unwrap_value(getattr(surf, field_name, None))
+                    if raw is not None and not self._is_finite_in_range(raw, 0.0, 1.0):
+                        bound_errors.append(
+                            f"{site_name}: land_cover.{surf_name}.{field_name} "
+                            f"({raw!r}) must be finite and in [0, 1]"
+                        )
+        return bound_errors
+
+    def validate_for_engine(self, *, require_land_cover: bool = True) -> None:
+        """Enforce live runtime and cross-field contracts before engine or state handoff.
+
+        Canonical pre-execution boundary invoked by ``SUEWSSimulation.update_config``,
+        ``SUEWSSimulation.run``, ``config_to_engine_yaml``, ``_grid_config_jsons``,
+        and ``SUEWSConfig.to_df_state``. Runs ``validate_non_null_ref_values``,
+        ``validate_soil_depths``, ``validate_water_distributions``, and
+        ``_validate_engine_contracts`` (structural, scalar-bound, conditional/physics,
+        active-site including non-water soil parameters, and cross-field rules) so
+        programmatic construction, ``model_construct()``, or post-construction
+        in-place mutations cannot bypass loader validation before lossy state
+        conversion or Rust execution (gh#2086, gh#2099, gh#2128).
+
+        Parameters
+        ----------
+        require_land_cover : bool, default True
+            When True (engine export and execution boundaries), validate active
+            surface requirements even if ``land_cover`` was omitted and filled by
+            Pydantic's default factory. When False (``to_df_state()``), validate
+            active surface requirements on every site that declared ``land_cover``
+            while preserving sparse non-land-cover fixtures used for incremental
+            patching and unit-test round-trips.
+
+        Raises
+        ------
+        ValueError
+            If the configuration contains unvalidated dict sub-models, live null
+            ``RefValue`` wrappers, zero ``soil_depth`` on active surfaces with
+            positive ``soil_store_capacity``, invalid per-surface
+            ``WaterDistribution`` invariants, missing required active runtime
+            parameters, or violated cross-field bounds.
+        """
+        if not isinstance(getattr(self, "model", None), Model):
+            raise ValueError(
+                "SUEWS configuration requires a validated Model instance before "
+                "execution (use SUEWSConfig.from_dict() or SUEWSConfig.from_yaml())."
+            )
+        sites = getattr(self, "sites", None)
+        if not sites or not all(isinstance(site, Site) for site in sites):
+            raise ValueError(
+                "SUEWS configuration must define at least one validated Site "
+                "before execution (use SUEWSConfig.from_dict() or "
+                "SUEWSConfig.from_yaml())."
+            )
+
+        self.validate_non_null_ref_values()
+        self.validate_soil_depths()
+        self.validate_water_distributions()
+        self._validate_engine_contracts(require_land_cover=require_land_cover)
+
+    def _validate_engine_contracts(self, *, require_land_cover: bool = True) -> None:
+        """Validate scalar bounds, active-site requirements, and cross-field rules."""
+        bound_errors = self._check_execution_scalar_bounds()
+        if bound_errors:
+            raise ValueError("; ".join(bound_errors))
+
+        if not hasattr(self, "_validation_summary") or not isinstance(
+            self._validation_summary, dict
+        ):
+            self._validation_summary = {
+                "total_warnings": 0,
+                "sites_with_issues": [],
+                "issue_types": set(),
+                "yaml_path": getattr(self, "_yaml_path", None),
+                "detailed_messages": [],
+                "info_messages": [],
+            }
+
+        all_critical_issues: list[str] = []
+        all_critical_issues.extend(self._validate_conditional_parameters())
+        # Also catch storage_heat in {6, 7, 8} when model_construct() left
+        # model_fields_set empty so _needs_storage_validation() skipped it.
+        shm_raw = _unwrap_value(getattr(self.model.physics, "storage_heat", None))
+        try:
+            shm_int = int(shm_raw)
+        except (TypeError, ValueError):
+            shm_int = None
+        if shm_int in {6, 7, 8} and not self._needs_storage_validation():
+            for idx, site in enumerate(self.sites):
+                all_critical_issues.extend(self._validate_storage(site, idx))
+        all_critical_issues.extend(self._check_critical_null_physics_params())
+        all_critical_issues.extend(
+            self._check_critical_null_site_params(
+                include_programmatic=True,
+                require_land_cover=require_land_cover,
+            )
+        )
+        if all_critical_issues:
+            error_message = "\n".join(all_critical_issues)
+            raise ValueError(f"Critical validation failed:\n{error_message}")
+
+        self._validate_soil_observation()
+        self.validate_model_output_config()
+        if (
+            self.model.control.output.timestamp_reference
+            == OutputTimestampReference.DAYLIGHT
+        ):
+            self.validate_model_output_timestamp_reference()
+        self.validate_site_required_fields()
+        self.validate_snow_parameters()
+        self.validate_albedo_ranges()
+        self.validate_deciduous_porosity_ranges()
+        self.validate_building_layers()
+        self.validate_surface_states()
+        self.validate_dls_parameters()
 
     def _iter_biogenic_co2_null_issues(self) -> list[dict[str, str]]:
         """Return an issue when ``min_res_bioco2`` is explicitly null under active biogenic CO2.
@@ -3907,7 +4090,9 @@ class SUEWSConfig(DataModelBase):
                     )
         return issues
 
-    def _iter_co2_point_source_issues(self) -> List[Dict[str, str]]:
+    def _iter_co2_point_source_issues(
+        self, *, include_programmatic: bool = False
+    ) -> list[dict[str, str]]:
         """Return an issue per site missing a CO2 point source that is used.
 
         The kernel adds ``emission_co2_point_source`` to the anthropogenic CO2
@@ -3915,8 +4100,9 @@ class SUEWSConfig(DataModelBase):
         41-46. Methods 0-6 do not use it: the driver discards every CO2 flux
         they compute. A missing value used to reach the kernel as the Rust
         bridge's own 0; for those methods it must now be given, ``0``
-        included (gh#2001). Like the other site checks, this applies only to
-        configurations loaded from user input (``from_yaml`` / ``from_dict``).
+        included (gh#2001). At construction time this applies to configurations
+        loaded from user input (``from_yaml`` / ``from_dict``); at execution
+        handoff (``include_programmatic=True``) it applies unconditionally.
 
         Returns
         -------
@@ -3924,9 +4110,9 @@ class SUEWSConfig(DataModelBase):
             Issues in the shape of
             :meth:`_iter_critical_null_site_param_issues`.
         """
-        if getattr(self, "_yaml_raw", None) is None or not getattr(
-            self, "sites", None
-        ):
+        if (
+            not include_programmatic and getattr(self, "_yaml_raw", None) is None
+        ) or not getattr(self, "sites", None):
             return []
 
         physics = getattr(getattr(self, "model", None), "physics", None)
@@ -3964,11 +4150,19 @@ class SUEWSConfig(DataModelBase):
                     )
         return issues
 
-    def _check_critical_null_site_params(self) -> List[str]:
+    def _check_critical_null_site_params(
+        self,
+        *,
+        include_programmatic: bool = False,
+        require_land_cover: bool = True,
+    ) -> list[str]:
         """Check for critical null site-level parameters that silently yield NaN output."""
         return [
             issue["error_text"]
-            for issue in self._iter_critical_null_site_param_issues()
+            for issue in self._iter_critical_null_site_param_issues(
+                include_programmatic=include_programmatic,
+                require_land_cover=require_land_cover,
+            )
             if issue["error_text"]
         ]
 
@@ -4135,27 +4329,6 @@ class SUEWSConfig(DataModelBase):
         issues = self._check_zero_soil_depth_params()
         if issues:
             raise ValueError("\n".join(issues))
-
-    def validate_for_engine(self) -> None:
-        """Run pre-handoff invariant checks before exporting or running the engine.
-
-        Aggregates live-mutation checks required at every public engine handoff
-        (``SUEWSSimulation.update_config()``, ``SUEWSSimulation.run()``,
-        ``config_to_engine_yaml()``, ``_grid_config_jsons()``, and
-        ``to_df_state()``) so every entry point enforces the same invariants.
-
-        Raises
-        ------
-        ValueError
-            If a non-optional ``RefValue`` (or active biogenic CO2
-            ``min_res_bioco2``) was mutated to ``None``, if any active
-            non-water surface with positive ``soil_store_capacity`` has
-            ``soil_depth == 0``, or if any site violates per-surface
-            ``WaterDistribution`` invariants.
-        """
-        self.validate_non_null_ref_values()
-        self.validate_soil_depths()
-        self.validate_water_distributions()
 
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
@@ -5431,7 +5604,7 @@ class SUEWSConfig(DataModelBase):
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
         with open(path, "r", encoding="utf-8") as file:
-            config_data = yaml.safe_load(file)
+            config_data = safe_load_yaml(file)
 
         return cls.from_dict(
             config_data,
@@ -5602,7 +5775,7 @@ class SUEWSConfig(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing SUEWS configuration state
         """
-        self.validate_for_engine()
+        self.validate_for_engine(require_land_cover=False)
         if use_conditional_validation and _validation_available:
             # Pre-validate configuration before conversion
             config_data = self.model_dump()

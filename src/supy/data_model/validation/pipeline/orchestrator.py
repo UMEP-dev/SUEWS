@@ -24,11 +24,16 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER, sync_text_report_stopping_phase
+from ...core._yaml_io import safe_load_yaml
 from ...core.physics_families import flatten_physics_in_config
 
 # Import Phase A and B functions
 try:
-    from .phase_a import annotate_missing_parameters
+    from .phase_a import (
+        _MISSING as _PHASE_A_MISSING,
+        annotate_missing_parameters,
+        detect_nlayer_from_yaml_data,
+    )
     from .phase_b import run_science_check
 except ImportError as e:
     print(f"Error importing required modules: {e}")
@@ -85,36 +90,8 @@ def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:
     """
     try:
         with open(user_yaml_file, "r", encoding="utf-8") as f:
-            user_data = yaml.safe_load(f)
-
-        # Navigate: sites[0].properties.vertical_layers.nlayer.value
-        if not user_data or "sites" not in user_data:
-            return 3
-
-        sites = user_data.get("sites", [])
-        if not sites or not isinstance(sites, list):
-            return 3
-
-        first_site = sites[0]
-        if not isinstance(first_site, dict):
-            return 3
-
-        properties = first_site.get("properties", {})
-        if not isinstance(properties, dict):
-            return 3
-
-        vertical_layers = properties.get("vertical_layers", {})
-        if not isinstance(vertical_layers, dict):
-            return 3
-
-        nlayer = vertical_layers.get("nlayer", {})
-        if isinstance(nlayer, dict):
-            nlayer_value = nlayer.get("value", 3)
-        else:
-            nlayer_value = nlayer
-
-        return int(nlayer_value) if nlayer_value is not None else 3
-
+            user_data = safe_load_yaml(f)
+        return detect_nlayer_from_yaml_data(user_data)
     except Exception:
         # Silently default to 3 on any error
         return 3
@@ -697,6 +674,8 @@ def run_phase_a(
     phase: str = "A",
     silent: bool = False,
     forcing: str = "on",
+    *,
+    _preloaded_user_data=_PHASE_A_MISSING,
 ) -> "PhaseReport":
     """Execute Phase A: Configuration structure checks and parameter updates.
 
@@ -713,8 +692,6 @@ def run_phase_a(
     if not silent:
         print("Configuration structure check...")
 
-    nlayer_value = detect_nlayer_from_user_yaml(user_yaml_file)
-
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             phase_report = annotate_missing_parameters(
@@ -724,8 +701,9 @@ def run_phase_a(
                 report_file=report_file,
                 mode=mode,
                 phase=phase,
-                nlayer=nlayer_value,
                 forcing=forcing,
+                detect_nlayer=True,
+                _preloaded_user_data=_preloaded_user_data,
             )
     except Exception as exc:
         phase_report = PhaseReport(
@@ -1553,10 +1531,8 @@ Modes:
         # Step 3: Pre-validation check for public mode restrictions
         if internal_mode.lower() == "public":
             try:
-                import yaml
-
                 with open(user_yaml_file, "r", encoding="utf-8") as f:
-                    user_yaml_data = yaml.safe_load(f)
+                    user_yaml_data = safe_load_yaml(f)
                 flatten_physics_in_config(user_yaml_data)
 
                 # Check public mode restrictions.

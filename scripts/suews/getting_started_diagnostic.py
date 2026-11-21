@@ -16,6 +16,7 @@ from scripts.suews.guide_journeys.python_session import PythonSession
 from scripts.suews.guide_journeys.runner import read_page, resolve_steps
 
 # Native in-memory water fluxes are amounts in mm per model timestep.
+# TotCh excludes snowpack storage; this diagnostic applies only with snow off.
 # See tutorial_05_results_analysis.py:158-190 and _output_metadata.py:357-358.
 # Observe only after the last replayed statement; no later reader uses this state.
 WATER_OBSERVATION = """
@@ -48,6 +49,8 @@ WATER_OBSERVATION = """
 )
 """
 
+WATER_MAX_ABS_RESIDUAL = f"({WATER_OBSERVATION.strip()})['residual_mm']['max_abs']"
+
 
 def main() -> int:
     """Execute a source-bound prefix and retain process and residual evidence."""
@@ -69,7 +72,9 @@ def main() -> int:
     if stale:
         raise ValueError(stale)
     specs = resolve_steps(document, manifest, manifest["journeys"][0])
-    stop = next(i for i, spec in enumerate(specs) if spec["id"] == "sample-run")
+    stop = next((i for i, spec in enumerate(specs) if spec["id"] == "sample-run"), None)
+    if stop is None:
+        raise ValueError("Diagnostic requires a 'sample-run' step in the first journey")
     record = {
         "kind": "optional diagnostic replay; not acceptance",
         "revision": args.revision,

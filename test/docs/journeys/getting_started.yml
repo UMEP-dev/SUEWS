@@ -1177,9 +1177,7 @@ journeys:
         146-176).'
     - kind: physical
       check: absolute_residual
-      expression: float((sim.get_variable('Rain', group='SUEWS').iloc[:, 0] + sim.get_variable('Irr',
-        group='SUEWS').iloc[:, 0] - sim.get_variable('Evap', group='SUEWS').iloc[:, 0] - sim.get_variable('RO',
-        group='SUEWS').iloc[:, 0] - sim.get_variable('TotCh', group='SUEWS').iloc[:, 0]).abs().max())
+      expression_ref: scripts.suews.getting_started_diagnostic.WATER_MAX_ABS_RESIDUAL
       tolerance: null
       decision_needed: Domain owner must set a tolerance in mm per timestep; null deliberately fails closed.
         No tolerance inferred from this run.

@@ -30,10 +30,8 @@ installed RECORD entries and installed bytes. The wheel was
 Python 3.12.12, pip 26.3 and Linux x86_64 were used. The
 [evidence JSON](20261121-getting_started_evidence.json) retains the page blob,
 manifest hash, dependency-wheel hashes, installation results, every statement's
-exit/promise results, warnings and residual observations. Raw process records,
-logs and their original hashes are retained in
-`.context/getting-started-journey-out`; raw
-records containing machine paths are not committed.
+exit/promise results, warnings and residual observations. This committed JSON
+is the public execution record for the observations reported here.
 
 ## Results
 
@@ -90,7 +88,9 @@ total generated runoff and `TotCh` change in surface and soil storage
 (`src/supy/data_model/output/suews_vars.py:138-187`). The kernel exports these
 terms together in `src/suews/src/suews_ctrl_driver.f95:4341-4345`.
 `TotCh` includes surface-store change and fraction-weighted soil-store changes
-(`src/suews/src/suews_phys_waterdist.f95:963-968`). `Drainage` is an internal
+(`src/suews/src/suews_phys_waterdist.f95:963-968`). The surface-store term
+`surf_chang_per_tstep` excludes snowpack storage, so this water-balance check
+is valid only with snow off, as it is in this sample run. `Drainage` is an internal
 transfer already counted in runoff/storage, so it is not subtracted again
 (`tutorial_05_results_analysis.py:164-170`).
 

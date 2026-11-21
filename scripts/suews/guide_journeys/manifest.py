@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 import hashlib
+from importlib import import_module
 from pathlib import Path
 
 import yaml
@@ -84,6 +85,17 @@ def load(path: Path) -> dict:
             p for step in journey["steps"] for p in step.get("promises", [])
         ]
         for promise in promises:
+            if "expression_ref" in promise:
+                if "expression" in promise or promise["expression_ref"] != (
+                    "scripts.suews.getting_started_diagnostic.WATER_MAX_ABS_RESIDUAL"
+                ):
+                    raise ValueError(
+                        "Unknown or ambiguous promise expression reference"
+                    )
+                # Resolve only this registered observation, after module loading.
+                promise["expression"] = import_module(
+                    "scripts.suews.getting_started_diagnostic"
+                ).WATER_MAX_ABS_RESIDUAL
             if promise.get("delta") == "expected_delta":
                 promise["delta"] = deepcopy(data["expected_delta"])
             if promise["kind"] == "creates" and not promise.get("delta"):

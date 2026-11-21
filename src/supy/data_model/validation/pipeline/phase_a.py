@@ -519,14 +519,10 @@ def _snapshot_forcing_user_data(raw_user_data: object) -> object:
     raw_model = raw_user_data["model"]
     if not isinstance(raw_model, dict):
         return {"model": raw_model}
-    raw_control = raw_model.get("control")
-    return {
-        "model": {
-            "control": deepcopy(raw_control)
-            if isinstance(raw_control, dict)
-            else raw_control
-        }
-    }
+    snapshot = {}
+    if "control" in raw_model:
+        snapshot["control"] = deepcopy(raw_model["control"])
+    return {"model": snapshot}
 
 
 def is_physics_option(param_path):

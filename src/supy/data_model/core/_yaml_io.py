@@ -1,30 +1,15 @@
-"""Safe YAML load and dump helpers preferring PyYAML's libyaml C bindings."""
+"""Preserve the public PyYAML reader and accelerate generated YAML output."""
 
 from __future__ import annotations
 
 from typing import Any
 
 import yaml
+from yaml import safe_load as safe_load_yaml
 
-_SAFE_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+__all__ = ["safe_dump_yaml", "safe_load_yaml"]
+
 _SAFE_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
-
-
-def safe_load_yaml(stream: Any) -> Any:
-    """Parse a single YAML document using ``CSafeLoader`` when available.
-
-    Parameters
-    ----------
-    stream : str or bytes or file-like
-        YAML text or readable stream.
-
-    Returns
-    -------
-    Any
-        Parsed Python object with the same safe-constructor semantics as
-        :func:`yaml.safe_load`.
-    """
-    return yaml.load(stream, Loader=_SAFE_YAML_LOADER)
 
 
 def safe_dump_yaml(data: Any, stream: Any = None, **kwargs: Any) -> str | None:

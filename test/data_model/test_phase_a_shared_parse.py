@@ -64,6 +64,7 @@ def _invoke_phase_a_cli(
     source: Path,
     *,
     mode: str = "public",
+    forcing: str = "off",
 ) -> tuple[int, dict]:
     runner = CliRunner()
     monkeypatch.chdir(tmp_path)
@@ -76,7 +77,7 @@ def _invoke_phase_a_cli(
             "--mode",
             mode,
             "--forcing",
-            "off",
+            forcing,
             "--format",
             "json",
             str(source),
@@ -644,3 +645,27 @@ def test_malformed_yaml_error_paths_across_cli_phase_a_and_loader(
     # 4. SUEWSConfig.from_yaml raises yaml.YAMLError
     with pytest.raises(yaml.YAMLError):
         SUEWSConfig.from_yaml(str(bad))
+
+
+@pytest.mark.parametrize("mode", ["public", "dev"])
+def test_forcing_validation_preserves_absent_control(tmp_path, monkeypatch, mode):
+    source = tmp_path / "no-control.yml"
+    source.write_text("model: {}\n", encoding="utf-8")
+    status, report = _invoke_phase_a_cli(
+        tmp_path, monkeypatch, source, mode=mode, forcing="on"
+    )
+    assert status == 1
+    assert any(
+        "Forcing file path not found" in error["message"] for error in report["errors"]
+    )
+
+
+@pytest.mark.parametrize("content", ['a: "\\q"\n', "model:\t{}\n"])
+def test_public_yaml_reader_preserves_error_location(tmp_path, content):
+    source = tmp_path / "malformed.yml"
+    source.write_text(content, encoding="utf-8")
+    with source.open(encoding="utf-8") as stream, pytest.raises(yaml.YAMLError) as old:
+        yaml.safe_load(stream)
+    with pytest.raises(type(old.value)) as current:
+        SUEWSConfig.from_yaml(source)
+    assert str(current.value) == str(old.value)

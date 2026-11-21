@@ -216,6 +216,7 @@ faulthandler_timeout = 300
 # Every test file must carry at least one of {physics, api}; importance and
 # cost markers compose independently with the nature axis.
 markers = [
+    "contract(*ids): test-contract ids from test/contracts.yml",
     # Nature axis (gh#1300) -- orthogonal to importance and cost.
     "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
     "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",

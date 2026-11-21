@@ -20,15 +20,21 @@ not proof of the blind assertion review required by this skill.
 For an unchanged fresh binding at a new revision, `manifest.check_fresh` requires
 an extraction stamp matching the requested revision even if the text is identical.
 After mechanically proving identical full page text and unchanged external promise
-and installation sources, make a run copy of the manifest. Update only
+and installation sources, make a run copy of the manifest under the run output
+directory (`RUN_OUTPUT`). Update only
 `extraction_stamp.revision` to the resolved commit and `extracted_at` to the actual
 UTC extraction time. Retain the extractor identity only if unchanged; retain all
 coordinates, hashes, exclusions, assertions and journey definitions. Record old
 and new manifest hashes and the equality checks. Run `--check` on the copy. This
 requires no new prose interpretation; it is not a review and adds no reviewed field.
-If equality or compatibility cannot be proved, mark stale instead.
+If equality or compatibility cannot be proved, mark stale instead. [procedure: Principle 1]
 [Source of stamp constraint: `scripts/suews/guide_journeys/manifest.py`,
 `check_fresh`; source of stamp fields: `fresh.py`, `extract_fresh`.]
+
+Never edit committed manifests in place during an exercise run: they are test
+inputs. Rebind only run copies under `RUN_OUTPUT`; propose any committed-manifest
+change as its own separately reviewed change under
+`.claude/rules/autonomous-workflow.md` (Gates). [procedure: Principle 2]
 
 When only part of a page changed, compare section envelopes and dependency
 bindings first. Reinterpret changed regions and consumers of changed prerequisites;

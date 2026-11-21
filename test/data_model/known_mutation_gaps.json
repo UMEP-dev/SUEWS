@@ -1400,53 +1400,6 @@
       "rationale": "SPARTACUS vertical vegetation arrays are inactive on non-SPARTACUS anchors."
     },
     {
-      "id": "initial-states-dyohm-arrays-omit-active",
-      "anchors": [
-        "observed_and_dyohm"
-      ],
-      "path_patterns": [
-        "sites[0].initial_states.dqndt_surf[*]",
-        "sites[0].initial_states.qn_surfs[*]"
-      ],
-      "mutations": {
-        "omit": "dropped"
-      },
-      "category": "active_gap",
-      "active_condition": "Active when storage_heat = 6 (DyOHM) on observed_and_dyohm; bare_null is already rejected.",
-      "owner_issue": "#2101",
-      "related_issues": [
-        "#1991",
-        "#2001"
-      ],
-      "rationale": "DyOHM rejects null elements in dqndt_surf and qn_surfs, but deleting an element silently truncates the 7-surface state array to 6 elements."
-    },
-    {
-      "id": "initial-states-dyohm-arrays-inactive",
-      "anchors": [
-        "all_surfaces_baseline",
-        "co2_methods",
-        "snow_cold",
-        "spartacus_ehc_stebbs",
-        "irrigation_and_dls"
-      ],
-      "path_patterns": [
-        "sites[0].initial_states.dqndt_surf[*]",
-        "sites[0].initial_states.qn_surfs[*]"
-      ],
-      "mutations": {
-        "omit": "dropped",
-        "bare_null": "null_or_empty"
-      },
-      "category": "inactive_optional",
-      "active_condition": "Inactive when storage_heat != 6; active DyOHM coverage is tracked on observed_and_dyohm.",
-      "owner_issue": "#2101",
-      "related_issues": [
-        "#1991",
-        "#2001"
-      ],
-      "rationale": "DyOHM initial-state history arrays are unused outside storage_heat = 6."
-    },
-    {
       "id": "initial-states-hdd-id-element-omit",
       "anchors": [
         "all_surfaces_baseline",

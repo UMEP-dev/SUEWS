@@ -47,12 +47,10 @@ def release_yaml(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def signed_yaml(tmp_path: Path, release_yaml: Path) -> Path:
-    """A YAML with an explicit `schema_version` at the current value."""
-    payload = yaml.safe_load(release_yaml.read_text(encoding="utf-8"))
-    payload["schema_version"] = CURRENT_SCHEMA_VERSION
+def signed_yaml(tmp_path: Path, sample_yaml_path: Path) -> Path:
+    """Use the shipped current schema, without relabelling historical inputs."""
     target = tmp_path / "signed.yml"
-    target.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    target.write_text(sample_yaml_path.read_text(encoding="utf-8"), encoding="utf-8")
     return target
 
 
@@ -552,7 +550,6 @@ class TestSuewsConvertYamlPath:
         assert ".yml" in result.output
         assert "YAML" in result.output or "cross-release" in result.output
 
-    # The signed legacy YAML under test is on deprecated spellings.
     @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_yaml_input_end_to_end(self, signed_yaml: Path, tmp_path: Path):
         """`suews-convert -i old.yml -o new.yml` routes via `upgrade_yaml`."""

@@ -541,6 +541,27 @@ class SUEWSConfig(DataModelBase):
             physics["sw_dn_direct_frac"] = legacy_fractions[0]
         return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def _prepare_radiation_memory_input(cls, values):
+        """Migrate only legacy zero placeholders; never discard supplied memory."""
+        if not isinstance(values, dict):
+            return values
+        from packaging.version import InvalidVersion, Version
+
+        try:
+            legacy = Version(str(values.get("schema_version"))) < Version("2026.6.dev13")
+        except InvalidVersion:
+            legacy = False
+        if legacy:
+            from ...util.converter.yaml_upgrade import _migrate_2026_6_dev12_to_2026_6_dev13
+
+            return _migrate_2026_6_dev12_to_2026_6_dev13(values)
+        for site in values.get("sites", []):
+            if isinstance(site, dict):
+                InitialStates.reject_radiation_memory_input(site.get("initial_states"))
+        return values
+
     name: str = Field(
         default="sample config",
         description="Name of the SUEWS configuration",
@@ -2595,7 +2616,6 @@ class SUEWSConfig(DataModelBase):
           use the building material layers.
         - Requires method 7 to use SPARTACUS-Surface net radiation (1001--1003),
           which consumes the separate STEBBS roof and wall temperatures.
-        - Validates initial_states.qn_surfs and dqndt_surf arrays.
         - Checks that lambda_c is set and non-null for methods 6 and 8.
         """
         issues: List[str] = []
@@ -2665,27 +2685,6 @@ class SUEWSConfig(DataModelBase):
                             f"{arr} must be a non-empty list of finite numeric "
                             "values (no nulls, NaN, or infinities)"
                         )
-
-        for arr in ("qn_surfs", "dqndt_surf"):
-            field = getattr(states, arr, None) if states else None
-            # Handle both RefValue with .value and plain list
-            if hasattr(field, "value"):
-                vals = field.value
-            else:
-                vals = field
-            if (
-                not isinstance(vals, list)
-                or len(vals) == 0
-                or any(
-                    not isinstance(v, (int, float)) or not np.isfinite(v)
-                    for v in vals
-                )
-            ):
-                issues.append(
-                    f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
-                    f"initial_states.{arr} must be a non-empty list of finite "
-                    "numeric values (no nulls, NaN, or infinities)"
-                )
 
         if storage_heat_method in DYOHM_BUILDING_METHODS:
             lam = getattr(getattr(props, "lambda_c", None), "value", None)
@@ -5164,6 +5163,7 @@ class SUEWSConfig(DataModelBase):
     @classmethod
     def _validate_raw_mapping(cls, config_data: dict) -> "SUEWSConfig":
         """Validate user-controlled config subtrees with strict extra keys."""
+        config_data = cls._prepare_radiation_memory_input(config_data)
         prepared = cls.convert_legacy_hdd_formats(config_data)
         prepared = cls._migrate_legacy_spartacus_kdown_direct_fraction(prepared)
         line_errors = []
@@ -5459,7 +5459,7 @@ class SUEWSConfig(DataModelBase):
         """
         # Work on a copy so the caller's dict is never mutated (validators
         # such as the legacy output_file coercion pop keys in place).
-        config_data = deepcopy(config_data)
+        config_data = cls._prepare_radiation_memory_input(deepcopy(config_data))
 
         # Snapshot the raw user input so site-level completeness checks can
         # distinguish user-declared surfaces from pydantic-factory defaults

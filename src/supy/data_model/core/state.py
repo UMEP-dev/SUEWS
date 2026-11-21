@@ -886,7 +886,15 @@ class HDD_ID(DataModelBase):
 class InitialStates(DataModelBase):
     """Initial conditions for the SUEWS model"""
 
-    model_config = ConfigDict(title="Initial States")
+    model_config = ConfigDict(
+        title="Initial States",
+        json_schema_extra={
+            "not": {"anyOf": [
+                {"required": ["qn_surfs"]},
+                {"required": ["dqndt_surf"]},
+            ]},
+        },
+    )
 
     snowalb: FlexibleRefValue(float) = Field(
         description="Snow albedo at the start of the model run",
@@ -1118,22 +1126,20 @@ class InitialStates(DataModelBase):
             "internal_only": True,
         },
     )
-    qn_surfs: List[Optional[float]] = Field(
-        default_factory=lambda: [0.0] * 7,
-        json_schema_extra={
-            "display_name": "Initial QN for each surface",
-            "internal_only": True,
-        },
-        description="Initial QN for each surface (internal use only)",
-    )
-    dqndt_surf: List[Optional[float]] = Field(
-        default_factory=lambda: [0.0] * 7,
-        json_schema_extra={
-            "display_name": "Initial dQN/dt for each surface",
-            "internal_only": True,
-        },
-        description="Initial dQN/dt for each surface (internal use only)",
-    )
+    @model_validator(mode="before")
+    @classmethod
+    def reject_radiation_memory_input(cls, values):
+        """Keep internal radiation memory out of fresh-run configuration."""
+        if isinstance(values, dict):
+            for name in ("qn_surfs", "dqndt_surf"):
+                if name in values:
+                    raise ValueError(
+                        f"initial_states.{name} is internal radiation memory and "
+                        "cannot be supplied for a fresh run. Remove the field; "
+                        "use a complete checkpoint for continuation."
+                    )
+        return values
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert initial states to DataFrame state format."""
         index = pd.Index([grid_id], name="grid")
@@ -1158,13 +1164,10 @@ class InitialStates(DataModelBase):
             ("snowfallcum", "0"): self.snowfallcum,
         }
 
-        # qn_surfs (7)
-        for i, val in enumerate(self.qn_surfs):
-            cols[("qn_surfs", f"({i},)")] = val
-
-        # dqndt_surf (7)
-        for i, val in enumerate(self.dqndt_surf):
-            cols[("dqndt_surf", f"({i},)")] = val
+        # Legacy DFState retains zero placeholders, never restart memory.
+        for name in ("qn_surfs", "dqndt_surf"):
+            for i in range(7):
+                cols[(name, f"({i},)")] = 0.0
 
         # special treatment for hdd_id - convert to list format for legacy compatibility
         hdd_list = self.hdd_id.to_list()
@@ -1262,9 +1265,16 @@ class InitialStates(DataModelBase):
         snowfallcum = df.loc[grid_id, ("snowfallcum", "0")]
         hdd_id_list = [df.loc[grid_id, (f"hdd_id", f"({i},)")] for i in range(12)]
         hdd_id = HDD_ID.from_list(hdd_id_list)
-        qn_surfs = [float(df.loc[grid_id, ("qn_surfs", f"({i},)")]) for i in range(7)]
-        dqndt_surf = [float(df.loc[grid_id, ("dqndt_surf", f"({i},)")]) for i in range(7)]
-        
+        # A DFState is a fresh-run adapter, not a complete checkpoint.
+        for name in ("qn_surfs", "dqndt_surf"):
+            for i in range(7):
+                column = (name, f"({i},)")
+                if column in df.columns and df.loc[grid_id, column] != 0.0:
+                    raise ValueError(
+                        f"{name}[{i}] cannot initialise radiation memory from "
+                        "DFState. Use a complete checkpoint for continuation."
+                    )
+
         initital_state = {
             "snowalb": snowalb,
             "paved": surfaces["paved"],
@@ -1288,8 +1298,6 @@ class InitialStates(DataModelBase):
             "tstep_prev": tstep_prev,
             "snowfallcum": snowfallcum,
             "hdd_id": hdd_id,
-            "qn_surfs": qn_surfs,
-            "dqndt_surf": dqndt_surf
         }
 
         return cls(

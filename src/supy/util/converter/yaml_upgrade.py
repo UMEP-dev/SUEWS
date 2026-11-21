@@ -2105,6 +2105,57 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
 _HANDLERS[("2026.6.dev11", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev11_to_2026_6_dev12
 
 
+def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
+    """Remove old generated zeros without silently discarding restart values."""
+    cfg = deepcopy(cfg)
+    pending_logs = []
+    for index, site in enumerate(cfg.get("sites", [])):
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for name in ("qn_surfs", "dqndt_surf"):
+            if name not in states:
+                continue
+            values = states[name]
+            path = f"sites[{index}].initial_states.{name}"
+            if not (
+                isinstance(values, list) and len(values) == 7
+                and all(isinstance(v, numbers.Real) and not isinstance(v, bool)
+                        and v == 0 for v in values)
+            ):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise radiation memory for a fresh run. "
+                    "Only legacy seven-zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states[name]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "radiation memory is formed internally during cold start"
+            )
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_radiation_memory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev12_to_2026_6_dev13(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev12")] = _handler
+        _HANDLERS[(_source, _target)] = _with_radiation_memory_delta(_handler)
+_HANDLERS[("2026.6.dev12", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev12_to_2026_6_dev13
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------

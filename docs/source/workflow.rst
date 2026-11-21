@@ -371,6 +371,26 @@ period from the checkpointed state on purpose (for example when cycling one
 year of forcing for spin-up), pass ``check_continuity=False`` to
 ``from_checkpoint(...)``.
 
+Cold starts and continuation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The result of ``sim.run()`` exposes ``output.metadata["initialisation"]``.
+Its ``origin`` is ``"cold_start"`` for a fresh run and ``"checkpoint"`` for
+an explicit or same-instance continuation. ``radiation_memory`` is respectively
+``"internal"`` or ``"restored"``; ``warmup_completion`` is always
+``"not_assessed"``. A checkpoint identifies a continuation, not a guarantee
+that the preceding run was equilibrated.
+
+Cold starts retain every requested output interval, using available forcing
+without additional antecedent weather, weather cycling or a discarded prefix.
+The initial radiation memories are internal; early results can retain startup
+influence. No elapsed-time threshold declares the result fully warmed.
+
+The same initialisation record is written to ``provenance.json`` under ``run``
+by ``sim.save()`` and ``suews run``, including streamed runs. Keep that sidecar
+with exported data. Bare DataFrame/file exports and ``output.save()`` do not
+carry this run-provenance record; use ``sim.save()`` when it is required.
+
 For detailed examples, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
 Data Requirements and Quality

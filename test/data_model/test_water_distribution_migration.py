@@ -76,7 +76,7 @@ def test_only_inapplicable_numeric_zeros_are_removed(surface, zero, capsys):
         "unrelated": {"value": 0},
     }
     assert cfg == original
-    assert result["schema_version"] == "2026.6.dev12"
+    assert result["schema_version"] == CURRENT_SCHEMA_VERSION
     log = capsys.readouterr().err
     assert f"waterdist.to_{surface}" in log
     assert f"waterdist.{terminal}" in log
@@ -299,7 +299,7 @@ def test_public_cli_migration_on_real_multisite_input(
     else:
         assert result.exit_code == 0, result.output
         migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
-        assert migrated["schema_version"] == "2026.6.dev12"
+        assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
         assert all("to_paved" not in _dist(migrated, site=i) for i in range(2))
         SUEWSConfig.from_yaml(str(output))
 

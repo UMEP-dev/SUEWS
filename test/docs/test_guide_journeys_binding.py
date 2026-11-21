@@ -119,3 +119,20 @@ def test_anchor_inventory_requires_both_directions():
 def test_hash_preserves_blank_line_string_content():
     """Whitespace inside a multi-line string is source content, not a blank margin."""
     assert digest('x = """a\n  \nb"""') != digest('x = """a\n\nb"""')
+
+
+def test_documented_and_bound_counts_are_independent():
+    """An added instruction is counted even before it receives a binding."""
+    from scripts.suews.guide_journeys.manifest import step_coverage
+
+    manifest = load(MANIFEST)
+    text = (ROOT / manifest["guide"]).read_text(encoding="utf-8")
+    assert step_coverage(Document(text, manifest["title"]), manifest) == {
+        "documented_steps": 6,
+        "bound_steps": 6,
+    }
+    text = text.replace(
+        "   suews convert -i", "   suews schema info\n   suews convert -i", 1
+    )
+    counts = step_coverage(Document(text, manifest["title"]), manifest)
+    assert counts == {"documented_steps": 7, "bound_steps": 6}

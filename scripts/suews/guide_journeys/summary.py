@@ -5,9 +5,11 @@ import re
 from .inventory import compare, compare_values, coverage
 
 
-def summarise(manifest: dict, records: list[dict], stale: list[str]) -> dict:
+def summarise(
+    manifest: dict, records: list[dict], stale: list[str], step_counts: dict
+) -> dict:
     """Summarise preserved observations without counting probes as guide instructions."""
-    result = coverage(manifest, records, stale)
+    result = coverage(manifest, records, stale, step_counts)
     documented = {step["id"] for step in manifest["steps"]}
     result["executed_steps"] = sorted(documented.intersection(result["executed_steps"]))
     result["executed_step_count"] = len(result["executed_steps"])

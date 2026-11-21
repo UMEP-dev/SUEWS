@@ -63,3 +63,33 @@ def check(document: Document, manifest: dict, current_revision: str) -> list[str
     return [
         f"{error} (reviewed {reviewed}; current {current_revision})" for error in errors
     ]
+
+
+def step_coverage(document: Document, manifest: dict) -> dict:
+    """Count extracted instructions separately from those carrying a binding."""
+    documented = bound = 0
+    for node, kind in document.candidates():
+        owners = {
+            key
+            for key, value in document.anchors.items()
+            if value is node or (kind == "inline" and node.parent is value)
+        }
+        exclusions = [e for e in manifest["exclusions"] if e["anchor"] in owners]
+        if any(
+            e.get("kind") == "example-data"
+            or (kind == "inline" and e.get("inline") == node.rawsource)
+            for e in exclusions
+        ):
+            continue
+        entries = [e for e in manifest["steps"] if e["anchor"] in owners]
+        if kind == "inline":
+            documented += 1
+            bound += any(e.get("inline") == node.rawsource for e in entries)
+        else:
+            raw = document.raw(node)
+            spans = shell_spans(raw.text, raw.first)
+            documented += len(spans)
+            bound += sum(
+                any(e.get("command") == i for e in entries) for i in range(len(spans))
+            )
+    return {"documented_steps": documented, "bound_steps": bound}

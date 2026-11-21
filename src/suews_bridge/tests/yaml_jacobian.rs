@@ -135,11 +135,11 @@ const KNOWN_DEAD_KEYS: &[&str] = &[
     "sites[0].properties.snow.ohm_coef.winter_wet.a1",
     "sites[0].properties.snow.ohm_coef.winter_wet.a2",
     "sites[0].properties.snow.ohm_coef.winter_wet.a3",
-    // #2003 / #2110: 31 `initial_states` numeric leaves ignored by
+    // #2003 / #2110: 17 `initial_states` numeric leaves ignored by
     // `apply_state_overrides` (9 vegetation water-use scalars, 8 timer and
-    // atmosphere scalars with `tstep_prev` retaining `model.control.tstep`,
-    // 7 `qn_surfs`, and 7 `dqndt_surf`); warm-start scope is tracked under
-    // #2003/#2110.
+    // atmosphere scalars with `tstep_prev` retaining `model.control.tstep`);
+    // warm-start scope is tracked under #2003/#2110. Radiation memories are
+    // absent from fresh input and rejected, not dead/unwired inputs.
     "sites[0].initial_states.evetr.wu.wu_total",
     "sites[0].initial_states.evetr.wu.wu_auto",
     "sites[0].initial_states.evetr.wu.wu_manual",
@@ -157,20 +157,6 @@ const KNOWN_DEAD_KEYS: &[&str] = &[
     "sites[0].initial_states.ra_h",
     "sites[0].initial_states.rb",
     "sites[0].initial_states.rs",
-    "sites[0].initial_states.qn_surfs[0]",
-    "sites[0].initial_states.qn_surfs[1]",
-    "sites[0].initial_states.qn_surfs[2]",
-    "sites[0].initial_states.qn_surfs[3]",
-    "sites[0].initial_states.qn_surfs[4]",
-    "sites[0].initial_states.qn_surfs[5]",
-    "sites[0].initial_states.qn_surfs[6]",
-    "sites[0].initial_states.dqndt_surf[0]",
-    "sites[0].initial_states.dqndt_surf[1]",
-    "sites[0].initial_states.dqndt_surf[2]",
-    "sites[0].initial_states.dqndt_surf[3]",
-    "sites[0].initial_states.dqndt_surf[4]",
-    "sites[0].initial_states.dqndt_surf[5]",
-    "sites[0].initial_states.dqndt_surf[6]",
 ];
 
 /// Reviewed slots permitted to be perturbed by more than one distinct YAML key
@@ -2571,9 +2557,12 @@ fn validate_sweep_report(
 ) -> Result<ValidationSummary, Vec<String>> {
     let mut violations = Vec::new();
 
-    if report.leaves_tested < 2850 {
+    // The six resolved anchors retain at least 2840 leaves after removing the
+    // fourteen forbidden radiation-memory inputs (formerly 2854). Keep every
+    // remaining leaf in the sweep; no dead-key or profile allowance is relaxed.
+    if report.leaves_tested < 2840 {
         violations.push(format!(
-            "{fixture_label}: expected >= 2850 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
+            "{fixture_label}: expected >= 2840 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
             report.leaves_tested
         ));
     }
@@ -3003,6 +2992,27 @@ fn assert_anchor_jacobian(
 }
 
 #[test]
+fn radiation_memory_is_absent_and_refused_in_every_anchor() {
+    for (label, root, _) in build_option_anchors() {
+        for name in ["qn_surfs", "dqndt_surf"] {
+            assert!(
+                root["sites"][0]["initial_states"].get(name).is_none(),
+                "{label}: {name}"
+            );
+            for value in [
+                Value::Null,
+                serde_yaml::from_str("[0, 0, 0, 0, 0, 0, 0]").unwrap(),
+            ] {
+                let mut supplied = root.clone();
+                supplied["sites"][0]["initial_states"][name] = value;
+                let error = load_run_config_from_value(&mut supplied).expect_err(name);
+                assert!(error.to_string().contains(name), "{label}: {error}");
+            }
+        }
+    }
+}
+
+#[test]
 fn jacobian_sample_ohm_anchor() {
     let anchors = build_option_anchors();
     let (label, ref root, opts) = anchors[0];
@@ -3029,18 +3039,12 @@ fn jacobian_sample_dyohm_anchor() {
     let (label, ref root, opts) = anchors[3];
     let report = assert_anchor_jacobian(label, root, opts);
 
-    // Explicitly confirm the 31 #2003/#2110 initial_states leaves are dead
+    // Explicitly confirm the remaining 17 #2003/#2110 initial_states leaves are dead
     // under DyOHM (storage_heat = 6) while neighbouring state controls route
     // cleanly to their exact receivers.
     assert!(report
         .dead_keys
         .contains("sites[0].initial_states.tstep_prev"));
-    assert!(report
-        .dead_keys
-        .contains("sites[0].initial_states.qn_surfs[0]"));
-    assert!(report
-        .dead_keys
-        .contains("sites[0].initial_states.dqndt_surf[6]"));
     assert!(report
         .dead_keys
         .contains("sites[0].initial_states.evetr.wu.wu_total"));

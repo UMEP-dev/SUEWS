@@ -24,6 +24,7 @@ from supy.data_model.core.field_renames import CO2PARAMS_RENAMES
 from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
+    upgrade_soil_observation,
     upgrade_yaml,
 )
 
@@ -47,12 +48,10 @@ def release_yaml(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def signed_yaml(tmp_path: Path, release_yaml: Path) -> Path:
-    """A YAML with an explicit `schema_version` at the current value."""
-    payload = yaml.safe_load(release_yaml.read_text(encoding="utf-8"))
-    payload["schema_version"] = CURRENT_SCHEMA_VERSION
+def signed_yaml(tmp_path: Path, sample_yaml_path: Path) -> Path:
+    """Use the shipped current schema, without relabelling historical inputs."""
     target = tmp_path / "signed.yml"
-    target.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    target.write_text(sample_yaml_path.read_text(encoding="utf-8"), encoding="utf-8")
     return target
 
 
@@ -552,7 +551,6 @@ class TestSuewsConvertYamlPath:
         assert ".yml" in result.output
         assert "YAML" in result.output or "cross-release" in result.output
 
-    # The signed legacy YAML under test is on deprecated spellings.
     @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_yaml_input_end_to_end(self, signed_yaml: Path, tmp_path: Path):
         """`suews-convert -i old.yml -o new.yml` routes via `upgrade_yaml`."""
@@ -1160,6 +1158,43 @@ class TestSoilSchemaMigration:
         assert migrator.migrate(result) == result
         output = capsys.readouterr()
         assert "Sensor saturation capacity is retired" in output.err + output.out
+
+
+def test_dev5_soil_converter_drops_legacy_zero_radiation_fields_once(tmp_path, capsys):
+    """Pre-dev9 active soil upgrade strips seven-zero radiation fields and refuses non-zero."""
+    fixtures = REPO_ROOT / "test" / "fixtures" / "soil_observation"
+    legacy_yml = fixtures / "legacy_method1.yml"
+    legacy_txt = fixtures / "legacy_method1.txt"
+    out_yml = tmp_path / "upgraded.yml"
+    out_txt = tmp_path / "upgraded.txt"
+    manifest = tmp_path / "manifest.json"
+
+    report = upgrade_soil_observation(
+        legacy_yml, legacy_txt, out_yml, out_txt, manifest,
+        layer_top=0, layer_depth=0.2,
+    )
+    assert report["completed"] is True
+    upgraded = yaml.safe_load(out_yml.read_text(encoding="utf-8"))
+    assert upgraded["schema_version"] == CURRENT_SCHEMA_VERSION
+    states = upgraded["sites"][0]["initial_states"]
+    assert "qn_surfs" not in states
+    assert "dqndt_surf" not in states
+    SUEWSConfig.model_validate(upgraded)
+    notice = capsys.readouterr().err
+    assert notice.count("dropped sites[0].initial_states.qn_surfs") == 1
+    assert notice.count("dropped sites[0].initial_states.dqndt_surf") == 1
+
+    nonzero_src = tmp_path / "nonzero.yml"
+    raw = yaml.safe_load(legacy_yml.read_text(encoding="utf-8"))
+    raw["sites"][0]["initial_states"]["qn_surfs"] = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    nonzero_src.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    bad_outputs = [tmp_path / name for name in ("bad.yml", "bad.txt", "bad.json")]
+    with pytest.raises(YamlUpgradeError, match="complete checkpoint"):
+        upgrade_soil_observation(
+            nonzero_src, legacy_txt, *bad_outputs,
+            layer_top=0, layer_depth=0.2,
+        )
+    assert all(not path.exists() for path in bad_outputs)
 
 
 @pytest.mark.parametrize("destination", ["2026.6.dev9", CURRENT_SCHEMA_VERSION])

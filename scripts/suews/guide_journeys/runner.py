@@ -52,6 +52,10 @@ def read_page(root: Path, revision: str, path: str) -> str:
     ).decode("utf-8")
 
 
+class StaleInstallation(ValueError):
+    """The installation instruction no longer matches its reviewed hash."""
+
+
 def resolve_install(root: Path, revision: str, binding: dict) -> dict:
     """Extract and checksum the install instruction at the selected revision."""
     allowed = {
@@ -94,7 +98,7 @@ def resolve_install(root: Path, revision: str, binding: dict) -> dict:
     if span.span_type != "shell":
         raise ValueError("Installation requires shell source language")
     if digest(span.text) != binding["sha256"]:
-        raise ValueError("Installation source changed")
+        raise StaleInstallation("Installation source changed")
     return {
         "command": span.text,
         "source_lines": [span.first, span.last],
@@ -294,6 +298,28 @@ def run_diagnostic(spec: dict, work: Path, env: dict) -> dict:
         return record
 
 
+def run_required_probe(
+    probe: dict,
+    steps: list[dict],
+    work: Path,
+    env: dict,
+    pinned: dict,
+    session: PythonSession,
+) -> dict:
+    """Retain the reader's stop boundary and certificates for a terminal probe."""
+    if not all(step["status"] == "passed" for step in steps):
+        return unrun_step(probe)
+    certified = dict(pinned)
+    for step in steps:
+        for promise in step["promises"]:
+            expected = promise["expected"]
+            if expected["kind"] == "creates":
+                path = expected["path"]
+                certified[path] = step["after"][path]
+    records, _ = execute_steps([probe], work, env, certified, session)
+    return records[0]
+
+
 def setup_inputs(root: Path, manifest: dict, journey: dict, work: Path) -> dict:
     """Copy only checksum-pinned fixtures; never certify a planted stale output."""
     inputs = {}
@@ -422,13 +448,11 @@ def execute_journey(
         if name != journey.get("plant_stale")
     }
     pinned.update({name: initial[name] for name in setup_paths})
-    diagnostic = (
-        specs[-1] if specs and specs[-1].get("probe_kind") == "diagnostic" else None
-    )
+    probe = specs[-1] if specs and specs[-1]["kind"] == "probe" else None
     session = PythonSession(work, env)
     try:
         record["steps"], record["first_unrun_consumer"] = execute_steps(
-            specs[:-1] if diagnostic else specs, work, env, pinned, session
+            specs[:-1] if probe else specs, work, env, pinned, session
         )
         final = snapshot(work)
         last = next(
@@ -438,10 +462,14 @@ def execute_journey(
             evaluate(p, initial, final, work, last, session)
             for p in journey.get("outcomes", [])
         ]
+        if probe and probe["probe_kind"] == "required":
+            record["steps"].append(
+                run_required_probe(probe, record["steps"], work, env, pinned, session)
+            )
     finally:
         session.close()
-    if diagnostic:
-        record["steps"].append(run_diagnostic(diagnostic, work, env))
+    if probe and probe["probe_kind"] == "diagnostic":
+        record["steps"].append(run_diagnostic(probe, work, env))
     passed = journey_passed(record["steps"], record["path_outcomes"])
     record["status"] = "passed" if passed else "failed"
     record["accepted"] = passed
@@ -464,6 +492,8 @@ def run_journey(
     started = time.monotonic()
     try:
         execute_journey(root, manifest, document, journey, args, record)
+    except StaleInstallation as error:
+        record.update(status="stale", accepted=False, failure=str(error))
     except (
         ValueError,
         OSError,
@@ -531,6 +561,10 @@ def bind_run(root: Path, args: argparse.Namespace) -> tuple:
     text = read_page(root, args.revision, manifest["guide"])
     document = Document(text, manifest["title"])
     stale = check(document, manifest, args.revision)
+    try:
+        resolve_install(root, args.revision, manifest["installation"])
+    except StaleInstallation as error:
+        stale.append(str(error))
     manifest["source_blob"] = document.source_blob
     selected = set(args.journey or [j["id"] for j in manifest["journeys"]])
     if selected - {j["id"] for j in manifest["journeys"]}:

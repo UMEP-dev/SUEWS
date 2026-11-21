@@ -14,7 +14,7 @@ from .manifest import check, load, step_coverage
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
-from .summary import summarise
+from .summary import failed_summary, summarise
 
 FORCING_SETUP = """
 from importlib.resources import files
@@ -298,19 +298,7 @@ def main() -> int:
     summary = summarise(manifest, records, stale, step_coverage(document, manifest))
     write(args.output / "summary.json", summary)
     print(json.dumps(summary, indent=2, ensure_ascii=True))
-    inventory_stale = any(
-        domain["option_names"]["stale"]
-        or domain["option_names"]["missed"]
-        or any(values["stale"] for values in domain["enumerated_values"].values())
-        for domain in summary.get("inventory", {}).values()
-        if isinstance(domain, dict)
-    )
-    return (
-        any(not r.get("accepted", False) for r in records)
-        or inventory_stale
-        or bool(summary.get("schema_versions", {}).get("unsupported"))
-        or summary.get("behaviour_audit", {}).get("passed") is False
-    )
+    return failed_summary(summary)
 
 
 if __name__ == "__main__":

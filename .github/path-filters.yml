@@ -25,7 +25,7 @@
 #   rust_clippy        -- triggers folded rust-clippy reusable workflow
 #   encoding_audit     -- triggers folded encoding-audit reusable workflow
 #   workflow_security  -- triggers folded workflow-security reusable workflow
-#   dependency_audit   -- triggers folded dependency-audit reusable workflow
+#   dependency_audit   -- triggers folded dependency-audit reusable workflow and lowest-direct floor check
 #   fortran_uninit     -- triggers folded fortran-uninit reusable workflow
 #   rust_capi_observer -- triggers folded rust-capi-observer reusable workflow
 
@@ -152,12 +152,17 @@ workflow_security:
 
 dependency_audit:
   # Paths audited by the folded dependency-audit reusable workflow (gh#2094)
+  # and the built-wheel lowest-direct dependency floor smoke check (gh#2104).
+  # Includes .github/scripts/pr-gate.sh so gate-only edits exercise the floor
+  # producer rather than skipping it; generic build plumbing such as
+  # build-wheels-reusable.yml stays in `ci` only.
   - 'pyproject.toml'
   - 'Makefile'
   - 'scripts/security/**'
   - '.github/workflows/dependency-audit.yml'
   - '.github/workflows/build-publish_to_pypi.yml'
   - '.github/path-filters.yml'
+  - '.github/scripts/pr-gate.sh'
   - '.github/actions/build-suews/action.yml'
 
 fortran_uninit:

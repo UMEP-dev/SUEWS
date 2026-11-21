@@ -3855,6 +3855,52 @@ fn strict_lumps_inputs_and_decoded_receiver_observer() {
 }
 
 #[test]
+fn strict_aerodynamic_selectors_reject_nan_across_all_six_anchors() {
+    for (label, root, _) in build_option_anchors() {
+        for (field, slot, alt_val) in [
+            (
+                "roughness_length_momentum",
+                "config.rough_len_mom_method",
+                3,
+            ),
+            ("roughness_length_heat", "config.rough_len_heat_method", 4),
+            ("roughness_sublayer", "config.rsl_method", 0),
+            ("roughness_sublayer_level", "config.rsl_level", 2),
+        ] {
+            let path = [
+                Step::Key("model".into()),
+                Step::Key("physics".into()),
+                Step::Key(field.into()),
+            ];
+
+            let mut poisoned = root.clone();
+            assert!(set_scalar_or_ref_value(
+                &mut poisoned,
+                &path,
+                Value::Number(serde_yaml::Number::from(f64::NAN)),
+            ));
+            let message = load_run_config_from_value(&mut poisoned)
+                .expect_err("required aerodynamic selector must reject YAML .nan");
+            assert!(
+                message.contains(&format!("`model.physics.{field}`"))
+                    && message.contains("non-finite"),
+                "{label}/{field}: {message}"
+            );
+
+            let mut valid = root.clone();
+            assert!(set_scalar_or_ref_value(
+                &mut valid,
+                &path,
+                Value::Number(alt_val.into()),
+            ));
+            let decoded = load_run_config_from_value(&mut valid).expect(label);
+            let flat = flatten_run_config_map(&decoded);
+            assert_eq!(flat[slot], alt_val as f64, "{label}/{field} -> {slot}");
+        }
+    }
+}
+
+#[test]
 fn nan_poison_completeness_across_all_six_anchors() {
     let anchors = build_option_anchors();
 

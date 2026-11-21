@@ -108,8 +108,16 @@ def prepare(
     env = {
         key: value
         for key, value in os.environ.items()
-        if key not in {"PYTHONPATH", "PYTHONHOME"} and not key.startswith("PIP_")
+        if key not in {"PYTHONPATH", "PYTHONHOME"}
+        and not key.startswith(("PIP_", "SUEWS_", "XDG_"))
     }
+    for name in ("cache", "config", "data", "state", "runtime"):
+        directory = work / "home" / name
+        directory.mkdir(mode=0o700)
+        key = "XDG_RUNTIME_DIR" if name == "runtime" else f"XDG_{name.upper()}_HOME"
+        env[key] = str(directory)
+    env["XDG_CONFIG_DIRS"] = env["XDG_CONFIG_HOME"]
+    env["XDG_DATA_DIRS"] = env["XDG_DATA_HOME"]
     env.update(
         HOME=str(work / "home"),
         TMPDIR=str(work / "tmp"),

@@ -16,7 +16,9 @@ pytestmark = pytest.mark.api
 
 def test_supplied_command_is_rejected(tmp_path):
     """Reject replacement text even when extraction would overwrite it."""
-    data = yaml.safe_load((ROOT / "test/docs/journeys/transition_guide.yml").read_text(encoding="utf-8"))
+    data = yaml.safe_load(
+        (ROOT / "test/docs/journeys/transition_guide.yml").read_text(encoding="utf-8")
+    )
     data["journeys"][0]["steps"][0]["command"] = "echo repaired"
     path = tmp_path / "manifest.yml"
     path.write_text(yaml.safe_dump(data), encoding="utf-8")

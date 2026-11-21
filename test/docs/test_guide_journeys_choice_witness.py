@@ -15,15 +15,45 @@ pytestmark = pytest.mark.api
 def test_later_choice_is_not_credited_by_earlier_failure():
     """Starting a journey says nothing about an unrun command's option value."""
     manifest = {
-        "journeys": [{"id": "path"}], "promise_edits": [], "combinations": [],
-        "choices": [{"id": "json", "journeys": ["path"], "witness": {
-            "steps": ["validate"], "condition": {"kind": "option", "names": ["--format"], "value": "json"},
-        }}],
+        "journeys": [{"id": "path"}],
+        "promise_edits": [],
+        "combinations": [],
+        "choices": [
+            {
+                "id": "json",
+                "journeys": ["path"],
+                "witness": {
+                    "steps": ["validate"],
+                    "condition": {
+                        "kind": "option",
+                        "names": ["--format"],
+                        "value": "json",
+                    },
+                },
+            }
+        ],
     }
-    step = {"id": "validate", "kind": "documented", "status": "unrun", "exit_status": None,
-            "argv": ["suews", "validate", "--format", "json"], "promises": []}
-    record = {"journey_id": "path", "seconds": 0, "steps": [
-        {"id": "migrate", "kind": "documented", "status": "failed", "exit_status": 1}, step]}
+    step = {
+        "id": "validate",
+        "kind": "documented",
+        "status": "unrun",
+        "exit_status": None,
+        "argv": ["suews", "validate", "--format", "json"],
+        "promises": [],
+    }
+    record = {
+        "journey_id": "path",
+        "seconds": 0,
+        "steps": [
+            {
+                "id": "migrate",
+                "kind": "documented",
+                "status": "failed",
+                "exit_status": 1,
+            },
+            step,
+        ],
+    }
     assert coverage(manifest, [record], [], {})["choices"][0]["status"] == "missed"
     step.update(status="failed", exit_status=1, promises=[{"passed": False}])
     result = coverage(manifest, [record], [], {})["choices"][0]

@@ -215,11 +215,20 @@ def test_historical_runs_cannot_credit_corrected_steps_or_choices():
             "journey_id": "earlier-stale",
             "seconds": 1,
             "steps": [
-                {"id": "migrate", "kind": "documented", "status": "failed",
-                 "exit_status": 0, "before": {
-                     "site.yml": {"sha256": manifest["fixtures"]["untagged-dev11"]["sha256"]},
-                     "site.migrated.yml": {"sha256": manifest["fixtures"]["stale-dev12"]["sha256"]},
-                 }},
+                {
+                    "id": "migrate",
+                    "kind": "documented",
+                    "status": "failed",
+                    "exit_status": 0,
+                    "before": {
+                        "site.yml": {
+                            "sha256": manifest["fixtures"]["untagged-dev11"]["sha256"]
+                        },
+                        "site.migrated.yml": {
+                            "sha256": manifest["fixtures"]["stale-dev12"]["sha256"]
+                        },
+                    },
+                },
                 {"id": "validate-migrated", "kind": "documented", "status": "unrun"},
             ],
         }
@@ -247,11 +256,22 @@ def test_historical_and_probe_runs_cannot_witness_or_credit_corrected_coverage()
         {
             "journey_id": "earlier-stale",
             "seconds": 1,
-            "steps": [{"id": "migrate", "kind": "documented", "status": "failed",
-                 "exit_status": 0, "before": {
-                     "site.yml": {"sha256": manifest["fixtures"]["untagged-dev11"]["sha256"]},
-                     "site.migrated.yml": {"sha256": manifest["fixtures"]["stale-dev12"]["sha256"]},
-                 }}],
+            "steps": [
+                {
+                    "id": "migrate",
+                    "kind": "documented",
+                    "status": "failed",
+                    "exit_status": 0,
+                    "before": {
+                        "site.yml": {
+                            "sha256": manifest["fixtures"]["untagged-dev11"]["sha256"]
+                        },
+                        "site.migrated.yml": {
+                            "sha256": manifest["fixtures"]["stale-dev12"]["sha256"]
+                        },
+                    },
+                }
+            ],
         }
     ]
     result = coverage(manifest, records, [], {"documented_steps": 6, "bound_steps": 6})

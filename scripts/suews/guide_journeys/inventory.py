@@ -103,9 +103,11 @@ def coverage(
     historical = historical_journeys(manifest)
     choices = []
     for choice in manifest["choices"]:
-        eligible = records if choice.get("historical") else [
-            r for r in records if r["journey_id"] not in historical
-        ]
+        eligible = (
+            records
+            if choice.get("historical")
+            else [r for r in records if r["journey_id"] not in historical]
+        )
         witnesses = choice_witnesses(manifest, choice, eligible)
         exercised = sorted({w["journey_id"] for w in witnesses})
         status = (
@@ -117,11 +119,15 @@ def coverage(
             if exercised
             else "missed"
         )
-        choices.append(dict(choice, status=status, exercised_by=exercised, witnesses=witnesses))
+        choices.append(
+            dict(choice, status=status, exercised_by=exercised, witnesses=witnesses)
+        )
     combinations = {"exercised": [], "untested": []}
     for combination in manifest["combinations"]:
-        members = [next(c for c in manifest["choices"] if c["id"] == key)
-                   for key in combination["choices"]]
+        members = [
+            next(c for c in manifest["choices"] if c["id"] == key)
+            for key in combination["choices"]
+        ]
         witnesses = []
         for record in records:
             if record["journey_id"] not in combination.get("journeys", []):
@@ -197,8 +203,12 @@ def observed_condition(condition: dict, step: dict, manifest: dict) -> dict | No
         before = step.get("before", {})
         present = path in before
         if present == condition["present"]:
-            return {"kind": kind, "path": path, "present": present,
-                    "entry": before.get(path)}
+            return {
+                "kind": kind,
+                "path": path,
+                "present": present,
+                "entry": before.get(path),
+            }
     elif kind == "omitted_option":
         argv = step.get("argv", [])
         if argv and not any(t.split("=", 1)[0] in condition["names"] for t in argv):
@@ -218,12 +228,20 @@ def choice_witnesses(manifest: dict, choice: dict, records: list[dict]) -> list[
         if record["journey_id"] not in choice.get("journeys", []):
             continue
         for step in record["steps"]:
-            if (step["id"] not in selector["steps"] or step.get("kind") != "documented"
-                    or step.get("exit_status") is None):
+            if (
+                step["id"] not in selector["steps"]
+                or step.get("kind") != "documented"
+                or step.get("exit_status") is None
+            ):
                 continue
             observed = observed_condition(selector["condition"], step, manifest)
             if observed is not None:
-                result.append({"journey_id": record["journey_id"], "step_id": step["id"],
-                               "observed_condition": observed,
-                               "promises_satisfied": all(p["passed"] for p in step.get("promises", []))})
+                result.append({
+                    "journey_id": record["journey_id"],
+                    "step_id": step["id"],
+                    "observed_condition": observed,
+                    "promises_satisfied": all(
+                        p["passed"] for p in step.get("promises", [])
+                    ),
+                })
     return result

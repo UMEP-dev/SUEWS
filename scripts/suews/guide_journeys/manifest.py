@@ -29,7 +29,9 @@ def validate_commands(steps: list[dict]) -> None:
     allowed = {"id", "promises", "exit_status", "command_index", "consumes"}
     for step in steps:
         if "probe" not in step and set(step) - allowed:
-            raise ValueError("Documented steps cannot supply command text or unknown fields")
+            raise ValueError(
+                "Documented steps cannot supply command text or unknown fields"
+            )
 
 
 def validate_order(document: Document, manifest: dict, journey: dict) -> None:
@@ -47,7 +49,9 @@ def validate_order(document: Document, manifest: dict, journey: dict) -> None:
     if set(skips) != skipped:
         raise ValueError("Every skipped step must name its branch condition")
     for key, condition in skips.items():
-        if condition not in conditions or condition not in bindings[key].get("conditions", []):
+        if condition not in conditions or condition not in bindings[key].get(
+            "conditions", []
+        ):
             raise ValueError(f"Unknown branch condition for skipped step: {key}")
         document.span(conditions[condition])
 

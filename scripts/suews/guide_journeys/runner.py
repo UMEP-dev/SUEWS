@@ -5,10 +5,10 @@ from dataclasses import asdict
 import hashlib
 import json
 from pathlib import Path
-import subprocess
-import time
 import shutil
+import subprocess
 import tempfile
+import time
 
 import yaml
 
@@ -16,7 +16,14 @@ from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
 from .fixtures import fixture_bytes
-from .manifest import check, load, step_coverage, validate_commands, validate_order, validate_probes
+from .manifest import (
+    check,
+    load,
+    step_coverage,
+    validate_commands,
+    validate_order,
+    validate_probes,
+)
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
@@ -150,9 +157,10 @@ def run_steps(
 
 
 def journey_passed(steps: list[dict], outcomes: list[dict]) -> bool:
-    """Required probes decide acceptance; optional diagnostics never do."""
+    """Decide acceptance from documented steps and required probes only."""
     return all(
-        s["status"] == "passed" for s in steps
+        s["status"] == "passed"
+        for s in steps
         if not (s["kind"] == "probe" and s.get("probe_kind") == "diagnostic")
     ) and all(p["passed"] for p in outcomes)
 
@@ -225,6 +233,73 @@ def bind_journey(
     return specs
 
 
+def execute_journey(
+    root: Path,
+    manifest: dict,
+    document: Document,
+    journey: dict,
+    args: argparse.Namespace,
+    record: dict,
+) -> None:
+    """Populate installation, step and outcome observations for one journey."""
+    specs = bind_journey(root, manifest, document, journey, record)
+    record["steps"] = [unrun_step(spec) for spec in specs]
+    record["wheel_sha256"] = sha256(args.wheel)
+    for fixture_id in journey["inputs"].values():
+        fixture = manifest["fixtures"][fixture_id]
+        fixture_bytes(root, manifest["fixtures"], fixture_id)
+        record["input_sha256s"][fixture_id] = fixture["sha256"]
+    env, installation = prepare(
+        args.output / journey["id"], args.wheel, args.wheelhouse, args.pip_version
+    )
+    record.update(installation)
+    record["supy_version"] = installation["package_preflight"]["supy_version"]
+    work = args.output / journey["id"] / "work"
+    record["input_sha256s"] = setup_inputs(root, manifest, journey, work)
+    if journey.get("plant_stale"):
+        record["planted_file"] = {
+            "path": journey["plant_stale"],
+            "sha256": record["input_sha256s"][journey["plant_stale"]],
+        }
+    forcing = manifest["forcing_resource"]
+    record["forcing_setup"] = isolated_python(
+        FORCING_SETUP, work, env, [json.dumps(forcing)]
+    )
+    if journey["id"] == manifest["behaviour_audit"]["journey"]:
+        record.update(inspect_installed(work, env, manifest, document))
+    record["input_sha256s"][forcing["target"]] = record["forcing_setup"]["sha256"]
+    initial = snapshot(work)
+    pinned = {
+        name: initial[name]
+        for name in journey["inputs"]
+        if name != journey.get("plant_stale")
+    }
+    pinned[forcing["target"]] = initial[forcing["target"]]
+    for command in ("suews schema migrate", "suews validate", "suews convert"):
+        record["installed_help"][command] = execute(command + " --help", work, env)
+    diagnostic = (
+        specs[-1] if specs and specs[-1].get("probe_kind") == "diagnostic" else None
+    )
+    record["steps"], record["first_unrun_consumer"] = run_steps(
+        specs[:-1] if diagnostic else specs, work, env, pinned
+    )
+    final = snapshot(work)
+    last = next((s for s in reversed(record["steps"]) if s["status"] != "unrun"), {})
+    record["path_outcomes"] = [
+        evaluate(p, initial, final, work, last) for p in journey.get("outcomes", [])
+    ]
+    if diagnostic:
+        record["steps"].append(run_diagnostic(diagnostic, work, env))
+    passed = journey_passed(record["steps"], record["path_outcomes"])
+    record["status"] = "passed" if passed else "failed"
+    record["accepted"] = passed
+    if "expected_failure" in journey:
+        consumer = next(
+            s for s in specs if s["id"] == journey["expected_failure"]["consumer"]
+        )
+        assess_replay(record, journey, consumer, work, env)
+
+
 def run_journey(
     root: Path,
     manifest: dict,
@@ -236,62 +311,7 @@ def run_journey(
     record = new_record(manifest, args.revision, journey, "")
     started = time.monotonic()
     try:
-        specs = bind_journey(root, manifest, document, journey, record)
-        record["steps"] = [unrun_step(spec) for spec in specs]
-        record["wheel_sha256"] = sha256(args.wheel)
-        for fixture_id in journey["inputs"].values():
-            fixture = manifest["fixtures"][fixture_id]
-            fixture_bytes(root, manifest["fixtures"], fixture_id)
-            record["input_sha256s"][fixture_id] = fixture["sha256"]
-        env, installation = prepare(
-            args.output / journey["id"], args.wheel, args.wheelhouse, args.pip_version
-        )
-        record.update(installation)
-        record["supy_version"] = installation["package_preflight"]["supy_version"]
-        work = args.output / journey["id"] / "work"
-        record["input_sha256s"] = setup_inputs(root, manifest, journey, work)
-        if journey.get("plant_stale"):
-            record["planted_file"] = {
-                "path": journey["plant_stale"],
-                "sha256": record["input_sha256s"][journey["plant_stale"]],
-            }
-        forcing = manifest["forcing_resource"]
-        record["forcing_setup"] = isolated_python(
-            FORCING_SETUP, work, env, [json.dumps(forcing)]
-        )
-        if journey["id"] == manifest["behaviour_audit"]["journey"]:
-            record.update(inspect_installed(work, env, manifest, document))
-        record["input_sha256s"][forcing["target"]] = record["forcing_setup"]["sha256"]
-        initial = snapshot(work)
-        pinned = {
-            name: initial[name]
-            for name in journey["inputs"]
-            if name != journey.get("plant_stale")
-        }
-        pinned[forcing["target"]] = initial[forcing["target"]]
-        for command in ("suews schema migrate", "suews validate", "suews convert"):
-            record["installed_help"][command] = execute(command + " --help", work, env)
-        diagnostic = specs[-1] if specs and specs[-1].get("probe_kind") == "diagnostic" else None
-        record["steps"], record["first_unrun_consumer"] = run_steps(
-            specs[:-1] if diagnostic else specs, work, env, pinned
-        )
-        final = snapshot(work)
-        last = next(
-            (s for s in reversed(record["steps"]) if s["status"] != "unrun"), {}
-        )
-        record["path_outcomes"] = [
-            evaluate(p, initial, final, work, last) for p in journey.get("outcomes", [])
-        ]
-        if diagnostic:
-            record["steps"].append(run_diagnostic(diagnostic, work, env))
-        passed = journey_passed(record["steps"], record["path_outcomes"])
-        record["status"] = "passed" if passed else "failed"
-        record["accepted"] = passed
-        if "expected_failure" in journey:
-            consumer = next(
-                s for s in specs if s["id"] == journey["expected_failure"]["consumer"]
-            )
-            assess_replay(record, journey, consumer, work, env)
+        execute_journey(root, manifest, document, journey, args, record)
     except (
         ValueError,
         OSError,
@@ -344,21 +364,33 @@ def arguments() -> argparse.Namespace:
     return args
 
 
+def bind_run(root: Path, args: argparse.Namespace) -> tuple:
+    """Resolve the requested revision and validate the selected source bindings."""
+    manifest = load(args.manifest)
+    args.revision = (
+        subprocess
+        .check_output(
+            ["git", "rev-parse", "--verify", f"{args.revision}^{{commit}}"],
+            cwd=root,
+        )
+        .decode("ascii")
+        .strip()
+    )
+    text = read_page(root, args.revision, manifest["guide"])
+    document = Document(text, manifest["title"])
+    stale = check(document, manifest, args.revision)
+    selected = set(args.journey or [j["id"] for j in manifest["journeys"]])
+    if selected - {j["id"] for j in manifest["journeys"]}:
+        raise ValueError("Unknown journey ID")
+    return manifest, text, document, stale, selected
+
+
 def main() -> int:
     """Run source checks or every manifest journey, with evidence outside checkout."""
     args = arguments()
     root = Path.cwd().resolve()
     try:
-        manifest = load(args.manifest)
-        args.revision = subprocess.check_output(
-            ["git", "rev-parse", "--verify", f"{args.revision}^{{commit}}"], cwd=root
-        ).decode("ascii").strip()
-        text = read_page(root, args.revision, manifest["guide"])
-        document = Document(text, manifest["title"])
-        stale = check(document, manifest, args.revision)
-        selected = set(args.journey or [j["id"] for j in manifest["journeys"]])
-        if selected - {j["id"] for j in manifest["journeys"]}:
-            raise ValueError("Unknown journey ID")
+        manifest, text, document, stale, selected = bind_run(root, args)
     except (
         ValueError,
         OSError,

@@ -37,6 +37,7 @@ from scripts.suews.guide_journeys.replays import (  # noqa: E402 - source import
     assert_counterexample,
 )
 from scripts.suews.guide_journeys.runner import (  # noqa: E402 - source imports follow path setup
+    inspect_installed,
     run_journey,
     run_steps,
 )
@@ -163,6 +164,9 @@ def test_setup_errors_preserve_failure_record(tmp_path, failure):
         if failure == "history"
         else manifest["envelope"]["reviewed_revision"]
     )
+    if failure == "wheel":
+        assert saved["steps"]
+        assert all(s["status"] == "unrun" and s["source_lines"] for s in saved["steps"])
     assert saved["failure"].startswith(
         {"step": "KeyError", "wheel": "FileNotFoundError", "history": "IndexError"}[
             failure
@@ -202,3 +206,13 @@ def test_malformed_manifest_writes_setup_record(tmp_path):
     record = json.loads((output / "setup.json").read_text(encoding="utf-8"))
     assert record["status"] == "failed"
     assert record["revision_run"] == "new-run"
+
+
+def test_unknown_audit_binding_is_a_recordable_manifest_error(tmp_path):
+    """Unknown audit steps raise a handled error before any process is launched."""
+    manifest = load(_REPO_ROOT / "test/docs/journeys/transition_guide.yml")
+    text = (_REPO_ROOT / manifest["guide"]).read_text(encoding="utf-8")
+    document = Document(text, manifest["title"])
+    manifest["behaviour_audit"]["command_step"] = "missing-command"
+    with pytest.raises(ValueError, match="Unknown audit command step: missing-command"):
+        inspect_installed(tmp_path, {}, manifest, document)

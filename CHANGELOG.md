@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 20 Nov 2026
 
+- [maintenance] Wire multi-Python `--resolution=lowest-direct` auditing into `.github/workflows/dependency-audit.yml` and built-wheel floor smoke tests into `pr-gate` and nightly tracking in `.github/workflows/build-publish_to_pypi.yml` (#2104)
 - [change][experimental] Declare explicit minimum version floors for all 20 core runtime dependencies in `pyproject.toml` (including `pandas>=2.2.2`, `scipy>=1.13`, `matplotlib>=3.8.4`, `scikit-learn>=1.4.2`, and `pyyaml>=6.0.1`, all compatible with OSGeo4W Python 3.12 builds for QGIS 3 LTR and QGIS 4) (#2104)
 - [change][experimental] Require finite `lat`, `lng`, `alt`, `timezone`, `surfacearea` and `z` in resolved native site input instead of retaining Rust defaults. The public configuration and resolved input both use `lng` for site longitude. Native inputs that previously used `lon` must use the canonical key (#2002)
 - [bugfix] In input schema `2026.6.dev12`, a legacy zero `to_soilstore` on paving or buildings no longer overrides the configured runoff fraction. Active surfaces with a supplied routing block require seven applicable fractions summing to one. The [migration guide](https://docs.suews.io/latest/inputs/transition_guide.html#schema-dev12-water-routing) explains which files can give different runoff and how to compare an archived run (#2086, #2117).

@@ -13,7 +13,9 @@ pytestmark = pytest.mark.api
 SCRIPT_PATH = (
     Path(__file__).resolve().parents[2] / "scripts/lint/check_test_contracts.py"
 )
-SCRIPT_SPEC = importlib.util.spec_from_file_location("check_test_contracts", SCRIPT_PATH)
+SCRIPT_SPEC = importlib.util.spec_from_file_location(
+    "check_test_contracts", SCRIPT_PATH
+)
 assert SCRIPT_SPEC is not None
 assert SCRIPT_SPEC.loader is not None
 checker = importlib.util.module_from_spec(SCRIPT_SPEC)
@@ -55,7 +57,11 @@ def test_valid_tree_and_json_report(tree, capsys):
     assert checker.main(["--root", str(tree), "--strict", "--json", str(output)]) == 0
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["summary"] == {
-        "files": 1, "tagged": 1, "untagged": 0, "unknown_ids": 0, "errors": 0,
+        "files": 1,
+        "tagged": 1,
+        "untagged": 0,
+        "unknown_ids": 0,
+        "errors": 0,
     }
     assert report["contract_file_counts"] == {"C-A": 1, "C-B": 0}
     markdown = capsys.readouterr().out
@@ -63,14 +69,17 @@ def test_valid_tree_and_json_report(tree, capsys):
     assert "| C-B | 0 |" in markdown
 
 
-@pytest.mark.parametrize("source", [
-    'pytestmark = pytest.mark.contract("C-A", "C-B")\n',
-    'pytestmark = [pytest.mark.api, pytest.mark.contract("C-A", "C-B")]\n',
-    'pytestmark: list = [pytest.mark.contract("C-A"), pytest.mark.contract("C-B")]\n',
-    '@pytest.mark.contract("C-A", "C-B")\ndef test_example(): pass\n',
-    '@pytest.mark.contract("C-A", "C-B")\nclass TestExample: pass\n',
-    '@pytest.mark.contract("C-A", "C-B")\nasync def test_example(): pass\n',
-])
+@pytest.mark.parametrize(
+    "source",
+    [
+        'pytestmark = pytest.mark.contract("C-A", "C-B")\n',
+        'pytestmark = [pytest.mark.api, pytest.mark.contract("C-A", "C-B")]\n',
+        'pytestmark: list = [pytest.mark.contract("C-A"), pytest.mark.contract("C-B")]\n',
+        '@pytest.mark.contract("C-A", "C-B")\ndef test_example(): pass\n',
+        '@pytest.mark.contract("C-A", "C-B")\nclass TestExample: pass\n',
+        '@pytest.mark.contract("C-A", "C-B")\nasync def test_example(): pass\n',
+    ],
+)
 def test_module_function_and_class_markers(tree, source):
     # No pytest import is needed: the scanner must parse without execution.
     _write(tree, "test/nested/test_example.py", source)
@@ -81,7 +90,8 @@ def test_module_function_and_class_markers(tree, source):
 
 def test_repeated_tags_count_each_file_once(tree):
     _write(
-        tree, "test/test_one.py",
+        tree,
+        "test/test_one.py",
         'pytestmark = pytest.mark.contract("C-A", "C-A")\n'
         '@pytest.mark.contract("C-A")\ndef test_example(): pass\n',
     )
@@ -91,9 +101,10 @@ def test_repeated_tags_count_each_file_once(tree):
 
 def test_comments_strings_and_body_calls_are_not_markers(tree):
     _write(
-        tree, "test/test_example.py",
+        tree,
+        "test/test_example.py",
         '# pytestmark = pytest.mark.contract("C-A")\n'
-        '\'pytestmark = pytest.mark.contract("C-A")\'\n'
+        "'pytestmark = pytest.mark.contract(\"C-A\")'\n"
         'def test_example():\n    pytest.mark.contract("C-A")\n',
     )
     assert checker.check_tree(tree)["untagged"] == ["test/test_example.py"]
@@ -113,10 +124,13 @@ def test_rust_tags_and_scan_boundaries(tree):
     assert report["errors"] == []
 
 
-@pytest.mark.parametrize("name, source", [
-    ("test/test_example.py", 'pytestmark = pytest.mark.contract("C-UNKNOWN")\n'),
-    ("src/suews_bridge/tests/example.rs", "// contract: C-UNKNOWN\n#[test]\n"),
-])
+@pytest.mark.parametrize(
+    "name, source",
+    [
+        ("test/test_example.py", 'pytestmark = pytest.mark.contract("C-UNKNOWN")\n'),
+        ("src/suews_bridge/tests/example.rs", "// contract: C-UNKNOWN\n#[test]\n"),
+    ],
+)
 def test_unknown_ids_report_and_strict_exit(tree, name, source):
     _write(tree, name, source)
     report = checker.check_tree(tree)
@@ -147,15 +161,18 @@ def test_duplicate_registry_id(tree):
     assert checker.main(["--root", str(tree), "--strict"]) == 1
 
 
-@pytest.mark.parametrize("field, value, diagnostic", [
-    ("id", "bad-id", "invalid id"),
-    ("title", None, "title must be"),
-    ("definition", "", "definition must be"),
-    ("stages", ["unknown"], "unknown stage"),
-    ("stages", "tooling", "stages must be"),
-    ("stages", [[]], "stages must be"),
-    ("implementation", [], "implementation must be"),
-])
+@pytest.mark.parametrize(
+    "field, value, diagnostic",
+    [
+        ("id", "bad-id", "invalid id"),
+        ("title", None, "title must be"),
+        ("definition", "", "definition must be"),
+        ("stages", ["unknown"], "unknown stage"),
+        ("stages", "tooling", "stages must be"),
+        ("stages", [[]], "stages must be"),
+        ("implementation", [], "implementation must be"),
+    ],
+)
 def test_invalid_registry_fields(tree, field, value, diagnostic):
     path = tree / "test/contracts.yml"
     registry = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -173,13 +190,16 @@ def test_unreadable_registry_structure_is_reported(tree, contents):
     assert checker.main(["--root", str(tree), "--strict"]) == 1
 
 
-@pytest.mark.parametrize("source", [
-    'pytestmark = pytest.mark.contract()\n',
-    'pytestmark = pytest.mark.contract(variable)\n',
-    'pytestmark = pytest.mark.contract(ids="C-A")\n',
-    'pytestmark = pytest.mark.contract("bad-id")\n',
-    'def broken(\n',
-])
+@pytest.mark.parametrize(
+    "source",
+    [
+        "pytestmark = pytest.mark.contract()\n",
+        "pytestmark = pytest.mark.contract(variable)\n",
+        'pytestmark = pytest.mark.contract(ids="C-A")\n',
+        'pytestmark = pytest.mark.contract("bad-id")\n',
+        "def broken(\n",
+    ],
+)
 def test_malformed_python_tags_and_syntax_are_reported(tree, source):
     _write(tree, "test/test_example.py", source)
     assert checker.check_tree(tree)["errors"]
@@ -188,7 +208,9 @@ def test_malformed_python_tags_and_syntax_are_reported(tree, source):
 
 
 def test_diagnostics_are_ascii(tree, capsys):
-    _write(tree, "test/test_example.py", 'pytestmark = pytest.mark.contract("C-\u00e9")\n')
+    _write(
+        tree, "test/test_example.py", 'pytestmark = pytest.mark.contract("C-\u00e9")\n'
+    )
     assert checker.main(["--root", str(tree)]) == 0
     assert capsys.readouterr().out.isascii()
 

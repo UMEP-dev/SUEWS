@@ -131,7 +131,9 @@ def _python_tags(source: str) -> tuple[set[str], list[str]]:
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                 tags.add(arg.value)
             else:
-                errors.append(f"line {node.lineno}: contract id must be a literal string")
+                errors.append(
+                    f"line {node.lineno}: contract id must be a literal string"
+                )
     return tags, errors
 
 
@@ -149,29 +151,33 @@ def _rust_tags(source: str) -> tuple[set[str], list[str]]:
 
 
 def _scan_files(root: Path) -> tuple[dict[str, list[str]], list[str]]:
-    paths = sorted(
-        {
-            *(root / "test").rglob("test_*.py"),
-            *(root / "src/suews_bridge/src").rglob("*.rs"),
-            *(root / "src/suews_bridge/tests").glob("*.rs"),
-        }
-    )
+    paths = sorted({
+        *(root / "test").rglob("test_*.py"),
+        *(root / "src/suews_bridge/src").rglob("*.rs"),
+        *(root / "src/suews_bridge/tests").glob("*.rs"),
+    })
     files = {}
     errors = []
     for path in paths:
         name = path.relative_to(root).as_posix()
         try:
             source = path.read_text(encoding="utf-8")
-            if path.suffix == ".rs" and "#[test]" not in source:
-                continue
+        except (OSError, UnicodeError) as exc:
+            files[name] = []
+            errors.append(f"{name}: {exc}")
+            continue
+        if path.suffix == ".rs" and "#[test]" not in source:
+            continue
+        try:
             tags, issues = (
                 _python_tags(source) if path.suffix == ".py" else _rust_tags(source)
             )
-            files[name] = sorted(tags)
-            errors.extend(f"{name}: {issue}" for issue in issues)
-        except (OSError, UnicodeError, SyntaxError) as exc:
+        except SyntaxError as exc:
             files[name] = []
             errors.append(f"{name}: {exc}")
+            continue
+        files[name] = sorted(tags)
+        errors.extend(f"{name}: {issue}" for issue in issues)
     return files, errors
 
 

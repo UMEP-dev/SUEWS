@@ -356,3 +356,80 @@ class Sibling(Parent):
     )
     assert excluded == {"member defined outside supy": 3 * external_per_class}
     assert external_per_class > 0
+
+
+@pytest.mark.parametrize("name", ["actual", "invented"])
+def test_colon_format_is_separate_from_unknown_names(name):
+    status, detail = checks.parameter_check(
+        fixture_function,
+        f"Fixture.\n\nParameters\n----------\n{name}: int\n    Value.\n"
+        "optional : int\n    Value.\n*args : tuple\n    Extras.\n"
+        "**kwargs : dict\n    Keywords.",
+    )
+    assert status == "mismatch"
+    assert detail["formats"] == [{"format": "name-colon-type", "text": f"{name}: int"}]
+    codes = {e["code"] for e in detail["errors"]}
+    assert codes == ({"PR01", "PR02"} if name == "invented" else set())
+
+
+def test_real_stale_parameter_survives_format_classification():
+    revision = checks.Revision(ROOT, "HEAD")
+    obj = supy.util.cal_g_kd
+    status, detail = checks.parameter_check(
+        obj, ast.get_docstring(revision.locate(obj).node)
+    )
+    assert status == "mismatch"
+    assert any(e["code"] == "PR02" and "g2" in e["message"] for e in detail["errors"])
+
+
+def test_model_field_descriptions_use_revision_source(tmp_path):
+    source = (
+        "from pydantic import BaseModel, Field\n"
+        '__all__ = ["Example", "Alias"]\n'
+        "class Parent(BaseModel):\n"
+        '    inherited: int = Field(description="Inherited value")\n'
+        "class Example(Parent):\n"
+        '    described: int = Field(description="A value")\n'
+        "    missing: int\n"
+        "    def method(self, value):\n"
+        "        pass\n"
+        "Alias = Example\n"
+    )
+    package = tmp_path / "src/supy"
+    package.mkdir(parents=True)
+    file = package / "__init__.py"
+    file.write_text(source, encoding="utf-8")
+    for args in (
+        ["init", "-q"],
+        ["add", "."],
+        [
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+    ):
+        subprocess.run(
+            ["git", "-C", str(tmp_path), *args], check=True, capture_output=True
+        )
+    module = ModuleType("supy")
+    exec(compile(source, "fixture.py", "exec"), module.__dict__)
+    module.Example.model_fields["missing"].description = "Installed-only text"
+    file.write_text("invalid source", encoding="utf-8")
+    findings = list(checks.python_results(checks.Revision(tmp_path, "HEAD"), module))
+    models = [f for f in findings if f["check"] == "field-descriptions"]
+    assert len(models) == 2
+    for finding in models:
+        assert finding["status"] == "mismatch"
+        assert finding["detail"]["missing_descriptions"] == ["missing"]
+        assert finding["detail"]["described"] == ["described", "inherited"]
+    parameters = [f for f in findings if f["check"] == "parameters"]
+    assert len(parameters) == 1
+    assert parameters[0]["definition"] == "supy.Example.method"
+    assert parameters[0]["detail"]["errors"][0]["code"] == "PR01"
+    summary = checks._summarise(findings)
+    assert summary["unique_definitions"] == 2
+    assert summary["counts_by_check"]["field-descriptions"]["mismatch"] == 2

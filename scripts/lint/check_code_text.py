@@ -26,6 +26,7 @@ import click
 from click.testing import CliRunner
 from numpydoc.docscrape import FunctionDoc
 from numpydoc.validate import Validator
+from pydantic import BaseModel
 
 STATUSES = ("ok", "mismatch", "unsupported", "needs-reading")
 DOC_PATH = "docs/source/api/command-line.rst"
@@ -132,18 +133,27 @@ class SourceParameterValidator(Validator):
         self.doc = doc
 
 
+def _parse_parameters(doc: str) -> tuple[FunctionDoc, list[dict]]:
+    parsed = FunctionDoc(None, doc=doc)
+    formats = []
+    for section in ("Parameters", "Other Parameters"):
+        entries = []
+        for raw_name, raw_kind, desc in parsed[section]:
+            name, kind = raw_name, raw_kind
+            match = re.fullmatch(r"([*\w]+(?:\s*,\s*[*\w]+)*):\s*(\S.*)", name)
+            if match:
+                formats.append({"format": "name-colon-type", "text": name})
+                name, kind = match.groups()
+            entries.append((", ".join(n.strip() for n in name.split(",")), kind, desc))
+        parsed[section] = entries
+    return parsed, formats
+
+
 def parameter_check(obj: object, doc: str) -> tuple[str, dict]:
     """Use numpydoc PR01/PR02, after checking introspection really succeeded."""
     try:
         signature = inspect.signature(obj, follow_wrapped=False)
-        parsed = FunctionDoc(None, doc=doc)
-        # numpydoc splits grouped names on comma-space only. Normalise spacing,
-        # not the section syntax; numpydoc owns all parsing and comparisons.
-        for section in ("Parameters", "Other Parameters"):
-            parsed[section] = [
-                (", ".join(n.strip() for n in name.split(",")), kind, desc)
-                for name, kind, desc in parsed[section]
-            ]
+        parsed, formats = _parse_parameters(doc)
         errors = [
             {"code": code, "message": message}
             for code, message in SourceParameterValidator(
@@ -153,9 +163,60 @@ def parameter_check(obj: object, doc: str) -> tuple[str, dict]:
         ]
     except (TypeError, ValueError) as exc:
         return "unsupported", {"reason": type(exc).__name__}
-    return ("mismatch" if errors else "ok"), {
+    return ("mismatch" if errors or formats else "ok"), {
         "signature": str(signature),
         "errors": errors,
+        "formats": formats,
+    }
+
+
+def _field_description_check(revision: Revision, obj: type) -> tuple[str, dict]:
+    declarations = {}
+    for owner in reversed(obj.__mro__):
+        if not issubclass(owner, BaseModel) or owner is BaseModel:
+            continue
+        try:
+            source = revision.locate(owner)
+        except ValueError:
+            continue
+        for node in source.node.body:
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                declarations[node.target.id] = (node, source)
+    described, missing, unresolved, bindings = [], [], [], {}
+    for name in sorted(obj.model_fields):
+        if name not in declarations:
+            unresolved.append(name)
+            continue
+        node, source = declarations[name]
+        bindings[name] = Source(source.file, source.name, node, source.text).binding()
+        descriptions = [
+            keyword.value
+            for call in ast.walk(node)
+            if isinstance(call, ast.Call)
+            and (
+                (isinstance(call.func, ast.Name) and call.func.id == "Field")
+                or (isinstance(call.func, ast.Attribute) and call.func.attr == "Field")
+            )
+            for keyword in call.keywords
+            if keyword.arg == "description"
+        ]
+        try:
+            values = [ast.literal_eval(value) for value in descriptions]
+        except (ValueError, TypeError):
+            unresolved.append(name)
+            continue
+        (
+            described
+            if any(isinstance(v, str) and v.strip() for v in values)
+            else missing
+        ).append(name)
+    status = "mismatch" if missing else "unsupported" if unresolved else "ok"
+    return status, {
+        "fields": sorted(obj.model_fields),
+        "described": described,
+        "missing_descriptions": missing,
+        "unresolved_descriptions": unresolved,
+        "field_sources": bindings,
     }
 
 
@@ -320,6 +381,12 @@ def python_results(
             ast.unparse(d) not in {"staticmethod", "classmethod"} for d in decorators
         ):
             reason = reason or "decorated declaration"
+        if not reason and inspect.isclass(obj) and issubclass(obj, BaseModel):
+            status, detail = _field_description_check(revision, obj)
+            yield result(
+                revision.sha, source, public, "field-descriptions", status, detail
+            )
+            continue
         if inspect.isclass(obj) and "__init__" not in vars(obj):
             reason = reason or "class constructor may be generated or inherited"
         if reason:
@@ -337,7 +404,7 @@ def python_results(
         yield result(revision.sha, source, public, "parameters", status, detail)
         if status == "unsupported":
             continue
-        parsed = FunctionDoc(None, doc=doc)
+        parsed, _ = _parse_parameters(doc)
         if inspect.isclass(obj):
             try:
                 node = revision.locate(obj.__init__).node
@@ -574,6 +641,31 @@ def cli_prose_results(
             )
 
 
+def _summarise(findings: list[dict]) -> dict:
+    by_check = {}
+    unknown = {}
+    for finding in findings:
+        check = finding["check"].split(":", 1)[0]
+        counts = by_check.setdefault(check, dict.fromkeys(STATUSES, 0))
+        counts[finding["status"]] += 1
+        errors = [e for e in finding["detail"].get("errors", []) if e["code"] == "PR02"]
+        if errors:
+            unknown[finding["definition"]] = {
+                "definition": finding["definition"],
+                "file": finding["file"],
+                "errors": errors,
+            }
+    return {
+        "counts_by_check": dict(sorted(by_check.items())),
+        "unique_definitions": len({(f["file"], f["definition"]) for f in findings}),
+        "format_deviations": sum(len(f["detail"].get("formats", [])) for f in findings),
+        "format_definitions": len({
+            f["definition"] for f in findings if f["detail"].get("formats")
+        }),
+        "unknown_parameters": [unknown[key] for key in sorted(unknown)],
+    }
+
+
 def main() -> None:
     """Write a complete JSON report; findings do not change the exit status."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -598,6 +690,7 @@ def main() -> None:
         "installed_commit": installed_commit,
         "installed_matches_revision": revision.sha.startswith(installed_commit),
         "counts": {status: counts[status] for status in STATUSES},
+        "summary": _summarise(findings),
         "excluded_out_of_scope": {
             "count": sum(excluded.values()),
             "reasons": dict(sorted(excluded.items())),
@@ -610,6 +703,7 @@ def main() -> None:
         encoding="utf-8",
     )
     print(json.dumps(report["counts"]))
+    print(json.dumps(report["summary"], ensure_ascii=True))
     print("excluded_out_of_scope: " + json.dumps(report["excluded_out_of_scope"]))
 
 

@@ -230,3 +230,13 @@ def test_missing_registry_is_reported(tmp_path):
     assert checker.check_tree(tmp_path)["errors"]
     assert checker.main(["--root", str(tmp_path), "--report"]) == 0
     assert checker.main(["--root", str(tmp_path), "--strict"]) == 1
+
+
+@pytest.mark.core
+@pytest.mark.smoke
+def test_repository_tree_is_fully_tagged():
+    """Every test file declares known contracts without scan or registry errors."""
+    report = checker.check_tree(Path(__file__).resolve().parents[2])
+    assert not (report["untagged"] or report["unknown_ids"] or report["errors"]), (
+        "Test-contract tags must reference test/contracts.yml.\n" + checker.render_report(report)
+    )

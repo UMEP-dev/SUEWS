@@ -233,6 +233,8 @@ supplied.
 For example, these are three entries from a paved-surface routing block.
 The other five applicable destinations each receive zero in this example.
 
+.. journey: transition_guide/example
+
 .. code-block:: yaml
 
    to_runoff: 0.98
@@ -247,26 +249,36 @@ With the corrected reader, both files give 8.416 mm and the balance closes.
 The size of the difference at another site depends on its surface fractions,
 drainage and weather.
 
+.. journey: transition_guide/delta
+
 Migration removes the unused ``to_soilstore`` zero from this block. It keeps
 ``to_runoff: 0.98``, ``to_grass: 0.02`` and any zero for an applicable
 destination, including a genuine zero runoff fraction. A previously valid
 paved or building block that already omitted the unused field needs no edit
 to its fractions for this correction.
 
+.. journey: transition_guide/directory
+
 Choose the command from the version recorded at the top of your YAML file.
 Keep the converted copy beside the original so relative forcing paths still
 point to the same files. Use a fresh output filename when you repeat a
 conversion, so a file left by an earlier run cannot be mistaken for its result.
+
+.. journey: transition_guide/tagged-condition
 
 **The file says** ``schema_version: 2026.6.dev11``. The first command writes
 ``site.migrated.yml``. Confirm that this new file exists. The migration
 summary can say ``Needs review`` even after writing it. Read the diagnostics
 and run the second command to check the saved configuration:
 
+.. journey: transition_guide/tagged-commands
+
 .. code-block:: bash
 
    suews schema migrate site.yml --target-version 2026.6.dev12
    suews validate -p C --dry-run site.migrated.yml --format json
+
+.. journey: transition_guide/untagged-condition
 
 **The file has no schema version.** Some older YAMLs are treated as current
 when their version cannot be inferred. In that case ``suews schema migrate``
@@ -280,17 +292,25 @@ with ``2026.6.dev11``, use the explicit source version below. The converter
 writes the current schema of the installed software. Substitute the actual
 source version if it differs from this example.
 
+.. journey: transition_guide/untagged-commands
+
 .. code-block:: bash
 
    suews convert -i site.yml -o site.migrated.yml --from 2026.6.dev11
    suews validate -p C --dry-run site.migrated.yml --format json
 
+.. journey: transition_guide/current-condition
+
 **The file already says** ``schema_version: 2026.6.dev12``. A migration to
 the same version creates no copy. Validate the original directly:
+
+.. journey: transition_guide/current-command
 
 .. code-block:: bash
 
    suews validate -p C --dry-run site.yml --format json
+
+.. journey: transition_guide/recovery
 
 Check each site and surface named in a validation error. An inapplicable
 non-zero fraction needs a decision about where that water should go. Within

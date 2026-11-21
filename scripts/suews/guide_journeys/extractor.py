@@ -41,6 +41,7 @@ class Span:
     text: str
     first: int
     last: int
+    span_type: str | None = None
 
 
 def shell_spans(text: str, first: int) -> list[Span]:
@@ -56,7 +57,7 @@ def shell_spans(text: str, first: int) -> list[Span]:
             if any(
                 part.strip() and not part.lstrip().startswith("#") for part in pending
             ):
-                result.append(Span("\n".join(pending), start, first + offset))
+                result.append(Span("\n".join(pending), start, first + offset, "shell"))
             pending = []
     if pending:
         raise ValueError("Unterminated shell continuation")
@@ -70,6 +71,7 @@ def python_spans(text: str, first: int) -> list[Span]:
             ast.get_source_segment(text, node),
             first + node.lineno - 1,
             first + node.end_lineno - 1,
+            "python",
         )
         for node in ast.parse(text).body
     ]
@@ -148,6 +150,14 @@ class Document:
     def span(self, binding: dict) -> Span:
         """Resolve a block-command index, paragraph or exact inline literal."""
         node = self.anchors[binding["anchor"]]
+        if any(key in binding for key in ("inline", "command", "statement")):
+            span_type = self.language(node)
+            if binding.get("span_type") != span_type:
+                raise ValueError("Binding span type must match source language")
+            if "command" in binding and span_type != "shell":
+                raise ValueError("Command index requires shell language")
+            if "statement" in binding and span_type != "python":
+                raise ValueError("Statement index requires Python language")
         if "inline" in binding:
             matches = [
                 literal
@@ -160,13 +170,31 @@ class Document:
             raw = matches[0].rawsource
             offset = paragraph.text.index(raw)
             first = paragraph.first + paragraph.text[:offset].count("\n")
-            return Span(raw[2:-2], first, first + raw.count("\n"))
+            return Span(raw[2:-2], first, first + raw.count("\n"), "shell")
         raw = self.raw(node)
         if "command" in binding:
             return shell_spans(raw.text, raw.first)[binding["command"]]
         if "statement" in binding:
             return python_spans(raw.text, raw.first)[binding["statement"]]
         return raw
+
+    @staticmethod
+    def language(node: nodes.Node) -> str:
+        """Select the interpreter from a block language, never its contents."""
+        if not isinstance(node, nodes.literal_block):
+            return "shell"  # Command-like inline literals have no language marker.
+        classes = set(node.get("classes", [])) - {"code"}
+        if classes & {"python", "py"}:
+            return "python"
+        if classes & {"bash", "sh", "shell", "console"}:
+            return "shell"
+        raise ValueError(f"Unsupported block language: {sorted(classes)}")
+
+    def statements(self, node: nodes.Node) -> list[Span]:
+        """Extract executable units using the source language."""
+        raw = self.raw(node)
+        split = python_spans if self.language(node) == "python" else shell_spans
+        return split(raw.text, raw.first)
 
     def candidates(self) -> list[tuple[nodes.Node, str]]:
         """Inventory every block and command-like inline literal in the section."""

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from .extractor import Document, digest, shell_spans
+from .extractor import Document, digest
 
 
 def validate_probes(steps: list[dict], documented_ids: set[str]) -> None:
@@ -118,11 +118,12 @@ def check(document: Document, manifest: dict, current_revision: str) -> list[str
         elif any(entry.get("kind") == "example-data" for entry in entries):
             covered = True
         else:
-            covered = {entry.get("command") for entry in entries} == set(
-                range(
-                    len(shell_spans(document.raw(node).text, document.raw(node).first))
+            covered = {
+                entry.get(
+                    "statement" if document.language(node) == "python" else "command"
                 )
-            )
+                for entry in entries
+            } == set(range(len(document.statements(node))))
         if not covered:
             errors.append(f"Unbound {kind}: {node.rawsource}")
     reviewed = manifest["envelope"]["reviewed_revision"]
@@ -152,10 +153,18 @@ def step_coverage(document: Document, manifest: dict) -> dict:
             documented += 1
             bound += any(e.get("inline") == node.rawsource for e in entries)
         else:
-            raw = document.raw(node)
-            spans = shell_spans(raw.text, raw.first)
+            spans = document.statements(node)
             documented += len(spans)
             bound += sum(
-                any(e.get("command") == i for e in entries) for i in range(len(spans))
+                any(
+                    e.get(
+                        "statement"
+                        if document.language(node) == "python"
+                        else "command"
+                    )
+                    == i
+                    for e in entries
+                )
+                for i in range(len(spans))
             )
     return {"documented_steps": documented, "bound_steps": bound}

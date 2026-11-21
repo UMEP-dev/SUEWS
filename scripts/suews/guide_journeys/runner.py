@@ -67,6 +67,8 @@ def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dic
                 kind="documented",
                 source_lines=[span.first, span.last],
                 command=span.text,
+                span_type=span.span_type,
+                source_path=manifest["guide"],
                 consumes=binding["consumes"],
                 reviewed_revision=binding["reviewed_revision"],
                 span_sha256=binding["sha256"],

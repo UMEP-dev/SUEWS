@@ -283,6 +283,7 @@ extensions = [
     "input_domain",  # Custom domain for input configuration options
     "output_domain",  # Custom domain for output variables
     "publications_topic_annotate",  # Tags bibliography <li>s with keyword classes for the client-side topic filter
+
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
@@ -329,8 +330,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     # Execution settings
     "plot_gallery": "True",
-    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "false").lower()
-    == "true",
+    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "false").lower() == "true",
     "remove_config_comments": True,
     # Download options
     "download_all_examples": True,

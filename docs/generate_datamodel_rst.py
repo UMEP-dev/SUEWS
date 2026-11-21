@@ -47,7 +47,6 @@ except ImportError:
         """Fall back to recording no condition."""
         return ""
 
-
 try:
     from supy.data_model.validation.derived_fields import derived_default
 except ImportError:
@@ -88,28 +87,32 @@ SOURCE_HEADER = (
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
-    LAYER_CONVENTION_MODELS = frozenset({
-        "ThermalLayers",
-        "VerticalLayers",
-        "RoofLayer",
-        "WallLayer",
-        "ModelPhysics",
-    })
+    LAYER_CONVENTION_MODELS = frozenset(
+        {
+            "ThermalLayers",
+            "VerticalLayers",
+            "RoofLayer",
+            "WallLayer",
+            "ModelPhysics",
+        }
+    )
 
-    RELATIONSHIP_REF_TARGETS = frozenset({
-        "net_radiation",
-        "emissions",
-        "storage_heat",
-        "ohm_inc_qf",
-        "roughness_length_momentum",
-        "roughness_length_heat",
-        "stability",
-        "roughness_sublayer",
-        "roughness_sublayer_level",
-        "surface_conductance",
-        "snow_use",
-        "stebbs",
-    })
+    RELATIONSHIP_REF_TARGETS = frozenset(
+        {
+            "net_radiation",
+            "emissions",
+            "storage_heat",
+            "ohm_inc_qf",
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "roughness_sublayer",
+            "roughness_sublayer_level",
+            "surface_conductance",
+            "snow_use",
+            "stebbs",
+        }
+    )
 
     def __init__(self, doc_data: dict[str, Any]):
         """
@@ -214,13 +217,15 @@ class RSTGenerator:
             lines.append("")
 
         if model_name in self.LAYER_CONVENTION_MODELS:
-            lines.extend([
-                ".. seealso::",
-                "",
-                "   See :ref:`layer_conventions` for facet orientation, "
-                "material-layer ordering, and the methods that use each property.",
-                "",
-            ])
+            lines.extend(
+                [
+                    ".. seealso::",
+                    "",
+                    "   See :ref:`layer_conventions` for facet orientation, "
+                    "material-layer ordering, and the methods that use each property.",
+                    "",
+                ]
+            )
 
         if any(field.get("examples") for field in model_doc.get("fields", [])):
             lines.extend([

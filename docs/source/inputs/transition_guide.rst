@@ -220,7 +220,7 @@ lives in :ref:`schema_version_history`.
 .. _schema_dev13_drainage_coefficients:
 
 Upgrading to Schema 2026.6.dev13
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Schema ``2026.6.dev12`` covers water routing. Upgrading a dev11 file to dev13
 applies that migration before the drainage coefficient check. For a

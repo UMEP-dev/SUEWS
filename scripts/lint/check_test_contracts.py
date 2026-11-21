@@ -154,7 +154,7 @@ def _scan_files(root: Path) -> tuple[dict[str, list[str]], list[str]]:
     paths = sorted({
         *(root / "test").rglob("test_*.py"),
         *(root / "src/suews_bridge/src").rglob("*.rs"),
-        *(root / "src/suews_bridge/tests").glob("*.rs"),
+        *(root / "src/suews_bridge/tests").rglob("*.rs"),
     })
     files = {}
     errors = []

@@ -115,12 +115,13 @@ def test_rust_tags_and_scan_boundaries(tree):
     _write(tree, "src/suews_bridge/src/nested/example.rs", source)
     _write(tree, "src/suews_bridge/tests/example.rs", source)
     _write(tree, "src/suews_bridge/src/no_tests.rs", "// contract: C-A\n")
-    _write(tree, "src/suews_bridge/tests/nested/excluded.rs", source)
+    _write(tree, "src/suews_bridge/tests/nested/mod.rs", source)
     _write(tree, "src/suews_bridge/examples/excluded.rs", source)
     _write(tree, "test/helper.py", 'pytestmark = pytest.mark.contract("C-A")\n')
     report = checker.check_tree(tree)
-    assert report["summary"]["files"] == 2
-    assert report["contract_file_counts"] == {"C-A": 2, "C-B": 2}
+    assert report["summary"]["files"] == 3
+    assert "src/suews_bridge/tests/nested/mod.rs" in report["files"]
+    assert report["contract_file_counts"] == {"C-A": 3, "C-B": 3}
     assert report["errors"] == []
 
 
@@ -212,7 +213,9 @@ def test_diagnostics_are_ascii(tree, capsys):
         tree, "test/test_example.py", 'pytestmark = pytest.mark.contract("C-\u00e9")\n'
     )
     assert checker.main(["--root", str(tree)]) == 0
-    assert capsys.readouterr().out.isascii()
+    out = capsys.readouterr().out
+    assert "test/test_example.py: C-\\xe9" in out
+    assert out.isascii()
 
 
 def test_empty_rust_tag_does_not_consume_the_next_line(tree):

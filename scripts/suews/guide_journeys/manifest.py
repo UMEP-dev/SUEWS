@@ -8,12 +8,27 @@ import yaml
 from .extractor import Document, digest, shell_spans
 
 
+def validate_probes(steps: list[dict], documented_ids: set[str]) -> None:
+    """Keep probes terminal and their identities separate from documented steps."""
+    seen = set()
+    for index, step in enumerate(steps):
+        probe = "probe" in step or step.get("kind") == "probe"
+        if probe and step["id"] in documented_ids:
+            raise ValueError(f"Probe id collides with documented step: {step['id']}")
+        if step["id"] in seen:
+            raise ValueError(f"Duplicate step id: {step['id']}")
+        seen.add(step["id"])
+        if probe and index != len(steps) - 1:
+            raise ValueError("A probe may run only as the last step of a journey")
+
+
 def load(path: Path) -> dict:
     """Read a journey manifest without constructing arbitrary Python objects."""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if data.get("format") != 1:
         raise ValueError("Unsupported journey manifest format")
     for journey in data["journeys"]:
+        validate_probes(journey["steps"], {s["id"] for s in data["steps"]})
         for step in journey["steps"]:
             if "probe" not in step and not step.get("promises"):
                 raise ValueError(f"Documented step has no promises: {step['id']}")

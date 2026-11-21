@@ -13,7 +13,7 @@ from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
 from .fixtures import fixture_bytes
-from .manifest import check, load, step_coverage
+from .manifest import check, load, step_coverage, validate_probes
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
@@ -35,6 +35,7 @@ print(json.dumps({'resource':spec['package']+'/'+spec['path'],
 def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dict]:
     """Resolve documented spans; only explicitly labelled probes carry commands."""
     bindings = {entry["id"]: entry for entry in manifest["steps"]}
+    validate_probes(journey["steps"], set(bindings))
     result = []
     for entry in journey["steps"]:
         spec = dict(entry)
@@ -81,6 +82,7 @@ def run_steps(
     specs: list[dict], work: Path, env: dict, pinned: dict
 ) -> tuple[list[dict], str | None]:
     """Stop on the first failed promise and retain each later consumer as unrun."""
+    validate_probes(specs, {s["id"] for s in specs if s["kind"] == "documented"})
     certified = dict(pinned)
     records = []
     stopped = False
@@ -115,11 +117,11 @@ def run_steps(
             p["passed"] for p in promises
         )
         record["status"] = "passed" if passed else "failed"
-        if passed:
+        if passed and spec["kind"] == "documented":
             for promise in spec["promises"]:
                 if promise["kind"] == "creates":
                     certified[promise["path"]] = after[promise["path"]]
-        else:
+        elif not passed:
             stopped = True
             missing = {
                 p["expected"]["path"]

@@ -1014,21 +1014,31 @@ def test_submodel_to_df_state_and_multisite_column_contracts():
     assert list(df_roof0.columns).count(("gridiv", "0")) == 2
     assert df_roof0.shape == (1, 23)
     assert df_roof0.index.name == "grid"
+    assert list(df_roof0.columns.names) == ["var", "ind_dim"]
 
     df_model = cfg.model.to_df_state(1)
     assert list(df_model.columns).count(("gridiv", "0")) == 3
     assert df_model.shape == (1, 29)
     assert df_model.index.name == "grid"
+    assert list(df_model.columns.names) == ["var", "ind_dim"]
 
-    assert site.properties.land_cover.paved.to_df_state(1).index.name == "grid"
-    assert site.properties.land_cover.bldgs.to_df_state(1).index.name == "grid"
-    assert site.properties.land_cover.water.to_df_state(1).index.name == "grid"
-    assert site.initial_states.to_df_state(1).index.name == "grid"
-    assert cfg.to_df_state().index.name == "grid"
+    for df_named in (
+        site.properties.land_cover.paved.to_df_state(1),
+        site.properties.land_cover.bldgs.to_df_state(1),
+        site.properties.land_cover.water.to_df_state(1),
+        site.initial_states.to_df_state(1),
+        cfg.to_df_state(),
+    ):
+        assert df_named.index.name == "grid"
+        assert list(df_named.columns.names) == ["var", "ind_dim"]
 
-    assert site.properties.land_cover.evetr.to_df_state(1).index.name is None
-    assert site.properties.land_cover.dectr.to_df_state(1).index.name is None
-    assert site.properties.land_cover.grass.to_df_state(1).index.name is None
+    for df_veg in (
+        site.properties.land_cover.evetr.to_df_state(1),
+        site.properties.land_cover.dectr.to_df_state(1),
+        site.properties.land_cover.grass.to_df_state(1),
+    ):
+        assert df_veg.index.name is None
+        assert list(df_veg.columns.names) == [None, None]
 
     df_lc = site.properties.land_cover.to_df_state(1)
     assert df_lc.shape == (1, 562)
@@ -1066,6 +1076,7 @@ def test_submodel_to_df_state_and_multisite_column_contracts():
     df_multi = SUEWSConfig.from_dict(raw_multi).to_df_state()
     assert list(df_multi.index) == [1, 2]
     assert df_multi.index.name == "grid"
+    assert list(df_multi.columns.names) == ["var", "ind_dim"]
     assert not df_multi.columns.duplicated().any()
     assert df_multi.loc[1, ("nlayer", "0")] == 3
     assert df_multi.loc[2, ("nlayer", "0")] == 2

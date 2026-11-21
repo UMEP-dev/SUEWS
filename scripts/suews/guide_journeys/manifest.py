@@ -22,12 +22,24 @@ def validate_probes(steps: list[dict], documented_ids: set[str]) -> None:
             raise ValueError("A probe may run only as the last step of a journey")
 
 
+def validate_commands(steps: list[dict]) -> None:
+    """Accept assertions and source coordinates, never documented command text."""
+    allowed = {"id", "promises", "exit_status", "command_index", "consumes"}
+    for step in steps:
+        if "probe" not in step and set(step) - allowed:
+            raise ValueError("Documented steps cannot supply command text or unknown fields")
+
+
 def load(path: Path) -> dict:
     """Read a journey manifest without constructing arbitrary Python objects."""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if data.get("format") != 1:
         raise ValueError("Unsupported journey manifest format")
+    for binding in data["steps"]:
+        if "command" in binding and type(binding["command"]) is not int:
+            raise ValueError("A source command index cannot supply command text")
     for journey in data["journeys"]:
+        validate_commands(journey["steps"])
         validate_probes(journey["steps"], {s["id"] for s in data["steps"]})
         for step in journey["steps"]:
             if "probe" not in step and not step.get("promises"):

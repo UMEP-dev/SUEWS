@@ -13,7 +13,7 @@ from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
 from .fixtures import fixture_bytes
-from .manifest import check, load, step_coverage, validate_probes
+from .manifest import check, load, step_coverage, validate_commands, validate_probes
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
@@ -35,6 +35,7 @@ print(json.dumps({'resource':spec['package']+'/'+spec['path'],
 def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dict]:
     """Resolve documented spans; only explicitly labelled probes carry commands."""
     bindings = {entry["id"]: entry for entry in manifest["steps"]}
+    validate_commands(journey["steps"])
     validate_probes(journey["steps"], set(bindings))
     result = []
     for entry in journey["steps"]:
@@ -59,6 +60,7 @@ def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dic
 def historical_steps(text: str, manifest: dict, journey: dict) -> list[dict]:
     """Use pinned historical block spans without modifying the vendored guide."""
     history = manifest["historical"]
+    validate_commands(journey["steps"])
     document = Document(text, manifest["title"])
     block = document.candidates()[history["block"]][0]
     raw = document.raw(block)

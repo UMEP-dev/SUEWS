@@ -61,3 +61,88 @@ def test_schema_enumeration_comparison():
     )
     assert result["stale"] == ["invented"]
     assert "grass" in result["missed"]
+
+
+def test_real_manifest_matches_installed_commands():
+    """The reviewed option inventory stays aligned without importing docutils."""
+    import yaml
+
+    manifest = yaml.safe_load(
+        (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    result = compare(installed_commands(), manifest["inventory"])
+    for domains in result.values():
+        assert not domains["option_names"]["stale"]
+        assert not domains["option_names"]["missed"]
+        assert all(not v["stale"] for v in domains["enumerated_values"].values())
+
+
+def test_unrestricted_values_need_execution_witnesses():
+    """Aliases and equals forms count; unrun and unrelated commands do not."""
+    from scripts.suews.guide_journeys.summary import (
+        failed_summary,
+        option_witnesses,
+        unrestricted_coverage,
+    )
+
+    records = [
+        {
+            "journey_id": "example",
+            "steps": [
+                {
+                    "id": "long",
+                    "status": "passed",
+                    "argv": ["suews", "convert", "--input", "site.yml"],
+                },
+                {
+                    "id": "short",
+                    "status": "passed",
+                    "argv": ["suews", "convert", "-i=other.yml"],
+                },
+                {
+                    "id": "unrun",
+                    "status": "unrun",
+                    "argv": ["suews", "convert", "-i", "missing.yml"],
+                },
+                {
+                    "id": "wrong",
+                    "status": "passed",
+                    "argv": ["suews", "validate", "-i", "missing.yml"],
+                },
+            ],
+        }
+    ]
+    witnesses = option_witnesses(records, ["suews", "convert"], ["--input", "-i"])
+    assert witnesses == {"site.yml": ["example:long"], "other.yml": ["example:short"]}
+    commands = installed_commands()
+    declared = {
+        name: {"documented": {}, "excluded": {o: "outside test" for o in c["options"]}}
+        for name, c in commands.items()
+    }
+    declared["convert"]["documented"] = {"--input": ["site.yml", "missing.yml"]}
+    result = compare(commands, declared)
+    unrestricted_coverage(result, records, commands)
+    values = result["convert"]["unrestricted"]["--input"]
+    assert values["exercised"] == {"site.yml": ["example:long"]}
+    assert values["missed"] == ["missing.yml"]
+    summary = {"inventory": result, "journeys": [], "behaviour_audit": {"passed": True}}
+    assert failed_summary(summary)
+    records[0]["steps"][2]["status"] = "passed"
+    unrestricted_coverage(result, records, commands)
+    assert not failed_summary(summary)
+
+
+def test_schema_info_version_list():
+    """The public CLI's list supplies versions, not unrestricted help literals."""
+    from click.testing import CliRunner
+    from supy.cmd.schema_cli import cli
+    from scripts.suews.guide_journeys.summary import schema_versions
+
+    result = CliRunner().invoke(cli, ["info"])
+    assert result.exit_code == 0
+    assert {"2026.6.dev11", "2026.6.dev12"} <= set(schema_versions(result.output))
+    assert schema_versions(
+        "Current version: 2026.6.dev12\n  v2026.6.dev11: old\n  \u2192 v2026.6.dev12: current\n"
+    ) == ["2026.6.dev11", "2026.6.dev12"]

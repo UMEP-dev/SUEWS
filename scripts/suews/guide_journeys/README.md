@@ -30,7 +30,6 @@ The current guide changes only by adding RST comments.
 
 The earlier-guide cases must fail specifically at the migration's `creates` promise, with the next validation command recorded as the first unrun consumer.
 Labelled diagnostic replays deliberately bypass provenance: the clean replay must report the missing file, and the stale replay must successfully validate the unrelated archived dev12 copy.
-An older-schema dev11 copy is a separate discriminator: the current validator rejects it with SCHEMA_VERSION_MISMATCH, so it cannot demonstrate successful validation of stale output.
 A reproduced counterexample counts as an accepted diagnostic, while its normal journey remains recorded as failed.
 The same path-outcome checks apply to both revisions.
 

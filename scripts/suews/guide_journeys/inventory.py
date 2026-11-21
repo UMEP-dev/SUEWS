@@ -91,11 +91,16 @@ def compare(installed: dict, declared: dict) -> dict:
     return result
 
 
+def historical_journeys(manifest: dict) -> set[str]:
+    """Journeys that replay the earlier guide and so are never corrected-guide evidence."""
+    return {j["id"] for j in manifest["journeys"] if j.get("historical")}
+
+
 def coverage(
     manifest: dict, records: list[dict], stale: list[str], step_counts: dict
 ) -> dict:
     """Keep exercised single choices distinct from dependent combinations."""
-    historical = {j["id"] for j in manifest["journeys"] if j.get("historical")}
+    historical = historical_journeys(manifest)
     attempted = {
         r["journey_id"]
         for r in records
@@ -117,7 +122,10 @@ def coverage(
         choices.append(dict(choice, status=status, exercised_by=exercised))
     combinations = {"exercised": [], "untested": []}
     for combination in manifest["combinations"]:
-        exercised = sorted(attempted.intersection(combination.get("journeys", [])))
+        eligible = (
+            attempted if combination.get("historical") else attempted - historical
+        )
+        exercised = sorted(eligible.intersection(combination.get("journeys", [])))
         combinations["exercised" if exercised else "untested"].append(
             dict(combination, exercised_by=exercised)
         )

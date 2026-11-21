@@ -2,7 +2,7 @@
 
 import re
 
-from .inventory import compare, compare_values, coverage
+from .inventory import compare, compare_values, coverage, historical_journeys
 
 
 def summarise(
@@ -45,7 +45,12 @@ def summarise(
         result["inventory"] = {"status": "unrun"}
         return result
     result["inventory"] = compare(evidence["inventory"], manifest["inventory"])
-    unrestricted_coverage(result["inventory"], records, evidence["inventory"])
+    unrestricted_coverage(
+        result["inventory"],
+        records,
+        evidence["inventory"],
+        historical_journeys(manifest),
+    )
     info = evidence["schema_info"]
     versions = schema_versions(info["stdout"])
     result["schema_versions"] = {
@@ -76,9 +81,13 @@ def summarise(
 
 
 def unrestricted_coverage(
-    inventory: dict, records: list[dict], installed: dict
+    inventory: dict, records: list[dict], installed: dict, historical: set[str]
 ) -> None:
-    """Attach execution witnesses for unrestricted values, using installed aliases."""
+    """Attach execution witnesses for unrestricted values, using installed aliases.
+
+    Earlier-guide replays are never witnesses for the corrected guide.
+    """
+    records = [r for r in records if r["journey_id"] not in historical]
     for command, domains in inventory.items():
         prefix = (
             ["suews", "schema", "migrate"]
@@ -101,11 +110,11 @@ def unrestricted_coverage(
 def option_witnesses(
     records: list[dict], prefix: list[str], aliases: list[str]
 ) -> dict:
-    """Find literal option values in commands that actually ran."""
+    """Find literal option values in documented commands that actually ran."""
     witnesses = {}
     for record in records:
         for step in record["steps"]:
-            if step.get("status") == "unrun":
+            if step.get("status") == "unrun" or step.get("kind") != "documented":
                 continue
             argv = step.get("argv", [])
             if argv[: len(prefix)] != prefix:

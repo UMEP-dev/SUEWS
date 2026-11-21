@@ -10,6 +10,7 @@ import time
 from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
+from .fixtures import fixture_bytes
 from .manifest import check, load, step_coverage
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
@@ -131,10 +132,8 @@ def setup_inputs(root: Path, manifest: dict, journey: dict, work: Path) -> dict:
     inputs = {}
     for target, fixture_id in journey["inputs"].items():
         fixture = manifest["fixtures"][fixture_id]
-        source = root / fixture["path"]
-        if sha256(source) != fixture["sha256"]:
-            raise ValueError(f"Fixture checksum mismatch: {fixture_id}")
-        (work / target).write_bytes(source.read_bytes())
+        data = fixture_bytes(root, manifest["fixtures"], fixture_id)
+        (work / target).write_bytes(data)
         inputs[target] = fixture["sha256"]
     return inputs
 
@@ -179,11 +178,8 @@ def run_journey(
     try:
         for fixture_id in journey["inputs"].values():
             fixture = manifest["fixtures"][fixture_id]
-            record["input_sha256s"][fixture_id] = sha256(root / fixture["path"])
-            if record["input_sha256s"][fixture_id] != fixture["sha256"]:
-                raise ValueError(
-                    f"Fixture checksum mismatch before installation: {fixture_id}"
-                )
+            fixture_bytes(root, manifest["fixtures"], fixture_id)
+            record["input_sha256s"][fixture_id] = fixture["sha256"]
         env, installation = prepare(
             args.output / journey["id"], args.wheel, args.wheelhouse, args.pip_version
         )

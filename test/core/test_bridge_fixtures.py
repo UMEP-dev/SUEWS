@@ -1,4 +1,4 @@
-"""Keep the Rust test inputs equal to the YAML supy sends to the engine."""
+"""Keep portable buffer-only Rust test inputs equal to data-model exports."""
 
 import importlib.util
 from pathlib import Path

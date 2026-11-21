@@ -668,6 +668,8 @@ schema_versions:
 - 2026.6.dev12
 behaviour_audit:
   journey: tagged-dev11
+  command_step: migrate
+  output: site.migrated.yml
   source_revision: 590d3db0355f18d7a9337ac1117e715189703974
   source: site.yml
   from_version: 2026.6.dev11

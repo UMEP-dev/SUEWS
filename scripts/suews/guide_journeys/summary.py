@@ -64,7 +64,12 @@ def summarise(
     result["behaviour_audit"] = {
         key: value
         for key, value in audit.items()
-        if key not in {"expected", "observed", "stdout"}
+        if key not in {"input", "expected", "observed", "stdout", "cli"}
+    }
+    result["behaviour_audit"]["cli"] = {
+        key: value
+        for key, value in audit["cli"].items()
+        if key not in {"observed", "stdout", "stderr"}
     }
     result["argument_exclusions"] = manifest["argument_exclusions"]
     return result

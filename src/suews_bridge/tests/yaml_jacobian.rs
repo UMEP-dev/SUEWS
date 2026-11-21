@@ -3832,6 +3832,100 @@ fn assert_nan_propagates_to_slot(
 }
 
 #[test]
+fn strict_site_scalars_and_decoded_slot_observer() {
+    for (label, root, _) in build_option_anchors() {
+        for (field, slot) in [
+            ("lat", "scalars.lat"),
+            ("lng", "scalars.lon"),
+            ("alt", "scalars.alt"),
+            ("timezone", "scalars.timezone"),
+            ("surfacearea", "scalars.surfacearea"),
+            ("z", "scalars.z"),
+        ] {
+            let mut valid = root.clone();
+            let mut decoded = load_run_config_from_value(&mut valid).expect(label);
+            assert!(
+                non_finite_slots(&decoded).is_empty(),
+                "{label}: valid receivers"
+            );
+            let path = [
+                Step::Key("sites".into()),
+                Step::Idx(0),
+                Step::Key("properties".into()),
+                Step::Key(field.into()),
+            ];
+            assert!(set_scalar_or_ref_value(
+                &mut valid,
+                &path,
+                Value::Number(serde_yaml::Number::from(f64::NAN)),
+            ));
+            let message = load_run_config_from_value(&mut valid)
+                .expect_err("required site scalar must be finite");
+            assert!(
+                message.contains(&format!(".properties.{field}`"))
+                    && message.contains("non-finite"),
+                "{label}/{field}: {message}"
+            );
+
+            // Strict YAML rejection must not hide corruption of a decoded FFI
+            // receiver. In particular, resolved `lng` still feeds `scalars.lon`.
+            let receiver = match field {
+                "lat" => &mut decoded.site_scalars.lat,
+                "lng" => &mut decoded.site_scalars.lon,
+                "alt" => &mut decoded.site_scalars.alt,
+                "timezone" => &mut decoded.site_scalars.timezone,
+                "surfacearea" => &mut decoded.site_scalars.surfacearea,
+                "z" => &mut decoded.site_scalars.z,
+                _ => unreachable!(),
+            };
+            *receiver = f64::NAN;
+            let bad = non_finite_slots(&decoded);
+            assert_eq!(bad.len(), 1, "{label}/{field}: {bad:?}");
+            assert_eq!(bad[0].0, slot);
+            assert!(bad[0].1.is_nan());
+        }
+    }
+}
+
+#[test]
+fn longitude_alias_checks_are_scoped_to_site_properties() {
+    for (label, root, _) in build_option_anchors() {
+        let mut valid = root.clone();
+        let decoded = load_run_config_from_value(&mut valid).expect(label);
+        let baseline = flatten_run_config_map(&decoded);
+        assert!(baseline["scalars.lon"].is_finite());
+        assert!(!baseline.contains_key("scalars.lng"));
+        let index = leaf_path_index(&root);
+        assert!(index.contains_key("sites[0].properties.lng"));
+        assert!(!index.contains_key("sites[0].properties.lon"));
+
+        // A citation may contain either spelling; it is not a site coordinate.
+        // Do not reject valid FFI `lon` receivers or scan arbitrary key suffixes.
+        let mut annotated = root.clone();
+        annotated["sites"][0]["properties"]["lng"] =
+            serde_yaml::from_str("{value: 23.5, ref: {lon: 1, lng: 2}}").unwrap();
+        let annotated_rc = load_run_config_from_value(&mut annotated).expect(label);
+        assert_eq!(annotated_rc.site_scalars.lon, 23.5);
+        let mut expected = baseline.clone();
+        expected.insert("scalars.lon".into(), 23.5);
+        assert_eq!(flatten_run_config_map(&annotated_rc), expected);
+
+        for keep_lng in [false, true] {
+            let mut invalid = root.clone();
+            let props = invalid["sites"][0]["properties"].as_mapping_mut().unwrap();
+            if !keep_lng {
+                props.remove(Value::String("lng".into()));
+            }
+            props.insert(Value::String("lon".into()), Value::from(23.5));
+            let message = load_run_config_from_value(&mut invalid)
+                .expect_err("resolved site properties must use lng only");
+            assert!(message.contains(".properties.lon`"), "{label}: {message}");
+            assert!(message.contains(".properties.lng`"), "{label}: {message}");
+        }
+    }
+}
+
+#[test]
 fn nan_poison_completeness_across_all_six_anchors() {
     let anchors = build_option_anchors();
 
@@ -3865,11 +3959,14 @@ fn nan_poison_completeness_across_all_six_anchors() {
         stripped_anchors.push((*label, stripped, idx));
     }
 
-    // 2. Unconditionally strict keys (water.flowchange, all non-water soil
-    //    parameters from #2080, and hdd_id) must reject YAML `.nan` on ALL SIX
-    //    anchors.
+    // 2. Unconditionally strict keys (six site scalars, water.flowchange,
+    //    all non-water soil parameters from #2080, and hdd_id) must reject
+    //    YAML `.nan` on ALL SIX anchors.
     let mut strict_jobs: Vec<(usize, String)> = Vec::new();
     for anchor_idx in 0..6 {
+        for field in ["lat", "lng", "alt", "timezone", "surfacearea", "z"] {
+            strict_jobs.push((anchor_idx, format!("sites[0].properties.{field}")));
+        }
         strict_jobs.push((
             anchor_idx,
             "sites[0].properties.land_cover.water.flowchange".into(),
@@ -4035,7 +4132,6 @@ fn nan_poison_completeness_across_all_six_anchors() {
             "sites[0].initial_states.paved.soilstore",
             "state.hydro_state.soilstore_surf.paved",
         ),
-        (0, "sites[0].properties.lat", "scalars.lat"),
         (
             0,
             "sites[0].properties.anthropogenic_emissions.co2.emission_co2_point_source",

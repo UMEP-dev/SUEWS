@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from importlib.resources import as_file, files
+
 from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pandas as pd
 import pytest
 
 from supy.data_model import SUEWSConfig
+from supy.suews_forcing import SUEWSForcing
 from supy.suews_sim import SUEWSSimulation
-from supy.util import get_spinup_state
+from supy.util import get_spinup_state, read_forcing
 
 pytestmark = pytest.mark.api
 
@@ -165,3 +168,115 @@ def test_get_spinup_state_rejects_forcing_shorter_than_one_year(
             start_analysis="2012-01-10",
             spinup_days=5,
         )
+
+
+@pytest.mark.parametrize(
+    "source", ["simulation", "hourly_file", "multiple_files", "two_years"]
+)
+def test_get_spinup_state_without_freq_matches_regular_input(
+    sample_forcing_parsed, tmp_path, source
+) -> None:
+    """Losing frequency metadata changes neither output nor evolved state."""
+    # ARRANGE: exercise real loaders, including two distinct source files.
+    df_state, df_forcing = sample_forcing_parsed()
+    start_analysis = "2012-04-10"
+    if source in {"hourly_file", "multiple_files"}:
+        with as_file(files("supy") / "sample_data") as path_sample:
+            path_forcing = path_sample / "Kc_2012_data_60.txt"
+            if source == "hourly_file":
+                df_forcing = read_forcing(str(path_forcing), tstep_mod=None)
+            else:
+                # Keep file units intact; the public loader converts them.
+                df_file = pd.read_csv(path_forcing, sep=r"\s+")
+                midpoint = len(df_file) // 2
+                paths = [tmp_path / "first.txt", tmp_path / "second.txt"]
+                for path, part in zip(
+                    paths,
+                    [df_file.iloc[:midpoint], df_file.iloc[midpoint:]],
+                    strict=True,
+                ):
+                    part.to_csv(path, sep=" ", index=False, encoding="utf-8")
+                df_forcing = SUEWSForcing.from_file(paths).df
+    elif source == "two_years":
+        df_forcing = _extend_forcing(df_forcing, days=730, start="2018-01-01")
+        start_analysis = "2019-04-10"
+
+    assert df_forcing.index.freq is not None
+    forcing_before = df_forcing.copy(deep=True)
+    df_without_freq = df_forcing.copy()
+    df_without_freq.index = pd.DatetimeIndex(
+        df_forcing.index.to_numpy(), name=df_forcing.index.name
+    )
+    assert df_without_freq.index.freq is None
+    before = df_without_freq.copy(deep=True)
+    state_before = df_state.copy(deep=True)
+
+    # ACT: no simulation or checkpoint mocks; both calls use the public API.
+    expected = get_spinup_state(
+        df_state, df_forcing, start_analysis, spinup_days=1, save_spinup=True
+    )
+    actual = get_spinup_state(
+        df_state, df_without_freq, start_analysis, spinup_days=1, save_spinup=True
+    )
+
+    # ASSERT: identical inputs apart from metadata must yield identical values.
+    for result, reference in zip(actual, expected, strict=True):
+        pd.testing.assert_frame_equal(result, reference, check_exact=True)
+    assert not actual[1].empty
+    grid_id = df_state.index[0]
+    assert actual[0].loc[grid_id, ("soilstore_surf", "(2,)")] != pytest.approx(
+        df_state.loc[grid_id, ("soilstore_surf", "(2,)")]
+    )
+    pd.testing.assert_frame_equal(df_without_freq, before, check_exact=True)
+    assert df_without_freq.index.freq is None
+    pd.testing.assert_frame_equal(df_state, state_before, check_exact=True)
+    pd.testing.assert_frame_equal(df_forcing, forcing_before, check_exact=True)
+
+
+@pytest.mark.parametrize("rows", [1, 2])
+@pytest.mark.parametrize("strip_freq", [False, True])
+def test_get_spinup_state_short_input_keeps_duration_error(
+    sample_forcing_parsed, rows, strip_freq
+) -> None:
+    """One or two ordinary rows fail the duration guard, not pandas inference."""
+    df_state, df_forcing = sample_forcing_parsed(rows)
+    if strip_freq:
+        df_forcing.index = pd.DatetimeIndex(df_forcing.index.to_numpy())
+
+    with pytest.raises(ValueError, match="shorter than one year"):
+        get_spinup_state(df_state, df_forcing, "2012-01-02", spinup_days=1)
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    ["empty", "gap", "duplicate", "reversed", "nat", "all_nat", "non_datetime"],
+)
+def test_get_spinup_state_rejects_invalid_duplication_index(
+    sample_forcing_parsed, invalid
+) -> None:
+    """Duplication must not invent a cadence or relabel irregular observations."""
+    df_state, df_forcing = sample_forcing_parsed()
+    message = "regular, increasing DatetimeIndex"
+    if invalid == "empty":
+        df_forcing = df_forcing.iloc[:0]
+        message = "empty"
+    elif invalid == "gap":
+        df_forcing = df_forcing.drop(df_forcing.index[10])
+    elif invalid == "duplicate":
+        df_forcing = pd.concat([df_forcing.iloc[:11], df_forcing.iloc[10:]])
+    elif invalid == "reversed":
+        df_forcing = df_forcing.iloc[::-1]
+    elif invalid == "non_datetime":
+        df_forcing = df_forcing.reset_index(drop=True)
+        message = "pandas.DatetimeIndex"
+    else:
+        timestamps = df_forcing.index.to_numpy(copy=True)
+        message = "must not contain NaT"
+        if invalid == "all_nat":
+            timestamps[:] = np.datetime64("NaT")
+        else:
+            timestamps[10] = np.datetime64("NaT")
+        df_forcing.index = pd.DatetimeIndex(timestamps)
+
+    with pytest.raises(ValueError, match=message):
+        get_spinup_state(df_state, df_forcing, "2012-04-10", spinup_days=1)

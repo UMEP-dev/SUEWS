@@ -895,6 +895,7 @@ pub fn suews_state_from_nested_payload(payload: &Value) -> Result<SuewsState, Br
     suews_state_from_values_payload(&values_payload)
 }
 
+// contract: C-CODEC, C-RESTART
 #[cfg(test)]
 mod tests {
     use super::*;

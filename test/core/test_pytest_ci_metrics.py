@@ -19,7 +19,7 @@ from scripts.suews.pytest_ci_metrics import (
     read_proc_process,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_V2_FIXTURE = PROJECT_ROOT / "test/fixtures/ci_metrics/schema-v2-xdist.json"

@@ -31,7 +31,7 @@ from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.type import RefValue
 import supy.suews_sim as suews_sim_module
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-VALID")]
 
 GRID = 1
 WATER_CLOSURE_TOLERANCE_MM = 1e-4

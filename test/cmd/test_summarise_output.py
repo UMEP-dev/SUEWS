@@ -12,7 +12,7 @@ import pytest
 
 from supy.cmd.summarise_output import summarise_output_cmd
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 def _suews_columns(names: list[str]) -> pd.MultiIndex:

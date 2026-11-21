@@ -36,7 +36,7 @@ from supy.util._attribution._core import (
 )
 from supy.util._attribution._physics import decompose_flux_budget
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESAMPLE", "C-FORCING", "C-BALANCE")]
 
 # One fixed profile for the whole module. `derandomize=True` derives the
 # example sequence from the test itself rather than from a per-run seed, so

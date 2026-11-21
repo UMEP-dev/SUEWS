@@ -14,7 +14,7 @@ from supy._env import trv_supy_module
 from supy.units import convert
 from supy.util import read_forcing
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-PARITY")]
 
 
 @pytest.fixture

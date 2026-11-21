@@ -95,6 +95,7 @@ pub fn from_seconds(total_sec: i64, base_year: i32) -> (i32, i32, i32, i32) {
     (year, day_of_year, hour, minute)
 }
 
+// contract: C-CLOCK
 #[cfg(test)]
 mod tests {
     use super::*;

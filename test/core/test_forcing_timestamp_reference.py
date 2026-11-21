@@ -20,7 +20,7 @@ from supy._run_rust import (
 
 # ruff: enable[import-private-name]
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-CLOCK", "C-RESTART", "C-EMIT", "C-STRICT")]
 
 
 def _config_dict(simulation):

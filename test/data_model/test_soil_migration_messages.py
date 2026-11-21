@@ -15,7 +15,7 @@ from supy.data_model.validation.pipeline.phase_a import (
     is_declared_schema_field,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-ERROR", "C-MIGRATE")]
 SAMPLE = trv_supy_module / "sample_data" / "sample_config.yml"
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "soil_observation"
 

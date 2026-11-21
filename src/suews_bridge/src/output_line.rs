@@ -343,6 +343,7 @@ pub fn output_line_default_from_fortran() -> Result<OutputLine, BridgeError> {
     OutputLine::from_flat(&flat)
 }
 
+// contract: C-CODEC, C-OUTPUT
 #[cfg(test)]
 mod tests {
     use super::*;

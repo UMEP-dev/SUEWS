@@ -25,7 +25,7 @@ import pytest
 
 import supy
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE", "C-ISOLATION")]
 
 _run_rust = import_module("supy._run_rust")
 

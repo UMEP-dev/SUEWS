@@ -404,6 +404,7 @@ pub fn suews_debug_from_nested_payload(payload: &Value) -> Result<SuewsDebug, Br
     suews_debug_from_values_payload(&values_payload)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

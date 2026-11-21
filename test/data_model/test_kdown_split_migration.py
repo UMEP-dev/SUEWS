@@ -13,7 +13,7 @@ from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.model import ModelPhysics
 from supy.util.converter.yaml_upgrade import upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-MIGRATE")]
 
 LEGACY_SELECTOR = (
     Path(__file__).resolve().parents[1]

@@ -8,7 +8,7 @@ import subprocess
 import numpy as np
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 
 @pytest.fixture(scope="module")

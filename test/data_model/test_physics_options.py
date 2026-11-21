@@ -36,7 +36,7 @@ from supy.data_model.core.physics_families import (
 )
 from supy.data_model.core.physics_orthogonal import coerce_orthogonal_to_flat
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-ROUNDTRIP")]
 
 
 _FIXTURES = Path(__file__).parent.parent / "fixtures" / "nested_physics"

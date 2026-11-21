@@ -483,6 +483,7 @@ pub fn spartacus_prm_default_from_fortran() -> Result<SpartacusPrm, BridgeError>
     SpartacusPrm::from_flat_with_height_len(&flat, height_len)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

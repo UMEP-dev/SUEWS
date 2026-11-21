@@ -4,7 +4,7 @@ import pytest
 
 from supy import SUEWSSimulation
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
 
 
 @pytest.fixture(scope="module")

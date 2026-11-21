@@ -10,7 +10,7 @@ import sys
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-ISOLATION", "C-RESPONSE")]
 
 
 @pytest.fixture(scope="module", params=["release", "checked"])

@@ -25,7 +25,7 @@ from supy import SUEWSSimulation
 
 from conftest import TIMESTEPS_PER_DAY
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-CLOCK")]
 
 START = pd.Timestamp("2012-01-15 00:05")
 N_DAYS = 5

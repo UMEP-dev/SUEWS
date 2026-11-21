@@ -10,7 +10,7 @@ import pytest
 from supy.suews_checkpoint import SUEWSCheckpoint
 from supy.suews_sim import SUEWSSimulation
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESTART", "C-SEQUENCE")]
 
 SAMPLE_BUILDING_DYOHM_PROFILE_INDEX = 70
 TIMESTEPS_PER_DAY = 288

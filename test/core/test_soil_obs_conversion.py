@@ -17,7 +17,7 @@ from supy.util._forcing import (
 
 # ruff: enable[import-private-name]
 
-pytestmark = [pytest.mark.core, pytest.mark.physics]
+pytestmark = [pytest.mark.core, pytest.mark.physics, pytest.mark.contract("C-FORCING")]
 
 
 def state(method=1):

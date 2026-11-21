@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy.io import netcdf_file
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-NATIVE-ERROR")]
 
 
 @pytest.fixture(scope="module")

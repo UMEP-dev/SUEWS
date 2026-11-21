@@ -10,7 +10,7 @@ import yaml
 from supy import SUEWSSimulation
 from supy.data_model.core import SUEWSConfig
 
-pytestmark = [pytest.mark.api, pytest.mark.core]
+pytestmark = [pytest.mark.api, pytest.mark.core, pytest.mark.contract("C-VALID", "C-STRICT")]
 
 
 @pytest.fixture(scope="module")

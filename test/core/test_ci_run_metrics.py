@@ -18,7 +18,7 @@ import yaml
 from scripts.suews import analyse_ci_run
 from scripts.suews.analyse_ci_run import TargetNotCompletedError, analyse_run
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.mark.core

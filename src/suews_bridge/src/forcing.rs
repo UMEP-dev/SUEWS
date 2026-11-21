@@ -459,6 +459,7 @@ pub fn suews_forcing_default_from_fortran() -> Result<SuewsForcing, BridgeError>
     SuewsForcing::from_flat_with_ts_len(&flat, ts5mindata_ir_len)
 }
 
+// contract: C-CODEC, C-FORCING
 #[cfg(test)]
 mod tests {
     use super::*;

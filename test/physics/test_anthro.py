@@ -18,7 +18,7 @@ from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
 from supy.util import SUEWS_MISSING
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 REQUIRED_FLUXES = ("QF", "QH", "QE", "QN", "QS")
 

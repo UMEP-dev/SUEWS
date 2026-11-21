@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 _requires_suews_cli = pytest.mark.skipif(
     shutil.which("suews") is None,

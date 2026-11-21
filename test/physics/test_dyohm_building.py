@@ -11,7 +11,7 @@ import pytest
 
 import supy as sp
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE", "C-BIND")]
 
 QS_SURF_COLUMNS = [
     "QS_Paved",

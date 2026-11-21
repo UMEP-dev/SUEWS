@@ -21,7 +21,7 @@ import yaml
 
 from scripts.suews.analyse_ci_run import analyse_run
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

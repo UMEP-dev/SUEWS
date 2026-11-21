@@ -67,7 +67,12 @@ from supy.data_model.validation.required_fields import (
     WATER_DISTRIBUTION_REQUIRED,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.core]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.core,
+    pytest.mark.contract("C-SCHEMA", "C-VALID", "C-TOOLING"),
+]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BASELINE_PATH = Path(__file__).resolve().parent / "schema_contract_baseline.json"

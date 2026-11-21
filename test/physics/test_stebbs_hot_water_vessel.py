@@ -8,7 +8,7 @@ import pytest
 
 import supy as sp
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-BALANCE", "C-BIND")]
 
 STEBBS_CONFIG = (
     Path(__file__).parents[1]

@@ -12,7 +12,7 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MESON_BUILD = REPO_ROOT / "src" / "supy" / "meson.build"

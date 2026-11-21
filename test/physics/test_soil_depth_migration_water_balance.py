@@ -25,7 +25,7 @@ from supy import SUEWSSimulation
 from supy.cmd.suews_cli import cli
 from supy.data_model.core import SUEWSConfig
 
-pytestmark = [pytest.mark.physics, pytest.mark.cfg]
+pytestmark = [pytest.mark.physics, pytest.mark.cfg, pytest.mark.contract("C-MIGRATE", "C-BALANCE")]
 
 WATER_CLOSURE_TOLERANCE_MM = 1e-4
 GRID_ID = 1

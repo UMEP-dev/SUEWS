@@ -28,7 +28,7 @@ import pytest
 from supy import SUEWSSimulation
 from supy._run_rust import KernelWarningLog, _kernel_timestamp, _unpack_run_result
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-NATIVE-ERROR")]
 
 
 # ---------------------------------------------------------------------------

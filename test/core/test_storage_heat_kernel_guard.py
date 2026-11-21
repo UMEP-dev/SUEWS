@@ -20,7 +20,7 @@ import supy as sp
 
 _run_rust = import_module("supy._run_rust")
 
-pytestmark = [pytest.mark.api, pytest.mark.rust, pytest.mark.core]
+pytestmark = [pytest.mark.api, pytest.mark.rust, pytest.mark.core, pytest.mark.contract("C-NATIVE-ERROR")]
 
 # Error code registered in suews_ctrl_error.f95 for a storage-heat method
 # with no scheme behind it.

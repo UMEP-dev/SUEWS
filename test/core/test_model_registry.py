@@ -12,7 +12,7 @@ from supy._model_registry import (
 )
 
 # API-surface tests (read-only registry loader); see .claude/rules/tests/patterns.md.
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA")]
 
 # The release-tag -> schema mapping that yaml_upgrade._PACKAGE_TO_SCHEMA
 # shipped before the registry existed. The registry must reproduce it

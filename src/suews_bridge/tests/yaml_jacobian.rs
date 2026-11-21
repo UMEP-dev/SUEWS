@@ -1,4 +1,5 @@
 #![cfg(feature = "physics")]
+// contract: C-BIND, C-EMIT, C-WARMSTART
 //! Exhaustive discrete Jacobian, slot-ownership, delta-fidelity, and
 //! NaN-poison integration tests for `EngineYAML -> RunConfig` loading in
 //! `suews_bridge::yaml_config`.

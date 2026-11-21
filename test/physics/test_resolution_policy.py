@@ -38,7 +38,7 @@ import yaml
 from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-FORCING", "C-CLOCK", "C-BALANCE")]
 
 WATER_CLOSURE_TOLERANCE_MM = 1e-4
 N_DAYS = 2

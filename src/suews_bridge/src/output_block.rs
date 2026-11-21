@@ -358,6 +358,7 @@ pub fn output_block_to_rows_map(
     Ok(rows_map)
 }
 
+// contract: C-CODEC, C-OUTPUT
 #[cfg(test)]
 mod tests {
     use super::*;

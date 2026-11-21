@@ -88,6 +88,7 @@ crate::codec::impl_state_module_fns! {
     ffi_schema_version_fn = ffi::suews_ohm_coef_lc_schema_version,
     ffi_default_fn = ffi::suews_ohm_coef_lc_default,
 }
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

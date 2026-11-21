@@ -16,7 +16,7 @@ from supy.suews_checkpoint import SUEWSCheckpoint
 import supy.suews_sim as suews_sim_module
 from supy.suews_sim import SUEWSSimulation
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-PARITY")]
 
 
 class TestInit:

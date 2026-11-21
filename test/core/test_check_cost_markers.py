@@ -23,7 +23,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.lint import check_cost_markers as checker  # noqa: E402
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 MEDIUM = 10.0
 SLOW = 30.0

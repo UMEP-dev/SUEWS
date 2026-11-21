@@ -86,7 +86,7 @@ test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 # Note: Sample data loading moved to individual test methods to avoid test interference
 # This prevents caching issues when tests run in sequence
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-SAVE", "C-FORCING")]
 
 
 class TestSuPy(TestCase):

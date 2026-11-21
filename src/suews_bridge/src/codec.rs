@@ -376,6 +376,7 @@ macro_rules! impl_state_module_fns {
 
 pub(crate) use impl_state_module_fns;
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

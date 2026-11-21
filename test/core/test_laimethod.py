@@ -29,7 +29,7 @@ from supy import SUEWSSimulation
 from supy._check import FORCING_REQUIREMENTS, check_forcing
 from supy.data_model.core.model import LAIMethod
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-FORCING", "C-BIND")]
 
 
 @pytest.fixture(scope="module")

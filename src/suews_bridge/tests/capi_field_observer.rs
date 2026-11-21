@@ -1,3 +1,4 @@
+// contract: C-CAPI
 //! Hand-maintained typed Fortran C-API field-binding observer tests (gh#2096).
 //!
 //! For every unpacked Fortran C-API type across all 49 `bridge-manifest.json`

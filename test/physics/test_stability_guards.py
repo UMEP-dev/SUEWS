@@ -15,7 +15,7 @@ import pytest
 
 import supy as sp
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-NATIVE-ERROR", "C-RESPONSE")]
 
 
 @pytest.fixture(scope="module")

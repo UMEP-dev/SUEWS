@@ -949,6 +949,7 @@ pub fn heat_state_default_from_fortran() -> Result<HeatState, BridgeError> {
     HeatState::from_flat_with_dims(&flat, nlayer, ndepth)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

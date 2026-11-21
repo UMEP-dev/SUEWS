@@ -48,7 +48,7 @@ from supy.data_model.validation.pipeline.phase_b import (
     adjust_seasonal_parameters,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID")]
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:

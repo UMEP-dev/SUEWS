@@ -231,6 +231,7 @@ pub fn error_state_default_from_fortran() -> Result<ErrorState, BridgeError> {
     })
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

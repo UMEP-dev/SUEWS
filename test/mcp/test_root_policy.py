@@ -10,7 +10,7 @@ import pytest
 from suews_mcp.backend import ProjectRoot, SUEWSMCPSandboxError
 from suews_mcp.constants import ENV_ALLOWED_ROOTS, ENV_PROJECT_ROOT
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
 
 
 @pytest.fixture

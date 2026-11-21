@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 ROOT = Path(__file__).resolve().parents[2]
 EXTENSIONS = ROOT / "docs/source/_ext"
 CLI = ROOT / "scripts/lint/check_doc_sources.py"

@@ -52,7 +52,7 @@ from supy.data_model.core.type import RefValue
 from supy.data_model.validation.required_fields import NON_WATER_SURFACES
 from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-VALID", "C-STRICT", "C-MIGRATE")]
 
 
 @pytest.fixture(scope="module")

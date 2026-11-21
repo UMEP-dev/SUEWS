@@ -13,7 +13,7 @@ import pytest
 
 from supy._post import _resample_output, dict_var_aggm  # noqa: PLC2701
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE", "C-BALANCE")]
 
 
 class TestResampleOutput(TestCase):

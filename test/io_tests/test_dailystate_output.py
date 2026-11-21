@@ -11,7 +11,7 @@ import supy as sp
 from supy._supy_module import _save_supy
 from supy.data_model.core.model import OutputControl
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-CLOCK", "C-RESPONSE")]
 
 
 class TestDailyStateOutput:

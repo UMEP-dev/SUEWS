@@ -40,7 +40,7 @@ from supy.data_model.validation.required_fields import (
 )
 from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-VALID", "C-STRICT", "C-MIGRATE")]
 
 SOIL_FIELDS: tuple[str, ...] = tuple(SOIL_REQUIRED)
 

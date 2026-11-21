@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _validation:
 
 Validation Tool Reference
@@ -21,7 +23,17 @@ The validation system performs three groups of checks:
   consistency. Scientific initialisation transformations are suggestions by
   default.
 - **Model compatibility**: validates the resulting configuration against the
-  SUEWS data model.
+  SUEWS data model. For per-surface ``waterdist`` blocks, active surfaces
+  (``sfr > 0``) must supply all seven applicable destinations summing to
+  ``1.0`` whenever a ``waterdist`` block is present (omitting the whole block
+  uses surface-specific defaults, and inactive ``sfr == 0`` surfaces may omit
+  applicable destinations). Explicit ``0.0`` in inapplicable slots
+  (self-routing ``to_<self>``, ``to_soilstore`` on impervious surfaces, or
+  ``to_runoff`` on pervious surfaces) is normalised to absent at YAML load
+  while non-zero or invalid values fail; post-load live mutations introducing
+  inapplicable slots (including ``0.0``) or raising ``sfr`` from ``0`` to
+  ``> 0`` without applicable destinations fail before engine execution (see
+  :ref:`waterdist_yaml_rules`).
 
 Basic Usage
 -----------

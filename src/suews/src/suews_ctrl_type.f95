@@ -94,7 +94,7 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: pipecapacity = 0.0D0 ! capacity of pipes to transfer water [mm]
       REAL(KIND(1D0)) :: runofftowater = 0.0D0 ! fraction of above-ground runoff flowing to water surface during flooding [-]
       REAL(KIND(1D0)) :: narp_trans_site = 0.0D0 ! atmospheric transmissivity for NARP [-]
-      REAL(KIND(1D0)) :: CO2PointSource = 0.0D0 ! CO2 emission factor [kg km-1]
+      REAL(KIND(1D0)) :: CO2PointSource = 0.0D0 ! whole-grid CO2 point-source emission [kg C day-1]
       REAL(KIND(1D0)) :: flow_change = 0.0D0 ! Difference in input and output flows for water surface
       REAL(KIND(1D0)) :: n_buildings = 0.0D0 ! n_buildings
       REAL(KIND(1D0)) :: h_std = 0.0D0 ! zStd_RSL

@@ -4,8 +4,7 @@
     "read_i32": 41,
     "read_numeric": 239,
     "read_numeric_sequence": 10,
-    "read_sized_numeric_sequence": 12,
-    "read_string": 1
+    "read_sized_numeric_sequence": 12
   },
   "functions": {
     "apply_anthro_emis_overrides": {
@@ -75,9 +74,6 @@
     },
     "load_run_config_from_value": {
       "read_i32": 3
-    },
-    "read_forcing_timestamp_reference": {
-      "read_string": 1
     }
   }
 }

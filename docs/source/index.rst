@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _index_page:
 
 SUEWS: Surface Urban Energy and Water Balance Scheme

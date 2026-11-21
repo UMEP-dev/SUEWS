@@ -16,6 +16,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import wraps
 import math
+import numbers
 import sys
 from typing import Callable, Optional, Union
 
@@ -47,7 +48,10 @@ from ...data_model.core.field_renames import (
 )
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
-from ...data_model.validation.required_fields import NON_WATER_SURFACES
+from ...data_model.validation.required_fields import (
+    NON_WATER_SURFACES,
+    WATER_DISTRIBUTION_REQUIRED,
+)
 from .._forcing import SOIL_CONVERT_HINT
 
 # Historical rename steps must retain their outgoing dev5 spelling. The new
@@ -1935,6 +1939,64 @@ def _migrate_2026_6_dev10_to_2026_6_dev11(cfg: dict) -> dict:
     return result
 
 
+def _migrate_2026_6_dev11_to_2026_6_dev12(cfg: dict) -> dict:
+    """Remove explicit numeric zeros from inapplicable water destinations.
+
+    Validate only the fields this delta owns, through the public parser and
+    destination validator. Partial configurations need not supply routing
+    fractions, and applicable destinations retain their original representation.
+    Nulls and accepted non-numeric representations remain unchanged.
+    """
+    from ...data_model.core.hydro import WaterDistribution
+    from ...data_model.core.type import SurfaceType
+
+    result = deepcopy(cfg)
+    pending_logs: list[str] = []
+    for site_idx, site in enumerate(result.get("sites", []) or []):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        for surface_name in NON_WATER_SURFACES:
+            surface = land_cover.get(surface_name)
+            dist = surface.get("waterdist") if isinstance(surface, dict) else None
+            if not isinstance(dist, dict):
+                continue
+            required = WATER_DISTRIBUTION_REQUIRED[surface_name]
+            for name in WaterDistribution.model_fields:
+                if not name.startswith("to_") or name in required or name not in dist:
+                    continue
+                path = (
+                    f"{_format_site_label(site_idx, site)} "
+                    f"properties.land_cover.{surface_name}.waterdist.{name}"
+                )
+                try:
+                    parsed = WaterDistribution.model_validate({name: dist[name]})
+                    parsed.validate_distribution(
+                        SurfaceType(surface_name),
+                        require_complete=False,
+                        normalise_zero_disallowed=True,
+                    )
+                except ValueError as exc:
+                    raise YamlUpgradeError(
+                        f"Cannot migrate configuration to schema 2026.6.dev12: "
+                        f"{path}: {exc}"
+                    ) from exc
+                raw = _unwrap_scalar(dist[name])
+                if isinstance(raw, numbers.Real) and not isinstance(raw, bool) and raw == 0:
+                    del dist[name]
+                    pending_logs.append(
+                        f"[yaml-upgrade]   drop '{path}' "
+                        "(explicit numeric zero in an inapplicable destination; "
+                        "absence preserves the load-time routing)"
+                    )
+    for message in pending_logs:
+        _log(message)
+    return result
+
+
 _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed.
@@ -2022,6 +2084,25 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, "2026.6.dev10")] = _handler
         _HANDLERS[(_source, _target)] = _with_soil_params_delta(_handler)
 _HANDLERS[("2026.6.dev10", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev10_to_2026_6_dev11
+
+
+# Preserve every dev11 target, including private soil migration context, before
+# composing the water-distribution delta onto current-target routes.
+def _with_water_distribution_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev11_to_2026_6_dev12(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev11")] = _handler
+        _HANDLERS[(_source, _target)] = _with_water_distribution_delta(_handler)
+_HANDLERS[("2026.6.dev11", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev11_to_2026_6_dev12
 
 
 # ---------------------------------------------------------------------------

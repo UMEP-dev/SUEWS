@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 Configuration Schema Management
 -------------------------------
 
@@ -10,7 +12,7 @@ CLI Commands
 
     suews schema export -o schema.json
     suews validate config.yml
-    suews schema migrate old_config.yml --target-version 2.0
+    suews schema migrate old_config.yml
 
 Python Equivalent (Schema Export)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

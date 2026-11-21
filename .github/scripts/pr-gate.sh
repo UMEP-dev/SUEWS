@@ -12,6 +12,8 @@
 #                                   chained behind each platform's wheel build inside that job
 #   CHECK_MARKERS_RESULT         -- needs.check_test_markers.result
 #   PHYSICS_LABEL_RESULT         -- needs.check_physics_label.result
+#   LOWEST_DIRECT_DEPS_RESULT    -- needs.lowest_direct_deps.result (optional; defaults to skipped)
+#   LOWEST_DIRECT_DEPS_REQUIRED  -- whether lowest_direct_deps was required to run (optional; defaults to false)
 #   NEEDS_BUILD                  -- needs.detect-changes.outputs.needs-build
 #   PHYSICS_CHANGE               -- needs.determine_matrix.outputs.physics_change (defaults to false)
 #
@@ -40,6 +42,8 @@ set -euo pipefail
 EVENT_NAME="${EVENT_NAME-unset}"
 CHECK_MARKERS_RESULT="${CHECK_MARKERS_RESULT:-skipped}"
 PHYSICS_LABEL_RESULT="${PHYSICS_LABEL_RESULT:-skipped}"
+LOWEST_DIRECT_DEPS_RESULT="${LOWEST_DIRECT_DEPS_RESULT:-skipped}"
+LOWEST_DIRECT_DEPS_REQUIRED="${LOWEST_DIRECT_DEPS_REQUIRED:-false}"
 BUILD_MCP_RESULT="${BUILD_MCP_RESULT:-skipped}"
 PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
 
@@ -68,6 +72,7 @@ echo "build_mcp: ${BUILD_MCP_RESULT}"
 echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "check_physics_label: ${PHYSICS_LABEL_RESULT}"
+echo "lowest_direct_deps: ${LOWEST_DIRECT_DEPS_RESULT} (required=${LOWEST_DIRECT_DEPS_REQUIRED})"
 echo "schema_version_audit: ${SCHEMA_AUDIT_RESULT}"
 echo "data_interface_audit: ${DATA_INTERFACE_AUDIT_RESULT}"
 echo "rust_test: ${RUST_TEST_RESULT} (changed=${RUST_TEST_CHANGED})"
@@ -126,6 +131,28 @@ elif [[ "${PHYSICS_LABEL_RESULT}" == "skipped" ]]; then
 else
   echo "[X] Physics/numerics classification gate failed (missing or conflicting 0-physics:change or 0-numerics:change label, or physics-full tier not run)"
   echo "  check_physics_label: ${PHYSICS_LABEL_RESULT}"
+  VALIDATION_PASSED=false
+fi
+
+# Lowest-direct floor smoke tests run when dependency-audit paths change and
+# build_wheels builds the Linux cp312 wheel (gh#2104 F-17a). Fail closed when
+# required (including an unexpected skip) or whenever the job fails.
+echo "Validating lowest-direct dependency floor smoke tests..."
+if [[ "${LOWEST_DIRECT_DEPS_REQUIRED}" == "true" ]]; then
+  if [[ "${LOWEST_DIRECT_DEPS_RESULT}" == "success" ]]; then
+    echo "[OK] Lowest-direct dependency smoke tests passed"
+  else
+    echo "[X] Lowest-direct dependency smoke tests required but did not succeed"
+    echo "  lowest_direct_deps: ${LOWEST_DIRECT_DEPS_RESULT}"
+    VALIDATION_PASSED=false
+  fi
+elif [[ "${LOWEST_DIRECT_DEPS_RESULT}" == "success" ]]; then
+  echo "[OK] Lowest-direct dependency smoke tests passed"
+elif [[ "${LOWEST_DIRECT_DEPS_RESULT}" == "skipped" ]]; then
+  echo "[OK] Lowest-direct dependency smoke tests skipped (dependency paths unchanged or wheel not built)"
+else
+  echo "[X] Lowest-direct dependency smoke tests failed"
+  echo "  lowest_direct_deps: ${LOWEST_DIRECT_DEPS_RESULT}"
   VALIDATION_PASSED=false
 fi
 

@@ -148,22 +148,32 @@ site_scalars.flowchange = require_numeric(
     &site_at,
 )?;
 
-// Conditional / option-gated parameter (BR-02/BR-03):
+// Recommended pattern for a NEW conditional parameter (BR-02/BR-03):
 // Check the active physics method, switch (set in `apply_config_overrides`), or
 // active-surface condition (`sfr > 0.0`) before calling `require_*`. When the
 // option is inactive and the kernel does not read the field, leave it explicitly
 // absent (`f64::NAN`, `LAYER_VALUE_ABSENT`, or `Option::None`) -- never call a
 // legacy `read_*` fallback or invent a number.
-site_scalars.co2_point_source = if emissions_method_uses_co2_point_source(emissions_method) {
+let conditional_value = if option_is_active {
     require_numeric(
         site_root,
-        &["properties", "anthropogenic_emissions", "co2", "co2pointsource"],
+        &["properties", "example_parameter"],
         &site_at,
     )?
 } else {
     f64::NAN
 };
 ```
+
+This conditional sketch is not a transcription of the existing point-source
+reader. In [`apply_site_scalar_overrides`](../src/suews_bridge/src/yaml_config.rs),
+`emissions_method_uses_co2_point_source` selects a required finite read for active
+methods. When inactive, the reader uses
+`read_numeric(site_root, point_source_path).unwrap_or(f64::NAN)`: it preserves a
+supplied numeric value (including non-finite values) and uses NaN when the optional
+read returns no value. The tests `missing_co2_point_source_is_accepted_when_the_method_ignores_it`
+and `co2_point_source_finiteness_is_required_only_for_active_methods` in that file
+record this existing behaviour; it is not permission to add legacy optional reads.
 
 Per-surface land-cover parameters (for example `soil_store_capacity` or `soil_depth` in `apply_soil_overrides`, line 854) are likewise conditional, not unconditionally required: gate required reads on the surface being active (`sfr > 0.0`, excluding `water` where applicable) so valid configurations with an inactive surface (`sfr == 0`) are not rejected.
 Existing named option predicates in `src/suews_bridge/src/yaml_config.rs` follow this pattern: `vertical_layers_are_read` (line 1056), `vegetation_layers_are_read` (line 1064), `ehc_is_on` (line 1072), `facet_layers_are_read` (line 1082), and `emissions_method_uses_co2_point_source` (line 2988), with `LAYER_VALUE_ABSENT` (line 732) as the `f64::NAN` marker for unread layer entries.
@@ -181,7 +191,19 @@ If the YAML schema changes, raise `CURRENT_SCHEMA_VERSION` (`src/supy/data_model
 ### 8. Tests
 
 - Each module's `schema_matches_expected_dimensions` and `default_state_roundtrip` tests (`stebbs_prm.rs:521` and `:527`) catch a LEN mismatch and a Rust `Default` that differs from the shadow.
-- Codec/default round trips do not establish the kernel destination: the driver calls `*_unpack`, and a swapped line can survive those checks. Add a wiring test that sets each new field to a distinct value and checks the effect on the kernel (model: `test/physics/test_stebbs_parameter_wiring.py`).
+- Codec/default round trips do not establish the kernel destination: the driver calls `*_unpack`, and a swapped line can survive those checks. Follow [BR-04](../.claude/rules/rust/bridge-contract.md#rules): regenerate the test-only observer, check freshness, update the [harness](../src/suews_bridge/tests/capi_field_observer.rs) for changed fields or types, and run the feature-gated live receiver tests. The maintained commands and coverage limits are in [C-API field-binding observer](../.claude/rules/rust/conventions.md#c-api-field-binding-observer):
+
+  ```bash
+  python3 scripts/suews/gen_capi_field_observer.py
+  python3 scripts/suews/gen_capi_field_observer.py --check
+  make -C src/suews all
+  cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer
+  ```
+
+  The ordinary `--features physics` suite does not enable `capi-observer`.
+  These tests check the named kernel receiver, not the scientific effect of its
+  value. Retain a distinct-value physics wiring test where needed (model:
+  [test_stebbs_parameter_wiring.py](../test/physics/test_stebbs_parameter_wiring.py)).
 - Check missing, null, malformed and wrong-length input, plus both branches of any conditional requirement (BR-02/03). Cover the Python and engine routes that accept the field.
 - Run `python scripts/lint/check_rust_optional_reads.py`, `cargo test --features physics` in `src/suews_bridge` (after `make -C src/suews all`) and `make test-smoke`.
 
@@ -222,4 +244,5 @@ Silent (the run goes ahead with a wrong value):
 - [ ] YAML reader: strict `require_*` helper (`require_numeric`, `require_i32`, `require_string`, `require_sized_numeric_sequence`, or `require_sequence`) added for unconditionally required fields and active option- or surface-gated branches (with explicit absence such as `f64::NAN` / `LAYER_VALUE_ABSENT` / `Option::None` when inactive); no new legacy optional `read_*` calls (`python scripts/lint/check_rust_optional_reads.py` passes, lowering the baseline via `--write-baseline` if migrating an existing site); for map-based STEBBS/archetype blocks, presence validated explicitly in addition to name matching.
 - [ ] Pydantic field with a documented default, or required (conditionally on the options that use it); no application default in Rust or the shadow; schema version and migration if the schema changed.
 - [ ] Missing/null/malformed/wrong-length inputs and option branches checked; audit evidence records the affected BR rules and unresolved gaps.
-- [ ] Wiring test with distinct values; `cargo test --features physics` and `make test-smoke` pass.
+- [ ] Observer regenerated and `--check` passes; harness updated and `physics,capi-observer` live receiver tests pass (step 8).
+- [ ] Distinct-value physics wiring evidence where needed; `cargo test --features physics` and `make test-smoke` pass.

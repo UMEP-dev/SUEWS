@@ -79,6 +79,11 @@ STATUS_OPTIONAL = "Optional"
 STATUS_NO_DEFAULT = "No default; not checked by the validator - supply a value"
 
 
+SOURCE_HEADER = (
+    ":doc-source: generated\n:doc-generator: docs/generate_datamodel_rst.py\n\n"
+)
+
+
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
@@ -143,7 +148,7 @@ class RSTGenerator:
             rst_file = output_dir / f"{model_name.lower()}.rst"
 
             with open(rst_file, "w", encoding="utf-8") as f:
-                f.write(rst_content)
+                f.write(SOURCE_HEADER + rst_content)
 
             print(f"Generated: {rst_file}")
 
@@ -161,7 +166,7 @@ class RSTGenerator:
             index_content = self._generate_preview_index()
             index_file = output_dir / "index.rst"
             with open(index_file, "w", encoding="utf-8") as f:
-                f.write(index_content)
+                f.write(SOURCE_HEADER + index_content)
             print(f"Generated: {index_file} (preview navigation)")
 
             # Generate all style variations
@@ -169,7 +174,7 @@ class RSTGenerator:
                 style_content = generator_func()
                 style_file = output_dir / f"index-{style_name}.rst"
                 with open(style_file, "w", encoding="utf-8") as f:
-                    f.write(style_content)
+                    f.write(SOURCE_HEADER + style_content)
                 print(f"Generated: {style_file}")
 
         else:
@@ -178,7 +183,7 @@ class RSTGenerator:
             index_content = style_generators[style]()
             index_file = output_dir / "index.rst"
             with open(index_file, "w", encoding="utf-8") as f:
-                f.write(index_content)
+                f.write(SOURCE_HEADER + index_content)
             print(f"Generated: {index_file} (production, style: {style})")
 
         print(f"\nGenerated {len(self.models)} RST files + index in {output_dir}")
@@ -236,6 +241,9 @@ class RSTGenerator:
 
         if model_name == "ModelPhysics":
             lines.extend(self._format_modelphysics_selector_guide())
+
+        if model_name == "WaterDistribution":
+            lines.extend(self._format_waterdistribution_guide())
 
         # Add fields directly; the page and option directives already provide
         # the necessary structure, so a generic "Parameters" label is redundant.
@@ -430,6 +438,59 @@ class RSTGenerator:
             "   ``snow_use``, ``storage_heat.ohm.include_qf`` over flat "
             "   ``ohm_inc_qf``, and ``stebbs.parameter_source`` over "
             "   ``stebbs.parameters``.",
+            "",
+        ]
+
+    @staticmethod
+    def _format_waterdistribution_guide() -> list[str]:
+        """Format a worked YAML example and cross-reference for WaterDistribution."""
+        return [
+            ".. seealso::",
+            "",
+            "   See :ref:`waterdist_yaml_rules` for migration from legacy "
+            "nine-column tables, active vs. inactive surface rules "
+            "(``sfr > 0`` vs. ``sfr == 0``), load-time zero normalisation, "
+            "and post-load validation before engine execution.",
+            "",
+            ".. rubric:: Worked example (active paved surface)",
+            "",
+            "An active ``paved`` surface (impervious) routing 98% of drainage "
+            "to ``to_runoff`` and 2% to ``to_grass`` supplies its seven "
+            "applicable destinations and omits inapplicable ``to_paved`` and "
+            "``to_soilstore``:",
+            "",
+            ".. code-block:: yaml",
+            "",
+            "   sites:",
+            "     - name: ExampleSite",
+            "       properties:",
+            "         land_cover:",
+            "           paved:",
+            "             sfr:",
+            "               value: 0.43",
+            "             waterdist:",
+            "               to_bldgs:",
+            "                 value: 0.0",
+            "               to_dectr:",
+            "                 value: 0.0",
+            "               to_evetr:",
+            "                 value: 0.0",
+            "               to_grass:",
+            "                 value: 0.02",
+            "               to_bsoil:",
+            "                 value: 0.0",
+            "               to_water:",
+            "                 value: 0.0",
+            "               to_runoff:",
+            "                 value: 0.98",
+            "",
+            "At YAML or model load, an explicit ``0.0`` in an inapplicable "
+            "slot such as ``to_soilstore: {value: 0.0}`` on ``paved`` is "
+            "normalised to absent (``None``) while preserving ``to_runoff: "
+            "0.98``. Non-zero or invalid inapplicable values fail at load, "
+            "and post-load live mutations introducing inapplicable slots "
+            "(including ``0.0``) or raising ``sfr`` from ``0`` to ``> 0`` "
+            "without applicable destinations fail before engine execution.",
             "",
         ]
 

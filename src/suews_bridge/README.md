@@ -137,6 +137,18 @@ parameter, see [dev-ref/RUST_BRIDGE_ADD_PARAMETER.md](../../dev-ref/RUST_BRIDGE_
 
 ### 4. Outputs and diagnostics
 
+To trace a column in the SuPy frame, start with its group and name. For
+example, `SUEWS_update_outputLine` in
+[`suews_ctrl_driver.f95`](../suews/src/suews_ctrl_driver.f95) writes the
+first four SUEWS data columns by calling `push_scalar` for downwelling and
+upwelling shortwave, then downwelling and upwelling longwave. On the Python
+side, [`_output_columns`](../supy/_run_rust.py) obtains the labels
+`Kdown`, `Kup`, `Ldown` and `Lup` in that order through
+[`gen_index`](../supy/_post.py) and the
+[SUEWS output registry](../supy/data_model/output/suews_vars.py).
+`_validate_output_layout` checks each group's width. Swapping two calls to
+`push_scalar` keeps that width and attaches the wrong names to both values.
+
 - **Direct-output Python route (default in SuPy):** `lib.rs::run_suews_into`
   and `lib.rs::run_suews_multi_into` validate caller-owned writable
   Fortran-ordered (`order="F"`) NumPy arrays (`lend_output_buffer`) and verify
@@ -216,6 +228,11 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 
 Each module follows the `StateCodec` pattern (`src/codec.rs`) and pairs 1:1
 with its Fortran facade in `c_api/`.
+The shared field-order and packing rules are documented once in
+[`stebbs_prm.rs`](src/stebbs_prm.rs) for flat records and
+[`lc_evetr_prm.rs`](src/lc_evetr_prm.rs) for nested records. When a module
+has no local explanation, use the corresponding example and compare its
+field order with the module's own Fortran pack and unpack routines.
 
 | Family | Modules |
 |---|---|
@@ -238,7 +255,7 @@ with its Fortran facade in `c_api/`.
 | Path | Role |
 |---|---|
 | `src/suews_bridge/tests/yaml_jacobian.rs` | Integration suite probing `EngineYAML -> RunConfig` discrete Jacobians, dead-key ratchets, slot ownership, named-receiver identity, delta fidelity and NaN-poison handling across resolved anchor configs (`--features physics`). |
-| `src/suews_bridge/tests/capi_field_observer.rs` | Opt-in integration suite (`--features physics,capi-observer`) proving every Rust encoder + Fortran `*_unpack` routine delivers globally distinct sentinels to the exact named Fortran kernel component across all 49 manifest types. |
+| `src/suews_bridge/tests/capi_field_observer.rs` | Opt-in integration suite (`--features physics,capi-observer`): live named-receiver checks for 42 types (30 direct, 8 nested in parents, 4 driver aggregates); inventory/schema/default/codec checks for the 7 non-unpacked types, not live receiver evidence. See the maintained [coverage and commands](../../.claude/rules/rust/conventions.md#c-api-field-binding-observer). |
 | `src/suews_bridge/test_observer/` | Generated test-only observer artefacts (`capi_field_observer.f95` and `observer_manifest.rs`), excluded from production wheels (`build.rs` panics if `capi-observer` is combined with `python-extension`). |
 | `scripts/suews/gen_capi_field_observer.py` | Deterministic stdlib-only generator and `--check` CI validator for `test_observer/`. |
 | `scripts/suews/check_bridge_manifest.py` | CI check ensuring every `TYPE, PUBLIC` in `src/suews/src/*.f95` is tracked in `bridge-manifest.json`. |
@@ -310,7 +327,7 @@ make bridge
 cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics
 cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,arrow-output
 
-# Fortran C-API field-binding observer tests (all 49 manifest types)
+# C-API observer: 42 live-receiver types + 7 non-unpacked companion checks
 cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer
 
 # Lint-only Clippy and rustdoc checks (no Fortran libraries required)

@@ -1,21 +1,7 @@
 {
   "description": "Classified Layer 1 schema contract ledger and shrink-only ratchets (#2097, part of #2083). Distinguishes runtime-derived, documented conditional, and legitimately nullable fields from unclassified debt so shrinking ratchets cannot be gamed by inventing static defaults.",
   "baseline_commit": "b438c677c0",
-  "validator_warning_swallows": {
-    "src/supy/data_model/core/config.py::SUEWSConfig.set_surface_types_validation": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "handlers": [
-        {
-          "except_type": "Exception",
-          "try_body_sha256": "a2d4e623ee7f24d975f4764bce3d1a6daf89d3704e0e04af642ed205188d22b2",
-          "protected_op": "surface_prop.set_surface_type(surface_type)"
-        }
-      ],
-      "count": 1,
-      "reason": "Legacy except Exception handler downgrades WaterDistribution.validate_distribution ValueError to UserWarning; removed by PR #2117."
-    }
-  },
+  "validator_warning_swallows": {},
   "doc_required_when_pending_from_yaml": {
     "IrrigationParams.ie_start": {
       "owner_issue": "#2083",
@@ -24,51 +10,6 @@
     "IrrigationParams.ie_end": {
       "owner_issue": "#2083",
       "current_enforcement": "Phase B validate_irrigation_doy (phase_b_rules.other_rules)"
-    },
-    "WaterDistribution.to_bldgs": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_bsoil": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_dectr": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_evetr": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_grass": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_paved": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_runoff": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_soilstore": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
-    },
-    "WaterDistribution.to_water": {
-      "owner_issue": "#2086",
-      "owner_pr": "#2117",
-      "current_enforcement": "UserWarning via SUEWSConfig.set_surface_types_validation; direct WaterDistribution.validate_distribution raises ValueError"
     }
   },
   "groups": {
@@ -149,23 +90,23 @@
       "reason": "Optional nested sub-model or temporal profile that may be None when its governing physics option is inactive."
     },
     "debt_opt_stebbs_archetype": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "STEBBS archetype numeric field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_stebbs_props": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "STEBBS numeric/enum field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_surface_thresholds": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "Surface/snow threshold parameter typed Optional[FlexibleRefValue] with non-None default; explicit null bypasses DataModelBase null rejection."
     },
     "debt_opt_bioco2_enh": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "Biogenic CO2 enhancement parameter typed Optional[FlexibleRefValue] with non-None default without active-method null guard."
     },
     "debt_opt_surface_init_temp": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2003",
       "reason": "SurfaceInitialState temperature typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_building_layer_optical": {
@@ -173,7 +114,7 @@
       "reason": "BuildingLayer optical property typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_plain_scalars": {
-      "owner_issue": "#2087",
+      "owner_issue": "#2101",
       "reason": "Plain Optional scalar/metadata field carrying a non-None default (profiles, archetype_name, legacy Conductance.ref placeholder)."
     }
   },

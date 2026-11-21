@@ -3,15 +3,27 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import re
 
 import pytest
 
 from supy.data_model.core.config import SUEWSConfig
-from supy.data_model.core.hydro import StorageDrainParams
+from supy.data_model.core.hydro import StorageDrainParams, WaterDistribution
 from supy.data_model.core.model import OutputControl
 from supy.data_model.core.physics_families import PHYSICS_FAMILIES, resolve_scalar_name
+from supy.data_model.core.site import (
+    DectrProperties,
+    EvetrProperties,
+    GrassProperties,
+)
+from supy.data_model.core.surface import (
+    BldgsProperties,
+    BsoilProperties,
+    PavedProperties,
+    WaterProperties,
+)
 from supy.data_model.core.physics_orthogonal import (
     coerce_orthogonal_to_flat,
     fold_storage_heat_ohm_inc_qf,
@@ -1102,3 +1114,117 @@ def test_generated_config_reference_never_claims_optional(tmp_path) -> None:
         if "None (optional)" in page.read_text(encoding="utf-8")
     ]
     assert not offenders
+
+
+def test_generated_waterdistribution_rst_matches_validation_contract(tmp_path) -> None:
+    """Generated waterdistribution.rst states sfr>0, zero-normalisation, and post-load rules."""
+    # ARRANGE
+    module = _load_generator_module()
+    doc_data = module.ModelDocExtractor().extract_all_models()
+
+    # ACT
+    module.RSTGenerator(doc_data).generate_all_rst(tmp_path, style="hybrid")
+    page = (tmp_path / "waterdistribution.rst").read_text(encoding="utf-8")
+
+    # ASSERT
+    assert ":ref:`waterdist_yaml_rules`" in page
+    assert "``sfr > 0``" in page
+    assert "``sfr == 0``" in page
+    assert "normalised to absent" in page
+    assert "post-load" in page
+    assert "to_runoff:" in page
+    assert "value: 0.98" in page
+    assert "to_grass:" in page
+    assert "value: 0.02" in page
+    for field in (
+        "to_paved",
+        "to_bldgs",
+        "to_dectr",
+        "to_evetr",
+        "to_grass",
+        "to_bsoil",
+        "to_water",
+        "to_runoff",
+        "to_soilstore",
+    ):
+        assert f".. input:option:: {field}" in page
+    assert ":Status: Required when" in page
+
+
+def test_waterdist_user_docs_and_committed_schema_match_implementation() -> None:
+    """Maintained user docs and committed schema.json agree with WaterDistribution rules."""
+    # ARRANGE / ACT
+    transition_guide = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "transition_guide.rst"
+    ).read_text(encoding="utf-8")
+    yaml_index = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "yaml" / "index.rst"
+    ).read_text(encoding="utf-8")
+    yaml_validation = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "yaml" / "validation.rst"
+    ).read_text(encoding="utf-8")
+    legacy_table = (
+        PROJECT_ROOT
+        / "docs"
+        / "source"
+        / "inputs"
+        / "tables"
+        / "SUEWS_SiteInfo"
+        / "SUEWS_WithinGridWaterDist.rst"
+    ).read_text(encoding="utf-8")
+    committed_schema = json.loads(
+        (
+            PROJECT_ROOT / "docs" / "source" / "inputs" / "tables" / "schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    live_wd_schema = WaterDistribution.model_json_schema()
+
+    # ASSERT: transition_guide carries anchor, worked paved example, and all three rules
+    assert ".. _waterdist_yaml_rules:" in transition_guide
+    assert "value: 0.98" in transition_guide
+    assert "value: 0.02" in transition_guide
+    assert "``sfr > 0``" in transition_guide
+    assert "``sfr == 0``" in transition_guide
+    assert "normalised to absent (``None``)" in transition_guide
+    assert "Post-load live mutations" in transition_guide
+
+    # ASSERT: yaml/index.rst qualifies missing-parameter autofill for waterdist
+    assert ":ref:`waterdist_yaml_rules`" in yaml_index
+    assert "mandatory active-surface routing fields" in yaml_index.lower()
+    assert "not silently filled" in yaml_index
+
+    # ASSERT: yaml/validation.rst documents the waterdist Phase C & post-load rules
+    assert ":ref:`waterdist_yaml_rules`" in yaml_validation
+    assert "``sfr > 0``" in yaml_validation
+    assert "normalised to absent at YAML load" in yaml_validation
+
+    # ASSERT: legacy SUEWS_WithinGridWaterDist.txt docs stay intact and cross-link YAML
+    assert "diagonal elements should be zero" in legacy_table
+    assert ":ref:`waterdist_yaml_rules`" in legacy_table
+
+    # ASSERT: committed schema.json WaterDistribution metadata stays synced with live model
+    committed_wd = committed_schema["$defs"]["WaterDistribution"]
+    assert committed_wd["description"] == live_wd_schema["description"]
+    assert committed_wd["title"] == live_wd_schema["title"]
+    for field_name in WaterDistribution.model_fields:
+        if not field_name.startswith("to_"):
+            continue
+        assert (
+            committed_wd["properties"][field_name]["description"]
+            == live_wd_schema["properties"][field_name]["description"]
+        )
+    for surface_cls in (
+        PavedProperties,
+        BldgsProperties,
+        EvetrProperties,
+        DectrProperties,
+        GrassProperties,
+        BsoilProperties,
+        WaterProperties,
+    ):
+        assert (
+            committed_schema["$defs"][surface_cls.__name__]["properties"]["waterdist"][
+                "description"
+            ]
+            == surface_cls.model_fields["waterdist"].description
+        )

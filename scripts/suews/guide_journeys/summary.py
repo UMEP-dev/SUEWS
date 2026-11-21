@@ -40,7 +40,7 @@ def summarise(
     if evidence is None:
         result["behaviour_audit"] = {
             "status": "unrun",
-            "reason": "Select tagged-dev11 to run the installed software audit.",
+            "reason": f"Select {manifest['behaviour_audit']['journey']} to run the installed software audit.",
         }
         result["inventory"] = {"status": "unrun"}
         return result
@@ -57,7 +57,9 @@ def summarise(
     }
     audit = evidence["behaviour_audit"]
     result["schema_enumerations"] = {
-        "surface": compare_values(audit["surface_enum_available"], ["paved", "bldgs"])
+        "surface": compare_values(
+            audit["surface_enum_available"], manifest["schema_enumerations"]["surface"]
+        )
     }
     result["behaviour_audit"] = {
         key: value
@@ -135,5 +137,5 @@ def failed_summary(summary: dict) -> bool:
         or inventory_stale
         or summary.get("schema_versions", {}).get("unsupported")
         or summary.get("schema_versions", {}).get("exit_status", 0)
-        or summary.get("behaviour_audit", {}).get("passed") is False
+        or summary.get("behaviour_audit", {}).get("passed") is not True
     )

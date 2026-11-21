@@ -17,11 +17,29 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+import argparse  # noqa: E402 - source imports follow path setup
+import subprocess  # noqa: E402 - source imports follow path setup
+
+from scripts.suews.guide_journeys.extractor import (  # noqa: E402 - source imports follow path setup
+    Document,
+)
+from scripts.suews.guide_journeys.manifest import (  # noqa: E402 - source imports follow path setup
+    load,
+)
+from scripts.suews.guide_journeys.oracle import (  # noqa: E402 - source imports follow path setup
+    snapshot,
+)
 from scripts.suews.guide_journeys.record import (  # noqa: E402 - source script imports follow path setup
     new_record,
     write,
 )
-from scripts.suews.guide_journeys.runner import run_steps  # noqa: E402
+from scripts.suews.guide_journeys.replays import (  # noqa: E402 - source imports follow path setup
+    assert_counterexample,
+)
+from scripts.suews.guide_journeys.runner import (  # noqa: E402 - source imports follow path setup
+    run_journey,
+    run_steps,
+)
 
 pytestmark = pytest.mark.api
 
@@ -89,8 +107,6 @@ def test_failed_creation_stops_consumer_and_records_lines(tmp_path):
 
 def test_counterexample_requires_planted_bytes_across_migration(tmp_path):
     """A skip must preserve the pinned stale file, not merely leave any file."""
-    from scripts.suews.guide_journeys.oracle import snapshot
-    from scripts.suews.guide_journeys.replays import assert_counterexample
 
     output = tmp_path / "stale.yml"
     output.write_text("planted\n", encoding="utf-8")
@@ -121,10 +137,6 @@ def test_counterexample_requires_planted_bytes_across_migration(tmp_path):
 @pytest.mark.parametrize("failure", ["step", "wheel", "history"])
 def test_setup_errors_preserve_failure_record(tmp_path, failure):
     """Binding, wheel and historical setup errors retain run and reviewed revisions."""
-    import argparse
-    from scripts.suews.guide_journeys.extractor import Document
-    from scripts.suews.guide_journeys.manifest import load
-    from scripts.suews.guide_journeys.runner import run_journey
 
     manifest = load(_REPO_ROOT / "test/docs/journeys/transition_guide.yml")
     text = (_REPO_ROOT / manifest["guide"]).read_text(encoding="utf-8")
@@ -160,7 +172,6 @@ def test_setup_errors_preserve_failure_record(tmp_path, failure):
 
 def test_malformed_manifest_writes_setup_record(tmp_path):
     """CLI setup errors produce JSON evidence instead of a bare traceback."""
-    import subprocess
 
     manifest = tmp_path / "broken.yml"
     manifest.write_text("format: [\n", encoding="utf-8")

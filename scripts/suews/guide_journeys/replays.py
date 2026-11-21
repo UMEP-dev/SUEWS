@@ -1,12 +1,13 @@
 """Deliberately bypass the normal provenance gate to demonstrate the historical harm."""
 
 from pathlib import Path
+import re
 
 from .environment import execute
 from .oracle import evaluate, snapshot
 
 
-def replay_consumer(spec: dict, work: Path, env: dict, stale: bool) -> dict:
+def replay_consumer(spec: dict, work: Path, env: dict, stale: bool, path: str) -> dict:
     """Assert a missing-path usage error or successful validation of a stale copy."""
     before = snapshot(work)
     process = execute(spec["command"], work, env)
@@ -14,7 +15,7 @@ def replay_consumer(spec: dict, work: Path, env: dict, stale: bool) -> dict:
         [
             {"kind": "json", "pointer": "/data/is_valid", "expected": True},
             {"kind": "json", "pointer": "/errors", "expected": []},
-            {"kind": "unchanged", "path": "site.migrated.yml"},
+            {"kind": "unchanged", "path": path},
         ]
         if stale
         else [
@@ -26,9 +27,9 @@ def replay_consumer(spec: dict, work: Path, env: dict, stale: bool) -> dict:
             {
                 "kind": "diagnostic",
                 "stream": "stderr",
-                "pattern": r"site\.migrated\.yml",
+                "pattern": re.escape(path),
             },
-            {"kind": "absent", "path": "site.migrated.yml"},
+            {"kind": "absent", "path": path},
         ]
     )
     after = snapshot(work)
@@ -93,7 +94,11 @@ def assess_replay(
         record, journey["expected_failure"]
     )
     record["diagnostic_replay"] = replay_consumer(
-        consumer, work, env, journey.get("plant_stale", False)
+        consumer,
+        work,
+        env,
+        bool(journey.get("plant_stale")),
+        journey["expected_failure"]["path"],
     )
     if planted := record.get("planted_file"):
         replay = record["diagnostic_replay"]

@@ -15,6 +15,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+import yaml  # noqa: E402 - source imports follow path setup
+
 from scripts.suews.guide_journeys.extractor import (  # noqa: E402 - source script imports follow path setup
     Document,
     digest,
@@ -24,6 +26,7 @@ from scripts.suews.guide_journeys.extractor import (  # noqa: E402 - source scri
 from scripts.suews.guide_journeys.manifest import (  # noqa: E402 - source script imports follow path setup
     check,
     load,
+    step_coverage,
 )
 
 pytestmark = pytest.mark.api
@@ -123,7 +126,6 @@ def test_hash_preserves_blank_line_string_content():
 
 def test_documented_and_bound_counts_are_independent():
     """An added instruction is counted even before it receives a binding."""
-    from scripts.suews.guide_journeys.manifest import step_coverage
 
     manifest = load(MANIFEST)
     text = (ROOT / manifest["guide"]).read_text(encoding="utf-8")
@@ -141,7 +143,6 @@ def test_documented_and_bound_counts_are_independent():
 @pytest.mark.parametrize("mutation", ["no-promises", "no-delta", "outcome-no-delta"])
 def test_manifest_rejects_weak_promises(tmp_path, mutation):
     """Documented instructions and created files require substantive promises."""
-    import yaml
 
     manifest = load(MANIFEST)
     journey = manifest["journeys"][0]

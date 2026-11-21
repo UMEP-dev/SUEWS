@@ -22,12 +22,12 @@ from .summary import failed_summary, summarise
 FORCING_SETUP = """
 from importlib.resources import files
 from pathlib import Path
-import subprocess
-import hashlib,json
-resource = files('supy') / 'sample_data' / 'Kc_2012_data_60.txt'
+import hashlib,json,sys
+spec = json.loads(sys.argv[1])
+resource = files(spec['package']).joinpath(*spec['path'].split('/'))
 data = resource.read_bytes()
-Path('Kc_2012_data_60.txt').write_bytes(data)
-print(json.dumps({'resource':'supy/sample_data/Kc_2012_data_60.txt',
+Path(spec['target']).write_bytes(data)
+print(json.dumps({'resource':spec['package']+'/'+spec['path'],
                   'sha256':hashlib.sha256(data).hexdigest()}))
 """
 
@@ -149,6 +149,26 @@ def inspect_installed(work: Path, env: dict) -> dict:
     }
 
 
+def bind_journey(
+    root: Path, manifest: dict, document: Document, journey: dict, record: dict
+) -> list[dict]:
+    """Resolve source commands while retaining their separate reviewed revision."""
+    text = (root / manifest["guide"]).read_text(encoding="utf-8")
+    if journey.get("historical"):
+        history = manifest["historical"]
+        record.update(guide_path=history["path"], revision_reviewed=history["revision"])
+        path = root / history["path"]
+        if sha256(path) != history["sha256"]:
+            raise ValueError("Historical guide checksum mismatch")
+        text = path.read_text(encoding="utf-8")
+        record["guide_text"] = text
+        specs = historical_steps(text, manifest, journey)
+    else:
+        record["guide_text"] = text
+        specs = resolve_steps(document, manifest, journey)
+    return specs
+
+
 def run_journey(
     root: Path,
     manifest: dict,
@@ -160,21 +180,7 @@ def run_journey(
     record = new_record(manifest, args.revision, journey, "")
     started = time.monotonic()
     try:
-        text = (root / manifest["guide"]).read_text(encoding="utf-8")
-        if journey.get("historical"):
-            history = manifest["historical"]
-            record.update(
-                guide_path=history["path"], revision_reviewed=history["revision"]
-            )
-            path = root / history["path"]
-            if sha256(path) != history["sha256"]:
-                raise ValueError("Historical guide checksum mismatch")
-            text = path.read_text(encoding="utf-8")
-            record["guide_text"] = text
-            specs = historical_steps(text, manifest, journey)
-        else:
-            record["guide_text"] = text
-            specs = resolve_steps(document, manifest, journey)
+        specs = bind_journey(root, manifest, document, journey, record)
         record["wheel_sha256"] = sha256(args.wheel)
         record["steps"] = [unrun_step(spec) for spec in specs]
         for fixture_id in journey["inputs"].values():
@@ -190,22 +196,23 @@ def run_journey(
         record["input_sha256s"] = setup_inputs(root, manifest, journey, work)
         if journey.get("plant_stale"):
             record["planted_file"] = {
-                "path": "site.migrated.yml",
-                "sha256": record["input_sha256s"]["site.migrated.yml"],
+                "path": journey["plant_stale"],
+                "sha256": record["input_sha256s"][journey["plant_stale"]],
             }
-        record["forcing_setup"] = isolated_python(FORCING_SETUP, work, env)
-        if journey["id"] == "tagged-dev11":
+        forcing = manifest["forcing_resource"]
+        record["forcing_setup"] = isolated_python(
+            FORCING_SETUP, work, env, [json.dumps(forcing)]
+        )
+        if journey["id"] == manifest["behaviour_audit"]["journey"]:
             record.update(inspect_installed(work, env))
-        record["input_sha256s"]["Kc_2012_data_60.txt"] = record["forcing_setup"][
-            "sha256"
-        ]
+        record["input_sha256s"][forcing["target"]] = record["forcing_setup"]["sha256"]
         initial = snapshot(work)
         pinned = {
             name: initial[name]
             for name in journey["inputs"]
-            if name != "site.migrated.yml"
+            if name != journey.get("plant_stale")
         }
-        pinned["Kc_2012_data_60.txt"] = initial["Kc_2012_data_60.txt"]
+        pinned[forcing["target"]] = initial[forcing["target"]]
         for command in ("suews schema migrate", "suews validate", "suews convert"):
             record["installed_help"][command] = execute(command + " --help", work, env)
         record["steps"], record["first_unrun_consumer"] = run_steps(
@@ -223,7 +230,10 @@ def run_journey(
         record["status"] = "passed" if passed else "failed"
         record["accepted"] = passed
         if "expected_failure" in journey:
-            assess_replay(record, journey, specs[1], work, env)
+            consumer = next(
+                s for s in specs if s["id"] == journey["expected_failure"]["consumer"]
+            )
+            assess_replay(record, journey, consumer, work, env)
     except (
         ValueError,
         OSError,
@@ -242,8 +252,8 @@ def run_journey(
     return record
 
 
-def main() -> int:
-    """Run source checks or every manifest journey, with evidence outside checkout."""
+def arguments() -> argparse.Namespace:
+    """Parse arguments and reserve a fresh evidence directory."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--manifest", type=Path, default=Path("test/docs/journeys/transition_guide.yml")
@@ -272,11 +282,21 @@ def main() -> int:
                 "Use a fresh output directory; previous evidence is never overwritten"
             )
         args.output.mkdir(parents=True)
+    return args
+
+
+def main() -> int:
+    """Run source checks or every manifest journey, with evidence outside checkout."""
+    args = arguments()
+    root = Path.cwd().resolve()
     try:
         manifest = load(args.manifest)
         text = (root / manifest["guide"]).read_text(encoding="utf-8")
         document = Document(text, manifest["title"])
         stale = check(document, manifest, args.revision)
+        selected = set(args.journey or [j["id"] for j in manifest["journeys"]])
+        if selected - {j["id"] for j in manifest["journeys"]}:
+            raise ValueError("Unknown journey ID")
     except (
         ValueError,
         OSError,
@@ -316,9 +336,6 @@ def main() -> int:
         record.update(status="stale", failure=stale)
         write(args.output / "staleness.json", record)
         return 1
-    selected = set(args.journey or [j["id"] for j in manifest["journeys"]])
-    if selected - {j["id"] for j in manifest["journeys"]}:
-        parser.error("Unknown journey ID")
     records = []
     for journey in manifest["journeys"]:
         if journey["id"] in selected:

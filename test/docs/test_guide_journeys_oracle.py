@@ -10,6 +10,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+import yaml  # noqa: E402 - source imports follow path setup
+
 from scripts.suews.guide_journeys.oracle import (  # noqa: E402 - source script imports follow path setup
     evaluate,
     require_provenance,
@@ -99,7 +101,6 @@ def test_malformed_created_yaml_is_a_recordable_failure(tmp_path):
 
 def test_nonzero_recovery_diagnostic_requires_migration_failure(tmp_path):
     """The real diagnostic wording and field path matter, including wrapped cells."""
-    import yaml
 
     manifest = yaml.safe_load(
         (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(

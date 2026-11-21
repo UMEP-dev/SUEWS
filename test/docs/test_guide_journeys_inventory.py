@@ -21,6 +21,7 @@ from scripts.suews.guide_journeys.inventory import (  # noqa: E402 - source scri
     compare,
     compare_values,
     coverage,
+    historical_journeys,
     installed_commands,
 )
 from scripts.suews.guide_journeys.summary import (  # noqa: E402 - source imports follow path setup
@@ -100,23 +101,33 @@ def test_unrestricted_values_need_execution_witnesses():
             "steps": [
                 {
                     "id": "long",
+                    "kind": "documented",
                     "status": "passed",
                     "argv": ["suews", "convert", "--input", "site.yml"],
                 },
                 {
                     "id": "short",
+                    "kind": "documented",
                     "status": "passed",
                     "argv": ["suews", "convert", "-i=other.yml"],
                 },
                 {
                     "id": "unrun",
+                    "kind": "documented",
                     "status": "unrun",
                     "argv": ["suews", "convert", "-i", "missing.yml"],
                 },
                 {
                     "id": "wrong",
+                    "kind": "documented",
                     "status": "passed",
                     "argv": ["suews", "validate", "-i", "missing.yml"],
+                },
+                {
+                    "id": "probe",
+                    "kind": "probe",
+                    "status": "passed",
+                    "argv": ["suews", "convert", "-i", "missing.yml"],
                 },
             ],
         }
@@ -133,14 +144,14 @@ def test_unrestricted_values_need_execution_witnesses():
     }
     declared["convert"]["documented"] = {"--input": ["site.yml", "missing.yml"]}
     result = compare(commands, declared)
-    unrestricted_coverage(result, records, commands)
+    unrestricted_coverage(result, records, commands, set())
     values = result["convert"]["unrestricted"]["--input"]
     assert values["exercised"] == {"site.yml": ["example:long"]}
     assert values["missed"] == ["missing.yml"]
     summary = {"inventory": result, "journeys": [], "behaviour_audit": {"passed": True}}
     assert failed_summary(summary)
     records[0]["steps"][2]["status"] = "passed"
-    unrestricted_coverage(result, records, commands)
+    unrestricted_coverage(result, records, commands, set())
     assert not failed_summary(summary)
 
 
@@ -214,3 +225,66 @@ def test_historical_runs_cannot_credit_corrected_steps_or_choices():
     assert all(c["exercised_by"] == [] for c in result["choices"])
     historical = {c["id"]: c for c in result["historical_choices"]}
     assert historical["earlier-stale"]["exercised_by"] == ["earlier-stale"]
+
+
+def test_historical_and_probe_runs_cannot_witness_or_credit_corrected_coverage():
+    """Neither an earlier-guide replay nor a probe is evidence for the corrected guide."""
+    manifest = yaml.safe_load(
+        (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    manifest["combinations"].append({
+        "id": "corrected-example",
+        "choices": [],
+        "journeys": ["earlier-stale"],
+    })
+    records = [
+        {
+            "journey_id": "earlier-stale",
+            "seconds": 1,
+            "steps": [{"id": "migrate", "kind": "documented", "status": "failed"}],
+        }
+    ]
+    result = coverage(manifest, records, [], {"documented_steps": 6, "bound_steps": 6})
+    untested = {c["id"] for c in result["combinations"]["untested"]}
+    assert "corrected-example" in untested
+    assert result["combinations"]["exercised"] == []
+    assert [c["id"] for c in result["historical_combinations"]["exercised"]] == [
+        "untagged-stale-output"
+    ]
+
+    commands = installed_commands()
+    declared = {
+        name: {
+            "documented": {},
+            "excluded": dict.fromkeys(c["options"], "outside test"),
+        }
+        for name, c in commands.items()
+    }
+    declared["migrate"]["documented"] = {"--target-version": ["2026.6.dev12"]}
+    argv = [
+        "suews",
+        "schema",
+        "migrate",
+        "site.yml",
+        "--target-version",
+        "2026.6.dev12",
+    ]
+    probe = {
+        "journey_id": "tagged-dev11",
+        "steps": [{"id": "probe", "kind": "probe", "status": "passed", "argv": argv}],
+    }
+    historical = {
+        "journey_id": "earlier-stale",
+        "steps": [
+            {"id": "migrate", "kind": "documented", "status": "passed", "argv": argv}
+        ],
+    }
+    inventory = compare(commands, declared)
+    unrestricted_coverage(
+        inventory, [probe, historical], commands, historical_journeys(manifest)
+    )
+    values = inventory["migrate"]["unrestricted"]["--target-version"]
+    assert values["exercised"] == {}
+    assert values["missed"] == ["2026.6.dev12"]

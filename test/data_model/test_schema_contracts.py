@@ -657,7 +657,42 @@ def _make_soil_field_capacity_spec(
     )
 
 
+ROUTING_RULES = (
+    *(("paved", k) for k in WATER_DISTRIBUTION_REQUIRED["paved"]),
+    ("bldgs", "to_paved"),
+    ("grass", "to_soilstore"),
+)
+
+
+def _routing_spec(surface: str, field: str) -> RequiredRuleSpec:
+    def prepare(base: dict[str, Any], active: bool, missing: bool) -> dict[str, Any]:
+        data = copy.deepcopy(base)
+        other = "grass" if surface == "paved" else "paved"
+        _set_surface_fractions(
+            data, **{surface: 0.5 if active else 0.0, other: 0.5 if active else 1.0}
+        )
+        required = WATER_DISTRIBUTION_REQUIRED[surface]
+        values = dict.fromkeys(required, 0.0)
+        values[next(k for k in required if k != field)] = 1.0
+        if missing:
+            del values[field]
+        data["sites"][0]["properties"]["land_cover"][surface]["waterdist"] = values
+        return data
+
+    return RequiredRuleSpec(
+        case_id=f"WaterDistribution.{field}[{surface}]",
+        model_name="WaterDistribution",
+        field_name=field,
+        active_method=f"{surface}.sfr > 0",
+        error_pattern=rf"Missing required field {field} for {surface}",
+        build_active_missing=lambda base: prepare(base, True, True),
+        build_inactive_missing=lambda base: prepare(base, False, True),
+        build_active_valid=lambda base: prepare(base, True, False),
+    )
+
+
 ACTIVE_FROM_YAML_SPECS: tuple[RequiredRuleSpec, ...] = (
+    *(_routing_spec(surface, field) for surface, field in ROUTING_RULES),
     *(_make_conductance_spec(field) for field in CONDUCTANCE_REQUIRED),
     _make_lai_spec("lai_max", modelled_only=False),
     *(
@@ -824,23 +859,14 @@ def test_doc_required_when_end_to_end_from_yaml(
         ("grass", SurfaceType.GRASS, "to_soilstore"),
     ],
 )
-def test_water_distribution_required_fields_contract_and_pr2117_ratchet(
+def test_water_distribution_direct_required_fields_and_whole_block_defaults(
     surface_name: str,
     surface_type: SurfaceType,
     missing_field: str,
     compact_sample_dict: dict[str, Any],
     tmp_path: Path,
 ) -> None:
-    """Exercise ``WaterDistribution`` valid/omitted YAML and ratchet PR #2117 handoff.
-
-    Every ``WaterDistribution`` destination in ``DOC_REQUIRED_WHEN`` is tested
-    for: (a) direct ``validate_distribution`` rejection when missing,
-    (b) omitted ``waterdist`` block taking surface-specific defaults via
-    ``SUEWSConfig.from_yaml``, (c) explicit valid ``waterdist`` succeeding via
-    ``SUEWSConfig.from_yaml``, and (d) explicit check against the pending
-    PR #2117 ledger entry so once #2117 lands the pending entry must be removed
-    and promoted into ``ACTIVE_FROM_YAML_SPECS``.
-    """
+    """Check direct field validation, defaults for an omitted block and a complete YAML block."""
     # ARRANGE: direct WaterDistribution model rejects any missing destination
     required = WATER_DISTRIBUTION_REQUIRED[surface_name]
     complete = dict.fromkeys(required, 0.0)
@@ -851,7 +877,7 @@ def test_water_distribution_required_fields_contract_and_pr2117_ratchet(
     with pytest.raises(ValueError, match=rf"Missing required field {missing_field}"):
         wd.validate_distribution(surface_type)
 
-    # Inactive: omitted waterdist block takes surface-specific defaults cleanly
+    # Omitting the whole block applies the defaults for the selected surface.
     d_omitted = copy.deepcopy(compact_sample_dict)
     d_omitted["sites"][0]["properties"]["land_cover"][surface_name].pop(
         "waterdist", None
@@ -869,28 +895,6 @@ def test_water_distribution_required_fields_contract_and_pr2117_ratchet(
     }
     cfg_valid = _load_from_yaml(d_valid, tmp_path, "wd_valid.yml")
     assert isinstance(cfg_valid, SUEWSConfig)
-
-    # Pending PR #2117 ratchet check: once from_yaml propagates ValueError,
-    # remove WaterDistribution.* from doc_required_when_pending_from_yaml.
-    baseline = _load_baseline()
-    key = f"WaterDistribution.{missing_field}"
-    assert key in baseline["doc_required_when_pending_from_yaml"]
-    assert baseline["doc_required_when_pending_from_yaml"][key]["owner_pr"] == "#2117"
-    d_missing = copy.deepcopy(compact_sample_dict)
-    d_missing["sites"][0]["properties"]["land_cover"][surface_name]["waterdist"] = {
-        k: {"value": v} for k, v in incomplete.items()
-    }
-    try:
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            _load_from_yaml(d_missing, tmp_path, "wd_missing.yml")
-    except ValueError as exc:
-        pytest.fail(
-            f"{key} now raises ValueError through SUEWSConfig.from_yaml ({exc}); "
-            "remove it from doc_required_when_pending_from_yaml and promote it "
-            "into ACTIVE_FROM_YAML_SPECS."
-        )
-    assert any(missing_field in str(w.message) for w in caught)
 
 
 @pytest.mark.parametrize(
@@ -1499,7 +1503,19 @@ def test_validator_warning_swallow_try_body_signature_controls() -> None:
     # ARRANGE
     site_path = "src/supy/data_model/core/config.py"
     site_id = f"{site_path}::SUEWSConfig.set_surface_types_validation"
-    allowlist = {site_id: _load_baseline()["validator_warning_swallows"][site_id]}
+    # This synthetic control must keep running after the real exception is retired.
+    allowlist = {
+        site_id: {
+            "count": 1,
+            "handlers": [
+                {
+                    "except_type": "Exception",
+                    "protected_op": "surface_prop.set_surface_type(surface_type)",
+                    "try_body_sha256": "a2d4e623ee7f24d975f4764bce3d1a6daf89d3704e0e04af642ed205188d22b2",
+                }
+            ],
+        }
+    }
 
     base_source = """
 import warnings

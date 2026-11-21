@@ -764,7 +764,11 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     _surface_type: Literal[SurfaceType.EVETR] = SurfaceType.EVETR
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.EVETR),
-        description="Water distribution for evergreen trees",
+        description=(
+            "Water distribution for evergreen trees (pervious: routes to other "
+            "surfaces and to_soilstore when sfr > 0; to_evetr/to_runoff "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -886,7 +890,11 @@ class DectrProperties(VegetatedSurfaceProperties):
     _surface_type: Literal[SurfaceType.DECTR] = SurfaceType.DECTR
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.DECTR),
-        description="Water distribution for deciduous trees",
+        description=(
+            "Water distribution for deciduous trees (pervious: routes to other "
+            "surfaces and to_soilstore when sfr > 0; to_dectr/to_runoff "
+            "inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
@@ -973,7 +981,10 @@ class GrassProperties(VegetatedSurfaceProperties):
     _surface_type: Literal[SurfaceType.GRASS] = SurfaceType.GRASS
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.GRASS),
-        description="Water distribution for grass",
+        description=(
+            "Water distribution for grass (pervious: routes to other surfaces "
+            "and to_soilstore when sfr > 0; to_grass/to_runoff inapplicable)."
+        ),
         json_schema_extra={"display_name": "Water Distribution"},
     )
 

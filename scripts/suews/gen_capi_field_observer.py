@@ -13,7 +13,8 @@ ASCII-only test artefacts outside ``src/suews_bridge/c_api/``:
 
 The Fortran observer calls each real ``*_unpack`` routine into a fresh kernel
 derived-type instance and reads back every named component directly via typed
-Fortran helpers, never relying on ``*_shadow`` or ``*_pack`` roundtrips.
+Fortran helpers. For ``SUEWS_FORCING``, it exercises the driver routine that
+loads each meteorological input row into the same kernel type.
 
 Use ``--check`` in CI and tests to verify committed generated files match
 fresh output byte for byte. This script is intentionally stdlib-only.
@@ -435,8 +436,8 @@ NON_UNPACKED_SPECS: dict[str, str] = {
         "only with no c_api unpack routine (gh#2096)."
     ),
     "suews_forcing": (
-        "Per-timestep forcing struct has only shadow default facade; driver.f95 "
-        "unpacks forcing as a 32-column metforcing_block matrix directly (gh#2096)."
+        "No C-API flat unpacker. The typed forcing-row observer exercises the production "
+        "SUEWS_Driver::SUEWS_load_forcing_row matrix reader (gh#2096)."
     ),
     "suews_state_block": (
         "Sequence of SUEWS_STATE snapshots; Rust CompositeCodec only with no "
@@ -1605,7 +1606,21 @@ def audit_manifest_and_inventory(
             tdef.name, types_by_lower, all_unbridged
         )
 
+    leaves_by_type["suews_forcing"] = expand_type_leaves("SUEWS_FORCING", types_by_lower, {})
     return manifest_entries, leaves_by_type
+
+
+def _forcing_scalars(leaves: list[LeafField]) -> list[LeafField]:
+    """All scalar members plus the separately observed legacy runtime array exhaust this type."""
+    scalars = [leaf for leaf in leaves if leaf.kind == "real" and leaf.rank == 0]
+    others = [
+        (leaf.path.lower(), leaf.kind, leaf.rank, leaf.allocatable)
+        for leaf in leaves
+        if leaf not in scalars
+    ]
+    if others != [("ts5mindata_ir", "real", 1, True)]:
+        raise CoverageInventoryError(f"unreviewed SUEWS_FORCING components: {others}")
+    return scalars
 
 
 def emit_fortran_observer(
@@ -1622,12 +1637,14 @@ def emit_fortran_observer(
 
     # Group kernel TYPE USE imports deterministically by module name.
     kernel_uses: dict[str, list[str]] = {}
-    for key in sorted((*DIRECT_UNPACK_SPECS, *DRIVER_PRIVATE_UNPACK_SPECS)):
+    for key in sorted((*DIRECT_UNPACK_SPECS, *DRIVER_PRIVATE_UNPACK_SPECS, "suews_forcing")):
         tdef = types_by_lower[key]
         kernel_uses.setdefault(tdef.module, []).append(tdef.name)
     for mod_name in sorted(kernel_uses):
         names = ", ".join(sorted(kernel_uses[mod_name]))
         lines.append(f"   use {mod_name}, only: {names}")
+
+    lines.append("   use SUEWS_Driver, only: SUEWS_load_forcing_row")
 
     # Import every public *_unpack routine plus the driver aggregate unpackers.
     for key in sorted(DIRECT_UNPACK_SPECS):
@@ -1642,6 +1659,7 @@ def emit_fortran_observer(
         "",
         "   implicit none",
         "   private",
+        "   public :: suews_obs_forcing_rows",
         "",
         "   integer(c_int), parameter :: OBS_KIND_REAL = 1_c_int",
         "   integer(c_int), parameter :: OBS_KIND_INT = 2_c_int",
@@ -1953,6 +1971,33 @@ def emit_fortran_observer(
         leaves = leaves_by_type[key]
         lines.extend(_emit_fortran_type_observer(tdef, spec, leaves))
 
+    # Keep component names independent of the column numbers consumed by the real driver.
+    scalars = _forcing_scalars(leaves_by_type["suews_forcing"])
+    lines.extend([
+        "   subroutine suews_obs_forcing_rows(block, observed, ts5) bind(C)",
+        "      real(c_double), intent(in) :: block(2, 32)",
+        "      integer :: row",
+        f"      real(c_double), intent(out) :: observed({len(scalars)}, 2), ts5(2, 2)",
+        "      type(SUEWS_FORCING) :: actual",
+        "",
+        "      actual%Tair_av_5d = -7.25d0",
+        "      actual%Ts5mindata_ir = [-3.5d0, 4.75d0]",
+        "      do row = 1, 2",
+        "         call SUEWS_load_forcing_row(actual, block, row)",
+    ])
+    for index, leaf in enumerate(scalars, 1):
+        lines.append(f"         observed({index}, row) = actual%{leaf.path}")
+    lines.extend([
+        "         ts5(:, row) = 0.0d0",
+        "         if (allocated(actual%Ts5mindata_ir)) then",
+        "            if (lbound(actual%Ts5mindata_ir, 1) == 1 .and. ubound(actual%Ts5mindata_ir, 1) == 2) then",
+        "               ts5(:, row) = actual%Ts5mindata_ir",
+        "            end if",
+        "         end if",
+        "      end do",
+        "   end subroutine suews_obs_forcing_rows",
+        "",
+    ])
     lines.extend(_emit_fortran_driver_observers(types_by_lower, leaves_by_type))
 
     lines.append("end module module_test_capi_field_observer")
@@ -2521,6 +2566,21 @@ def emit_rust_manifest(
             ])
         lines.extend(["];", ""])
 
+    scalars = _forcing_scalars(leaves_by_type["suews_forcing"])
+    lines.extend(["pub const FORCING_SCALARS: &[&str] = &["])
+    lines.extend(f'    "{leaf.path.lower()}",' for leaf in scalars)
+    lines.extend([
+        "];",
+        "",
+        'extern "C" {',
+        "    pub fn suews_obs_forcing_rows(",
+        "        block: *const f64,",
+        "        observed: *mut f64,",
+        "        ts5: *mut f64,",
+        "    );",
+        "}",
+        "",
+    ])
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
@@ -2596,7 +2656,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(
             f"[OK] C-API field observer artefacts are up to date "
-            f"({len(DIRECT_UNPACK_SPECS)} direct + {len(DRIVER_PRIVATE_UNPACK_SPECS)} driver-aggregate live observers, "
+            f"({len(DIRECT_UNPACK_SPECS)} direct + {len(DRIVER_PRIVATE_UNPACK_SPECS)} driver-aggregate + 1 forcing-row live observer, "
             f"{len(DIRECT_UNPACK_SPECS) + len(NESTED_IN_PARENT_SPECS) + len(DRIVER_PRIVATE_UNPACK_SPECS) + len(NON_UNPACKED_SPECS)} "
             "manifest types covered)."
         )

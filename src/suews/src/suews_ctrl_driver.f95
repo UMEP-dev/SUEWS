@@ -862,33 +862,7 @@ CONTAINS
             timer, siteInfo, siteInfo%anthroemis, &
             config%ForcingTimestampReference)
 
-         ! === Update forcing from forcing block ===
-         ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)
-         forcing%qn1_obs = MetForcingBlock(ir, 5)
-         forcing%qs_obs = MetForcingBlock(ir, 8)
-         forcing%qf_obs = MetForcingBlock(ir, 9)
-         forcing%U = MetForcingBlock(ir, 10)
-         forcing%RH = MetForcingBlock(ir, 11)
-         forcing%temp_c = MetForcingBlock(ir, 12)
-         forcing%pres = MetForcingBlock(ir, 13)
-         forcing%rain = MetForcingBlock(ir, 14)
-         forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snow_fraction = MetForcingBlock(ir, 16)
-         forcing%l_down = MetForcingBlock(ir, 17)
-         forcing%f_cloud = MetForcingBlock(ir, 18)
-         forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_evetr = MetForcingBlock(ir, 21)
-         forcing%LAI_dectr = MetForcingBlock(ir, 22)
-         forcing%LAI_grass = MetForcingBlock(ir, 23)
-         forcing%Wu_mm_paved = MetForcingBlock(ir, 24)
-         forcing%Wu_mm_bldgs = MetForcingBlock(ir, 25)
-         forcing%Wu_mm_evetr = MetForcingBlock(ir, 26)
-         forcing%Wu_mm_dectr = MetForcingBlock(ir, 27)
-         forcing%Wu_mm_grass = MetForcingBlock(ir, 28)
-         forcing%Wu_mm_bsoil = MetForcingBlock(ir, 29)
-         forcing%Wu_mm_water = MetForcingBlock(ir, 30)
-         forcing%kdiff = MetForcingBlock(ir, 31)
-         forcing%kdir = MetForcingBlock(ir, 32)
+         CALL SUEWS_load_forcing_row(forcing, MetForcingBlock, ir)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main_impl( &
@@ -935,6 +909,41 @@ CONTAINS
       END SUBROUTINE store_group
 
    END SUBROUTINE SUEWS_cal_multitsteps_dts
+
+   ! Transfer this timestep's measured inputs to the object passed to SUEWS_cal_Main_impl.
+   ! Columns 6 and 7 hold observed QH/QE; column 19 is the legacy bulk water-use slot.
+   ! The kernel consumes the seven resolved surface water-use columns (24 through 30).
+   PURE SUBROUTINE SUEWS_load_forcing_row(forcing, MetForcingBlock, ir)
+      TYPE(SUEWS_FORCING), INTENT(INOUT) :: forcing
+      REAL(KIND(1D0)), DIMENSION(:, :), INTENT(IN) :: MetForcingBlock
+      INTEGER, INTENT(IN) :: ir
+
+      forcing%qn1_obs = MetForcingBlock(ir, 5)
+      forcing%qs_obs = MetForcingBlock(ir, 8)
+      forcing%qf_obs = MetForcingBlock(ir, 9)
+      forcing%U = MetForcingBlock(ir, 10)
+      forcing%RH = MetForcingBlock(ir, 11)
+      forcing%temp_c = MetForcingBlock(ir, 12)
+      forcing%pres = MetForcingBlock(ir, 13)
+      forcing%rain = MetForcingBlock(ir, 14)
+      forcing%kdown = MetForcingBlock(ir, 15)
+      forcing%snow_fraction = MetForcingBlock(ir, 16)
+      forcing%l_down = MetForcingBlock(ir, 17)
+      forcing%f_cloud = MetForcingBlock(ir, 18)
+      forcing%xsmd = MetForcingBlock(ir, 20)
+      forcing%LAI_evetr = MetForcingBlock(ir, 21)
+      forcing%LAI_dectr = MetForcingBlock(ir, 22)
+      forcing%LAI_grass = MetForcingBlock(ir, 23)
+      forcing%Wu_mm_paved = MetForcingBlock(ir, 24)
+      forcing%Wu_mm_bldgs = MetForcingBlock(ir, 25)
+      forcing%Wu_mm_evetr = MetForcingBlock(ir, 26)
+      forcing%Wu_mm_dectr = MetForcingBlock(ir, 27)
+      forcing%Wu_mm_grass = MetForcingBlock(ir, 28)
+      forcing%Wu_mm_bsoil = MetForcingBlock(ir, 29)
+      forcing%Wu_mm_water = MetForcingBlock(ir, 30)
+      forcing%kdiff = MetForcingBlock(ir, 31)
+      forcing%kdir = MetForcingBlock(ir, 32)
+   END SUBROUTINE SUEWS_load_forcing_row
 ! ================================================================================
 
    SUBROUTINE update_debug_info( &

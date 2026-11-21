@@ -2775,3 +2775,90 @@ fn observer_rejects_truncated_flat_buffer() {
     assert_ne!(obs_state.err, SUEWS_CAPI_OK);
     assert!(obs_state.values.is_empty());
 }
+
+#[test]
+fn forcing_matrix_rows_reach_the_named_kernel_members() {
+    use observer_manifest::{suews_obs_forcing_rows, FORCING_SCALARS};
+    use suews_bridge::{SuewsField, FORCING_BLOCK_STRIDE};
+
+    // Fields are named by the production Rust registry. The output names and order
+    // come separately from the kernel TYPE declaration in the generated observer.
+    let inputs = [
+        (SuewsField::qn1_obs, [55.0, 82.5]),
+        (SuewsField::qs_obs, [14.0, 18.0]),
+        (SuewsField::qf_obs, [3.5, 4.5]),
+        (SuewsField::u, [2.0, 2.25]),
+        (SuewsField::rh, [67.0, 73.0]),
+        (SuewsField::temp_c, [12.5, 13.25]),
+        (SuewsField::pres, [1002.5, 1005.0]),
+        (SuewsField::rain, [0.0625, 0.125]),
+        (SuewsField::kdown, [400.0, 475.0]),
+        (SuewsField::snowfrac, [0.25, 0.375]),
+        (SuewsField::ldown, [301.0, 311.0]),
+        (SuewsField::fcld, [0.5, 0.75]),
+        (SuewsField::xsmd, [7.5, 8.25]),
+        (SuewsField::lai_evetr, [2.5, 2.625]),
+        (SuewsField::lai_dectr, [1.125, 1.375]),
+        (SuewsField::lai_grass, [0.875, 0.9375]),
+        (SuewsField::wu_mm_paved, [0.012, 0.014]),
+        (SuewsField::wu_mm_bldgs, [0.021, 0.023]),
+        (SuewsField::wu_mm_evetr, [0.031, 0.029]),
+        (SuewsField::wu_mm_dectr, [0.042, 0.048]),
+        (SuewsField::wu_mm_grass, [0.055, 0.051]),
+        (SuewsField::wu_mm_bsoil, [0.063, 0.067]),
+        (SuewsField::wu_mm_water, [0.074, 0.078]),
+        (SuewsField::kdiff, [131.0, 145.0]),
+        (SuewsField::kdir, [352.0, 388.0]),
+    ];
+    let mut block = [[0.0; 2]; FORCING_BLOCK_STRIDE];
+    block[..4].copy_from_slice(&[[2012.0, 2012.0], [121.0, 121.0], [11.0, 12.0], [55.0, 0.0]]);
+    let mut expected = BTreeMap::new();
+    for (field, rows) in inputs {
+        block[field.index()] = rows;
+        let kernel_name = match field {
+            SuewsField::snowfrac => "snow_fraction",
+            SuewsField::ldown => "l_down",
+            SuewsField::fcld => "f_cloud",
+            _ => field.name(),
+        };
+        assert!(expected.insert(kernel_name, rows).is_none());
+    }
+    // Runtime-owned members must survive both assignments.
+    expected.insert("tair_av_5d", [-7.25; 2]);
+    assert_eq!(expected.len(), FORCING_SCALARS.len());
+
+    // Observed QH/QE and bulk water occupy input slots but have no matching
+    // typed receiver here. Change only these three columns on the second pass.
+    for scale in [1.0, 2.0] {
+        block[SuewsField::qh.index()] = [27.0 * scale, 31.0 * scale];
+        block[SuewsField::qe.index()] = [36.0 * scale, 41.0 * scale];
+        block[SuewsField::wu_mm.index()] = [0.38 * scale, 0.41 * scale];
+        let mut actual = vec![f64::NAN; 2 * FORCING_SCALARS.len()];
+        let mut ts5 = [[f64::NAN; 2]; 2];
+        // Rust stores the two values of each column next to one another, as
+        // Fortran does in block(2,32). Both output buffers hold two full rows.
+        unsafe {
+            suews_obs_forcing_rows(
+                block.as_ptr().cast(),
+                actual.as_mut_ptr(),
+                ts5.as_mut_ptr().cast(),
+            );
+        }
+        for (row, values) in actual.chunks_exact(FORCING_SCALARS.len()).enumerate() {
+            for (&name, &value) in FORCING_SCALARS.iter().zip(values) {
+                assert_eq!(
+                    value,
+                    expected[name][row],
+                    "row {} SUEWS_FORCING%{name}",
+                    row + 1
+                );
+            }
+            assert_eq!(
+                ts5[row],
+                [-3.5, 4.75],
+                "row {} SUEWS_FORCING%Ts5mindata_ir",
+                row + 1
+            );
+        }
+    }
+}

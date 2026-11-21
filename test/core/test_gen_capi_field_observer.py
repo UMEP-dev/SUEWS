@@ -73,7 +73,9 @@ def test_manifest_classification_covers_all_49_types() -> None:
         gen.CAPI_DIR,
     )
     assert len(manifest_entries) == 49
-    assert len(leaves_by_type) == 34
+    assert set(leaves_by_type) == (
+        set(gen.DIRECT_UNPACK_SPECS) | set(gen.DRIVER_PRIVATE_UNPACK_SPECS) | {"suews_forcing"}
+    )
     assert len(gen.DIRECT_UNPACK_SPECS) == 30
     assert len(gen.NESTED_IN_PARENT_SPECS) == 8
     assert len(gen.DRIVER_PRIVATE_UNPACK_SPECS) == 4

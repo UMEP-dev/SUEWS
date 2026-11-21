@@ -6,7 +6,7 @@
 module module_test_capi_field_observer
    use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double
    use module_c_api_common, only: SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER
-   use module_ctrl_type, only: SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, SUEWS_TIMER, flag_STATE
+   use module_ctrl_type, only: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_STATE, SUEWS_TIMER, flag_STATE
    use module_type_anthro, only: anthroEMIS_PRM, anthroEmis_STATE
    use module_type_atmosphere, only: atm_state, solar_State
    use module_type_ehc, only: EHC_PRM
@@ -19,6 +19,7 @@ module module_test_capi_field_observer
    use module_type_surface, only: CONDUCTANCE_PRM, LUMPS_PRM, OHM_STATE, ROUGHNESS_STATE
    use module_type_vegetation, only: PHENOLOGY_STATE
    use module_type_waterdist, only: IRRIGATION_PRM, SURF_STORE_PRM
+   use SUEWS_Driver, only: SUEWS_load_forcing_row
    use module_c_api_anthro_emis_prm, only: anthro_emis_prm_unpack
    use module_c_api_anthro_emis_state, only: anthroemis_state_unpack
    use module_c_api_atm, only: atm_state_unpack
@@ -53,6 +54,7 @@ module module_test_capi_field_observer
 
    implicit none
    private
+   public :: suews_obs_forcing_rows
 
    integer(c_int), parameter :: OBS_KIND_REAL = 1_c_int
    integer(c_int), parameter :: OBS_KIND_INT = 2_c_int
@@ -2645,6 +2647,51 @@ contains
 
       n_out = pos
    end subroutine suews_obs_unpack_surf_store_prm
+
+   subroutine suews_obs_forcing_rows(block, observed, ts5) bind(C)
+      real(c_double), intent(in) :: block(2, 32)
+      integer :: row
+      real(c_double), intent(out) :: observed(26, 2), ts5(2, 2)
+      type(SUEWS_FORCING) :: actual
+
+      actual%Tair_av_5d = -7.25d0
+      actual%Ts5mindata_ir = [-3.5d0, 4.75d0]
+      do row = 1, 2
+         call SUEWS_load_forcing_row(actual, block, row)
+         observed(1, row) = actual%kdown
+         observed(2, row) = actual%kdiff
+         observed(3, row) = actual%kdir
+         observed(4, row) = actual%l_down
+         observed(5, row) = actual%RH
+         observed(6, row) = actual%pres
+         observed(7, row) = actual%Tair_av_5d
+         observed(8, row) = actual%U
+         observed(9, row) = actual%rain
+         observed(10, row) = actual%Wu_mm_paved
+         observed(11, row) = actual%Wu_mm_bldgs
+         observed(12, row) = actual%Wu_mm_evetr
+         observed(13, row) = actual%Wu_mm_dectr
+         observed(14, row) = actual%Wu_mm_grass
+         observed(15, row) = actual%Wu_mm_bsoil
+         observed(16, row) = actual%Wu_mm_water
+         observed(17, row) = actual%f_cloud
+         observed(18, row) = actual%LAI_dectr
+         observed(19, row) = actual%LAI_evetr
+         observed(20, row) = actual%LAI_grass
+         observed(21, row) = actual%snow_fraction
+         observed(22, row) = actual%xsmd
+         observed(23, row) = actual%qf_obs
+         observed(24, row) = actual%qn1_obs
+         observed(25, row) = actual%qs_obs
+         observed(26, row) = actual%temp_c
+         ts5(:, row) = 0.0d0
+         if (allocated(actual%Ts5mindata_ir)) then
+            if (lbound(actual%Ts5mindata_ir, 1) == 1 .and. ubound(actual%Ts5mindata_ir, 1) == 2) then
+               ts5(:, row) = actual%Ts5mindata_ir
+            end if
+         end if
+      end do
+   end subroutine suews_obs_forcing_rows
 
    subroutine suews_obs_unpack_suews_config( &
       flat, n_flat, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, n_out, err) bind(C, name='suews_obs_unpack_suews_config')

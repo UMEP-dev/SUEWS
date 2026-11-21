@@ -831,7 +831,7 @@ pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &[
         name: "SUEWS_FORCING",
         source: "src/suews/src/suews_ctrl_type.f95",
         coverage: ManifestCoverage::NonUnpacked,
-        detail: "Per-timestep forcing struct has only shadow default facade; driver.f95 unpacks forcing as a 32-column metforcing_block matrix directly (gh#2096).",
+        detail: "No C-API flat unpacker. The typed forcing-row observer exercises the production SUEWS_Driver::SUEWS_load_forcing_row matrix reader (gh#2096).",
     },
     ManifestTypeEntry {
         name: "SUEWS_SITE",
@@ -19262,3 +19262,40 @@ pub const OBS_FIELDS_SUEWS_TIMER: &[ObsFieldDescriptor] = &[
         ),
     },
 ];
+
+pub const FORCING_SCALARS: &[&str] = &[
+    "kdown",
+    "kdiff",
+    "kdir",
+    "l_down",
+    "rh",
+    "pres",
+    "tair_av_5d",
+    "u",
+    "rain",
+    "wu_mm_paved",
+    "wu_mm_bldgs",
+    "wu_mm_evetr",
+    "wu_mm_dectr",
+    "wu_mm_grass",
+    "wu_mm_bsoil",
+    "wu_mm_water",
+    "f_cloud",
+    "lai_dectr",
+    "lai_evetr",
+    "lai_grass",
+    "snow_fraction",
+    "xsmd",
+    "qf_obs",
+    "qn1_obs",
+    "qs_obs",
+    "temp_c",
+];
+
+extern "C" {
+    pub fn suews_obs_forcing_rows(
+        block: *const f64,
+        observed: *mut f64,
+        ts5: *mut f64,
+    );
+}

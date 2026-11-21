@@ -819,7 +819,9 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree properties to DataFrame state format."""
         return df_from_col_items(
-            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
+            self._to_df_state_items(grid_id),
+            index=pd.Index([grid_id]),
+            column_names=None,
         )
 
     @classmethod
@@ -945,7 +947,9 @@ class DectrProperties(VegetatedSurfaceProperties):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree properties to DataFrame state format."""
         return df_from_col_items(
-            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
+            self._to_df_state_items(grid_id),
+            index=pd.Index([grid_id]),
+            column_names=None,
         )
 
     @classmethod
@@ -1012,7 +1016,9 @@ class GrassProperties(VegetatedSurfaceProperties):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass properties to DataFrame state format."""
         return df_from_col_items(
-            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
+            self._to_df_state_items(grid_id),
+            index=pd.Index([grid_id]),
+            column_names=None,
         )
 
     @classmethod
@@ -1399,7 +1405,9 @@ class LandCover(DataModelBase):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert land cover to DataFrame state format"""
         return df_from_col_items(
-            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
+            self._to_df_state_items(grid_id),
+            index=pd.Index([grid_id]),
+            column_names=None,
         )
 
     @classmethod
@@ -3454,7 +3462,9 @@ class SiteProperties(DataModelBase):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site properties to DataFrame state format"""
         return df_from_col_items(
-            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
+            self._to_df_state_items(grid_id),
+            index=pd.Index([grid_id]),
+            column_names=None,
         )
 
     @classmethod
@@ -3552,5 +3562,7 @@ class Site(DataModelBase):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site to DataFrame state format"""
         return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+            self._to_df_state_cols(grid_id),
+            index=pd.Index([grid_id]),
+            column_names=None,
         )

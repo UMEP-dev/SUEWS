@@ -544,6 +544,8 @@ def merge_df_state_col_items(
 def df_from_col_items(
     items: Sequence[tuple[tuple[str, str], Any]],
     index: pd.Index,
+    *,
+    column_names: Sequence[str | None] | None = ("var", "ind_dim"),
 ) -> pd.DataFrame:
     """Build a single-row state DataFrame from ordered ``(col_key, value)`` items.
 
@@ -554,14 +556,19 @@ def df_from_col_items(
     col_keys = [k for k, _ in items]
     col_data = {pos: [v] for pos, (_, v) in enumerate(items)}
     df_state = pd.DataFrame(col_data, index=index)
-    df_state.columns = pd.MultiIndex.from_tuples(col_keys, names=["var", "ind_dim"])
+    df_state.columns = pd.MultiIndex.from_tuples(col_keys, names=column_names)
     return df_state
 
 
-def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
+def df_from_cols(
+    cols: dict,
+    index: pd.Index,
+    *,
+    column_names: Sequence[str | None] | None = ("var", "ind_dim"),
+) -> pd.DataFrame:
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(
-        df_state.columns, names=["var", "ind_dim"]
+        df_state.columns, names=column_names
     )
     return df_state
 

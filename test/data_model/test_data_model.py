@@ -1013,16 +1013,37 @@ def test_submodel_to_df_state_and_multisite_column_contracts():
     df_roof0 = site.properties.vertical_layers.roofs[0].to_df_state(1, 0, "roof")
     assert list(df_roof0.columns).count(("gridiv", "0")) == 2
     assert df_roof0.shape == (1, 23)
+    assert df_roof0.index.name == "grid"
 
     df_model = cfg.model.to_df_state(1)
     assert list(df_model.columns).count(("gridiv", "0")) == 3
     assert df_model.shape == (1, 29)
+    assert df_model.index.name == "grid"
+
+    assert site.properties.land_cover.paved.to_df_state(1).index.name == "grid"
+    assert site.properties.land_cover.bldgs.to_df_state(1).index.name == "grid"
+    assert site.properties.land_cover.water.to_df_state(1).index.name == "grid"
+    assert site.initial_states.to_df_state(1).index.name == "grid"
+    assert cfg.to_df_state().index.name == "grid"
+
+    assert site.properties.land_cover.evetr.to_df_state(1).index.name is None
+    assert site.properties.land_cover.dectr.to_df_state(1).index.name is None
+    assert site.properties.land_cover.grass.to_df_state(1).index.name is None
 
     df_lc = site.properties.land_cover.to_df_state(1)
     assert df_lc.shape == (1, 562)
+    assert df_lc.index.name is None
+    assert list(df_lc.columns.names) == [None, None]
 
     df_props = site.properties.to_df_state(1)
     assert df_props.shape == (1, 2748)
+    assert df_props.index.name is None
+    assert list(df_props.columns.names) == [None, None]
+
+    df_site = site.to_df_state(1)
+    assert df_site.shape == (1, 2852)
+    assert df_site.index.name is None
+    assert list(df_site.columns.names) == [None, None]
 
     # Mixed multi-site: site 1 has nlayer=3, site 2 has nlayer=2 and soil_observation=None
     raw_multi = copy.deepcopy(raw)

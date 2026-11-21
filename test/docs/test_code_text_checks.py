@@ -188,7 +188,7 @@ def test_real_public_object_and_cli():
     assert choice["detail"] == {"missing_from_text": [], "extra_in_text": []}
     assert choice["revision"] == revision.sha
     assert choice["file"] == "src/supy/cmd/validate_config.py"
-    assert "scientific transformations" in choice["source"]
+    assert "--science-fixes" in choice["source"]
     assert any(f["object"] == "suews schema export" for f in findings)
     conditional = next(f for f in findings if f["check"] == "choices:--source-unit")
     assert conditional["status"] == "needs-reading"
@@ -241,6 +241,7 @@ def test_revision_source_survives_worktree_edit(tmp_path):
 def test_source_fixture_reports_unsupported_and_literal_default(tmp_path):
     """Unresolved declarations stay unsupported; owned inherited text is checked."""
     source = '''\
+"decorated"  # Unrelated string must not become an export anchor.
 __all__ = ["decorated", "overloaded", "Child", "literal_default"]
 def identity(func):
     return func
@@ -291,6 +292,7 @@ def literal_default(value=3):
     by_key = {(f["object"], f["check"]): f for f in findings}
     for name in ("decorated", "overloaded"):
         assert by_key[f"supy.{name}", "parameters"]["status"] == "unsupported"
+    assert by_key["supy.overloaded", "parameters"]["lines"] == [2, 2]
     assert by_key["supy.Parent.method", "parameters"]["status"] == "mismatch"
     default = by_key["supy.literal_default", "default:value"]
     assert default["status"] == "mismatch"
@@ -368,7 +370,7 @@ def test_colon_format_is_separate_from_unknown_names(name):
         "optional : int\n    Value.\n*args : tuple\n    Extras.\n"
         "**kwargs : dict\n    Keywords.",
     )
-    assert status == "mismatch"
+    assert status == ("mismatch" if name == "invented" else "format")
     assert detail["formats"] == [{"format": "name-colon-type", "text": f"{name}: int"}]
     codes = {e["code"] for e in detail["errors"]}
     assert codes == ({"PR01", "PR02"} if name == "invented" else set())
@@ -443,3 +445,129 @@ def test_model_field_descriptions_use_revision_source(tmp_path):
     assert checks._summarise([*findings, unresolved])["unique_definitions"] == 2
     assert summary["unique_definitions"] == 2
     assert summary["counts_by_check"]["field-descriptions"]["mismatch"] == 2
+
+
+@pytest.mark.parametrize("installed", [None, "", "unknown", "deadbeef"])
+def test_unknown_installed_revision_does_not_match(installed):
+    """Missing metadata must not certify the installed package's provenance."""
+    assert checks.installed_matches_revision("abcdef012345", installed) is False
+
+
+def test_installed_revision_prefix_matches():
+    """Both abbreviated and complete installed hashes can establish a match."""
+    assert checks.installed_matches_revision("abcdef012345", "abcdef") is True
+    assert checks.installed_matches_revision("abcdef012345", "abcdef012345") is True
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Use suews and select --format json.",
+        "Use suews for validation with --format json.",
+    ],
+)
+def test_prose_command_name_keeps_options_in_its_section(line):
+    """Mentioning the executable in prose does not move options to the root."""
+    described, ambiguous = checks.command_documentation(
+        "suews validate\n~~~~~~~~~~~~~~\n" + line,
+        {(), ("validate",)},
+    )
+    assert described[()] == {}
+    assert described["validate",] == {"--format": [3]}
+    assert ambiguous == {}
+
+
+@pytest.mark.parametrize(
+    ("line", "target"),
+    [
+        ("Run suews schema export --help.", ("schema", "export")),
+        ("Run suews --help.", ()),
+        ("Run ``suews --help``.", ()),
+        ("Run ``suews unknown --help``.", ()),
+        ("Example::\n\n    suews --help", ()),
+        ("Example::\n\n    suews unknown --help", ()),
+        (".. code-block:: console\n\n    suews --help", ()),
+    ],
+)
+def test_real_invocations_override_the_section(line, target):
+    """Explicit invocations continue to bind options to their own command."""
+    described, _ = checks.command_documentation(
+        "suews validate\n~~~~~~~~~~~~~~\n" + line,
+        {(), ("validate",), ("schema", "export")},
+    )
+    assert "--help" in described[target]
+    assert described["validate",] == {}
+
+
+def test_prose_after_code_block_keeps_section():
+    """A completed code block must not turn subsequent prose into a command."""
+    described, ambiguous = checks.command_documentation(
+        "suews validate\n~~~~~~~~~~~~~~\n"
+        ".. code-block:: console\n\n    suews --help\n\n"
+        "Use suews and select --format json.",
+        {(), ("validate",)},
+    )
+    assert described[()] == {"--help": [5]}
+    assert described["validate",] == {"--format": [7]}
+    assert ambiguous == {}
+
+
+def test_format_only_summary_is_not_drift():
+    """Formatting stays visible without inflating semantic mismatch counts."""
+    status, detail = checks.parameter_check(
+        lambda value: value,
+        "Example.\n\nParameters\n----------\nvalue: int\n    Value.",
+    )
+    source = checks.Source(
+        "fixture.py",
+        "example",
+        ast.parse("def example(value): pass").body[0],
+        "def example(value): pass",
+    )
+    summary = checks._summarise([
+        checks.result("fixture", source, "example", "parameters", status, detail)
+    ])
+    assert summary["counts_by_check"]["parameters"]["mismatch"] == 0
+    assert summary["counts_by_check"]["parameters"]["format"] == 1
+    assert summary["format_deviations"] == 1
+
+
+@pytest.mark.parametrize(
+    ("text", "lines"),
+    [
+        ('"example"\n__all__ = ["example"]\n', [2, 2]),
+        ('"example"\ndef example(): pass\n', [2, 2]),
+        ('"example"\nfrom elsewhere import example\n', None),
+    ],
+)
+def test_export_anchor_ignores_unrelated_strings(text, lines):
+    """Use an export assignment or definition, otherwise leave lines unknown."""
+    module = ModuleType("supy")
+    module.example = None
+    revision = type(
+        "RevisionFixture",
+        (),
+        {"modules": {"supy": ("src/supy/__init__.py", ast.parse(text), text)}},
+    )()
+    [(name, _obj, anchor, _reason)] = checks.public_objects(revision, module)
+    assert name == "supy.example"
+    assert anchor.binding()["lines"] == lines
+    if lines is None:
+        assert not anchor.binding()["source"]
+
+
+def test_real_python_literal_default():
+    """A package function's revision-backed default is compared with its prose."""
+    revision = checks.Revision(ROOT, "HEAD")
+    module = checks.importlib.import_module("supy._save")
+    findings = list(checks.python_results(revision, module))
+    finding = next(
+        f
+        for f in findings
+        if f["object"] == "supy._save.save_df_output"
+        and f["check"] == "default:include_provisional"
+    )
+    assert finding["status"] == "ok"
+    assert finding["detail"] == {"declared": False, "stated": False}
+    assert finding["revision"] == revision.sha
+    assert "def save_df_output(" in finding["source"]

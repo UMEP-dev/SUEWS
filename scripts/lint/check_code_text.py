@@ -28,7 +28,7 @@ from numpydoc.docscrape import FunctionDoc
 from numpydoc.validate import Validator
 from pydantic import BaseModel
 
-STATUSES = ("ok", "mismatch", "unsupported", "needs-reading")
+STATUSES = ("ok", "mismatch", "format", "unsupported", "needs-reading")
 DOC_PATH = "docs/source/api/command-line.rst"
 DEFAULT = re.compile(r"\bdefault(?:s to|:)\s*([^\n;)]+)", re.IGNORECASE)
 OPTION = re.compile(r"(?<![\w-])--[a-z][a-z0-9-]*|(?<![\w-])-[A-Za-z](?!\w)")
@@ -52,6 +52,13 @@ class Source:
 
     def binding(self) -> dict:
         """Return portable locations, including the actual text read."""
+        if not hasattr(self.node, "lineno"):
+            return {
+                "file": self.file,
+                "definition": self.name,
+                "lines": None,
+                "source": "",
+            }
         start = min(
             [self.node.lineno]
             + [d.lineno for d in getattr(self.node, "decorator_list", [])]
@@ -166,7 +173,7 @@ def parameter_check(obj: object, doc: str) -> tuple[str, dict]:
         ]
     except (TypeError, ValueError) as exc:
         return "unsupported", {"reason": type(exc).__name__}
-    return ("mismatch" if errors or formats else "ok"), {
+    return ("mismatch" if errors else "format" if formats else "ok"), {
         "signature": str(signature),
         "errors": errors,
         "formats": formats,
@@ -335,18 +342,28 @@ def public_objects(
         return
     seen.add(module.__name__)
     path, tree, text = revision.modules[module.__name__]
-    tree.lineno = 1
-    tree.end_lineno = len(text.splitlines())
-    anchor = Source(path, module.__name__, tree, text)
     for name in exported_names(tree):
         public = f"{module.__name__}.{name}"
         export = next(
             (
                 n
-                for n in ast.walk(tree)
-                if isinstance(n, ast.Constant) and n.value == name
+                for n in tree.body
+                if isinstance(n, ast.Assign)
+                and any(
+                    isinstance(t, ast.Name) and t.id == "__all__" for t in n.targets
+                )
             ),
-            tree,
+            next(
+                (
+                    n
+                    for n in tree.body
+                    if isinstance(
+                        n, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+                    )
+                    and n.name == name
+                ),
+                tree,
+            ),
         )
         anchor = Source(path, module.__name__, export, text)
         try:
@@ -451,12 +468,22 @@ def commands(
                 yield from commands(command.get_command(ctx, name), (*path, name))
 
 
-def described_options(text: str) -> dict[tuple[str, ...] | None, dict[str, list[int]]]:
+def described_options(
+    text: str, paths: set[tuple[str, ...]] | None = None
+) -> dict[tuple[str, ...] | None, dict[str, list[int]]]:
     """Associate RST option mentions with headings or explicit command invocations."""
     described = {}
     section = ()
     lines = text.splitlines()
+    subcommands = {path[0] for path in paths or () if path}
+    block_indent = None
     for index, line in enumerate(lines):
+        indent = len(line) - len(line.lstrip())
+        if line.strip() and block_indent is not None and indent <= block_indent:
+            block_indent = None
+        in_code_block = block_indent is not None and indent > block_indent
+        if line.rstrip().endswith("::") or re.match(r"\s*\.\. code(?:-block)?::", line):
+            block_indent = indent
         if (
             line.startswith("suews")
             and index + 1 < len(lines)
@@ -482,12 +509,20 @@ def described_options(text: str) -> dict[tuple[str, ...] | None, dict[str, list[
                     index + 1
                 )
             continue
-        invocation = re.search(r"\bsuews\s+([a-z]+(?:\s+[a-z]+)*)", line)
         target = section
-        if invocation:
-            words = tuple(invocation[1].split())
-            # Commands are resolved against the registered paths by the caller.
-            target = words
+        for invocation in re.finditer(r"\bsuews\b([^`\n]*)", line):
+            tail = invocation[1].strip()
+            words = re.match(r"[a-z][a-z-]*(?:\s+[a-z][a-z-]*)*", tail)
+            candidate = tuple(words[0].split()) if words else ()
+            in_literal = line[: invocation.start()].endswith("``")
+            if (
+                in_literal
+                or in_code_block
+                or (candidate and candidate[0] in subcommands)
+                or OPTION.match(tail)
+            ):
+                target = candidate
+                break
         for option in OPTION.findall(line):
             described.setdefault(target, {}).setdefault(option, []).append(index + 1)
     return described
@@ -525,7 +560,7 @@ def rendered_options(help_text: str) -> tuple[set[str], dict[str, str]]:
 def command_documentation(doc: str, paths: set[tuple[str, ...]]) -> tuple[dict, dict]:
     """Resolve heading, invocation and generic mentions onto registered commands."""
     described = {path: {} for path in paths}
-    mentions = described_options(doc)
+    mentions = described_options(doc, paths)
     ambiguous = mentions.pop(None, {})
     generic = mentions.pop(("*",), {})
     for path in paths:
@@ -671,6 +706,11 @@ def _summarise(findings: list[dict]) -> dict:
     }
 
 
+def installed_matches_revision(revision: str, installed_commit: str | None) -> bool:
+    """Require a non-empty installed hash before comparing revision prefixes."""
+    return bool(installed_commit) and revision.startswith(installed_commit)
+
+
 def main() -> None:
     """Write a complete JSON report; findings do not change the exit status."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -693,7 +733,9 @@ def main() -> None:
         "revision": revision.sha,
         "installed_version": supy.__version__,
         "installed_commit": installed_commit,
-        "installed_matches_revision": revision.sha.startswith(installed_commit),
+        "installed_matches_revision": installed_matches_revision(
+            revision.sha, installed_commit
+        ),
         "counts": {status: counts[status] for status in STATUSES},
         "summary": _summarise(findings),
         "excluded_out_of_scope": {

@@ -1531,9 +1531,34 @@ class TestDfStateEngineYamlParityRatchet:
         """All remaining shadow defaults on sparse configs match the pinned ratchet baseline."""
         # ARRANGE
         baseline = json.loads(GAPS_BASELINE_PATH.read_text(encoding="utf-8"))
-        assert baseline["schema_version"] == 1
+        assert baseline["schema_version"] == 2
         gaps = baseline["gaps"]
+        accounting = baseline["native_receiver_accounting"]
         assert len(gaps) > 0
+        assert len(accounting) == 35
+
+        valid_gap_statuses = {
+            "native_zero_fallback",
+            "ehc_empty_when_nlayer0_zero_when_allocated",
+            "unread_by_native",
+        }
+        valid_accounting_statuses = valid_gap_statuses | {
+            "retired_required_when_active_zero_when_inactive",
+        }
+        repo_root = GAPS_BASELINE_PATH.parents[2]
+        for root_name, meta in accounting.items():
+            assert set(meta.keys()) == {
+                "native_receiver",
+                "native_member",
+                "observed_by",
+            }, f"Unexpected accounting keys for {root_name}: {meta.keys()}"
+            assert meta["native_receiver"] in valid_accounting_statuses
+            assert meta["native_member"]
+            assert meta["observed_by"]
+            for rel_path in meta["observed_by"]:
+                assert (repo_root / rel_path).is_file(), (
+                    f"Missing observer test {rel_path} for {root_name}"
+                )
 
         seen_keys: set[tuple[tuple[str, ...], str]] = set()
         for gap in gaps:
@@ -1543,12 +1568,25 @@ class TestDfStateEngineYamlParityRatchet:
                 "df_value",
                 "yaml_value",
                 "owner_issue",
+                "native_receiver",
             }
             assert gap["owner_issue"].startswith("#")
             assert gap["owner_issue"][1:].isdigit()
+            assert gap["native_receiver"] in valid_gap_statuses
+            root_name = gap["df_col"][0]
+            assert root_name in accounting, (
+                f"Unaccounted df_col root in parity gaps: {root_name}"
+            )
+            assert accounting[root_name]["native_receiver"] == gap["native_receiver"], (
+                f"Mismatched native_receiver classification for {root_name}"
+            )
             key = (tuple(gap["df_col"]), gap["yaml_path"])
             assert key not in seen_keys, f"Duplicate baseline key: {key}"
             seen_keys.add(key)
+
+        # Verify all three distinct native receiver semantics are represented explicitly
+        # (never treating every absent YAML key as an observed 0.0 native fallback).
+        assert {g["native_receiver"] for g in gaps} == valid_gap_statuses
 
         sparse = _build_sparse_executable_dict(sample_dict)
         cfg = SUEWSConfig.from_dict(sparse)
@@ -1560,6 +1598,137 @@ class TestDfStateEngineYamlParityRatchet:
 
         # ASSERT: exact bidirectional shrinking ratchet
         _assert_matches_shrinking_ratchet(observed, gaps)
+
+    @staticmethod
+    def _build_asymmetric_sparse_native_dict(
+        sample_dict: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Build a sparse config with active paved/bldgs/evetr and omitted inactive veg."""
+        base = _build_sparse_executable_dict(sample_dict)
+        base["model"]["physics"]["emissions"] = {"value": 12}
+        base["sites"][0]["properties"]["conductance"] = copy.deepcopy(
+            sample_dict["sites"][0]["properties"]["conductance"]
+        )
+        sample_lc = sample_dict["sites"][0]["properties"]["land_cover"]
+        lc = base["sites"][0]["properties"]["land_cover"]
+        lc["paved"]["sfr"] = {"value": 0.45}
+        lc["bldgs"]["sfr"] = {"value": 0.35}
+        lc["bldgs"]["bldgh"] = {"value": 15.0}
+        lc["bldgs"]["faibldg"] = {"value": 0.35}
+        for soil_key in (
+            "soil_depth",
+            "soil_store_capacity",
+            "saturated_hydraulic_conductivity",
+        ):
+            lc["bldgs"][soil_key] = copy.deepcopy(sample_lc["bldgs"][soil_key])
+            lc["evetr"][soil_key] = copy.deepcopy(sample_lc["evetr"][soil_key])
+        lc["evetr"]["sfr"] = {"value": 0.20}
+        lc["evetr"]["height_evergreen_tree"] = {"value": 15.0}
+        lc["evetr"]["fai_evergreen_tree"] = {"value": 0.25}
+        lc["evetr"]["alpha_bio_co2"] = {"value": 0.8}
+        lc["evetr"]["beta_bio_co2"] = {"value": 0.6}
+        lc["evetr"]["theta_bio_co2"] = {"value": 1.2}
+        lc["evetr"]["resp_a"] = {"value": 0.8}
+        lc["evetr"]["resp_b"] = {"value": 1.1}
+        lc["evetr"]["min_res_bioco2"] = {"value": 0.1}
+        lc["evetr"]["lai"] = copy.deepcopy(sample_lc["evetr"]["lai"])
+        lc["evetr"]["lai"].update({
+            "base_temperature": {"value": 5.0},
+            "base_temperature_senescence": {"value": 10.0},
+            "gdd_full": {"value": 300.0},
+            "sdd_full": {"value": -450.0},
+            "lai_max": {"value": 5.0},
+            "lai_power": {
+                "growth_lai": {"value": 0.04},
+                "growth_gdd": {"value": 0.04},
+                "senescence_lai": {"value": 0.04},
+                "senescence_sdd": {"value": 0.04},
+            },
+        })
+        for inactive in ("dectr", "grass", "bsoil", "water"):
+            lc[inactive]["sfr"] = {"value": 0.0}
+        return base
+
+    @pytest.mark.medium
+    def test_sparse_asymmetric_config_reaches_native_receiver_end_to_end(
+        self, sample_dict, sample_forcing_parsed
+    ):
+        """Sparse asymmetric supplied values reach the compiled native kernel while unread fields do not."""
+        _, df_short = sample_forcing_parsed(4)
+        base = self._build_asymmetric_sparse_native_dict(sample_dict)
+
+        def _run_short(raw_cfg: dict[str, Any], forcing):
+            cfg = SUEWSConfig.from_dict(raw_cfg)
+            sim = SUEWSSimulation().update_config(cfg, auto_load_forcing=False)
+            sim.update_forcing(forcing)
+            return sim.run(end_date=forcing.index[-1]).xs("SUEWS", axis=1, level=0)
+
+        # ACT 1: baseline vs unread soil_density toggle (must be bit-identical).
+        with_density = copy.deepcopy(base)
+        with_density["sites"][0]["properties"]["land_cover"]["paved"][
+            "soil_density"
+        ] = {"value": 1650.0}
+        suews_base = _run_short(base, df_short)
+        suews_density = _run_short(with_density, df_short)
+        cols = ["QN", "QH", "QE", "QS", "U10", "FcRespi"]
+        np.testing.assert_array_equal(
+            suews_base[cols].to_numpy(dtype=float),
+            suews_density[cols].to_numpy(dtype=float),
+        )
+
+        # ACT 2: shifting supplied evetr.resp_a (0.8 -> 4.0) reaches Fortran FcRespi.
+        high_resp = copy.deepcopy(base)
+        high_resp["sites"][0]["properties"]["land_cover"]["evetr"]["resp_a"] = {
+            "value": 4.0
+        }
+        fc_base = suews_base["FcRespi"].to_numpy(dtype=float)
+        fc_high = _run_short(high_resp, df_short)["FcRespi"].to_numpy(dtype=float)
+        assert np.isfinite(fc_base).all() and np.isfinite(fc_high).all()
+        assert np.max(np.abs(fc_high - fc_base)) > 1e-4, (
+            "Expected supplied evetr.resp_a override to shift native FcRespi output"
+        )
+
+        # ACT 3: shifting supplied bldgs.bldgh (15.0 -> 30.0) reaches Fortran U10.
+        tall_bldg = copy.deepcopy(base)
+        tall_bldg["sites"][0]["properties"]["land_cover"]["bldgs"]["bldgh"] = {
+            "value": 30.0
+        }
+        u10_base = suews_base["U10"].to_numpy(dtype=float)
+        u10_tall = _run_short(tall_bldg, df_short)["U10"].to_numpy(dtype=float)
+        assert np.isfinite(u10_base).all() and np.isfinite(u10_tall).all()
+        assert np.max(np.abs(u10_tall - u10_base)) > 1e-4, (
+            "Expected supplied bldgs.bldgh override to shift native U10 output"
+        )
+
+        # ACT 4: shifting supplied snow.temperature_rain_snow_threshold (0.0 -> 10.0)
+        # across Tair = 5.0 C with an existing snowpack and rain reaches Fortran MeltHeat.
+        df_rain_on_snow = df_short.copy()
+        df_rain_on_snow["Tair"] = 5.0
+        df_rain_on_snow["rain"] = 5.0
+        snow_low = copy.deepcopy(base)
+        snow_low["model"]["physics"]["snow"] = {"value": 1}
+        snow_low["sites"][0]["initial_states"]["snowalb"] = {"value": 0.7}
+        snow_low["sites"][0]["initial_states"]["paved"].update({
+            "snowfrac": {"value": 1.0},
+            "snowpack": {"value": 50.0},
+            "snowdens": {"value": 200.0},
+        })
+        snow_low["sites"][0]["properties"]["snow"].update({
+            "temperature_rain_snow_threshold": {"value": 0.0},
+            "snow_density_min": {"value": 100.0},
+            "snow_density_max": {"value": 400.0},
+        })
+        snow_high = copy.deepcopy(snow_low)
+        snow_high["sites"][0]["properties"]["snow"][
+            "temperature_rain_snow_threshold"
+        ] = {"value": 10.0}
+        snow_cols = ["QH", "QE", "QS", "SnowCh", "MeltWater", "RO"]
+        s_low = _run_short(snow_low, df_rain_on_snow)[snow_cols].to_numpy(dtype=float)
+        s_high = _run_short(snow_high, df_rain_on_snow)[snow_cols].to_numpy(dtype=float)
+        assert np.isfinite(s_low).all() and np.isfinite(s_high).all()
+        assert np.max(np.abs(s_high - s_low)) > 1e-3, (
+            "Expected supplied temperature_rain_snow_threshold override to shift rain-on-snow output"
+        )
 
     def test_parity_ratchet_fails_on_new_shadow_default_and_stale_entry(
         self, sample_dict

@@ -9,9 +9,42 @@ import warnings
 
 from conftest import load_sample_frames, run_simulation
 import numpy as np
+import pandas as pd
 import pytest
 
 pytestmark = pytest.mark.physics
+
+
+def _required_output(output, state, forcing, group, variables):
+    """Require every simulated grid/timestep before checking profile physics."""
+    expected = pd.MultiIndex.from_product(
+        [state.index, forcing.index], names=output.index.names
+    )
+    assert output.index.is_unique and output.index.sort_values().equals(
+        expected.sort_values()
+    ), (
+        "Incomplete wind output rows (grid, datetime): "
+        f"missing={expected.difference(output.index).tolist()}, "
+        f"unexpected={output.index.difference(expected).tolist()}, "
+        f"duplicates={output.index[output.index.duplicated()].tolist()}"
+    )
+    columns = [(group, name) for name in variables]
+    missing = [col for col in columns if col not in output.columns]
+    assert not missing, (
+        f"Missing wind output columns for grids={state.index.tolist()}: {missing}"
+    )
+    values = output.loc[:, columns].to_numpy(dtype=float)
+    assert values.size, f"Empty wind output for {columns}"
+    invalid = np.argwhere(~np.isfinite(values) | (values == -999))
+    assert not invalid.size, "Invalid wind output: " + "; ".join(
+        f"{columns[col]} at grid/time={output.index[row]}: {values[row, col]}"
+        for row, col in invalid[:5]
+    )
+    return values
+
+
+# suews_phys_rslprof.f95: nz=30; output names are numbered from 1.
+PROFILE_LEVELS = range(1, 31)
 
 
 class TestWindProfiles:
@@ -34,11 +67,15 @@ class TestWindProfiles:
 
             df_output, _ = run_simulation(df_forcing_short, df_state_init)
 
-            z_cols = [col for col in df_output.columns if col[1].startswith("z_")]
-            heights = df_output[z_cols].iloc[0].values
-            heights = heights[~np.isnan(heights)]
+            heights = _required_output(
+                df_output,
+                df_state_init,
+                df_forcing_short,
+                "RSL",
+                [f"z_{i}" for i in PROFILE_LEVELS],
+            )
 
-            assert np.all(np.diff(heights) > 0), (
+            assert np.all(np.diff(heights, axis=1) > 0), (
                 f"Height array not monotonic for {bldgh}m building"
             )
 
@@ -51,12 +88,24 @@ class TestWindProfiles:
         # Test MOST
         df_state_init.loc[:, "rslmethod"] = 0
         df_output_most, _ = run_simulation(df_forcing_short, df_state_init)
-        assert not df_output_most.empty, "MOST failed to run"
+        _required_output(
+            df_output_most,
+            df_state_init,
+            df_forcing_short,
+            "RSL",
+            [f"{field}_{i}" for field in ("z", "U") for i in PROFILE_LEVELS],
+        )
 
         # Test RSL
         df_state_init.loc[:, "rslmethod"] = 1
         df_output_rsl, _ = run_simulation(df_forcing_short, df_state_init)
-        assert not df_output_rsl.empty, "RSL failed to run"
+        _required_output(
+            df_output_rsl,
+            df_state_init,
+            df_forcing_short,
+            "RSL",
+            [f"{field}_{i}" for field in ("z", "U") for i in PROFILE_LEVELS],
+        )
 
     def test_rsl_grid_includes_exact_canopy_top(self, sample_data):
         """Regression test for GH#296: RSL level 20 is the canopy top."""
@@ -67,10 +116,15 @@ class TestWindProfiles:
         df_state.loc[:, ("bldgh", "0")] = 40.0
 
         df_output, _ = run_simulation(df_forcing.iloc[:2], df_state)
-        rsl = df_output.xs("RSL", axis=1, level=0).iloc[0]
-
-        assert rsl["flag_RSL"] == 1
-        assert rsl["z_20"] == pytest.approx(rsl["zH_RSL"], abs=1e-9)
+        values = _required_output(
+            df_output,
+            df_state,
+            df_forcing.iloc[:2],
+            "RSL",
+            ["flag_RSL", "z_20", "zH_RSL"],
+        )
+        assert (values[:, 0] == 1).all()
+        np.testing.assert_allclose(values[:, 1], values[:, 2], rtol=0, atol=1e-9)
 
     @pytest.mark.parametrize(
         "zh,z0m_in,zdm_in",
@@ -95,33 +149,29 @@ class TestWindProfiles:
 
         df_output, _ = run_simulation(df_forcing_short, df_state_init)
 
-        suews_data = df_output.xs("SUEWS", level=0, axis=1)
-        u10 = suews_data["U10"].to_numpy(dtype=float)
-        assert len(u10) == len(df_forcing_short)
-        assert np.isfinite(u10).all(), (
-            f"U10 non-finite for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
+        u10 = _required_output(
+            df_output, df_state_init, df_forcing_short, "SUEWS", ["U10"]
         )
         assert (u10 >= 0).all(), f"U10 negative for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
 
         # Verify the full 30-level diagnostic profile across all 48 timesteps
         # (catches #572 where U10 stayed positive while profile winds went negative/NaN).
-        rsl_data = df_output.xs("RSL", level=0, axis=1)
-        z_profile = rsl_data[[f"z_{level}" for level in range(1, 31)]].to_numpy(
-            dtype=float
+        z_profile = _required_output(
+            df_output,
+            df_state_init,
+            df_forcing_short,
+            "RSL",
+            [f"z_{level}" for level in PROFILE_LEVELS],
         )
-        u_profile = rsl_data[[f"U_{level}" for level in range(1, 31)]].to_numpy(
-            dtype=float
-        )
-        assert z_profile.shape == (len(df_forcing_short), 30)
-        assert u_profile.shape == (len(df_forcing_short), 30)
-        assert np.isfinite(z_profile).all(), (
-            f"Profile heights non-finite for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
+        u_profile = _required_output(
+            df_output,
+            df_state_init,
+            df_forcing_short,
+            "RSL",
+            [f"U_{level}" for level in PROFILE_LEVELS],
         )
         assert (np.diff(z_profile, axis=1) > 0).all(), (
             f"Profile heights not strictly monotone for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
-        )
-        assert np.isfinite(u_profile).all(), (
-            f"Profile winds non-finite for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
         )
         assert (u_profile >= 0).all(), (
             f"Profile winds negative for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
@@ -165,11 +215,14 @@ class TestWindProfiles:
 
         df_output, _ = run_simulation(df_forcing_short, df_state_init)
 
-        u_cols = [col for col in df_output.columns if col[1].startswith("U_")]
-        if u_cols:
-            wind_speeds = df_output[u_cols].iloc[0].values
-            valid_winds = wind_speeds[~np.isnan(wind_speeds)]
-            assert np.all(valid_winds >= 0), "Negative wind speeds detected"
+        wind_speeds = _required_output(
+            df_output,
+            df_state_init,
+            df_forcing_short,
+            "RSL",
+            [f"U_{i}" for i in PROFILE_LEVELS],
+        )
+        assert (wind_speeds >= 0).all(), "Negative wind speeds detected"
 
     def test_full_building_auto_rsl_grid_runs_without_nan(self, sample_data):
         """Regression test for GH#1223 full-building grids in the auto MOST path."""
@@ -202,7 +255,7 @@ class TestWindProfiles:
                 df_state_issue,
             )
 
-        u10 = df_output[("SUEWS", "U10")]
-        assert not u10.isna().all(), (
-            "Full-building auto MOST grid returned only NaN wind output"
+        u10 = _required_output(
+            df_output, df_state_issue, df_forcing_short, "SUEWS", ["U10"]
         )
+        assert (u10 >= 0).all(), "Negative full-building auto MOST wind output"

@@ -399,11 +399,20 @@ def test_live_repo_unit_discovery_and_committed_baseline_contract():
         assert key.kind in {"uninitialized", "maybe-uninitialized"}
         assert (REPO_ROOT / key.file).is_file(), f"Missing file in baseline: {key.file}"
 
+    _assert_fortran_uninit_workflow_contract()
+
+
+def _assert_fortran_uninit_workflow_contract() -> None:
+    """Assert pinned container, workflow_call/concurrency isolation, and base wiring."""
     workflow_path = REPO_ROOT / ".github" / "workflows" / "fortran-uninit.yml"
     workflow_text = workflow_path.read_text(encoding="utf-8")
     workflow = yaml.safe_load(workflow_text)
     triggers = workflow[True] if True in workflow else workflow["on"]
-    assert {"pull_request", "merge_group", "workflow_dispatch"} <= set(triggers)
+    assert {"pull_request", "workflow_call", "workflow_dispatch"} <= set(triggers)
+    assert "merge_group" not in triggers
+    assert {"base_sha", "head_sha"} <= set(triggers["workflow_call"]["inputs"])
+    assert workflow["permissions"] == {"contents": "read"}
+    assert "github.workflow" in str(workflow["concurrency"]["group"])
 
     (job,) = workflow["jobs"].values()
     image = job["container"]["image"]
@@ -420,6 +429,7 @@ def test_live_repo_unit_discovery_and_committed_baseline_contract():
     )
     assert checkout_step["with"]["fetch-depth"] == 0
     assert checkout_step["with"]["persist-credentials"] is False
+    assert checkout_step["with"]["ref"] == "${{ inputs.head_sha }}"
 
     check_step = job["steps"][-1]
     assert check_step["env"]["EVENT_NAME"] == "${{ github.event_name }}"

@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev11"
+CURRENT_SCHEMA_VERSION = "2026.6.dev12"
 
 # Schema version history and descriptions.
 #
@@ -203,6 +203,12 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "soil_store_capacity, preserves supplied values and inactive/water "
         "surfaces unchanged, and writes explicit 0.0 for other missing or null "
         "active soil parameters (preserving reference metadata)."
+    ),
+    "2026.6.dev12": (
+        "Within-grid water routing (#2086, #2117). An explicit numeric zero "
+        "in an unused destination is removed during migration. On paved and "
+        "building surfaces it could previously override the supplied runoff "
+        "fraction, changing the simulated runoff and water balance."
     ),
 }
 

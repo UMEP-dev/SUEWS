@@ -1786,6 +1786,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
+          "description": "Water distribution for building surfaces (impervious: routes to other surfaces and to_runoff when sfr > 0; to_bldgs/to_soilstore inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -2121,7 +2122,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for bare soil",
+          "description": "Water distribution for bare soil (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_bsoil/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -3010,7 +3011,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for deciduous trees",
+          "description": "Water distribution for deciduous trees (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_dectr/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -3648,7 +3649,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for evergreen trees",
+          "description": "Water distribution for evergreen trees (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_evetr/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -4256,7 +4257,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for grass",
+          "description": "Water distribution for grass (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_grass/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -8116,7 +8117,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution fractions for paved surfaces",
+          "description": "Water distribution for paved surfaces (impervious: routes to other surfaces and to_runoff when sfr > 0; to_paved/to_soilstore inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -12874,7 +12875,7 @@
       "type": "object"
     },
     "WaterDistribution": {
-      "description": "Water routing between surface types.",
+      "description": "Within-grid water routing fractions (required when sfr > 0). Inapplicable slots (self-routing or opposite terminal): 0 normalises to absent at load; non-zero or post-load edits fail.\n\nEach non-water surface routes surface drainage to the other six surfaces\nplus its terminal destination: ``to_runoff`` for impervious surfaces\n(``paved``, ``bldgs``) or ``to_soilstore`` for pervious surfaces\n(``evetr``, ``dectr``, ``grass``, ``bsoil``). The ``water`` surface has\nno ``waterdist`` block.\n\nActive surfaces (``sfr > 0``) require all seven applicable destinations\nto be finite fractions in ``[0, 1]`` summing to ``1.0`` when a\n``waterdist`` block is supplied; omitting the entire ``waterdist`` block\napplies surface-specific defaults. Inactive surfaces (``sfr == 0``) may\nomit applicable destinations, and raising ``sfr`` from ``0`` to ``> 0``\nwithout supplying them fails before engine execution.\n\nInapplicable destinations (self-routing ``to_<self>``, ``to_soilstore``\non impervious surfaces, and ``to_runoff`` on pervious surfaces) should be\nomitted or set to null. At YAML or model load, an explicit numeric zero\n(``0``, ``0.0``, ``-0.0``, or ``{value: 0.0}``) in an inapplicable slot\nis normalised to absent (``None``) while non-zero, boolean, or invalid\nvalues fail. After loading, introducing any inapplicable destination by\nin-place mutation (including ``0.0``) fails before engine execution.",
       "properties": {
         "to_paved": {
           "anyOf": [
@@ -12895,7 +12896,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to paved surfaces within the grid",
+          "description": "Fraction to paved surfaces (other non-water surfaces; required when sfr > 0). Self-routing on paved is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Paved",
           "title": "To Paved",
           "unit": "1"
@@ -12919,7 +12920,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to building surfaces within the grid",
+          "description": "Fraction to building surfaces (other non-water surfaces; required when sfr > 0). Self-routing on bldgs is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Buildings",
           "title": "To Bldgs",
           "unit": "1"
@@ -12943,7 +12944,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to deciduous tree surfaces within the grid",
+          "description": "Fraction to deciduous trees (other non-water surfaces; required when sfr > 0). Self-routing on dectr is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Deciduous Trees",
           "title": "To Dectr",
           "unit": "1"
@@ -12967,7 +12968,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to evergreen tree surfaces within the grid",
+          "description": "Fraction to evergreen trees (other non-water surfaces; required when sfr > 0). Self-routing on evetr is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Evergreen Trees",
           "title": "To Evetr",
           "unit": "1"
@@ -12991,7 +12992,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to grass surfaces within the grid",
+          "description": "Fraction to grass surfaces (other non-water surfaces; required when sfr > 0). Self-routing on grass is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Grass",
           "title": "To Grass",
           "unit": "1"
@@ -13015,7 +13016,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to bare soil surfaces within the grid",
+          "description": "Fraction to bare soil surfaces (other non-water surfaces; required when sfr > 0). Self-routing on bsoil is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Bare Soil",
           "title": "To Bsoil",
           "unit": "1"
@@ -13039,7 +13040,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to water surfaces within the grid",
+          "description": "Fraction redistributed to water surfaces within the grid (all six non-water surfaces; required when sfr > 0 when waterdist is given; water surfaces have no waterdist block).",
           "display_name": "To Water",
           "title": "To Water",
           "unit": "1"
@@ -13063,7 +13064,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water going to surface runoff (for impervious surfaces: paved and buildings)",
+          "description": "Fraction to surface runoff (impervious paved/bldgs; required when sfr > 0). Inapplicable on pervious surfaces: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Runoff",
           "title": "To Runoff",
           "unit": "1"
@@ -13087,7 +13088,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water going to subsurface soil storage (for pervious surfaces: vegetation and bare soil)",
+          "description": "Fraction to subsurface soil store (pervious evetr/dectr/grass/bsoil; required when sfr > 0). Inapplicable on paved/bldgs: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Soil Store",
           "title": "To Soilstore",
           "unit": "1"
@@ -13326,7 +13327,7 @@
             }
           ],
           "default": null,
-          "description": "Water distribution parameters"
+          "description": "Within-grid water routing fractions (applicable destinations required when sfr > 0; inapplicable 0 normalises to absent at load; non-zero or post-load edits fail)."
         },
         "storage_drain_params": {
           "$ref": "#/$defs/StorageDrainParams",
@@ -13598,7 +13599,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev11. Development schema requiring soil_depth, soil_store_capacity and saturated_hydraulic_conductivity on every active (sfr > 0) non-water surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting any of them used to reach the kernel as 0.0 via the Rust bridge. The (2026.6.dev10 -> 2026.6.dev11) migration writes 0.0 explicitly wherever an active non-water surface omits or nulls one of these three fields, preserving existing values and reference metadata.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev12. Within-grid water routing (#2086, #2117). An explicit numeric zero in an unused destination is removed during migration. On paved and building surfaces it could previously override the supplied runoff fraction, changing the simulated runoff and water balance.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13651,20 +13652,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev11",
+  "title": "SUEWS Configuration Schema v2026.6.dev12",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev11.json",
-  "version": "2026.6.dev11",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev12.json",
+  "version": "2026.6.dev12",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev11"
+    "schema_version": "2026.6.dev12"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev11",
+      "schema_version": "2026.6.dev12",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

@@ -1,6 +1,328 @@
 {
-  "schema_version": 1,
-  "description": "Pinned shadow-default divergences between SUEWSConfig.to_df_state() and config_to_engine_yaml() on the canonical sparse executable configuration (gh#2099; Refs #1991, #2001, #2002, #2077, #2101). Shrinking ratchet: entries may only be removed as shadow defaults are aligned or retired.",
+  "schema_version": 2,
+  "description": "Shrinking parity ratchet pinning remaining to_df_state() vs config_to_engine_yaml() shadow-default divergences on sparse configs (gh#2099), paired with observed native SuewsSite receiver semantics (distinguishing native_zero_fallback, ehc_empty_when_nlayer0_zero_when_allocated, unread_by_native, and retired #2077 active-required soil groups).",
+  "native_receiver_accounting": {
+    "alpha_bioco2": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.alpha_bio_co2",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "baset": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.base_temperature",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "basete": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.base_temperature_senescence",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "beta_bioco2": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.beta_bio_co2",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "bldgh": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_bldg.bldgh",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "cp_roof": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.cp_roof",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "cp_surf": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.cp_surf",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "cp_wall": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.cp_wall",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "dectreeh": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_dectr.height_deciduous_tree",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "dz_roof": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.dz_roof",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "dz_surf": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.dz_surf",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "dz_wall": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.dz_wall",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "evetreeh": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_evetr.height_evergreen_tree",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "faibldg": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_bldg.faibldg",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "faidectree": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_dectr.fai_deciduous_tree",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "faievetree": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_evetr.fai_evergreen_tree",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "gddfull": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.gdd_full",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "k_roof": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.k_roof",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "k_surf": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.k_surf",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "k_wall": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.k_wall",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "laimax": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.lai_max",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "laipower": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.lai_power[0..4]",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "preciplimit": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.snow.precip_limit",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "resp_a": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.resp_a",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "resp_b": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.resp_b",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "sathydraulicconduct": {
+      "native_receiver": "retired_required_when_active_zero_when_inactive",
+      "native_member": "SuewsSite.lc_*.soil.saturated_hydraulic_conductivity",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/data_model/test_soil_params_required.py",
+        "test/data_model/test_zero_soil_depth_rejected.py"
+      ]
+    },
+    "sddfull": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.sdd_full",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "snowdensmax": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.snow.snow_density_max",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "snowdensmin": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.snow.snow_density_min",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "soildensity": {
+      "native_receiver": "unread_by_native",
+      "native_member": "none (unread legacy table column; suews_ctrl_const.f95:1619 only)",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "test/data_model/test_entrypoint_parity.py"
+      ]
+    },
+    "soildepth": {
+      "native_receiver": "retired_required_when_active_zero_when_inactive",
+      "native_member": "SuewsSite.lc_*.soil.soil_depth",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/data_model/test_soil_params_required.py",
+        "test/data_model/test_zero_soil_depth_rejected.py"
+      ]
+    },
+    "soilstorecap": {
+      "native_receiver": "retired_required_when_active_zero_when_inactive",
+      "native_member": "SuewsSite.lc_*.soil.soil_store_capacity",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/data_model/test_soil_params_required.py",
+        "test/data_model/test_zero_soil_depth_rejected.py"
+      ]
+    },
+    "soilstorecap_roof": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.soil_storecap_roof",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "soilstorecap_wall": {
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated",
+      "native_member": "SuewsSite.ehc.soil_storecap_wall",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    },
+    "theta_bioco2": {
+      "native_receiver": "native_zero_fallback",
+      "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.theta_bio_co2",
+      "observed_by": [
+        "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
+        "src/suews_bridge/tests/yaml_jacobian.rs",
+        "src/suews_bridge/tests/capi_field_observer.rs"
+      ]
+    }
+  },
   "gaps": [
     {
       "df_col": [
@@ -10,7 +332,8 @@
       "yaml_path": "sites[0].properties.snow.temperature_rain_snow_threshold",
       "df_value": 2.2,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -20,7 +343,8 @@
       "yaml_path": "sites[0].properties.snow.snow_density_min",
       "df_value": 100.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -30,7 +354,8 @@
       "yaml_path": "sites[0].properties.snow.snow_density_max",
       "df_value": 400.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -40,7 +365,8 @@
       "yaml_path": "sites[0].properties.land_cover.paved.soil_density",
       "df_value": -999.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "unread_by_native"
     },
     {
       "df_col": [
@@ -56,7 +382,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -72,7 +399,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -88,7 +416,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -98,7 +427,8 @@
       "yaml_path": "sites[0].properties.land_cover.bldgs.soil_density",
       "df_value": -999.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "unread_by_native"
     },
     {
       "df_col": [
@@ -114,7 +444,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -130,7 +461,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -146,7 +478,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -156,7 +489,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.soil_density",
       "df_value": -999.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "unread_by_native"
     },
     {
       "df_col": [
@@ -172,7 +506,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -188,7 +523,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -204,7 +540,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -214,7 +551,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.soil_density",
       "df_value": -999.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "unread_by_native"
     },
     {
       "df_col": [
@@ -230,7 +568,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -246,7 +585,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -262,7 +602,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -272,7 +613,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.soil_density",
       "df_value": -999.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "unread_by_native"
     },
     {
       "df_col": [
@@ -288,7 +630,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -304,7 +647,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -320,7 +664,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -330,7 +675,8 @@
       "yaml_path": "sites[0].properties.land_cover.bsoil.soil_density",
       "df_value": -999.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "unread_by_native"
     },
     {
       "df_col": [
@@ -346,7 +692,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -362,7 +709,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -378,7 +726,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -388,7 +737,8 @@
       "yaml_path": "sites[0].properties.land_cover.water.soil_density",
       "df_value": -999.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "unread_by_native"
     },
     {
       "df_col": [
@@ -404,7 +754,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -420,7 +771,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -436,7 +788,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -446,7 +799,8 @@
       "yaml_path": "sites[0].properties.land_cover.bldgs.faibldg",
       "df_value": 0.3,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -456,7 +810,8 @@
       "yaml_path": "sites[0].properties.land_cover.bldgs.bldgh",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -466,7 +821,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.fai_evergreen_tree",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -476,7 +832,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.height_evergreen_tree",
       "df_value": 15.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -486,7 +843,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.fai_deciduous_tree",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -496,7 +854,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.height_deciduous_tree",
       "df_value": 15.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -506,7 +865,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.beta_bio_co2",
       "df_value": 0.6,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -516,7 +876,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.alpha_bio_co2",
       "df_value": 0.8,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -526,7 +887,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.resp_a",
       "df_value": 1.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -536,7 +898,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.resp_b",
       "df_value": 1.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -546,7 +909,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.theta_bio_co2",
       "df_value": 1.2,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -556,7 +920,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.base_temperature",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -566,7 +931,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.gdd_full",
       "df_value": 100.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -576,7 +942,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.base_temperature_senescence",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -586,7 +953,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.sdd_full",
       "df_value": 100.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -596,7 +964,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_max",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -606,7 +975,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.growth_lai",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -616,7 +986,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.growth_gdd",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -626,7 +997,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.senescence_lai",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -636,7 +1008,8 @@
       "yaml_path": "sites[0].properties.land_cover.evetr.lai.lai_power.senescence_sdd",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -646,7 +1019,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.beta_bio_co2",
       "df_value": 0.6,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -656,7 +1030,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.alpha_bio_co2",
       "df_value": 0.8,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -666,7 +1041,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.resp_a",
       "df_value": 1.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -676,7 +1052,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.resp_b",
       "df_value": 1.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -686,7 +1063,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.theta_bio_co2",
       "df_value": 1.2,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -696,7 +1074,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.base_temperature",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -706,7 +1085,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.gdd_full",
       "df_value": 100.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -716,7 +1096,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.base_temperature_senescence",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -726,7 +1107,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.sdd_full",
       "df_value": 100.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -736,7 +1118,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_max",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -746,7 +1129,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.growth_lai",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -756,7 +1140,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.growth_gdd",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -766,7 +1151,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.senescence_lai",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -776,7 +1162,8 @@
       "yaml_path": "sites[0].properties.land_cover.dectr.lai.lai_power.senescence_sdd",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -786,7 +1173,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.beta_bio_co2",
       "df_value": 0.6,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -796,7 +1184,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.alpha_bio_co2",
       "df_value": 0.8,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -806,7 +1195,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.resp_a",
       "df_value": 1.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -816,7 +1206,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.resp_b",
       "df_value": 1.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -826,7 +1217,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.theta_bio_co2",
       "df_value": 1.2,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -836,7 +1228,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.base_temperature",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -846,7 +1239,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.gdd_full",
       "df_value": 100.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -856,7 +1250,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.base_temperature_senescence",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -866,7 +1261,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.sdd_full",
       "df_value": 100.0,
       "yaml_value": null,
-      "owner_issue": "#2001"
+      "owner_issue": "#2001",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -876,7 +1272,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_max",
       "df_value": 10.0,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -886,7 +1283,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.growth_lai",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -896,7 +1294,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.growth_gdd",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -906,7 +1305,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.senescence_lai",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -916,7 +1316,8 @@
       "yaml_path": "sites[0].properties.land_cover.grass.lai.lai_power.senescence_sdd",
       "df_value": 0.1,
       "yaml_value": null,
-      "owner_issue": "#2101"
+      "owner_issue": "#2101",
+      "native_receiver": "native_zero_fallback"
     },
     {
       "df_col": [
@@ -926,7 +1327,8 @@
       "yaml_path": "sites[0].properties.vertical_layers.roofs[0].soil_store_capacity",
       "df_value": 150.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -942,7 +1344,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -958,7 +1361,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -974,7 +1378,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -984,7 +1389,8 @@
       "yaml_path": "sites[0].properties.vertical_layers.walls[0].soil_store_capacity",
       "df_value": 150.0,
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -1000,7 +1406,8 @@
         0.5
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -1016,7 +1423,8 @@
         1.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     },
     {
       "df_col": [
@@ -1032,7 +1440,8 @@
         1000.0
       ],
       "yaml_value": null,
-      "owner_issue": "#1991"
+      "owner_issue": "#1991",
+      "native_receiver": "ehc_empty_when_nlayer0_zero_when_allocated"
     }
   ]
 }

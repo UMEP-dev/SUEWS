@@ -96,6 +96,16 @@ import warnings
 
 SAME_SURFACE_TOL = 1e-6  # Tolerance for same-surface-property checks
 
+_LAND_COVER_SURFACE_TYPES: tuple[tuple[str, SurfaceType], ...] = (
+    ("paved", SurfaceType.PAVED),
+    ("bldgs", SurfaceType.BLDGS),
+    ("dectr", SurfaceType.DECTR),
+    ("evetr", SurfaceType.EVETR),
+    ("grass", SurfaceType.GRASS),
+    ("bsoil", SurfaceType.BSOIL),
+    ("water", SurfaceType.WATER),
+)
+
 class ConditionalValidationWarning(UserWarning):
     """Warning issued when conditional validation is requested but not available.
 
@@ -3920,11 +3930,13 @@ class SUEWSConfig(DataModelBase):
 
         Canonical pre-execution boundary invoked by ``SUEWSSimulation.update_config``,
         ``SUEWSSimulation.run``, ``config_to_engine_yaml``, ``_grid_config_jsons``,
-        and ``SUEWSConfig.to_df_state``. First runs ``validate_non_null_ref_values``
-        and then enforces structural, bound, active-site (including active non-water
-        soil parameters), and cross-field contracts so programmatic construction,
-        ``model_construct()``, or post-construction in-place mutations cannot bypass
-        loader validation before lossy state conversion or Rust execution (gh#2099).
+        and ``SUEWSConfig.to_df_state``. Runs ``validate_non_null_ref_values``,
+        ``validate_soil_depths``, ``validate_water_distributions``, and
+        ``_validate_engine_contracts`` (structural, scalar-bound, conditional/physics,
+        active-site including non-water soil parameters, and cross-field rules) so
+        programmatic construction, ``model_construct()``, or post-construction
+        in-place mutations cannot bypass loader validation before lossy state
+        conversion or Rust execution (gh#2086, gh#2099, gh#2128).
 
         Parameters
         ----------
@@ -3940,8 +3952,10 @@ class SUEWSConfig(DataModelBase):
         ------
         ValueError
             If the configuration contains unvalidated dict sub-models, live null
-            ``RefValue`` wrappers, missing required active runtime parameters, or
-            violated cross-field bounds.
+            ``RefValue`` wrappers, zero ``soil_depth`` on active surfaces with
+            positive ``soil_store_capacity``, invalid per-surface
+            ``WaterDistribution`` invariants, missing required active runtime
+            parameters, or violated cross-field bounds.
         """
         if not isinstance(getattr(self, "model", None), Model):
             raise ValueError(
@@ -3958,6 +3972,7 @@ class SUEWSConfig(DataModelBase):
 
         self.validate_non_null_ref_values()
         self.validate_soil_depths()
+        self.validate_water_distributions()
         self._validate_engine_contracts(require_land_cover=require_land_cover)
 
     def _validate_engine_contracts(self, *, require_land_cover: bool = True) -> None:
@@ -4944,6 +4959,70 @@ class SUEWSConfig(DataModelBase):
                                     initial_states["hdd_id"] = {}
         return data
 
+    def _validate_land_cover_surfaces(self, *, set_surface_types: bool) -> None:
+        """Validate every site's surface water distributions.
+
+        When ``set_surface_types`` is True (model load/construction), binds
+        ``_surface_type`` via ``set_surface_type``, which normalises explicit
+        numeric zeros in inapplicable destinations to ``None`` while rejecting
+        non-zero or invalid values. When False (post-load handoff checks),
+        validates strictly and rejects any non-null inapplicable destination
+        including ``0.0``.
+        """
+        errors: list[str] = []
+        for site_index, site in enumerate(self.sites):
+            props = getattr(site, "properties", None)
+            land_cover = (
+                getattr(props, "land_cover", None) if props is not None else None
+            )
+            if land_cover is None:
+                continue
+
+            site_name = getattr(site, "name", f"Site {site_index}")
+            raw_gridiv = getattr(site, "gridiv", None)
+            gridiv = (
+                raw_gridiv.value if isinstance(raw_gridiv, RefValue) else raw_gridiv
+            )
+            site_label = (
+                f"sites[{site_index}] ({site_name}, gridiv={gridiv})"
+                if gridiv is not None
+                else f"sites[{site_index}] ({site_name})"
+            )
+            for surface_name, surface_type in _LAND_COVER_SURFACE_TYPES:
+                surface_prop = getattr(land_cover, surface_name, None)
+                if surface_prop is None:
+                    continue
+                try:
+                    if set_surface_types and hasattr(surface_prop, "set_surface_type"):
+                        surface_prop.set_surface_type(surface_type)
+                    elif hasattr(surface_prop, "validate_water_distribution"):
+                        surface_prop.validate_water_distribution(surface_type)
+                except ValueError as exc:
+                    errors.append(
+                        f"{site_label}: Invalid surface configuration for "
+                        f"{surface_name}: {exc}"
+                    )
+
+        if errors:
+            raise ValueError("\n".join(errors))
+
+    def validate_water_distributions(self) -> None:
+        """Validate water distributions across all sites and land-cover surfaces.
+
+        Re-checks every site's seven surface ``waterdist`` blocks (owning
+        destinations and unit sum when ``sfr > 0``, disallowed destinations and
+        finite ``[0, 1]`` bounds regardless of ``sfr``, and absence on
+        ``water``) so in-place mutations made after ``SUEWSConfig``
+        construction cannot reach the engine or ``df_state`` unchecked.
+
+        Raises
+        ------
+        ValueError
+            If any site has a missing (on an active ``sfr > 0`` surface),
+            disallowed, out-of-range, or non-unit water distribution.
+        """
+        self._validate_land_cover_surfaces(set_surface_types=False)
+
     @model_validator(mode="after")
     def set_surface_types_validation(self) -> "SUEWSConfig":
         """Set surface types on all land cover properties across all sites.
@@ -4953,41 +5032,7 @@ class SUEWSConfig(DataModelBase):
         validation and processing logic. Migrated from LandCover.set_surface_types
         to provide centralized validation across all sites.
         """
-        from .type import SurfaceType  # Import here to avoid circular import
-
-        # Surface type mapping
-        surface_map = {
-            "paved": SurfaceType.PAVED,
-            "bldgs": SurfaceType.BLDGS,
-            "dectr": SurfaceType.DECTR,
-            "evetr": SurfaceType.EVETR,
-            "grass": SurfaceType.GRASS,
-            "bsoil": SurfaceType.BSOIL,
-            "water": SurfaceType.WATER,
-        }
-
-        for site_index, site in enumerate(self.sites):
-            if site.properties and site.properties.land_cover:
-                land_cover = site.properties.land_cover
-
-                # Set surface types for each surface property
-                for surface_name, surface_type in surface_map.items():
-                    if hasattr(land_cover, surface_name):
-                        surface_prop = getattr(land_cover, surface_name)
-                        if surface_prop and hasattr(surface_prop, "set_surface_type"):
-                            try:
-                                surface_prop.set_surface_type(surface_type)
-                            except Exception as e:
-                                # Log the error but continue processing other surfaces
-                                site_name = getattr(site, "name", f"Site {site_index}")
-                                import warnings
-
-                                warnings.warn(
-                                    f"{site_name}: Failed to set surface type for {surface_name}: {str(e)}",
-                                    UserWarning,
-                                    stacklevel=2,
-                                )
-
+        self._validate_land_cover_surfaces(set_surface_types=True)
         return self
 
     @model_validator(mode="after")

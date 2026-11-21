@@ -136,7 +136,7 @@ def step_coverage(document: Document, manifest: dict) -> dict:
     for node, kind in document.candidates():
         exclusions = [e for e in manifest["exclusions"] if document.owns(e, node, kind)]
         if any(
-            e.get("kind") in {"example-data", "installation"}
+            e.get("kind") == "example-data"
             or (kind == "inline" and e.get("inline") == node.rawsource)
             for e in exclusions
         ):
@@ -146,20 +146,13 @@ def step_coverage(document: Document, manifest: dict) -> dict:
             documented += 1
             bound += any(e.get("inline") == node.rawsource for e in entries)
         else:
-            spans = document.statements(node)
-            documented += len(spans)
-            bound += sum(
-                any(
-                    e.get(
-                        "statement"
-                        if document.language(node) == "python"
-                        else "command"
-                    )
-                    == i
-                    for e in entries
-                )
-                for i in range(len(spans))
-            )
+            key = "statement" if document.language(node) == "python" else "command"
+            installed = {
+                e.get(key) for e in exclusions if e.get("kind") == "installation"
+            }
+            indices = set(range(len(document.statements(node)))) - installed
+            documented += len(indices)
+            bound += sum(any(e.get(key) == i for e in entries) for i in indices)
     return {"documented_steps": documented, "bound_steps": bound}
 
 
@@ -204,9 +197,7 @@ def unbound_instructions(document: Document, manifest: dict) -> list[str]:
         ]
         if kind == "inline":
             covered = any(entry.get("inline") == node.rawsource for entry in entries)
-        elif any(
-            entry.get("kind") in {"example-data", "installation"} for entry in entries
-        ):
+        elif any(entry.get("kind") == "example-data" for entry in entries):
             covered = True
         else:
             covered = {

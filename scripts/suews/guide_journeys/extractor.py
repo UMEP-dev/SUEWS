@@ -66,15 +66,17 @@ def shell_spans(text: str, first: int) -> list[Span]:
 
 def python_spans(text: str, first: int) -> list[Span]:
     """Split complete Python statements, retaining indentation and source lines."""
-    return [
-        Span(
-            ast.get_source_segment(text, node),
-            first + node.lineno - 1,
-            first + node.end_lineno - 1,
-            "python",
+    result = []
+    for node in ast.parse(text).body:
+        first_line = node.lineno
+        source = ast.get_source_segment(text, node)
+        if decorators := getattr(node, "decorator_list", []):
+            first_line = decorators[0].lineno
+            source = "\n".join(text.splitlines()[first_line - 1 : node.end_lineno])
+        result.append(
+            Span(source, first + first_line - 1, first + node.end_lineno - 1, "python")
         )
-        for node in ast.parse(text).body
-    ]
+    return result
 
 
 def section(text: str, title: str) -> Span:

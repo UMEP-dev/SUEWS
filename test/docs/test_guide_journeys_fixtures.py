@@ -68,3 +68,25 @@ def test_fixture_checksum_rejects_unreviewed_patch(tmp_path):
     damaged["base"]["sha256"] = "wrong"
     with pytest.raises(ValueError, match="checksum mismatch: base"):
         fixture_bytes(tmp_path, damaged, "variant")
+
+
+def test_zero_area_control_changes_only_balanced_surface_fractions():
+    """The control retains the empty destinations and changes only area fractions."""
+    manifest = yaml.safe_load(
+        (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    zero = yaml.safe_load(
+        fixture_bytes(_REPO_ROOT, manifest["fixtures"], "zero-area-dev12")
+    )
+    positive = yaml.safe_load(
+        fixture_bytes(_REPO_ROOT, manifest["fixtures"], "positive-area-dev12")
+    )
+    cover = positive["sites"][0]["properties"]["land_cover"]
+    assert cover["bsoil"]["waterdist"] == {}
+    assert cover["bsoil"]["sfr"]["value"] == 0.01
+    assert cover["grass"]["sfr"]["value"] == 0.02
+    cover["bsoil"]["sfr"]["value"] = 0.0
+    cover["grass"]["sfr"]["value"] = 0.03
+    assert positive == zero

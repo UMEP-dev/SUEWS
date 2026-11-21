@@ -561,6 +561,7 @@ journeys:
     step: migrate
     promise: creates
     consumer: validate-migrated
+    path: site.migrated.yml
 - id: earlier-stale
   inputs:
     site.yml: untagged-dev11
@@ -612,7 +613,8 @@ journeys:
     step: migrate
     promise: creates
     consumer: validate-migrated
-  plant_stale: true
+    path: site.migrated.yml
+  plant_stale: site.migrated.yml
 - id: control-positive-area
   label: Negative control for zero-area recovery
   inputs:
@@ -697,6 +699,7 @@ schema_versions:
 - 2026.6.dev11
 - 2026.6.dev12
 behaviour_audit:
+  journey: tagged-dev11
   source_revision: 590d3db0355f18d7a9337ac1117e715189703974
   partition:
   - explicit_older
@@ -708,3 +711,9 @@ behaviour_audit:
   undocumented_effects:
   - self-routing numeric zeros
   - pervious to_runoff numeric zeros
+forcing_resource:
+  package: supy
+  path: sample_data/Kc_2012_data_60.txt
+  target: Kc_2012_data_60.txt
+schema_enumerations:
+  surface: [paved, bldgs]

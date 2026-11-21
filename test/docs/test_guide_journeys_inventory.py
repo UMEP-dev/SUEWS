@@ -13,11 +13,22 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from click.testing import CliRunner  # noqa: E402 - source imports follow path setup
+import yaml  # noqa: E402 - source imports follow path setup
+
 from scripts.suews.guide_journeys.inventory import (  # noqa: E402 - source script imports follow path setup
     compare,
     compare_values,
     installed_commands,
 )
+from scripts.suews.guide_journeys.summary import (  # noqa: E402 - source imports follow path setup
+    failed_summary,
+    option_witnesses,
+    schema_versions,
+    summarise,
+    unrestricted_coverage,
+)
+from supy.cmd.schema_cli import cli  # noqa: E402 - source imports follow path setup
 
 pytestmark = pytest.mark.api
 
@@ -65,7 +76,6 @@ def test_schema_enumeration_comparison():
 
 def test_real_manifest_matches_installed_commands():
     """The reviewed option inventory stays aligned without importing docutils."""
-    import yaml
 
     manifest = yaml.safe_load(
         (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(
@@ -81,11 +91,6 @@ def test_real_manifest_matches_installed_commands():
 
 def test_unrestricted_values_need_execution_witnesses():
     """Aliases and equals forms count; unrun and unrelated commands do not."""
-    from scripts.suews.guide_journeys.summary import (
-        failed_summary,
-        option_witnesses,
-        unrestricted_coverage,
-    )
 
     records = [
         {
@@ -118,7 +123,10 @@ def test_unrestricted_values_need_execution_witnesses():
     assert witnesses == {"site.yml": ["example:long"], "other.yml": ["example:short"]}
     commands = installed_commands()
     declared = {
-        name: {"documented": {}, "excluded": {o: "outside test" for o in c["options"]}}
+        name: {
+            "documented": {},
+            "excluded": dict.fromkeys(c["options"], "outside test"),
+        }
         for name, c in commands.items()
     }
     declared["convert"]["documented"] = {"--input": ["site.yml", "missing.yml"]}
@@ -136,9 +144,6 @@ def test_unrestricted_values_need_execution_witnesses():
 
 def test_schema_info_version_list():
     """The public CLI's list supplies versions, not unrestricted help literals."""
-    from click.testing import CliRunner
-    from supy.cmd.schema_cli import cli
-    from scripts.suews.guide_journeys.summary import schema_versions
 
     result = CliRunner().invoke(cli, ["info"])
     assert result.exit_code == 0
@@ -146,3 +151,19 @@ def test_schema_info_version_list():
     assert schema_versions(
         "Current version: 2026.6.dev12\n  v2026.6.dev11: old\n  \u2192 v2026.6.dev12: current\n"
     ) == ["2026.6.dev11", "2026.6.dev12"]
+
+
+def test_omitted_audit_is_reported_and_fails_summary():
+    """A subset without the designated audit journey cannot silently exit green."""
+
+    manifest = yaml.safe_load(
+        (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    summary = summarise(manifest, [], [], {"documented_steps": 6, "bound_steps": 6})
+    assert summary["behaviour_audit"]["status"] == "unrun"
+    assert (
+        manifest["behaviour_audit"]["journey"] in summary["behaviour_audit"]["reason"]
+    )
+    assert failed_summary(summary)

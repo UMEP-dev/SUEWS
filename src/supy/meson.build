@@ -1,6 +1,7 @@
 py.install_sources(
     [
         '__init__.py',
+        '_build_depfile.py',
         '_check.py',
         '_env.py',
         '_filename.py',
@@ -315,6 +316,7 @@ makefile_deps = files(
   dir_suews / 'Makefile.gfortran',
   dir_suews / 'Makefile.ifort',
   'run_make.py',
+  '_build_depfile.py',
 )
 
 build_suews = custom_target(
@@ -341,6 +343,7 @@ if rust_bridge_enabled
         '../suews_bridge/build.rs',
         '../suews_bridge/src/field_renames.rs',
         'build_rust_bridge.py',
+        '_build_depfile.py',
     )
     # abi3 filename: one wheel covers cp39..cp3xx. The PyO3 feature
     # abi3-py39 makes the cargo artefact itself ABI-stable; the filename

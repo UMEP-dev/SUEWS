@@ -13,6 +13,9 @@ const FIXTURES: [&str; 2] = [
 
 fn config(fixture: &str, clock: Option<&str>) -> Value {
     let mut root: Value = serde_yaml::from_str(fixture).unwrap();
+    // Both examples also go through the file loader, which requires an output
+    // directory even when the forcing-clock diagnostic is the subject of the test.
+    root["model"]["control"]["output"]["dir"] = ".".into();
     let forcing = root["model"]["control"]["forcing"].as_mapping_mut().unwrap();
     match clock {
         Some(clock) => {
@@ -43,6 +46,8 @@ fn invalid_clocks() -> Vec<Option<&'static str>> {
         Some("{value: {value: utc}}"),
         Some("''"),
         Some("civil_time"),
+        Some("follow"),
+        Some("daylight"),
         Some("{value: civil_time}"),
     ]
 }

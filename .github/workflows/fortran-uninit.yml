@@ -21,14 +21,27 @@ on:
       - 'scripts/lint/check_fortran_uninit.py'
       - 'scripts/lint/fortran_uninit_baseline.json'
       - '.github/workflows/fortran-uninit.yml'
-  merge_group:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      base_sha:
+        description: 'Base commit SHA to compare against'
+        required: false
+        type: string
+        default: ''
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: fortran-uninit-${{ github.event.pull_request.number || github.ref }}
+  # Include github.workflow so standalone pull_request runs and folded
+  # workflow_call runs from build-publish_to_pypi.yml never cancel each other.
+  group: fortran-uninit-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -45,6 +58,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -52,7 +66,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          BASE_SHA: ${{ inputs.base_sha || github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
         run: |
           set -eu
           gfortran --version | head -n 1
@@ -68,6 +82,9 @@ jobs:
             fi
           fi
           if [ -n "$BASE_SHA" ]; then
+            if ! git -c "safe.directory=$PWD" cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              git -c "safe.directory=$PWD" fetch --no-tags origin "$BASE_SHA"
+            fi
             python3 scripts/lint/check_fortran_uninit.py --base-ref "$BASE_SHA"
           else
             python3 scripts/lint/check_fortran_uninit.py

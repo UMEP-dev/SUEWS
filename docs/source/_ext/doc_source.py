@@ -83,6 +83,13 @@ def check_page(text: str, path_repo: Path) -> list[str]:
     return []
 
 
+def _is_tool_output(name: str, tool_outputs: dict[str, str]) -> bool:
+    return any(
+        name.startswith(output) if output.endswith("/") else name == output
+        for output in tool_outputs
+    )
+
+
 def check_tree(
     path_source: Path, path_repo: Path, tool_outputs: dict[str, str]
 ) -> tuple[list[str], Counter]:
@@ -91,10 +98,7 @@ def check_tree(
     counts = Counter()
     for path_page in sorted(path_source.rglob("*.rst")):
         name = path_page.relative_to(path_source).as_posix()
-        if any(
-            name.startswith(output) if output.endswith("/") else name == output
-            for output in tool_outputs
-        ):
+        if _is_tool_output(name, tool_outputs):
             counts["generated (Sphinx tools)"] += 1
             continue
         text = path_page.read_text(encoding="utf-8")
@@ -120,13 +124,20 @@ def _validate(app: Any, *_args: Any) -> None:
 
 def _preserve_metadata(app: Any, docname: str, source: list[str]) -> None:
     fields, offset = read_header(source[0])
+    tool_output = _is_tool_output(f"{docname}.rst", app.config.doc_source_tool_outputs)
+    metadata = app.env.metadata[docname]
+    if tool_output:
+        # Gallery indexes can copy a hand-written README's fields. The output
+        # declaration owns their provenance, including when no fields are copied.
+        metadata["doc-source"] = "generated"
+        metadata.pop("doc-generator", None)
     if not fields:
         return
     # conf.py and rst_prolog prepend content: record metadata before that happens.
     hidden = _SOURCE_FIELDS | {"orphan"}
     for name, values in fields.items():
-        if name in hidden:
-            app.env.metadata[docname][name] = values[0]
+        if name == "orphan" or (not tool_output and name in _SOURCE_FIELDS):
+            metadata[name] = values[0]
     lines = source[0].splitlines(keepends=True)
     kept = []
     discard = False
@@ -164,4 +175,9 @@ def setup(app: Any) -> dict[str, Any]:
     app.connect("source-read", _preserve_metadata, priority=100)
     app.connect("doctree-read", _hide_included_metadata)
     app.connect("build-finished", _validate_finished)
-    return {"version": "1", "parallel_read_safe": True, "parallel_write_safe": True}
+    return {
+        "version": "1",
+        "env_version": 1,
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }

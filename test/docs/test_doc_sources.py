@@ -2,6 +2,7 @@
 
 import importlib.util
 from pathlib import Path
+import pickle
 import subprocess
 import sys
 
@@ -184,3 +185,34 @@ def test_sphinx_and_cli_agree_and_metadata_stays_hidden(source_tree, tmp_path):
     for name in ("fragment.rst", "index.rst", "absent.py"):
         assert name in result.stderr and name in cli.stdout
     assert result.returncode != 0 and cli.returncode == 1
+
+
+def test_tool_declaration_overrides_copied_metadata(source_tree, tmp_path):
+    """Gallery output stays generated even when it copies a README's label."""
+    pytest.importorskip("sphinx", reason="Sphinx integration requires the docs extra")
+    conf = source_tree / "conf.py"
+    conf.write_text(
+        conf.read_text(encoding="utf-8").replace(
+            "doc_source_tool_outputs = {}",
+            "doc_source_tool_outputs = {'generated/': 'sphinx.ext.autosummary'}",
+        ),
+        encoding="utf-8",
+    )
+    generated = source_tree / "generated"
+    generated.mkdir()
+    (generated / "copied.rst").write_text(
+        ":orphan:\n\n:doc-source: hand-written\n\nCopied title\n============\n",
+        encoding="utf-8",
+    )
+    (generated / "plain.rst").write_text("Plain title\n===========\n", encoding="utf-8")
+    output = tmp_path / "html"
+    result = _sphinx(source_tree, output)
+    assert result.returncode == 0, result.stdout + result.stderr
+    with (output / ".doctrees/environment.pickle").open("rb") as stream:
+        environment = pickle.load(stream)
+    for name in ("generated/copied", "generated/plain"):
+        assert environment.metadata[name]["doc-source"] == "generated"
+    assert environment.metadata["index"]["doc-source"] == "hand-written"
+    cli = _cli(source_tree, tmp_path)
+    assert cli.returncode == 0, cli.stdout
+    assert "generated (Sphinx tools): 2" in cli.stdout

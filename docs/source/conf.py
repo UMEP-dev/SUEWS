@@ -293,8 +293,8 @@ extensions = [
     "sphinx_gallery.gen_gallery",  # Gallery examples from Python scripts (GH-1029)
 ]
 
-# Tool-owned RST outputs cannot carry project source fields. Keep this literal
-# declaration readable by scripts/lint/check_doc_sources.py without Sphinx.
+# This declaration owns tool-output provenance, overriding any copied fields.
+# Keep it literal for scripts/lint/check_doc_sources.py to read without Sphinx.
 # A trailing slash declares a directory; other keys name one exact source file.
 doc_source_tool_outputs = {
     "auto_examples/": "sphinx_gallery.gen_gallery",

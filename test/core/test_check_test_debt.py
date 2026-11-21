@@ -388,6 +388,7 @@ def test_wrong_container_types_are_reported(tree, capsys, name, keys, value):
         (checker.OBSERVER, "REVIEWED_UNBRIDGED_COMPONENTS"),
         (checker.OBSERVER, "REVIEWED_DRIVER_EXCLUDED_COMPONENTS"),
         ("test/data_model/test_legacy_table_roundtrip.py", "_MLM_ALLOWED"),
+        ("scripts/lint/check_saved_fortran_locals.py", "ALLOWED"),
     ],
 )
 def test_wrong_python_constant_types_are_reported(tree, capsys, name, constant):
@@ -463,3 +464,427 @@ def test_suppression_sites_follow_source_order():
         (6, 17),
         (7, 4),
     ]
+
+
+@pytest.mark.parametrize(
+    "source, scope",
+    [
+        (
+            "import unittest\n\n"
+            "class TestNew(unittest.TestCase):\n"
+            "    @unittest.expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "import unittest as ut\n\n"
+            "class TestNew(ut.TestCase):\n"
+            "    @ut.expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "import unittest.case\n\n"
+            "class TestNew(unittest.case.TestCase):\n"
+            "    @unittest.case.expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "import unittest.case as ucase\n\n"
+            "class TestNew(ucase.TestCase):\n"
+            "    @ucase.expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "from unittest import TestCase, case\n\n"
+            "class TestNew(TestCase):\n"
+            "    @case.expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "from unittest import TestCase, case as ucase\n\n"
+            "class TestNew(TestCase):\n"
+            "    @ucase.expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "from unittest import TestCase, expectedFailure\n\n"
+            "class TestNew(TestCase):\n"
+            "    @expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "from unittest import TestCase, expectedFailure as ef\n\n"
+            "class TestNew(TestCase):\n"
+            "    @ef\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "from unittest.case import TestCase, expectedFailure\n\n"
+            "class TestNew(TestCase):\n"
+            "    @expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "from unittest.case import TestCase, expectedFailure as ef\n\n"
+            "class TestNew(TestCase):\n"
+            "    @ef\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "from unittest import *\n\n"
+            "class TestNew(TestCase):\n"
+            "    @expectedFailure\n"
+            "    def test_new(self):\n"
+            "        self.assertEqual(1, 2)\n",
+            "TestNew.test_new",
+        ),
+        (
+            "import unittest\n\n"
+            "@unittest.expectedFailure\n"
+            "class TestNew(unittest.TestCase):\n"
+            "    pass\n",
+            "TestNew",
+        ),
+        (
+            "import unittest\n\n"
+            "def _case(self): self.assertEqual(1, 2)\n"
+            "wrapped = unittest.expectedFailure(_case)\n",
+            "<module>",
+        ),
+        (
+            "from unittest import expectedFailure\n\n"
+            "def _case(self): self.assertEqual(1, 2)\n"
+            "wrapped = expectedFailure(_case)\n",
+            "<module>",
+        ),
+    ],
+)
+def test_unittest_expected_failure_forms_are_counted_once_and_fail_unmapped(
+    tree, source, scope
+):
+    name = "test/test_new.py"
+    (tree / name).write_text(source, encoding="utf-8")
+    records, errors = checker.extract_records(tree)
+    assert not errors
+    assert [r["id"] for r in records if r["source"] == name] == [f"{name}::{scope}::1"]
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    assert f"X:{name}::{scope}::1: unmapped entry" in checker.check_tree(tree)["errors"]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import unittest\n\nclass TestOk(unittest.TestCase):\n    def test_ok(self):\n        self.assertEqual(1, 1)\n",
+        "from unittest import expectedFailure\n\ndef test_ok():\n    assert 1 == 1\n",
+        "def expectedFailure(fn): return fn\n\n@expectedFailure\ndef test_ok():\n    assert 1 == 1\n",
+        "from custom_module import expectedFailure\n\n@expectedFailure\ndef test_ok():\n    assert 1 == 1\n",
+    ],
+)
+def test_unrelated_unittest_and_expected_failure_names_are_not_flagged(tree, source):
+    name = "test/test_unrelated.py"
+    (tree / name).write_text(source, encoding="utf-8")
+    records, errors = checker.extract_records(tree)
+    assert not errors
+    assert [r for r in records if r["source"] == name] == []
+
+
+@pytest.mark.parametrize(
+    "import_line, decorator",
+    [
+        ("import unittest", "@unittest.expectedFailure"),
+        ("import unittest as ut", "@ut.expectedFailure"),
+        ("from unittest import expectedFailure as ef", "@ef"),
+    ],
+)
+def test_unittest_expected_failure_reports_xfail_in_pytest_and_fails_inventory(
+    tree, import_line, decorator
+):
+    name = "test/core/test_unittest_xfail_witness.py"
+    path = tree / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    base_cls = "ut.TestCase" if "as ut" in import_line else "unittest.TestCase"
+    extra_import = (
+        ""
+        if "unittest" in import_line and "from" not in import_line
+        else "import unittest\n"
+    )
+    path.write_text(
+        f"{extra_import}{import_line}\n\n"
+        f"class TestWitness({base_cls}):\n"
+        f"    {decorator}\n"
+        f"    def test_documented_behaviour(self):\n"
+        f"        self.assertEqual(1, 2)\n",
+        encoding="utf-8",
+    )
+    run = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            f"--confcutdir={path.parent}",
+            "--override-ini=addopts=",
+            "-q",
+            "-rxX",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert "XFAIL" in run.stdout and "1 xfailed" in run.stdout
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    assert (
+        f"X:{name}::TestWitness.test_documented_behaviour::1: unmapped entry"
+        in checker.check_tree(tree)["errors"]
+    )
+
+
+_FORTRAN_SAVED_LOCAL_SAMPLE = (
+    "subroutine ledger_review_sample()\n"
+    "  implicit none\n"
+    "  integer :: count = 0\n"
+    "  count = count + 1\n"
+    "end subroutine\n"
+)
+
+
+def _write_fortran_sample(tree: Path) -> None:
+    sample = tree / "src/suews/src/ledger_review_sample.f95"
+    sample.parent.mkdir(parents=True, exist_ok=True)
+    sample.write_text(_FORTRAN_SAVED_LOCAL_SAMPLE, encoding="utf-8")
+
+
+def _run_saved_locals_linter(tree: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(tree / "scripts/lint/check_saved_fortran_locals.py"),
+            str(tree),
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+def test_saved_local_valid_literal_registration_links_cleanly(tree):
+    _write_fortran_sample(tree)
+    assert _run_saved_locals_linter(tree).returncode == 1
+    linter_path = tree / "scripts/lint/check_saved_fortran_locals.py"
+    linter_path.write_text(
+        linter_path.read_text(encoding="utf-8").replace(
+            "ALLOWED: dict[tuple[str, str], str] = {}",
+            'ALLOWED: dict[tuple[str, str], str] = {("ledger_review_sample.f95", "count"): "#2087"}',
+        ),
+        encoding="utf-8",
+    )
+    linter_run = _run_saved_locals_linter(tree)
+    assert linter_run.returncode == 0, linter_run.stdout + linter_run.stderr
+    assert "(1 allowlisted)" in linter_run.stdout
+    assert any(
+        "Z:ledger_review_sample.f95::count: unmapped entry" in e
+        for e in checker.check_tree(tree)["errors"]
+    )
+    links = _links(tree)
+    links["mappings"].append({
+        "selector": {"ledger": "Z", "id": "ledger_review_sample.f95::count"},
+        "contract": "C-RESPONSE",
+        "issue": 2087,
+        "classification": "defect",
+    })
+    _write_links(tree, links)
+    report = checker.check_tree(tree)
+    assert checker.main(["--root", str(tree), "--strict"]) == 0
+    assert 2087 in report["issues"]
+    assert any(
+        r["ledger"] == "Z" and r["id"] == "ledger_review_sample.f95::count"
+        for r in report["records"]
+    )
+
+
+@pytest.mark.parametrize(
+    "snippet, diagnostic",
+    [
+        (
+            'reviewed_locals = ALLOWED\nreviewed_locals[("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            'reviewed_locals = ALLOWED\nreviewed_locals.update({("ledger_review_sample.f95", "count"): "#2087"})',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            'reviewed_locals = ALLOWED\nreviewed_locals |= {("ledger_review_sample.f95", "count"): "#2087"}',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            "def register_reviewed(table, key, issue):\n    table[key] = issue\n"
+            'register_reviewed(ALLOWED, ("ledger_review_sample.f95", "count"), "#2087")',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            "def register_reviewed(table, key, issue):\n    table[key] = issue\n"
+            'register_reviewed(key=("ledger_review_sample.f95", "count"), issue="#2087", table=ALLOWED)',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            "def register_reviewed(key, issue, table=ALLOWED):\n    table[key] = issue\n"
+            'register_reviewed(("ledger_review_sample.f95", "count"), "#2087")',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            'box = [ALLOWED]\nbox[0][("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            "if (alias := ALLOWED) is not None:\n"
+            '    alias[("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            'updater = ALLOWED.update\nupdater({("ledger_review_sample.f95", "count"): "#2087"})',
+            "unsupported escape of constant ALLOWED",
+        ),
+        (
+            "def get_table():\n    return ALLOWED\n"
+            'get_table()[("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported escape of constant ALLOWED",
+        ),
+        (
+            "class Holder:\n    table = ALLOWED\n"
+            'Holder.table[("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported escape of constant ALLOWED",
+        ),
+        (
+            'globals()["ALLOWED"][("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported dynamic namespace access via globals",
+        ),
+        (
+            'locals()["ALLOWED"][("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported dynamic namespace access via locals",
+        ),
+        (
+            "import operator\n"
+            'operator.setitem(ALLOWED, ("ledger_review_sample.f95", "count"), "#2087")',
+            "unsupported escape of constant ALLOWED",
+        ),
+    ],
+)
+def test_saved_local_alias_helper_and_escape_writes_fail_closed_while_linter_accepts(
+    tree, snippet, diagnostic
+):
+    _write_fortran_sample(tree)
+    assert _run_saved_locals_linter(tree).returncode == 1
+    linter_path = tree / "scripts/lint/check_saved_fortran_locals.py"
+    intro = "ALLOWED: dict[tuple[str, str], str] = {}"
+    source = linter_path.read_text(encoding="utf-8")
+    assert source.count(intro) == 1
+    linter_path.write_text(
+        source.replace(intro, f"{intro}\n{snippet}"), encoding="utf-8"
+    )
+
+    # Prove the real linter actually accepts the witness before asserting fail-closed.
+    linter_run = _run_saved_locals_linter(tree)
+    assert linter_run.returncode == 0, linter_run.stdout + linter_run.stderr
+    assert "(1 allowlisted)" in linter_run.stdout
+
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    assert any(diagnostic in e for e in checker.check_tree(tree)["errors"])
+
+
+def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allowed(
+    tmp_path,
+):
+    (tmp_path / "ledger.py").write_text(
+        'LEDGER = {("a.f95", "x"): "#123"}\n'
+        "ALIAS = LEDGER\n"
+        "def count_entries(table):\n"
+        "    return len(table)\n"
+        "def has_entry(table, key):\n"
+        "    return key in table and table.get(key) is not None\n"
+        "def read_copy(flag):\n"
+        "    eff = LEDGER if flag else {}\n"
+        "    merged = {**eff}\n"
+        "    copied = LEDGER.copy()\n"
+        '    copied[("copy.f95", "c")] = "#0"\n'
+        "    return count_entries(eff) + len(merged.keys()) + len(copied)\n"
+        "OTHER = {}\n"
+        'OTHER[("b.f95", "y")] = "#999"\n'
+        "def mutate_unrelated(table, key, issue):\n"
+        "    table[key] = issue\n"
+        'mutate_unrelated(OTHER, ("c.f95", "z"), "#999")\n'
+        'found = has_entry(ALIAS, ("a.f95", "x"))\n',
+        encoding="utf-8",
+    )
+    assert checker._python_values(tmp_path, "ledger.py", ("LEDGER",)) == {
+        "LEDGER": {("a.f95", "x"): "#123"}
+    }
+
+
+@pytest.mark.parametrize(
+    "source, match",
+    [
+        (
+            'LEDGER = {}\ndef len(table):\n    table["k"] = "v"\nlen(LEDGER)\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            'DEPENDENCY = {"nested": []}\nLEDGER = DEPENDENCY\n'
+            'sub = DEPENDENCY["nested"]\nsub.append("new")\n',
+            "unsupported mutation of constant DEPENDENCY",
+        ),
+        (
+            'DEPENDENCY = {"nested": []}\nLEDGER = DEPENDENCY\n'
+            'def add_item(lst):\n    lst.append("new")\n'
+            'add_item(DEPENDENCY["nested"])\n',
+            "unsupported mutation of constant DEPENDENCY",
+        ),
+        (
+            "LEDGER = {}\n"
+            "alias = None\n"
+            "def bind():\n    global alias\n    alias = LEDGER\n"
+            'def mutate():\n    alias["k"] = "v"\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            "from external_helper import register\n"
+            "LEDGER = {}\n"
+            'register(LEDGER, "k", "v")\n',
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def reg(table, k, v):\n    table[k] = v\n"
+            'reg(*(LEDGER, "k", "v"))\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+    ],
+)
+def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
+    tmp_path, source, match
+):
+    (tmp_path / "ledger.py").write_text(source, encoding="utf-8")
+    with pytest.raises(ValueError, match=match):
+        checker._python_values(tmp_path, "ledger.py", ("LEDGER",))

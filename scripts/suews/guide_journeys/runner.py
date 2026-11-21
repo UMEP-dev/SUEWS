@@ -145,7 +145,11 @@ def inspect_installed(
 ) -> dict:
     """Gather the installed CLI inventory and independent migration-effect audit."""
     spec = dict(manifest["behaviour_audit"])
-    binding = next(s for s in manifest["steps"] if s["id"] == spec["command_step"])
+    binding = next(
+        (s for s in manifest["steps"] if s["id"] == spec["command_step"]), None
+    )
+    if binding is None:
+        raise ValueError(f"Unknown audit command step: {spec['command_step']}")
     span = document.span(binding)
     spec.update(command=span.text, source_lines=[span.first, span.last])
     return {
@@ -192,8 +196,8 @@ def run_journey(
     started = time.monotonic()
     try:
         specs = bind_journey(root, manifest, document, journey, record)
-        record["wheel_sha256"] = sha256(args.wheel)
         record["steps"] = [unrun_step(spec) for spec in specs]
+        record["wheel_sha256"] = sha256(args.wheel)
         for fixture_id in journey["inputs"].values():
             fixture = manifest["fixtures"][fixture_id]
             fixture_bytes(root, manifest["fixtures"], fixture_id)
@@ -254,6 +258,7 @@ def run_journey(
         TypeError,
         yaml.YAMLError,
         subprocess.SubprocessError,
+        StopIteration,
     ) as error:
         record["status"] = "failed"
         record["accepted"] = False

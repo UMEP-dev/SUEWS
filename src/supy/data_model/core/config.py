@@ -557,7 +557,10 @@ class SUEWSConfig(DataModelBase):
             from ...util.converter.yaml_upgrade import _migrate_2026_6_dev12_to_2026_6_dev13
 
             return _migrate_2026_6_dev12_to_2026_6_dev13(values)
-        for site in values.get("sites", []):
+        sites = values.get("sites")
+        if not isinstance(sites, list):
+            return values
+        for site in sites:
             if isinstance(site, dict):
                 InitialStates.reject_radiation_memory_input(site.get("initial_states"))
         return values
@@ -5222,6 +5225,8 @@ class SUEWSConfig(DataModelBase):
 
         # Extract GRIDID mapping from sites
         sites = config_data.get("sites", [])
+        if not isinstance(sites, list):
+            sites = []
         site_gridid_map = {}
         for idx, site in enumerate(sites):
             if isinstance(site, dict):

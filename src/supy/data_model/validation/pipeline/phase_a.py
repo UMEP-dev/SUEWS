@@ -1221,10 +1221,6 @@ def create_clean_missing_param_annotation(
     skip_null_rejected: bool = True,
 ):
     """Create missing parameter annotation without inline comments for clean YAML."""
-    if param_name in ["qn_surfs", "dqndt_surf"]:
-        null_array = ["null"] * 7
-        return [f"{param_name}: [{', '.join(null_array)}]"]
-
     if isinstance(standard_value, dict):
         child_lines = _format_missing_mapping_lines(
             standard_value,

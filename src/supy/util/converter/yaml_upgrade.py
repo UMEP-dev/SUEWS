@@ -2109,7 +2109,10 @@ def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
     """Remove old generated zeros without silently discarding restart values."""
     cfg = deepcopy(cfg)
     pending_logs = []
-    for index, site in enumerate(cfg.get("sites", [])):
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+    for index, site in enumerate(sites):
         states = site.get("initial_states") if isinstance(site, dict) else None
         if not isinstance(states, dict):
             continue

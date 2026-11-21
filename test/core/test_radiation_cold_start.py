@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 
 import pandas as pd
+from pydantic import ValidationError
 import pytest
 import yaml
 
@@ -65,12 +66,15 @@ def test_current_zero_and_null_memory_are_not_user_inputs(short_sample_sim, name
             _check_rust_available().run_suews(yaml.safe_dump(resolved), forcing, 2)
 
 
-def test_legacy_zero_migration_and_nonzero_refusal(short_sample_sim, tmp_path):
+def test_legacy_zero_migration_and_nonzero_refusal(short_sample_sim, tmp_path, capsys):
     raw = short_sample_sim().config.model_dump(mode="json")
     raw["schema_version"] = "2026.6.dev12"
     for name in ("qn_surfs", "dqndt_surf"):
         raw["sites"][0]["initial_states"][name] = [0.0] * 7
     config = SUEWSConfig.from_dict(deepcopy(raw))
+    notice = capsys.readouterr().err
+    assert "legacy zero placeholder" in notice
+    assert "qn_surfs" in notice and "dqndt_surf" in notice
     for name in ("qn_surfs", "dqndt_surf"):
         assert name not in config.sites[0].initial_states.model_dump()
     src = tmp_path / "legacy.yml"
@@ -215,3 +219,40 @@ def test_published_schema_rejects_memory_without_backdating_the_rule(include_int
                         validator.validate({name: values})
                 else:
                     validator.validate({name: values})
+
+
+@pytest.mark.parametrize("sites", [None, 17, "invalid", {"gridiv": 1}])
+@pytest.mark.parametrize("version", [None, "2026.6.dev13", "2026.6.dev12"])
+def test_invalid_sites_reaches_public_validation(sites, version, tmp_path):
+    raw = {"sites": sites}
+    if version is not None:
+        raw["schema_version"] = version
+    with pytest.raises(ValidationError) as error:
+        SUEWSConfig.model_validate(deepcopy(raw))
+    assert any(
+        e["loc"] == ("sites",) and e["type"] == "list_type"
+        for e in error.value.errors()
+    )
+    with pytest.raises(ValueError, match=r"(?s)sites.*list_type"):
+        SUEWSConfig.from_dict(deepcopy(raw))
+    path = tmp_path / "invalid.yml"
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match=r"(?s)sites.*list_type"):
+        SUEWSConfig.from_yaml(path)
+
+
+@pytest.mark.parametrize("sites", [None, 17, "invalid", {"gridiv": 1}])
+def test_legacy_converter_preserves_invalid_sites_for_validation(sites, tmp_path):
+    # Conversion migrates owned fields; it must not repair malformed structure.
+    src = tmp_path / "legacy.yml"
+    dst = tmp_path / "converted.yml"
+    src.write_text(
+        yaml.safe_dump({"schema_version": "2026.6.dev12", "sites": sites}),
+        encoding="utf-8",
+    )
+    upgrade_yaml(src, dst)
+    converted = yaml.safe_load(dst.read_text(encoding="utf-8"))
+    assert converted["sites"] == sites
+    assert converted["schema_version"] == "2026.6.dev13"
+    with pytest.raises(ValueError, match=r"(?s)sites.*list_type"):
+        SUEWSConfig.from_yaml(dst)

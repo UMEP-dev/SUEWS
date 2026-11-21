@@ -20,6 +20,7 @@ from scripts.suews.guide_journeys.behaviour import removed_paths  # noqa: E402
 from scripts.suews.guide_journeys.inventory import (  # noqa: E402 - source script imports follow path setup
     compare,
     compare_values,
+    coverage,
     installed_commands,
 )
 from scripts.suews.guide_journeys.summary import (  # noqa: E402 - source imports follow path setup
@@ -189,3 +190,27 @@ def test_observed_deletions_are_not_the_planted_list():
         "sites/0/waterdist/planted_zero",
         "sites/0/waterdist/unexpected",
     ]
+
+
+def test_historical_runs_cannot_credit_corrected_steps_or_choices():
+    """Shared step IDs do not make the old guide evidence for the corrected guide."""
+    manifest = yaml.safe_load(
+        (_REPO_ROOT / "test/docs/journeys/transition_guide.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    records = [
+        {
+            "journey_id": "earlier-stale",
+            "seconds": 1,
+            "steps": [
+                {"id": "migrate", "kind": "documented", "status": "failed"},
+                {"id": "validate-migrated", "kind": "documented", "status": "unrun"},
+            ],
+        }
+    ]
+    result = coverage(manifest, records, [], {"documented_steps": 6, "bound_steps": 6})
+    assert result["executed_steps"] == []
+    assert all(c["exercised_by"] == [] for c in result["choices"])
+    historical = {c["id"]: c for c in result["historical_choices"]}
+    assert historical["earlier-stale"]["exercised_by"] == ["earlier-stale"]

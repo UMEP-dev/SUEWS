@@ -237,24 +237,56 @@ def inspect_installed(
     work: Path, env: dict, manifest: dict, document: Document
 ) -> dict:
     """Gather the installed CLI inventory and independent migration-effect audit."""
-    spec = dict(manifest["behaviour_audit"])
-    binding = next(
-        (s for s in manifest["steps"] if s["id"] == spec["command_step"]), None
+    result = {}
+    spec = None
+    if manifest.get("behaviour_audit"):
+        spec = dict(manifest["behaviour_audit"])
+        binding = next(
+            (s for s in manifest["steps"] if s["id"] == spec["command_step"]), None
+        )
+        if binding is None:
+            raise ValueError(f"Unknown audit command step: {spec['command_step']}")
+        span = document.span(binding)
+        spec.update(command=span.text, source_lines=[span.first, span.last])
+    if manifest.get("cli_inspection"):
+        result["inventory"] = isolated_python(inventory.inspection_program(), work, env)
+        result["schema_info"] = execute("suews schema info", work, env)
+    if spec is None:
+        return result
+    result["behaviour_audit"] = isolated_python(
+        behaviour.inspection_program(),
+        work,
+        env,
+        [json.dumps([spec, manifest["expected_delta"]])],
     )
-    if binding is None:
-        raise ValueError(f"Unknown audit command step: {spec['command_step']}")
-    span = document.span(binding)
-    spec.update(command=span.text, source_lines=[span.first, span.last])
-    return {
-        "inventory": isolated_python(inventory.inspection_program(), work, env),
-        "schema_info": execute("suews schema info", work, env),
-        "behaviour_audit": isolated_python(
-            behaviour.inspection_program(),
-            work,
-            env,
-            [json.dumps([spec, manifest["expected_delta"]])],
-        ),
-    }
+    return result
+
+
+def setup_optional(
+    manifest: dict,
+    journey: dict,
+    work: Path,
+    env: dict,
+    document: Document,
+    record: dict,
+) -> list[str]:
+    """Run only the migration preparation and inspections the manifest requests."""
+    pinned = []
+    if forcing := manifest.get("forcing_resource"):
+        record["forcing_setup"] = isolated_python(
+            FORCING_SETUP, work, env, [json.dumps(forcing)]
+        )
+        record["input_sha256s"][forcing["target"]] = record["forcing_setup"]["sha256"]
+        pinned.append(forcing["target"])
+    selected = dict(manifest)
+    for key in ("cli_inspection", "behaviour_audit"):
+        if journey["id"] != manifest.get(key, {}).get("journey"):
+            selected.pop(key, None)
+    if selected.get("cli_inspection") or selected.get("behaviour_audit"):
+        record.update(inspect_installed(work, env, selected, document))
+    for command in manifest.get("cli_inspection", {}).get("commands", []):
+        record["installed_help"][command] = execute(command + " --help", work, env)
+    return pinned
 
 
 def bind_journey(
@@ -310,22 +342,14 @@ def execute_journey(
             "path": journey["plant_stale"],
             "sha256": record["input_sha256s"][journey["plant_stale"]],
         }
-    forcing = manifest["forcing_resource"]
-    record["forcing_setup"] = isolated_python(
-        FORCING_SETUP, work, env, [json.dumps(forcing)]
-    )
-    if journey["id"] == manifest["behaviour_audit"]["journey"]:
-        record.update(inspect_installed(work, env, manifest, document))
-    record["input_sha256s"][forcing["target"]] = record["forcing_setup"]["sha256"]
+    setup_paths = setup_optional(manifest, journey, work, env, document, record)
     initial = snapshot(work)
     pinned = {
         name: initial[name]
         for name in journey["inputs"]
         if name != journey.get("plant_stale")
     }
-    pinned[forcing["target"]] = initial[forcing["target"]]
-    for command in ("suews schema migrate", "suews validate", "suews convert"):
-        record["installed_help"][command] = execute(command + " --help", work, env)
+    pinned.update({name: initial[name] for name in setup_paths})
     diagnostic = (
         specs[-1] if specs and specs[-1].get("probe_kind") == "diagnostic" else None
     )

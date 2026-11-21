@@ -27,23 +27,27 @@ def summarise(
         }
         for r in records
     ]
-    evidence = next(
-        (
-            record
-            for record in records
-            if all(
-                key in record for key in ("inventory", "schema_info", "behaviour_audit")
-            )
-        ),
-        None,
-    )
-    if evidence is None:
-        result["behaviour_audit"] = {
-            "status": "unrun",
-            "reason": f"Select {manifest['behaviour_audit']['journey']} to run the installed software audit.",
-        }
-        result["inventory"] = {"status": "unrun"}
-        return result
+    audit_spec = manifest.get("behaviour_audit")
+    cli_spec = manifest.get("cli_inspection")
+    result["behaviour_audit"] = {"status": "unrun" if audit_spec else "not_requested"}
+    if audit_spec:
+        result["behaviour_audit"]["reason"] = (
+            f"Select {audit_spec['journey']} to run the installed software audit."
+        )
+    result["inventory"] = {"status": "unrun" if cli_spec else "not_requested"}
+    cli = next((r for r in records if "inventory" in r), None)
+    if cli is not None:
+        summarise_cli(result, manifest, records, cli)
+    evidence = next((r for r in records if "behaviour_audit" in r), None)
+    if evidence is not None:
+        summarise_audit(result, manifest, evidence["behaviour_audit"])
+    return result
+
+
+def summarise_cli(
+    result: dict, manifest: dict, records: list[dict], evidence: dict
+) -> None:
+    """Compare a requested CLI inventory with its documented choices."""
     result["inventory"] = compare(evidence["inventory"], manifest["inventory"])
     unrestricted_coverage(
         result["inventory"],
@@ -60,7 +64,10 @@ def summarise(
         "source": "installed suews schema info",
         "exit_status": info["exit_status"],
     }
-    audit = evidence["behaviour_audit"]
+
+
+def summarise_audit(result: dict, manifest: dict, audit: dict) -> None:
+    """Keep optional behaviour observations separate from reader coverage."""
     result["schema_enumerations"] = {
         "surface": compare_values(
             audit["surface_enum_available"], manifest["schema_enumerations"]["surface"]
@@ -77,7 +84,6 @@ def summarise(
         if key not in {"observed", "stdout", "stderr"}
     }
     result["argument_exclusions"] = manifest["argument_exclusions"]
-    return result
 
 
 def unrestricted_coverage(
@@ -151,5 +157,9 @@ def failed_summary(summary: dict) -> bool:
         or inventory_stale
         or summary.get("schema_versions", {}).get("unsupported")
         or summary.get("schema_versions", {}).get("exit_status", 0)
-        or summary.get("behaviour_audit", {}).get("passed") is not True
+        or summary.get("inventory", {}).get("status") == "unrun"
+        or (
+            summary.get("behaviour_audit", {}).get("status") != "not_requested"
+            and summary.get("behaviour_audit", {}).get("passed") is not True
+        )
     )

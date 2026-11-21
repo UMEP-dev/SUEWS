@@ -149,6 +149,9 @@ fixtures:
   stale-dev11:
     path: test/fixtures/guide_journeys/stale-dev11.yml
     sha256: f174e603b40ed9d3dfd80ba9a09f7dc87705954dcb1c61f51289702ac907e168
+  stale-dev12:
+    path: test/fixtures/guide_journeys/stale-dev12.yml
+    sha256: 10e2aa91e3a7eeb7e1f1dd3978479d4f77d0b497478dcf1ec135bb5fb93637ec
 historical:
   path: test/fixtures/guide_journeys/earlier-guide.rst
   sha256: 6028e7ede6a7990671b2b698ccb64826e2c75a53a4deed3a512cbffc9f21f9a1
@@ -348,3 +351,105 @@ journeys:
     path: site.migrated.yml
   choices:
   - recovery-zero-area
+- id: earlier-clean
+  inputs:
+    site.yml: untagged-dev11
+  steps:
+  - id: migrate
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta:
+        remove:
+        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+        set:
+          schema_version: 2026.6.dev12
+    - kind: unchanged
+      path: site.yml
+    command_index: 0
+    consumes:
+    - site.yml
+  - id: validate-migrated
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    command_index: 1
+    consumes:
+    - site.migrated.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta:
+      remove:
+      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+      set:
+        schema_version: 2026.6.dev12
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - earlier-clean
+  historical: true
+  expected_failure:
+    step: migrate
+    promise: creates
+    consumer: validate-migrated
+- id: earlier-stale
+  inputs:
+    site.yml: untagged-dev11
+    site.migrated.yml: stale-dev12
+  steps:
+  - id: migrate
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta:
+        remove:
+        - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+        set:
+          schema_version: 2026.6.dev12
+    - kind: unchanged
+      path: site.yml
+    command_index: 0
+    consumes:
+    - site.yml
+  - id: validate-migrated
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    command_index: 1
+    consumes:
+    - site.migrated.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta:
+      remove:
+      - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+      set:
+        schema_version: 2026.6.dev12
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - earlier-stale
+  historical: true
+  expected_failure:
+    step: migrate
+    promise: creates
+    consumer: validate-migrated
+  plant_stale: true

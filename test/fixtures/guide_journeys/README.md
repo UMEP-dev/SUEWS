@@ -40,6 +40,12 @@ SHA256: `6028e7ede6a7990671b2b698ccb64826e2c75a53a4deed3a512cbffc9f21f9a1`
 
 ## stale-dev11.yml
 
-Derived from tagged-dev11.yml by changing only the top-level name to unrelated_archived_run. This represents a valid older output belonging to another run. It is planted only for the labelled historical diagnostic replay and is never certified as created.
+Derived from tagged-dev11.yml by changing only the top-level name to unrelated_archived_run. This represents an older-schema output belonging to another run. The installed dev12 validator rejects it with SCHEMA_VERSION_MISMATCH; it is retained as a discriminating fixture, not the successful stale-output replay. It is not selected by the successful stale-output replay and is never certified as created.
 
 SHA256: `f174e603b40ed9d3dfd80ba9a09f7dc87705954dcb1c61f51289702ac907e168`
+
+## stale-dev12.yml
+
+Derived from dev12.yml by changing only the top-level name to unrelated_archived_run. This is an unrelated, current-schema copy left by an earlier run. Older refers to directory history, not an unsupported schema. Its successful replay demonstrates why validity does not establish creation provenance.
+
+SHA256: `10e2aa91e3a7eeb7e1f1dd3978479d4f77d0b497478dcf1ec135bb5fb93637ec`

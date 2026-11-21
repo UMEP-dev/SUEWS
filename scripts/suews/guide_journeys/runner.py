@@ -12,6 +12,7 @@ from .extractor import Document, shell_spans
 from .manifest import check, load
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
+from .replays import assess_replay
 
 FORCING_SETUP = """
 from importlib.resources import files
@@ -205,6 +206,9 @@ def run_journey(
         passed = all(s["status"] == "passed" for s in record["steps"])
         passed &= all(p["passed"] for p in record["path_outcomes"])
         record["status"] = "passed" if passed else "failed"
+        record["accepted"] = passed
+        if "expected_failure" in journey:
+            assess_replay(record, journey, specs[1], work, env)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:
         record["status"] = "failed"
         record["failure"] = f"{type(error).__name__}: {error}"
@@ -274,7 +278,7 @@ def main() -> int:
             records.append(record)
             print(f"{journey['id']}: {record['status']}", flush=True)
     print(json.dumps({r["journey_id"]: r["status"] for r in records}, indent=2))
-    return any(r["status"] != "passed" for r in records)
+    return any(not r.get("accepted", False) for r in records)
 
 
 if __name__ == "__main__":

@@ -167,6 +167,109 @@ def test_unregistered_suppression_fails(tree, name, source):
 
 
 @pytest.mark.parametrize(
+    "source, scope",
+    [
+        ("@pytest.mark.xfail\ndef test_new(): pass\n", "test_new"),
+        ("@pytest.mark.xfail(strict=True)\ndef test_new(): pass\n", "test_new"),
+        ("pytestmark = pytest.mark.xfail\n", "<module>"),
+        ("pytestmark = [pytest.mark.xfail]\n", "<module>"),
+        ("pytestmark = (pytest.mark.xfail,)\n", "<module>"),
+        ("class TestNew:\n    pytestmark = pytest.mark.xfail\n", "TestNew"),
+        ("class TestNew:\n    pytestmark = [pytest.mark.xfail]\n", "TestNew"),
+        ("class TestNew:\n    pytestmark = (pytest.mark.xfail,)\n", "TestNew"),
+        ("@pytest.mark.xfail\nclass TestNew: pass\n", "TestNew"),
+        ("cases = [pytest.param(1, marks=pytest.mark.xfail)]\n", "<module>"),
+        ("cases = [pytest.param(1, marks=[pytest.mark.xfail])]\n", "<module>"),
+        ("cases = [pytest.param(1, marks=(pytest.mark.xfail,))]\n", "<module>"),
+        (
+            "cases = [pytest.param(1, marks=pytest.mark.xfail(strict=True))]\n",
+            "<module>",
+        ),
+    ],
+)
+def test_xfail_forms_are_counted_once_and_fail_unmapped(tree, source, scope):
+    name = "test/test_new.py"
+    (tree / name).write_text(source, encoding="utf-8")
+    records, errors = checker.extract_records(tree)
+    assert not errors
+    assert [r["id"] for r in records if r["source"] == name] == [f"{name}::{scope}::1"]
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    assert f"X:{name}::{scope}::1: unmapped entry" in checker.check_tree(tree)["errors"]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        'ALLOWED[("example.f95", "x")] = "#123"',
+        'ALLOWED.update({("example.f95", "x"): "#123"})',
+        'ALLOWED |= {("example.f95", "x"): "#123"}',
+    ],
+)
+def test_saved_local_ledger_mutations_fail(tree, mutation):
+    path = tree / "scripts/lint/check_saved_fortran_locals.py"
+    path.write_text(
+        path.read_text(encoding="utf-8") + f"\n{mutation}\n", encoding="utf-8"
+    )
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    assert any(
+        "unsupported mutation of constant ALLOWED" in e
+        for e in checker.check_tree(tree)["errors"]
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation", ['_MLM_COMMON.add("new")', '_MLM_DERIVED |= {"new"}']
+)
+def test_real_ledger_dependency_mutations_reach_strict_exit(tree, mutation):
+    path = tree / "test/data_model/test_legacy_table_roundtrip.py"
+    path.write_text(
+        path.read_text(encoding="utf-8") + f"\n{mutation}\n", encoding="utf-8"
+    )
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    assert any(
+        "unsupported mutation of constant _MLM_" in e
+        for e in checker.check_tree(tree)["errors"]
+    )
+
+
+def test_immutable_dependency_reads_and_unrelated_mutations_are_allowed(tmp_path):
+    (tmp_path / "ledger.py").write_text(
+        'DEPENDENCY = {"old"}\nLEDGER = DEPENDENCY | {"new"}\n'
+        'OTHER = []\nOTHER.append("unrelated")\n',
+        encoding="utf-8",
+    )
+    assert checker._python_values(tmp_path, "ledger.py", ("LEDGER",)) == {
+        "LEDGER": {"old", "new"}
+    }
+
+
+@pytest.mark.parametrize(
+    "initial, mutation",
+    [
+        ("{}", 'DEPENDENCY["new"] = 1'),
+        ("{}", 'DEPENDENCY.update({"new": 1})'),
+        ("{}", 'DEPENDENCY |= {"new": 1}'),
+        ("{}", 'DEPENDENCY.setdefault("new", 1)'),
+        ('{"old"}', 'DEPENDENCY.add("new")'),
+        ("[]", 'DEPENDENCY.append("new")'),
+        ("[]", 'DEPENDENCY.extend(["new"])'),
+        ("[]", 'DEPENDENCY += ["new"]'),
+        ('{"nested": []}', 'DEPENDENCY["nested"].append("new")'),
+    ],
+)
+@pytest.mark.parametrize("before_ledger", [False, True])
+def test_python_ledger_dependency_mutations_fail(
+    tmp_path, initial, mutation, before_ledger
+):
+    source = f"DEPENDENCY = {initial}\n"
+    ledger = "INTERMEDIATE = DEPENDENCY\nLEDGER = INTERMEDIATE\n"
+    source += f"{mutation}\n{ledger}" if before_ledger else f"{ledger}{mutation}\n"
+    (tmp_path / "ledger.py").write_text(source, encoding="utf-8")
+    with pytest.raises(ValueError, match="unsupported mutation of constant DEPENDENCY"):
+        checker._python_values(tmp_path, "ledger.py", ("LEDGER",))
+
+
+@pytest.mark.parametrize(
     "constant, replacement",
     [
         ("REVIEWED_MULTI_OWNER_SLOTS", '&["new.slot"]'),

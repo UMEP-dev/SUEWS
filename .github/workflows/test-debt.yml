@@ -62,8 +62,9 @@ jobs:
       contents: read
       issues: read
     steps:
-      # A fresh runner reads JSON only; no PR checkout or repository code runs
-      # with the issue-reading token. Fork PRs use the same read-only path.
+      # pull_request runs the PR's own workflow definition, so its owner check
+      # is advisory for the PR, as every CI check is. The trusted audit is the
+      # scheduled run on the default branch; the token only reads issues.
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: recorded-test-debt

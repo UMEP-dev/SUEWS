@@ -50,7 +50,10 @@ Legacy docstring ignores in `.ruff.toml` are outside this test-defect inventory.
 Environment-dependent skips are not exhaustively inventoried.
 The Rust reader supports literal string/pair arrays and fails on unsupported
 syntax; it is not a full Rust parser.
-The suppression scan detects calls named `xfail` and Rust ignore attributes;
+The Python reader rejects mutations of registered constants and their constant
+dependencies rather than reporting only their initial values.
+The suppression scan detects calls named `xfail`, bare `pytest.mark.xfail`
+markers and Rust ignore attributes;
 it does not resolve arbitrary Python aliases or Rust macros.
 
 The closing rule is detection only, as decided by Ting Sun on 21 November 2026.
@@ -61,6 +64,10 @@ Closed, missing and unverifiable owners fail that workflow and appear in its job
 summary.
 It has read permissions only, does not reopen issues, and is not connected to
 an existing required check.
+A `pull_request` run executes the PR's own workflow definition, so its owner
+check is advisory for the PR, as every CI check is.
+The trusted audit is the scheduled run on the default branch, and the token
+only reads issues.
 A successful audit says `green with N recorded defects`; this describes inventory
 and ownership checks, not the scientific validity of the model.
 Issue state is time-dependent and is not checked by offline pytest.

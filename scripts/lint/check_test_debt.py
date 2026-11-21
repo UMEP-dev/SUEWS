@@ -76,6 +76,7 @@ def _python_values(root, name, names):
     """Read named module constants using literals, names and set union only."""
     tree = ast.parse((root / name).read_text(encoding="utf-8"), filename=name)
     definitions = {}
+    initial_targets = set()
     for node in tree.body:
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
@@ -84,9 +85,13 @@ def _python_values(root, name, names):
                     if target.id in definitions:
                         raise ValueError(f"{name}: repeated constant {target.id}")
                     definitions[target.id] = node.value
+                    initial_targets.add(target)
+
+    dependencies = set(names)
 
     def evaluate(node, stack=()):
         if isinstance(node, ast.Name):
+            dependencies.add(node.id)
             if node.id in stack:
                 raise ValueError(f"{name}: cyclic constant {node.id}")
             return evaluate(definitions[node.id], (*stack, node.id))
@@ -106,7 +111,62 @@ def _python_values(root, name, names):
             return tuple(values) if isinstance(node, ast.Tuple) else values
         return ast.literal_eval(node)
 
-    return {name: evaluate(definitions[name], (name,)) for name in names}
+    values = {key: evaluate(definitions[key], (key,)) for key in names}
+    _reject_constant_mutations(tree, name, dependencies, initial_targets)
+    return values
+
+
+def _reject_constant_mutations(tree, name, dependencies, initial_targets):
+    """Reject writes to ledger constants, including nested container updates.
+
+    This is conservative across scopes and branches: a possible mutation is
+    unsupported, even when static analysis cannot prove that it will execute.
+    """
+    mutators = {
+        "add",
+        "append",
+        "clear",
+        "difference_update",
+        "discard",
+        "extend",
+        "insert",
+        "intersection_update",
+        "pop",
+        "popitem",
+        "remove",
+        "reverse",
+        "setdefault",
+        "sort",
+        "symmetric_difference_update",
+        "update",
+        "__setitem__",
+        "__delitem__",
+        "__ior__",
+        "__iadd__",
+        "__imul__",
+        "__iand__",
+        "__ixor__",
+        "__isub__",
+    }
+    for node in ast.walk(tree):
+        target = None
+        if isinstance(node, (ast.Name, ast.Subscript, ast.Attribute)) and isinstance(
+            node.ctx, (ast.Store, ast.Del)
+        ):
+            if node not in initial_targets:
+                target = node
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in mutators
+        ):
+            target = node.func.value
+        while isinstance(target, (ast.Subscript, ast.Attribute)):
+            target = target.value
+        if isinstance(target, ast.Name) and target.id in dependencies:
+            raise ValueError(
+                f"{name}:{node.lineno}: unsupported mutation of constant {target.id}"
+            )
 
 
 def _counter_records(root, name, section, ledger, attribute):
@@ -358,13 +418,26 @@ def _suppression_records(root):
         }
         counts = Counter()
         for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            func = node.func
-            if not (
-                (isinstance(func, ast.Attribute) and func.attr == "xfail")
-                or (isinstance(func, ast.Name) and func.id == "xfail")
-            ):
+            if isinstance(node, ast.Call):
+                func = node.func
+                is_xfail = (
+                    isinstance(func, ast.Attribute) and func.attr == "xfail"
+                ) or (isinstance(func, ast.Name) and func.id == "xfail")
+            else:
+                # Bare marks work in decorators, pytestmark containers and
+                # pytest.param(marks=...). The function of a call is already
+                # counted above, so never count that Attribute a second time.
+                parent = parents.get(node)
+                is_xfail = (
+                    isinstance(node, ast.Attribute)
+                    and node.attr == "xfail"
+                    and isinstance(node.value, ast.Attribute)
+                    and node.value.attr == "mark"
+                    and isinstance(node.value.value, ast.Name)
+                    and node.value.value.id == "pytest"
+                    and not (isinstance(parent, ast.Call) and parent.func is node)
+                )
+            if not is_xfail:
                 continue
             scopes = []
             parent = parents.get(node)

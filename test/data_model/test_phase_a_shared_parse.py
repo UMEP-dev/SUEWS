@@ -669,3 +669,40 @@ def test_public_yaml_reader_preserves_error_location(tmp_path, content):
     with pytest.raises(type(old.value)) as current:
         SUEWSConfig.from_yaml(source)
     assert str(current.value) == str(old.value)
+
+
+def test_standard_template_cache_invalidates_on_same_length_preserved_mtime(tmp_path):
+    """Replacing standard_file with same-length content and identical mtime misses cache."""
+    import os
+
+    from supy.data_model.validation.pipeline.phase_a import (
+        _load_normalised_standard_data,
+    )
+
+    std_file = tmp_path / "standard.yml"
+    content_a = "name: alpha\nmodel:\n  control:\n    tstep: 300\n"
+    content_b = "name: bravo\nmodel:\n  control:\n    tstep: 600\n"
+    content_bad = "name: [bad1\nmodel:\n  control:\n    tstep: 600\n"
+    assert len(content_a.encode("utf-8")) == len(content_b.encode("utf-8"))
+    assert len(content_a.encode("utf-8")) == len(content_bad.encode("utf-8"))
+
+    std_file.write_text(content_a, encoding="utf-8")
+    st_orig = std_file.stat()
+    parsed_a = _load_normalised_standard_data(str(std_file))
+    assert parsed_a["name"] == "alpha"
+    assert parsed_a["model"]["control"]["tstep"] == 300
+
+    # Same-length valid replacement with preserved (atime_ns, mtime_ns)
+    std_file.write_text(content_b, encoding="utf-8")
+    os.utime(std_file, ns=(st_orig.st_atime_ns, st_orig.st_mtime_ns))
+    parsed_b = _load_normalised_standard_data(str(std_file))
+    assert parsed_b["name"] == "bravo"
+    assert parsed_b["model"]["control"]["tstep"] == 600
+
+    # Same-length malformed replacement with preserved (atime_ns, mtime_ns)
+    std_file.write_text(content_bad, encoding="utf-8")
+    os.utime(std_file, ns=(st_orig.st_atime_ns, st_orig.st_mtime_ns))
+    with pytest.raises(yaml.YAMLError) as exc_info:
+        _load_normalised_standard_data(str(std_file))
+    assert getattr(exc_info.value, "problem_mark", None) is not None
+    assert exc_info.value.problem_mark.name == str(std_file)

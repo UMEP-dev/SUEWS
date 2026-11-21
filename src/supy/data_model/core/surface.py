@@ -1,7 +1,5 @@
-from enum import Enum
 from pydantic import (
     ConfigDict,
-    BaseModel,
     Field,
     PrivateAttr,
     model_validator,
@@ -15,8 +13,9 @@ from .type import (
     RefValue,
     Reference,
     FlexibleRefValue,
+    df_from_col_items,
     df_from_cols,
-    merge_df_state_cols,
+    merge_df_state_col_items,
 )
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
 from ..._env import logger_supy
@@ -437,7 +436,7 @@ class SurfaceProperties(DataModelBase):
         }
         return dict_surface_type[self._surface_type]
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
         surf_idx = self.get_surface_index()
         surf_name = self.get_surface_name()
         cols = {("gridiv", "0"): grid_id}
@@ -524,15 +523,20 @@ class SurfaceProperties(DataModelBase):
                     value = defaults.get(field_name, 0.0)
                 cols[(col_name, f"({surf_idx},)")] = value
 
+        items: list[tuple[tuple[str, str], object]] = list(cols.items())
         for nd in nested_dicts:
-            merge_df_state_cols(cols, nd)
-        return dict(sorted(cols.items()))
+            items.extend(nd.items())
+        items.sort(key=lambda kv: kv[0])
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert surface properties to DataFrame state format.
         This is the base implementation that handles common surface properties."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -661,20 +665,24 @@ class NonVegetatedSurfaceProperties(SurfaceProperties):
         default=0.1,
     )
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items = super()._to_df_state_items(grid_id)
         surf_idx = self.get_surface_index()
         if self.waterdist is not None:
-            merge_df_state_cols(cols, self.waterdist._to_df_state_cols(grid_id, surf_idx))
+            items.extend(self.waterdist._to_df_state_cols(grid_id, surf_idx).items())
         field_val = self.alb
         val = field_val.value if isinstance(field_val, RefValue) else field_val
-        cols[("alb", f"({surf_idx},)")] = val
-        return dict(sorted(cols.items()))
+        items.append((("alb", f"({surf_idx},)"), val))
+        items.sort(key=lambda kv: kv[0])
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert non-vegetated surface properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -709,13 +717,34 @@ class PavedProperties(
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items = super()._to_df_state_items(grid_id)
+        surf_idx = self.get_surface_index()
+        surf_name = self.get_surface_name()
+        for nested_prop in (
+            "waterdist",
+            "storage_drain_params",
+            "thermal_layers",
+            "ohm_coef",
+        ):
+            nested_obj = getattr(self, nested_prop)
+            if nested_obj is not None and hasattr(nested_obj, "_to_df_state_cols"):
+                if nested_prop == "thermal_layers":
+                    nested_cols = nested_obj._to_df_state_cols(
+                        grid_id, surf_idx, surf_name
+                    )
+                else:
+                    nested_cols = nested_obj._to_df_state_cols(grid_id, surf_idx)
+                items.extend(nested_cols.items())
+        return items
+
     def _to_df_state_cols(self, grid_id: int) -> dict:
-        return super()._to_df_state_cols(grid_id)
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert paved surface properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -802,12 +831,12 @@ class BuildingLayer(
 
     ref: Optional[Reference] = None
 
-    def _to_df_state_cols(
+    def _to_df_state_items(
         self,
         grid_id: int,
         layer_idx: int,
         facet_type: Literal["roof", "wall"],
-    ) -> dict:
+    ) -> list[tuple[tuple[str, str], object]]:
         cols = {
             ("gridiv", "0"): grid_id,
             (f"alb_{facet_type}", f"({layer_idx},)"): (
@@ -847,10 +876,21 @@ class BuildingLayer(
                 if isinstance(self.wall_specular_frac, RefValue)
                 else self.wall_specular_frac
             )
-        merge_df_state_cols(
-            cols, self.thermal_layers._to_df_state_cols(grid_id, layer_idx, facet_type)
+        items: list[tuple[tuple[str, str], object]] = list(cols.items())
+        items.extend(
+            self.thermal_layers._to_df_state_cols(grid_id, layer_idx, facet_type).items()
         )
-        return cols
+        return items
+
+    def _to_df_state_cols(
+        self,
+        grid_id: int,
+        layer_idx: int,
+        facet_type: Literal["roof", "wall"],
+    ) -> dict:
+        return merge_df_state_col_items(
+            self._to_df_state_items(grid_id, layer_idx, facet_type)
+        )
 
     def to_df_state(
         self,
@@ -867,8 +907,8 @@ class BuildingLayer(
         Returns:
             pd.DataFrame: DataFrame containing building layer parameters
         """
-        return df_from_cols(
-            self._to_df_state_cols(grid_id, layer_idx, facet_type),
+        return df_from_col_items(
+            self._to_df_state_items(grid_id, layer_idx, facet_type),
             index=pd.Index([grid_id], name="grid"),
         )
 
@@ -1011,28 +1051,34 @@ class BldgsProperties(
 
         return self
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
-        cols[("faibldg", "0")] = (
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items = super()._to_df_state_items(grid_id)
+        items.append((
+            ("faibldg", "0"),
             self.faibldg.value
             if isinstance(self.faibldg, RefValue)
             else self.faibldg
             if self.faibldg is not None
-            else 0.3
-        )
-        cols[("bldgh", "0")] = (
+            else 0.3,
+        ))
+        items.append((
+            ("bldgh", "0"),
             self.bldgh.value
             if isinstance(self.bldgh, RefValue)
             else self.bldgh
             if self.bldgh is not None
-            else 10.0
-        )
-        return dict(sorted(cols.items()))
+            else 10.0,
+        ))
+        items.sort(key=lambda kv: kv[0])
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert building properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -1097,19 +1143,23 @@ class WaterProperties(NonVegetatedSurfaceProperties):
         json_schema_extra={"unit": "mm h-1", "display_name": "Flow Change"},
     )
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
-        cols[("flowchange", "0")] = (
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items = super()._to_df_state_items(grid_id)
+        items.append((
+            ("flowchange", "0"),
             self.flowchange.value
             if isinstance(self.flowchange, RefValue)
-            else self.flowchange
-        )
-        return cols
+            else self.flowchange,
+        ))
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert water surface properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -1247,7 +1297,7 @@ class VerticalLayers(DataModelBase):
 
     ref: Optional[Reference] = None
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
         nlayer_val = (
             self.nlayer.value if isinstance(self.nlayer, RefValue) else self.nlayer
         )
@@ -1273,15 +1323,19 @@ class VerticalLayers(DataModelBase):
             )
             for i in range(nlayer_val):
                 cols[(f"{var}", f"({i},)")] = var_values[i]
+        items: list[tuple[tuple[str, str], object]] = list(cols.items())
         for i in range(nlayer_val):
-            merge_df_state_cols(cols, self.roofs[i]._to_df_state_cols(grid_id, i, "roof"))
-            merge_df_state_cols(cols, self.walls[i]._to_df_state_cols(grid_id, i, "wall"))
-        return cols
+            items.extend(self.roofs[i]._to_df_state_items(grid_id, i, "roof"))
+            items.extend(self.walls[i]._to_df_state_items(grid_id, i, "wall"))
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vertical layers to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod

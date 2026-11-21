@@ -106,7 +106,7 @@ def compact_valid_dict(sample_dict: dict[str, Any]) -> dict[str, Any]:
     Omits optional defaulted blocks not exercised by the test (disabled STEBBS
     and building-archetype 10-minute schedules, optional irrigation/LUMPS/SPARTACUS
     blocks, 24-hour sub-profiles, and ``ref`` citation metadata) and uses a valid
-    1-layer vertical profile so real public YAML parsing, schema checks, and
+    2-layer vertical profile so real public YAML parsing, schema checks, and
     Pydantic validation run without repeatedly parsing 1,456 lines of unused
     10-minute schedules.
     """

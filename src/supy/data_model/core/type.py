@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Sequence
 from enum import Enum
 import types
 from typing import (
@@ -528,6 +529,33 @@ def merge_df_state_cols(
             cur = target[k]
             if pd.api.types.is_scalar(cur) and pd.isna(cur):
                 target[k] = v
+
+
+def merge_df_state_col_items(
+    items: Iterable[tuple[tuple[str, str], Any]],
+) -> dict[tuple[str, str], Any]:
+    """Deduplicate ordered ``(col_key, value)`` pairs preserving first occurrence."""
+    cols: dict[tuple[str, str], Any] = {}
+    for k, v in items:
+        cols.setdefault(k, v)
+    return cols
+
+
+def df_from_col_items(
+    items: Sequence[tuple[tuple[str, str], Any]],
+    index: pd.Index,
+) -> pd.DataFrame:
+    """Build a single-row state DataFrame from ordered ``(col_key, value)`` items.
+
+    Preserves exact column order, per-column dtypes, and duplicate-column
+    multiplicity matching ``pd.concat(..., axis=1)`` without allocating
+    intermediate DataFrames.
+    """
+    col_keys = [k for k, _ in items]
+    col_data = {pos: [v] for pos, (_, v) in enumerate(items)}
+    df_state = pd.DataFrame(col_data, index=index)
+    df_state.columns = pd.MultiIndex.from_tuples(col_keys, names=["var", "ind_dim"])
+    return df_state
 
 
 def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:

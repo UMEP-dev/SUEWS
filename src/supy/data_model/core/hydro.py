@@ -629,7 +629,9 @@ class StorageDrainParams(DataModelBase):
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = 0.0
-            cols[("storedrainprm", f"({i}, {surf_idx})")] = float(val)
+            cols[("storedrainprm", f"({i}, {surf_idx})")] = (
+                float("nan") if val is None else float(val)
+            )
         return cols
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:

@@ -29,7 +29,15 @@ from .physics_orthogonal import (
     fold_kdown_split_constant_direct_fraction,
     fold_storage_heat_ohm_inc_qf,
 )
-from .type import DataModelBase, FlexibleRefValue, Reference, RefValue, df_from_cols
+from .type import (
+    DataModelBase,
+    FlexibleRefValue,
+    Reference,
+    RefValue,
+    df_from_col_items,
+    df_from_cols,
+    merge_df_state_col_items,
+)
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -1910,22 +1918,20 @@ class Model(DataModelBase):
         description="Model physics parameters including surface properties, coefficients, etc.",
     )
 
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items: list[tuple[tuple[str, str], object]] = [(("gridiv", "0"), grid_id)]
+        items.extend(self.control._to_df_state_cols(grid_id).items())
+        items.extend(self.physics._to_df_state_cols(grid_id).items())
+        return items
+
     def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = {("gridiv", "0"): grid_id}
-        for sub in (self.control._to_df_state_cols(grid_id), self.physics._to_df_state_cols(grid_id)):
-            for k, v in sub.items():
-                cols.setdefault(k, v)
-        return cols
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
-        df_state = df_from_cols(
-            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
-        df_control = self.control.to_df_state(grid_id)
-        df_physics = self.physics.to_df_state(grid_id)
-        df_state = pd.concat([df_state, df_control, df_physics], axis=1)
-        return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "Model":

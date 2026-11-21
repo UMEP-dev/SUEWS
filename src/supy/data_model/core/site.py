@@ -6,7 +6,9 @@ from .type import (
     RefValue,
     Reference,
     FlexibleRefValue,
+    df_from_col_items,
     df_from_cols,
+    merge_df_state_col_items,
     merge_df_state_cols,
 )
 from .profile import (
@@ -670,8 +672,8 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             )
         return values
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items = super()._to_df_state_items(grid_id)
         surf_idx = self.get_surface_index()
         defaults = {
             "beta_bioco2": 0.6,
@@ -698,14 +700,18 @@ class VegetatedSurfaceProperties(SurfaceProperties):
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = defaults.get(col_name, 0.0)
-            cols[(col_name, f"({surf_idx - 2},)")] = val
-        merge_df_state_cols(cols, self.lai._to_df_state_cols(grid_id, surf_idx))
-        return dict(sorted(cols.items()))
+            items.append(((col_name, f"({surf_idx - 2},)"), val))
+        items.extend(self.lai._to_df_state_cols(grid_id, surf_idx).items())
+        items.sort(key=lambda kv: kv[0])
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vegetated surface properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -781,8 +787,8 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
             return apply_field_renames(values, EVETRPROPERTIES_RENAMES, cls.__name__)
         return values
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        updates: dict[tuple[str, str], object] = {}
         defaults = {"faievetree": 0.1, "evetreeh": 15.0}
         for attr, col_name in (
             ("fai_evergreen_tree", "faievetree"),
@@ -793,19 +799,27 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = defaults.get(col_name, 0.0)
-            cols[(col_name, "0")] = val
-        cols[("albmin_evetr", "0")] = (
+            updates[(col_name, "0")] = val
+        updates[("albmin_evetr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        cols[("albmax_evetr", "0")] = (
+        updates[("albmax_evetr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
-        return dict(sorted(cols.items()))
+        items = [
+            kv for kv in super()._to_df_state_items(grid_id) if kv[0] not in updates
+        ]
+        items.extend(updates.items())
+        items.sort(key=lambda kv: kv[0])
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -895,8 +909,8 @@ class DectrProperties(VegetatedSurfaceProperties):
             return apply_field_renames(values, DECTRPROPERTIES_RENAMES, cls.__name__)
         return values
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        updates: dict[tuple[str, str], object] = {}
         defaults = {"faidectree": 0.1, "dectreeh": 15.0}
         for attr, col_name in (
             ("fai_deciduous_tree", "faidectree"),
@@ -911,19 +925,27 @@ class DectrProperties(VegetatedSurfaceProperties):
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = defaults.get(col_name, field_val)
-            cols[(col_name, "0")] = val
-        cols[("albmin_dectr", "0")] = (
+            updates[(col_name, "0")] = val
+        updates[("albmin_dectr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        cols[("albmax_dectr", "0")] = (
+        updates[("albmax_dectr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
-        return dict(sorted(cols.items()))
+        items = [
+            kv for kv in super()._to_df_state_items(grid_id) if kv[0] not in updates
+        ]
+        items.extend(updates.items())
+        items.sort(key=lambda kv: kv[0])
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -964,20 +986,33 @@ class GrassProperties(VegetatedSurfaceProperties):
         json_schema_extra={"display_name": "Water Distribution"},
     )
 
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        updates: dict[tuple[str, str], object] = {
+            ("albmin_grass", "0"): (
+                self.alb_min.value
+                if isinstance(self.alb_min, RefValue)
+                else self.alb_min
+            ),
+            ("albmax_grass", "0"): (
+                self.alb_max.value
+                if isinstance(self.alb_max, RefValue)
+                else self.alb_max
+            ),
+        }
+        items = [
+            kv for kv in super()._to_df_state_items(grid_id) if kv[0] not in updates
+        ]
+        items.extend(updates.items())
+        items.sort(key=lambda kv: kv[0])
+        return items
+
     def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
-        cols[("albmin_grass", "0")] = (
-            self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
-        )
-        cols[("albmax_grass", "0")] = (
-            self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
-        )
-        return dict(sorted(cols.items()))
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass properties to DataFrame state format."""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod
@@ -1352,20 +1387,20 @@ class LandCover(DataModelBase):
     #         raise ValueError(f"Land cover fractions must sum to 1.0 (got {total:.6f}): {details}")
     #     return self
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = {}
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items: list[tuple[tuple[str, str], object]] = []
         for lc in ("paved", "bldgs", "dectr", "evetr", "grass", "bsoil", "water"):
-            merge_df_state_cols(cols, getattr(self, lc)._to_df_state_cols(grid_id))
-        return cols
+            items.extend(getattr(self, lc)._to_df_state_items(grid_id))
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert land cover to DataFrame state format"""
-        list_df_state = []
-        for lc in ["paved", "bldgs", "dectr", "evetr", "grass", "bsoil", "water"]:
-            df_state = getattr(self, lc).to_df_state(grid_id)
-            list_df_state.append(df_state)
-        df_state = pd.concat(list_df_state, axis=1)
-        return df_state
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "LandCover":
@@ -3368,8 +3403,8 @@ class SiteProperties(DataModelBase):
 
         return values
 
-    def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = {("gridiv", "0"): grid_id}
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items: list[tuple[tuple[str, str], object]] = [(("gridiv", "0"), grid_id)]
         for var in (
             "lat",
             "lng",
@@ -3390,7 +3425,7 @@ class SiteProperties(DataModelBase):
             val = field_val.value if isinstance(field_val, RefValue) else field_val
             if var == "timezone" and isinstance(val, TimezoneOffset):
                 val = val.value
-            cols[(var, "0")] = val
+            items.append(((var, "0"), val))
 
         for sub in (
             self.lumps,
@@ -3404,16 +3439,22 @@ class SiteProperties(DataModelBase):
             self.stebbs,
             self.building_archetype,
         ):
-            merge_df_state_cols(cols, sub._to_df_state_cols(grid_id))
+            if hasattr(sub, "_to_df_state_items"):
+                items.extend(sub._to_df_state_items(grid_id))
+            else:
+                items.extend(sub._to_df_state_cols(grid_id).items())
 
         if self.soil_observation is not None:
-            merge_df_state_cols(cols, self.soil_observation._to_df_state_cols(grid_id))
-        return cols
+            items.extend(self.soil_observation._to_df_state_cols(grid_id).items())
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site properties to DataFrame state format"""
-        return df_from_cols(
-            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
 
     @classmethod

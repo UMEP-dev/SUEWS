@@ -1,3 +1,5 @@
+import hashlib
+import io
 import yaml
 import os
 import re
@@ -2417,30 +2419,26 @@ def create_analysis_report(
     return "\n".join(report_lines)
 
 
-_STANDARD_DATA_CACHE: dict[tuple[str, int, int, int], object] = {}
+_STANDARD_DATA_CACHE: dict[tuple[bytes, int], object] = {}
 
 
 def _load_normalised_standard_data(standard_file: str):
-    """Load and normalise *standard_file*, reusing stat-validated parsed trees.
+    """Load and normalise *standard_file*, reusing digest-validated parsed trees.
 
-    Keyed on ``(realpath, st_mtime_ns, st_size, id(safe_load_yaml))`` so edits,
-    missing/malformed files, or monkeypatched loaders never return stale data.
-    Returns a deep copy so callers never share mutable state.
+    Keyed on ``(sha256(file_bytes), id(safe_load_yaml))`` so any content change
+    (including same-length edits with preserved timestamps or malformed YAML)
+    or monkeypatched loader never returns stale data. Returns a deep copy so
+    callers never share mutable state.
     """
-    path_standard = Path(standard_file)
-    st = path_standard.stat()
-    cache_key = (
-        str(path_standard.resolve()),
-        st.st_mtime_ns,
-        st.st_size,
-        id(safe_load_yaml),
-    )
+    raw_bytes = Path(standard_file).read_bytes()
+    cache_key = (hashlib.sha256(raw_bytes).digest(), id(safe_load_yaml))
     cached = _STANDARD_DATA_CACHE.get(cache_key)
     if cached is not None:
         return deepcopy(cached)
 
-    with open(standard_file, "r", encoding="utf-8") as f:
-        standard_data = safe_load_yaml(f)
+    stream = io.StringIO(raw_bytes.decode("utf-8"))
+    stream.name = str(standard_file)
+    standard_data = safe_load_yaml(stream)
     flatten_physics_in_config(standard_data)
     standard_data_no_ref = _strip_ref_blocks(standard_data)
     standard_data_no_ref, _ = _normalise_phase_a_compatibility(standard_data_no_ref)

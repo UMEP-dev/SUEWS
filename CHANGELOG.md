@@ -139,6 +139,7 @@ EXAMPLES:
 ### 7 Nov 2026
 
 - [bugfix] Clear inactive snow state before saving the timestep's iteration snapshots, so initial snow no longer affects fluxes or diagnostics when the snow module is disabled (#2010).
+- [bugfix] Integrate the hourly water-body flow rate over each timestep when snow is enabled, matching the snow-free path and the reported flow depth (#2012; #1927 item 1).
 
 ### 3 Nov 2026
 

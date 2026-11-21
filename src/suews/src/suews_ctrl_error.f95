@@ -17,6 +17,7 @@
 !   109: SPARTACUS - Invalid effective direct ground or roof albedo (GH#1857)
 !   110: Stability - Non-finite input to the (z-d)/L solve in cal_Stab (GH#1962)
 !   111: SPARTACUS - Fatal solver/configuration error
+!   112: C-API bridge - buffer length mismatch across FFI boundary (GH#2085)
 !
 ! Thread Safety:
 !   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c

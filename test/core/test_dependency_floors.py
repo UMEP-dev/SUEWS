@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import copy
+from fnmatch import fnmatchcase
 import importlib.util
 import json
-from pathlib import Path
+import os
+from pathlib import Path, PurePosixPath
+import shutil
+import subprocess
 import sys
 import tomllib
+from typing import Any
 
 from packaging.requirements import Requirement
 import pytest
@@ -186,6 +192,15 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
 
     pr_gate = build_wf["jobs"]["pr-gate"]
     assert "lowest_direct_deps" in pr_gate["needs"]
+    pr_gate_checkout = next(
+        step
+        for step in pr_gate["steps"]
+        if str(step.get("uses", "")).startswith("actions/checkout@")
+    )
+    assert (
+        pr_gate_checkout["with"]["ref"]
+        == "${{ github.event.pull_request.base.sha || github.sha }}"
+    )
     pr_gate_step = next(step for step in pr_gate["steps"] if "run" in step)
     assert (
         pr_gate_step["env"]["LOWEST_DIRECT_DEPS_RESULT"]
@@ -194,6 +209,14 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
     assert (
         pr_gate_step["env"]["LOWEST_DIRECT_DEPS_REQUIRED"]
         == "${{ needs.build_wheels.result == 'success' && needs.detect-changes.outputs.dependency-audit-changed == 'true' }}"
+    )
+
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+    assert ".github/scripts/pr-gate.sh" in filters["dependency_audit"]
+    assert all(
+        not str(pat).startswith("!") for pats in filters.values() for pat in pats
     )
 
     wheel_runs = "\n".join(str(step.get("run", "")) for step in wheel_job["steps"])
@@ -257,3 +280,444 @@ def test_checker_cli_supports_multiple_python_versions_and_binary_only(
     out = capsys.readouterr().out
     assert "Python 3.12 (x86_64-unknown-linux-gnu, binary-only)" in out
     assert "Python 3.14 (x86_64-unknown-linux-gnu, binary-only)" in out
+
+
+_PATH_FILTERED_PRODUCERS = (
+    ("RUST_TEST_RESULT", "RUST_TEST_CHANGED", "rust_test"),
+    ("RUST_CLIPPY_RESULT", "RUST_CLIPPY_CHANGED", "rust_clippy"),
+    ("ENCODING_AUDIT_RESULT", "ENCODING_AUDIT_CHANGED", "encoding_audit"),
+    ("WORKFLOW_SECURITY_RESULT", "WORKFLOW_SECURITY_CHANGED", "workflow_security"),
+    ("DEPENDENCY_AUDIT_RESULT", "DEPENDENCY_AUDIT_CHANGED", "dependency_audit"),
+    ("FORTRAN_UNINIT_RESULT", "FORTRAN_UNINIT_CHANGED", "fortran_uninit"),
+    ("RUST_CAPI_OBSERVER_RESULT", "RUST_CAPI_OBSERVER_CHANGED", "rust_capi_observer"),
+)
+
+
+def _load_classify_pyproject_module():
+    """Load .github/scripts/classify_pyproject.py as a module."""
+    script_path = REPO_ROOT / ".github/scripts/classify_pyproject.py"
+    spec = importlib.util.spec_from_file_location(
+        "classify_pyproject_floors", script_path
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _match_path_filter_pattern(path: str, pattern: str) -> bool:
+    """Match a POSIX repository path against a positive path-filter glob."""
+    assert not pattern.startswith("!"), f"negation pattern forbidden: {pattern!r}"
+    if pattern.endswith("/**"):
+        prefix = pattern[:-3]
+        return path.startswith(prefix + "/")
+    if pattern == "**/*.py":
+        return path.endswith(".py")
+    if pattern == "*.py":
+        return "/" not in path and path.endswith(".py")
+    if "**" in pattern:
+        return PurePosixPath(path).match(pattern)
+    return fnmatchcase(path, pattern)
+
+
+def _classify_changed_paths(
+    filters: dict[str, list[str]],
+    changed_paths: list[str],
+) -> dict[str, bool]:
+    """Evaluate every path-filter category against a list of changed files."""
+    return {
+        category: any(
+            _match_path_filter_pattern(path, pat)
+            for path in changed_paths
+            for pat in patterns
+        )
+        for category, patterns in filters.items()
+    }
+
+
+def _parse_github_output(path: Path) -> dict[str, str]:
+    """Parse key=value pairs written to a GITHUB_OUTPUT file."""
+    return dict(
+        line.split("=", 1)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+
+
+def _run_workflow_path_pipeline(
+    build_wf: dict[str, Any],
+    filters: dict[str, list[str]],
+    *,
+    event_name: str,
+    changed_paths: list[str],
+    tmp_path: Path,
+    case_tag: str,
+    pyproject_flags: tuple[bool, bool, bool] = (False, False, False),
+    build_wheels_outcome: str = "success",
+    lowest_direct_outcome: str = "skipped",
+    dependency_audit_outcome: str | None = None,
+) -> dict[str, Any]:
+    """Run path filters, decide step, determine-matrix.sh, and pr-gate.sh end to end."""
+    flags = _classify_changed_paths(filters, changed_paths)
+    decide_step = next(
+        step
+        for step in build_wf["jobs"]["detect-changes"]["steps"]
+        if step.get("id") == "decide"
+    )
+    decide_out_file = tmp_path / f"{case_tag}_decide_out"
+    decide_out_file.write_text("", encoding="utf-8")
+    build_rel, pkg_rel, test_rel = pyproject_flags
+    decide_env = {
+        **os.environ,
+        "GITHUB_OUTPUT": str(decide_out_file),
+        "FILTER_BUILD": str(flags["build"]).lower(),
+        "BUILD_RELEVANT": str(build_rel).lower(),
+        "FILTER_PYTHON": str(flags["python"]).lower(),
+        "PACKAGE_RELEVANT": str(pkg_rel).lower(),
+        "FILTER_FORTRAN": str(flags["fortran"]).lower(),
+        "FILTER_RUST": str(flags["rust"]).lower(),
+        "FILTER_UTIL": str(flags["util"]).lower(),
+        "FILTER_CI": str(flags["ci"]).lower(),
+        "FILTER_TESTS": str(flags["tests"]).lower(),
+        "TEST_RELEVANT": str(test_rel).lower(),
+    }
+    subprocess.run(
+        ["bash", "-c", decide_step["run"]],
+        env=decide_env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    decide_out = _parse_github_output(decide_out_file)
+
+    matrix_out_file = tmp_path / f"{case_tag}_matrix_out"
+    matrix_out_file.write_text("", encoding="utf-8")
+    matrix_env = {
+        **os.environ,
+        "GITHUB_OUTPUT": str(matrix_out_file),
+        "EVENT_NAME": event_name,
+        "IS_DRAFT": "false",
+        "FORTRAN_CHANGED": str(flags["fortran"]).lower(),
+        "RUST_CHANGED": str(flags["rust"]).lower(),
+        "PYTHON_CHANGED": decide_out["python-changed"],
+        "UTIL_CHANGED": str(flags["util"]).lower(),
+        "BUILD_CHANGED": decide_out["build-changed"],
+        "CI_CHANGED": str(flags["ci"]).lower(),
+        "TESTS_CHANGED": decide_out["tests-changed"],
+        "PHYSICS_CHANGE": "false",
+        "PR_PYPROJECT": str(REPO_ROOT / "pyproject.toml"),
+    }
+    subprocess.run(
+        ["bash", str(REPO_ROOT / ".github/scripts/determine-matrix.sh")],
+        env=matrix_env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    matrix_out = _parse_github_output(matrix_out_file)
+
+    needs_build = decide_out["needs-build"] == "true"
+    dep_changed = flags["dependency_audit"]
+    wheel_result = build_wheels_outcome if needs_build else "skipped"
+    mcp_result = "success" if needs_build else "skipped"
+    lowest_direct_triggered = (wheel_result == "success") and dep_changed
+    lowest_direct_required = lowest_direct_triggered
+
+    gate_env = dict(os.environ)
+    for var in (
+        "EVENT_NAME",
+        "LOWEST_DIRECT_DEPS_RESULT",
+        "LOWEST_DIRECT_DEPS_REQUIRED",
+        "SCHEMA_AUDIT_RESULT",
+        "DATA_INTERFACE_AUDIT_RESULT",
+        *(v for triple in _PATH_FILTERED_PRODUCERS for v in triple[:2]),
+    ):
+        gate_env.pop(var, None)
+
+    gate_env.update({
+        "EVENT_NAME": event_name,
+        "DETECT_CHANGES_RESULT": "success",
+        "NEEDS_BUILD": decide_out["needs-build"],
+        "PHYSICS_CHANGE": "false",
+        "BUILD_WHEELS_RESULT": wheel_result,
+        "BUILD_MCP_RESULT": mcp_result,
+        "TEST_BRIDGE_RESULT": wheel_result,
+        "CHECK_MARKERS_RESULT": "success",
+        "PHYSICS_LABEL_RESULT": "success",
+        "SCHEMA_AUDIT_RESULT": "success",
+        "DATA_INTERFACE_AUDIT_RESULT": "success",
+        "LOWEST_DIRECT_DEPS_REQUIRED": str(lowest_direct_required).lower(),
+        "LOWEST_DIRECT_DEPS_RESULT": lowest_direct_outcome,
+    })
+    for result_var, changed_var, category in _PATH_FILTERED_PRODUCERS:
+        cat_changed = flags[category]
+        gate_env[changed_var] = str(cat_changed).lower()
+        if category == "dependency_audit" and dependency_audit_outcome is not None:
+            gate_env[result_var] = dependency_audit_outcome
+        else:
+            gate_env[result_var] = "success" if cat_changed else "skipped"
+
+    gate_proc = subprocess.run(
+        ["bash", str(REPO_ROOT / ".github/scripts/pr-gate.sh")],
+        env=gate_env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return {
+        "flags": flags,
+        "decide": decide_out,
+        "matrix": matrix_out,
+        "wheel_result": wheel_result,
+        "lowest_direct_triggered": lowest_direct_triggered,
+        "lowest_direct_required": lowest_direct_required,
+        "gate_returncode": gate_proc.returncode,
+        "gate_stdout": gate_proc.stdout,
+        "gate_stderr": gate_proc.stderr,
+    }
+
+
+@pytest.mark.core
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="detect-changes decide step, determine-matrix.sh, and pr-gate.sh run under bash on Linux CI",
+)
+@pytest.mark.parametrize("event_name", ["pull_request", "merge_group"])
+def test_path_classification_and_gate_triggers_for_normal_docs_and_gate_only_changes(
+    tmp_path: Path,
+    event_name: str,
+) -> None:
+    """Path filters, build decisions, matrix selection, and pr-gate agree across PR and merge_group."""
+    build_wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+
+    # Confirm workflow output and trigger wiring match the evaluated chain.
+    detect_outputs = build_wf["jobs"]["detect-changes"]["outputs"]
+    assert detect_outputs["dependency-audit-changed"] == (
+        "${{ steps.filter.outputs.dependency_audit }}"
+    )
+    assert detect_outputs["needs-build"] == "${{ steps.decide.outputs.needs-build }}"
+    assert (
+        "needs.detect-changes.outputs.needs-build == 'true'"
+        in build_wf["jobs"]["build_wheels"]["if"]
+    )
+    dep_job_if = build_wf["jobs"]["dependency_audit"]["if"]
+    assert "pull_request" in dep_job_if and "merge_group" in dep_job_if
+    assert (
+        "needs.detect-changes.outputs.dependency-audit-changed == 'true'" in dep_job_if
+    )
+    wheel_job_if = build_wf["jobs"]["lowest_direct_deps"]["if"]
+    assert "needs.build_wheels.result == 'success'" in wheel_job_if
+    assert "pull_request" in wheel_job_if and "merge_group" in wheel_job_if
+    assert (
+        "needs.detect-changes.outputs.dependency-audit-changed == 'true'"
+        in wheel_job_if
+    )
+
+    # 1. Normal Python source change: builds Linux cp312 wheel, skips floor lane.
+    normal_skip = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name=event_name,
+        changed_paths=["src/supy/_load.py"],
+        tmp_path=tmp_path,
+        case_tag=f"{event_name}_normal_skip",
+        lowest_direct_outcome="skipped",
+    )
+    assert normal_skip["flags"]["python"] is True
+    assert normal_skip["flags"]["dependency_audit"] is False
+    assert normal_skip["decide"]["needs-build"] == "true"
+    assert ["ubuntu-latest", "manylinux", "x86_64"] in json.loads(
+        normal_skip["matrix"]["buildplat"]
+    )
+    assert json.loads(normal_skip["matrix"]["python"]) == ["cp312"]
+    assert normal_skip["lowest_direct_required"] is False
+    assert normal_skip["gate_returncode"] == 0, normal_skip["gate_stdout"]
+
+    normal_upstream_fail = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name=event_name,
+        changed_paths=["src/supy/_load.py"],
+        tmp_path=tmp_path,
+        case_tag=f"{event_name}_normal_wheel_fail",
+        build_wheels_outcome="failure",
+        lowest_direct_outcome="skipped",
+    )
+    assert normal_upstream_fail["gate_returncode"] == 1
+
+    # 2. Docs-only change: skips wheel build and floor lane; gate accepts skip.
+    docs_only = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name=event_name,
+        changed_paths=["docs/source/index.rst"],
+        tmp_path=tmp_path,
+        case_tag=f"{event_name}_docs",
+        lowest_direct_outcome="skipped",
+    )
+    assert docs_only["flags"]["docs"] is True
+    assert docs_only["flags"]["dependency_audit"] is False
+    assert docs_only["decide"]["needs-build"] == "false"
+    assert docs_only["wheel_result"] == "skipped"
+    assert docs_only["lowest_direct_required"] is False
+    assert docs_only["gate_returncode"] == 0, docs_only["gate_stdout"]
+
+    # 3. Gate-only change (.github/scripts/pr-gate.sh): builds Linux cp312 wheel,
+    # triggers dependency_audit and lowest_direct_deps, and fails closed on non-success.
+    for outcome, expected_rc in (
+        ("success", 0),
+        ("skipped", 1),
+        ("failure", 1),
+        ("cancelled", 1),
+    ):
+        gate_only = _run_workflow_path_pipeline(
+            build_wf,
+            filters,
+            event_name=event_name,
+            changed_paths=[".github/scripts/pr-gate.sh"],
+            tmp_path=tmp_path,
+            case_tag=f"{event_name}_gate_only_{outcome}",
+            lowest_direct_outcome=outcome,
+        )
+        assert gate_only["flags"]["ci"] is True
+        assert gate_only["flags"]["dependency_audit"] is True
+        assert gate_only["decide"]["needs-build"] == "true"
+        buildplat = json.loads(gate_only["matrix"]["buildplat"])
+        assert ["ubuntu-latest", "manylinux", "x86_64"] in buildplat
+        assert len(buildplat) == (1 if event_name == "pull_request" else 3)
+        assert json.loads(gate_only["matrix"]["python"]) == ["cp312"]
+        assert gate_only["matrix"]["test_tier"] == "standard"
+        assert gate_only["lowest_direct_triggered"] is True
+        assert gate_only["lowest_direct_required"] is True
+        assert gate_only["gate_returncode"] == expected_rc, (
+            event_name,
+            outcome,
+            gate_only["gate_stdout"],
+        )
+
+    # 4. Generic build plumbing stays intentionally outside the dependency filter.
+    generic_ci = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name=event_name,
+        changed_paths=[".github/workflows/build-wheels-reusable.yml"],
+        tmp_path=tmp_path,
+        case_tag=f"{event_name}_reusable_wheels",
+        lowest_direct_outcome="skipped",
+    )
+    assert generic_ci["flags"]["ci"] is True
+    assert generic_ci["flags"]["dependency_audit"] is False
+    assert generic_ci["decide"]["needs-build"] == "true"
+    assert generic_ci["lowest_direct_required"] is False
+    assert generic_ci["gate_returncode"] == 0, generic_ci["gate_stdout"]
+
+
+@pytest.mark.core
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="detect-changes decide step, determine-matrix.sh, and pr-gate.sh run under bash on Linux CI",
+)
+@pytest.mark.parametrize("event_name", ["pull_request", "merge_group"])
+def test_pyproject_content_classification_gates_lowest_direct_floor_check(
+    tmp_path: Path,
+    event_name: str,
+) -> None:
+    """Runtime-floor pyproject edits require lowest_direct_deps while description-only edits skip it."""
+    build_wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+    base_pyproject = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    classifier = _load_classify_pyproject_module()
+
+    runtime_head = copy.deepcopy(base_pyproject)
+    runtime_head["project"]["dependencies"] = [
+        dep.replace("pandas>=2.2.2", "pandas>=2.2.3")
+        for dep in runtime_head["project"]["dependencies"]
+    ]
+    runtime_cls = classifier.classify_pyproject(base_pyproject, runtime_head)
+    assert (
+        runtime_cls.build_relevant,
+        runtime_cls.package_relevant,
+        runtime_cls.test_relevant,
+    ) == (False, True, False)
+
+    for outcome, expected_rc in (("success", 0), ("skipped", 1)):
+        py_runtime = _run_workflow_path_pipeline(
+            build_wf,
+            filters,
+            event_name=event_name,
+            changed_paths=["pyproject.toml"],
+            tmp_path=tmp_path,
+            case_tag=f"{event_name}_pyproject_runtime_{outcome}",
+            pyproject_flags=(
+                runtime_cls.build_relevant,
+                runtime_cls.package_relevant,
+                runtime_cls.test_relevant,
+            ),
+            lowest_direct_outcome=outcome,
+        )
+        assert py_runtime["decide"]["needs-build"] == "true"
+        assert py_runtime["lowest_direct_required"] is True
+        assert py_runtime["gate_returncode"] == expected_rc
+
+    desc_head = copy.deepcopy(base_pyproject)
+    desc_head["project"]["description"] = "Metadata-only description change"
+    desc_cls = classifier.classify_pyproject(base_pyproject, desc_head)
+    assert (
+        desc_cls.build_relevant,
+        desc_cls.package_relevant,
+        desc_cls.test_relevant,
+    ) == (False, False, False)
+
+    py_desc_ok = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name=event_name,
+        changed_paths=["pyproject.toml"],
+        tmp_path=tmp_path,
+        case_tag=f"{event_name}_pyproject_desc_ok",
+        pyproject_flags=(
+            desc_cls.build_relevant,
+            desc_cls.package_relevant,
+            desc_cls.test_relevant,
+        ),
+        lowest_direct_outcome="skipped",
+        dependency_audit_outcome="success",
+    )
+    assert py_desc_ok["flags"]["dependency_audit"] is True
+    assert py_desc_ok["decide"]["needs-build"] == "false"
+    assert py_desc_ok["wheel_result"] == "skipped"
+    assert py_desc_ok["lowest_direct_required"] is False
+    assert py_desc_ok["gate_returncode"] == 0, py_desc_ok["gate_stdout"]
+
+    py_desc_audit_skip = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name=event_name,
+        changed_paths=["pyproject.toml"],
+        tmp_path=tmp_path,
+        case_tag=f"{event_name}_pyproject_desc_audit_skip",
+        pyproject_flags=(
+            desc_cls.build_relevant,
+            desc_cls.package_relevant,
+            desc_cls.test_relevant,
+        ),
+        lowest_direct_outcome="skipped",
+        dependency_audit_outcome="skipped",
+    )
+    assert py_desc_audit_skip["gate_returncode"] == 1

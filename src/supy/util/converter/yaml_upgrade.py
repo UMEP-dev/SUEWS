@@ -1630,9 +1630,11 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         physics["soil_moisture"] = entry
         logs.append(f"{key} -> soil_moisture; original method {method}")
     if active:
-        # Validate all sites before returning any current-shaped configuration.
+        # Validate all sites against the current schema using a throwaway copy
+        # stripped of legacy seven-zero radiation placeholders; the returned
+        # dev9 mapping stays intact for later deltas and single-pass logging.
         from ...data_model.core.config import SUEWSConfig
-        candidate = deepcopy(result)
+        candidate, _ = _drop_legacy_radiation_memory_zeros(result)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -2105,13 +2107,17 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
 _HANDLERS[("2026.6.dev11", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev11_to_2026_6_dev12
 
 
-def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
-    """Remove old generated zeros without silently discarding restart values."""
+def _drop_legacy_radiation_memory_zeros(cfg: dict) -> tuple[dict, list[str]]:
+    """Drop legacy seven-zero radiation placeholders without mutating ``cfg``.
+
+    Returns the copied mapping and pending log messages; refuses non-zero
+    values with ``YamlUpgradeError`` so restart memory is never discarded.
+    """
     cfg = deepcopy(cfg)
-    pending_logs = []
+    pending_logs: list[str] = []
     sites = cfg.get("sites")
     if not isinstance(sites, list):
-        return cfg
+        return cfg, pending_logs
     for index, site in enumerate(sites):
         states = site.get("initial_states") if isinstance(site, dict) else None
         if not isinstance(states, dict):
@@ -2137,6 +2143,12 @@ def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
                 f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
                 "radiation memory is formed internally during cold start"
             )
+    return cfg, pending_logs
+
+
+def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
+    """Remove old generated zeros without silently discarding restart values."""
+    cfg, pending_logs = _drop_legacy_radiation_memory_zeros(cfg)
     for message in pending_logs:
         _log(message)
     return cfg

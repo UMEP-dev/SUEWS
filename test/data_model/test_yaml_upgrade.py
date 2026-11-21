@@ -24,6 +24,7 @@ from supy.data_model.core.field_renames import CO2PARAMS_RENAMES
 from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
+    upgrade_soil_observation,
     upgrade_yaml,
 )
 
@@ -1157,6 +1158,43 @@ class TestSoilSchemaMigration:
         assert migrator.migrate(result) == result
         output = capsys.readouterr()
         assert "Sensor saturation capacity is retired" in output.err + output.out
+
+
+def test_dev5_soil_converter_drops_legacy_zero_radiation_fields_once(tmp_path, capsys):
+    """Pre-dev9 active soil upgrade strips seven-zero radiation fields and refuses non-zero."""
+    fixtures = REPO_ROOT / "test" / "fixtures" / "soil_observation"
+    legacy_yml = fixtures / "legacy_method1.yml"
+    legacy_txt = fixtures / "legacy_method1.txt"
+    out_yml = tmp_path / "upgraded.yml"
+    out_txt = tmp_path / "upgraded.txt"
+    manifest = tmp_path / "manifest.json"
+
+    report = upgrade_soil_observation(
+        legacy_yml, legacy_txt, out_yml, out_txt, manifest,
+        layer_top=0, layer_depth=0.2,
+    )
+    assert report["completed"] is True
+    upgraded = yaml.safe_load(out_yml.read_text(encoding="utf-8"))
+    assert upgraded["schema_version"] == CURRENT_SCHEMA_VERSION
+    states = upgraded["sites"][0]["initial_states"]
+    assert "qn_surfs" not in states
+    assert "dqndt_surf" not in states
+    SUEWSConfig.model_validate(upgraded)
+    notice = capsys.readouterr().err
+    assert notice.count("dropped sites[0].initial_states.qn_surfs") == 1
+    assert notice.count("dropped sites[0].initial_states.dqndt_surf") == 1
+
+    nonzero_src = tmp_path / "nonzero.yml"
+    raw = yaml.safe_load(legacy_yml.read_text(encoding="utf-8"))
+    raw["sites"][0]["initial_states"]["qn_surfs"] = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    nonzero_src.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    bad_outputs = [tmp_path / name for name in ("bad.yml", "bad.txt", "bad.json")]
+    with pytest.raises(YamlUpgradeError, match="complete checkpoint"):
+        upgrade_soil_observation(
+            nonzero_src, legacy_txt, *bad_outputs,
+            layer_top=0, layer_depth=0.2,
+        )
+    assert all(not path.exists() for path in bad_outputs)
 
 
 @pytest.mark.parametrize("destination", ["2026.6.dev9", CURRENT_SCHEMA_VERSION])

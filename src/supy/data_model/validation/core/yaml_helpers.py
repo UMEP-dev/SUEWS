@@ -697,8 +697,9 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
                 paths.append(_p(path, "holiday"))
             return paths
 
-        # Recurse into keys
-        for k in set(list(before.keys()) + list(after.keys())):
+        # Preserve mapping order: set iteration made report text vary with
+        # PYTHONHASHSEED. New keys still follow the original input's keys.
+        for k in dict.fromkeys([*before, *after]):
             b = before.get(k)
             a = after.get(k)
             if b in (None, "") and a in (None, ""):

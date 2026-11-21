@@ -51,6 +51,13 @@ def replay_consumer(spec: dict, work: Path, env: dict, stale: bool) -> dict:
 def assert_counterexample(record: dict, expected: dict) -> bool:
     """Require the specific creates failure and the named, unrun first consumer."""
     failed = [s for s in record["steps"] if s["status"] == "failed"]
+    planted = record.get("planted_file")
+    if planted and not all(
+        step.get(when, {}).get(planted["path"], {}).get("sha256") == planted["sha256"]
+        for step in failed
+        for when in ("before", "after")
+    ):
+        return False
     return (
         len(failed) == 1
         and failed[0]["id"] == expected["step"]
@@ -88,6 +95,14 @@ def assess_replay(
     record["diagnostic_replay"] = replay_consumer(
         consumer, work, env, journey.get("plant_stale", False)
     )
+    if planted := record.get("planted_file"):
+        replay = record["diagnostic_replay"]
+        replay["planted_file"] = planted
+        replay["planted_bytes_validated"] = planted["path"] in replay["argv"] and all(
+            replay[when].get(planted["path"], {}).get("sha256") == planted["sha256"]
+            for when in ("before", "after")
+        )
+        replay["passed"] &= replay["planted_bytes_validated"]
     record["accepted"] = (
         record["counterexample_reproduced"] and record["diagnostic_replay"]["passed"]
     )

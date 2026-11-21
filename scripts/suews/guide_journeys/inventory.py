@@ -95,6 +95,7 @@ def coverage(
     manifest: dict, records: list[dict], stale: list[str], step_counts: dict
 ) -> dict:
     """Keep exercised single choices distinct from dependent combinations."""
+    historical = {j["id"] for j in manifest["journeys"] if j.get("historical")}
     attempted = {
         r["journey_id"]
         for r in records
@@ -102,12 +103,7 @@ def coverage(
     }
     choices = []
     for choice in manifest["choices"]:
-        eligible = (
-            attempted
-            if choice.get("historical")
-            else attempted
-            - {j["id"] for j in manifest["journeys"] if j.get("historical")}
-        )
+        eligible = attempted if choice.get("historical") else attempted - historical
         exercised = sorted(eligible.intersection(choice.get("journeys", [])))
         status = (
             "stale"
@@ -128,6 +124,7 @@ def coverage(
     executed = {
         s["id"]
         for r in records
+        if r["journey_id"] not in historical
         for s in r["steps"]
         if s["kind"] == "documented" and s["status"] != "unrun"
     }

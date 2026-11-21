@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _api_python_cli_equivalents:
 
 Python API for CLI Users

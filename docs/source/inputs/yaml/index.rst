@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _yaml_input:
 
 YAML Configuration Format

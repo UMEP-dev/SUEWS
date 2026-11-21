@@ -4052,6 +4052,32 @@ fn nan_poison_completeness_across_all_six_anchors() {
         assert_nan_rejected(label, root, idx, key);
     });
 
+    // 3g. Required physics selector `model.physics.storage_heat` must reject
+    //     YAML `.nan` across all six option anchors with its canonical path.
+    let storage_heat_path = [
+        Step::Key("model".into()),
+        Step::Key("physics".into()),
+        Step::Key("storage_heat".into()),
+    ];
+    for (label, root, _) in &stripped_anchors {
+        let mut poisoned = root.clone();
+        assert!(
+            set_scalar_or_ref_value(
+                &mut poisoned,
+                &storage_heat_path,
+                Value::Number(serde_yaml::Number::from(f64::NAN)),
+            ),
+            "{label}: failed to inject NaN at `model.physics.storage_heat`"
+        );
+        let err = load_run_config_from_value(&mut poisoned).expect_err(&format!(
+            "{label}: YAML .nan at `model.physics.storage_heat` must fail"
+        ));
+        assert!(
+            err.contains("`model.physics.storage_heat`") && err.contains("non-finite"),
+            "{label}: unexpected error for `model.physics.storage_heat`: {err}"
+        );
+    }
+
     // 4. Option-inactive absence & anti-tautology propagation self-checks:
     //    verify that injecting `.nan` into non-strict wired leaves (site,
     //    state, site_scalars, unread wrapped-array depth, and long profiles)

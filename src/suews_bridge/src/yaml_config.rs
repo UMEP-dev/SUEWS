@@ -2294,9 +2294,7 @@ fn apply_config_overrides(
     if let Some(v) = read_i32(root, &["model", "physics", "stabilitymethod"]) {
         config.stability_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "storageheatmethod"]) {
-        config.storage_heat_method = v;
-    }
+    config.storage_heat_method = require_i32(root, &["model", "physics", "storageheatmethod"], "")?;
     if let Some(v) = read_i32(root, &["model", "control", "diagnose"]) {
         config.diagnose = v;
     }

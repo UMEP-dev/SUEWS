@@ -320,6 +320,11 @@ historical:
   block: 1
 journeys:
 - id: tagged-dev11
+  skips:
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+    validate-current: current-condition
   inputs:
     site.yml: tagged-dev11
   steps:
@@ -351,6 +356,11 @@ journeys:
   choices:
   - tagged-dev11
 - id: untagged-known
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    validate-original-inline: untagged-condition
+    validate-current: current-condition
   inputs:
     site.yml: untagged-dev11
   steps:
@@ -382,6 +392,12 @@ journeys:
   choices:
   - untagged-known
 - id: untagged-unknown
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+    validate-current: current-condition
   inputs:
     site.yml: untagged-dev11
   steps:
@@ -417,6 +433,12 @@ journeys:
   choices:
   - untagged-unknown
 - id: current-dev12
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
   inputs:
     site.yml: dev12
   steps:
@@ -452,6 +474,12 @@ journeys:
   choices:
   - current-dev12
 - id: recovery-nonzero
+  skips:
+    validate-migrated: recovery
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+    validate-current: current-condition
   inputs:
     site.yml: nonzero-dev11
   steps:
@@ -473,6 +501,12 @@ journeys:
   choices:
   - recovery-nonzero
 - id: recovery-zero-area
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
   inputs:
     site.yml: zero-area-dev12
   steps:

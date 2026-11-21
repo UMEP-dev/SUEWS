@@ -13,7 +13,7 @@ from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
 from .fixtures import fixture_bytes
-from .manifest import check, load, step_coverage, validate_commands, validate_probes
+from .manifest import check, load, step_coverage, validate_commands, validate_order, validate_probes
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
@@ -37,6 +37,7 @@ def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dic
     bindings = {entry["id"]: entry for entry in manifest["steps"]}
     validate_commands(journey["steps"])
     validate_probes(journey["steps"], set(bindings))
+    validate_order(document, manifest, journey)
     result = []
     for entry in journey["steps"]:
         spec = dict(entry)
@@ -65,6 +66,11 @@ def historical_steps(text: str, manifest: dict, journey: dict) -> list[dict]:
     block = document.candidates()[history["block"]][0]
     raw = document.raw(block)
     spans = shell_spans(raw.text, raw.first + history["source_first_line"] - 1)
+    indices = [entry["command_index"] for entry in journey["steps"]]
+    if any(index < 0 or index >= len(spans) for index in indices):
+        raise IndexError("Historical command index is outside the source block")
+    if indices != list(range(len(spans))):
+        raise ValueError("Historical steps must run in source order without omissions")
     return [
         dict(
             entry,

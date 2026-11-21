@@ -30,6 +30,26 @@ def validate_commands(steps: list[dict]) -> None:
             raise ValueError("Documented steps cannot supply command text or unknown fields")
 
 
+def validate_order(document: Document, manifest: dict, journey: dict) -> None:
+    """Require source order and a bound condition for every omitted instruction."""
+    selected = [s["id"] for s in journey["steps"] if "probe" not in s]
+    if not selected:
+        return
+    bindings = {s["id"]: s for s in manifest["steps"]}
+    positions = [document.span(bindings[key]).first for key in selected]
+    if positions != sorted(positions):
+        raise ValueError("Documented steps must run in source order")
+    skipped = set(bindings) - set(selected)
+    skips = journey.get("skips", {})
+    conditions = {c["id"]: c for c in manifest["conditions"]}
+    if set(skips) != skipped:
+        raise ValueError("Every skipped step must name its branch condition")
+    for key, condition in skips.items():
+        if condition not in conditions or condition not in bindings[key].get("conditions", []):
+            raise ValueError(f"Unknown branch condition for skipped step: {key}")
+        document.span(conditions[condition])
+
+
 def load(path: Path) -> dict:
     """Read a journey manifest without constructing arbitrary Python objects."""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))

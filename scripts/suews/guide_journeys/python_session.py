@@ -47,12 +47,34 @@ class PythonSession:
                 stderr=subprocess.DEVNULL,
                 text=True,
             )
-        started = time.monotonic()
         request = {
             "text": spec["command"],
             "first": spec["source_lines"][0],
             "path": spec.get("source_path", "<guide>"),
         }
+        return dict(self.request(request, timeout), literal_command=spec["command"])
+
+    def observe(self, expression: str) -> dict:
+        """Evaluate an assertion expression only after a reader process exists."""
+        if self.process is None:
+            return {
+                "exit_status": 1,
+                "stderr": "No Python reader namespace",
+                "value": None,
+            }
+        return self.request(
+            {
+                "operation": "observe",
+                "text": expression,
+                "first": 1,
+                "path": "<promise>",
+            },
+            180,
+        )
+
+    def request(self, request: dict, timeout: float) -> dict:
+        """Exchange one bounded request with the existing interpreter."""
+        started = time.monotonic()
         self.process.stdin.write(json.dumps(request) + "\n")
         self.process.stdin.flush()
         with selectors.DefaultSelector() as selector:
@@ -65,6 +87,5 @@ class PythonSession:
             raise RuntimeError("Python reader exited without an observation")
         return dict(
             json.loads(line),
-            literal_command=spec["command"],
             seconds=time.monotonic() - started,
         )

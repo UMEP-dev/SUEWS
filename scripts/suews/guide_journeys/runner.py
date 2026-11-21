@@ -149,7 +149,9 @@ def execute_steps(
         )
         after = snapshot(work)
         record.update(process, after=after)
-        promises = [evaluate(p, before, after, work, process) for p in spec["promises"]]
+        promises = [
+            evaluate(p, before, after, work, process, session) for p in spec["promises"]
+        ]
         record["promises"] = promises
         expected_exit = spec.get("exit_status", 0)
         record["exit_assertion"] = {

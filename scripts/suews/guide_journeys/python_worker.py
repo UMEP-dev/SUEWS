@@ -10,6 +10,20 @@ import traceback
 import warnings
 
 
+def execute_request(request: dict, compiler, namespace: dict):
+    """Compile source statements or evaluate a JSON-recordable observation."""
+    source = "\n" * (request["first"] - 1) + request["text"]
+    if request.get("operation") == "observe":
+        value = eval(compile(source, request["path"], "eval"), namespace)
+        # Observation values must survive a replay record without repr coercion.
+        value = json.loads(json.dumps(value, allow_nan=False))
+    else:
+        value = None
+        code = compiler(source, request["path"], "exec")
+        exec(code, namespace)
+    return value
+
+
 def main() -> None:
     """Compile each request at its original page location and capture observations."""
     namespace = {"__name__": "__main__"}
@@ -18,6 +32,7 @@ def main() -> None:
         request = json.loads(line)
         stdout, stderr = io.StringIO(), io.StringIO()
         status = 0
+        value = None
         with (
             warnings.catch_warnings(record=True) as caught,
             redirect_stdout(stdout),
@@ -25,13 +40,12 @@ def main() -> None:
         ):
             warnings.simplefilter("always")
             try:
-                source = "\n" * (request["first"] - 1) + request["text"]
-                code = compiler(source, request["path"], "exec")
-                exec(code, namespace)
+                value = execute_request(request, compiler, namespace)
             except BaseException:
                 status = 1
                 traceback.print_exc()
         result = {
+            "value": value,
             "stdout": stdout.getvalue(),
             "stderr": stderr.getvalue(),
             "exit_status": status,

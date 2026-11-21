@@ -3,6 +3,7 @@
 from copy import deepcopy
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 
@@ -66,7 +67,7 @@ def migration_content(root: Path, path: str, source: str, delta: dict) -> dict:
 
 
 def evaluate(
-    promise: dict, before: dict, after: dict, root: Path, process: dict
+    promise: dict, before: dict, after: dict, root: Path, process: dict, session=None
 ) -> dict:
     """Evaluate one promise; exit codes never replace content or state evidence."""
     kind = promise["kind"]
@@ -105,8 +106,50 @@ def evaluate(
         except (ValueError, KeyError, TypeError, IndexError) as error:
             observed = str(error)
             passed = False
+    elif kind in {"memory", "physical"}:
+        return evaluate_state(promise, session)
     else:
-        raise ValueError(
-            f"Unsupported promise {kind}; memory and physical belong to pilot 2"
-        )
+        raise ValueError(f"Unsupported promise {kind}")
     return {"expected": expected, "observed": observed, "passed": passed}
+
+
+def evaluate_state(promise: dict, session) -> dict:
+    """Observe memory or a named scalar residual using a manifest-owned limit."""
+    observed = None
+    passed = False
+    try:
+        observed, passed = observe_state(promise, session)
+    except (KeyError, TypeError, ValueError, RuntimeError) as error:
+        observed = {"error": f"{type(error).__name__}: {error}"}
+    return {"expected": promise, "observed": observed, "passed": passed}
+
+
+def observe_state(promise: dict, session) -> tuple[dict, bool]:
+    """Validate assertion arguments before reading the shared namespace."""
+    passed = False
+    if session is None:
+        raise ValueError("No Python reader namespace")
+    if promise["kind"] == "physical":
+        tolerance = promise["tolerance"]
+        if (
+            type(tolerance) not in {int, float}
+            or not math.isfinite(tolerance)
+            or tolerance < 0
+        ):
+            raise ValueError("Physical tolerance must be finite and nonnegative")
+        if promise["check"] != "absolute_residual":
+            raise ValueError("Unknown physical check")
+    observed = session.observe(promise["expression"])
+    if observed["exit_status"] == 0:
+        value = observed["value"]
+        if promise["kind"] == "memory":
+            passed = json.dumps(value, sort_keys=True, allow_nan=False) == json.dumps(
+                promise["expected"], sort_keys=True, allow_nan=False
+            )
+        else:
+            passed = (
+                type(value) in {int, float}
+                and math.isfinite(value)
+                and abs(value) <= tolerance
+            )
+    return observed, passed

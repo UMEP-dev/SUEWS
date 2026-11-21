@@ -12,6 +12,16 @@ def load(path: Path) -> dict:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if data.get("format") != 1:
         raise ValueError("Unsupported journey manifest format")
+    for journey in data["journeys"]:
+        for step in journey["steps"]:
+            if "probe" not in step and not step.get("promises"):
+                raise ValueError(f"Documented step has no promises: {step['id']}")
+        promises = journey.get("outcomes", []) + [
+            p for step in journey["steps"] for p in step.get("promises", [])
+        ]
+        for promise in promises:
+            if promise["kind"] == "creates" and not promise.get("delta"):
+                raise ValueError("A creates promise requires a content delta")
     return data
 
 

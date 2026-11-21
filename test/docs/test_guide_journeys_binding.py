@@ -136,3 +136,27 @@ def test_documented_and_bound_counts_are_independent():
     )
     counts = step_coverage(Document(text, manifest["title"]), manifest)
     assert counts == {"documented_steps": 7, "bound_steps": 6}
+
+
+@pytest.mark.parametrize("mutation", ["no-promises", "no-delta", "outcome-no-delta"])
+def test_manifest_rejects_weak_promises(tmp_path, mutation):
+    """Documented instructions and created files require substantive promises."""
+    import yaml
+
+    manifest = load(MANIFEST)
+    journey = manifest["journeys"][0]
+    if mutation == "no-promises":
+        journey["steps"][0]["promises"] = []
+        message = "no promises"
+    else:
+        promise = (
+            journey["outcomes"][0]
+            if mutation == "outcome-no-delta"
+            else journey["steps"][0]["promises"][0]
+        )
+        del promise["delta"]
+        message = "content delta"
+    path = tmp_path / "weak.yml"
+    path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        load(path)

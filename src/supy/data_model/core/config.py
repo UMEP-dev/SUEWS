@@ -96,6 +96,16 @@ import warnings
 
 SAME_SURFACE_TOL = 1e-6  # Tolerance for same-surface-property checks
 
+_LAND_COVER_SURFACE_TYPES: tuple[tuple[str, SurfaceType], ...] = (
+    ("paved", SurfaceType.PAVED),
+    ("bldgs", SurfaceType.BLDGS),
+    ("dectr", SurfaceType.DECTR),
+    ("evetr", SurfaceType.EVETR),
+    ("grass", SurfaceType.GRASS),
+    ("bsoil", SurfaceType.BSOIL),
+    ("water", SurfaceType.WATER),
+)
+
 class ConditionalValidationWarning(UserWarning):
     """Warning issued when conditional validation is requested but not available.
 
@@ -581,12 +591,6 @@ class SUEWSConfig(DataModelBase):
             )
         return self
 
-    @model_validator(mode="after")
-    def _validate_drainage_coefficients(self) -> "SUEWSConfig":
-        """Check declared drainage inputs without assigning a selector policy."""
-        self._raise_drainage_issues()
-        return self
-
     def _raise_drainage_issues(self, *, for_execution: bool = False) -> None:
         issues = self._iter_drainage_coefficient_issues(for_execution=for_execution)
         if issues:
@@ -614,15 +618,11 @@ class SUEWSConfig(DataModelBase):
                     continue
                 path = f"sites[{i}].properties.land_cover.{name}"
                 params = surface.storage_drain_params
-                absent = params is None or (
-                    "storage_drain_params" not in surface.model_fields_set
-                    and not params.model_fields_set
-                )
+                absent = params is None or params.is_placeholder()
                 if absent:
-                    # A factory placeholder permits sparse model construction,
-                    # but is not a resolved drainage configuration. Check an
-                    # explicitly given area on load, and every active area at run.
-                    if for_execution or "sfr" in surface.model_fields_set:
+                    # Construction and annotation accept an omitted block even
+                    # when area is explicit. Only an engine handoff requires it.
+                    if for_execution:
                         add_issue(
                             path, "storage_drain_params",
                             "Missing drainage block for an active non-water surface",
@@ -881,6 +881,9 @@ class SUEWSConfig(DataModelBase):
         ### 4b) Check for critical null site-level parameters (gh#1333)
         critical_site_nulls = self._check_critical_null_site_params()
 
+        # 4c) Check for explicit zero soil_depth on active positive-capacity surfaces
+        zero_soil_depth_issues = self._check_zero_soil_depth_params()
+
         ### 5) If we have either conditional issues or critical nulls, raise validation error
         all_critical_issues = []
         if cond_issues:
@@ -889,6 +892,14 @@ class SUEWSConfig(DataModelBase):
             all_critical_issues.extend(critical_nulls)
         if critical_site_nulls:
             all_critical_issues.extend(critical_site_nulls)
+        if zero_soil_depth_issues:
+            all_critical_issues.extend(zero_soil_depth_issues)
+        # Collect declared drainage defects here, after the existing checks,
+        # so one new contract cannot hide other actionable errors or prevent
+        # auto-generated annotated YAML on the failure path.
+        all_critical_issues.extend(
+            issue["error_text"] for issue in self._iter_drainage_coefficient_issues()
+        )
 
         if all_critical_issues:
             # Preserve the annotated-YAML UX on the failure path: if the caller
@@ -3907,7 +3918,6 @@ class SUEWSConfig(DataModelBase):
     def validate_non_null_ref_values(self, _path: str = "") -> None:
         """Check non-optional values and consumed conditional inputs at handoff."""
         super().validate_non_null_ref_values(_path)
-        self._raise_drainage_issues(for_execution=True)
         bioco2_issues = self._iter_biogenic_co2_null_issues()
         if bioco2_issues:
             raise ValueError("; ".join(issue["error_text"] for issue in bioco2_issues))
@@ -4037,6 +4047,201 @@ class SUEWSConfig(DataModelBase):
             if issue["error_text"]
         ]
 
+    @staticmethod
+    def _extract_numeric_scalar(raw: Any) -> float | None:
+        """Unwrap RefValue or ``{'value': ...}`` to float (excluding bool), or None."""
+        val = _unwrap_value(raw)
+        if isinstance(val, Mapping) and "value" in val:
+            val = _unwrap_value(val["value"])
+        if val is None or isinstance(val, (bool, np.bool_)):
+            return None
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _field_or_key(obj: Any, *names: str) -> Any:
+        """Return the first present field/key among *names*, or None."""
+        if isinstance(obj, Mapping):
+            for name in names:
+                if name in obj:
+                    return obj[name]
+            return None
+        for name in names:
+            if hasattr(obj, name):
+                return getattr(obj, name)
+        return None
+
+    @classmethod
+    def _extract_aliased_numeric(cls, obj: Any, *names: str) -> float | None:
+        """Return the first present non-None numeric value across *names*."""
+        for name in names:
+            if isinstance(obj, Mapping):
+                if name not in obj:
+                    continue
+                raw = obj[name]
+            else:
+                if not hasattr(obj, name):
+                    continue
+                raw = getattr(obj, name)
+            val = cls._extract_numeric_scalar(raw)
+            if val is not None:
+                return val
+        return None
+
+    def _iter_zero_soil_depth_issues(self) -> list[dict[str, str]]:
+        """Return issues for zero ``soil_depth`` on active positive-capacity surfaces.
+
+        Applies unconditionally (without gating on ``_yaml_raw``) across all six
+        non-water surfaces (``paved``, ``bldgs``, ``evetr``, ``dectr``,
+        ``grass``, ``bsoil``) whenever ``sfr > 0``, ``soil_store_capacity > 0``
+        and ``soil_depth == 0.0``. Zero capacity, inactive surfaces, ``water``,
+        positive depths, and negative/non-finite values are untouched here.
+
+        Returns
+        -------
+        list of dict of str to str
+            Structured issue records matching
+            :meth:`_iter_critical_null_site_param_issues`.
+        """
+        if not getattr(self, "sites", None):
+            return []
+
+        issues: list[dict[str, str]] = []
+        for i, site in enumerate(self.sites):
+            props = self._field_or_key(site, "properties")
+            land_cover = (
+                self._field_or_key(props, "land_cover") if props is not None else None
+            )
+            if land_cover is None:
+                continue
+
+            raw_name = _unwrap_value(self._field_or_key(site, "name"))
+            if isinstance(raw_name, Mapping) and "value" in raw_name:
+                raw_name = _unwrap_value(raw_name["value"])
+            raw_gridiv = _unwrap_value(self._field_or_key(site, "gridiv"))
+            if isinstance(raw_gridiv, Mapping) and "value" in raw_gridiv:
+                raw_gridiv = _unwrap_value(raw_gridiv["value"])
+            label_parts: list[str] = []
+            if raw_name is not None and str(raw_name).strip():
+                label_parts.append(str(raw_name).strip())
+            if raw_gridiv is not None and not isinstance(raw_gridiv, (bool, np.bool_)):
+                label_parts.append(f"gridiv={raw_gridiv}")
+            site_label = (
+                f"sites[{i}] ({', '.join(label_parts)})"
+                if label_parts
+                else f"sites[{i}]"
+            )
+
+            for surface_name in NON_WATER_SURFACES:
+                surface = self._field_or_key(land_cover, surface_name)
+                if surface is None:
+                    continue
+                if isinstance(surface, Mapping):
+                    sfr_raw = surface.get("sfr", 1.0 / 7.0)
+                else:
+                    sfr_raw = getattr(surface, "sfr", None)
+                sfr_value = self._extract_numeric_scalar(sfr_raw)
+                if sfr_value is None or not (
+                    math.isfinite(sfr_value) and sfr_value > 0.0
+                ):
+                    continue
+
+                cap_value = self._extract_aliased_numeric(
+                    surface, "soil_store_capacity", "soilstorecap"
+                )
+                if cap_value is None or math.isnan(cap_value) or cap_value <= 0.0:
+                    continue
+
+                depth_value = self._extract_aliased_numeric(
+                    surface, "soil_depth", "soildepth"
+                )
+                if depth_value is None or depth_value != 0:
+                    continue
+
+                issues.append(
+                    {
+                        "error_text": (
+                            f"{site_label}, "
+                            f"properties.land_cover.{surface_name}.soil_depth "
+                            f"must not be 0 when {surface_name}.sfr={sfr_value:g} > 0 "
+                            f"and soil_store_capacity={cap_value:g} > 0; supply a "
+                            "positive soil_depth (in mm) or set "
+                            "soil_store_capacity to 0"
+                        ),
+                        "path": f"sites[{i}]/properties/land_cover/{surface_name}",
+                        "param": "soil_depth",
+                        "message": (
+                            f"Soil depth cannot be 0 on active {surface_name} surface "
+                            f"with positive soil_store_capacity ({cap_value:g})"
+                        ),
+                        "fix": (
+                            "Supply a positive soil_depth in millimetres beneath this "
+                            "surface, or set soil_store_capacity to 0"
+                        ),
+                    }
+                )
+        return issues
+
+    def _check_zero_soil_depth_params(self) -> list[str]:
+        """Return error texts for zero ``soil_depth`` on active positive-capacity surfaces."""
+        return [
+            issue["error_text"]
+            for issue in self._iter_zero_soil_depth_issues()
+            if issue["error_text"]
+        ]
+
+    def validate_soil_depths(self) -> None:
+        """Validate ``soil_depth`` across all sites and non-water surfaces.
+
+        Re-checks every site so post-construction live mutations cannot carry
+        explicit zero ``soil_depth`` on an active (``sfr > 0``) non-water
+        surface with positive ``soil_store_capacity`` into ``to_df_state()``,
+        ``SUEWSSimulation.update_config()``, ``SUEWSSimulation.run()``, or the
+        Rust engine.
+
+        Raises
+        ------
+        ValueError
+            If any active non-water surface with positive
+            ``soil_store_capacity`` has ``soil_depth == 0``.
+        """
+        issues = self._check_zero_soil_depth_params()
+        if issues:
+            raise ValueError("\n".join(issues))
+
+    def validate_for_serialisation(self) -> None:
+        """Check live values while retaining support for partial configurations.
+
+        Configuration updates and DataFrame round-trips do not execute physics.
+        They retain omitted drainage blocks, but still reject invalid declared
+        coefficients, non-optional null values and positive-capacity zero depths.
+        """
+        self.validate_non_null_ref_values()
+        self.validate_soil_depths()
+        self.validate_water_distributions()
+        self._raise_drainage_issues()
+
+    def validate_for_engine(self) -> None:
+        """Check live values and completeness before an engine export or run.
+
+        The canonical handoff for ``SUEWSSimulation.run()``,
+        ``config_to_engine_yaml()`` and ``_grid_config_jsons()`` also requires
+        drainage blocks on every active non-water surface. Sparse construction,
+        updates and DataFrame serialisation use ``validate_for_serialisation``;
+        their output is not necessarily executable.
+
+        Raises
+        ------
+        ValueError
+            If a required value is null, an active positive-capacity surface has
+            zero soil depth, water routing is invalid, or drainage input required
+            for execution is missing or invalid.
+        """
+        self.validate_for_serialisation()
+        self._raise_drainage_issues(for_execution=True)
+
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
     ) -> str:
@@ -4097,8 +4302,9 @@ class SUEWSConfig(DataModelBase):
         # auto_generate_annotated=True remains actionable on the raise path.
         site_prefix = f"sites[{site_index}]"
         for issue in (
-            self._iter_critical_null_site_param_issues()
-            + self._iter_drainage_coefficient_issues()
+            *self._iter_critical_null_site_param_issues(),
+            *self._iter_zero_soil_depth_issues(),
+            *self._iter_drainage_coefficient_issues(for_execution=True),
         ):
             if issue["path"] == site_prefix or issue["path"].startswith(
                 f"{site_prefix}/"
@@ -4665,6 +4871,70 @@ class SUEWSConfig(DataModelBase):
                                     initial_states["hdd_id"] = {}
         return data
 
+    def _validate_land_cover_surfaces(self, *, set_surface_types: bool) -> None:
+        """Validate every site's surface water distributions.
+
+        When ``set_surface_types`` is True (model load/construction), binds
+        ``_surface_type`` via ``set_surface_type``, which normalises explicit
+        numeric zeros in inapplicable destinations to ``None`` while rejecting
+        non-zero or invalid values. When False (post-load handoff checks),
+        validates strictly and rejects any non-null inapplicable destination
+        including ``0.0``.
+        """
+        errors: list[str] = []
+        for site_index, site in enumerate(self.sites):
+            props = getattr(site, "properties", None)
+            land_cover = (
+                getattr(props, "land_cover", None) if props is not None else None
+            )
+            if land_cover is None:
+                continue
+
+            site_name = getattr(site, "name", f"Site {site_index}")
+            raw_gridiv = getattr(site, "gridiv", None)
+            gridiv = (
+                raw_gridiv.value if isinstance(raw_gridiv, RefValue) else raw_gridiv
+            )
+            site_label = (
+                f"sites[{site_index}] ({site_name}, gridiv={gridiv})"
+                if gridiv is not None
+                else f"sites[{site_index}] ({site_name})"
+            )
+            for surface_name, surface_type in _LAND_COVER_SURFACE_TYPES:
+                surface_prop = getattr(land_cover, surface_name, None)
+                if surface_prop is None:
+                    continue
+                try:
+                    if set_surface_types and hasattr(surface_prop, "set_surface_type"):
+                        surface_prop.set_surface_type(surface_type)
+                    elif hasattr(surface_prop, "validate_water_distribution"):
+                        surface_prop.validate_water_distribution(surface_type)
+                except ValueError as exc:
+                    errors.append(
+                        f"{site_label}: Invalid surface configuration for "
+                        f"{surface_name}: {exc}"
+                    )
+
+        if errors:
+            raise ValueError("\n".join(errors))
+
+    def validate_water_distributions(self) -> None:
+        """Validate water distributions across all sites and land-cover surfaces.
+
+        Re-checks every site's seven surface ``waterdist`` blocks (owning
+        destinations and unit sum when ``sfr > 0``, disallowed destinations and
+        finite ``[0, 1]`` bounds regardless of ``sfr``, and absence on
+        ``water``) so in-place mutations made after ``SUEWSConfig``
+        construction cannot reach the engine or ``df_state`` unchecked.
+
+        Raises
+        ------
+        ValueError
+            If any site has a missing (on an active ``sfr > 0`` surface),
+            disallowed, out-of-range, or non-unit water distribution.
+        """
+        self._validate_land_cover_surfaces(set_surface_types=False)
+
     @model_validator(mode="after")
     def set_surface_types_validation(self) -> "SUEWSConfig":
         """Set surface types on all land cover properties across all sites.
@@ -4674,41 +4944,7 @@ class SUEWSConfig(DataModelBase):
         validation and processing logic. Migrated from LandCover.set_surface_types
         to provide centralized validation across all sites.
         """
-        from .type import SurfaceType  # Import here to avoid circular import
-
-        # Surface type mapping
-        surface_map = {
-            "paved": SurfaceType.PAVED,
-            "bldgs": SurfaceType.BLDGS,
-            "dectr": SurfaceType.DECTR,
-            "evetr": SurfaceType.EVETR,
-            "grass": SurfaceType.GRASS,
-            "bsoil": SurfaceType.BSOIL,
-            "water": SurfaceType.WATER,
-        }
-
-        for site_index, site in enumerate(self.sites):
-            if site.properties and site.properties.land_cover:
-                land_cover = site.properties.land_cover
-
-                # Set surface types for each surface property
-                for surface_name, surface_type in surface_map.items():
-                    if hasattr(land_cover, surface_name):
-                        surface_prop = getattr(land_cover, surface_name)
-                        if surface_prop and hasattr(surface_prop, "set_surface_type"):
-                            try:
-                                surface_prop.set_surface_type(surface_type)
-                            except Exception as e:
-                                # Log the error but continue processing other surfaces
-                                site_name = getattr(site, "name", f"Site {site_index}")
-                                import warnings
-
-                                warnings.warn(
-                                    f"{site_name}: Failed to set surface type for {surface_name}: {str(e)}",
-                                    UserWarning,
-                                    stacklevel=2,
-                                )
-
+        self._validate_land_cover_surfaces(set_surface_types=True)
         return self
 
     @model_validator(mode="after")
@@ -5452,8 +5688,7 @@ class SUEWSConfig(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing SUEWS configuration state
         """
-        self._raise_drainage_issues(for_execution=True)
-
+        self.validate_for_serialisation()
         if use_conditional_validation and _validation_available:
             # Pre-validate configuration before conversion
             config_data = self.model_dump()

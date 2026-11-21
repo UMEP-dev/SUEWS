@@ -6,17 +6,50 @@
 //! the simulation driver additionally takes forcing and output matrices with
 //! their own layout and leading-dimension contracts (`sim::run_simulation_into`).
 //! Always inspect returned status and kernel diagnostics before decoding results.
+//!
+//! Every `extern "C"` symbol below is defined in `src/suews_bridge/c_api/*.f95`,
+//! compiled into the static archive `libsuews_bridge.a` by `build.rs`, and
+//! reports transport status through its trailing `err: *mut c_int` out-parameter
+//! (one of the `SUEWS_CAPI_*` constants below, mirrored in `c_api/common.f95`).
+//!
+//! Per-type facades follow a uniform triple:
+//! - `suews_<type>_len`: flat `f64` buffer length (plus allocatable dimensions
+//!   where applicable).
+//! - `suews_<type>_schema_version`: compiled facade schema version checked
+//!   against the Rust codec constant at runtime.
+//! - `suews_<type>_default`: packs a freshly initialised Fortran shadow struct
+//!   into a caller-supplied flat buffer (used for schema/codec inspection and
+//!   legacy fallback construction; never an authority for missing user inputs).
 
 use std::os::raw::{c_char, c_double, c_int};
 
+/// Status code returned when a Fortran C-API call completes without transport error.
 pub const SUEWS_CAPI_OK: c_int = 0;
+/// Status code returned when a timestep `dt` is non-positive (`c_api/ohm.f95`).
 pub const SUEWS_CAPI_BAD_DT: c_int = 1;
+/// Status code returned when elapsed time `dt_since_start` is negative (`c_api/ohm.f95`).
 pub const SUEWS_CAPI_BAD_TIME: c_int = 2;
+/// Status code returned when a caller-supplied flat buffer, TOC or output slice
+/// is too small or inconsistent with the expected layout.
 pub const SUEWS_CAPI_BAD_BUFFER: c_int = 3;
+/// Status code returned when a packed state or parameter payload fails facade
+/// validation (invalid dimensions, member count or domain constraints).
 pub const SUEWS_CAPI_BAD_STATE: c_int = 4;
 
 #[link(name = "suews_bridge", kind = "static")]
 unsafe extern "C" {
+    // -----------------------------------------------------------------------
+    // Batch multi-timestep simulation driver (`c_api/driver.f95`, physics)
+    // -----------------------------------------------------------------------
+
+    /// Execute `SUEWS_cal_multitsteps_dts` over `len_sim` forcing timesteps.
+    ///
+    /// Unpacks `timer_flat`, `config_flat`, `site_scalars_flat`, the 18-member
+    /// `site_flat` + `site_toc` buffer and the 13-member `state_flat` +
+    /// `state_toc` buffer into kernel derived types, writes column-major data
+    /// and datetime matrices using leading dimensions `output_ld` and
+    /// `datetime_ld`, copies kernel error/warning diagnostics, and packs the
+    /// updated post-run timer and state back into `timer_out` / `state_out_flat`.
     #[cfg(feature = "physics")]
     pub fn suews_cal_multitsteps_c(
         timer_flat: *const c_double,
@@ -61,6 +94,12 @@ unsafe extern "C" {
         warn_text_len: c_int,
         err: *mut c_int,
     );
+
+    // -----------------------------------------------------------------------
+    // Legacy scalar OHM API and `OHM_STATE` facade (`c_api/ohm.f95`)
+    // Note: the scalar helpers duplicate `module_phys_ohm` formulas; this is
+    // a recorded BR-01 deviation (see `dev-ref/RUST_BRIDGE_AUDIT.md`).
+    // -----------------------------------------------------------------------
 
     pub fn suews_ohm_qs_calc(
         qn1: c_double,
@@ -118,6 +157,10 @@ unsafe extern "C" {
         qs: *mut c_double,
         err: *mut c_int,
     );
+
+    // -----------------------------------------------------------------------
+    // Core control, forcing, timer and subsystem state facades
+    // -----------------------------------------------------------------------
 
     pub fn suews_config_len(n_flat: *mut c_int, err: *mut c_int);
 
@@ -213,6 +256,10 @@ unsafe extern "C" {
     pub fn suews_anthroemis_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_anthroemis_state_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    // -----------------------------------------------------------------------
+    // Subsystem and land-cover parameter facades (`*_prm` and nested types)
+    // -----------------------------------------------------------------------
 
     pub fn suews_anthro_heat_prm_len(n_flat: *mut c_int, err: *mut c_int);
 
@@ -407,6 +454,10 @@ unsafe extern "C" {
 
     pub fn suews_stebbs_state_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    // -----------------------------------------------------------------------
+    // Output, diagnostic and water/irrigation facades
+    // -----------------------------------------------------------------------
+
     pub fn suews_output_line_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_output_group_ncolumns(
@@ -485,6 +536,12 @@ unsafe extern "C" {
 
     pub fn suews_irrigation_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    // -----------------------------------------------------------------------
+    // Solar geometry helper (`c_api/sunposition.f95`, physics)
+    // -----------------------------------------------------------------------
+
+    /// Compute solar azimuth and zenith angles (degrees) via
+    /// `module_phys_narp::NARP_cal_SunPosition`.
     #[cfg(feature = "physics")]
     pub fn suews_sunposition_calc(
         year: c_double,

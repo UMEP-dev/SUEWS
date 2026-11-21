@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev12"
+CURRENT_SCHEMA_VERSION = "2026.6.dev13"
 
 # Schema version history and descriptions.
 #
@@ -192,14 +192,6 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "from store_cap and uses store_max when the capacity is omitted. "
         "Upgrading preserves both explicit values and their references."
     ),
-    "2026.6.dev12": (
-        "Require finite drain_coef_1 and drain_coef_2 for active non-water "
-        "surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains "
-        "accepted. Diagnose missing active drainage blocks and fractional "
-        "native/mutable selectors without assigning new equation semantics. "
-        "Migration preserves supplied values and refuses to invent missing "
-        "blocks or coefficients; inactive surfaces and water are unchanged."
-    ),
     "2026.6.dev11": (
         "Development schema requiring soil_depth, soil_store_capacity and "
         "saturated_hydraulic_conductivity on every active (sfr > 0) non-water "
@@ -211,6 +203,20 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "soil_store_capacity, preserves supplied values and inactive/water "
         "surfaces unchanged, and writes explicit 0.0 for other missing or null "
         "active soil parameters (preserving reference metadata)."
+    ),
+    "2026.6.dev12": (
+        "Within-grid water routing (#2086, #2117). An explicit numeric zero "
+        "in an unused destination is removed during migration. On paved and "
+        "building surfaces it could previously override the supplied runoff "
+        "fraction, changing the simulated runoff and water balance."
+    ),
+    "2026.6.dev13": (
+        "Require finite drain_coef_1 and drain_coef_2 for active non-water "
+        "surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains "
+        "accepted. Diagnose missing active drainage blocks and fractional "
+        "native/mutable selectors without assigning new equation semantics. "
+        "Migration preserves supplied values and refuses to invent missing "
+        "blocks or coefficients; inactive surfaces and water are unchanged."
     ),
 }
 

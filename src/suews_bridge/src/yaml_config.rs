@@ -85,7 +85,9 @@ pub struct RunConfig {
     pub site_scalars: SiteScalars,
     pub state: SuewsState,
     pub forcing_path: PathBuf,
-    pub output_dir: PathBuf,
+    // In-memory runs return buffers and need no output destination. File runs
+    // require this field before invoking the kernel.
+    pub output_dir: Option<PathBuf>,
     pub nlayer: i32,
     pub ndepth: i32,
 }
@@ -415,7 +417,6 @@ fn require_numeric(root: &Value, path: &[&str], at: &str) -> Result<f64, String>
 /// rounding tolerance: rounding a value that is not an integer would stand
 /// in a value the YAML did not give. If a read site moved to this reader
 /// turns out to receive round-tripped floats, revisit it there.
-#[cfg_attr(not(test), allow(dead_code))]
 fn require_i32(root: &Value, path: &[&str], at: &str) -> Result<i32, String> {
     let v = require_numeric(root, path, at)?;
     if v.fract() == 0.0 && v >= i32::MIN as f64 && v <= i32::MAX as f64 {
@@ -853,9 +854,11 @@ fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) -> Res
 /// Active non-water surfaces (`sfr > 0.0`) participate in the soil water
 /// balance (`suews_phys_waterdist.f95` loops over `1..nsurf-1` and skips
 /// `sfr == 0`), so missing, null, non-numeric or non-finite values fail with
-/// the canonical YAML path (#1991, #2002, #2077). Inactive surfaces
-/// (`sfr == 0.0`) and `water` carry `0.0` when omitted or null, while still
-/// rejecting malformed non-null values.
+/// the canonical YAML path (#1991, #2002, #2077). When `soil_store_capacity`
+/// is positive on an active non-water surface, an explicit zero `soil_depth`
+/// is also rejected because horizontal soil water redistribution divides by
+/// `soil_depth`. Inactive surfaces (`sfr == 0.0`), zero-capacity surfaces and
+/// `water` remain permitted, while malformed non-null values still fail.
 fn apply_soil_overrides(
     soil: &mut crate::soil::SoilPrm,
     lc_root: &Value,
@@ -877,6 +880,14 @@ fn apply_soil_overrides(
     soil.soil_depth = read_field("soildepth")?;
     soil.soil_store_capacity = read_field("soilstorecap")?;
     soil.saturated_hydraulic_conductivity = read_field("sathydraulicconduct")?;
+    if active && soil.soil_store_capacity > 0.0 && soil.soil_depth == 0.0 {
+        return Err(format!(
+            "`{}` must not be 0 when surface fraction is positive and `{}` is positive ({})",
+            yaml_path_display(at, &["soildepth"]),
+            yaml_path_display(at, &["soilstorecap"]),
+            soil.soil_store_capacity,
+        ));
+    }
     Ok(())
 }
 
@@ -2174,7 +2185,15 @@ fn apply_config_overrides(
     if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
         config.rsl_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "emissionsmethod"]) {
+    if get_path(root, &["model", "physics", "emissionsmethod"]).is_some() {
+        let v = require_i32(root, &["model", "physics", "emissionsmethod"], "")?;
+        if !is_valid_emissions_method(v) {
+            return Err(format!(
+                "`model.physics.emissions` has unsupported value {v}; valid values are 0 \
+                 (observed), 1..=6 (modelled heat), or 11..=16, 21..=26, 31..=36, 41..=46 \
+                 (biogenic CO2)"
+            ));
+        }
         config.emissions_method = v;
     }
     if let Some(v) = read_i32(root, &["model", "physics", "roughlenheatmethod"]) {
@@ -2724,9 +2743,27 @@ fn apply_drainage_overrides(
         }
         let active = surface_name != "water" && fractions[surface_idx] > 0.0;
         let sdp_path = ["properties", "land_cover", surface_name, "storedrainprm"];
-        if active && !matches!(get_path(site_root, &sdp_path), Some(Value::Mapping(_))) {
+        let drainage = get_path(site_root, &sdp_path);
+        if active
+            && !drainage.is_some_and(|block| {
+                [
+                    "store_min",
+                    "drain_eq",
+                    "drain_coef_1",
+                    "drain_coef_2",
+                    "store_max",
+                    "store_cap",
+                ]
+                .iter()
+                .any(|key| {
+                    get_path(block, &[*key])
+                        .and_then(given_value)
+                        .is_some_and(|value| !value.is_null())
+                })
+            })
+        {
             return Err(format!(
-                "`{surface_at}.storage_drain_params` must be supplied as a mapping for an active non-water surface; no drainage equation is inferred"
+                "`{surface_at}.storage_drain_params` must be a mapping with drainage inputs for an active non-water surface; no drainage equation is inferred"
             ));
         }
         // Read storedrainprm from land_cover for this surface.
@@ -2739,10 +2776,7 @@ fn apply_drainage_overrides(
         // evaporation capacity, the AnOHM moisture term and the building
         // soil-store scaling. Row 6 is reassigned daily only for deciduous
         // trees.
-        if let Some(sdp_root) = get_path(
-            site_root,
-            &["properties", "land_cover", surface_name, "storedrainprm"],
-        ) {
+        if let Some(sdp_root) = drainage {
             if let Some(v) = read_numeric(sdp_root, &["store_min"]) {
                 state.phenology_state.store_drain_prm[surface_idx][0] = v;
             }
@@ -3084,6 +3118,20 @@ fn apply_state_overrides(
     Ok(())
 }
 
+/// Explicit allowlist of supported `EmissionsMethod` integer codes, matching
+/// `src/supy/data_model/core/model.py` (`EmissionsMethod`),
+/// `src/suews/src/suews_phys_anthro.f95`, and
+/// `src/suews/src/suews_phys_biogenco2.f95`:
+/// - `0`: observed `qf` from forcing
+/// - `1..=6`: modelled anthropogenic heat (CO2 fluxes zeroed by driver)
+/// - `11..=16`, `21..=26`, `31..=36`, `41..=46`: biogenic CO2 families 1..=4
+///   paired with anthropogenic heat/CO2 branches 1..=6.
+pub(crate) fn is_valid_emissions_method(emissions_method: i32) -> bool {
+    emissions_method == 0
+        || (1..=6).contains(&emissions_method)
+        || emissions_method_uses_co2_point_source(emissions_method)
+}
+
 /// Whether the CO2 point source reaches the model output under this
 /// `emissionsmethod`: the biogenic CO2 methods 11-16, 21-26, 31-36 and 41-46.
 /// `suews_phys_anthro.f95` computes `Fc_point` for methods 1-6 as well, but
@@ -3099,26 +3147,23 @@ fn apply_site_scalar_overrides(
     site_root: &Value,
     emissions_method: i32,
 ) -> Result<(), String> {
-    if let Some(v) = read_numeric(site_root, &["properties", "lat"]) {
-        site_scalars.lat = v;
+    // SiteProperties resolves these unconditionally, including valid zero
+    // coordinates, altitude and UTC offset. Defaults belong to that model.
+    let at = site_yaml_at(site_root);
+    // Check representation only: never read or choose the alias's value.
+    // Both source and resolved site input use the canonical longitude key.
+    if get_path(site_root, &["properties", "lon"]).is_some() {
+        return Err(format!(
+            "`{at}.properties.lon` is not a resolved field; use only \
+             `{at}.properties.lng` for longitude"
+        ));
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "lng"])
-        .or_else(|| read_numeric(site_root, &["properties", "lon"]))
-    {
-        site_scalars.lon = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "alt"]) {
-        site_scalars.alt = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "timezone"]) {
-        site_scalars.timezone = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "surfacearea"]) {
-        site_scalars.surfacearea = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "z"]) {
-        site_scalars.z = v;
-    }
+    site_scalars.lat = require_numeric(site_root, &["properties", "lat"], &at)?;
+    site_scalars.lon = require_numeric(site_root, &["properties", "lng"], &at)?;
+    site_scalars.alt = require_numeric(site_root, &["properties", "alt"], &at)?;
+    site_scalars.timezone = require_numeric(site_root, &["properties", "timezone"], &at)?;
+    site_scalars.surfacearea = require_numeric(site_root, &["properties", "surfacearea"], &at)?;
+    site_scalars.z = require_numeric(site_root, &["properties", "z"], &at)?;
     if let Some(v) = read_numeric(site_root, &["properties", "z0m_in"]) {
         site_scalars.z0m_in = v;
     }
@@ -3317,13 +3362,14 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
         ForcingTimestampReference::Utc => 1,
     };
 
-    // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
-    // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
-    // user YAMLs at either schema parse pre-migration.
-    let output_dir = read_string(root, &["model", "control", "output", "dir"])
-        .or_else(|| read_string(root, &["model", "control", "output_file", "path"]))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("./output"));
+    // Source model dumps used by buffer-only library callers may omit the
+    // destination or retain None as null. Neither supplies a native default.
+    // Legacy output_file migration belongs to the Python data model.
+    let output_path = &["model", "control", "output", "dir"];
+    let output_dir = match get_path(root, output_path) {
+        None | Some(Value::Null) => None,
+        Some(_) => Some(PathBuf::from(require_string(root, output_path, "")?)),
+    };
 
     Ok(RunConfig {
         timer,
@@ -3345,6 +3391,13 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
         .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
     let mut root: Value =
         serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
+    // File execution writes output, unlike the buffer-only library routes.
+    // Validate before native initialisation or any filesystem output.
+    let output_dir = PathBuf::from(require_string(
+        &root,
+        &["model", "control", "output", "dir"],
+        "",
+    )?);
     let mut run_cfg = load_run_config_from_value(&mut root)?;
 
     let forcing_rel = read_forcing_rel(&root).ok_or_else(|| {
@@ -3360,9 +3413,11 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
     // Resolve output_dir relative to config file location
-    if run_cfg.output_dir.is_relative() {
-        run_cfg.output_dir = base_dir.join(&run_cfg.output_dir);
-    }
+    run_cfg.output_dir = Some(if output_dir.is_relative() {
+        base_dir.join(output_dir)
+    } else {
+        output_dir
+    });
 
     if !run_cfg.forcing_path.exists() {
         return Err(format!(
@@ -3439,6 +3494,58 @@ mod tests {
         include_str!("../../../test/fixtures/bridge/sample_resolved.yml")
     }
 
+    #[test]
+    fn buffer_only_config_needs_no_output_destination() {
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        root["model"]["control"]["output"]
+            .as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("dir".to_string()));
+        root["model"]["control"]["output_file"] =
+            serde_yaml::from_str("{path: legacy}").unwrap();
+        assert!(load_run_config_from_value(&mut root.clone())
+            .unwrap()
+            .output_dir
+            .is_none());
+        root["model"]["control"]["output"]["dir"] = Value::Null;
+        assert!(load_run_config_from_value(&mut root)
+            .unwrap()
+            .output_dir
+            .is_none());
+    }
+
+    #[test]
+    fn file_output_destination_preserves_paths_and_canonical_precedence() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("forcing.txt"), "").unwrap();
+        let path = dir.path().join("resolved.yml");
+        let absolute = dir.path().join("absolute");
+        for supplied in [".", "specified", absolute.to_str().unwrap()] {
+            for wrapped in [false, true] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["control"]["forcing"]["file"] =
+                    Value::String("forcing.txt".to_string());
+                let value = Value::String(supplied.to_string());
+                root["model"]["control"]["output"]["dir"] = if wrapped {
+                    let mut map = serde_yaml::Mapping::new();
+                    map.insert(Value::String("value".to_string()), value);
+                    Value::Mapping(map)
+                } else {
+                    value
+                };
+                // Source migration already gives the canonical block precedence.
+                root["model"]["control"]["output_file"] =
+                    serde_yaml::from_str("{path: legacy}").unwrap();
+                fs::write(&path, serde_yaml::to_string(&root).unwrap()).unwrap();
+                let config = load_run_config(&path).unwrap();
+                assert_eq!(config.output_dir, Some(dir.path().join(supplied)));
+            }
+        }
+        assert!(!dir.path().join("specified").exists());
+        assert!(!absolute.exists());
+        assert!(!dir.path().join("legacy").exists());
+    }
+
     fn get_path_mut<'a>(root: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> {
         let mut current = root;
         for key in path {
@@ -3454,6 +3561,146 @@ mod tests {
         match get_path_mut(root, &["sites"])? {
             Value::Sequence(items) => items.get_mut(0),
             _ => None,
+        }
+    }
+
+    const REQUIRED_SITE_COORDINATES: [&str; 6] = ["lat", "lng", "alt", "timezone", "z", "surfacearea"];
+
+    #[test]
+    fn resolved_site_coordinates_preserve_bare_and_wrapped_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        // The path reader also checks the genuine relative forcing resource.
+        fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../supy/sample_data/Kc_2012_data_60.txt"),
+            dir.path().join("Kc_2012_data_60.txt"),
+        )
+        .unwrap();
+        for wrapped in [false, true] {
+            for values in [
+                [0.0, 0.0, 0.0, 0.0, 17.0, 23456.0],
+                [-23.5, 142.75, 123.0, 5.5, 29.0, 34567.0],
+            ] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                let props = &mut first_site_mut(&mut root).unwrap()["properties"];
+                for (field, value) in REQUIRED_SITE_COORDINATES.iter().zip(values) {
+                    props[*field] = if wrapped {
+                        serde_yaml::from_str(&format!("{{value: {value}}}")).unwrap()
+                    } else {
+                        Value::from(value)
+                    };
+                }
+                let yaml = serde_yaml::to_string(&root).unwrap();
+                fs::write(&path, &yaml).unwrap();
+                for (reader, result) in [
+                    ("value", load_run_config_from_value(&mut root)),
+                    ("string", load_run_config_from_str(&yaml)),
+                    ("file", load_run_config(&path)),
+                ] {
+                    let sc = result.expect(reader).site_scalars;
+                    assert_eq!(
+                        [sc.lat, sc.lon, sc.alt, sc.timezone, sc.z, sc.surfacearea],
+                        values
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resolved_site_coordinates_reject_invalid_values_at_public_readers() {
+        let invalid = [
+            None,
+            Some("null"),
+            Some("{value: null}"),
+            Some("wrong"),
+            Some("{value: wrong}"),
+            Some("[1, 2]"),
+            Some("{unexpected: 1}"),
+            Some("{value: {value: 1}}"),
+            Some("{ref: citation}"),
+            Some(".nan"),
+            Some(".inf"),
+            Some("-.inf"),
+            Some("{value: .nan}"),
+            Some("{value: .inf}"),
+            Some("{value: -.inf}"),
+        ];
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        for field in REQUIRED_SITE_COORDINATES {
+            for input in invalid {
+                // Match _run_rust._grid_config_jsons: the later site is
+                // passed alone, retaining its gridiv rather than its index.
+                for gridiv in [None, Some(27)] {
+                    let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                    let first = first_site_mut(&mut root).unwrap().clone();
+                    root["sites"].as_sequence_mut().unwrap().push(first);
+                    let mut later = root["sites"][1].clone();
+                    later.as_mapping_mut().unwrap().remove("gridiv");
+                    if let Some(id) = gridiv {
+                        later["gridiv"] = Value::from(id);
+                    }
+                    let props = later["properties"].as_mapping_mut().unwrap();
+                    props.remove(field);
+                    if let Some(yaml) = input {
+                        props.insert(Value::from(field), serde_yaml::from_str(yaml).unwrap());
+                    }
+                    root["sites"] = Value::Sequence(vec![later]);
+                    let at = if gridiv.is_some() {
+                        "sites[gridiv=27]"
+                    } else {
+                        "sites[0]"
+                    };
+                    let expected = format!("`{at}.properties.{field}`");
+                    let yaml = serde_yaml::to_string(&root).unwrap();
+                    fs::write(&path, &yaml).unwrap();
+                    for result in [
+                        load_run_config_from_value(&mut root),
+                        load_run_config_from_str(&yaml),
+                        load_run_config(&path),
+                    ] {
+                        let error = result.expect_err("invalid resolved coordinate must fail");
+                        assert!(error.contains(&expected), "{field} {input:?}: {error}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resolved_site_longitude_rejects_alias_and_ambiguous_input() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("resolved.yml");
+        for canonical in [None, Some("null"), Some("0"), Some("23.5")] {
+            for alias in ["null", "0", "23.5"] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                let props = first_site_mut(&mut root).unwrap()["properties"]
+                    .as_mapping_mut()
+                    .unwrap();
+                props.remove("lng");
+                if let Some(value) = canonical {
+                    props.insert(Value::from("lng"), serde_yaml::from_str(value).unwrap());
+                }
+                props.insert(Value::from("lon"), serde_yaml::from_str(alias).unwrap());
+                let yaml = serde_yaml::to_string(&root).unwrap();
+                fs::write(&path, &yaml).unwrap();
+                for result in [
+                    load_run_config_from_value(&mut root),
+                    load_run_config_from_str(&yaml),
+                    load_run_config(&path),
+                ] {
+                    let error = result.expect_err("resolved site input must use lng");
+                    assert!(
+                        error.contains("`sites[gridiv=1].properties.lon`"),
+                        "{canonical:?}/{alias}: {error}"
+                    );
+                    assert!(
+                        error.contains("use only `sites[gridiv=1].properties.lng`"),
+                        "{canonical:?}/{alias}: {error}"
+                    );
+                }
+            }
         }
     }
 
@@ -4294,7 +4541,21 @@ mod tests {
     #[test]
     fn missing_active_drainage_block_is_not_an_inactive_configuration() {
         for block in ["storage_drain_params", "storedrainprm"] {
-            for value in [None, Some(Value::Null)] {
+            for value in [
+                None,
+                Some(Value::Null),
+                Some(serde_yaml::from_str("{}").unwrap()),
+                Some(serde_yaml::from_str("{ref: {desc: survey}}").unwrap()),
+                Some(serde_yaml::from_str("{store_cap: null}").unwrap()),
+                Some(
+                    serde_yaml::from_str("{store_cap: {value: null, ref: {desc: survey}}}")
+                        .unwrap(),
+                ),
+                Some(
+                    serde_yaml::from_str("{drain_coef_1: {value: null, ref: {desc: survey}}}")
+                        .unwrap(),
+                ),
+            ] {
                 let mut root = stebbs_fixture_root();
                 let site = first_site_mut(&mut root).unwrap();
                 let paved = get_path_mut(site, &["properties", "land_cover", "paved"])
@@ -4636,27 +4897,17 @@ mod tests {
     }
 
     #[test]
-    fn optional_non_finite_scalar_reaches_the_struct() {
-        for (number, expected) in [
-            (".nan", f64::NAN),
-            (".inf", f64::INFINITY),
-            ("-.inf", f64::NEG_INFINITY),
-        ] {
+    fn non_finite_measurement_height_is_rejected_before_site_scalars() {
+        for number in [".nan", ".inf", "-.inf"] {
             for value in [number.to_string(), format!("{{value: {number}}}")] {
                 let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
                 let site = first_site_mut(&mut root).unwrap();
                 *get_path_mut(site, &["properties", "z"]).unwrap() =
                     serde_yaml::from_str(&value).unwrap();
-                let run = load_run_config_from_value(&mut root).expect(&value);
-                if expected.is_nan() {
-                    assert!(
-                        run.site_scalars.z.is_nan(),
-                        "{value}: {}",
-                        run.site_scalars.z
-                    );
-                } else {
-                    assert_eq!(run.site_scalars.z, expected, "{value}");
-                }
+                let error = load_run_config_from_value(&mut root)
+                    .expect_err("measurement height must be finite");
+                assert!(error.contains("sites[gridiv=1].properties.z"), "{value}: {error}");
+                assert!(error.contains("is non-finite"), "{value}: {error}");
             }
         }
     }
@@ -5949,5 +6200,159 @@ mod tests {
         assert!(
             (run_cfg.site.lc_paved.soil.saturated_hydraulic_conductivity - 0.00275).abs() < 1.0e-12
         );
+    }
+
+    #[test]
+    fn active_non_water_surface_rejects_zero_soil_depth_with_positive_capacity() {
+        for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"] {
+            for literal in ["0", "0.0", "-0.0", "{value: 0.0}"] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+                let site = first_site_mut(&mut root).expect("fixture has site");
+                let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                    .expect("surface block exists");
+                *get_path_mut(lc, &["sfr"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.1}").unwrap();
+                *get_path_mut(lc, &["soil_store_capacity"]).unwrap() =
+                    serde_yaml::from_str("{value: 150.0}").unwrap();
+                *get_path_mut(lc, &["soil_depth"]).unwrap() =
+                    serde_yaml::from_str(literal).unwrap();
+                let err = load_run_config_from_value(&mut root)
+                    .expect_err("zero soil_depth on active positive-capacity surface must fail");
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.{surface}.soil_depth`"
+                    )),
+                    "{surface} ({literal}): {err}"
+                );
+                assert!(
+                    err.contains("must not be 0"),
+                    "{surface} ({literal}): {err}"
+                );
+                assert!(
+                    err.contains("soil_store_capacity"),
+                    "{surface} ({literal}): {err}"
+                );
+            }
+        }
+
+        // Legacy fused keys must also fail and report the canonical soil_depth path.
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+        let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
+        remove_key(grass, "soil_depth");
+        remove_key(grass, "soil_store_capacity");
+        if let Value::Mapping(map) = grass {
+            map.insert(
+                Value::String("soildepth".to_string()),
+                serde_yaml::from_str("{value: 0.0}").unwrap(),
+            );
+            map.insert(
+                Value::String("soilstorecap".to_string()),
+                serde_yaml::from_str("{value: 150.0}").unwrap(),
+            );
+        }
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("legacy zero soildepth with positive soilstorecap must fail");
+        assert!(
+            err.contains("`sites[gridiv=1].properties.land_cover.grass.soil_depth`"),
+            "{err}"
+        );
+        assert!(!err.contains("soildepth"), "{err}");
+    }
+
+    #[test]
+    fn zero_soil_depth_allowed_when_inactive_zero_capacity_or_water() {
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+
+        // Zero capacity on an active non-water surface permits zero soil_depth.
+        let paved = get_path_mut(site, &["properties", "land_cover", "paved"]).unwrap();
+        *get_path_mut(paved, &["soil_store_capacity"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+        *get_path_mut(paved, &["soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+
+        // Inactive non-water surface permits zero soil_depth even with positive capacity.
+        let bsoil = get_path_mut(site, &["properties", "land_cover", "bsoil"]).unwrap();
+        *get_path_mut(bsoil, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+        *get_path_mut(bsoil, &["soil_store_capacity"]).unwrap() =
+            serde_yaml::from_str("{value: 150.0}").unwrap();
+        *get_path_mut(bsoil, &["soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+
+        // Water surface permits zero soil_depth even when active with positive capacity.
+        let water = get_path_mut(site, &["properties", "land_cover", "water"]).unwrap();
+        *get_path_mut(water, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.05}").unwrap();
+        *get_path_mut(water, &["soil_store_capacity"]).unwrap() =
+            serde_yaml::from_str("{value: 150.0}").unwrap();
+        *get_path_mut(water, &["soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: 0.0}").unwrap();
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("zero capacity, inactive, and water surfaces must allow zero soil_depth");
+        assert_eq!(run_cfg.site.lc_paved.soil.soil_depth, 0.0);
+        assert_eq!(run_cfg.site.lc_paved.soil.soil_store_capacity, 0.0);
+        assert_eq!(run_cfg.site.lc_bsoil.soil.soil_depth, 0.0);
+        assert_eq!(run_cfg.site.lc_water.soil.soil_depth, 0.0);
+        assert!(run_cfg.site.lc_grass.soil.soil_depth > 0.0);
+    }
+
+    #[test]
+    fn emissions_method_allowlist_accepts_every_valid_code_and_rejects_holes() {
+        let mut expected_valid = vec![0, 1, 2, 3, 4, 5, 6];
+        for family in [10, 20, 30, 40] {
+            for sub in 1..=6 {
+                expected_valid.push(family + sub);
+            }
+        }
+
+        for code in -5..=60 {
+            let expected = expected_valid.contains(&code);
+            assert_eq!(
+                is_valid_emissions_method(code),
+                expected,
+                "unexpected allowlist decision for emissions={code}"
+            );
+        }
+
+        // Every valid code loads cleanly through YAML (including >= 11 CO2 codes).
+        for &code in &expected_valid {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {code}}}")).unwrap();
+            let run_cfg = load_run_config_from_value(&mut root)
+                .unwrap_or_else(|e| panic!("valid emissions={code} must parse: {e}"));
+            assert_eq!(run_cfg.config.emissions_method, code);
+        }
+
+        // Invalid holes (including 17, 7..10, 18..20, 27..30, 37..40, 47, -1) fail loudly.
+        for bad in [-1, 7, 8, 9, 10, 17, 18, 19, 20, 27, 30, 37, 40, 47, 51, 999] {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {bad}}}")).unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("invalid emissions={bad} must be rejected"));
+            assert!(
+                err.contains("model.physics.emissions") && err.contains(&bad.to_string()),
+                "emissions={bad} error should name path and value: {err}"
+            );
+        }
+
+        // Non-integer / null / non-finite emissions values are also rejected.
+        for malformed in ["null", "{value: null}", "17.5", ".nan", ".inf"] {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(malformed).unwrap();
+            assert!(
+                load_run_config_from_value(&mut root).is_err(),
+                "malformed emissions={malformed} must be rejected"
+            );
+        }
     }
 }

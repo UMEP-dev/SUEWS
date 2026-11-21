@@ -33,37 +33,57 @@ use crate::error::BridgeError;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+/// Complete schema metadata for a fixed-length [`StateCodec`] type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeSchema {
+    /// Upper-case Fortran derived-type name (for example `"STEBBS_PRM"`).
     pub type_name: String,
+    /// Schema version matched against the Fortran C-API facade at runtime.
     pub schema_version: u32,
+    /// Expected number of `f64` elements in the flat ABI buffer.
     pub flat_len: usize,
+    /// Ordered field names aligned 1:1 with the flat buffer slots.
     pub field_names: Vec<String>,
 }
 
+/// Compact schema metadata returned by per-type `*_schema_info()` helpers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimpleSchema {
+    /// Schema version matched against the Fortran C-API facade at runtime.
     pub schema_version: u32,
+    /// Expected number of `f64` elements in the flat ABI buffer.
     pub flat_len: usize,
+    /// Ordered field names aligned 1:1 with the flat buffer slots.
     pub field_names: Vec<String>,
 }
 
+/// Versioned flat `f64` payload for a fixed-length bridged type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValuesPayload {
+    /// Schema version tag checked before decoding.
     pub schema_version: u32,
+    /// Ordered flat values matching [`StateCodec::to_flat`].
     pub values: Vec<f64>,
 }
 
+/// Per-field axis lengths for allocatable / variable-dimension payloads
+/// (for example `hydro_state`, `heat_state`, `ehc_prm`, `output_block`).
 pub type PayloadDims = BTreeMap<String, Vec<usize>>;
 
+/// Versioned flat `f64` payload augmented with runtime dimensions for
+/// allocatable Fortran array members.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValuesPayloadWithDims {
+    /// Schema version tag checked before decoding.
     pub schema_version: u32,
+    /// Ordered flat values across scalar and allocatable members.
     pub values: Vec<f64>,
+    /// Explicit axis dimensions required to partition allocatable slices.
     pub dims: PayloadDims,
 }
 
 impl ValuesPayloadWithDims {
+    /// Wrap a fixed-length [`ValuesPayload`] with an empty dimension table.
     pub fn from_legacy(payload: &ValuesPayload) -> Self {
         Self {
             schema_version: payload.schema_version,
@@ -72,6 +92,7 @@ impl ValuesPayloadWithDims {
         }
     }
 
+    /// Drop dimension metadata and return the underlying [`ValuesPayload`].
     pub fn into_legacy(self) -> ValuesPayload {
         ValuesPayload {
             schema_version: self.schema_version,
@@ -86,16 +107,25 @@ impl ValuesPayloadWithDims {
 /// `*_field_names()` must list the fields in exactly the order the Fortran
 /// facade packs them. Only the length is checked (`validate_flat_len`).
 pub trait StateCodec: Sized {
+    /// Return static schema metadata (type name, version, flat length, field names).
     fn schema() -> TypeSchema;
+    /// Deserialise from a flat Fortran `[f64]` slice, checking length and domain rules.
     fn from_flat(flat: &[f64]) -> Result<Self, BridgeError>;
+    /// Serialise into the ordered flat `[f64]` buffer expected by `c_api/*_unpack`.
     fn to_flat(&self) -> Vec<f64>;
 }
 
+/// JSON nested-payload codec for composite containers (`SuewsSite`,
+/// `SuewsState`, `SuewsStateBlock`, `SuewsDebug`) that hold heterogeneous
+/// child members rather than a single fixed flat slice.
 pub trait CompositeCodec: Sized {
+    /// Serialise this composite container into its versioned nested JSON value.
     fn to_nested_payload(&self) -> Value;
+    /// Deserialise from a versioned nested JSON value, validating member sets and schemas.
     fn from_nested_payload(payload: &Value) -> Result<Self, BridgeError>;
 }
 
+/// Return `Ok(())` when `flat.len() == expected`, or [`BridgeError::BadBuffer`] otherwise.
 pub fn validate_flat_len(flat: &[f64], expected: usize) -> Result<(), BridgeError> {
     if flat.len() != expected {
         return Err(BridgeError::BadBuffer);
@@ -103,6 +133,7 @@ pub fn validate_flat_len(flat: &[f64], expected: usize) -> Result<(), BridgeErro
     Ok(())
 }
 
+/// Look up the zero-based flat buffer index of `name` in `field_names`.
 pub fn field_index(field_names: &[String], name: &str) -> Option<usize> {
     field_names.iter().position(|field| field == name)
 }
@@ -138,6 +169,7 @@ pub fn from_map<T: StateCodec>(
     T::from_flat(&flat)
 }
 
+/// Encode `state` into a versioned [`ValuesPayload`].
 pub fn to_values_payload<T: StateCodec>(state: &T) -> ValuesPayload {
     let schema = T::schema();
     ValuesPayload {
@@ -146,6 +178,7 @@ pub fn to_values_payload<T: StateCodec>(state: &T) -> ValuesPayload {
     }
 }
 
+/// Decode a versioned [`ValuesPayload`], rejecting schema-version or flat-length mismatches.
 pub fn from_values_payload<T: StateCodec>(payload: &ValuesPayload) -> Result<T, BridgeError> {
     let schema = T::schema();
     if payload.schema_version != schema.schema_version {
@@ -156,10 +189,12 @@ pub fn from_values_payload<T: StateCodec>(payload: &ValuesPayload) -> Result<T, 
     T::from_flat(&payload.values)
 }
 
+/// Encode a fixed-length [`StateCodec`] value as a [`ValuesPayloadWithDims`] with empty `dims`.
 pub fn to_values_payload_with_dims<T: StateCodec>(state: &T) -> ValuesPayloadWithDims {
     ValuesPayloadWithDims::from_legacy(&to_values_payload(state))
 }
 
+/// Decode a [`ValuesPayloadWithDims`] for a fixed-length [`StateCodec`] type.
 pub fn from_values_payload_with_dims<T: StateCodec>(
     payload: &ValuesPayloadWithDims,
 ) -> Result<T, BridgeError> {
@@ -169,10 +204,12 @@ pub fn from_values_payload_with_dims<T: StateCodec>(
     })
 }
 
+/// Return the recorded axis lengths for `field_name`, if present.
 pub fn field_dims<'a>(dims: &'a PayloadDims, field_name: &str) -> Option<&'a [usize]> {
     dims.get(field_name).map(Vec::as_slice)
 }
 
+/// Look up `field_name` in `dims` and require it to have `expected_rank` axes.
 pub fn require_field_dims(
     dims: &PayloadDims,
     field_name: &str,
@@ -183,6 +220,7 @@ pub fn require_field_dims(
     Ok(field_dims.to_vec())
 }
 
+/// Verify that `dims` has exactly `expected_rank` axes, returning [`BridgeError::BadState`] otherwise.
 pub fn validate_dims_rank(dims: &[usize], expected_rank: usize) -> Result<(), BridgeError> {
     if dims.len() != expected_rank {
         return Err(BridgeError::BadState);
@@ -190,6 +228,7 @@ pub fn validate_dims_rank(dims: &[usize], expected_rank: usize) -> Result<(), Br
     Ok(())
 }
 
+/// Compute the total element count across `dims` using checked multiplication.
 pub fn dims_element_count(dims: &[usize]) -> Result<usize, BridgeError> {
     dims.iter()
         .try_fold(1_usize, |acc, dim| acc.checked_mul(*dim))

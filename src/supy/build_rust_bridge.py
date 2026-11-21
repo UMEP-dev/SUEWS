@@ -1,13 +1,36 @@
-"""Build helper for embedding the Rust bridge into the Meson package build."""
+"""Build helper for embedding the Rust bridge into the Meson package build.
+
+Invoked by ``src/supy/meson.build`` after the Fortran kernel static libraries
+are built. Compiles ``src/suews_bridge/Cargo.toml`` with
+``python-extension,physics,arrow-output`` (using the MinGW GNU target on
+Windows so gfortran symbols link cleanly), copies both the PyO3 extension
+library (``suews_bridge``) and standalone ``suews-engine`` CLI into the Meson
+staging outputs, and emits a Ninja depfile tracking Rust, C-API Fortran and
+driver inputs so incremental rebuilds stay accurate.
+"""
 
 from __future__ import annotations
 
+import importlib.util
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 import subprocess
 import sys
+
+# Load by sibling path: Meson executes these scripts directly, and tests load
+# them with spec_from_file_location without adding this directory to sys.path.
+_DEPFILE_HELPER = Path(__file__).resolve().with_name("_build_depfile.py")
+_depfile_spec = importlib.util.spec_from_file_location(
+    "_suews_build_depfile", _DEPFILE_HELPER
+)
+assert _depfile_spec is not None and _depfile_spec.loader is not None
+_depfile_module = importlib.util.module_from_spec(_depfile_spec)
+_depfile_spec.loader.exec_module(_depfile_module)
+write_depfile = _depfile_module.write_depfile
+_escape_depfile_token = _depfile_module._escape_depfile_token
 
 
 def _copy_file(src: Path, dst: Path, make_executable: bool = False) -> None:
@@ -49,15 +72,78 @@ def _find_cli_artifact(target_dir: Path) -> Path:
 _C_API_SOURCE_SUFFIXES = {".f90", ".f95", ".f", ".c", ".h"}
 
 
-def _escape_depfile_token(token: str) -> str:
-    """Escape a path for Ninja/Make depfile consumption."""
-    return token.replace("$", "$$").replace(" ", "\\ ")
+def read_cargo_depfile(depfile: Path) -> list[str]:
+    """Read rule prerequisites, not targets or rustc's env-dep comments.
+
+    Do not use shell tokenisation: backslashes in Windows paths are literal
+    unless they escape Make whitespace, a hash, or another backslash.
+    A drive-letter colon is not the rule separator (colon plus whitespace).
+    """
+    text = depfile.read_text(encoding="utf-8")
+    text = text.replace("\\\n", " ")
+    deps: list[str] = []
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        rule = re.search(r":(?:\s|$)", line)
+        if rule is None:
+            raise ValueError(f"Invalid Cargo dep-info rule in {depfile}: {line!r}")
+        value = line[rule.end() :]
+        token: list[str] = []
+        i = 0
+        while i < len(value):
+            char = value[i]
+            if char == "\\" and i + 1 < len(value) and value[i + 1] in " \t#\\":
+                i += 1
+                token.append(value[i])
+            elif char == "$" and value[i : i + 2] == "$$":
+                token.append("$")
+                i += 1
+            elif char == "#":
+                break
+            elif char.isspace():
+                if token:
+                    deps.append("".join(token))
+                    token = []
+            else:
+                token.append(char)
+            i += 1
+        if token:
+            deps.append("".join(token))
+    return deps
+
+
+def collect_cargo_depfile_inputs(target_dir: Path, base_target: Path) -> list[Path]:
+    """Collect both built artefacts' inputs, excluding Cargo-owned outputs.
+
+    Cargo's top-level dep-info includes transitive and build-script inputs.
+    Generated include! files under the target directory must remain Cargo's
+    responsibility: exposing them to Ninja can make the wrapper rebuild itself.
+    Relative dep-info paths are interpreted from the Cargo invocation directory.
+    """
+    generated_root = base_target.resolve()
+    deps: set[Path] = set()
+    # rlib and cdylib naming differs across platforms; consume only these
+    # artefacts' top-level files, never stale hashed files under deps/.
+    library_depfiles = [
+        path
+        for name in ("libsuews_bridge.d", "suews_bridge.d")
+        if (path := target_dir / name).is_file()
+    ]
+    if not library_depfiles:
+        raise FileNotFoundError(f"Cargo library dep-info not found in {target_dir}")
+    for depfile in [*library_depfiles, target_dir / "suews-engine.d"]:
+        for token in read_cargo_depfile(depfile):
+            path = Path(token).resolve()
+            if not path.is_relative_to(generated_root):
+                deps.add(path)
+    return sorted(deps)
 
 
 def collect_depfile_inputs(repo_root: Path) -> list[Path]:
     """Return sorted Rust, C-API Fortran, and build inputs for the bridge target."""
     bridge_dir = repo_root / "src" / "suews_bridge"
-    deps: list[Path] = []
+    deps: list[Path] = [_DEPFILE_HELPER]
     for fixed in (
         bridge_dir / "Cargo.toml",
         bridge_dir / "Cargo.lock",
@@ -82,19 +168,6 @@ def collect_depfile_inputs(repo_root: Path) -> list[Path]:
 
     # Deduplicate while preserving deterministic sorted order.
     return sorted(set(deps))
-
-
-def write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
-    """Write a single-target Ninja-compatible depfile."""
-    depfile.parent.mkdir(parents=True, exist_ok=True)
-    target_tok = _escape_depfile_token(target.replace("\\", "/"))
-    dep_toks = [_escape_depfile_token(p.as_posix()) for p in deps]
-    content = (
-        f"{target_tok}: " + " \\\n  ".join(dep_toks) + "\n"
-        if dep_toks
-        else f"{target_tok}:\n"
-    )
-    depfile.write_text(content, encoding="utf-8")
 
 
 def main() -> int:
@@ -148,10 +221,13 @@ def main() -> int:
     ext_artifact = _find_extension_artifact(target_dir)
     cli_artifact = _find_cli_artifact(target_dir)
 
+    if depfile is not None:
+        deps = collect_depfile_inputs(repo_root)
+        deps.extend(collect_cargo_depfile_inputs(target_dir, base_target))
     _copy_file(ext_artifact, output_ext, make_executable=False)
     _copy_file(cli_artifact, output_cli, make_executable=True)
     if depfile is not None:
-        write_depfile(depfile, raw_output_ext, collect_depfile_inputs(repo_root))
+        write_depfile(depfile, raw_output_ext, sorted(set(deps)))
     return 0
 
 

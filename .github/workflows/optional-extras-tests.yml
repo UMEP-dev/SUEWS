@@ -1,0 +1,104 @@
+name: Optional extras and standalone tests
+
+# Executes test suites that are skipped on standard wheel CI lanes because they
+# require optional dependencies (cf-units, pvlib/metpy via .[tmy]) or the
+# standalone NetCDF/OpenMP SPARTACUS-Surface binary (gh#2104 F-17b), plus the
+# release-config compatibility suite with strict zero-silent-skip verification.
+#
+# Runs with read-only permissions (contents: read) on PRs touching any covered
+# surface, nightly on schedule, and on manual dispatch.
+
+on:
+  pull_request:
+    paths:
+      - 'pyproject.toml'
+      - 'src/supy/units.py'
+      - 'src/supy/util/**'
+      - 'src/supy/data_model/**'
+      - 'src/supy/sample_data/**'
+      - 'src/suews/ext_lib/spartacus-surface/**'
+      - 'src/suews/src/suews_ctrl_error_tls.c'
+      - 'test/core/test_units.py'
+      - 'test/data_model/test_unit_metadata.py'
+      - 'test/data_model/test_release_compat.py'
+      - 'test/fixtures/release_configs/**'
+      - 'test/io_tests/test_gen_epw_resample.py'
+      - 'test/physics/test_standalone_spartacus_errors.py'
+      - 'scripts/suews/run_optional_extras_tests.py'
+      - '.github/workflows/optional-extras-tests.yml'
+  schedule:
+    # Nightly run staggered from the 02:00 UTC wheel nightly and 05:30 UTC audit
+    - cron: '45 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: optional-extras-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  optional_extras_tests:
+    name: Optional extras, release compat, and standalone SPARTACUS (Linux cp312)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: false
+
+      - name: Install Fortran and NetCDF-Fortran system libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y gfortran libnetcdf-dev libnetcdff-dev
+          gfortran --version
+          nf-config --version
+          rustc --version
+          cargo --version
+
+      - name: Build standalone SPARTACUS-Surface binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p \
+            src/suews/ext_lib/spartacus-surface/lib \
+            src/suews/ext_lib/spartacus-surface/mod \
+            src/suews/ext_lib/spartacus-surface/bin
+          make -C src/suews/ext_lib/spartacus-surface PROFILE=gfortran
+          test -x src/suews/ext_lib/spartacus-surface/bin/spartacus_surface
+
+      - name: Build supy with optional extras and audit startup hooks
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --python 3.12 .optional-venv
+          uv pip install --python .optional-venv/bin/python \
+            ".[tmy]" \
+            cf-units==3.3.1 \
+            pytest==9.1.1 \
+            pytest-timeout==2.4.0
+          .optional-venv/bin/python scripts/security/audit_python_startup.py
+          .optional-venv/bin/python scripts/security/remove_legacy_namespace_pth.py
+
+      - name: Execute optional-extras and standalone SPARTACUS test suites (zero silent skips)
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$PWD/.optional-venv/bin:$PATH"
+          .optional-venv/bin/python scripts/suews/run_optional_extras_tests.py \
+            --require-prefix "$PWD/.optional-venv" \
+            --summary-md "$GITHUB_STEP_SUMMARY"

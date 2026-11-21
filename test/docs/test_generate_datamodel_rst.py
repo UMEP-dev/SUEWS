@@ -3,15 +3,36 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import re
 
 import pytest
 
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.hydro import StorageDrainParams, WaterDistribution
+from supy.data_model.core.model import OutputControl
 from supy.data_model.core.physics_families import PHYSICS_FAMILIES, resolve_scalar_name
+from supy.data_model.core.site import (
+    DectrProperties,
+    EvetrProperties,
+    GrassProperties,
+)
+from supy.data_model.core.surface import (
+    BldgsProperties,
+    BsoilProperties,
+    PavedProperties,
+    WaterProperties,
+)
 from supy.data_model.core.physics_orthogonal import (
     coerce_orthogonal_to_flat,
     fold_storage_heat_ohm_inc_qf,
+)
+from supy.data_model.core.state import (
+    InitialStateDectr,
+    InitialStateEvetr,
+    InitialStateGrass,
+    InitialStateVeg,
 )
 from supy.data_model.parameter_examples import (
     get_all_parameter_examples,
@@ -492,15 +513,6 @@ def test_every_recorded_derived_default_reaches_the_reference(
 
 def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
     """Every derived-default entry names a real field with runtime resolution."""
-    from supy.data_model.core.config import SUEWSConfig
-    from supy.data_model.core.hydro import StorageDrainParams
-    from supy.data_model.core.state import (
-        InitialStateDectr,
-        InitialStateEvetr,
-        InitialStateGrass,
-        InitialStateVeg,
-    )
-
     # ARRANGE
     models = {
         "StorageDrainParams": StorageDrainParams,
@@ -508,6 +520,7 @@ def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
         "InitialStateEvetr": InitialStateEvetr,
         "InitialStateDectr": InitialStateDectr,
         "InitialStateGrass": InitialStateGrass,
+        "OutputControl": OutputControl,
     }
 
     # ACT / ASSERT - every recorded field exists and lookup works
@@ -523,12 +536,43 @@ def test_recorded_derived_defaults_exist_and_resolve_at_runtime() -> None:
     dumped = drain.model_dump(exclude_none=True, mode="json")
     assert dumped["store_cap"]["value"] == pytest.approx(0.73)
 
-    # Runtime check 2: InitialState*.alb_id is derived from LAI/albedo limits
-    cfg = SUEWSConfig(sites=[{}])
-    for surface in ("evetr", "dectr", "grass"):
-        state = getattr(cfg.sites[0].initial_states, surface)
-        alb = state.alb_id.value if hasattr(state.alb_id, "value") else state.alb_id
-        assert alb is not None
+    # Runtime check 2: InitialState*.alb_id follows opposite LAI directions for
+    # trees (increasing with LAI) and grass (decreasing with LAI).
+    cfg = SUEWSConfig(
+        sites=[
+            {
+                "properties": {
+                    "land_cover": {
+                        "evetr": {
+                            "alb_min": 0.10,
+                            "alb_max": 0.30,
+                            "lai": {"lai_min": 0.5, "lai_max": 5.5},
+                        },
+                        "grass": {
+                            "alb_min": 0.10,
+                            "alb_max": 0.30,
+                            "lai": {"lai_min": 0.5, "lai_max": 5.5},
+                        },
+                    }
+                },
+                "initial_states": {
+                    "evetr": {"lai_id": 4.0, "alb_id": None},
+                    "grass": {"lai_id": 4.0, "alb_id": None},
+                },
+            }
+        ]
+    )
+    evetr_alb = cfg.sites[0].initial_states.evetr.alb_id
+    grass_alb = cfg.sites[0].initial_states.grass.alb_id
+    evetr_val = evetr_alb.value if hasattr(evetr_alb, "value") else evetr_alb
+    grass_val = grass_alb.value if hasattr(grass_alb, "value") else grass_alb
+    # ratio = (4.0 - 0.5) / (5.5 - 0.5) = 0.7 -> tree: 0.10 + 0.20*0.7 = 0.24, grass: 0.30 - 0.20*0.7 = 0.16
+    assert evetr_val == pytest.approx(0.24)
+    assert grass_val == pytest.approx(0.16)
+
+    # Runtime check 3: OutputControl.freq stays None on the model so SUEWSOutput.save
+    # can apply the 3600 s native fallback or preserve a fixed resampled interval.
+    assert OutputControl().freq is None
 
 
 @pytest.mark.parametrize(
@@ -1070,3 +1114,117 @@ def test_generated_config_reference_never_claims_optional(tmp_path) -> None:
         if "None (optional)" in page.read_text(encoding="utf-8")
     ]
     assert not offenders
+
+
+def test_generated_waterdistribution_rst_matches_validation_contract(tmp_path) -> None:
+    """Generated waterdistribution.rst states sfr>0, zero-normalisation, and post-load rules."""
+    # ARRANGE
+    module = _load_generator_module()
+    doc_data = module.ModelDocExtractor().extract_all_models()
+
+    # ACT
+    module.RSTGenerator(doc_data).generate_all_rst(tmp_path, style="hybrid")
+    page = (tmp_path / "waterdistribution.rst").read_text(encoding="utf-8")
+
+    # ASSERT
+    assert ":ref:`waterdist_yaml_rules`" in page
+    assert "``sfr > 0``" in page
+    assert "``sfr == 0``" in page
+    assert "normalised to absent" in page
+    assert "post-load" in page
+    assert "to_runoff:" in page
+    assert "value: 0.98" in page
+    assert "to_grass:" in page
+    assert "value: 0.02" in page
+    for field in (
+        "to_paved",
+        "to_bldgs",
+        "to_dectr",
+        "to_evetr",
+        "to_grass",
+        "to_bsoil",
+        "to_water",
+        "to_runoff",
+        "to_soilstore",
+    ):
+        assert f".. input:option:: {field}" in page
+    assert ":Status: Required when" in page
+
+
+def test_waterdist_user_docs_and_committed_schema_match_implementation() -> None:
+    """Maintained user docs and committed schema.json agree with WaterDistribution rules."""
+    # ARRANGE / ACT
+    transition_guide = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "transition_guide.rst"
+    ).read_text(encoding="utf-8")
+    yaml_index = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "yaml" / "index.rst"
+    ).read_text(encoding="utf-8")
+    yaml_validation = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "yaml" / "validation.rst"
+    ).read_text(encoding="utf-8")
+    legacy_table = (
+        PROJECT_ROOT
+        / "docs"
+        / "source"
+        / "inputs"
+        / "tables"
+        / "SUEWS_SiteInfo"
+        / "SUEWS_WithinGridWaterDist.rst"
+    ).read_text(encoding="utf-8")
+    committed_schema = json.loads(
+        (
+            PROJECT_ROOT / "docs" / "source" / "inputs" / "tables" / "schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    live_wd_schema = WaterDistribution.model_json_schema()
+
+    # ASSERT: transition_guide carries anchor, worked paved example, and all three rules
+    assert ".. _waterdist_yaml_rules:" in transition_guide
+    assert "value: 0.98" in transition_guide
+    assert "value: 0.02" in transition_guide
+    assert "``sfr > 0``" in transition_guide
+    assert "``sfr == 0``" in transition_guide
+    assert "normalised to absent (``None``)" in transition_guide
+    assert "Post-load live mutations" in transition_guide
+
+    # ASSERT: yaml/index.rst qualifies missing-parameter autofill for waterdist
+    assert ":ref:`waterdist_yaml_rules`" in yaml_index
+    assert "mandatory active-surface routing fields" in yaml_index.lower()
+    assert "not silently filled" in yaml_index
+
+    # ASSERT: yaml/validation.rst documents the waterdist Phase C & post-load rules
+    assert ":ref:`waterdist_yaml_rules`" in yaml_validation
+    assert "``sfr > 0``" in yaml_validation
+    assert "normalised to absent at YAML load" in yaml_validation
+
+    # ASSERT: legacy SUEWS_WithinGridWaterDist.txt docs stay intact and cross-link YAML
+    assert "diagonal elements should be zero" in legacy_table
+    assert ":ref:`waterdist_yaml_rules`" in legacy_table
+
+    # ASSERT: committed schema.json WaterDistribution metadata stays synced with live model
+    committed_wd = committed_schema["$defs"]["WaterDistribution"]
+    assert committed_wd["description"] == live_wd_schema["description"]
+    assert committed_wd["title"] == live_wd_schema["title"]
+    for field_name in WaterDistribution.model_fields:
+        if not field_name.startswith("to_"):
+            continue
+        assert (
+            committed_wd["properties"][field_name]["description"]
+            == live_wd_schema["properties"][field_name]["description"]
+        )
+    for surface_cls in (
+        PavedProperties,
+        BldgsProperties,
+        EvetrProperties,
+        DectrProperties,
+        GrassProperties,
+        BsoilProperties,
+        WaterProperties,
+    ):
+        assert (
+            committed_schema["$defs"][surface_cls.__name__]["properties"]["waterdist"][
+                "description"
+            ]
+            == surface_cls.model_fields["waterdist"].description
+        )

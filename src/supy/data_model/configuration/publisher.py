@@ -17,7 +17,10 @@ import argparse
 import sys
 from datetime import datetime
 
+from packaging.version import Version
+
 from ..core import SUEWSConfig
+from ..core.hydro import DRAINAGE_COEFFICIENT_REQUIREMENT
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
 
@@ -34,39 +37,93 @@ def generate_json_schema(
     Returns:
         JSON Schema dictionary
     """
+    version = version or CURRENT_SCHEMA_VERSION
+
     # Get the Pydantic schema
     schema = SUEWSConfig.model_json_schema()
 
     # Add schema metadata
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     schema["$id"] = (
-        f"https://umep-dev.github.io/SUEWS/schema/suews-config/{version or CURRENT_SCHEMA_VERSION}.json"
+        f"https://umep-dev.github.io/SUEWS/schema/suews-config/{version}.json"
     )
 
     # Add versioning information
-    schema["version"] = version or CURRENT_SCHEMA_VERSION
-    schema["title"] = f"SUEWS Configuration Schema v{version or CURRENT_SCHEMA_VERSION}"
+    schema["version"] = version
+    schema["title"] = f"SUEWS Configuration Schema v{version}"
     schema["description"] = (
         f"JSON Schema for SUEWS YAML configuration files. "
-        f"Schema version {version or CURRENT_SCHEMA_VERSION}. "
-        f"{SCHEMA_VERSIONS.get(version or CURRENT_SCHEMA_VERSION, '')}"
+        f"Schema version {version}. "
+        f"{SCHEMA_VERSIONS.get(version, '')}"
     )
 
     # Add metadata
     schema["$comment"] = {
         "generator": "supy.util.schema_publisher",
         "suews_version": _get_suews_version(),
-        "schema_version": version or CURRENT_SCHEMA_VERSION,
+        "schema_version": version,
     }
+
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev12"):
+        _restore_historical_water_descriptions(schema["$defs"])
 
     # Filter internal fields if requested
     if not include_internal:
         schema = _filter_internal_fields(schema)
 
+    # The conditional drainage requirement was introduced in dev13.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev13"):
+        fields = schema["$defs"]["StorageDrainParams"]["properties"]
+        for name in ("drain_coef_1", "drain_coef_2"):
+            fields[name]["description"] = fields[name]["description"].removesuffix(
+                DRAINAGE_COEFFICIENT_REQUIREMENT
+            )
+
     # Add examples
-    schema["examples"] = [_get_minimal_example()]
+    schema["examples"] = [_get_minimal_example(version)]
 
     return schema
+
+
+def _restore_historical_water_descriptions(definitions: Dict[str, Any]) -> None:
+    """Preserve the water-routing metadata published before schema 2026.6.dev12."""
+    surface_descriptions = {
+        "BsoilProperties": "Water distribution for bare soil",
+        "DectrProperties": "Water distribution for deciduous trees",
+        "EvetrProperties": "Water distribution for evergreen trees",
+        "GrassProperties": "Water distribution for grass",
+        "PavedProperties": "Water distribution fractions for paved surfaces",
+        "WaterProperties": "Water distribution parameters",
+    }
+    for model, description in surface_descriptions.items():
+        definitions[model]["properties"]["waterdist"]["description"] = description
+    # Dev11 did not specify a description for building-surface waterdist.
+    definitions["BldgsProperties"]["properties"]["waterdist"].pop("description", None)
+
+    routing = definitions["WaterDistribution"]
+    routing["description"] = "Water routing between surface types."
+    properties = routing["properties"]
+    destinations = {
+        "to_paved": "paved",
+        "to_bldgs": "building",
+        "to_dectr": "deciduous tree",
+        "to_evetr": "evergreen tree",
+        "to_grass": "grass",
+        "to_bsoil": "bare soil",
+        "to_water": "water",
+    }
+    for field, surface in destinations.items():
+        properties[field]["description"] = (
+            f"Fraction of water redistributed to {surface} surfaces within the grid"
+        )
+    properties["to_runoff"]["description"] = (
+        "Fraction of water going to surface runoff (for impervious surfaces: "
+        "paved and buildings)"
+    )
+    properties["to_soilstore"]["description"] = (
+        "Fraction of water going to subsurface soil storage (for pervious "
+        "surfaces: vegetation and bare soil)"
+    )
 
 
 def _filter_internal_fields(schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -123,7 +180,7 @@ def _get_suews_version() -> str:
         return "unknown"
 
 
-def _get_minimal_example() -> Dict[str, Any]:
+def _get_minimal_example(version: str) -> Dict[str, Any]:
     """
     Get a minimal valid configuration example.
 
@@ -132,7 +189,7 @@ def _get_minimal_example() -> Dict[str, Any]:
     """
     return {
         "name": "minimal_config",
-        "schema_version": CURRENT_SCHEMA_VERSION,
+        "schema_version": version,
         "description": "Minimal SUEWS configuration example",
         "model": {
             "control": {"tstep": 3600, "forcing": {"file": "forcing.txt"}},

@@ -1,12 +1,19 @@
+import math
+import numbers
+from typing import Optional
+
+import numpy as np
+import pandas as pd
 from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
+    ValidationInfo,
+    field_validator,
     model_serializer,
-    model_validator,
 )
-from typing import Optional
-import pandas as pd
+
+from ..validation.required_fields import WATER_DISTRIBUTION_REQUIRED
 from .type import (
     DataModelBase,
     FlexibleRefValue,
@@ -14,33 +21,65 @@ from .type import (
     RefValue,
     SurfaceType,
 )
-from ..validation.required_fields import WATER_DISTRIBUTION_REQUIRED
-import math
 
 
 class WaterDistribution(DataModelBase):
-    """Water routing between surface types."""
+    """Within-grid water routing fractions (required when sfr > 0). Inapplicable slots (self-routing or opposite terminal): 0 normalises to absent at load; non-zero or post-load edits fail.
+
+    Each non-water surface routes surface drainage to the other six surfaces
+    plus its terminal destination: ``to_runoff`` for impervious surfaces
+    (``paved``, ``bldgs``) or ``to_soilstore`` for pervious surfaces
+    (``evetr``, ``dectr``, ``grass``, ``bsoil``). The ``water`` surface has
+    no ``waterdist`` block.
+
+    Active surfaces (``sfr > 0``) require all seven applicable destinations
+    to be finite fractions in ``[0, 1]`` summing to ``1.0`` when a
+    ``waterdist`` block is supplied; omitting the entire ``waterdist`` block
+    applies surface-specific defaults. Inactive surfaces (``sfr == 0``) may
+    omit applicable destinations, and raising ``sfr`` from ``0`` to ``> 0``
+    without supplying them fails before engine execution.
+
+    Inapplicable destinations (self-routing ``to_<self>``, ``to_soilstore``
+    on impervious surfaces, and ``to_runoff`` on pervious surfaces) should be
+    omitted or set to null. At YAML or model load, an explicit numeric zero
+    (``0``, ``0.0``, ``-0.0``, or ``{value: 0.0}``) in an inapplicable slot
+    is normalised to absent (``None``) while non-zero, boolean, or invalid
+    values fail. After loading, introducing any inapplicable destination by
+    in-place mutation (including ``0.0``) fails before engine execution.
+    """
 
     model_config = ConfigDict(title="Water Distribution")
 
     # Optional fields for all possible distributions
     to_paved: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water redistributed to paved surfaces within the grid",
+        description=(
+            "Fraction to paved surfaces (other non-water surfaces; required "
+            "when sfr > 0). Self-routing on paved is inapplicable: 0 normalises "
+            "to absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={"unit": "1", "display_name": "To Paved"},
         ge=0,
         le=1,
     )
     to_bldgs: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water redistributed to building surfaces within the grid",
+        description=(
+            "Fraction to building surfaces (other non-water surfaces; required "
+            "when sfr > 0). Self-routing on bldgs is inapplicable: 0 normalises "
+            "to absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={"unit": "1", "display_name": "To Buildings"},
         ge=0,
         le=1,
     )
     to_dectr: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water redistributed to deciduous tree surfaces within the grid",
+        description=(
+            "Fraction to deciduous trees (other non-water surfaces; required "
+            "when sfr > 0). Self-routing on dectr is inapplicable: 0 normalises "
+            "to absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={
             "unit": "1",
             "display_name": "To Deciduous Trees",
@@ -50,7 +89,11 @@ class WaterDistribution(DataModelBase):
     )
     to_evetr: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water redistributed to evergreen tree surfaces within the grid",
+        description=(
+            "Fraction to evergreen trees (other non-water surfaces; required "
+            "when sfr > 0). Self-routing on evetr is inapplicable: 0 normalises "
+            "to absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={
             "unit": "1",
             "display_name": "To Evergreen Trees",
@@ -60,35 +103,55 @@ class WaterDistribution(DataModelBase):
     )
     to_grass: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water redistributed to grass surfaces within the grid",
+        description=(
+            "Fraction to grass surfaces (other non-water surfaces; required "
+            "when sfr > 0). Self-routing on grass is inapplicable: 0 normalises "
+            "to absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={"unit": "1", "display_name": "To Grass"},
         ge=0,
         le=1,
     )
     to_bsoil: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water redistributed to bare soil surfaces within the grid",
+        description=(
+            "Fraction to bare soil surfaces (other non-water surfaces; required "
+            "when sfr > 0). Self-routing on bsoil is inapplicable: 0 normalises "
+            "to absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={"unit": "1", "display_name": "To Bare Soil"},
         ge=0,
         le=1,
     )
     to_water: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water redistributed to water surfaces within the grid",
+        description=(
+            "Fraction redistributed to water surfaces within the grid (all six "
+            "non-water surfaces; required when sfr > 0 when waterdist is given; "
+            "water surfaces have no waterdist block)."
+        ),
         json_schema_extra={"unit": "1", "display_name": "To Water"},
         ge=0,
         le=1,
     )
     to_runoff: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water going to surface runoff (for impervious surfaces: paved and buildings)",
+        description=(
+            "Fraction to surface runoff (impervious paved/bldgs; required when "
+            "sfr > 0). Inapplicable on pervious surfaces: 0 normalises to "
+            "absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={"unit": "1", "display_name": "To Runoff"},
         ge=0,
         le=1,
     )  # For paved/bldgs
     to_soilstore: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water going to subsurface soil storage (for pervious surfaces: vegetation and bare soil)",
+        description=(
+            "Fraction to subsurface soil store (pervious evetr/dectr/grass/bsoil; "
+            "required when sfr > 0). Inapplicable on paved/bldgs: 0 normalises "
+            "to absent at load; non-zero or post-load edits fail."
+        ),
         json_schema_extra={"unit": "1", "display_name": "To Soil Store"},
         ge=0,
         le=1,
@@ -96,6 +159,34 @@ class WaterDistribution(DataModelBase):
     _surface_type: Optional[SurfaceType] = PrivateAttr(None)
 
     ref: Optional[Reference] = None
+
+    @field_validator(
+        "to_paved",
+        "to_bldgs",
+        "to_dectr",
+        "to_evetr",
+        "to_grass",
+        "to_bsoil",
+        "to_water",
+        "to_runoff",
+        "to_soilstore",
+        mode="before",
+    )
+    @classmethod
+    def _reject_bool_fraction(cls, v: object, info: ValidationInfo) -> object:
+        """Reject booleans before Pydantic coerces False/True to 0.0/1.0."""
+        if isinstance(v, RefValue):
+            raw = v.value
+        elif isinstance(v, dict) and "value" in v:
+            raw = v["value"]
+        else:
+            raw = v
+        if isinstance(raw, (bool, np.bool_)):
+            raise ValueError(
+                f"Invalid water distribution value for {info.field_name}: "
+                f"expected a finite fraction in [0, 1], got {raw!r}"
+            )
+        return v
 
     def __init__(self, surface_type: Optional[SurfaceType] = None, **data):
         # Store surface type as private attribute
@@ -105,7 +196,9 @@ class WaterDistribution(DataModelBase):
         # If surface type is provided, set default values
         if surface_type:
             self._set_defaults(surface_type)
-            self.validate_distribution(surface_type)
+            self.validate_distribution(
+                surface_type, normalise_zero_disallowed=True
+            )
 
     def _set_defaults(self, surface_type: SurfaceType):
         # Default distributions based on surface type
@@ -172,28 +265,133 @@ class WaterDistribution(DataModelBase):
                 if getattr(self, key) is None:
                     setattr(self, key, value)
 
-    def validate_distribution(self, surface_type: SurfaceType) -> None:
-        """Validate water distribution based on surface type"""
+    @staticmethod
+    def _validate_fraction_value(
+        field: str, surface_type: SurfaceType, raw: object
+    ) -> float:
+        """Validate that a supplied water-distribution fraction is finite in [0, 1]."""
+        if isinstance(raw, (bool, np.bool_)) or not isinstance(raw, numbers.Real):
+            raise ValueError(
+                f"Invalid water distribution value for {field} on "
+                f"{surface_type.value}: expected a finite fraction in [0, 1], "
+                f"got {raw!r}"
+            )
+        numeric = float(raw)
+        if not math.isfinite(numeric) or not 0.0 <= numeric <= 1.0:
+            raise ValueError(
+                f"Invalid water distribution value for {field} on "
+                f"{surface_type.value}: expected a finite fraction in [0, 1], "
+                f"got {raw!r}"
+            )
+        return numeric
+
+    def _validate_disallowed_destinations(
+        self,
+        surface_type: SurfaceType,
+        required_fields: set[str],
+        *,
+        normalise_zero: bool = False,
+    ) -> None:
+        """Validate inapplicable destinations (self-routing or opposite terminal).
+
+        Omitted, ``None``, and ``{value: null}`` unwrap to ``None`` and remain
+        accepted. When ``normalise_zero`` is True (YAML or model load), an
+        explicit numeric zero (``0``, ``0.0``, ``-0.0``, or ``{value: 0.0}``)
+        is normalised to absent (``None``) while non-zero, boolean, or invalid
+        values raise ``ValueError``. When ``normalise_zero`` is False
+        (post-load validation), any non-null inapplicable value (including
+        ``0.0``) raises ``ValueError``.
+        """
+        for field in type(self).model_fields:
+            if not field.startswith("to_") or field in required_fields:
+                continue
+            value = getattr(self, field)
+            raw = value.value if isinstance(value, RefValue) else value
+            if raw is None:
+                continue
+            if (
+                normalise_zero
+                and not isinstance(raw, (bool, np.bool_))
+                and isinstance(raw, numbers.Real)
+                and math.isfinite(float(raw))
+                and math.isclose(float(raw), 0.0, rel_tol=0.0, abs_tol=0.0)
+            ):
+                setattr(self, field, None)
+                self.__pydantic_fields_set__.discard(field)
+                continue
+            raise ValueError(
+                f"Disallowed water distribution field {field} for "
+                f"{surface_type.value} (got {raw}); omit it or set it to null"
+            )
+
+    def validate_distribution(
+        self,
+        surface_type: SurfaceType,
+        *,
+        require_complete: bool = True,
+        normalise_zero_disallowed: bool = False,
+    ) -> None:
+        """Validate water distribution destinations and unit sum for a surface.
+
+        Parameters
+        ----------
+        surface_type : SurfaceType
+            Surface that owns this water distribution block.
+        require_complete : bool, optional
+            When True (active surface, ``sfr > 0``), every owning destination
+            must be present and sum to ``1.0``. When False (inactive surface,
+            ``sfr == 0``), owning destinations may be omitted or null while
+            disallowed destinations and invalid supplied values remain rejected.
+        normalise_zero_disallowed : bool, optional
+            When True (YAML or model load), explicit numeric zeros in
+            inapplicable destinations are normalised to absent (``None``). When
+            False (default, used for post-load handoff checks), any non-null
+            inapplicable destination including ``0.0`` raises ``ValueError``.
+        """
         if surface_type == SurfaceType.WATER:
             raise ValueError("Water surface should not have water distribution")
 
         fields = WATER_DISTRIBUTION_REQUIRED[surface_type.value]
-        values = []
+        required_fields = set(fields)
+        self._validate_disallowed_destinations(
+            surface_type,
+            required_fields,
+            normalise_zero=normalise_zero_disallowed,
+        )
 
-        # Check required fields are present and collect values
+        values: list[float] = []
+        missing_fields: list[str] = []
         for field in fields:
             value = getattr(self, field)
-            if value is None:
+            raw = value.value if isinstance(value, RefValue) else value
+            if raw is None:
+                missing_fields.append(field)
+                continue
+            values.append(self._validate_fraction_value(field, surface_type, raw))
+
+        if not require_complete:
+            # Inactive surfaces (sfr == 0) may omit destinations or hold
+            # zero-filled legacy/df_state rows whose sum is <= 1.0; sums
+            # above 1.0 remain invalid, and activating sfr > 0 re-enforces
+            # completeness and unit sum.
+            total = sum(values)
+            if total > 1.0 + 1e-5:
+                raise ValueError(f"Water distribution sum must be 1.0, got {total}")
+            return
+
+        if missing_fields:
+            if len(missing_fields) == 1:
                 raise ValueError(
-                    f"Missing required field {field} for {surface_type.value}"
+                    f"Missing required field {missing_fields[0]} for "
+                    f"{surface_type.value}"
                 )
-            values.append(value)
+            joined = ", ".join(missing_fields)
+            raise ValueError(
+                f"Missing required fields {joined} for {surface_type.value}"
+            )
 
         # Validate sum
-        total = sum(
-            value.value if isinstance(value, RefValue) else value for value in values
-        )
-        # if not np.isclose(total, 1.0, rtol=1e-5):
+        total = sum(values)
         if not math.isclose(total, 1.0, rel_tol=1e-5):
             raise ValueError(f"Water distribution sum must be 1.0, got {total}")
 
@@ -202,7 +400,7 @@ class WaterDistribution(DataModelBase):
 
         Args:
             grid_id: Grid ID for the DataFrame index
-            surf_idx: Surface index (0=paved, 1=bldgs, 2=dectr, 3=evetr, 4=grass, 5=bsoil, 6=water)
+            surf_idx: Surface index (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil, 6=water)
 
         Returns:
             pd.DataFrame: DataFrame containing water distribution parameters with MultiIndex columns
@@ -212,9 +410,10 @@ class WaterDistribution(DataModelBase):
         values = []
 
         # Add all non-None distribution parameters using a two-step process
-        # 1. Collect all non-None values
+        # 1. Collect all non-None values (unwrapping RefValue so {value: null}
+        # behaves the same as None and never shadows the active terminal field)
         list_waterdist_value = []
-        for i, attr in enumerate([
+        for attr in (
             "to_paved",
             "to_bldgs",
             "to_evetr",
@@ -222,20 +421,27 @@ class WaterDistribution(DataModelBase):
             "to_grass",
             "to_bsoil",
             "to_water",
-            # "to_soilstore",
-            # "to_runoff",
-        ]):
+        ):
             value = getattr(self, attr)
-            if value is None:
-                list_waterdist_value.append(0.0)
-            else:
-                list_waterdist_value.append(value)
+            raw = value.value if isinstance(value, RefValue) else value
+            list_waterdist_value.append(0.0 if raw is None else raw)
 
-        # either to_soilstore or to_runoff must be provided - the other must be 0
-        to_soilstore_or_runoff = (
-            self.to_runoff if self.to_soilstore is None else self.to_soilstore
+        # Impervious surfaces route remainder to to_runoff; pervious surfaces to
+        # to_soilstore.
+        to_soilstore = (
+            self.to_soilstore.value
+            if isinstance(self.to_soilstore, RefValue)
+            else self.to_soilstore
         )
-        list_waterdist_value.append(to_soilstore_or_runoff)
+        to_runoff = (
+            self.to_runoff.value
+            if isinstance(self.to_runoff, RefValue)
+            else self.to_runoff
+        )
+        to_soilstore_or_runoff = to_runoff if to_soilstore is None else to_soilstore
+        list_waterdist_value.append(
+            0.0 if to_soilstore_or_runoff is None else to_soilstore_or_runoff
+        )
 
         # 2. Create param_tuples and values - only add non-None values following the order of the list
         for i, value in enumerate(list_waterdist_value):
@@ -245,11 +451,6 @@ class WaterDistribution(DataModelBase):
 
         # Create MultiIndex columns
         columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
-
-        # Convert RefValue to float
-        values = [
-            value.value if isinstance(value, RefValue) else value for value in values
-        ]
 
         # Create DataFrame with single row
         df = pd.DataFrame(
@@ -323,6 +524,12 @@ class WaterDistribution(DataModelBase):
         return instance
 
 
+DRAINAGE_COEFFICIENT_REQUIREMENT = (
+    ". Required and finite on active non-water surfaces using equations "
+    "1, 2 or 3. Explicit zero is allowed."
+)
+
+
 class StorageDrainParams(DataModelBase):
     """Parameters for surface water storage drainage."""
 
@@ -370,7 +577,7 @@ class StorageDrainParams(DataModelBase):
     drain_eq: FlexibleRefValue(int) = Field(
         default=0,
         description=(
-            "Integer drainage equation selection (1: threshold power law; 2: modified "
+            "Drainage equation selection (1: threshold power law; 2: modified "
             "Rutter exponential equation; 3: power law). The default 0 is an "
             "unset placeholder and should be replaced for configured surfaces"
         ),
@@ -382,9 +589,8 @@ class StorageDrainParams(DataModelBase):
     drain_coef_1: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description=(
-            "Drainage coefficient 1; interpretation and units depend on drain_eq. "
-            "Required and finite on active non-water surfaces using equations "
-            "1, 2 or 3. Explicit zero is allowed."
+            "Drainage coefficient 1; interpretation and units depend on drain_eq"
+            + DRAINAGE_COEFFICIENT_REQUIREMENT
         ),
         json_schema_extra={
             "unit": "equation-dependent",
@@ -394,9 +600,8 @@ class StorageDrainParams(DataModelBase):
     drain_coef_2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description=(
-            "Drainage coefficient 2; interpretation and units depend on drain_eq. "
-            "Required and finite on active non-water surfaces using equations "
-            "1, 2 or 3. Explicit zero is allowed."
+            "Drainage coefficient 2; interpretation and units depend on drain_eq"
+            + DRAINAGE_COEFFICIENT_REQUIREMENT
         ),
         json_schema_extra={
             "unit": "equation-dependent",
@@ -405,6 +610,20 @@ class StorageDrainParams(DataModelBase):
     )
 
     ref: Optional[Reference] = None
+
+    def is_placeholder(self) -> bool:
+        """Return whether the block provides no physical input beyond factory defaults."""
+        for name, field in type(self).model_fields.items():
+            if name == "ref":
+                continue
+            value = getattr(self, name)
+            if isinstance(value, RefValue):
+                value = value.value
+            if value is not None and (
+                name in self.model_fields_set or value != field.default
+            ):
+                return False
+        return True
 
     def _current_store_cap(self):
         """Resolve the capacity from the current inputs without changing them."""
@@ -418,6 +637,17 @@ class StorageDrainParams(DataModelBase):
 
     @model_serializer(mode="wrap")
     def _dump_storage(self, handler, info):
+        if self.is_placeholder():
+            # Preserve supplied metadata and nulls without emitting factory values.
+            supplied = {
+                k: v for k, v in handler(self).items() if k in self.model_fields_set
+            }
+            if info.round_trip:
+                # Dropping the value key leaves a wrapped null unreadable as a RefValue.
+                for name, leaf in supplied.items():
+                    if name != "ref" and isinstance(leaf, dict):
+                        leaf.setdefault("value", None)
+            return supplied
         # Saved YAML and partial updates must preserve the original input.
         # A resolved engine dump needs the capacity even when it was omitted.
         if info.round_trip or info.exclude_unset:
@@ -458,6 +688,11 @@ class StorageDrainParams(DataModelBase):
             index=pd.Index([grid_id], name="grid"), columns=columns, dtype=float
         )
 
+        # An all-missing block is a partial-configuration marker, not an
+        # implicit equation/zero coefficient. Retain it across DF round-trips.
+        if self.is_placeholder():
+            return df
+
         # Fill values
         for i, var in enumerate([
             "store_min",
@@ -473,7 +708,8 @@ class StorageDrainParams(DataModelBase):
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                val = 0.0  # Default to 0.0 for DataFrame compatibility
+                # Missing coefficients must not become executable zeros.
+                val = float("nan") if var in ("drain_coef_1", "drain_coef_2") else 0.0
             df.loc[grid_id, ("storedrainprm", f"({i}, {surf_idx})")] = val
 
         return df
@@ -509,8 +745,14 @@ class StorageDrainParams(DataModelBase):
             for param, idx in param_map.items()
         }
 
-        # Conver params to RefValue
-        params = {key: RefValue(value) for key, value in params.items()}
+        if all(pd.isna(value) for value in params.values()):
+            return cls()
+        # Missing coefficients stay absent; declared finite zeros stay values.
+        params = {
+            key: None if key in ("drain_coef_1", "drain_coef_2") and pd.isna(value)
+            else RefValue(value)
+            for key, value in params.items()
+        }
 
         # Create an instance using the extracted parameters
         return cls(**params)

@@ -16,6 +16,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import wraps
 import math
+import numbers
 import sys
 from typing import Callable, Optional, Union
 
@@ -47,7 +48,10 @@ from ...data_model.core.field_renames import (
 )
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
-from ...data_model.validation.required_fields import NON_WATER_SURFACES
+from ...data_model.validation.required_fields import (
+    NON_WATER_SURFACES,
+    WATER_DISTRIBUTION_REQUIRED,
+)
 from .._forcing import SOIL_CONVERT_HINT
 
 # Historical rename steps must retain their outgoing dev5 spelling. The new
@@ -588,6 +592,7 @@ def _strip_internal_only_fields(cfg: dict) -> dict:
 
 def _identity(cfg: dict) -> dict:
     """Return the config after the defensive strip (schema version matches)."""
+    validate_active_soil_depth_raw(cfg)
     cfg = _strip_internal_only_fields(cfg)
     for arch in _walk_site_container(cfg, "building_archetype"):
         for name, reason in _ARCH_DROPS_TO_DEV11:
@@ -1774,11 +1779,87 @@ def _set_zero_soil_param(surface: dict, canonical: str, legacy: str) -> None:
         surface[canonical] = {"value": 0.0}
 
 
+def _as_numeric_float(raw: object) -> float | None:
+    """Convert non-bool numeric *raw* to float, returning None otherwise."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _zero_soil_depth_reason(
+    site_label: str,
+    surface_name: str,
+    surface: dict,
+    sfr_value: float,
+    positive_cap: float,
+) -> str | None:
+    """Return an error reason when *surface* supplies explicit zero ``soil_depth``."""
+    for name in ("soil_depth", "soildepth"):
+        if name not in surface:
+            continue
+        raw = _unwrap_scalar(surface.get(name))
+        if raw is None:
+            continue
+        depth_value = _as_numeric_float(raw)
+        if depth_value is not None and depth_value == 0:
+            return (
+                f"{site_label} properties.land_cover.{surface_name}.soil_depth "
+                f"is 0 (sfr={sfr_value:g}, soil_store_capacity={positive_cap:g})"
+            )
+        return None
+    return None
+
+
+def validate_active_soil_depth_raw(cfg: dict) -> None:
+    """Reject explicit zero ``soil_depth`` on active positive-capacity surfaces.
+
+    Checks canonical (``soil_depth``, ``soil_store_capacity``) and legacy
+    (``soildepth``, ``soilstorecap``) keys across all six non-water surfaces
+    without mutating *cfg*. Raises :class:`YamlUpgradeError` before any output
+    file is written.
+    """
+    zero_depths: list[str] = []
+    for site_idx, site in enumerate(cfg.get("sites", []) or []):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        site_label = _format_site_label(site_idx, site)
+        for surface_name in NON_WATER_SURFACES:
+            surface = land_cover.get(surface_name)
+            if not isinstance(surface, dict):
+                continue
+            sfr_value = _active_surface_sfr(surface)
+            if sfr_value is None:
+                continue
+            positive_cap = _positive_soil_capacity(surface)
+            if positive_cap is None:
+                continue
+            reason = _zero_soil_depth_reason(
+                site_label, surface_name, surface, sfr_value, positive_cap
+            )
+            if reason is not None:
+                zero_depths.append(reason)
+    if zero_depths:
+        raise YamlUpgradeError(
+            "Cannot migrate configuration: "
+            + "; ".join(zero_depths)
+            + ". Active non-water surfaces with positive soil_store_capacity "
+            "require a positive soil_depth (in mm); zero soil_depth breaks "
+            "wet-day soil water balance."
+        )
+
+
 def _migrate_active_surface_soil_params(
     site_label: str,
     surface_name: str,
     surface: dict,
-    missing_depths: list[str],
+    invalid_depths: list[str],
     pending_logs: list[str],
 ) -> None:
     """Apply dev11 soil parameter migration to one non-water surface mapping."""
@@ -1791,11 +1872,17 @@ def _migrate_active_surface_soil_params(
             _unwrap_scalar(surface.get(name)) is not None
             for name in (canonical, legacy)
         ):
+            if canonical == "soil_depth" and positive_cap is not None:
+                reason = _zero_soil_depth_reason(
+                    site_label, surface_name, surface, sfr_value, positive_cap
+                )
+                if reason is not None:
+                    invalid_depths.append(reason)
             continue
         if canonical == "soil_depth" and positive_cap is not None:
-            missing_depths.append(
-                f"{site_label} surface {surface_name}: "
-                "soil_depth is missing or null "
+            invalid_depths.append(
+                f"{site_label} properties.land_cover.{surface_name}.soil_depth "
+                "is missing or null "
                 f"(sfr={sfr_value:g}, soil_store_capacity={positive_cap:g})"
             )
             continue
@@ -1812,18 +1899,18 @@ def _migrate_2026_6_dev10_to_2026_6_dev11(cfg: dict) -> dict:
     From 2026.6.dev11, ``soil_depth``, ``soil_store_capacity`` and
     ``saturated_hydraulic_conductivity`` are required on every active
     (``sfr > 0``) non-water surface (#2077, #2001). When ``soil_depth`` is
-    missing or null on an active surface with positive
-    ``soil_store_capacity``, migration refuses to substitute ``0.0`` (which
+    missing, null, or explicitly ``0`` on an active surface with positive
+    ``soil_store_capacity``, migration refuses to proceed (zero ``soil_depth``
     divides by zero in horizontal soil water redistribution and breaks wet-day
     water balance) and raises ``YamlUpgradeError`` listing every affected site
-    and surface so the user can supply ``soil_depth`` explicitly. Supplied
-    values, inactive (``sfr == 0``) surfaces and ``water`` remain unchanged;
-    other missing or null soil parameters (including ``soil_depth`` when soil
-    store capacity is zero or absent) receive explicit ``0.0`` while
-    preserving any reference metadata.
+    and surface so the user can supply a positive ``soil_depth`` explicitly.
+    Supplied positive values, inactive (``sfr == 0``) surfaces and ``water``
+    remain unchanged; other missing or null soil parameters (including
+    ``soil_depth`` when soil store capacity is zero or absent) receive explicit
+    ``0.0`` while preserving any reference metadata.
     """
     result = deepcopy(cfg)
-    missing_depths: list[str] = []
+    invalid_depths: list[str] = []
     pending_logs: list[str] = []
     for site_idx, site in enumerate(result.get("sites", []) or []):
         if not isinstance(site, dict):
@@ -1837,16 +1924,74 @@ def _migrate_2026_6_dev10_to_2026_6_dev11(cfg: dict) -> dict:
             surface = land_cover.get(surface_name)
             if isinstance(surface, dict):
                 _migrate_active_surface_soil_params(
-                    site_label, surface_name, surface, missing_depths, pending_logs
+                    site_label, surface_name, surface, invalid_depths, pending_logs
                 )
-    if missing_depths:
+    if invalid_depths:
         raise YamlUpgradeError(
             "Cannot migrate configuration to schema 2026.6.dev11: "
-            + "; ".join(missing_depths)
+            + "; ".join(invalid_depths)
             + ". Active non-water surfaces with positive soil_store_capacity "
-            "require a user-supplied soil_depth (in mm) before migration; "
-            "substituting 0.0 breaks wet-day soil water balance."
+            "require a positive user-supplied soil_depth (in mm) before "
+            "migration; zero soil_depth breaks wet-day soil water balance."
         )
+    for message in pending_logs:
+        _log(message)
+    return result
+
+
+def _migrate_2026_6_dev11_to_2026_6_dev12(cfg: dict) -> dict:
+    """Remove explicit numeric zeros from inapplicable water destinations.
+
+    Validate only the fields this delta owns, through the public parser and
+    destination validator. Partial configurations need not supply routing
+    fractions, and applicable destinations retain their original representation.
+    Nulls and accepted non-numeric representations remain unchanged.
+    """
+    from ...data_model.core.hydro import WaterDistribution
+    from ...data_model.core.type import SurfaceType
+
+    result = deepcopy(cfg)
+    pending_logs: list[str] = []
+    for site_idx, site in enumerate(result.get("sites", []) or []):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        for surface_name in NON_WATER_SURFACES:
+            surface = land_cover.get(surface_name)
+            dist = surface.get("waterdist") if isinstance(surface, dict) else None
+            if not isinstance(dist, dict):
+                continue
+            required = WATER_DISTRIBUTION_REQUIRED[surface_name]
+            for name in WaterDistribution.model_fields:
+                if not name.startswith("to_") or name in required or name not in dist:
+                    continue
+                path = (
+                    f"{_format_site_label(site_idx, site)} "
+                    f"properties.land_cover.{surface_name}.waterdist.{name}"
+                )
+                try:
+                    parsed = WaterDistribution.model_validate({name: dist[name]})
+                    parsed.validate_distribution(
+                        SurfaceType(surface_name),
+                        require_complete=False,
+                        normalise_zero_disallowed=True,
+                    )
+                except ValueError as exc:
+                    raise YamlUpgradeError(
+                        f"Cannot migrate configuration to schema 2026.6.dev12: "
+                        f"{path}: {exc}"
+                    ) from exc
+                raw = _unwrap_scalar(dist[name])
+                if isinstance(raw, numbers.Real) and not isinstance(raw, bool) and raw == 0:
+                    del dist[name]
+                    pending_logs.append(
+                        f"[yaml-upgrade]   drop '{path}' "
+                        "(explicit numeric zero in an inapplicable destination; "
+                        "absence preserves the load-time routing)"
+                    )
     for message in pending_logs:
         _log(message)
     return result
@@ -1941,7 +2086,26 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
 _HANDLERS[("2026.6.dev10", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev10_to_2026_6_dev11
 
 
-def _migrate_2026_6_dev11_to_2026_6_dev12(cfg: dict) -> dict:
+# Preserve every dev11 target, including private soil migration context, before
+# composing the water-distribution delta onto the fixed dev12 routes.
+def _with_water_distribution_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev11_to_2026_6_dev12(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev11")] = _handler
+        _HANDLERS[(_source, "2026.6.dev12")] = _with_water_distribution_delta(_handler)
+_HANDLERS[("2026.6.dev11", "2026.6.dev12")] = _migrate_2026_6_dev11_to_2026_6_dev12
+
+
+def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
     """Preserve supplied drainage coefficients; never infer them from omission."""
     result = deepcopy(cfg)
     missing = []
@@ -1958,7 +2122,8 @@ def _migrate_2026_6_dev11_to_2026_6_dev12(cfg: dict) -> dict:
                 continue
             params = surface.get("storage_drain_params", surface.get("storedrainprm"))
             if params is None:
-                missing.append(f"sites[{i}].properties.land_cover.{name}.storage_drain_params")
+                # Migration also serves partial configuration/annotation work.
+                # Preserve omission; engine validation requires the block later.
                 continue
             if (
                 not isinstance(params, dict)
@@ -1972,7 +2137,7 @@ def _migrate_2026_6_dev11_to_2026_6_dev12(cfg: dict) -> dict:
                     )
     if missing:
         raise YamlUpgradeError(
-            "Cannot migrate drainage coefficients to schema 2026.6.dev12: "
+            "Cannot migrate drainage coefficients to schema 2026.6.dev13: "
             + "; ".join(missing)
             + ". Supply the missing drainage block or coefficients before migration. "
             "Explicit zero is allowed; omission does not establish a zero coefficient."
@@ -1986,16 +2151,14 @@ def _with_drainage_delta(handler):
         cfg = apply_migration_handler(
             handler, deepcopy(cfg), migration_context=migration_context
         )
-        return _migrate_2026_6_dev11_to_2026_6_dev12(cfg)
+        return _migrate_2026_6_dev12_to_2026_6_dev13(cfg)
     return migrate
 
 
 for (_source, _target), _handler in list(_HANDLERS.items()):
-    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
-        _HANDLERS[(_source, "2026.6.dev11")] = _handler
-        _HANDLERS[(_source, _target)] = _with_drainage_delta(_handler)
-_HANDLERS[("2026.6.dev11", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev11_to_2026_6_dev12
-
+    if _target == "2026.6.dev12" and _source != _target:
+        _HANDLERS[(_source, CURRENT_SCHEMA_VERSION)] = _with_drainage_delta(_handler)
+_HANDLERS[("2026.6.dev12", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev12_to_2026_6_dev13
 
 # ---------------------------------------------------------------------------
 # Public API

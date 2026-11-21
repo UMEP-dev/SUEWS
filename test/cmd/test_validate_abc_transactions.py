@@ -29,12 +29,16 @@ def source(tmp_path):
     return path
 
 
-def _command(route, source, science, mode="public", out_format="json"):
+def _entry_point(route):
     executable = Path(sysconfig.get_path("scripts")) / (
         route + (".exe" if os.name == "nt" else "")
     )
     assert executable.is_file(), f"Missing installed command: {executable}"
-    command = [str(executable)] + (["validate"] if route == "suews" else [])
+    return [str(executable)] + (["validate"] if route == "suews" else [])
+
+
+def _command(route, source, science, mode="public", out_format="json"):
+    command = _entry_point(route)
     command += [str(source), "-p", "ABC", "--mode", mode, "--science-fixes", science]
     if out_format == "json":
         command += ["--format", "json"]
@@ -378,3 +382,74 @@ atexit.register(record_sources)
     observed = json.loads(receipt.read_text(encoding="utf-8"))
     assert {name: record["sha256"] for name, record in observed.items()} == expected, observed
     assert _snapshot(original) == original
+
+
+def _encoded_validate(source, args, encoding):
+    return subprocess.run(
+        [*_entry_point("suews"), *map(str, args)],
+        cwd=source.parent,
+        env={**os.environ, "PYTHONIOENCODING": f"{encoding}:strict", "COLUMNS": "320"},
+        capture_output=True,
+        encoding=encoding,
+        check=False,
+        timeout=180,
+    )
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "utf-8"])
+def test_installed_validator_text_keeps_literal_product_paths(source, encoding):
+    path = source.rename(source.with_name("café[red]站.yml"))
+    result = _encoded_validate(path, [path], encoding)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Validation completed" in result.stdout
+    for label, basename in (
+        ("Report", f"report_{path.stem}.txt"),
+        ("Updated YAML", f"updated_{path.name}"),
+    ):
+        actual = path.parent / basename
+        assert actual.is_file()
+        display = str(actual).encode(encoding, "backslashreplace").decode(encoding)
+        assert f"{label}: {display}" in result.stdout
+    structured = _encoded_validate(path, [path, "--format", "json"], encoding)
+    assert structured.returncode == 0, structured.stdout + structured.stderr
+    assert json.loads(structured.stdout)["data"]["report_file"] == str(path.parent / f"report_{path.stem}.txt")
+
+
+@pytest.mark.parametrize("pipeline", ["C", "ABC"])
+@pytest.mark.parametrize("encoding", ["cp1252", "utf-8"])
+def test_installed_validator_dry_run_literal_issue_and_filename(source, pipeline, encoding):
+    rejected = source.with_name("bad[red]站.yml")
+    payload = yaml.safe_load(source.read_text(encoding="utf-8"))
+    key = "bad[red]站"
+    payload["sites"][0]["properties"][key] = 42
+    rejected.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    inputs = [source, rejected] if pipeline == "C" else [rejected]
+    result = _encoded_validate(source, [*inputs, "-p", pipeline, "--dry-run"], encoding)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
+    display = key if encoding == "utf-8" else r"bad[red]\u7ad9"
+    rows = [line.replace("│", "|").split("|") for line in result.stdout.splitlines()]
+    assert any(
+        len(cells) >= 5
+        and f"{display}.yml" in cells[1]
+        and "Invalid" in cells[2]
+        and display in cells[3]
+        for cells in rows
+    ), result.stdout
+    summary = "0/1 files valid" if pipeline == "ABC" else "1/2 files valid"
+    assert summary in result.stdout
+    assert not (source.parent / f"updated_{rejected.name}").exists()
+
+
+def test_installed_validator_legacy_stream_usage_and_public_restriction(source):
+    usage = _encoded_validate(source, [source, "-p", "B", "--dry-run"], "cp1252")
+    assert usage.returncode == 2
+    assert "--dry-run is supported for pipeline C or ABC only" in usage.stdout
+    payload = yaml.safe_load(source.read_text(encoding="utf-8"))
+    payload["model"]["physics"]["stebbs"]["enabled"] = {"value": True}
+    source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    restricted = _encoded_validate(source, [source], "cp1252")
+    assert restricted.returncode == 1
+    assert "restricted in public mode" in restricted.stdout
+    assert "--mode dev" in restricted.stdout
+    assert "Traceback" not in usage.stderr + restricted.stderr

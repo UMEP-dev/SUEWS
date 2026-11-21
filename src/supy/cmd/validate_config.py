@@ -99,6 +99,20 @@ _PHYSICS_KEY_MISSING = object()
 console = Console()
 
 
+def _console_text(value: str, style: str = "") -> Text:
+    """Keep user text literal and escape only characters the output stream cannot encode."""
+    encoding = console.encoding
+    return Text(value.encode(encoding, errors="backslashreplace").decode(encoding), style=style)
+
+
+def _status_text(message: str, ok: bool) -> Text:
+    if console.options.ascii_only:
+        marker = "[OK]" if ok else "[X]"
+    else:
+        marker = "✓" if ok else "✗"
+    return _console_text(f"{marker} {message}", "green" if ok else "red")
+
+
 def validate_single_file(
     file_path: Path,
     schema: dict,
@@ -313,7 +327,7 @@ def _validation_issues_text(errors: list[dict | str]) -> Text:
         lines.append(f"... and {len(errors) - 3} more")
     # Field paths and validator messages can contain brackets. They are data,
     # not Rich markup (for example RefValue[int] or [type=int_parsing]).
-    return Text("\n".join(lines))
+    return _console_text("\n".join(lines))
 
 
 def _emit_validation_envelope(
@@ -461,7 +475,7 @@ def cli(
         # Only support C and ABC for now
         if pipeline not in ("C", "ABC"):
             console.print(
-                "[red]✗ --dry-run is supported for pipeline C or ABC only[/red]"
+                _status_text("--dry-run is supported for pipeline C or ABC only", ok=False)
             )
             ctx.exit(2)
 
@@ -472,7 +486,7 @@ def cli(
         if pipeline == "C":
             if not files:
                 console.print(
-                    "[red]✗ Provide one or more YAML files for -p C --dry-run[/red]"
+                    _status_text("Provide one or more YAML files for -p C --dry-run", ok=False)
                 )
                 ctx.exit(2)
             results = []
@@ -517,13 +531,9 @@ def cli(
                 table.add_column("Status", justify="center")
                 table.add_column("Issues", style="yellow")
                 for r in results:
-                    status = (
-                        "[green]✓ Valid[/green]"
-                        if r["valid"]
-                        else "[red]✗ Invalid[/red]"
-                    )
+                    status = _status_text("Valid" if r["valid"] else "Invalid", r["valid"])
                     issues = _validation_issues_text(r["errors"])
-                    table.add_row(Path(r["file"]).name, status, issues)
+                    table.add_row(_console_text(Path(r["file"]).name), status, issues)
                 console.print(table)
                 console.print(
                     f"\n[bold]Summary:[/bold] {sum(1 for r in results if r['valid'])}/{len(results)} files valid"
@@ -534,7 +544,7 @@ def cli(
         # pipeline == ABC dry-run
         if len(files) != 1:
             console.print(
-                "[red]✗ Provide exactly one YAML file for -p ABC --dry-run[/red]"
+                _status_text("Provide exactly one YAML file for -p ABC --dry-run", ok=False)
             )
             ctx.exit(2)
         path = Path(files[0])
@@ -570,11 +580,9 @@ def cli(
             table.add_column("File", style="cyan")
             table.add_column("Status", justify="center")
             table.add_column("Issues", style="yellow")
-            status = (
-                "[green]✓ Valid[/green]" if is_valid else "[red]✗ Invalid[/red]"
-            )
+            status = _status_text("Valid" if is_valid else "Invalid", is_valid)
             issues = _validation_issues_text(result[0]["errors"])
-            table.add_row(path.name, status, issues)
+            table.add_row(_console_text(path.name), status, issues)
             console.print(table)
             console.print(
                 f"\n[bold]Summary:[/bold] {1 if is_valid else 0}/1 files valid"
@@ -584,7 +592,7 @@ def cli(
     # Non-dry-run: execute pipeline with file writes
     if len(files) != 1:
         console.print(
-            "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
+            _status_text("Provide exactly one YAML FILE for pipeline execution", ok=False)
         )
         ctx.exit(2)
     code = _execute_pipeline(
@@ -655,10 +663,11 @@ def _experimental_features_restriction(user_yaml_file, mode):
 def _print_experimental_features_restriction(restrictions_violated):
     """Print the legacy table-mode experimental-feature restriction message."""
     console.print(
-        "[red]✗ Configuration contains experimental features restricted in public mode:[/red]"
+        _status_text("Configuration contains experimental features restricted in public mode:", ok=False)
     )
+    bullet = "-" if console.options.ascii_only else "•"
     for restriction in restrictions_violated:
-        console.print(f"  • {restriction}")
+        console.print(_console_text(f"  {bullet} {restriction}"))
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")
@@ -677,7 +686,7 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
     if ok:
         return True
     if read_error:
-        console.print(f"[red]✗ {read_error}[/red]")
+        console.print(_status_text(read_error, ok=False))
     else:
         _print_experimental_features_restriction(restrictions_violated)
     return False
@@ -888,22 +897,17 @@ def _render_pipeline_result(
             ).emit()
         return 0 if ok else 1
 
-    # Default: legacy text output, preserved verbatim.
-    console.print(
-        "[green]✓ Validation completed[/green]"
-        if ok
-        else "[red]✗ Validation failed[/red]"
-    )
+    console.print(_status_text("Validation completed" if ok else "Validation failed", ok))
     if cleanup_warning:
-        console.print(Text(
+        console.print(_console_text(
             f"Warning: Outputs published; temporary cleanup failed: {cleanup_warning}"
         ))
     if evidence_dir:
-        console.print(f"Phase evidence: {evidence_dir}")
+        console.print(_console_text(f"Phase evidence: {evidence_dir}"), soft_wrap=True)
     if report_path:
-        console.print(f"Report: {report_path}")
+        console.print(_console_text(f"Report: {report_path}"), soft_wrap=True)
     if yaml_path:
-        console.print(f"Updated YAML: {yaml_path}")
+        console.print(_console_text(f"Updated YAML: {yaml_path}"), soft_wrap=True)
     return 0 if ok else 1
 
 
@@ -925,9 +929,9 @@ def _emit_pipeline_startup_error(
             started_at=started_at,
         ).emit()
     else:
-        console.print(f"[red]✗ {message}[/red]")
+        console.print(_status_text(message, ok=False))
         if data and data.get("evidence_dir"):
-            console.print(f"Phase evidence: {data['evidence_dir']}")
+            console.print(_console_text(f"Phase evidence: {data['evidence_dir']}"), soft_wrap=True)
     return 1
 
 
@@ -1211,7 +1215,7 @@ def _execute_pipeline(
                     shutil.move(str(uptodate_file), str(final_yaml))
                 else:
                     console.print(
-                        f"[yellow]Warning: Updated YAML not found: {uptodate_file}[/yellow]"
+                        _console_text(f"Warning: Updated YAML not found: {uptodate_file}", "yellow")
                     )
 
                 # Use Phase B report as final (contains the errors)
@@ -1229,7 +1233,7 @@ def _execute_pipeline(
                 ):
                     Path(science_yaml_file).unlink()
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[a_ok_report, b_ok_report],
@@ -1343,7 +1347,7 @@ def _execute_pipeline(
                 ):
                     Path(pydantic_yaml_file).unlink()
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[a_ok_report, c_ok_report],
@@ -1431,7 +1435,7 @@ def _execute_pipeline(
                         science_report_file, final_report, final_yaml
                     )
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[b_ok_report],
@@ -1516,7 +1520,7 @@ def _execute_pipeline(
                 ):
                     Path(pydantic_yaml_file).unlink()
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[b_ok_report, c_ok_report],

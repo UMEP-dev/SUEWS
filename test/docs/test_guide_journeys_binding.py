@@ -68,6 +68,10 @@ def test_staleness_mutations(before, after):
     mutated = Document(text.replace(before, after, 1), manifest["title"])
     errors = check(mutated, manifest, "mutated")
     assert any("Section envelope changed" in error for error in errors)
+    if before.startswith("suews schema migrate"):
+        assert any("Span changed: migrate (" in error for error in errors)
+    if before == "Use a fresh output filename":
+        assert any("Span changed: directory (" in error for error in errors)
     assert all("reviewed" in error and "current mutated" in error for error in errors)
     if after.startswith("Never migrate"):
         assert len(errors) == 1, (

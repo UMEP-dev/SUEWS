@@ -471,7 +471,7 @@ journeys:
       path: site.migrated.yml
     - kind: diagnostic
       stream: stdout
-      pattern: sites\[0\].*paved.*to_soilstore
+      pattern: 'Cannot migrate configuration to schema\s+2026\.6\.dev12:[\s\u2502]*sites\[0\] \([^)]*\)[\s\u2502]*properties\.land_cover\.paved\.waterdist\.to_soilstore:'
     exit_status: 1
   outcomes:
   - kind: unchanged

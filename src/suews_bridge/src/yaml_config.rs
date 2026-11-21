@@ -3142,12 +3142,10 @@ fn apply_site_scalar_overrides(
     if let Some(v) = read_numeric(site_root, &["properties", "zdm_in"]) {
         site_scalars.zdm_in = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "pipecapacity"]) {
-        site_scalars.pipecapacity = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "runofftowater"]) {
-        site_scalars.runofftowater = v;
-    }
+    // SiteProperties resolves both drainage inputs, including a valid zero
+    // runoff fraction. Do not turn a broken resolved input into zero drainage.
+    site_scalars.pipecapacity = require_numeric(site_root, &["properties", "pipecapacity"], &at)?;
+    site_scalars.runofftowater = require_numeric(site_root, &["properties", "runofftowater"], &at)?;
     if let Some(v) = read_numeric(site_root, &["properties", "narp_trans_site"]) {
         site_scalars.narp_trans_site = v;
     }
@@ -3577,7 +3575,29 @@ mod tests {
     }
 
     #[test]
-    fn resolved_site_coordinates_reject_invalid_values_at_public_readers() {
+    fn resolved_drainage_preserves_values_without_adding_range_policy() {
+        for wrapped in [false, true] {
+            // Source defaults, non-defaults, and finite values outside source
+            // ranges: the bridge checks representation, not scientific policy.
+            for (pipe, water) in [(100.0, 0.0), (0.125, 0.75), (-1.0, 1.25)] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                let props = &mut first_site_mut(&mut root).unwrap()["properties"];
+                for (key, value) in [("pipecapacity", pipe), ("runofftowater", water)] {
+                    props[key] = if wrapped {
+                        serde_yaml::from_str(&format!("{{value: {value}}}")).unwrap()
+                    } else {
+                        Value::from(value)
+                    };
+                }
+                let yaml = serde_yaml::to_string(&root).unwrap();
+                let sc = load_run_config_from_str(&yaml).unwrap().site_scalars;
+                assert_eq!((sc.pipecapacity, sc.runofftowater), (pipe, water));
+            }
+        }
+    }
+
+    #[test]
+    fn resolved_site_scalars_reject_invalid_values_at_public_readers() {
         let invalid = [
             None,
             Some("null"),
@@ -3597,7 +3617,10 @@ mod tests {
         ];
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("resolved.yml");
-        for field in REQUIRED_SITE_COORDINATES {
+        for field in REQUIRED_SITE_COORDINATES
+            .into_iter()
+            .chain(["pipecapacity", "runofftowater"])
+        {
             for input in invalid {
                 // Match _run_rust._grid_config_jsons: the later site is
                 // passed alone, retaining its gridiv rather than its index.
@@ -3629,7 +3652,7 @@ mod tests {
                         load_run_config_from_str(&yaml),
                         load_run_config(&path),
                     ] {
-                        let error = result.expect_err("invalid resolved coordinate must fail");
+                        let error = result.expect_err("invalid resolved scalar must fail");
                         assert!(error.contains(&expected), "{field} {input:?}: {error}");
                     }
                 }

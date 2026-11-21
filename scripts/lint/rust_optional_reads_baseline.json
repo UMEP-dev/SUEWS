@@ -2,7 +2,7 @@
   "description": "Per-function counts of legacy optional YAML readers in src/suews_bridge/src/yaml_config.rs; see scripts/lint/check_rust_optional_reads.py. Counts may only go down.",
   "totals": {
     "read_i32": 41,
-    "read_numeric": 238,
+    "read_numeric": 236,
     "read_numeric_sequence": 10,
     "read_sized_numeric_sequence": 12
   },
@@ -50,7 +50,7 @@
     },
     "apply_site_scalar_overrides": {
       "read_i32": 1,
-      "read_numeric": 10
+      "read_numeric": 8
     },
     "apply_snow_overrides": {
       "read_numeric": 19

@@ -3812,12 +3812,21 @@ fn nan_poison_completeness_across_all_six_anchors() {
         stripped_anchors.push((*label, stripped, idx));
     }
 
-    // 2. Unconditionally strict keys (six site scalars, water.flowchange,
+    // 2. Unconditionally strict keys (eight site scalars, water.flowchange,
     //    all non-water soil parameters from #2080, and hdd_id) must reject
     //    YAML `.nan` on ALL SIX anchors.
     let mut strict_jobs: Vec<(usize, String)> = Vec::new();
     for anchor_idx in 0..6 {
-        for field in ["lat", "lng", "alt", "timezone", "surfacearea", "z"] {
+        for field in [
+            "lat",
+            "lng",
+            "alt",
+            "timezone",
+            "surfacearea",
+            "z",
+            "pipecapacity",
+            "runofftowater",
+        ] {
             strict_jobs.push((anchor_idx, format!("sites[0].properties.{field}")));
         }
         strict_jobs.push((

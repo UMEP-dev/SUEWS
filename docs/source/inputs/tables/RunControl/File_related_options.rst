@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _File_related_options:
 
 

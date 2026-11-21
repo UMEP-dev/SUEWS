@@ -265,6 +265,7 @@ if sys.version_info >= (3, 13):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "doc_source",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",
@@ -282,7 +283,6 @@ extensions = [
     "input_domain",  # Custom domain for input configuration options
     "output_domain",  # Custom domain for output variables
     "publications_topic_annotate",  # Tags bibliography <li>s with keyword classes for the client-side topic filter
-
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
@@ -292,6 +292,15 @@ extensions = [
     # 'sphinx-jsonschema', # to genenrate docs based JSON Schema from SUEWSConfig
     "sphinx_gallery.gen_gallery",  # Gallery examples from Python scripts (GH-1029)
 ]
+
+# Tool-owned RST outputs cannot carry project source fields. Keep this literal
+# declaration readable by scripts/lint/check_doc_sources.py without Sphinx.
+# A trailing slash declares a directory; other keys name one exact source file.
+doc_source_tool_outputs = {
+    "auto_examples/": "sphinx_gallery.gen_gallery",
+    "api/_autosummary/": "sphinx.ext.autosummary",
+    "sg_execution_times.rst": "sphinx_gallery.gen_gallery",
+}
 
 # email_automode = True
 
@@ -320,7 +329,8 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     # Execution settings
     "plot_gallery": "True",
-    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "false").lower() == "true",
+    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "false").lower()
+    == "true",
     "remove_config_comments": True,
     # Download options
     "download_all_examples": True,

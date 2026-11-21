@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _getting_started:
 
 Getting Started

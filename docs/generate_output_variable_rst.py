@@ -30,6 +30,11 @@ except ImportError as e:
     sys.exit(1)
 
 
+SOURCE_HEADER = (
+    ":doc-source: generated\n:doc-generator: docs/generate_output_variable_rst.py\n\n"
+)
+
+
 class OutputVariableRSTGenerator:
     """Generate RST documentation from output variable registry."""
 
@@ -72,7 +77,7 @@ class OutputVariableRSTGenerator:
             rst_file = output_dir / f"{group.value.lower()}.rst"
 
             with open(rst_file, "w", encoding="utf-8") as f:
-                f.write(rst_content)
+                f.write(SOURCE_HEADER + rst_content)
 
             print(f"Generated: {rst_file}")
 
@@ -87,7 +92,7 @@ class OutputVariableRSTGenerator:
         index_content += self._output_metadata_reference()
         index_file = output_dir / "index.rst"
         with open(index_file, "w", encoding="utf-8") as f:
-            f.write(index_content)
+            f.write(SOURCE_HEADER + index_content)
         print(f"Generated: {index_file} (style: {style})")
 
         print(f"\nGenerated documentation for {len(self.groups)} output groups")

@@ -1,3 +1,4 @@
+:doc-source: hand-written
 :orphan:
 
 .. _netCDF_related_options:

@@ -47,6 +47,7 @@ except ImportError:
         """Fall back to recording no condition."""
         return ""
 
+
 try:
     from supy.data_model.validation.derived_fields import derived_default
 except ImportError:
@@ -79,35 +80,36 @@ STATUS_OPTIONAL = "Optional"
 STATUS_NO_DEFAULT = "No default; not checked by the validator - supply a value"
 
 
+SOURCE_HEADER = (
+    ":doc-source: generated\n:doc-generator: docs/generate_datamodel_rst.py\n\n"
+)
+
+
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
-    LAYER_CONVENTION_MODELS = frozenset(
-        {
-            "ThermalLayers",
-            "VerticalLayers",
-            "RoofLayer",
-            "WallLayer",
-            "ModelPhysics",
-        }
-    )
+    LAYER_CONVENTION_MODELS = frozenset({
+        "ThermalLayers",
+        "VerticalLayers",
+        "RoofLayer",
+        "WallLayer",
+        "ModelPhysics",
+    })
 
-    RELATIONSHIP_REF_TARGETS = frozenset(
-        {
-            "net_radiation",
-            "emissions",
-            "storage_heat",
-            "ohm_inc_qf",
-            "roughness_length_momentum",
-            "roughness_length_heat",
-            "stability",
-            "roughness_sublayer",
-            "roughness_sublayer_level",
-            "surface_conductance",
-            "snow_use",
-            "stebbs",
-        }
-    )
+    RELATIONSHIP_REF_TARGETS = frozenset({
+        "net_radiation",
+        "emissions",
+        "storage_heat",
+        "ohm_inc_qf",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "roughness_sublayer",
+        "roughness_sublayer_level",
+        "surface_conductance",
+        "snow_use",
+        "stebbs",
+    })
 
     def __init__(self, doc_data: dict[str, Any]):
         """
@@ -143,7 +145,7 @@ class RSTGenerator:
             rst_file = output_dir / f"{model_name.lower()}.rst"
 
             with open(rst_file, "w", encoding="utf-8") as f:
-                f.write(rst_content)
+                f.write(SOURCE_HEADER + rst_content)
 
             print(f"Generated: {rst_file}")
 
@@ -161,7 +163,7 @@ class RSTGenerator:
             index_content = self._generate_preview_index()
             index_file = output_dir / "index.rst"
             with open(index_file, "w", encoding="utf-8") as f:
-                f.write(index_content)
+                f.write(SOURCE_HEADER + index_content)
             print(f"Generated: {index_file} (preview navigation)")
 
             # Generate all style variations
@@ -169,7 +171,7 @@ class RSTGenerator:
                 style_content = generator_func()
                 style_file = output_dir / f"index-{style_name}.rst"
                 with open(style_file, "w", encoding="utf-8") as f:
-                    f.write(style_content)
+                    f.write(SOURCE_HEADER + style_content)
                 print(f"Generated: {style_file}")
 
         else:
@@ -178,7 +180,7 @@ class RSTGenerator:
             index_content = style_generators[style]()
             index_file = output_dir / "index.rst"
             with open(index_file, "w", encoding="utf-8") as f:
-                f.write(index_content)
+                f.write(SOURCE_HEADER + index_content)
             print(f"Generated: {index_file} (production, style: {style})")
 
         print(f"\nGenerated {len(self.models)} RST files + index in {output_dir}")
@@ -212,15 +214,13 @@ class RSTGenerator:
             lines.append("")
 
         if model_name in self.LAYER_CONVENTION_MODELS:
-            lines.extend(
-                [
-                    ".. seealso::",
-                    "",
-                    "   See :ref:`layer_conventions` for facet orientation, "
-                    "material-layer ordering, and the methods that use each property.",
-                    "",
-                ]
-            )
+            lines.extend([
+                ".. seealso::",
+                "",
+                "   See :ref:`layer_conventions` for facet orientation, "
+                "material-layer ordering, and the methods that use each property.",
+                "",
+            ])
 
         if any(field.get("examples") for field in model_doc.get("fields", [])):
             lines.extend([

@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _units_migration_guide:
 
 Upgrading Across the Units Change

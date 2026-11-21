@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _benchmark_drift:
 
 Cross-version drift

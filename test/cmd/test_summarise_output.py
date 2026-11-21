@@ -10,7 +10,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from supy._save import _write_df_txt  # ruff: ignore[import-private-name]
+from supy.cmd.compare_runs import compare_runs_cmd
 from supy.cmd.summarise_output import summarise_output_cmd
+from supy.diagnostics import check_energy_balance_closure, check_nan_proportion
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
@@ -420,4 +423,253 @@ def test_summarise_help_documents_group_qualified_syntax() -> None:
     result = runner.invoke(summarise_output_cmd, ["--help"])
     assert result.exit_code == 0, result.output
     assert "--variables" in result.output
-    assert "suews summarise path/to/run_dir --variables SUEWS.QS,ESTM.QS" in result.output
+    assert (
+        "suews summarise path/to/run_dir --variables SUEWS.QS,ESTM.QS" in result.output
+    )
+
+
+def _build_mixed_sentinel_outputs(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Write identical 36-step SUEWS data via ``_write_df_txt`` and Parquet."""
+    n_steps = 36
+    idx = pd.date_range("2012-01-01 00:05", periods=n_steps, freq="5min")
+    # 11 NaN + 7 zeros + 12*0.3 + 6*1.0 -> 25 finite values summing to 9.6 (mean 0.384).
+    df_year = pd.DataFrame(
+        {
+            "Fcld": [np.nan] * 11 + [0.0] * 7 + [0.3] * 12 + [1.0] * 6,
+            "Kdown": np.zeros(n_steps),
+            "QN": np.linspace(-39.06, -37.99, n_steps),
+            "T2": np.linspace(-12.5, 8.5, n_steps),
+            "Lob": [-999.0001, -998.9999, -1000.0, -998.0, 999.0, 0.0] * 6,
+            "Rain": [np.nan] * 11 + [0.0] * 15 + [1.25e-5] * 10,
+        },
+        index=idx,
+    )
+
+    txt_dir = tmp_path / "txt-run"
+    txt_dir.mkdir()
+    path_txt = txt_dir / "KCL1_2012_SUEWS_5.txt"
+    _write_df_txt(df_year, path_txt, rate_columns=("Rain",))
+
+    pq_dir = tmp_path / "pq-run"
+    pq_dir.mkdir()
+    df_pq = df_year.copy()
+    df_pq.index = pd.MultiIndex.from_product([[1], idx], names=["grid", "datetime"])
+    df_pq.columns = _suews_columns(list(df_year.columns))
+    df_pq.to_parquet(pq_dir / "KCL_SUEWS_output.parquet")
+    return txt_dir, pq_dir, path_txt
+
+
+def _summarise_json_by_name(
+    run_dir: Path, variables: str | None = None
+) -> dict[str, dict[str, object]]:
+    """Run ``suews summarise --format json`` and index variable records by name."""
+    args = [str(run_dir), "--format", "json"]
+    if variables is not None:
+        args[1:1] = ["--variables", variables]
+    result = CliRunner().invoke(summarise_output_cmd, args)
+    assert result.exit_code == 0, result.output
+    return {v["name"]: v for v in json.loads(result.stdout)["data"]["variables"]}
+
+
+def test_summarise_decodes_legacy_text_sentinels_from_real_writer(
+    tmp_path: Path,
+) -> None:
+    """Real ``_write_df_txt`` output decodes ``-999`` sentinels to match Parquet.
+
+    Exercises mixed missing/valid ``Fcld`` (11/36 missing, 7 valid zeros,
+    mean 0.384), valid night-time ``Kdown`` zeros, valid negative fluxes and
+    temperatures, close non-sentinel negative values (``-999.0001`` and
+    ``-998.9999``), and a ``%.10e`` water-rate column (``-9.9900000000e+02``).
+    """
+    txt_dir, pq_dir, path_txt = _build_mixed_sentinel_outputs(tmp_path)
+
+    raw_text = path_txt.read_text(encoding="utf-8")
+    assert "-999.0000" in raw_text
+    assert "-9.9900000000e+02" in raw_text
+
+    selection = "Fcld,Kdown,QN,T2,Lob,Rain"
+    by_txt = _summarise_json_by_name(txt_dir, selection)
+    by_pq = _summarise_json_by_name(pq_dir, selection)
+
+    assert by_txt["Fcld"]["mean"] == pytest.approx(0.384, abs=1e-12)
+    assert by_txt["Fcld"]["min"] == pytest.approx(0.0, abs=1e-12)
+    assert by_txt["Fcld"]["max"] == pytest.approx(1.0, abs=1e-12)
+    assert by_txt["Fcld"]["nan_pct"] == pytest.approx(100.0 * 11 / 36, abs=1e-12)
+    assert by_txt["Kdown"]["mean"] == pytest.approx(0.0, abs=1e-12)
+    assert by_txt["Kdown"]["nan_pct"] == pytest.approx(0.0, abs=1e-12)
+    assert by_txt["Lob"]["nan_pct"] == pytest.approx(0.0, abs=1e-12)
+    assert by_txt["Lob"]["min"] == pytest.approx(-1000.0, abs=1e-12)
+    assert by_txt["Lob"]["max"] == pytest.approx(999.0, abs=1e-12)
+    assert by_txt["Rain"]["nan_pct"] == pytest.approx(100.0 * 11 / 36, abs=1e-12)
+
+    for var_name in selection.split(","):
+        assert by_txt[var_name]["nan_pct"] == pytest.approx(
+            by_pq[var_name]["nan_pct"], abs=1e-12
+        )
+        for stat in ("mean", "min", "max"):
+            assert by_txt[var_name][stat] == pytest.approx(
+                by_pq[var_name][stat], abs=5e-5
+            )
+
+    by_default = _summarise_json_by_name(txt_dir)
+    assert by_default["Fcld"]["mean"] == pytest.approx(0.384, abs=1e-12)
+    assert by_default["Fcld"]["nan_pct"] == pytest.approx(100.0 * 11 / 36, abs=1e-12)
+
+    res_text = CliRunner().invoke(
+        summarise_output_cmd,
+        [str(txt_dir), "--variables", "Fcld,Kdown", "--format", "text"],
+    )
+    assert res_text.exit_code == 0, res_text.output
+    assert "0.384" in res_text.stdout
+    assert "30.6%" in res_text.stdout
+    assert "-305" not in res_text.stdout
+
+
+def test_summarise_legacy_text_all_missing_column(tmp_path: Path) -> None:
+    """All-missing ``-999`` column reports 100% missing with null stats."""
+    n_steps = 36
+    idx = pd.date_range("2012-01-01 00:05", periods=n_steps, freq="5min")
+    df_year = pd.DataFrame(
+        {
+            "Fcld": np.full(n_steps, np.nan),
+            "Kdown": np.zeros(n_steps),
+            "QN": np.full(n_steps, -38.5),
+        },
+        index=idx,
+    )
+    txt_dir = tmp_path / "unobserved-txt"
+    txt_dir.mkdir()
+    _write_df_txt(df_year, txt_dir / "KCL1_2012_SUEWS_5.txt")
+
+    runner = CliRunner()
+    for extra_args in (["--variables", "Fcld,Kdown,QN"], []):
+        res_json = runner.invoke(
+            summarise_output_cmd, [str(txt_dir), *extra_args, "--format", "json"]
+        )
+        assert res_json.exit_code == 0, res_json.output
+        by_name = {
+            v["name"]: v for v in json.loads(res_json.stdout)["data"]["variables"]
+        }
+        assert by_name["Fcld"] == {
+            "name": "Fcld",
+            "mean": None,
+            "min": None,
+            "max": None,
+            "nan_pct": 100.0,
+        }
+        assert by_name["Kdown"]["mean"] == pytest.approx(0.0, abs=1e-12)
+        assert by_name["QN"]["mean"] == pytest.approx(-38.5, abs=1e-12)
+
+    res_text = runner.invoke(
+        summarise_output_cmd,
+        [str(txt_dir), "--variables", "Fcld", "--format", "text"],
+    )
+    assert res_text.exit_code == 0, res_text.output
+    assert "n/a" in res_text.stdout
+    assert "100.0%" in res_text.stdout
+    assert "-999" not in res_text.stdout
+
+
+def test_summarise_legacy_text_integer_sentinel_and_valid_negatives(
+    tmp_path: Path,
+) -> None:
+    """Integer ``-999`` tokens decode cleanly without affecting close integers."""
+    txt_dir = tmp_path / "int-txt"
+    txt_dir.mkdir()
+    content = (
+        "Year\tDOY\tHour\tMin\tDectime\tMixed\tAllMiss\tValidNeg\n"
+        "2012\t1\t0\t5\t0.0035\t-999\t-999\t-998\n"
+        "2012\t1\t0\t10\t0.0069\t0\t-999\t-1000\n"
+        "2012\t1\t0\t15\t0.0104\t2\t-999\t-1\n"
+        "2012\t1\t0\t20\t0.0139\t-999\t-999\t999\n"
+    )
+    (txt_dir / "KCL1_2012_SUEWS_5.txt").write_text(content, encoding="utf-8")
+
+    runner = CliRunner()
+    res = runner.invoke(summarise_output_cmd, [str(txt_dir), "--format", "json"])
+    assert res.exit_code == 0, res.output
+    by_name = {v["name"]: v for v in json.loads(res.stdout)["data"]["variables"]}
+
+    assert by_name["Mixed"]["mean"] == pytest.approx(1.0, abs=1e-12)
+    assert by_name["Mixed"]["min"] == pytest.approx(0.0, abs=1e-12)
+    assert by_name["Mixed"]["max"] == pytest.approx(2.0, abs=1e-12)
+    assert by_name["Mixed"]["nan_pct"] == pytest.approx(50.0, abs=1e-12)
+
+    assert by_name["AllMiss"] == {
+        "name": "AllMiss",
+        "mean": None,
+        "min": None,
+        "max": None,
+        "nan_pct": 100.0,
+    }
+    assert by_name["ValidNeg"]["nan_pct"] == pytest.approx(0.0, abs=1e-12)
+    assert by_name["ValidNeg"]["min"] == pytest.approx(-1000.0, abs=1e-12)
+    assert by_name["ValidNeg"]["max"] == pytest.approx(999.0, abs=1e-12)
+
+
+def test_summarise_does_not_decode_minus_999_in_csv_or_parquet(tmp_path: Path) -> None:
+    """Flat CSV and Parquet files without a SUEWS text sentinel keep ``-999``."""
+    idx = pd.date_range("2024-06-01", periods=4, freq="h", name="datetime")
+    df = pd.DataFrame({"QH": [-999.0, 1.0, 2.0, 3.0]}, index=idx)
+
+    csv_dir = tmp_path / "csv-run"
+    csv_dir.mkdir()
+    df.to_csv(csv_dir / "df_output.csv")
+
+    pq_dir = tmp_path / "pq-run"
+    pq_dir.mkdir()
+    df.to_parquet(pq_dir / "df_output.parquet")
+
+    runner = CliRunner()
+    for run_dir in (csv_dir, pq_dir):
+        res = runner.invoke(
+            summarise_output_cmd,
+            [str(run_dir), "--variables", "QH", "--format", "json"],
+        )
+        assert res.exit_code == 0, res.output
+        entry = json.loads(res.stdout)["data"]["variables"][0]
+        assert entry["min"] == pytest.approx(-999.0, abs=1e-12)
+        assert entry["mean"] == pytest.approx((-999.0 + 6.0) / 4.0, abs=1e-12)
+        assert entry["nan_pct"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_real_writer_text_consumers_agree(tmp_path: Path) -> None:
+    """``summarise``, ``diagnose``, and ``compare`` agree on real ``_write_df_txt`` output."""
+    n_steps = 8
+    idx = pd.date_range("2012-01-01 01:00", periods=n_steps, freq="h")
+    df_year = pd.DataFrame(
+        {
+            "QN": np.full(n_steps, 200.0),
+            "QF": np.full(n_steps, 20.0),
+            "QH": np.full(n_steps, 100.0),
+            "QE": np.full(n_steps, 80.0),
+            "QS": np.full(n_steps, 40.0),
+            "Fcld": [np.nan, np.nan, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+        },
+        index=idx,
+    )
+    txt_dir = tmp_path / "txt-run"
+    txt_dir.mkdir()
+    _write_df_txt(df_year, txt_dir / "KCL1_2012_SUEWS_60.txt")
+
+    pq_dir = tmp_path / "pq-run"
+    pq_dir.mkdir()
+    df_pq = df_year.copy()
+    df_pq.index = pd.MultiIndex.from_product([[1], idx], names=["grid", "datetime"])
+    df_pq.columns = _suews_columns(list(df_year.columns))
+    df_pq.to_parquet(pq_dir / "KCL_SUEWS_output.parquet")
+
+    assert check_nan_proportion(txt_dir).passed
+    assert check_energy_balance_closure(txt_dir).passed
+
+    runner = CliRunner()
+    res_cmp = runner.invoke(
+        compare_runs_cmd,
+        [str(txt_dir), str(pq_dir), "--variables", "QH,Fcld", "--format", "json"],
+    )
+    assert res_cmp.exit_code == 0, res_cmp.output
+    per_var = json.loads(res_cmp.stdout)["data"]["per_variable"]
+    assert per_var["QH"]["n"] == 8
+    assert per_var["QH"]["rmse"] == pytest.approx(0.0, abs=1e-12)
+    assert per_var["Fcld"]["n"] == 6
+    assert per_var["Fcld"]["rmse"] == pytest.approx(0.0, abs=1e-12)

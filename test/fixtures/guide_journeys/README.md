@@ -1,0 +1,45 @@
+# Migration-guide fixtures
+
+These are journey inputs, not release fixtures. No forcing data is vendored; the runner copies it from the installed package using importlib.resources.
+
+## tagged-dev11.yml
+
+src/supy/sample_data/sample_config.yml at bbc19108f2, with exactly one paved to_soilstore: {value: 0.0} line inserted. The building block already omits that field.
+
+SHA256: `32ee276339e7501939f724e72d244053bcd60cf27944375b23cd69306d521c85`
+
+## untagged-dev11.yml
+
+tagged-dev11.yml with only the schema_version line removed.
+
+SHA256: `51e71e9b5a3b236f2ffd5a10ae061346ce83b6e67f964d782df7159a81135acf`
+
+## dev12.yml
+
+Verbatim src/supy/sample_data/sample_config.yml at 590d3db0355f18d7a9337ac1117e715189703974.
+
+SHA256: `90a6cb94829c95227546f1e6878f5bc41d5f3cee8f1be2969cc22a5a4fb8954c`
+
+## nonzero-dev11.yml
+
+tagged-dev11.yml with the inserted paved to_soilstore value changed to 0.1.
+
+SHA256: `03acb6d9f0222be13b8b44eabf264f3e509cb477767bd7097718bbd621ad3cbb`
+
+## zero-area-dev12.yml
+
+dev12.yml with the bsoil waterdist block replaced by {}. Its surface fraction was already zero.
+
+SHA256: `02c10251b6a0b83961bf6971728510a342fb561b250155e13943b3df51468fe1`
+
+## earlier-guide.rst
+
+Verbatim dev12 section of docs/source/inputs/transition_guide.rst at bd584e0d2c8d (upstream PR #2117), from original line 222 through the blank lines before the next section target. Preserved because the upstream branch may be squash-merged.
+
+SHA256: `6028e7ede6a7990671b2b698ccb64826e2c75a53a4deed3a512cbffc9f21f9a1`
+
+## stale-dev11.yml
+
+Derived from tagged-dev11.yml by changing only the top-level name to unrelated_archived_run. This represents a valid older output belonging to another run. It is planted only for the labelled historical diagnostic replay and is never certified as created.
+
+SHA256: `f174e603b40ed9d3dfd80ba9a09f7dc87705954dcb1c61f51289702ac907e168`

@@ -126,3 +126,28 @@ expected_delta:
   - sites/0/properties/land_cover/paved/waterdist/to_soilstore
   set:
     schema_version: 2026.6.dev12
+fixtures:
+  tagged-dev11:
+    path: test/fixtures/guide_journeys/tagged-dev11.yml
+    sha256: 32ee276339e7501939f724e72d244053bcd60cf27944375b23cd69306d521c85
+  untagged-dev11:
+    path: test/fixtures/guide_journeys/untagged-dev11.yml
+    sha256: 51e71e9b5a3b236f2ffd5a10ae061346ce83b6e67f964d782df7159a81135acf
+  dev12:
+    path: test/fixtures/guide_journeys/dev12.yml
+    sha256: 90a6cb94829c95227546f1e6878f5bc41d5f3cee8f1be2969cc22a5a4fb8954c
+  nonzero-dev11:
+    path: test/fixtures/guide_journeys/nonzero-dev11.yml
+    sha256: 03acb6d9f0222be13b8b44eabf264f3e509cb477767bd7097718bbd621ad3cbb
+  zero-area-dev12:
+    path: test/fixtures/guide_journeys/zero-area-dev12.yml
+    sha256: 02c10251b6a0b83961bf6971728510a342fb561b250155e13943b3df51468fe1
+  stale-dev11:
+    path: test/fixtures/guide_journeys/stale-dev11.yml
+    sha256: f174e603b40ed9d3dfd80ba9a09f7dc87705954dcb1c61f51289702ac907e168
+historical:
+  path: test/fixtures/guide_journeys/earlier-guide.rst
+  sha256: 6028e7ede6a7990671b2b698ccb64826e2c75a53a4deed3a512cbffc9f21f9a1
+  revision: bd584e0d2c8d709a09453960a3bb85522af28da0
+  source_first_line: 222
+  block: 1

@@ -20,6 +20,8 @@ def validate_probes(steps: list[dict], documented_ids: set[str]) -> None:
         seen.add(step["id"])
         if probe and index != len(steps) - 1:
             raise ValueError("A probe may run only as the last step of a journey")
+        if probe and step.get("probe_kind") not in {"required", "diagnostic"}:
+            raise ValueError("A probe must declare required or diagnostic probe_kind")
 
 
 def validate_commands(steps: list[dict]) -> None:

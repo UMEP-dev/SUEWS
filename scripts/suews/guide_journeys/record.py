@@ -44,6 +44,7 @@ def unrun_step(spec: dict) -> dict:
     return {
         "id": spec["id"],
         "kind": spec["kind"],
+        "probe_kind": spec.get("probe_kind"),
         "source_lines": spec["source_lines"],
         "literal_command": spec["command"],
         "reviewed_revision": spec.get("reviewed_revision"),

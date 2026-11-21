@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import subprocess
 import time
+import shutil
+import tempfile
 
 import yaml
 
@@ -147,6 +149,28 @@ def run_steps(
     return records, consumer
 
 
+def journey_passed(steps: list[dict], outcomes: list[dict]) -> bool:
+    """Required probes decide acceptance; optional diagnostics never do."""
+    return all(
+        s["status"] == "passed" for s in steps
+        if not (s["kind"] == "probe" and s.get("probe_kind") == "diagnostic")
+    ) and all(p["passed"] for p in outcomes)
+
+
+def run_diagnostic(spec: dict, work: Path, env: dict) -> dict:
+    """Observe a terminal diagnostic without changing the reader's outcome files."""
+    try:
+        with tempfile.TemporaryDirectory() as temporary:
+            copy = Path(temporary) / "work"
+            shutil.copytree(work, copy)
+            records, _ = run_steps([spec], copy, env, snapshot(copy))
+            return records[0]
+    except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:
+        record = unrun_step(spec)
+        record.update(status="failed", stderr=str(error))
+        return record
+
+
 def setup_inputs(root: Path, manifest: dict, journey: dict, work: Path) -> dict:
     """Copy only checksum-pinned fixtures; never certify a planted stale output."""
     inputs = {}
@@ -247,8 +271,9 @@ def run_journey(
         pinned[forcing["target"]] = initial[forcing["target"]]
         for command in ("suews schema migrate", "suews validate", "suews convert"):
             record["installed_help"][command] = execute(command + " --help", work, env)
+        diagnostic = specs[-1] if specs and specs[-1].get("probe_kind") == "diagnostic" else None
         record["steps"], record["first_unrun_consumer"] = run_steps(
-            specs, work, env, pinned
+            specs[:-1] if diagnostic else specs, work, env, pinned
         )
         final = snapshot(work)
         last = next(
@@ -257,8 +282,9 @@ def run_journey(
         record["path_outcomes"] = [
             evaluate(p, initial, final, work, last) for p in journey.get("outcomes", [])
         ]
-        passed = all(s["status"] == "passed" for s in record["steps"])
-        passed &= all(p["passed"] for p in record["path_outcomes"])
+        if diagnostic:
+            record["steps"].append(run_diagnostic(diagnostic, work, env))
+        passed = journey_passed(record["steps"], record["path_outcomes"])
         record["status"] = "passed" if passed else "failed"
         record["accepted"] = passed
         if "expected_failure" in journey:

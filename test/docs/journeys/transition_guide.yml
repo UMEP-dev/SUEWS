@@ -450,6 +450,7 @@ journeys:
     - kind: absent
       path: site.migrated.yml
   - id: unknown-skip-probe
+    probe_kind: required
     promises:
     - kind: unchanged
       path: site.yml
@@ -491,6 +492,7 @@ journeys:
     - kind: absent
       path: site.migrated.yml
   - id: repeat-probe
+    probe_kind: required
     promises:
     - kind: unchanged
       path: .
@@ -659,6 +661,7 @@ journeys:
     site.yml: positive-area-dev12
   steps:
   - id: positive-area-validation-probe
+    probe_kind: diagnostic
     probe: suews validate -p C --dry-run site.yml --format json
     consumes: [site.yml, Kc_2012_data_60.txt]
     exit_status: 1

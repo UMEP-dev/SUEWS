@@ -16,7 +16,7 @@
 //!   `c_api/<type>.f95` (including `core`, which also wraps the legacy scalar
 //!   OHM helpers -- a recorded BR-01 deviation).
 //! - **Forcing and outputs**: `forcing`, `forcing_io` (`physics`),
-//!   `forcing_time`, `output_line`, `output_block`, `output_io`
+//!   `forcing_time`, `run_period`, `output_line`, `output_block`, `output_io`
 //!   (`physics` + `arrow-output`).
 //! - **PyO3 extension (`python_bindings`, gated on `python`)**: exposes
 //!   `#[pyclass]` wrappers, simulation entry points (`run_suews*` and
@@ -113,6 +113,7 @@ mod output_io;
 mod output_line;
 mod phenology;
 mod roughness;
+mod run_period;
 #[cfg(feature = "physics")]
 mod sim;
 mod snow;
@@ -179,6 +180,7 @@ pub use output_io::*;
 pub use output_line::*;
 pub use phenology::*;
 pub use roughness::*;
+pub use run_period::*;
 #[cfg(feature = "capi-observer")]
 pub use sim::{encode_site_members_flat, encode_site_scalars_flat, encode_state_members_flat};
 #[cfg(feature = "physics")]

@@ -121,7 +121,7 @@ use suews_bridge::{
 #[cfg(all(feature = "physics", feature = "arrow-output"))]
 use suews_bridge::{
     interpolate_forcing, load_run_config, read_forcing_block, run_from_config_str_and_forcing,
-    validate_forcing_for_config,
+    slice_forcing_to_period, validate_forcing_for_config,
 };
 
 /// What `suews-engine run` accepts, and where users should go instead.
@@ -803,8 +803,8 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
         return Err("Observed soil moisture requires Python soil-content preparation; use SUEWSSimulation".into());
     }
     let raw_forcing = read_forcing_block(&run_cfg.forcing_path)?;
-    validate_forcing_for_config(&raw_forcing, &run_cfg.config)?;
     let forcing = interpolate_forcing(&raw_forcing, run_cfg.timer.tstep)?;
+    let forcing = slice_forcing_to_period(&forcing, &run_cfg.run_period, run_cfg.timer.tstep)?;
     validate_forcing_for_config(&forcing, &run_cfg.config)?;
 
     let (output_block, _state, _timer, len_sim, warnings) =

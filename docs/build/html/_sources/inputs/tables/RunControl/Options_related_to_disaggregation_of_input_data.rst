@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _Options_related_to_disaggregation_of_input_data:
 
 

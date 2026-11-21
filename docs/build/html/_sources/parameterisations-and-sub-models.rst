@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _physics_schemes:
 
 Parameterisations and sub-models within SUEWS

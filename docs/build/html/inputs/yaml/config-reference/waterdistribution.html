@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for water distribution parameters" name="description" />
 <meta content="SUEWS, YAML, waterdistribution, parameters, configuration" name="keywords" />
 
-    <title>4.6.58. Water Distribution &#8212; SUEWS 2026.11.20.dev36 documentation</title>
+    <title>4.6.58. Water Distribution &#8212; SUEWS 2026.11.21.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=c3ea6adf"></script>
+    <script src="../../../_static/documentation_options.js?v=b4fc8bcc"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.57. Wall Layer" href="walllayer.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.20.dev36" />
+  <meta name="docsearch:version" content="2026.11.21.dev1" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.20.dev36, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3a8fe1337c3c5e503dfc7a72e0f503aba754a708" style="color: #31708f;">3a8fe13</a>).
+        (2026.11.21.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b3c2366d70686b5463845be5bf32fd01516c700" style="color: #31708f;">5b3c236</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev36 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev36 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.21.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.21.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -571,17 +571,66 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </div>
 <section id="water-distribution">
 <span id="index-0"></span><span id="waterdistribution"></span><h1><span class="section-number">4.6.58. </span>Water Distribution<a class="headerlink" href="#water-distribution" title="Link to this heading">#</a></h1>
-<p>Water routing between surface types.</p>
+<p>Within-grid water routing fractions (required when sfr &gt; 0). Inapplicable slots (self-routing or opposite terminal): 0 normalises to absent at load; non-zero or post-load edits fail.</p>
+<p>Each non-water surface routes surface drainage to the other six surfaces
+plus its terminal destination: <code class="docutils literal notranslate"><span class="pre">to_runoff</span></code> for impervious surfaces
+(<code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>) or <code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code> for pervious surfaces
+(<code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code>, <code class="docutils literal notranslate"><span class="pre">bsoil</span></code>). The <code class="docutils literal notranslate"><span class="pre">water</span></code> surface has
+no <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block.</p>
+<p>Active surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>) require all seven applicable destinations
+to be finite fractions in <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code> summing to <code class="docutils literal notranslate"><span class="pre">1.0</span></code> when a
+<code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block is supplied; omitting the entire <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block
+applies surface-specific defaults. Inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may
+omit applicable destinations, and raising <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code>
+without supplying them fails before engine execution.</p>
+<p>Inapplicable destinations (self-routing <code class="docutils literal notranslate"><span class="pre">to_&lt;self&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code>
+on impervious surfaces, and <code class="docutils literal notranslate"><span class="pre">to_runoff</span></code> on pervious surfaces) should be
+omitted or set to null. At YAML or model load, an explicit numeric zero
+(<code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">0.0</span></code>, <code class="docutils literal notranslate"><span class="pre">-0.0</span></code>, or <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">0.0}</span></code>) in an inapplicable slot
+is normalised to absent (<code class="docutils literal notranslate"><span class="pre">None</span></code>) while non-zero, boolean, or invalid
+values fail. After loading, introducing any inapplicable destination by
+in-place mutation (including <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) fails before engine execution.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <a class="reference internal" href="../../transition_guide.html#waterdist-yaml-rules"><span class="std std-ref">Within-grid water distribution (waterdist)</span></a> for migration from legacy nine-column tables, active vs. inactive surface rules (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> vs. <code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>), load-time zero normalisation, and post-load validation before engine execution.</p>
+</div>
+<p class="rubric">Worked example (active paved surface)</p>
+<p>An active <code class="docutils literal notranslate"><span class="pre">paved</span></code> surface (impervious) routing 98% of drainage to <code class="docutils literal notranslate"><span class="pre">to_runoff</span></code> and 2% to <code class="docutils literal notranslate"><span class="pre">to_grass</span></code> supplies its seven applicable destinations and omits inapplicable <code class="docutils literal notranslate"><span class="pre">to_paved</span></code> and <code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">sites</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ExampleSite</span>
+<span class="w">    </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">land_cover</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">paved</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">sfr</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.43</span>
+<span class="w">          </span><span class="nt">waterdist</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">to_bldgs</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">            </span><span class="nt">to_dectr</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">            </span><span class="nt">to_evetr</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">            </span><span class="nt">to_grass</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.02</span>
+<span class="w">            </span><span class="nt">to_bsoil</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">            </span><span class="nt">to_water</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">            </span><span class="nt">to_runoff</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.98</span>
+</pre></div>
+</div>
+<p>At YAML or model load, an explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> in an inapplicable slot such as <code class="docutils literal notranslate"><span class="pre">to_soilstore:</span> <span class="pre">{value:</span> <span class="pre">0.0}</span></code> on <code class="docutils literal notranslate"><span class="pre">paved</span></code> is normalised to absent (<code class="docutils literal notranslate"><span class="pre">None</span></code>) while preserving <code class="docutils literal notranslate"><span class="pre">to_runoff:</span> <span class="pre">0.98</span></code>. Non-zero or invalid inapplicable values fail at load, and post-load live mutations introducing inapplicable slots (including <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) or raising <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without applicable destinations fail before engine execution.</p>
 <dl class="input option" id="index-1">
 <dt class="sig sig-object input" id="input-option-to_paved">
 <span class="sig-name descname"><span class="pre">to_paved</span></span><a class="headerlink" href="#input-option-to_paved" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water redistributed to paved surfaces within the grid</p>
+<dd><p>Fraction to paved surfaces (other non-water surfaces; required when sfr &gt; 0). Self-routing on paved is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -589,13 +638,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-2">
 <dt class="sig sig-object input" id="input-option-to_bldgs">
 <span class="sig-name descname"><span class="pre">to_bldgs</span></span><a class="headerlink" href="#input-option-to_bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water redistributed to building surfaces within the grid</p>
+<dd><p>Fraction to building surfaces (other non-water surfaces; required when sfr &gt; 0). Self-routing on bldgs is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -603,13 +652,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-3">
 <dt class="sig sig-object input" id="input-option-to_dectr">
 <span class="sig-name descname"><span class="pre">to_dectr</span></span><a class="headerlink" href="#input-option-to_dectr" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water redistributed to deciduous tree surfaces within the grid</p>
+<dd><p>Fraction to deciduous trees (other non-water surfaces; required when sfr &gt; 0). Self-routing on dectr is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -617,13 +666,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-4">
 <dt class="sig sig-object input" id="input-option-to_evetr">
 <span class="sig-name descname"><span class="pre">to_evetr</span></span><a class="headerlink" href="#input-option-to_evetr" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water redistributed to evergreen tree surfaces within the grid</p>
+<dd><p>Fraction to evergreen trees (other non-water surfaces; required when sfr &gt; 0). Self-routing on evetr is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -631,13 +680,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-5">
 <dt class="sig sig-object input" id="input-option-to_grass">
 <span class="sig-name descname"><span class="pre">to_grass</span></span><a class="headerlink" href="#input-option-to_grass" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water redistributed to grass surfaces within the grid</p>
+<dd><p>Fraction to grass surfaces (other non-water surfaces; required when sfr &gt; 0). Self-routing on grass is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -645,13 +694,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-6">
 <dt class="sig sig-object input" id="input-option-to_bsoil">
 <span class="sig-name descname"><span class="pre">to_bsoil</span></span><a class="headerlink" href="#input-option-to_bsoil" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water redistributed to bare soil surfaces within the grid</p>
+<dd><p>Fraction to bare soil surfaces (other non-water surfaces; required when sfr &gt; 0). Self-routing on bsoil is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code> or <code class="docutils literal notranslate"><span class="pre">grass</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code> or <code class="docutils literal notranslate"><span class="pre">grass</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -659,13 +708,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-7">
 <dt class="sig sig-object input" id="input-option-to_water">
 <span class="sig-name descname"><span class="pre">to_water</span></span><a class="headerlink" href="#input-option-to_water" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water redistributed to water surfaces within the grid</p>
+<dd><p>Fraction redistributed to water surfaces within the grid (all six non-water surfaces; required when sfr &gt; 0 when waterdist is given; water surfaces have no waterdist block).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -673,13 +722,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-8">
 <dt class="sig sig-object input" id="input-option-to_runoff">
 <span class="sig-name descname"><span class="pre">to_runoff</span></span><a class="headerlink" href="#input-option-to_runoff" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water going to surface runoff (for impervious surfaces: paved and buildings)</p>
+<dd><p>Fraction to surface runoff (impervious paved/bldgs; required when sfr &gt; 0). Inapplicable on pervious surfaces: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">paved</span></code> or <code class="docutils literal notranslate"><span class="pre">bldgs</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">paved</span></code> or <code class="docutils literal notranslate"><span class="pre">bldgs</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -687,13 +736,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="index-9">
 <dt class="sig sig-object input" id="input-option-to_soilstore">
 <span class="sig-name descname"><span class="pre">to_soilstore</span></span><a class="headerlink" href="#input-option-to_soilstore" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of water going to subsurface soil storage (for pervious surfaces: vegetation and bare soil)</p>
+<dd><p>Fraction to subsurface soil store (pervious evetr/dectr/grass/bsoil; required when sfr &gt; 0). Inapplicable on paved/bldgs: 0 normalises to absent at load; non-zero or post-load edits fail.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>1</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
-<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for a <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface; an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults</p>
+<dd class="field-even"><p>Required when <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> is given for an active <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> or <code class="docutils literal notranslate"><span class="pre">bsoil</span></code> surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>); an omitted <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block takes surface-specific defaults, inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit applicable destinations (activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without them fails before execution), and inapplicable destinations (self-routing or the opposite terminal field) should be omitted or null – explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> is normalised to absent at YAML/model load, while non-zero values or post-load mutations fail</p>
 </dd>
 </dl>
 </dd></dl>
@@ -775,8 +824,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.20.dev36 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3a8fe1337c3c5e503dfc7a72e0f503aba754a708">3a8fe13</a> |
+  <p>Version: 2026.11.21.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b3c2366d70686b5463845be5bf32fd01516c700">5b3c236</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

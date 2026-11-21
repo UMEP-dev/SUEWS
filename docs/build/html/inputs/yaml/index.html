@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-17T23:59:47+00:00" />
-    <title>4.1. YAML Configuration Format &#8212; SUEWS 2026.11.20.dev36 documentation</title>
+    <meta property="article:modified_time" content="2026-11-21T03:05:16+00:00" />
+    <title>4.1. YAML Configuration Format &#8212; SUEWS 2026.11.21.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=c3ea6adf"></script>
+    <script src="../../_static/documentation_options.js?v=b4fc8bcc"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4. Input Files" href="../index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.20.dev36" />
-    <meta name="docbuild:last-update" content="2026-11-17"/>
+  <meta name="docsearch:version" content="2026.11.21.dev1" />
+    <meta name="docbuild:last-update" content="2026-11-21"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.20.dev36, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3a8fe1337c3c5e503dfc7a72e0f503aba754a708" style="color: #31708f;">3a8fe13</a>).
+        (2026.11.21.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b3c2366d70686b5463845be5bf32fd01516c700" style="color: #31708f;">5b3c236</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.20.dev36 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.20.dev36 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.21.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.21.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -719,7 +719,7 @@ suews<span class="w"> </span>validate<span class="w"> </span>my_config.yml
 <h2><span class="section-number">4.1.3. </span>Essential Parameters<a class="headerlink" href="#essential-parameters" title="Link to this heading">#</a></h2>
 <section id="minimum-configuration-structure">
 <h3><span class="section-number">4.1.3.1. </span>Minimum Configuration Structure<a class="headerlink" href="#minimum-configuration-structure" title="Link to this heading">#</a></h3>
-<p>A valid SUEWS configuration requires many parameters beyond this minimal example. The validator will add missing required parameters with appropriate defaults:</p>
+<p>A valid SUEWS configuration requires many parameters beyond this minimal example. The validator adds missing optional defaults where safe, while mandatory active-surface routing fields inside a supplied <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block and physics-required parameters must still be provided explicitly:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">control</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">tstep</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span><span class="w">                    </span><span class="c1"># Time step [s]</span>
@@ -785,6 +785,21 @@ separately, the input structure for five material layers. It also identifies
 which storage-heat and radiation methods use each property.</p>
 <p>For profile keys, day selection, normalisation and defaults, read
 <a class="reference internal" href="temporal-profiles.html"><span class="doc">Temporal Profiles</span></a>.</p>
+<p>If an older YAML contains <code class="docutils literal notranslate"><span class="pre">to_soilstore:</span> <span class="pre">0</span></code> for paving or buildings, see
+<a class="reference internal" href="../transition_guide.html#schema-dev12-water-routing"><span class="std std-ref">Runoff from paved and building surfaces in schema 2026.6.dev12</span></a> before comparing runoff with previous runs.
+For per-surface within-grid water routing (<code class="docutils literal notranslate"><span class="pre">waterdist</span></code>), read
+<a class="reference internal" href="../transition_guide.html#waterdist-yaml-rules"><span class="std std-ref">Within-grid water distribution (waterdist)</span></a> and <a class="reference internal" href="config-reference/waterdistribution.html"><span class="doc">Water Distribution</span></a>. When
+a <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block is supplied for an active surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>), all
+seven applicable destinations must be given and sum to <code class="docutils literal notranslate"><span class="pre">1.0</span></code> (for example,
+<code class="docutils literal notranslate"><span class="pre">to_runoff:</span> <span class="pre">0.98</span></code> and <code class="docutils literal notranslate"><span class="pre">to_grass:</span> <span class="pre">0.02</span></code> with zero to the remaining five
+non-paved surfaces on <code class="docutils literal notranslate"><span class="pre">paved</span></code>); omitting the entire <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block uses
+surface-specific defaults, and inactive surfaces (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">==</span> <span class="pre">0</span></code>) may omit
+applicable destinations. Explicit <code class="docutils literal notranslate"><span class="pre">0.0</span></code> in an inapplicable slot
+(<code class="docutils literal notranslate"><span class="pre">to_&lt;self&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code> on impervious surfaces, or <code class="docutils literal notranslate"><span class="pre">to_runoff</span></code> on
+pervious surfaces) is normalised to absent at YAML load while non-zero values
+fail; post-load live mutations introducing inapplicable slots (including
+<code class="docutils literal notranslate"><span class="pre">0.0</span></code>) or activating <code class="docutils literal notranslate"><span class="pre">sfr</span></code> from <code class="docutils literal notranslate"><span class="pre">0</span></code> to <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code> without applicable
+destinations fail before engine execution.</p>
 <div class="toctree-wrapper compound">
 </div>
 <p><strong>Complete Parameter Reference:</strong></p>
@@ -873,7 +888,7 @@ suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> 
 <h3><span class="section-number">4.1.7.2. </span>What Gets Fixed Automatically<a class="headerlink" href="#what-gets-fixed-automatically" title="Link to this heading">#</a></h3>
 <p>The validator automatically corrects these issues:</p>
 <ul class="simple">
-<li><p><strong>Missing parameters</strong> - Adds required fields with sensible defaults</p></li>
+<li><p><strong>Missing parameters</strong> - Adds default-backed fields; mandatory active-surface routing fields inside an explicit <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>) and physics-required site parameters are reported as blocking errors rather than autofilled</p></li>
 <li><p><strong>Surface fractions</strong> - Normalizes to sum to exactly 1.0</p></li>
 <li><p><strong>Initial temperatures</strong> - Sets based on location and season using climate data</p></li>
 <li><p><strong>Physics options</strong> - Ensures compatible model settings</p></li>
@@ -884,7 +899,9 @@ suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> 
 <section id="common-issues-and-solutions">
 <h3><span class="section-number">4.1.7.3. </span>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Link to this heading">#</a></h3>
 <dl class="simple">
-<dt><strong>“Missing required parameter”</strong></dt><dd><p>The validator will add it with a default value. Check the report to see what was added.</p>
+<dt><strong>“Missing required parameter”</strong></dt><dd><p>Default-backed missing parameters are added by the validator (check the report to see what was added). Mandatory active-surface routing fields inside a supplied <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>) and physics-required site parameters are not silently filled and must be supplied explicitly.</p>
+</dd>
+<dt><strong>“Disallowed water distribution field”</strong></dt><dd><p>A surface’s <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block received a non-zero inapplicable destination (self-routing <code class="docutils literal notranslate"><span class="pre">to_&lt;self&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code> on impervious <code class="docutils literal notranslate"><span class="pre">paved</span></code>/<code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, or <code class="docutils literal notranslate"><span class="pre">to_runoff</span></code> on pervious surfaces), or an inapplicable field (including <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) was introduced by live mutation after load. Omit inapplicable destinations or set them to <code class="docutils literal notranslate"><span class="pre">null</span></code> (see <a class="reference internal" href="../transition_guide.html#waterdist-yaml-rules"><span class="std std-ref">Within-grid water distribution (waterdist)</span></a>).</p>
 </dd>
 <dt><strong>“Surface fractions don’t sum to 1.0”</strong></dt><dd><p>Automatically normalized. Original values are proportionally adjusted.</p>
 </dd>
@@ -946,7 +963,7 @@ suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> 
 <section id="tips-for-success">
 <h2><span class="section-number">4.1.9. </span>Tips for Success<a class="headerlink" href="#tips-for-success" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Start with the sample</strong>: Always begin with <code class="docutils literal notranslate"><span class="pre">sample_config.yml</span></code> and modify it; configs that omit physics-required blocks (<code class="docutils literal notranslate"><span class="pre">conductance</span></code>, per-surface <code class="docutils literal notranslate"><span class="pre">lai</span></code>, tree <code class="docutils literal notranslate"><span class="pre">fai_*</span></code>/<code class="docutils literal notranslate"><span class="pre">height_*</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs.bldgh</span></code>/<code class="docutils literal notranslate"><span class="pre">faibldg</span></code>) raise a <a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ValueError</span></code></a> at load time.</p></li>
+<li><p><strong>Start with the sample</strong>: Always begin with <code class="docutils literal notranslate"><span class="pre">sample_config.yml</span></code> and modify it; configs that omit physics-required blocks (<code class="docutils literal notranslate"><span class="pre">conductance</span></code>, per-surface <code class="docutils literal notranslate"><span class="pre">lai</span></code>, tree <code class="docutils literal notranslate"><span class="pre">fai_*</span></code>/<code class="docutils literal notranslate"><span class="pre">height_*</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs.bldgh</span></code>/<code class="docutils literal notranslate"><span class="pre">faibldg</span></code>) or omit applicable destinations inside a supplied active-surface (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>) <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block raise a <a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ValueError</span></code></a> at load time.</p></li>
 <li><p><strong>Validate early</strong>: Run validation before long simulations</p></li>
 <li><p><strong>Check the report</strong>: Understand what the validator changed</p></li>
 <li><p><strong>Use meaningful names</strong>: Help yourself remember what each simulation is for</p></li>
@@ -1065,7 +1082,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-17.
+  Last updated on 2026-11-21.
   <br/>
 </p>
   </div>
@@ -1073,8 +1090,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.20.dev36 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3a8fe1337c3c5e503dfc7a72e0f503aba754a708">3a8fe13</a> |
+  <p>Version: 2026.11.21.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b3c2366d70686b5463845be5bf32fd01516c700">5b3c236</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

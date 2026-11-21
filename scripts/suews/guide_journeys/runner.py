@@ -14,7 +14,7 @@ import yaml
 
 from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
-from .extractor import Document, shell_spans
+from .extractor import Document, digest, shell_spans
 from .fixtures import fixture_bytes
 from .manifest import (
     check,
@@ -48,6 +48,29 @@ def read_page(root: Path, revision: str, path: str) -> str:
     return subprocess.check_output(
         ["git", "show", f"{revision}:{path}"], cwd=root
     ).decode("utf-8")
+
+
+def resolve_install(root: Path, revision: str, binding: dict) -> dict:
+    """Extract and checksum the install instruction at the selected revision."""
+    allowed = {"guide", "title", "block", "command", "span_type", "sha256"}
+    if set(binding) - allowed or type(binding["command"]) is not int:
+        raise ValueError("Install binding cannot supply executable replacement text")
+    text = read_page(root, revision, binding["guide"])
+    document = Document(text, binding["title"])
+    blocks = [node for node, kind in document.candidates() if kind == "block"]
+    node = blocks[binding["block"]]
+    if document.language(node) != "shell" or binding["span_type"] != "shell":
+        raise ValueError("Installation requires shell source language")
+    span = document.statements(node)[binding["command"]]
+    if digest(span.text) != binding["sha256"]:
+        raise ValueError("Installation source changed")
+    return {
+        "command": span.text,
+        "source_lines": [span.first, span.last],
+        "guide": binding["guide"],
+        "guide_text": text,
+        "sha256": binding["sha256"],
+    }
 
 
 def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dict]:
@@ -269,8 +292,14 @@ def execute_journey(
         fixture = manifest["fixtures"][fixture_id]
         fixture_bytes(root, manifest["fixtures"], fixture_id)
         record["input_sha256s"][fixture_id] = fixture["sha256"]
+    install_source = resolve_install(root, args.revision, manifest["installation"])
+    record["installation_source"] = install_source
     env, installation = prepare(
-        args.output / journey["id"], args.wheel, args.wheelhouse, args.pip_version
+        args.output / journey["id"],
+        args.wheel,
+        args.wheelhouse,
+        args.pip_version,
+        install_source["command"],
     )
     record.update(installation)
     record["supy_version"] = installation["package_preflight"]["supy_version"]

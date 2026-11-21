@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import subprocess
 import sys
@@ -33,15 +34,7 @@ def execute(command: str, cwd: Path, env: dict, timeout: int = 180) -> dict:
             timeout=timeout,
             check=False,
         )
-        try:
-            envelope = json.loads(result.stdout)
-            warnings = (
-                envelope.get("warnings", []) if isinstance(envelope, dict) else []
-            )
-        except ValueError:
-            warnings = [
-                line for line in result.stderr.splitlines() if "warning" in line.lower()
-            ]
+        warnings = process_warnings(result)
         return {
             "literal_command": command,
             "argv": args,
@@ -105,7 +98,7 @@ print(json.dumps({'supy_version': dist.version, 'supy_file': supy.__file__,
 
 
 def prepare(
-    root: Path, wheel: Path, wheelhouse: Path, pip_version: str
+    root: Path, wheel: Path, wheelhouse: Path, pip_version: str, install_command: str
 ) -> tuple[dict, dict]:
     """Seed a new venv, pin pip, then run the unchanged installation instruction."""
     root.mkdir(parents=True, exist_ok=False)
@@ -188,7 +181,7 @@ def prepare(
         or pip_interpreter.resolve() != Path(before["interpreter"]).resolve()
     ):
         raise ValueError("pip launcher does not use the journey interpreter")
-    installed = execute("pip install supy", work, env)
+    installed = install(install_command, work, env)
     if installed["exit_status"]:
         raise RuntimeError(f"Documented installation failed: {installed}")
     after = isolated_python(PACKAGE_PREFLIGHT, work, env, [str(wheel)])
@@ -202,3 +195,36 @@ def prepare(
         "wheelhouse": {p.name: sha256(p) for p in sorted(wheelhouse.glob("*.whl"))},
     }
     return env, record
+
+
+def install(command: str, work: Path, env: dict) -> dict:
+    """Run a supported literal installer line without allowing index overrides."""
+    args = shlex.split(command)
+    if args[:2] == ["pip", "install"]:
+        options = args[2:]
+    elif args[:3] in (["python", "-m", "pip"], ["python3", "-m", "pip"]) and args[
+        3:4
+    ] == ["install"]:
+        options = args[4:]
+    else:
+        raise ValueError("Unsupported documented install command")
+    flags = {"--upgrade", "-U", "--pre", "--no-deps", "--only-binary=:all:"}
+    requirements = [arg for arg in options if arg not in flags]
+    if len(requirements) != 1 or not re.fullmatch(
+        r"supy(?:==[A-Za-z0-9.+_-]+)?", requirements[0]
+    ):
+        raise ValueError("Install command cannot escape the offline wheelhouse")
+    if env.get("PIP_NO_INDEX") != "1" or not env.get("PIP_FIND_LINKS"):
+        raise ValueError("Installation requires an offline wheelhouse")
+    return execute(command, work, env)
+
+
+def process_warnings(result: subprocess.CompletedProcess) -> list:
+    """Retain structured warnings or diagnostic lines from a shell command."""
+    try:
+        envelope = json.loads(result.stdout)
+        return envelope.get("warnings", []) if isinstance(envelope, dict) else []
+    except ValueError:
+        return [
+            line for line in result.stderr.splitlines() if "warning" in line.lower()
+        ]

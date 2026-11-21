@@ -1,4 +1,11 @@
 format: 1
+installation:
+  guide: docs/source/contributing/schema/schema_cli.rst
+  title: Installation
+  block: 0
+  command: 0
+  span_type: shell
+  sha256: 79ebf6967110fc30452238cf37f05e0be674daa6979deab36377d09b154520d2
 guide: docs/source/inputs/transition_guide.rst
 title: Runoff from paved and building surfaces in schema 2026.6.dev12
 envelope:

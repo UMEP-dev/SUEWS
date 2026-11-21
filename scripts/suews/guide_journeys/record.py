@@ -18,8 +18,11 @@ def new_record(manifest: dict, revision: str, journey: dict, guide_text: str) ->
     """Populate the evidence schema even if environment setup fails early."""
     return {
         "guide_path": manifest["guide"],
+        "source_blob": manifest.get("source_blob"),
+        "extraction_stamp": manifest.get("extraction_stamp"),
+        "manifest_sha256": manifest.get("_manifest_sha256"),
         "revision_run": revision,
-        "revision_reviewed": manifest["envelope"]["reviewed_revision"],
+        "revision_reviewed": manifest["envelope"].get("reviewed_revision"),
         "journey_id": journey["id"],
         "choice_ids": journey.get("choices", []),
         "guide_text": guide_text,

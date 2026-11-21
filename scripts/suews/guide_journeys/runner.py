@@ -52,16 +52,45 @@ def read_page(root: Path, revision: str, path: str) -> str:
 
 def resolve_install(root: Path, revision: str, binding: dict) -> dict:
     """Extract and checksum the install instruction at the selected revision."""
-    allowed = {"guide", "title", "block", "command", "span_type", "sha256"}
+    allowed = {
+        "guide",
+        "title",
+        "block",
+        "node",
+        "anchor",
+        "command",
+        "span_type",
+        "sha256",
+    }
     if set(binding) - allowed or type(binding["command"]) is not int:
         raise ValueError("Install binding cannot supply executable replacement text")
     text = read_page(root, revision, binding["guide"])
     document = Document(text, binding["title"])
-    blocks = [node for node, kind in document.candidates() if kind == "block"]
-    node = blocks[binding["block"]]
-    if document.language(node) != "shell" or binding["span_type"] != "shell":
+    coordinates = {
+        key: value
+        for key, value in binding.items()
+        if key not in {"guide", "title", "block"}
+    }
+    if "block" in binding:
+        if (
+            "node" in binding
+            or "anchor" in binding
+            or type(binding["block"]) is not int
+            or binding["block"] < 0
+        ):
+            raise ValueError(
+                "Install binding requires one nonnegative node or block coordinate"
+            )
+        blocks = [node for node, kind in document.candidates() if kind == "block"]
+        node = blocks[binding["block"]]
+        coordinates["node"] = next(
+            i
+            for i, candidate in enumerate(document.source_nodes())
+            if candidate is node
+        )
+    span = document.span(coordinates)
+    if span.span_type != "shell":
         raise ValueError("Installation requires shell source language")
-    span = document.statements(node)[binding["command"]]
     if digest(span.text) != binding["sha256"]:
         raise ValueError("Installation source changed")
     return {
@@ -69,6 +98,7 @@ def resolve_install(root: Path, revision: str, binding: dict) -> dict:
         "source_lines": [span.first, span.last],
         "guide": binding["guide"],
         "guide_text": text,
+        "source_blob": document.source_blob,
         "sha256": binding["sha256"],
     }
 
@@ -94,7 +124,7 @@ def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dic
                 span_type=span.span_type,
                 source_path=manifest["guide"],
                 consumes=binding["consumes"],
-                reviewed_revision=binding["reviewed_revision"],
+                reviewed_revision=binding.get("reviewed_revision"),
                 span_sha256=binding["sha256"],
             )
         result.append(spec)
@@ -150,11 +180,15 @@ def execute_steps(
     stopped = False
     consumer = None
     missing = set()
+    state_failed = False
     for spec in specs:
         record = unrun_step(spec)
         records.append(record)
         if stopped:
-            if consumer is None and missing.intersection(spec.get("consumes", [])):
+            if consumer is None and (
+                missing.intersection(spec.get("consumes", []))
+                or (state_failed and spec["kind"] == "documented")
+            ):
                 consumer = spec["id"]
             continue
         before = snapshot(work)
@@ -191,6 +225,10 @@ def execute_steps(
                     certified[promise["path"]] = after[promise["path"]]
         elif not passed:
             stopped = True
+            state_failed = any(
+                not p["passed"] and p["expected"]["kind"] in {"memory", "physical"}
+                for p in promises
+            )
             missing = {
                 p["expected"]["path"]
                 for p in promises
@@ -452,6 +490,7 @@ def bind_run(root: Path, args: argparse.Namespace) -> tuple:
     text = read_page(root, args.revision, manifest["guide"])
     document = Document(text, manifest["title"])
     stale = check(document, manifest, args.revision)
+    manifest["source_blob"] = document.source_blob
     selected = set(args.journey or [j["id"] for j in manifest["journeys"]])
     if selected - {j["id"] for j in manifest["journeys"]}:
         raise ValueError("Unknown journey ID")
@@ -504,6 +543,9 @@ def main() -> int:
         record.update(status="stale", failure=stale)
         write(args.output / "staleness.json", record)
         return 1
+    (args.output / "manifest.yml").write_text(
+        manifest["_manifest_text"], encoding="utf-8"
+    )
     records = []
     for journey in manifest["journeys"]:
         if journey["id"] in selected:

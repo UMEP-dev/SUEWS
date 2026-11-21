@@ -100,6 +100,10 @@ class Document:
     def __init__(self, text: str, title: str) -> None:
         """Parse only the bound section; unrelated Sphinx directives are inert."""
         self.text = text
+        data = text.encode("utf-8")
+        self.source_blob = hashlib.sha1(
+            b"blob " + str(len(data)).encode() + b"\0" + data
+        ).hexdigest()
         self.envelope = section(text, title)
         self.tree = publish_doctree(
             self.envelope.text,
@@ -149,7 +153,31 @@ class Document:
 
     def span(self, binding: dict) -> Span:
         """Resolve a block-command index, paragraph or exact inline literal."""
-        node = self.anchors[binding["anchor"]]
+        allowed = {
+            "id",
+            "anchor",
+            "node",
+            "command",
+            "statement",
+            "inline",
+            "span_type",
+            "consumes",
+            "conditions",
+            "sha256",
+            "reviewed_revision",
+            "kind",
+            "reason",
+        }
+        if set(binding) - allowed:
+            raise ValueError(
+                "Source bindings cannot supply executable replacement text or unknown fields"
+            )
+        for key in ("command", "statement"):
+            if key in binding and (type(binding[key]) is not int or binding[key] < 0):
+                raise ValueError("Span index must be a nonnegative integer")
+        if sum(key in binding for key in ("command", "statement", "inline")) > 1:
+            raise ValueError("A binding must select one span index")
+        node = self.binding_node(binding)
         if any(key in binding for key in ("inline", "command", "statement")):
             span_type = self.language(node)
             if binding.get("span_type") != span_type:
@@ -177,6 +205,34 @@ class Document:
         if "statement" in binding:
             return python_spans(raw.text, raw.first)[binding["statement"]]
         return raw
+
+    def source_nodes(self) -> list[nodes.Node]:
+        """List raw paragraphs and literal blocks in section traversal order."""
+        return [
+            node
+            for node in self.tree.findall()
+            if isinstance(node, (nodes.paragraph, nodes.literal_block))
+            and node.rawsource
+        ]
+
+    def binding_node(self, binding: dict) -> nodes.Node:
+        """Resolve either a reviewed anchor or a fresh node ordinal."""
+        if ("anchor" in binding) == ("node" in binding):
+            raise ValueError("A binding needs exactly one anchor or node coordinate")
+        if "anchor" in binding:
+            return self.anchors[binding["anchor"]]
+        index = binding["node"]
+        if type(index) is not int or index < 0:
+            raise ValueError("Node coordinate must be a nonnegative integer")
+        return self.source_nodes()[index]
+
+    def owns(self, binding: dict, node: nodes.Node, kind: str) -> bool:
+        """Compare a binding with a candidate independently of binding mode."""
+        try:
+            owner = self.binding_node(binding)
+            return owner is node or (kind == "inline" and node.parent is owner)
+        except (KeyError, ValueError, IndexError):
+            return False
 
     @staticmethod
     def language(node: nodes.Node) -> str:

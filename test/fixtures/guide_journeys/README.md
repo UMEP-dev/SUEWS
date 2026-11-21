@@ -43,3 +43,9 @@ SHA256: `6028e7ede6a7990671b2b698ccb64826e2c75a53a4deed3a512cbffc9f21f9a1`
 Derived from dev12.yml by changing only the top-level name to unrelated_archived_run. This is an unrelated, current-schema copy left by an earlier run. Older refers to directory history, not an unsupported schema. Its successful replay demonstrates why validity does not establish creation provenance.
 
 SHA256: `10e2aa91e3a7eeb7e1f1dd3978479d4f77d0b497478dcf1ec135bb5fb93637ec`
+
+## positive-area-dev12 (derived bytes)
+
+The negative control uses zero-area-dev12 as its base and applies the manifest's two exact byte replacements: bare-soil fraction 0.0 to 0.01, and grass fraction 0.03 to 0.02, keeping the total surface fraction unchanged. The bare-soil waterdist remains {}. The labelled control expects validation to reject missing destinations for positive-area bare soil.
+
+SHA256: `c1272713cf9e5776f64f5692845e8e95d767110afc763397754be8d26dc6c7d9`

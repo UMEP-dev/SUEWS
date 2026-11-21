@@ -304,6 +304,14 @@ fixtures:
     - before: "name: sample_config\n"
       after: "name: unrelated_archived_run\n"
     sha256: 10e2aa91e3a7eeb7e1f1dd3978479d4f77d0b497478dcf1ec135bb5fb93637ec
+  positive-area-dev12:
+    base: zero-area-dev12
+    replacements:
+    - before: "      bsoil:\n        sfr:\n          value: 0.0\n"
+      after: "      bsoil:\n        sfr:\n          value: 0.01\n"
+    - before: "      grass:\n        sfr:\n          value: 0.03\n"
+      after: "      grass:\n        sfr:\n          value: 0.02\n"
+    sha256: c1272713cf9e5776f64f5692845e8e95d767110afc763397754be8d26dc6c7d9
 historical:
   path: test/fixtures/guide_journeys/earlier-guide.rst
   sha256: 6028e7ede6a7990671b2b698ccb64826e2c75a53a4deed3a512cbffc9f21f9a1
@@ -605,6 +613,35 @@ journeys:
     promise: creates
     consumer: validate-migrated
   plant_stale: true
+- id: control-positive-area
+  label: Negative control for zero-area recovery
+  inputs:
+    site.yml: positive-area-dev12
+  steps:
+  - id: positive-area-validation-probe
+    probe: suews validate -p C --dry-run site.yml --format json
+    consumes: [site.yml, Kc_2012_data_60.txt]
+    exit_status: 1
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: false
+    - kind: json
+      pointer: /errors/0/code_name
+      expected: VALIDATION_FAILED
+    - kind: diagnostic
+      stream: stdout
+      pattern: 'Invalid surface configuration for bsoil: Missing required fields to_paved, to_bldgs, to_dectr, to_evetr, to_grass, to_water, to_soilstore for bsoil'
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices: []
 inventory:
   migrate:
     documented:

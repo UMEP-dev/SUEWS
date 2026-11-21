@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _validation:
 
 Validation Tool Reference

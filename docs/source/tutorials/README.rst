@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _tutorial_source_readme:
 
 Tutorials

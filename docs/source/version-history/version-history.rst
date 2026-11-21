@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _version_history:
 
 Version History

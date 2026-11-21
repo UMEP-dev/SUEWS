@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 Version 2014a (released on 21 February 2014)
 ------------------------------------------------------
 

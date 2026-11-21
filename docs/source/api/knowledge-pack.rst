@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _api_knowledge_pack:
 
 Knowledge Pack

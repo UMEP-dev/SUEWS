@@ -1,4 +1,6 @@
 :orphan:
+:doc-source: generated
+:doc-generator: docs/generate_forcing_variable_rst.py
 
 .. _df_forcing_var:
 

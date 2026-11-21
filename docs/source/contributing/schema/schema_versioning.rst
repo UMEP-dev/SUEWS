@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _schema_versioning:
 
 YAML Configuration Schema Versioning

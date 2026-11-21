@@ -48,8 +48,21 @@ def _normalise_grid_states(grid_states: Mapping[Any, Any]) -> dict[int, str]:
 
     normalised: dict[int, str] = {}
     for grid_id, state in grid_states.items():
-        normalised[int(grid_id)] = _state_to_json(state)
+        public_id = int(grid_id)
+        if public_id in normalised:
+            raise ValueError(f"Duplicate checkpoint grid ID after normalisation: {public_id}")
+        normalised[public_id] = _state_to_json(state)
     return normalised
+
+
+def _unique_checkpoint_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate JSON members before a dictionary can discard them."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate checkpoint JSON key: {key!r}")
+        result[key] = value
+    return result
 
 
 def _infer_state_schema_version(grid_states: Mapping[int, str]) -> int | None:
@@ -189,7 +202,7 @@ class SUEWSCheckpoint:
         """Read a checkpoint JSON file."""
         path = Path(path).expanduser().resolve()
         with path.open("r", encoding="utf-8") as checkpoint_file:
-            payload = json.load(checkpoint_file)
+            payload = json.load(checkpoint_file, object_pairs_hook=_unique_checkpoint_object)
         return cls.from_dict(payload)
 
     def to_dict(self) -> dict[str, Any]:

@@ -303,6 +303,9 @@ YAML Configuration (Recommended):
 
     $ suews run /path/to/config.yml
 
+If your source YAML omits model.control.output.dir, results are written to the
+directory where you invoke this command.
+
 Namelist Configuration (Deprecated):
 
     $ suews run -p RunControl.nml

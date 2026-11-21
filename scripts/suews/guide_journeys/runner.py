@@ -191,6 +191,11 @@ def run_journey(
         record["supy_version"] = installation["package_preflight"]["supy_version"]
         work = args.output / journey["id"] / "work"
         record["input_sha256s"] = setup_inputs(root, manifest, journey, work)
+        if journey.get("plant_stale"):
+            record["planted_file"] = {
+                "path": "site.migrated.yml",
+                "sha256": record["input_sha256s"]["site.migrated.yml"],
+            }
         record["forcing_setup"] = isolated_python(FORCING_SETUP, work, env)
         if journey["id"] == "tagged-dev11":
             record.update(inspect_installed(work, env))

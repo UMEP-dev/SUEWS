@@ -85,3 +85,34 @@ def test_failed_creation_stops_consumer_and_records_lines(tmp_path):
         "exit_status",
         "promises",
     } <= saved["steps"][0].keys()
+
+
+def test_counterexample_requires_planted_bytes_across_migration(tmp_path):
+    """A skip must preserve the pinned stale file, not merely leave any file."""
+    from scripts.suews.guide_journeys.oracle import snapshot
+    from scripts.suews.guide_journeys.replays import assert_counterexample
+
+    output = tmp_path / "stale.yml"
+    output.write_text("planted\n", encoding="utf-8")
+    before = snapshot(tmp_path)
+    expected = {"step": "migrate", "promise": "creates", "consumer": "validate"}
+    record = {
+        "planted_file": {"path": output.name, "sha256": before[output.name]["sha256"]},
+        "steps": [
+            {
+                "id": "migrate",
+                "status": "failed",
+                "exit_status": 0,
+                "before": before,
+                "after": before,
+                "promises": [{"passed": False, "expected": {"kind": "creates"}}],
+            },
+            {"id": "validate", "status": "unrun"},
+        ],
+        "path_outcomes": [],
+        "first_unrun_consumer": "validate",
+    }
+    assert assert_counterexample(record, expected)
+    output.write_text("replacement\n", encoding="utf-8")
+    record["steps"][0]["after"] = snapshot(tmp_path)
+    assert not assert_counterexample(record, expected)

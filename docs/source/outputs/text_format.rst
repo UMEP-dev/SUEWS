@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _text_output_format:
 
 Text Format Output

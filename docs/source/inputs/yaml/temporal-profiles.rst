@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _temporal_profiles:
 
 Temporal Profiles

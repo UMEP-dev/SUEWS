@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _wrf_suews_integration:
 
 WRF-SUEWS Coupling

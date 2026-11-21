@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _parquet_output_format:
 
 Parquet Format Output

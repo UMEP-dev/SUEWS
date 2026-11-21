@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _data_interface_versioning:
 
 Data-interface versioning

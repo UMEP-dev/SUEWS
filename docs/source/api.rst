@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _api_reference:
 
 Python API Reference

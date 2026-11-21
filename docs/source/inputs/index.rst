@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _inputs_main:
 
 Input Files

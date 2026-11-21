@@ -147,6 +147,8 @@ def render_forcing_reference() -> str:
     """Return the complete deterministic RST reference page."""
     lines = [
         ":orphan:",
+        ":doc-source: generated",
+        ":doc-generator: docs/generate_forcing_variable_rst.py",
         "",
         ".. _df_forcing_var:",
         "",

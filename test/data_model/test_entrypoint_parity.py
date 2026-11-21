@@ -72,6 +72,10 @@ LAI_POWER_FIELDS: tuple[str, ...] = (
     "senescence_sdd",
 )
 SHORT_RUN_STEPS = 12  # 1 hour at 300 s timestep
+# Only test-owned serialisation and assertion parsing use libyaml. Public
+# from_yaml/Phase A/CLI loaders still execute their normal implementation.
+_TEST_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_TEST_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +87,7 @@ SHORT_RUN_STEPS = 12  # 1 hour at 300 s timestep
 def sample_dict() -> dict[str, Any]:
     """Load the packaged sample configuration as a plain dict."""
     resource = trv_supy_module / "sample_data" / "sample_config.yml"
-    return yaml.safe_load(resource.read_text(encoding="utf-8"))
+    return yaml.load(resource.read_text(encoding="utf-8"), Loader=_TEST_YAML_LOADER)
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +103,9 @@ def _unwrap(val: Any) -> Any:
 
 
 def _write_yaml(path: Path, payload: dict[str, Any]) -> Path:
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    path.write_text(
+        yaml.dump(payload, sort_keys=False, Dumper=_TEST_YAML_DUMPER), encoding="utf-8"
+    )
     return path
 
 
@@ -145,7 +151,7 @@ def _strip_loader_bookkeeping(doc: dict[str, Any]) -> dict[str, Any]:
 
 def _normalise_engine_dict(raw_yaml: str) -> dict[str, Any]:
     """Parse engine YAML into a plain dict for structural/numeric comparison."""
-    return _strip_loader_bookkeeping(yaml.safe_load(raw_yaml))
+    return _strip_loader_bookkeeping(yaml.load(raw_yaml, Loader=_TEST_YAML_LOADER))
 
 
 def _get_yaml_path(doc: dict[str, Any], path: str) -> Any:
@@ -174,7 +180,7 @@ def _get_yaml_path(doc: dict[str, Any], path: str) -> Any:
 def _get_df_val(df: pd.DataFrame, col: tuple[str, str]) -> Any:
     if col not in df.columns:
         return None
-    val = df.iloc[0][col]
+    val = df.iat[0, df.columns.get_loc(col)]
     if pd.isna(val):
         return None
     if hasattr(val, "item"):
@@ -2093,9 +2099,8 @@ class TestDfStateEngineYamlParityRatchet:
 
     @pytest.mark.parametrize("method", [6, 8], ids=["dyohm_6", "dyohm_bldg_8"])
     @pytest.mark.parametrize("wrapped", [True, False], ids=["wrapped", "bare"])
-    @pytest.mark.parametrize("field_name", ["dz", "k", "rho_cp"])
     def test_dyohm_building_layers_validate_bare_and_wrapped_arrays(
-        self, sample_dict, method, wrapped, field_name
+        self, sample_dict, method, wrapped
     ):
         """DyOHM building validation accepts finite bare/wrapped arrays and rejects bad elements.
 
@@ -2126,29 +2131,31 @@ class TestDfStateEngineYamlParityRatchet:
         cfg_roundtrip = SUEWSConfig.from_df_state(cfg_valid.to_df_state())
         cfg_roundtrip.validate_for_engine()
 
-        # ACT & ASSERT 2: invalid elements rejected in both forms at load and handoff
-        for bad_elem in (None, float("nan"), float("inf"), float("-inf")):
-            bad = copy.deepcopy(base)
-            bad_list = list(valid_arrays[field_name])
-            bad_list[1] = bad_elem
-            bad["sites"][0]["properties"]["land_cover"]["bldgs"]["thermal_layers"][
-                field_name
-            ] = {"value": bad_list} if wrapped else bad_list
-            with pytest.raises(ValueError, match=rf"thermal_layers\.{field_name}"):
-                SUEWSConfig.from_dict(bad)
+        # Each field has distinct invalid inputs; the valid input above is shared.
+        for field_name, valid_values in valid_arrays.items():
+            # ACT & ASSERT 2: invalid elements rejected in both forms at load and handoff
+            for bad_elem in (None, float("nan"), float("inf"), float("-inf")):
+                bad = copy.deepcopy(base)
+                bad_list = list(valid_values)
+                bad_list[1] = bad_elem
+                bad["sites"][0]["properties"]["land_cover"]["bldgs"]["thermal_layers"][
+                    field_name
+                ] = {"value": bad_list} if wrapped else bad_list
+                with pytest.raises(ValueError, match=rf"thermal_layers\.{field_name}"):
+                    SUEWSConfig.from_dict(bad)
 
-        for bad_elem in (None, float("nan"), float("inf"), float("-inf"), True):
-            mutated = cfg_valid.model_copy(deep=True)
-            bad_list = list(valid_arrays[field_name])
-            bad_list[1] = bad_elem
-            mutated_val = RefValue(bad_list) if wrapped else list(bad_list)
-            object.__setattr__(
-                mutated.sites[0].properties.land_cover.bldgs.thermal_layers,
-                field_name,
-                mutated_val,
-            )
-            with pytest.raises(ValueError, match=rf"thermal_layers\.{field_name}"):
-                mutated.validate_for_engine()
+            for bad_elem in (None, float("nan"), float("inf"), float("-inf"), True):
+                mutated = cfg_valid.model_copy(deep=True)
+                bad_list = list(valid_values)
+                bad_list[1] = bad_elem
+                mutated_val = RefValue(bad_list) if wrapped else list(bad_list)
+                object.__setattr__(
+                    mutated.sites[0].properties.land_cover.bldgs.thermal_layers,
+                    field_name,
+                    mutated_val,
+                )
+                with pytest.raises(ValueError, match=rf"thermal_layers\.{field_name}"):
+                    mutated.validate_for_engine()
 
         # ACT & ASSERT 3: lambda_c missing/non-finite/bool rejected in both bare & wrapped forms
         for bad_lam in (None, float("nan"), float("inf"), float("-inf")):

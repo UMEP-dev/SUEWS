@@ -3,7 +3,7 @@ from pydantic_core import PydanticUndefined
 from typing import Optional, Union
 import pandas as pd
 import warnings
-from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
+from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols, combine_df_states
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
 from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
 from ..validation.core.utils import (
@@ -133,14 +133,14 @@ class IrrigationParams(
         df_daywatper = self.daywatper.to_df_state(grid_id, "daywatper")
         df_daywat = self.daywat.to_df_state(grid_id, "daywat")
 
-        df_state = df_state.combine_first(df_daywatper)
-        df_state = df_state.combine_first(df_daywat)
+        df_state = combine_df_states(df_state, df_daywatper)
+        df_state = combine_df_states(df_state, df_daywat)
 
         df_wuprofa_24hr = self.wuprofa_24hr.to_df_state(grid_id, "wuprofa_24hr")
         df_wuprofm_24hr = self.wuprofm_24hr.to_df_state(grid_id, "wuprofm_24hr")
 
-        df_state = df_state.combine_first(df_wuprofa_24hr)
-        df_state = df_state.combine_first(df_wuprofm_24hr)
+        df_state = combine_df_states(df_state, df_wuprofa_24hr)
+        df_state = combine_df_states(df_state, df_wuprofm_24hr)
 
         return df_state
 
@@ -397,7 +397,7 @@ class AnthropogenicHeat(
         }
         for param_name, profile in day_profiles.items():
             df_day_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_day_profile)
+            df_state = combine_df_states(df_state, df_day_profile)
 
         hourly_profiles = {
             "ahprof_24hr": self.ahprof_24hr,
@@ -405,7 +405,7 @@ class AnthropogenicHeat(
         }
         for param_name, profile in hourly_profiles.items():
             df_hourly_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_hourly_profile)
+            df_state = combine_df_states(df_state, df_hourly_profile)
 
         return df_state
 
@@ -689,7 +689,7 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
         }
         for param_name, profile in day_profiles.items():
             df_day_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_day_profile)
+            df_state = combine_df_states(df_state, df_day_profile)
 
         hourly_profiles = {
             "traffprof_24hr": self.profile_traffic_24hr,
@@ -697,7 +697,7 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
         }
         for param_name, profile in hourly_profiles.items():
             df_hourly_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_hourly_profile)
+            df_state = combine_df_states(df_state, df_hourly_profile)
 
         return df_state
 

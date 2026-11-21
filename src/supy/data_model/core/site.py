@@ -1,7 +1,7 @@
 import math
 from typing import Optional
 from pydantic import ConfigDict, Field, computed_field, model_validator
-from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
+from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols, combine_df_states
 from .profile import (
     HourlyProfile,
     DayProfile,
@@ -1262,10 +1262,10 @@ class SnowParams(DataModelBase):
             self.ohm_coef if self.ohm_coef is not None else _default_snow_ohm_coef()
         )
         df_ohm = ohm_coef.to_df_state(grid_id, 7)
-        df_state = df_state.combine_first(df_ohm)
+        df_state = combine_df_states(df_state, df_ohm)
 
         df_hourly_profile = self.snow_profile_24hr.to_df_state(grid_id, "snowprof_24hr")
-        df_state = df_state.combine_first(df_hourly_profile)
+        df_state = combine_df_states(df_state, df_hourly_profile)
 
         return df_state
 
@@ -2098,7 +2098,7 @@ class ArchetypeProperties(DataModelBase):
                 field_name, field_name
             ).lower()
             df_profile = profile.to_df_state(grid_id, col_name)
-            df_state = df_state.combine_first(df_profile)
+            df_state = combine_df_states(df_state, df_profile)
 
         return df_state
 
@@ -2788,7 +2788,7 @@ class StebbsProperties(DataModelBase):
                 continue
             col_name = self._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
             df_profile = profile.to_df_state(grid_id, col_name)
-            df_state = df_state.combine_first(df_profile)
+            df_state = combine_df_states(df_state, df_profile)
 
         return df_state
 

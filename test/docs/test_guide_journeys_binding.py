@@ -45,8 +45,8 @@ def test_reviewed_bindings_and_lines():
         ),
         ("Use a fresh output filename", "Reuse the previous output filename"),
         (
-            "Choose the command from",
-            "Never migrate an untagged file.\n\nChoose the command from",
+            ".. journey: transition_guide/directory",
+            "Never migrate an untagged file.\n\n.. journey: transition_guide/directory",
         ),
         ("   suews convert -i", "   suews schema info\n   suews convert -i"),
     ],
@@ -60,6 +60,10 @@ def test_staleness_mutations(before, after):
     errors = check(mutated, manifest, "mutated")
     assert any("Section envelope changed" in error for error in errors)
     assert all("reviewed" in error and "current mutated" in error for error in errors)
+    if after.startswith("Never migrate"):
+        assert len(errors) == 1, (
+            "Only the section envelope should detect new unbound prose"
+        )
     if "schema info" in after:
         assert any("Unbound" in error for error in errors)
 
@@ -97,3 +101,8 @@ def test_anchor_inventory_requires_both_directions():
     errors = check(Document(renamed, manifest["title"]), manifest, "renamed")
     assert any("Anchor inventory differs" in error for error in errors)
     assert any("Binding recovery" in error for error in errors)
+
+
+def test_hash_preserves_blank_line_string_content():
+    """Whitespace inside a multi-line string is source content, not a blank margin."""
+    assert digest('x = """a\n  \nb"""') != digest('x = """a\n\nb"""')

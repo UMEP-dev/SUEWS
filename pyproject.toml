@@ -34,53 +34,56 @@ readme = "README.md"
 # Core runtime dependencies only
 dependencies = [
     # Data processing
-    # pandas 3.0 wheels are ABI-built against numpy>=2.3. On the manylinux2014
-    # matrix below, scipy<1.15 transitively pins numpy<2.3, which is ABI-
-    # incompatible with pandas 3.0 and segfaults DatetimeIndex.shift. Keep pandas
-    # <3 there; let newer interpreters/platforms (numpy>=2.3) use pandas 3.
-    "pandas<3; python_version < '3.13' and platform_system == 'Linux'",  # numpy<2.3 (manylinux2014 scipy) is ABI-incompatible with pandas 3.0
-    "pandas; python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
+    # pandas>=2.2.2 provides the "ME"/"QE"/"YE"/"h"/"min"/"s" offset aliases
+    # used across supy and is the first release supporting both NumPy 1.26 and
+    # NumPy 2.x. pandas 3.0 wheels are ABI-built against numpy>=2.3; on the
+    # manylinux2014 matrix below, scipy<1.15 transitively pins numpy<2.3, which
+    # is ABI-incompatible with pandas 3.0 and segfaults DatetimeIndex.shift.
+    # Keep pandas<3 there; let newer interpreters/platforms (numpy>=2.3) use
+    # pandas 3.
+    "pandas>=2.2.2,<3; python_version < '3.13' and platform_system == 'Linux'",  # numpy<2.3 (manylinux2014 scipy) is ABI-incompatible with pandas 3.0
+    "pandas>=2.2.2; python_version >= '3.13' or platform_system != 'Linux'",  # 2.2.2+ supports offset aliases and NumPy 1.26/2.x
     "numpy>=1.22",  # Covers current QGIS 3 LTR / QGIS 4 NumPy stacks; no ABI constraint (Rust bridge is NumPy-free)
-    "scipy<1.15; python_version < '3.13' and platform_system == 'Linux'",  # 3.12 Linux: manylinux2014 wheels
-    "scipy; python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
+    "scipy>=1.13,<1.15; python_version < '3.13' and platform_system == 'Linux'",  # 3.12 Linux: manylinux2014 wheels; 1.13+ matches first OSGeo4W py3.12 build and supports NumPy 1.26/2.x
+    "scipy>=1.13; python_version >= '3.13' or platform_system != 'Linux'",  # 1.13+ matches first OSGeo4W py3.12 build (1.13.0) and supports NumPy 1.26/2.x
     # xarray removed - only needed for gridded ERA5 (install separately)
     # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 
     # Model requirements
     "pydantic>=2.12",
-    "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
-    "f90nml",
+    "pyyaml>=6.0.1",  # YAML configuration parsing (used in data_model/core/config.py); 6.0.1+ matches first OSGeo4W py3.12 build and ships cp312 wheels
+    "f90nml>=1.4",
     
     # Utilities
-    "matplotlib",
-    "seaborn",
-    "chardet",
-    "click",
+    "matplotlib>=3.8.4",  # 3.8.4+ lifts numpy<2, matches first OSGeo4W py3.12 build (3.8.4), and ships cp312 wheels
+    "seaborn>=0.13",
+    "chardet>=5.0",
+    "click>=8.1",
     "pyarrow>=20,<21; python_version < '3.14' and platform_system == 'Linux'",  # Linux needs manylinux2014 wheels on CPython 3.12-3.13
     "pyarrow>=20; python_version < '3.14' and platform_system != 'Linux'",  # Non-Linux platforms may use newer pyarrow binaries
     "pyarrow>=22; python_version == '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
     "pyarrow>=26; python_version >= '3.15'",  # 26.x is the first release with cp315 wheels
 
     # Scientific packages
-    "atmosp",
-    "scikit-learn",
+    "atmosp>=0.2.11",  # 0.2.11+ drops broken Python 3.12 nose/unittest2 and cfunits hard dependencies
+    "scikit-learn>=1.4.2",  # 1.4.2+ matches first OSGeo4W py3.12 build (1.4.2) and supports NumPy 1.26/2.x with cp312 wheels
     
     # Optimization
-    "lmfit",
+    "lmfit>=1.2.2",  # Python 3.12 compatible
     
     # Data access
-    "cdsapi",  # ERA5 data download (timeseries uses CSV, gridded requires optional h5netcdf)
+    "cdsapi>=0.7.4",  # ERA5 data download; 0.7.4+ drops pkg_resources import (missing in clean Python 3.12+ venvs)
 
     # Time/location
     "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels
-    "pytz",
+    "pytz>=2024.1",  # 2023.3.post1+ fixes Python 3.12 datetime.utcfromtimestamp() DeprecationWarning
     
     # Schema validation (for YAML configs)
-    "jsonschema",
-    "rich",
+    "jsonschema>=4.18",
+    "rich>=13.2",  # 13.2+ uses markdown-it-py instead of legacy commonmark
 
     # Version checking (pandas compatibility in _load.py)
-    "packaging",
+    "packaging>=23.0",
 ]
 
 classifiers = [

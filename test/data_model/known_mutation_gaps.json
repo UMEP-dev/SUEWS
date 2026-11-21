@@ -1,0 +1,1548 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "5b3c2366d7",
+  "description": "Shrinking coverage ledger for Layer 2 adversarial config mutations across the six coupled physics anchors (gh#2098, part of gh#2083 and gh#1991). Covers both scalar leaves and scalar elements inside wrapped/plain arrays. Every non-conforming outcome (dropped/truncated from engine YAML, null/empty in engine YAML, silent site-scalar default on omit, unattributed rejection such as raw TypeError drift wrappers, invalid type/non-finite emission, or unexpected default value) must match an explicit issue-linked entry; stale entries fail the test so the ledger strictly shrinks as follow-up fixes land.",
+  "categories": {
+    "active_gap": "Active parameter on the listed anchor(s) that is silently dropped, nulled, or given a hardcoded site default instead of being rejected or emitting a valid documented default.",
+    "inactive_optional": "Optional parameter whose governing physics branch is disabled on the listed anchor(s), paired with active-anchor coverage where the branch is enabled.",
+    "optional_control": "Optional run-control metadata resolved at execution time when omitted.",
+    "unwired_parameter": "Parameter not currently wired across the bridge/kernel (tracked separately)."
+  },
+  "entries": [
+    {
+      "id": "site-scalars-omit-silent-default",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.lat",
+        "sites[0].properties.lng",
+        "sites[0].properties.alt",
+        "sites[0].properties.timezone",
+        "sites[0].properties.surfacearea",
+        "sites[0].properties.z",
+        "sites[0].properties.z0m_in",
+        "sites[0].properties.zdm_in",
+        "sites[0].properties.pipecapacity",
+        "sites[0].properties.runofftowater",
+        "sites[0].properties.narp_trans_site"
+      ],
+      "mutations": {
+        "omit": "silent_site_default"
+      },
+      "category": "active_gap",
+      "active_condition": "Always active for every site; validate_site_required_fields lists all 11 scalars as required.",
+      "owner_issue": "#2002",
+      "related_issues": [
+        "#1991",
+        "#2101"
+      ],
+      "rationale": "SiteProperties fills hardcoded site defaults (e.g. lng=-0.13, lat=51.5, z=10.0) on omit instead of rejecting; omitting them from engine YAML silently substitutes 0.0 in the Rust bridge for 9 of 11 scalars and triggers kernel error 14/110 for z and z0m_in."
+    },
+    {
+      "id": "control-optional-run-window-and-freq",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "model.control.start_time",
+        "model.control.end_time",
+        "model.control.output.freq"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped"
+      },
+      "category": "optional_control",
+      "active_condition": "Optional overrides; unset start_time/end_time span the full forcing period and unset output.freq defaults to 3600 s at save time.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2097"
+      ],
+      "rationale": "Runtime-derived run-control overrides remain Optional[None] by design."
+    },
+    {
+      "id": "control-forcing-file-null-dropped",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "model.control.forcing.file"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "dropped"
+      },
+      "category": "optional_control",
+      "active_condition": "Optional in YAML when meteorological forcing is supplied programmatically through SUEWSSimulation.update_forcing().",
+      "owner_issue": "#2001",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "ForcingControl.file allows null when forcing is passed in memory; null forms are dropped from engine YAML."
+    },
+    {
+      "id": "soil-water-surface-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.water.soil_depth",
+        "sites[0].properties.land_cover.water.soil_store_capacity",
+        "sites[0].properties.land_cover.water.saturated_hydraulic_conductivity"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive on the open-water surface, which has no subsurface soil store.",
+      "owner_issue": "#2077",
+      "related_issues": [
+        "#2001"
+      ],
+      "rationale": "Water inherits BaseSurfaceProperties soil fields that are physically inactive for open water."
+    },
+    {
+      "id": "drainage-params-nonwater",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_1",
+        "sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_2",
+        "sites[0].properties.land_cover.paved.storage_drain_params.store_max",
+        "sites[0].properties.land_cover.bldgs.storage_drain_params.drain_coef_1",
+        "sites[0].properties.land_cover.bldgs.storage_drain_params.drain_coef_2",
+        "sites[0].properties.land_cover.bldgs.storage_drain_params.store_max",
+        "sites[0].properties.land_cover.evetr.storage_drain_params.drain_coef_1",
+        "sites[0].properties.land_cover.evetr.storage_drain_params.drain_coef_2",
+        "sites[0].properties.land_cover.evetr.storage_drain_params.store_max",
+        "sites[0].properties.land_cover.dectr.storage_drain_params.drain_coef_1",
+        "sites[0].properties.land_cover.dectr.storage_drain_params.drain_coef_2",
+        "sites[0].properties.land_cover.dectr.storage_drain_params.store_max",
+        "sites[0].properties.land_cover.grass.storage_drain_params.drain_coef_1",
+        "sites[0].properties.land_cover.grass.storage_drain_params.drain_coef_2",
+        "sites[0].properties.land_cover.grass.storage_drain_params.store_max",
+        "sites[0].properties.land_cover.bsoil.storage_drain_params.drain_coef_1",
+        "sites[0].properties.land_cover.bsoil.storage_drain_params.drain_coef_2",
+        "sites[0].properties.land_cover.bsoil.storage_drain_params.store_max"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active for all six non-water surfaces with sfr > 0; omitting drain_coef_1/2 or store_max silently alters runoff and QE.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "StorageDrainParams.drain_coef_1, drain_coef_2, and store_max default to None and are silently dropped on omit or nulled in engine YAML."
+    },
+    {
+      "id": "drainage-params-water-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.water.storage_drain_params.drain_coef_1",
+        "sites[0].properties.land_cover.water.storage_drain_params.drain_coef_2",
+        "sites[0].properties.land_cover.water.storage_drain_params.store_max"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Open water does not use surface-drainage equations (sample_config ships -999 sentinels for water drainage).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2001"
+      ],
+      "rationale": "Water drainage coefficients are inactive; tracked alongside non-water drainage contract cleanup."
+    },
+    {
+      "id": "ohm-coef-active-ohm-and-dyohm",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.ohm_coef.*.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when storage_heat uses OHM (1) or DyOHM (6).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "OHM coefficients a1/a2/a3 default to None and are dropped or nulled in engine YAML even under active OHM storage heat."
+    },
+    {
+      "id": "ohm-coef-inactive-ehc",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.ohm_coef.*.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when storage_heat=5 (EHC) handles all facets.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "OHM coefficients are unused under explicit heat conduction (storage_heat=5)."
+    },
+    {
+      "id": "ohm-thresholds-and-anohm-null",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.ohm_threshold_summer_winter",
+        "sites[0].properties.land_cover.*.ohm_threshold_wet_dry",
+        "sites[0].properties.land_cover.*.ch_anohm",
+        "sites[0].properties.land_cover.*.k_anohm",
+        "sites[0].properties.land_cover.*.rho_cp_anohm"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "OHM thresholds are active under OHM/DyOHM (storage_heat=1,6); AnOHM parameters are active under storage_heat=3.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Fields carry non-None defaults (so omit emits non-null) but Optional[...] annotations allow explicit bare/wrapped null into engine YAML."
+    },
+    {
+      "id": "lai-power-active-modelled",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.lai.lai_power.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active for vegetated surfaces (evetr, dectr, grass) with sfr > 0 under modelled LAI (laimethod=1).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "LAI power exponents default to None and are silently dropped on omit, freezing seasonal LAI growth."
+    },
+    {
+      "id": "lai-modelled-params-inactive-observed",
+      "anchors": [
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.lai.base_temperature_senescence",
+        "sites[0].properties.land_cover.*.lai.sdd_full",
+        "sites[0].properties.land_cover.*.lai.lai_power.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when leaf_area_index=observed (laimethod=0); base_temperature_senescence and sdd_full are rejected on the 5 modelled-LAI anchors.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2101"
+      ],
+      "rationale": "Phenology GDD/SDD thresholds and LAI power exponents are not required when LAI is prescribed from forcing."
+    },
+    {
+      "id": "lai-gdd-params-inactive-observed-omit-and-bare-null",
+      "anchors": [
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.lai.base_temperature",
+        "sites[0].properties.land_cover.*.lai.gdd_full"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when leaf_area_index=observed (laimethod=0); rejected on all 3 mutations on the 5 modelled-LAI anchors (wrapped_null already rejected on all 6).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2101"
+      ],
+      "rationale": "GDD growth thresholds are inactive when LAI is observed from forcing."
+    },
+    {
+      "id": "co2-anthropogenic-scalars-active",
+      "anchors": [
+        "co2_methods"
+      ],
+      "path_patterns": [
+        "sites[0].properties.anthropogenic_emissions.co2.emission_factor_co2_fuel",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_factor_energy_vehicle",
+        "sites[0].properties.anthropogenic_emissions.co2.fraction_fossil_fuel_heating",
+        "sites[0].properties.anthropogenic_emissions.co2.fraction_fossil_fuel_non_heating",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_co2_metabolism_max",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_heat_metabolism_max",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_co2_metabolism_min",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_heat_metabolism_min",
+        "sites[0].properties.anthropogenic_emissions.co2.type_traffic_rate"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active under emissions=12 (CO2 emissions enabled); emission_co2_point_source is already rejected on all 3 mutations.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "Remaining nine CO2Params scalars default to None and are dropped or nulled even when CO2 emissions are active."
+    },
+    {
+      "id": "co2-anthropogenic-scalars-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.anthropogenic_emissions.co2.emission_co2_point_source",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_factor_co2_fuel",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_factor_energy_vehicle",
+        "sites[0].properties.anthropogenic_emissions.co2.fraction_fossil_fuel_heating",
+        "sites[0].properties.anthropogenic_emissions.co2.fraction_fossil_fuel_non_heating",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_co2_metabolism_max",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_heat_metabolism_max",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_co2_metabolism_min",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_heat_metabolism_min",
+        "sites[0].properties.anthropogenic_emissions.co2.type_traffic_rate"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when emissions=2 (non-CO2 heat method); emission_co2_point_source is rejected on co2_methods.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2007",
+        "#2101"
+      ],
+      "rationale": "Anthropogenic CO2 parameters are optional when CO2 emissions are disabled."
+    },
+    {
+      "id": "co2-biogenic-scalars-active",
+      "anchors": [
+        "co2_methods"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.alpha_bio_co2",
+        "sites[0].properties.land_cover.*.beta_bio_co2",
+        "sites[0].properties.land_cover.*.theta_bio_co2",
+        "sites[0].properties.land_cover.*.resp_a",
+        "sites[0].properties.land_cover.*.resp_b"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active for vegetated surfaces (evetr, dectr, grass) with sfr > 0 under emissions=12; omitting theta_bio_co2 or beta_bio_co2 produces NaN FcPhoto/Fc.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "Biogenic CO2 scalars default to None and are silently dropped or nulled under active emissions=12."
+    },
+    {
+      "id": "co2-biogenic-enh-null-active",
+      "anchors": [
+        "co2_methods"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.alpha_enh_bioco2",
+        "sites[0].properties.land_cover.*.beta_enh_bioco2"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active for vegetated surfaces under biogenic CO2 methods; omit emits defaults while Optional[...] allows explicit null.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Enhanced biogenic CO2 coefficients accept bare/wrapped null under active emissions=12 despite min_res_bioco2 rejecting null."
+    },
+    {
+      "id": "co2-biogenic-scalars-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.alpha_bio_co2",
+        "sites[0].properties.land_cover.*.beta_bio_co2",
+        "sites[0].properties.land_cover.*.theta_bio_co2",
+        "sites[0].properties.land_cover.*.resp_a",
+        "sites[0].properties.land_cover.*.resp_b"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when emissions=2 (biogenic CO2 disabled).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2101"
+      ],
+      "rationale": "Biogenic CO2 scalars are unused when emissions does not enable biogenic CO2."
+    },
+    {
+      "id": "co2-biogenic-defaulted-null-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.alpha_enh_bioco2",
+        "sites[0].properties.land_cover.*.beta_enh_bioco2",
+        "sites[0].properties.land_cover.*.min_res_bioco2"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when emissions=2; min_res_bioco2 already rejects explicit nulls on co2_methods.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2087",
+        "#2101"
+      ],
+      "rationale": "Biogenic CO2 defaulted parameters remain nullable when biogenic CO2 is disabled."
+    },
+    {
+      "id": "snow-core-scalars-active",
+      "anchors": [
+        "snow_cold"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.snow_density_min",
+        "sites[0].properties.snow.snow_density_max",
+        "sites[0].properties.snow.temperature_rain_snow_threshold"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when snow_use=1 (snow_cold anchor).",
+      "owner_issue": "#1982",
+      "related_issues": [
+        "#1991",
+        "#2101"
+      ],
+      "rationale": "Snow density bounds and rain/snow threshold default to None and are silently dropped or nulled even when snow_use=1."
+    },
+    {
+      "id": "snow-core-scalars-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.snow_density_min",
+        "sites[0].properties.snow.snow_density_max",
+        "sites[0].properties.snow.temperature_rain_snow_threshold"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when snow_use=0 (snow disabled).",
+      "owner_issue": "#1982",
+      "related_issues": [
+        "#2101"
+      ],
+      "rationale": "Snow density bounds and precipitation threshold are unused when snow is disabled."
+    },
+    {
+      "id": "snow-pack-limit-and-states-null-active",
+      "anchors": [
+        "snow_cold"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.snowpack_limit",
+        "sites[0].initial_states.*.snowfrac",
+        "sites[0].initial_states.*.snowpack",
+        "sites[0].initial_states.*.snowdens",
+        "sites[0].initial_states.*.snowwater",
+        "sites[0].initial_states.*.icefrac"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when snow_use=1 (snow_cold anchor); omit emits defaults while Optional[...] allows explicit null.",
+      "owner_issue": "#1982",
+      "related_issues": [
+        "#1991",
+        "#2101"
+      ],
+      "rationale": "Snowpack limits and initial snow states accept explicit null/wrapped-null even when snow_use=1."
+    },
+    {
+      "id": "snow-pack-limit-and-states-null-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.snowpack_limit",
+        "sites[0].initial_states.*.snowfrac",
+        "sites[0].initial_states.*.snowpack",
+        "sites[0].initial_states.*.snowdens",
+        "sites[0].initial_states.*.snowwater",
+        "sites[0].initial_states.*.icefrac"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when snow_use=0 (snow disabled).",
+      "owner_issue": "#1982",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "Snowpack limits and snow initial states are inactive when snow processes are disabled."
+    },
+    {
+      "id": "snow-ohm-coef-unwired",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.ohm_coef.*.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "unwired_parameter",
+      "active_condition": "Unwired across Rust bridge and Fortran kernel (deltaQi === 0).",
+      "owner_issue": "#2109",
+      "related_issues": [
+        "#2084"
+      ],
+      "rationale": "Snow OHM coefficients are unwired in the bridge/kernel and default to None."
+    },
+    {
+      "id": "snow-ohm-thresholds-unwired",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.ohm_threshold_summer_winter",
+        "sites[0].properties.snow.ohm_threshold_wet_dry"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "unwired_parameter",
+      "active_condition": "Unwired across Rust bridge and Fortran kernel.",
+      "owner_issue": "#2109",
+      "related_issues": [
+        "#2084"
+      ],
+      "rationale": "Snow OHM thresholds are unwired in the bridge/kernel and accept explicit nulls."
+    },
+    {
+      "id": "stebbs-roof-and-outer-null-active",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.building_archetype.*_roof",
+        "sites[0].properties.building_archetype.*_roof_external",
+        "sites[0].properties.building_archetype.*_roof_internal",
+        "sites[0].properties.building_archetype.*_roof_outer",
+        "sites[0].properties.building_archetype.*_wall_outer",
+        "sites[0].properties.stebbs.convection_coefficient_roof_external",
+        "sites[0].properties.stebbs.convection_coefficient_roof_internal"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); wall/window/ground STEBBS fields already reject explicit nulls.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "STEBBS roof and outer-layer archetype fields escape _validate_stebbs required-field null checks even when STEBBS is enabled."
+    },
+    {
+      "id": "stebbs-and-archetype-ref-null-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.building_archetype.*",
+        "sites[0].properties.stebbs.*"
+      ],
+      "exclude_patterns": [
+        "sites[0].properties.building_archetype.archetype_name",
+        "sites[0].properties.building_archetype.profile_*",
+        "sites[0].properties.stebbs.profile_*",
+        "sites[0].properties.stebbs.reduction_factor_shading",
+        "sites[0].properties.stebbs.temperature_threshold_shading",
+        "sites[0].properties.stebbs.radiation_threshold_shading"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.enabled=False; active STEBBS wall/window/ground fields reject explicit nulls on spartacus_ehc_stebbs.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2087"
+      ],
+      "rationale": "STEBBS and building_archetype RefValue fields remain nullable when STEBBS is disabled."
+    },
+    {
+      "id": "stebbs-archetype-name-bare-null-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.building_archetype.archetype_name"
+      ],
+      "mutations": {
+        "bare_null": "dropped"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.enabled=False; rejected on spartacus_ehc_stebbs (wrapped_null already rejected on all 6).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2087"
+      ],
+      "rationale": "archetype_name is a plain Optional[str] when STEBBS is disabled."
+    },
+    {
+      "id": "stebbs-shading-thresholds-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.stebbs.reduction_factor_shading",
+        "sites[0].properties.stebbs.temperature_threshold_shading",
+        "sites[0].properties.stebbs.radiation_threshold_shading"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.internal_shading == 0 (shading disabled on all six anchors; required when internal_shading is 1 or 2).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2097"
+      ],
+      "rationale": "Conditional STEBBS shading thresholds stay nullable while internal_shading is 0."
+    },
+    {
+      "id": "vertical-layers-soil-store-capacity-active",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.vertical_layers.roofs[*].soil_store_capacity",
+        "sites[0].properties.vertical_layers.walls[*].soil_store_capacity"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active under SPARTACUS/EHC facet moisture/conduction (net_radiation=1003, storage_heat=5).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2077"
+      ],
+      "rationale": "Vertical-layer facet soil_store_capacity defaults to None and is dropped or nulled under active SPARTACUS+EHC."
+    },
+    {
+      "id": "vertical-layers-soil-store-capacity-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.vertical_layers.roofs[*].soil_store_capacity",
+        "sites[0].properties.vertical_layers.walls[*].soil_store_capacity"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when SPARTACUS radiation and EHC facet conduction are disabled.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2101"
+      ],
+      "rationale": "Vertical-layer facet soil_store_capacity is unused outside SPARTACUS/EHC."
+    },
+    {
+      "id": "vertical-layers-optical-null-active",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.vertical_layers.roofs[*].roof_albedo_dir_mult_fact",
+        "sites[0].properties.vertical_layers.roofs[*].wall_specular_frac",
+        "sites[0].properties.vertical_layers.walls[*].roof_albedo_dir_mult_fact",
+        "sites[0].properties.vertical_layers.walls[*].wall_specular_frac"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active under SPARTACUS radiation (net_radiation=1003); omit emits defaults while Optional[...] allows explicit null.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2085",
+        "#1991"
+      ],
+      "rationale": "SPARTACUS facet optical multipliers accept bare/wrapped null under active net_radiation=1003."
+    },
+    {
+      "id": "vertical-layers-optical-null-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.vertical_layers.roofs[*].roof_albedo_dir_mult_fact",
+        "sites[0].properties.vertical_layers.roofs[*].wall_specular_frac",
+        "sites[0].properties.vertical_layers.walls[*].roof_albedo_dir_mult_fact",
+        "sites[0].properties.vertical_layers.walls[*].wall_specular_frac"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when SPARTACUS radiation is disabled.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2085"
+      ],
+      "rationale": "SPARTACUS facet optical multipliers are unused when net_radiation uses NARP."
+    },
+    {
+      "id": "initial-states-thermal-tsfc-tin-active",
+      "anchors": [
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].initial_states.*.tsfc",
+        "sites[0].initial_states.*.tin",
+        "sites[0].initial_states.roofs[*].tsfc",
+        "sites[0].initial_states.roofs[*].tin",
+        "sites[0].initial_states.walls[*].tsfc",
+        "sites[0].initial_states.walls[*].tin"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when EHC (storage_heat=5) or DyOHM (storage_heat=6) evolves surface/inner temperatures.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Initial surface and inner temperatures carry defaults on omit but Optional[...] allows explicit bare/wrapped null into engine YAML."
+    },
+    {
+      "id": "initial-states-thermal-tsfc-tin-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].initial_states.*.tsfc",
+        "sites[0].initial_states.*.tin",
+        "sites[0].initial_states.roofs[*].tsfc",
+        "sites[0].initial_states.roofs[*].tin",
+        "sites[0].initial_states.walls[*].tsfc",
+        "sites[0].initial_states.walls[*].tin"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive under OHM-only storage heat (storage_heat=1).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2101"
+      ],
+      "rationale": "Surface/facet initial conduction temperatures are unused under OHM storage heat."
+    },
+    {
+      "id": "irrigation-h-maintain-active",
+      "anchors": [
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.irrigation.h_maintain"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active whenever at least one actual simulation date satisfies water_use=modelled (WaterUseMethod==0), Fortran DayWat(wd)==1.0 (wd from Day_Of_Week: 1=Sun..7=Sat indexed into [monday..sunday]), AND Fortran hemispheric season (lat>=0: ie_start-1 <= doy <= ie_end+1; lat<0: not(ie_end <= doy <= ie_start)), independent of faut or irrigation_fraction: update_WaterUse (suews_phys_dailystate.f95:589-631) adds ponding demand WUDay_P unconditionally to WUDay_A/WUDay_total.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "IrrigationParams.h_maintain defaults to None and is dropped by exclude_none=True instead of being rejected or emitting an explicit value; omitting it from engine YAML silently substitutes 0.0 (enabling ponding up to SoilStoreCap) in IrrigationPrm::default() rather than disabling ponding (-999.0)."
+    },
+    {
+      "id": "irrigation-h-maintain-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.irrigation.h_maintain"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive ONLY when zero actual simulation dates satisfy WaterUseMethod==0 AND DayWat(wd)==1.0 AND the Fortran hemispheric season predicate (e.g. water_use=observed on observed_and_dyohm, all daywat.*==0.0 on the four non-irrigation modelled anchors, closed season such as NH 280..100, or closed weekdays outside the simulation window). Neither faut==0 nor irrigation_fraction==0 disables h_maintain.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "h_maintain is unread when WaterUseMethod==1 or all DayWat(1:7)==0.0; under WaterUseMethod==0 with DayWat(wd)==1.0 it remains active even when faut==0 or irrigation_fraction==0."
+    },
+    {
+      "id": "irrigation-scalars-active",
+      "anchors": [
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.irrigation.ie_start",
+        "sites[0].properties.irrigation.ie_end",
+        "sites[0].properties.irrigation.internalwateruse_h"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when water_use=modelled (WaterUseMethod==0) with irrigation.daywat.* == 1.0 (ie_start/ie_end gate update_WaterUse at suews_phys_dailystate.f95:593-602; internalwateruse_h splits total water use when wu > 0 at suews_phys_waterdist.f95:1420-1437).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "IrrigationParams scalar fields default to None and are silently dropped or nulled under active modelled irrigation."
+    },
+    {
+      "id": "irrigation-scalars-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.irrigation.ie_start",
+        "sites[0].properties.irrigation.ie_end",
+        "sites[0].properties.irrigation.internalwateruse_h"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when water_use=observed (WaterUseMethod==1 with zero observed water use, observed_and_dyohm) or when water_use=modelled with all irrigation.daywat.* == 0.0 (the four non-irrigation modelled anchors), so update_WaterUse does not evaluate ie_start/ie_end and total water use wu == 0.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "ie_start and ie_end are skipped when WaterUseMethod==1 or all DayWat(1:7)==0.0; internalwateruse_h has no external/internal redistribution effect when wu == 0 and defaults to 0.0 in these anchors."
+    },
+    {
+      "id": "irrigation-fraction-null-active",
+      "anchors": [
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.irrigation_fraction"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active under modelled irrigation (irrigation_and_dls anchor); omit emits 0.0 while Optional[...] allows explicit null.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Per-surface irrigation_fraction accepts explicit bare/wrapped null under active modelled irrigation."
+    },
+    {
+      "id": "irrigation-fraction-null-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.irrigation_fraction"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when water_use=observed (WaterUseMethod==1, observed_and_dyohm) or when all seven irrigation.daywat.* flags are 0.0 (so update_WaterUse outputs WUDay_id==0 on the four non-irrigation modelled anchors).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "Per-surface irrigation_fraction is unused when modelled irrigation is inactive."
+    },
+    {
+      "id": "day-and-weekly-profile-bare-null",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.anthropogenic_emissions.heat.*.working_day",
+        "sites[0].properties.anthropogenic_emissions.heat.*.holiday",
+        "sites[0].properties.anthropogenic_emissions.co2.emission_factor_co2_vehicle.*",
+        "sites[0].properties.anthropogenic_emissions.co2.traffic_rate.*",
+        "sites[0].properties.irrigation.daywat.*",
+        "sites[0].properties.irrigation.daywatper.*"
+      ],
+      "mutations": {
+        "bare_null": "dropped"
+      },
+      "category": "active_gap",
+      "active_condition": "Active for DayProfile and WeeklyProfile scalar fields (omit emits defaults and wrapped_null rejects, while bare_null drops the key).",
+      "owner_issue": "#2001",
+      "related_issues": [
+        "#1991",
+        "#2101"
+      ],
+      "rationale": "DayProfile and WeeklyProfile fields are plain Optional[float] with defaults, so bare null is accepted and dropped by exclude_none=True."
+    },
+    {
+      "id": "hourly-profile-slot-bare-null",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.anthropogenic_emissions.heat.ahprof_24hr.*.*",
+        "sites[0].properties.anthropogenic_emissions.heat.popprof_24hr.*.*",
+        "sites[0].properties.anthropogenic_emissions.co2.profile_traffic_24hr.*.*",
+        "sites[0].properties.anthropogenic_emissions.co2.profile_human_activity_24hr.*.*",
+        "sites[0].properties.irrigation.wuprofa_24hr.*.*",
+        "sites[0].properties.irrigation.wuprofm_24hr.*.*",
+        "sites[0].properties.snow.snow_profile_24hr.*.*"
+      ],
+      "mutations": {
+        "bare_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active for 24-hour diurnal profiles; setting an hour slot to null passes validation and emits null into engine YAML.",
+      "owner_issue": "#2001",
+      "related_issues": [
+        "#1991",
+        "#2101"
+      ],
+      "rationale": "HourlyProfile working_day/holiday mappings allow dict values of None and serialize them as null in engine YAML."
+    },
+    {
+      "id": "stebbs-144step-profile-slots-active",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.stebbs.profile_appliance.*.*",
+        "sites[0].properties.stebbs.profile_flow_hot_water.*.*",
+        "sites[0].properties.building_archetype.profile_metabolism.*.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.*.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.*.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); omitting or nulling a 10-minute slot passes validation.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "144-step STEBBS profile dicts do not require complete slot coverage on omit and accept null slot entries."
+    },
+    {
+      "id": "stebbs-144step-profile-slots-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.stebbs.profile_appliance.*.*",
+        "sites[0].properties.stebbs.profile_flow_hot_water.*.*",
+        "sites[0].properties.building_archetype.profile_metabolism.*.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.*.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.*.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.enabled=False.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "144-step STEBBS profile slots are unused when STEBBS is disabled."
+    },
+    {
+      "id": "control-output-groups-element-omit",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "model.control.output.groups[*]"
+      ],
+      "mutations": {
+        "omit": "dropped"
+      },
+      "category": "optional_control",
+      "active_condition": "Output group list is a user-selectable subset of diagnostic groups; removing an element omits that group from output.",
+      "owner_issue": "#2001",
+      "related_issues": [
+        "#1991"
+      ],
+      "rationale": "Deleting an element from model.control.output.groups shortens the list as intended for optional output group selection; explicit null elements are already rejected."
+    },
+    {
+      "id": "thermal-layers-array-elements-ehc-active",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.*.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.*.thermal_layers.rho_cp[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.dz[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.k[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.rho_cp[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.dz[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.k[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.rho_cp[*]"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when storage_heat = 5 (EHC) on spartacus_ehc_stebbs.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Even with EHC active, deleting an element silently truncates the 5-layer thermal array to 4 elements and bare null leaks into engine YAML across land_cover and vertical_layers roofs/walls."
+    },
+    {
+      "id": "thermal-layers-bldgs-element-omit-dyohm",
+      "anchors": [
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.bldgs.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.bldgs.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.bldgs.thermal_layers.rho_cp[*]"
+      ],
+      "mutations": {
+        "omit": "dropped"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when storage_heat = 6 (DyOHM) on observed_and_dyohm; bare_null is already rejected for bldgs thermal layers.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "DyOHM validates finite numeric elements on bldgs thermal_layers (rejecting bare_null) but does not enforce the 5-layer array length when an element is omitted."
+    },
+    {
+      "id": "thermal-layers-array-elements-inactive-ohm",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.*.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.*.thermal_layers.rho_cp[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.dz[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.k[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.rho_cp[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.dz[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.k[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.rho_cp[*]"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when storage_heat = 1 (OHM); active EHC coverage is tracked on spartacus_ehc_stebbs.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Thermal-layer arrays are unused under OHM; active EHC behaviour is tracked separately under thermal-layers-array-elements-ehc-active."
+    },
+    {
+      "id": "thermal-layers-non-bldgs-and-vertical-inactive-dyohm",
+      "anchors": [
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.paved.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.paved.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.paved.thermal_layers.rho_cp[*]",
+        "sites[0].properties.land_cover.evetr.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.evetr.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.evetr.thermal_layers.rho_cp[*]",
+        "sites[0].properties.land_cover.dectr.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.dectr.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.dectr.thermal_layers.rho_cp[*]",
+        "sites[0].properties.land_cover.grass.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.grass.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.grass.thermal_layers.rho_cp[*]",
+        "sites[0].properties.land_cover.bsoil.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.bsoil.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.bsoil.thermal_layers.rho_cp[*]",
+        "sites[0].properties.land_cover.water.thermal_layers.dz[*]",
+        "sites[0].properties.land_cover.water.thermal_layers.k[*]",
+        "sites[0].properties.land_cover.water.thermal_layers.rho_cp[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.dz[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.k[*]",
+        "sites[0].properties.vertical_layers.roofs[*].thermal_layers.rho_cp[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.dz[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.k[*]",
+        "sites[0].properties.vertical_layers.walls[*].thermal_layers.rho_cp[*]"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive under storage_heat = 6 (DyOHM) outside bldgs; active EHC coverage is tracked on spartacus_ehc_stebbs.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Under DyOHM only bldgs thermal_layers are validated for finite numeric elements; other surfaces and vertical layers remain optional."
+    },
+    {
+      "id": "vertical-layers-veg-arrays-omit-active",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.vertical_layers.veg_frac[*]",
+        "sites[0].properties.vertical_layers.veg_scale[*]",
+        "sites[0].properties.vertical_layers.veg_ext[*]"
+      ],
+      "mutations": {
+        "omit": "dropped"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when net_radiation = 1003 (SPARTACUS) on spartacus_ehc_stebbs.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Unlike building_frac, building_scale, and height (which reject length != nlayer), omitting an element from veg_frac, veg_scale, or veg_ext silently truncates the 3-layer SPARTACUS array to 2 elements."
+    },
+    {
+      "id": "vertical-layers-veg-arrays-omit-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.vertical_layers.veg_frac[*]",
+        "sites[0].properties.vertical_layers.veg_scale[*]",
+        "sites[0].properties.vertical_layers.veg_ext[*]"
+      ],
+      "mutations": {
+        "omit": "dropped"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when SPARTACUS is disabled; active coverage is tracked on spartacus_ehc_stebbs.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "SPARTACUS vertical vegetation arrays are inactive on non-SPARTACUS anchors."
+    },
+    {
+      "id": "initial-states-dyohm-arrays-omit-active",
+      "anchors": [
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].initial_states.dqndt_surf[*]",
+        "sites[0].initial_states.qn_surfs[*]"
+      ],
+      "mutations": {
+        "omit": "dropped"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when storage_heat = 6 (DyOHM) on observed_and_dyohm; bare_null is already rejected.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "DyOHM rejects null elements in dqndt_surf and qn_surfs, but deleting an element silently truncates the 7-surface state array to 6 elements."
+    },
+    {
+      "id": "initial-states-dyohm-arrays-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].initial_states.dqndt_surf[*]",
+        "sites[0].initial_states.qn_surfs[*]"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when storage_heat != 6; active DyOHM coverage is tracked on observed_and_dyohm.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "DyOHM initial-state history arrays are unused outside storage_heat = 6."
+    },
+    {
+      "id": "initial-states-hdd-id-element-omit",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].initial_states.hdd_id[*]"
+      ],
+      "mutations": {
+        "omit": "dropped"
+      },
+      "category": "active_gap",
+      "active_condition": "Always active for every site; hdd_id is a fixed 12-slot heating/cooling degree-day state vector.",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001"
+      ],
+      "rationale": "Explicit null elements in hdd_id are rejected, but deleting an element silently truncates the 12-element array to 11 elements."
+    },
+    {
+      "id": "lai-wrapped-null-unattributed-typeerror",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.land_cover.*.lai.base_temperature",
+        "sites[0].properties.land_cover.*.lai.gdd_full",
+        "sites[0].properties.land_cover.*.lai.lai_max"
+      ],
+      "mutations": {
+        "wrapped_null": "unattributed_rejection"
+      },
+      "category": "active_gap",
+      "active_condition": "Always triggered when {value: null} is supplied on vegetated LAI parameters.",
+      "owner_issue": "#2001",
+      "related_issues": [
+        "#1991"
+      ],
+      "rationale": "Passing {value: null} to lai.{base_temperature, gdd_full, lai_max} raises an uncaught TypeError comparing float and NoneType wrapped as 'suspected schema drift' with no field path attribution."
+    },
+    {
+      "id": "profile-slots-wrapped-null-unattributed-typeerror",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "snow_cold",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.anthropogenic_emissions.co2.profile_human_activity_24hr.working_day.*",
+        "sites[0].properties.anthropogenic_emissions.co2.profile_human_activity_24hr.holiday.*",
+        "sites[0].properties.anthropogenic_emissions.co2.profile_traffic_24hr.working_day.*",
+        "sites[0].properties.anthropogenic_emissions.co2.profile_traffic_24hr.holiday.*",
+        "sites[0].properties.anthropogenic_emissions.heat.ahprof_24hr.working_day.*",
+        "sites[0].properties.anthropogenic_emissions.heat.ahprof_24hr.holiday.*",
+        "sites[0].properties.anthropogenic_emissions.heat.popprof_24hr.working_day.*",
+        "sites[0].properties.anthropogenic_emissions.heat.popprof_24hr.holiday.*",
+        "sites[0].properties.irrigation.wuprofa_24hr.working_day.*",
+        "sites[0].properties.irrigation.wuprofa_24hr.holiday.*",
+        "sites[0].properties.irrigation.wuprofm_24hr.working_day.*",
+        "sites[0].properties.irrigation.wuprofm_24hr.holiday.*",
+        "sites[0].properties.snow.snow_profile_24hr.working_day.*",
+        "sites[0].properties.snow.snow_profile_24hr.holiday.*",
+        "sites[0].properties.building_archetype.profile_metabolism.working_day.*",
+        "sites[0].properties.building_archetype.profile_metabolism.holiday.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.working_day.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.holiday.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.holiday.*",
+        "sites[0].properties.stebbs.profile_appliance.working_day.*",
+        "sites[0].properties.stebbs.profile_appliance.holiday.*",
+        "sites[0].properties.stebbs.profile_flow_hot_water.working_day.*",
+        "sites[0].properties.stebbs.profile_flow_hot_water.holiday.*"
+      ],
+      "mutations": {
+        "wrapped_null": "unattributed_rejection"
+      },
+      "category": "active_gap",
+      "active_condition": "Always triggered when {value: null} is supplied on a 24-hour or 144-step profile slot.",
+      "owner_issue": "#2001",
+      "related_issues": [
+        "#1991"
+      ],
+      "rationale": "Passing {value: null} to a profile slot raises an uncaught TypeError in float() wrapped as 'suspected schema drift' without identifying the offending profile or slot."
+    }
+  ]
+}

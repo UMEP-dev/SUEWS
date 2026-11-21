@@ -26,9 +26,8 @@ This module contains:
   ``SUEWSConfig._iter_critical_null_site_param_issues``.
 - ``WATER_DISTRIBUTION_REQUIRED``, the destinations each surface must route
   water to, consumed by ``WaterDistribution.validate_distribution``. A failure
-  there is reported as a warning while a configuration loads, but the missing
-  fractions then reach the model as nulls, so the reference documents them as
-  required.
+  there raises a validation error when a configuration loads, matching the
+  documented requirement.
 - ``DOC_REQUIRED_WHEN``, which maps a model class name to a reader-facing
   description of when each field is required. This is consumed by the
   documentation generator. Most entries are derived from the constants above;
@@ -273,9 +272,14 @@ SOIL_REQUIRED: RequirementTable = {
 # observed soil moisture is selected.
 SOIL_OBSERVED_REQUIRED: tuple[str, ...] = ("soil_field_capacity",)
 
-# Water-distribution destinations each surface must give when its waterdist
-# block is supplied; an omitted block takes surface-specific defaults. Keyed by
-# surface type value; the water surface has no distribution.
+# Water-distribution destinations each active surface (sfr > 0) must give when
+# its waterdist block is supplied; an omitted block takes surface-specific
+# defaults, and inactive surfaces (sfr == 0) may omit applicable destinations
+# (raising sfr from 0 to > 0 without them fails before execution). Keyed by
+# surface type value; the water surface has no distribution. Any destination
+# outside a surface's tuple (self-routing or the opposite terminal field) is
+# inapplicable: omit or set null (explicit numeric 0 is normalised to absent
+# at YAML/model load; non-zero values or post-load mutations fail).
 WATER_DISTRIBUTION_REQUIRED: dict[str, tuple[str, ...]] = {
     "paved": (
         "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",
@@ -403,8 +407,14 @@ def _water_distribution_conditions() -> dict[str, str]:
             filter(None, (", ".join(surfaces[:-1]), surfaces[-1]))
         )
         conditions[field] = (
-            f"``waterdist`` is given for a {listed} surface; an omitted "
-            "``waterdist`` block takes surface-specific defaults"
+            f"``waterdist`` is given for an active {listed} surface "
+            "(``sfr > 0``); an omitted ``waterdist`` block takes "
+            "surface-specific defaults, inactive surfaces (``sfr == 0``) may "
+            "omit applicable destinations (activating ``sfr`` from ``0`` to "
+            "``> 0`` without them fails before execution), and inapplicable "
+            "destinations (self-routing or the opposite terminal field) should "
+            "be omitted or null -- explicit ``0.0`` is normalised to absent at "
+            "YAML/model load, while non-zero values or post-load mutations fail"
         )
     return conditions
 

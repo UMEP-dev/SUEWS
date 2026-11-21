@@ -123,8 +123,133 @@ exclusions:
   reason: Explains skipping, not an instruction.
   sha256: 37958ab584a21f927da5b64b7ea0d310864e2c88c9796e0ae4ac314f595af7d2
 promise_edits: []
-choices: []
-combinations: []
+choices:
+- id: tagged-dev11
+  kind: named alternative
+  source_anchor: transition_guide/tagged-condition
+  values:
+  - tagged-dev11
+  journeys:
+  - tagged-dev11
+- id: untagged-known
+  kind: named alternative
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - untagged-dev11
+  journeys:
+  - untagged-known
+- id: untagged-unknown
+  kind: named alternative
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - untagged-dev11
+  journeys:
+  - untagged-unknown
+- id: current-dev12
+  kind: named alternative
+  source_anchor: transition_guide/current-condition
+  values:
+  - dev12
+  journeys:
+  - current-dev12
+- id: recovery-nonzero
+  kind: failure recovery
+  source_anchor: transition_guide/recovery
+  values:
+  - nonzero-dev11
+  journeys:
+  - recovery-nonzero
+- id: recovery-zero-area
+  kind: failure recovery
+  source_anchor: transition_guide/recovery
+  values:
+  - zero-area-dev12
+  journeys:
+  - recovery-zero-area
+- id: earlier-clean
+  kind: directory state
+  source_anchor: transition_guide/directory
+  values:
+  - clean directory
+  journeys:
+  - earlier-clean
+- id: earlier-stale
+  kind: directory state
+  source_anchor: transition_guide/directory
+  values:
+  - stale output present
+  journeys:
+  - earlier-stale
+- id: pipeline-C
+  kind: discrete
+  source_anchor: transition_guide/tagged-commands
+  values:
+  - C
+  journeys:
+  - tagged-dev11
+  - untagged-known
+  - untagged-unknown
+  - current-dev12
+  - recovery-zero-area
+  - earlier-clean
+  - earlier-stale
+- id: format-json
+  kind: discrete
+  source_anchor: transition_guide/tagged-commands
+  values:
+  - json
+  journeys:
+  - tagged-dev11
+  - untagged-known
+  - untagged-unknown
+  - current-dev12
+  - recovery-zero-area
+  - earlier-clean
+  - earlier-stale
+- id: quoted-runoff
+  kind: named alternative
+  source_anchor: transition_guide/example
+  values:
+  - 8.416 mm
+  journeys: []
+  reason: The quoted calculation has no published complete input set.
+- id: other-source-version
+  kind: unrestricted
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - actual source version differs from example
+  journeys: []
+- id: default-current-target
+  kind: omitted value
+  source_anchor: transition_guide/untagged-commands
+  values:
+  - installed current schema
+  journeys:
+  - untagged-known
+- id: no-version-indicator
+  kind: omitted value
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - no schema_version, version or config_version
+  journeys:
+  - untagged-known
+  - untagged-unknown
+  - earlier-clean
+  - earlier-stale
+combinations:
+- id: untagged-stale-output
+  choices:
+  - no-version-indicator
+  - earlier-stale
+  journeys:
+  - earlier-stale
+- id: wrong-explicit-origin
+  choices:
+  - untagged-known
+  - other-source-version
+  journeys: []
+  reason: Known source deliberately mislabelled is outside the corrected guide paths;
+    retained as untested.
 expected_delta:
   remove:
   - sites/0/properties/land_cover/paved/waterdist/to_soilstore
@@ -453,3 +578,69 @@ journeys:
     promise: creates
     consumer: validate-migrated
   plant_stale: true
+inventory:
+  migrate:
+    documented:
+      --target-version:
+      - 2026.6.dev12
+    excluded:
+      --output-dir: Pilot keeps copies beside inputs.
+      --dry-run: Pilot requires an actual migration.
+      --help: Discovery, not a guide instruction.
+  validate:
+    documented:
+      --pipeline:
+      - C
+      --dry-run: []
+      --format:
+      - json
+    excluded:
+      --mode: Uses installed public-mode default.
+      --schema-version: Uses installed schema default.
+      --forcing: Uses installed on default.
+      --science-fixes: Phase B is outside this pilot.
+      --help: Discovery, not a guide instruction.
+  convert:
+    documented:
+      --input:
+      - site.yml
+      --output:
+      - site.migrated.yml
+      --from:
+      - 2026.6.dev11
+    excluded:
+      --debug-dir: Table and dataframe conversion only.
+      --no-profile-validation: Table and dataframe conversion only.
+      --format: Uses the installed text default.
+      --help: Discovery, not a guide instruction.
+      --forcing: Coordinated soil-forcing conversion is outside this routing pilot.
+      --forcing-output: Coordinated soil-forcing conversion is outside this routing
+        pilot.
+      --manifest: Coordinated soil-forcing conversion is outside this routing pilot.
+      --source-contract: Coordinated soil-forcing conversion is outside this routing
+        pilot.
+      --source-unit: Coordinated soil-forcing conversion is outside this routing pilot.
+      --layer-top: Coordinated soil-forcing conversion is outside this routing pilot.
+      --layer-depth: Coordinated soil-forcing conversion is outside this routing pilot.
+      --legacy-depth-is-thickness: Coordinated soil-forcing conversion is outside
+        this routing pilot.
+      --drop-legacy: Coordinated soil-forcing conversion is outside this routing pilot.
+      --dry-run: Coordinated soil-forcing conversion is outside this routing pilot.
+argument_exclusions:
+  migrate:files: Several files are supported; this pilot follows one site file.
+  validate:files: Several files are supported; this pilot validates one path.
+schema_versions:
+- 2026.6.dev11
+- 2026.6.dev12
+behaviour_audit:
+  source_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  partition:
+  - explicit_older
+  - explicit_current
+  - explicit_newer
+  - legacy_version
+  - legacy_config_version
+  - no_indicator
+  undocumented_effects:
+  - self-routing numeric zeros
+  - pervious to_runoff numeric zeros

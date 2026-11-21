@@ -1,8 +1,20 @@
 """Creation and provenance must reject apparently successful stale outputs."""
 
+from pathlib import Path
+import sys
+
 import pytest
 
-from scripts.suews.guide_journeys.oracle import evaluate, require_provenance, snapshot
+# Script packages are not installed in the wheel; support the pytest console entry point.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.suews.guide_journeys.oracle import (  # noqa: E402 - source script imports follow path setup
+    evaluate,
+    require_provenance,
+    snapshot,
+)
 
 pytestmark = pytest.mark.api
 

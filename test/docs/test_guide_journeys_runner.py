@@ -116,3 +116,78 @@ def test_counterexample_requires_planted_bytes_across_migration(tmp_path):
     output.write_text("replacement\n", encoding="utf-8")
     record["steps"][0]["after"] = snapshot(tmp_path)
     assert not assert_counterexample(record, expected)
+
+
+@pytest.mark.parametrize("failure", ["step", "wheel", "history"])
+def test_setup_errors_preserve_failure_record(tmp_path, failure):
+    """Binding, wheel and historical setup errors retain run and reviewed revisions."""
+    import argparse
+    from scripts.suews.guide_journeys.extractor import Document
+    from scripts.suews.guide_journeys.manifest import load
+    from scripts.suews.guide_journeys.runner import run_journey
+
+    manifest = load(_REPO_ROOT / "test/docs/journeys/transition_guide.yml")
+    text = (_REPO_ROOT / manifest["guide"]).read_text(encoding="utf-8")
+    document = Document(text, manifest["title"])
+    journey = manifest["journeys"][0]
+    if failure == "step":
+        journey["steps"][0]["id"] = "no-binding"
+    if failure == "history":
+        journey = next(j for j in manifest["journeys"] if j.get("historical"))
+        journey["steps"][0]["command_index"] = 999
+    args = argparse.Namespace(
+        revision="new-run", wheel=tmp_path / "missing.whl", output=tmp_path
+    )
+    record = run_journey(_REPO_ROOT, manifest, document, journey, args)
+    saved = json.loads(
+        (tmp_path / (journey["id"] + ".json")).read_text(encoding="utf-8")
+    )
+    assert saved == record
+    assert saved["status"] == "failed"
+    assert not saved["accepted"]
+    assert saved["revision_run"] == "new-run"
+    assert saved["revision_reviewed"] == (
+        manifest["historical"]["revision"]
+        if failure == "history"
+        else manifest["envelope"]["reviewed_revision"]
+    )
+    assert saved["failure"].startswith(
+        {"step": "KeyError", "wheel": "FileNotFoundError", "history": "IndexError"}[
+            failure
+        ]
+    )
+
+
+def test_malformed_manifest_writes_setup_record(tmp_path):
+    """CLI setup errors produce JSON evidence instead of a bare traceback."""
+    import subprocess
+
+    manifest = tmp_path / "broken.yml"
+    manifest.write_text("format: [\n", encoding="utf-8")
+    output = tmp_path / "records"
+    process = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "scripts.suews.guide_journeys.runner",
+            "--manifest",
+            str(manifest),
+            "--revision",
+            "new-run",
+            "--wheel",
+            str(tmp_path / "missing.whl"),
+            "--wheelhouse",
+            str(tmp_path),
+            "--output",
+            str(output),
+        ],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 1
+    assert "Traceback" not in process.stderr
+    record = json.loads((output / "setup.json").read_text(encoding="utf-8"))
+    assert record["status"] == "failed"
+    assert record["revision_run"] == "new-run"

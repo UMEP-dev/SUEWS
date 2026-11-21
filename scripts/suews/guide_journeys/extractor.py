@@ -97,6 +97,7 @@ class Document:
 
     def __init__(self, text: str, title: str) -> None:
         """Parse only the bound section; unrelated Sphinx directives are inert."""
+        self.text = text
         self.envelope = section(text, title)
         self.tree = publish_doctree(
             self.envelope.text,

@@ -2,6 +2,7 @@
 
 import argparse
 from dataclasses import asdict
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -30,6 +31,13 @@ Path(spec['target']).write_bytes(data)
 print(json.dumps({'resource':spec['package']+'/'+spec['path'],
                   'sha256':hashlib.sha256(data).hexdigest()}))
 """
+
+
+def read_page(root: Path, revision: str, path: str) -> str:
+    """Read committed page bytes at the stated revision, never the working tree."""
+    return subprocess.check_output(
+        ["git", "show", f"{revision}:{path}"], cwd=root
+    ).decode("utf-8")
 
 
 def resolve_steps(document: Document, manifest: dict, journey: dict) -> list[dict]:
@@ -178,14 +186,13 @@ def bind_journey(
     root: Path, manifest: dict, document: Document, journey: dict, record: dict
 ) -> list[dict]:
     """Resolve source commands while retaining their separate reviewed revision."""
-    text = (root / manifest["guide"]).read_text(encoding="utf-8")
+    text = document.text
     if journey.get("historical"):
         history = manifest["historical"]
         record.update(guide_path=history["path"], revision_reviewed=history["revision"])
-        path = root / history["path"]
-        if sha256(path) != history["sha256"]:
+        text = read_page(root, record["revision_run"], history["path"])
+        if hashlib.sha256(text.encode("utf-8")).hexdigest() != history["sha256"]:
             raise ValueError("Historical guide checksum mismatch")
-        text = path.read_text(encoding="utf-8")
         record["guide_text"] = text
         specs = historical_steps(text, manifest, journey)
     else:
@@ -317,7 +324,10 @@ def main() -> int:
     root = Path.cwd().resolve()
     try:
         manifest = load(args.manifest)
-        text = (root / manifest["guide"]).read_text(encoding="utf-8")
+        args.revision = subprocess.check_output(
+            ["git", "rev-parse", "--verify", f"{args.revision}^{{commit}}"], cwd=root
+        ).decode("ascii").strip()
+        text = read_page(root, args.revision, manifest["guide"])
         document = Document(text, manifest["title"])
         stale = check(document, manifest, args.revision)
         selected = set(args.journey or [j["id"] for j in manifest["journeys"]])
@@ -330,6 +340,7 @@ def main() -> int:
         IndexError,
         TypeError,
         yaml.YAMLError,
+        subprocess.SubprocessError,
     ) as error:
         record = new_record(
             {"guide": str(args.manifest), "envelope": {"reviewed_revision": None}},

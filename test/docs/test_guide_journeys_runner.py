@@ -149,7 +149,7 @@ def test_setup_errors_preserve_failure_record(tmp_path, failure):
         journey = next(j for j in manifest["journeys"] if j.get("historical"))
         journey["steps"][0]["command_index"] = 999
     args = argparse.Namespace(
-        revision="new-run", wheel=tmp_path / "missing.whl", output=tmp_path
+        revision="HEAD", wheel=tmp_path / "missing.whl", output=tmp_path
     )
     record = run_journey(_REPO_ROOT, manifest, document, journey, args)
     saved = json.loads(
@@ -158,7 +158,7 @@ def test_setup_errors_preserve_failure_record(tmp_path, failure):
     assert saved == record
     assert saved["status"] == "failed"
     assert not saved["accepted"]
-    assert saved["revision_run"] == "new-run"
+    assert saved["revision_run"] == "HEAD"
     assert saved["revision_reviewed"] == (
         manifest["historical"]["revision"]
         if failure == "history"

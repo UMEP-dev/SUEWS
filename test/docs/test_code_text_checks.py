@@ -14,6 +14,8 @@ import supy
 from supy.cmd.suews_cli import cli
 import supy.util
 
+pytest.importorskip("numpydoc", reason="Code-text checker tests require numpydoc")
+
 pytestmark = pytest.mark.api
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(

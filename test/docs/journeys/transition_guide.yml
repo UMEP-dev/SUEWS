@@ -1,0 +1,128 @@
+format: 1
+guide: docs/source/inputs/transition_guide.rst
+title: Runoff from paved and building surfaces in schema 2026.6.dev12
+envelope:
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 787f677ba621cf2e5724ea16a5f9b54f1c69eebc5f4494d1e93d1fe979fdf86b
+steps:
+- id: migrate
+  anchor: transition_guide/tagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 0
+  consumes:
+  - site.yml
+  conditions:
+  - tagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 1fce43af118bce1960b0efd380421429d2418f38b3ce60aecbc8995108452a9f
+- id: validate-migrated
+  anchor: transition_guide/tagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 1
+  consumes:
+  - site.migrated.yml
+  conditions:
+  - tagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 3f3eb31cdf3bb159aaeefd0935e196074ec01f844707d8b70f879a25c6fff1d4
+- id: validate-original-inline
+  anchor: transition_guide/untagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  inline: '``suews validate -p C --dry-run site.yml
+
+    --format json``'
+  consumes:
+  - site.yml
+  conditions:
+  - untagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 0192ea8b325d622b56205020cf3c1c9c9d62629d58f2796080d6af3750d13ca2
+- id: convert
+  anchor: transition_guide/untagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 0
+  consumes:
+  - site.yml
+  conditions:
+  - untagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 07564c585a47b82fa806925e1b15f4eb72e5c94f2182b2a65c30521f7180d74f
+- id: validate-converted
+  anchor: transition_guide/untagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 1
+  consumes:
+  - site.migrated.yml
+  conditions:
+  - untagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 3f3eb31cdf3bb159aaeefd0935e196074ec01f844707d8b70f879a25c6fff1d4
+- id: validate-current
+  anchor: transition_guide/current-command
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 0
+  consumes:
+  - site.yml
+  conditions:
+  - current-condition
+  - directory
+  - delta
+  - recovery
+  sha256: debe7bf5b826d62c2781e9926104f25438e5463d762c15ec19f8f1a80afb2634
+conditions:
+- id: delta
+  anchor: transition_guide/delta
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 529e7241eafb9cadae0756afd137761755cfd2a8496ebd9bf5617de601e6ab60
+- id: directory
+  anchor: transition_guide/directory
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 10bdc3cf2de22b8ddd26fe6bbfeb07c4bf429c43038499e5a06c604ab6c1269a
+- id: tagged-condition
+  anchor: transition_guide/tagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: aca8554e95c7b4069394f6049abc7ef09f92fc90e458b246765e5e5f54194158
+- id: untagged-condition
+  anchor: transition_guide/untagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 9c47d5f2c50c7c2010c9e3a027d4a1104fb53a13152e2c79e9581f2e9dc74933
+- id: current-condition
+  anchor: transition_guide/current-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: cfb94ea7c2e3c3945b34f5e7a2116dda125b43cedf8c7284459d2648f3bdeee6
+- id: recovery
+  anchor: transition_guide/recovery
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: e71d24efd2f906421429cb91a78a5a0bdf1d16cc8f0f3db83ee8f64e78e1add5
+exclusions:
+- id: yaml-example
+  anchor: transition_guide/example
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  kind: example-data
+  reason: Three fields of an illustrative routing block; not a command.
+  sha256: 16b19a005be6405bd3bd4be8b16f6a03811916c44b40f96342c17b40b307e6af
+- id: migrate-mention
+  anchor: transition_guide/untagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  inline: '``suews schema migrate``'
+  kind: explanatory-mention
+  reason: Explains skipping, not an instruction.
+  sha256: 37958ab584a21f927da5b64b7ea0d310864e2c88c9796e0ae4ac314f595af7d2
+promise_edits: []
+choices: []
+combinations: []
+expected_delta:
+  remove:
+  - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+  set:
+    schema_version: 2026.6.dev12

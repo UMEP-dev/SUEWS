@@ -10,7 +10,8 @@ on:
       - .github/workflows/build-publish_to_pypi.yml
       - .github/actions/build-suews/action.yml
   schedule:
-    - cron: '30 5 * * 1'
+    # Nightly audit of dependency intake, startup hooks, and lowest-direct resolution
+    - cron: '30 5 * * *'
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -84,3 +85,72 @@ jobs:
               echo "pip-audit did not produce output.";
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  lowest-direct-resolution:
+    name: Verify lowest-direct resolution (Python 3.12-3.15)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.head_sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: false
+
+      - name: Check binary-wheel lowest-direct resolution (Python 3.12-3.14 across OSes)
+        run: >-
+          python scripts/security/check_lowest_direct_resolution.py
+          --python-version 3.12
+          --python-version 3.13
+          --python-version 3.14
+          --only-binary-all
+
+      - name: Check sdist-permitted lowest-direct resolution (Python 3.15 across OSes)
+        run: >-
+          python scripts/security/check_lowest_direct_resolution.py
+          --python-version 3.15
+
+      - name: Install lowest-direct core binary wheels (Python 3.12) and audit imports and startup hooks
+        run: |
+          python scripts/security/export_pyproject_requirements.py > requirements-core.txt
+          uv venv --python 3.12 .lowest-venv
+          uv pip install --python .lowest-venv/bin/python --resolution=lowest-direct --only-binary :all: -r requirements-core.txt
+          .lowest-venv/bin/python scripts/security/audit_python_startup.py
+          .lowest-venv/bin/python - <<'PY'
+          import importlib
+          import importlib.metadata as md
+
+          modules = [
+              ("pandas", "pandas"),
+              ("numpy", "numpy"),
+              ("scipy", "scipy"),
+              ("pydantic", "pydantic"),
+              ("pyyaml", "yaml"),
+              ("f90nml", "f90nml"),
+              ("matplotlib", "matplotlib"),
+              ("seaborn", "seaborn"),
+              ("chardet", "chardet"),
+              ("click", "click"),
+              ("pyarrow", "pyarrow"),
+              ("atmosp", "atmosp"),
+              ("scikit-learn", "sklearn"),
+              ("lmfit", "lmfit"),
+              ("cdsapi", "cdsapi"),
+              ("tzfpy", "tzfpy"),
+              ("pytz", "pytz"),
+              ("jsonschema", "jsonschema"),
+              ("rich", "rich"),
+              ("packaging", "packaging"),
+          ]
+          for dist, mod in modules:
+              importlib.import_module(mod)
+              print(f"  [OK] {dist:14s} == {md.version(dist)}")
+          PY

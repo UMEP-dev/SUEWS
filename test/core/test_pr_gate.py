@@ -32,6 +32,8 @@ _PATH_FILTERED_PRODUCERS = (
 
 _ALL_CONSOLIDATED_ENV_VARS = (
     "EVENT_NAME",
+    "LOWEST_DIRECT_DEPS_RESULT",
+    "LOWEST_DIRECT_DEPS_REQUIRED",
     *_UNCONDITIONAL_RESULT_VARS,
     *(var for pair in _PATH_FILTERED_PRODUCERS for var in pair),
 )
@@ -219,7 +221,29 @@ class GateTests(unittest.TestCase):
             "TEST_BRIDGE_RESULT",
             "CHECK_MARKERS_RESULT",
             "PHYSICS_LABEL_RESULT",
+            "LOWEST_DIRECT_DEPS_RESULT",
         ):
             with self.subTest(failing_var=var):
                 result = _run_pr_gate({**_stage2_green_env(), var: "failure"})
                 self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+    def test_lowest_direct_deps_gate_allows_skipped_and_fails_on_failure(self):
+        for required, status, expected_rc in (
+            ("false", "success", 0),
+            ("false", "skipped", 0),
+            ("false", "failure", 1),
+            ("false", "cancelled", 1),
+            ("true", "success", 0),
+            ("true", "skipped", 1),
+            ("true", "failure", 1),
+            ("true", "cancelled", 1),
+        ):
+            with self.subTest(required=required, status=status):
+                result = _run_pr_gate({
+                    **_stage2_green_env(),
+                    "LOWEST_DIRECT_DEPS_REQUIRED": required,
+                    "LOWEST_DIRECT_DEPS_RESULT": status,
+                })
+                self.assertEqual(
+                    result.returncode, expected_rc, result.stdout + result.stderr
+                )

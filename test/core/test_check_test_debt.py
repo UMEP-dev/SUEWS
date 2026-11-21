@@ -1,5 +1,6 @@
 """Test debt governance through the strict CLI and isolated malformed ledgers."""
 
+import ast
 import importlib.util
 import json
 from pathlib import Path
@@ -326,3 +327,105 @@ def test_duplicate_mapping_keys_fail(tree):
 def test_missing_ledger_is_not_an_empty_inventory(tree):
     (tree / checker.MUTATIONS).unlink()
     assert checker.main(["--root", str(tree), "--strict"]) == 1
+
+
+@pytest.mark.parametrize(
+    "name, keys, value",
+    [
+        ("scripts/lint/rust_optional_reads_baseline.json", (), []),
+        ("scripts/lint/rust_optional_reads_baseline.json", ("functions",), []),
+        (
+            "scripts/lint/rust_optional_reads_baseline.json",
+            ("functions", "example"),
+            2,
+        ),
+        ("scripts/lint/rust_optional_reads_baseline.json", ("totals",), []),
+        (checker.SCHEMA, ("schema_version",), 2),
+        (checker.SCHEMA, ("groups",), []),
+        (checker.SCHEMA, ("groups", "derived_run_bounds"), []),
+        (checker.SCHEMA, ("extra",), {"fields": []}),
+        (checker.SCHEMA, ("validator_warning_swallows",), []),
+        (checker.SCHEMA, ("doc_required_when_pending_from_yaml",), []),
+        (checker.MUTATIONS, ("entries",), {}),
+        (checker.MUTATIONS, ("entries", 0), []),
+        (checker.MUTATIONS, ("entries", 0, "anchors"), {}),
+        (checker.MUTATIONS, ("entries", 0, "mutations"), []),
+        ("test/contracts.yml", (), []),
+        ("test/contracts.yml", ("contracts",), {}),
+        ("test/contracts.yml", ("contracts", 0), []),
+        (checker.LINKS, (), []),
+        (checker.LINKS, ("mappings",), {}),
+        (checker.LINKS, ("mappings", 0), []),
+    ],
+)
+def test_wrong_container_types_are_reported(tree, capsys, name, keys, value):
+    path = tree / name
+    payload = checker._load(tree, name)
+    if keys:
+        parent = payload
+        for key in keys[:-1]:
+            parent = parent[key]
+        parent[keys[-1]] = value
+    else:
+        payload = value
+    # JSON is also valid YAML and preserves the deliberately malformed types.
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    assert checker.main(["--root", str(tree), "--report"]) == 0
+    output = capsys.readouterr().out
+    assert "## Errors" in output
+    diagnostic = output.split("## Errors", 1)[1]
+    assert name in diagnostic
+    assert (str(keys[0]) if keys else "<root>") in diagnostic
+    assert "must be a " in diagnostic
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    # An invalid JSON extractor must not prevent the later Rust extractor.
+    assert any(r["ledger"] == "J1" for r in checker.extract_records(tree)[0])
+
+
+def test_unrelated_repeated_assignments_are_allowed(tmp_path):
+    (tmp_path / "ledger.py").write_text(
+        'OTHER = []\nDEPENDENCY = {"old"}\n'
+        'INTERMEDIATE = DEPENDENCY\nLEDGER = INTERMEDIATE | {"new"}\n'
+        'OTHER: list = ["unrelated"]\n',
+        encoding="utf-8",
+    )
+    assert checker._python_values(tmp_path, "ledger.py", ("LEDGER",)) == {
+        "LEDGER": {"old", "new"}
+    }
+
+
+@pytest.mark.parametrize("name", ["LEDGER", "INTERMEDIATE", "DEPENDENCY"])
+@pytest.mark.parametrize("annotated", [False, True])
+def test_repeated_registered_names_and_dependencies_fail(tmp_path, name, annotated):
+    target = f"{name}: set" if annotated else name
+    (tmp_path / "ledger.py").write_text(
+        'DEPENDENCY = {"old"}\nINTERMEDIATE = DEPENDENCY\n'
+        f'LEDGER = INTERMEDIATE\n{target} = {{"new"}}\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=f"repeated constant {name}"):
+        checker._python_values(tmp_path, "ledger.py", ("LEDGER",))
+
+
+def test_suppression_sites_follow_source_order():
+    source = (
+        "def test_order():\n"
+        "    if condition:\n"
+        '        pytest.xfail("first")\n'
+        '    pytest.xfail("second"); pytest.xfail("third")\n'
+        "    if condition:\n"
+        "        marker = pytest.mark.xfail\n"
+        '    pytest.xfail("last")\n'
+    )
+    tree = ast.parse(source)
+    parents = {
+        child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)
+    }
+    sites = checker._suppression_nodes(tree, parents)
+    assert [(node.lineno, node.col_offset) for node in sites] == [
+        (3, 8),
+        (4, 4),
+        (4, 28),
+        (6, 17),
+        (7, 4),
+    ]

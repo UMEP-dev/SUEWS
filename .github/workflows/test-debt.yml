@@ -82,7 +82,10 @@ jobs:
                   k => Number.isSafeInteger(report.summary[k]) && report.summary[k] >= 0)) {
               throw new Error('Invalid or incomplete debt inventory');
             }
-            const rows = [['Issue', 'Owner state']];
+            const rows = [[
+              {data: 'Issue', header: true},
+              {data: 'Owner state', header: true}
+            ]];
             const failures = [];
             for (const number of [...new Set(report.issues)].sort((a, b) => a - b)) {
               let state;

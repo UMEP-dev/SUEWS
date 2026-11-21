@@ -56,8 +56,24 @@ UniqueLoader.add_constructor(
 def _load(root, name):
     source = (root / name).read_text(encoding="utf-8")
     if name.endswith(".json"):
-        return json.loads(source, object_pairs_hook=_unique_pairs)
-    return yaml.load(source, Loader=UniqueLoader)
+        payload = json.loads(source, object_pairs_hook=_unique_pairs)
+    else:
+        payload = yaml.load(source, Loader=UniqueLoader)
+    return _container(payload, dict, name, "<root>")
+
+
+def _container(value, expected, name, key):
+    if not isinstance(value, expected):
+        kind = "mapping" if expected is dict else "list"
+        raise ValueError(f"{name}: {key} must be a {kind}")
+    return value
+
+
+def _entries(payload, name):
+    entries = _container(payload["entries"], list, name, "entries")
+    for index, item in enumerate(entries):
+        _container(item, dict, name, f"entries/{index}")
+    return entries
 
 
 def _issue(value):
@@ -76,6 +92,7 @@ def _python_values(root, name, names):
     """Read named module constants using literals, names and set union only."""
     tree = ast.parse((root / name).read_text(encoding="utf-8"), filename=name)
     definitions = {}
+    repeated = set()
     initial_targets = set()
     for node in tree.body:
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -83,7 +100,7 @@ def _python_values(root, name, names):
             for target in targets:
                 if isinstance(target, ast.Name):
                     if target.id in definitions:
-                        raise ValueError(f"{name}: repeated constant {target.id}")
+                        repeated.add(target.id)
                     definitions[target.id] = node.value
                     initial_targets.add(target)
 
@@ -92,6 +109,8 @@ def _python_values(root, name, names):
     def evaluate(node, stack=()):
         if isinstance(node, ast.Name):
             dependencies.add(node.id)
+            if node.id in repeated:
+                raise ValueError(f"{name}: repeated constant {node.id}")
             if node.id in stack:
                 raise ValueError(f"{name}: cyclic constant {node.id}")
             return evaluate(definitions[node.id], (*stack, node.id))
@@ -111,7 +130,7 @@ def _python_values(root, name, names):
             return tuple(values) if isinstance(node, ast.Tuple) else values
         return ast.literal_eval(node)
 
-    values = {key: evaluate(definitions[key], (key,)) for key in names}
+    values = {key: evaluate(ast.Name(id=key)) for key in names}
     _reject_constant_mutations(tree, name, dependencies, initial_targets)
     return values
 
@@ -173,8 +192,11 @@ def _counter_records(root, name, section, ledger, attribute):
     payload = _load(root, name)
     totals = Counter()
     records = []
-    for group, counters in payload[section].items():
-        for kind, count in counters.items():
+    groups = _container(payload[section], dict, name, section)
+    for group, counters in groups.items():
+        for kind, count in _container(
+            counters, dict, name, f"{section}/{group}"
+        ).items():
             if type(count) is not int or count <= 0:
                 raise ValueError(f"{name}: non-positive counter {group}/{kind}")
             totals[kind] += count
@@ -187,7 +209,7 @@ def _counter_records(root, name, section, ledger, attribute):
                     **{attribute: group},
                 )
             )
-    if dict(totals) != payload["totals"]:
+    if dict(totals) != _container(payload["totals"], dict, name, "totals"):
         raise ValueError(f"{name}: totals disagree with counters")
     return records
 
@@ -195,7 +217,9 @@ def _counter_records(root, name, section, ledger, attribute):
 def _schema_records(root):
     payload = _load(root, SCHEMA)
     records = []
-    groups = payload["groups"]
+    groups = _container(payload["groups"], dict, SCHEMA, "groups")
+    for group, metadata in groups.items():
+        _container(metadata, dict, SCHEMA, f"groups/{group}")
     sections = set(payload) - {
         "description",
         "baseline_commit",
@@ -204,7 +228,9 @@ def _schema_records(root):
         "doc_required_when_pending_from_yaml",
     }
     for section in sorted(sections):
-        for category, fields in payload[section].items():
+        categories = _container(payload[section], dict, SCHEMA, section)
+        for category, fields in categories.items():
+            _container(fields, dict, SCHEMA, f"{section}/{category}")
             if category == "summary_counts":
                 continue
             for field, group in fields.items():
@@ -223,7 +249,7 @@ def _schema_records(root):
         "validator_warning_swallows",
         "doc_required_when_pending_from_yaml",
     ):
-        for field, value in payload[section].items():
+        for field, value in _container(payload[section], dict, SCHEMA, section).items():
             attributes = {"group": section}
             if isinstance(value, dict) and "owner_issue" in value:
                 attributes["owner_issue"] = value["owner_issue"]
@@ -248,13 +274,16 @@ def _json_records(root):
     )
     name = "scripts/lint/fortran_uninit_baseline.json"
     payload = _load(root, name)
-    if len(payload["entries"]) != payload["entry_count"]:
+    entries = _entries(payload, name)
+    if len(entries) != payload["entry_count"]:
         raise ValueError(f"{name}: entry_count disagrees with entries")
-    for item in payload["entries"]:
+    for item in entries:
         identifier = "::".join(item[key] for key in ("file", "proc", "var", "kind"))
         records.append(_record("U", identifier, name, file=item["file"]))
     records += _schema_records(root)
-    for item in _load(root, MUTATIONS)["entries"]:
+    for item in _entries(_load(root, MUTATIONS), MUTATIONS):
+        for key, expected in (("anchors", list), ("mutations", dict)):
+            _container(item[key], expected, MUTATIONS, f"entries/{item['id']}/{key}")
         records.append(
             _record(
                 "M",
@@ -266,7 +295,7 @@ def _json_records(root):
             )
         )
     name = "scripts/lint/fortran_snan_expected_failures.json"
-    for item in _load(root, name)["entries"]:
+    for item in _entries(_load(root, name), name):
         records.append(_record("N", item["node"], name, owner_issue=item["issue"]))
     return records
 
@@ -402,6 +431,34 @@ def _python_ledger_records(root):
     return records
 
 
+def _suppression_nodes(tree, parents):
+    """Return each Python suppression once, in source order."""
+    sites = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            is_xfail = (isinstance(func, ast.Attribute) and func.attr == "xfail") or (
+                isinstance(func, ast.Name) and func.id == "xfail"
+            )
+        else:
+            # Bare marks work in decorators, pytestmark containers and
+            # pytest.param(marks=...). The function of a call is already
+            # counted above, so never count that Attribute a second time.
+            parent = parents.get(node)
+            is_xfail = (
+                isinstance(node, ast.Attribute)
+                and node.attr == "xfail"
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "mark"
+                and isinstance(node.value.value, ast.Name)
+                and node.value.value.id == "pytest"
+                and not (isinstance(parent, ast.Call) and parent.func is node)
+            )
+        if is_xfail:
+            sites.append(node)
+    return sorted(sites, key=lambda node: (node.lineno, node.col_offset))
+
+
 def _suppression_records(root):
     records = []
     option_sites = []
@@ -417,28 +474,7 @@ def _suppression_records(root):
             for child in ast.iter_child_nodes(node)
         }
         counts = Counter()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func = node.func
-                is_xfail = (
-                    isinstance(func, ast.Attribute) and func.attr == "xfail"
-                ) or (isinstance(func, ast.Name) and func.id == "xfail")
-            else:
-                # Bare marks work in decorators, pytestmark containers and
-                # pytest.param(marks=...). The function of a call is already
-                # counted above, so never count that Attribute a second time.
-                parent = parents.get(node)
-                is_xfail = (
-                    isinstance(node, ast.Attribute)
-                    and node.attr == "xfail"
-                    and isinstance(node.value, ast.Attribute)
-                    and node.value.attr == "mark"
-                    and isinstance(node.value.value, ast.Name)
-                    and node.value.value.id == "pytest"
-                    and not (isinstance(parent, ast.Call) and parent.func is node)
-                )
-            if not is_xfail:
-                continue
+        for node in _suppression_nodes(tree, parents):
             scopes = []
             parent = parents.get(node)
             while parent is not None:
@@ -508,6 +544,7 @@ def _matches(record, selector):
 
 
 def _mapping_link(mapping, contracts):
+    _container(mapping, dict, LINKS, "mappings item")
     allowed = {
         "ledger",
         "id",
@@ -580,8 +617,10 @@ def link_records(
 
 def _load_links(root):
     contracts = set()
-    registry = _load(root, "test/contracts.yml")["contracts"]
-    for contract in registry:
+    name = "test/contracts.yml"
+    registry = _container(_load(root, name)["contracts"], list, name, "contracts")
+    for index, contract in enumerate(registry):
+        _container(contract, dict, name, f"contracts/{index}")
         identifier = contract["id"]
         if not isinstance(identifier, str) or not re.fullmatch(
             r"C-[A-Z0-9-]+", identifier
@@ -593,13 +632,10 @@ def _load_links(root):
     if not contracts:
         raise ValueError("empty contract registry")
     payload = _load(root, LINKS)
-    if (
-        type(payload["version"]) is not int
-        or payload["version"] != 1
-        or not isinstance(payload["mappings"], list)
-    ):
+    mappings = _container(payload["mappings"], list, LINKS, "mappings")
+    if type(payload["version"]) is not int or payload["version"] != 1:
         raise ValueError("unsupported link schema")
-    return contracts, payload["mappings"]
+    return contracts, mappings
 
 
 def check_tree(root: Path) -> dict:

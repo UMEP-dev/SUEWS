@@ -32,7 +32,8 @@ step:
 assertion:
   id: supy-installed
   after_step: install
-  expectation: explicit
+  expectation: inferred
+  reason: The install heading and command imply an installed distribution; no explicit promise sentence is given.
   sources:
     - path: docs/source/workflow.rst
       revision: dc9575f62593e9639bd97751a99ea47b5e089e6b

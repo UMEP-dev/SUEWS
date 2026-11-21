@@ -36,7 +36,7 @@ Each assertion has `id`, `after_step`, `sources`, `expectation` (`explicit` or
 `inferred`), `predicate`, `observation_method` and `status` (`executable` or
 `untested` with reason). Its sources quote the promise, not merely a nearby
 command. The predicate is a fixed machine check; missing scientific thresholds
-stay untested with a decision record. Observation code must not mutate reader
+stay untested with a decision record. Inferred assertions also require `reason`. Observation code must not mutate reader
 state. Keep preparation/logging mechanics in a separate `mechanics` array with
 purpose and exact code, so added infrastructure cannot masquerade as page text.
 [procedure: Principle 1]
@@ -55,6 +55,7 @@ finished_at: timestamp
 steps: [{id, command, cwd, started_at, finished_at,
          status: passed|failed|unrun|blocked|timeout,
          exit_code: integer|null, stdout: artefact, stderr: artefact,
+         inventories: {before: inventory, after: inventory},
          files: [{path, change: created|modified|deleted,
                   before_hash: string|null, after_hash: string|null,
                   before_copy: artefact|null, after_copy: artefact|null}],
@@ -65,8 +66,29 @@ unrun: [{step_id, reason}]
 recording_limits: []
 ```
 
-Capture before/after file inventories of the isolated home and work directories
-for each step, preserving created/changed contents and prior versions. Record
+## Execution mechanics
+
+Run Python blocks in one persistent Python process per journey, feeding blocks
+one at a time in page order into the same global namespace. Record interpreter
+identity, session ID and block boundaries; never restart silently after failure.
+Run each shell block in a fresh shell process. Record the shell executable and
+arguments, initial/final working directory and environment delta per block.
+Carry the working directory and exported environment forward where the page
+implies it, including into subsequent Python blocks; record that interpretation
+and its source. Shell-local functions and aliases do not persist across blocks.
+Precompile any state transfer as mechanics, never invent it during execution.
+[procedure: Principle 1]
+
+An `inventory` is `{work: [file], home: [file]}`, with each `file` containing
+`path` (root-relative), `size` (bytes) and `sha256` (file-byte digest). Sort by
+path; include hidden files recursively. Record symlinks separately with their
+link target; do not follow them outside the roots. Report unreadable files and
+other unobserved scope as recording limits, never omit them silently. Capture
+both inventories before and after each executed step, including failures and
+timeouts; unrun steps use null inventories with a reason. Preserve created or
+changed contents and prior versions. [procedure: Principle 1]
+
+ Record
 virtual-environment installation changes separately in the install step so they
 do not swamp reader outputs. List additional write locations and any unobserved
 scope. Retain full stdout/stderr as files; excerpts in the report point to them.

@@ -26,18 +26,19 @@ budget. Keep page revision, skill revision and installed software identity
 separate; a page revision does not prove which package was installed.
 [procedure: Principle 1]
 
-Select only `:doc-source: hand-written` pages. The labels are the #2162 dependency
-(delivered by #2181); until available at the selected revision, labels may be
-absent: fall back to the page list in #2162 and retain its retrieved version.
+Select only `:doc-source: hand-written` pages. The #2162 labels (delivered by #2181)
+are required. Only when a page has no label, report that absence as a finding,
+fall back to the page list in #2162 and retain its retrieved version.
 Record the classification source. Skip generated pages and regions, naming their
 code source as the follow-up target. Inspect includes: a hand-written wrapper
 does not turn generated text into hand-written instructions. Contradictory or
 unresolved classification is blocked, not guessed. [procedure: Principle 1]
 
 Hand CLI help and docstrings to the #2168 code-text checker (#2182), using its
-own documented interface at an identified revision. Discover it from that issue
-and verify availability before invocation; if unavailable, record a blocked
-handoff, not an invented command or path. Preserve its unsupported/needs-reading
+own documented interface at an identified revision. Its planned path is
+`scripts/lint/check_code_text.py` (not yet present at this skill revision). Until
+it is on master, report the code-text part as `not run`. Verify availability
+before invocation and record a blocker if unavailable at the selected revision. Preserve its unsupported/needs-reading
 statuses. Commands in a hand-written page still belong to that page's journey.
 [procedure: Principle 1]
 
@@ -52,12 +53,17 @@ pages. Rank agent runs by this evidence; triage is not execution or a finding.
 
 ## 2. Reuse or compile
 
-Compile-instruction version: `v13.1`. Change it whenever the compilation rules
-in this skill or its references change. The cache key is the tuple
+Compile-instruction version: `v13.2`. Change it whenever the compilation rules
+in this skill or its references change. [procedure: Principle 1]
+
+The cache key is the tuple
 `(page_source_hash, compile_instruction_version, model_id)`. Keep compiled runs
-only with run records, never as committed test inputs. Use the gitignored
-`.context/exercise-docs-out` for scratch and a single running report; preserve
-completed records before scratch is removed. [decision: software maintainer, 2026-11-21]
+only with run records, never as committed test inputs.
+[decision: software maintainer, 2026-11-21]
+
+Use the gitignored `.context/exercise-docs-out` (created on demand, not a tracked
+repository directory) for scratch and a single running report; preserve completed
+records before scratch is removed. [procedure: Principle 1]
 
 Compute `page_source_hash` as SHA-256 of the source snapshot: the page and any
 included or explicitly directed prerequisite text. Use sorted source paths and
@@ -137,14 +143,19 @@ run and diagnose; during the machine run no model judges results or supplies a
 next command. A failed attempt ends before diagnosis and any recompilation.
 [decision: software maintainer, 2026-11-21]
 
+Find a remote build route in the repository's contributor or CI documentation
+if documented there; otherwise the route is site-specific. Record the selected
+route and commands in the run record. [procedure: Principle 1]
+
 Start every journey attempt with a new virtual environment, empty home and empty
 work directory. Disable inherited user packages, editable checkouts and import
 paths. Keep the evidence directory outside the reader's work/home; record the
 preparation commands, Python/platform and isolation checks. Then install SUEWS
 using the page's own install line, or the install instruction the guide directs
-its reader to use, cited verbatim. Do not preinstall SUEWS or substitute a known
-working wheel. If no install route is documented, report the missing prerequisite.
-[decision: software maintainer, 2026-11-21]
+its reader to use, cited verbatim. [decision: software maintainer, 2026-11-21]
+
+Do not preinstall SUEWS or substitute a known working wheel. If no install route
+is documented, report the missing prerequisite. [procedure: Principle 1]
 
 Record actual package/dependency versions, distribution hashes where available,
 inputs and installation output. Do not claim the page revision is the software
@@ -154,7 +165,9 @@ change outcomes. Preserve resolved inputs for comparison and report such drift
 without silently pinning or rewriting the page's install command.
 [procedure: Principle 1]
 
-Run the frozen script mechanically. For every step retain its command, exit code,
+Run the frozen script mechanically using the persistent Python process, fresh
+shells and per-step inventories defined in record-format.md (Execution mechanics).
+For every step retain its command, exit code,
 stdout/stderr, and files created or changed, plus assertion outcomes. Preserve
 non-zero exits, timeouts, the first failed assertion and all unrun dependent
 steps. Record deleted files too so later consumers can be explained. Retain the

@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 import sys
 
 import pytest
@@ -11,8 +12,16 @@ pytest.importorskip(
     reason="The runner's source parser needs the optional docs dependency docutils",
 )
 
-from scripts.suews.guide_journeys.record import new_record, write
-from scripts.suews.guide_journeys.runner import run_steps
+# Script packages are not installed in the wheel; support the pytest console entry point.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.suews.guide_journeys.record import (  # noqa: E402 - source script imports follow path setup
+    new_record,
+    write,
+)
+from scripts.suews.guide_journeys.runner import run_steps  # noqa: E402
 
 pytestmark = pytest.mark.api
 

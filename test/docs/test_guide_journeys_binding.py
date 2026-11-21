@@ -1,6 +1,7 @@
 """Source-binding contracts for the migration-guide pilot."""
 
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -9,13 +10,21 @@ pytest.importorskip(
     reason="Wheel test lanes do not install the docs extra containing docutils",
 )
 
-from scripts.suews.guide_journeys.extractor import (
+# Script packages are not installed in the wheel; support the pytest console entry point.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.suews.guide_journeys.extractor import (  # noqa: E402 - source script imports follow path setup
     Document,
     digest,
     python_spans,
     shell_spans,
 )
-from scripts.suews.guide_journeys.manifest import check, load
+from scripts.suews.guide_journeys.manifest import (  # noqa: E402 - source script imports follow path setup
+    check,
+    load,
+)
 
 pytestmark = pytest.mark.api
 ROOT = Path(__file__).resolve().parents[2]

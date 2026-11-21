@@ -7,12 +7,14 @@ from pathlib import Path
 import subprocess
 import time
 
+from . import behaviour, inventory
 from .environment import execute, isolated_python, prepare
 from .extractor import Document, shell_spans
 from .manifest import check, load
 from .oracle import evaluate, require_provenance, sha256, snapshot
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
+from .summary import summarise
 
 FORCING_SETUP = """
 from importlib.resources import files
@@ -137,6 +139,15 @@ def setup_inputs(root: Path, manifest: dict, journey: dict, work: Path) -> dict:
     return inputs
 
 
+def inspect_installed(work: Path, env: dict) -> dict:
+    """Gather the installed CLI inventory and independent migration-effect audit."""
+    return {
+        "inventory": isolated_python(inventory.inspection_program(), work, env),
+        "schema_info": execute("suews schema info", work, env),
+        "behaviour_audit": isolated_python(behaviour.inspection_program(), work, env),
+    }
+
+
 def run_journey(
     root: Path,
     manifest: dict,
@@ -181,6 +192,8 @@ def run_journey(
         work = args.output / journey["id"] / "work"
         record["input_sha256s"] = setup_inputs(root, manifest, journey, work)
         record["forcing_setup"] = isolated_python(FORCING_SETUP, work, env)
+        if journey["id"] == "tagged-dev11":
+            record.update(inspect_installed(work, env))
         record["input_sha256s"]["Kc_2012_data_60.txt"] = record["forcing_setup"][
             "sha256"
         ]
@@ -277,8 +290,22 @@ def main() -> int:
             record = run_journey(root, manifest, document, journey, args)
             records.append(record)
             print(f"{journey['id']}: {record['status']}", flush=True)
-    print(json.dumps({r["journey_id"]: r["status"] for r in records}, indent=2))
-    return any(not r.get("accepted", False) for r in records)
+    summary = summarise(manifest, records, stale)
+    write(args.output / "summary.json", summary)
+    print(json.dumps(summary, indent=2, ensure_ascii=True))
+    inventory_stale = any(
+        domain["option_names"]["stale"]
+        or domain["option_names"]["missed"]
+        or any(values["stale"] for values in domain["enumerated_values"].values())
+        for domain in summary.get("inventory", {}).values()
+        if isinstance(domain, dict)
+    )
+    return (
+        any(not r.get("accepted", False) for r in records)
+        or inventory_stale
+        or bool(summary.get("schema_versions", {}).get("unsupported"))
+        or summary.get("behaviour_audit", {}).get("passed") is False
+    )
 
 
 if __name__ == "__main__":

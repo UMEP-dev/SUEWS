@@ -1,0 +1,809 @@
+format: 1
+installation:
+  guide: docs/source/contributing/schema/schema_cli.rst
+  title: Installation
+  block: 0
+  command: 0
+  span_type: shell
+  sha256: 79ebf6967110fc30452238cf37f05e0be674daa6979deab36377d09b154520d2
+guide: docs/source/inputs/transition_guide.rst
+title: Runoff from paved and building surfaces in schema 2026.6.dev12
+envelope:
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 787f677ba621cf2e5724ea16a5f9b54f1c69eebc5f4494d1e93d1fe979fdf86b
+steps:
+- id: migrate
+  span_type: shell
+  anchor: transition_guide/tagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 0
+  consumes:
+  - site.yml
+  conditions:
+  - tagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 1fce43af118bce1960b0efd380421429d2418f38b3ce60aecbc8995108452a9f
+- id: validate-migrated
+  span_type: shell
+  anchor: transition_guide/tagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 1
+  consumes:
+  - site.migrated.yml
+  - Kc_2012_data_60.txt
+  conditions:
+  - tagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 3f3eb31cdf3bb159aaeefd0935e196074ec01f844707d8b70f879a25c6fff1d4
+- id: validate-original-inline
+  span_type: shell
+  anchor: transition_guide/untagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  inline: '``suews validate -p C --dry-run site.yml
+
+    --format json``'
+  consumes:
+  - site.yml
+  - Kc_2012_data_60.txt
+  conditions:
+  - untagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 0192ea8b325d622b56205020cf3c1c9c9d62629d58f2796080d6af3750d13ca2
+- id: convert
+  span_type: shell
+  anchor: transition_guide/untagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 0
+  consumes:
+  - site.yml
+  conditions:
+  - untagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 07564c585a47b82fa806925e1b15f4eb72e5c94f2182b2a65c30521f7180d74f
+- id: validate-converted
+  span_type: shell
+  anchor: transition_guide/untagged-commands
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 1
+  consumes:
+  - site.migrated.yml
+  - Kc_2012_data_60.txt
+  conditions:
+  - untagged-condition
+  - directory
+  - delta
+  - recovery
+  sha256: 3f3eb31cdf3bb159aaeefd0935e196074ec01f844707d8b70f879a25c6fff1d4
+- id: validate-current
+  span_type: shell
+  anchor: transition_guide/current-command
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  command: 0
+  consumes:
+  - site.yml
+  - Kc_2012_data_60.txt
+  conditions:
+  - current-condition
+  - directory
+  - delta
+  - recovery
+  sha256: debe7bf5b826d62c2781e9926104f25438e5463d762c15ec19f8f1a80afb2634
+conditions:
+- id: delta
+  anchor: transition_guide/delta
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 529e7241eafb9cadae0756afd137761755cfd2a8496ebd9bf5617de601e6ab60
+- id: directory
+  anchor: transition_guide/directory
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 10bdc3cf2de22b8ddd26fe6bbfeb07c4bf429c43038499e5a06c604ab6c1269a
+- id: tagged-condition
+  anchor: transition_guide/tagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: aca8554e95c7b4069394f6049abc7ef09f92fc90e458b246765e5e5f54194158
+- id: untagged-condition
+  anchor: transition_guide/untagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: 9c47d5f2c50c7c2010c9e3a027d4a1104fb53a13152e2c79e9581f2e9dc74933
+- id: current-condition
+  anchor: transition_guide/current-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: cfb94ea7c2e3c3945b34f5e7a2116dda125b43cedf8c7284459d2648f3bdeee6
+- id: recovery
+  anchor: transition_guide/recovery
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  sha256: e71d24efd2f906421429cb91a78a5a0bdf1d16cc8f0f3db83ee8f64e78e1add5
+exclusions:
+- id: yaml-example
+  anchor: transition_guide/example
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  kind: example-data
+  reason: Three fields of an illustrative routing block; not a command.
+  sha256: 16b19a005be6405bd3bd4be8b16f6a03811916c44b40f96342c17b40b307e6af
+- id: migrate-mention
+  span_type: shell
+  anchor: transition_guide/untagged-condition
+  reviewed_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  inline: '``suews schema migrate``'
+  kind: explanatory-mention
+  reason: Explains skipping, not an instruction.
+  sha256: 37958ab584a21f927da5b64b7ea0d310864e2c88c9796e0ae4ac314f595af7d2
+promise_edits: []
+choices:
+- id: tagged-dev11
+  witness:
+    steps: [migrate]
+    condition: {kind: fixture, path: site.yml, fixture: tagged-dev11}
+  kind: named alternative
+  source_anchor: transition_guide/tagged-condition
+  values:
+  - tagged-dev11
+  journeys:
+  - tagged-dev11
+- id: untagged-known
+  witness:
+    steps: [convert]
+    condition: {kind: fixture, path: site.yml, fixture: untagged-dev11}
+  kind: named alternative
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - untagged-dev11
+  journeys:
+  - untagged-known
+- id: untagged-unknown
+  witness:
+    steps: [validate-original-inline]
+    condition: {kind: fixture, path: site.yml, fixture: untagged-dev11}
+  kind: named alternative
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - untagged-dev11
+  journeys:
+  - untagged-unknown
+- id: current-dev12
+  witness:
+    steps: [validate-current]
+    condition: {kind: fixture, path: site.yml, fixture: dev12}
+  kind: named alternative
+  source_anchor: transition_guide/current-condition
+  values:
+  - dev12
+  journeys:
+  - current-dev12
+- id: recovery-nonzero
+  witness:
+    steps: [migrate]
+    condition: {kind: fixture, path: site.yml, fixture: nonzero-dev11}
+  kind: failure recovery
+  source_anchor: transition_guide/recovery
+  values:
+  - nonzero-dev11
+  journeys:
+  - recovery-nonzero
+- id: recovery-zero-area
+  witness:
+    steps: [validate-current]
+    condition: {kind: fixture, path: site.yml, fixture: zero-area-dev12}
+  kind: failure recovery
+  source_anchor: transition_guide/recovery
+  values:
+  - zero-area-dev12
+  journeys:
+  - recovery-zero-area
+- id: earlier-clean
+  witness:
+    steps: [migrate]
+    condition: {kind: directory, path: site.migrated.yml, present: false}
+  historical: true
+  kind: directory state
+  source_document: test/fixtures/guide_journeys/earlier-guide.rst
+  values:
+  - clean directory
+  journeys:
+  - earlier-clean
+- id: earlier-stale
+  witness:
+    steps: [migrate]
+    condition: {kind: directory, path: site.migrated.yml, present: true}
+  historical: true
+  kind: directory state
+  source_document: test/fixtures/guide_journeys/earlier-guide.rst
+  values:
+  - stale output present
+  journeys:
+  - earlier-stale
+- id: pipeline-C
+  witness:
+    steps: [validate-migrated, validate-converted, validate-original-inline, validate-current]
+    condition: {kind: option, names: [--pipeline, -p], value: C}
+  kind: discrete
+  source_anchor: transition_guide/tagged-commands
+  values:
+  - C
+  journeys:
+  - tagged-dev11
+  - untagged-known
+  - untagged-unknown
+  - current-dev12
+  - recovery-zero-area
+  - earlier-clean
+  - earlier-stale
+- id: format-json
+  witness:
+    steps: [validate-migrated, validate-converted, validate-original-inline, validate-current]
+    condition: {kind: option, names: [--format], value: json}
+  kind: discrete
+  source_anchor: transition_guide/tagged-commands
+  values:
+  - json
+  journeys:
+  - tagged-dev11
+  - untagged-known
+  - untagged-unknown
+  - current-dev12
+  - recovery-zero-area
+  - earlier-clean
+  - earlier-stale
+- id: quoted-runoff
+  kind: named alternative
+  source_anchor: transition_guide/example
+  values:
+  - 8.416 mm
+  journeys: []
+  reason: The quoted calculation has no published complete input set.
+- id: other-source-version
+  kind: unrestricted
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - actual source version differs from example
+  journeys: []
+- id: default-current-target
+  witness:
+    steps: [convert]
+    condition: {kind: omitted_option, names: [--target-version]}
+  kind: omitted value
+  source_anchor: transition_guide/untagged-commands
+  values:
+  - installed current schema
+  journeys:
+  - untagged-known
+- id: no-version-indicator
+  witness:
+    steps: [convert, validate-original-inline, migrate]
+    condition: {kind: fixture, path: site.yml, fixture: untagged-dev11}
+  kind: omitted value
+  source_anchor: transition_guide/untagged-condition
+  values:
+  - no schema_version, version or config_version
+  journeys:
+  - untagged-known
+  - untagged-unknown
+  - earlier-clean
+  - earlier-stale
+- id: building-to-soilstore
+  kind: named alternative
+  source_anchor: transition_guide/delta
+  values: [building to_soilstore zero]
+  journeys: []
+- id: stale-output
+  kind: directory state
+  source_anchor: transition_guide/directory
+  values: [stale output present]
+  journeys: []
+combinations:
+- id: corrected-untagged-stale-output
+  choices: [no-version-indicator, stale-output]
+  journeys: []
+  reason: No corrected journey starts with a stale output.
+- id: untagged-stale-output
+  historical: true
+  source_document: test/fixtures/guide_journeys/earlier-guide.rst
+  choices:
+  - no-version-indicator
+  - earlier-stale
+  journeys:
+  - earlier-stale
+- id: wrong-explicit-origin
+  choices:
+  - untagged-known
+  - other-source-version
+  journeys: []
+  reason: Known source deliberately mislabelled is outside the corrected guide paths;
+    retained as untested.
+expected_delta:
+  remove:
+  - sites/0/properties/land_cover/paved/waterdist/to_soilstore
+  set:
+    schema_version: 2026.6.dev12
+fixtures:
+  tagged-dev11:
+    path: test/fixtures/guide_journeys/tagged-dev11.yml
+    sha256: 32ee276339e7501939f724e72d244053bcd60cf27944375b23cd69306d521c85
+  untagged-dev11:
+    base: tagged-dev11
+    replacements:
+    - before: "schema_version: '2026.6.dev11'\n"
+      after: ""
+    sha256: 51e71e9b5a3b236f2ffd5a10ae061346ce83b6e67f964d782df7159a81135acf
+  dev12:
+    path: test/fixtures/guide_journeys/dev12.yml
+    sha256: 90a6cb94829c95227546f1e6878f5bc41d5f3cee8f1be2969cc22a5a4fb8954c
+  nonzero-dev11:
+    base: tagged-dev11
+    replacements:
+    - before: "          to_soilstore: {value: 0.0}\n"
+      after: "          to_soilstore: {value: 0.1}\n"
+    sha256: 03acb6d9f0222be13b8b44eabf264f3e509cb477767bd7097718bbd621ad3cbb
+  zero-area-dev12:
+    base: dev12
+    replacements:
+    - before: "        waterdist:\n          to_paved:\n            value: 0.0\n          to_bldgs:\n            value: 0.0\n          to_dectr:\n            value: 0.0\n          to_evetr:\n            value: 0.0\n          to_grass:\n            value: 0.0\n          to_water:\n            value: 0.0\n          to_soilstore:\n            value: 1.0\n"
+      after: "        waterdist: {}\n"
+    sha256: 02c10251b6a0b83961bf6971728510a342fb561b250155e13943b3df51468fe1
+  stale-dev12:
+    base: dev12
+    replacements:
+    - before: "name: sample_config\n"
+      after: "name: unrelated_archived_run\n"
+    sha256: 10e2aa91e3a7eeb7e1f1dd3978479d4f77d0b497478dcf1ec135bb5fb93637ec
+  positive-area-dev12:
+    base: zero-area-dev12
+    replacements:
+    - before: "      bsoil:\n        sfr:\n          value: 0.0\n"
+      after: "      bsoil:\n        sfr:\n          value: 0.01\n"
+    - before: "      grass:\n        sfr:\n          value: 0.03\n"
+      after: "      grass:\n        sfr:\n          value: 0.02\n"
+    sha256: c1272713cf9e5776f64f5692845e8e95d767110afc763397754be8d26dc6c7d9
+historical:
+  path: test/fixtures/guide_journeys/earlier-guide.rst
+  sha256: 6028e7ede6a7990671b2b698ccb64826e2c75a53a4deed3a512cbffc9f21f9a1
+  revision: bd584e0d2c8d709a09453960a3bb85522af28da0
+  source_first_line: 222
+  block: 1
+journeys:
+- id: tagged-dev11
+  skips:
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+    validate-current: current-condition
+  inputs:
+    site.yml: tagged-dev11
+  steps:
+  - id: migrate
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta: expected_delta
+    - kind: unchanged
+      path: site.yml
+  - id: validate-migrated
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta: expected_delta
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - tagged-dev11
+- id: untagged-known
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    validate-original-inline: untagged-condition
+    validate-current: current-condition
+  inputs:
+    site.yml: untagged-dev11
+  steps:
+  - id: convert
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta: expected_delta
+    - kind: unchanged
+      path: site.yml
+  - id: validate-converted
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta: expected_delta
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - untagged-known
+- id: untagged-unknown
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+    validate-current: current-condition
+  inputs:
+    site.yml: untagged-dev11
+  steps:
+  - id: validate-original-inline
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  - id: unknown-skip-probe
+    probe_kind: required
+    promises:
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+    - kind: diagnostic
+      stream: stdout
+      pattern: Skipped
+    probe: suews schema migrate site.yml --target-version 2026.6.dev12
+    consumes:
+    - site.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - untagged-unknown
+- id: current-dev12
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+  inputs:
+    site.yml: dev12
+  steps:
+  - id: validate-current
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  - id: repeat-probe
+    probe_kind: required
+    promises:
+    - kind: unchanged
+      path: .
+    - kind: absent
+      path: site.migrated.yml
+    - kind: diagnostic
+      stream: stdout
+      pattern: Skipped
+    probe: suews schema migrate site.yml --target-version 2026.6.dev12
+    consumes:
+    - site.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - current-dev12
+- id: recovery-nonzero
+  skips:
+    validate-migrated: recovery
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+    validate-current: current-condition
+  inputs:
+    site.yml: nonzero-dev11
+  steps:
+  - id: migrate
+    promises:
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+    - kind: diagnostic
+      stream: stdout
+      pattern: 'Cannot migrate configuration to schema\s+2026\.6\.dev12:[\s\u2502]*sites\[0\] \([^)]*\)[\s\u2502]*properties\.land_cover\.paved\.waterdist\.to_soilstore:'
+    exit_status: 1
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - recovery-nonzero
+- id: recovery-zero-area
+  skips:
+    migrate: tagged-condition
+    validate-migrated: tagged-condition
+    validate-original-inline: untagged-condition
+    convert: untagged-condition
+    validate-converted: untagged-condition
+  inputs:
+    site.yml: zero-area-dev12
+  steps:
+  - id: validate-current
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices:
+  - recovery-zero-area
+- id: earlier-clean
+  inputs:
+    site.yml: untagged-dev11
+  steps:
+  - id: migrate
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta: expected_delta
+    - kind: unchanged
+      path: site.yml
+    command_index: 0
+    consumes:
+    - site.yml
+  - id: validate-migrated
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    command_index: 1
+    consumes:
+    - site.migrated.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta: expected_delta
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - earlier-clean
+  historical: true
+  expected_failure:
+    step: migrate
+    promise: creates
+    consumer: validate-migrated
+    path: site.migrated.yml
+- id: earlier-stale
+  inputs:
+    site.yml: untagged-dev11
+    site.migrated.yml: stale-dev12
+  steps:
+  - id: migrate
+    promises:
+    - kind: creates
+      path: site.migrated.yml
+      source: site.yml
+      delta: expected_delta
+    - kind: unchanged
+      path: site.yml
+    command_index: 0
+    consumes:
+    - site.yml
+  - id: validate-migrated
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: true
+    - kind: json
+      pointer: /errors
+      expected: []
+    - kind: unchanged
+      path: site.yml
+    command_index: 1
+    consumes:
+    - site.migrated.yml
+  outcomes:
+  - kind: creates
+    path: site.migrated.yml
+    source: site.yml
+    delta: expected_delta
+  - kind: unchanged
+    path: site.yml
+  choices:
+  - earlier-stale
+  historical: true
+  expected_failure:
+    step: migrate
+    promise: creates
+    consumer: validate-migrated
+    path: site.migrated.yml
+  plant_stale: site.migrated.yml
+- id: control-positive-area
+  label: Negative control for zero-area recovery
+  inputs:
+    site.yml: positive-area-dev12
+  steps:
+  - id: positive-area-validation-probe
+    probe_kind: diagnostic
+    probe: suews validate -p C --dry-run site.yml --format json
+    consumes: [site.yml, Kc_2012_data_60.txt]
+    exit_status: 1
+    promises:
+    - kind: json
+      pointer: /data/is_valid
+      expected: false
+    - kind: json
+      pointer: /errors/0/code_name
+      expected: VALIDATION_FAILED
+    - kind: diagnostic
+      stream: stdout
+      pattern: 'Invalid surface configuration for bsoil: Missing required fields to_paved, to_bldgs, to_dectr, to_evetr, to_grass, to_water, to_soilstore for bsoil'
+    - kind: unchanged
+      path: site.yml
+    - kind: absent
+      path: site.migrated.yml
+  outcomes:
+  - kind: unchanged
+    path: site.yml
+  - kind: absent
+    path: site.migrated.yml
+  choices: []
+inventory:
+  migrate:
+    documented:
+      --target-version:
+      - 2026.6.dev12
+    excluded:
+      --output-dir: Pilot keeps copies beside inputs.
+      --dry-run: Pilot requires an actual migration.
+      --help: Discovery, not a guide instruction.
+  validate:
+    documented:
+      --pipeline:
+      - C
+      --dry-run: []
+      --format:
+      - json
+    excluded:
+      --mode: Uses installed public-mode default.
+      --schema-version: Uses installed schema default.
+      --forcing: Uses installed on default.
+      --science-fixes: Phase B is outside this pilot.
+      --help: Discovery, not a guide instruction.
+  convert:
+    documented:
+      --input:
+      - site.yml
+      --output:
+      - site.migrated.yml
+      --from:
+      - 2026.6.dev11
+    excluded:
+      --debug-dir: Table and dataframe conversion only.
+      --no-profile-validation: Table and dataframe conversion only.
+      --format: Uses the installed text default.
+      --help: Discovery, not a guide instruction.
+      --forcing: Coordinated soil-forcing conversion is outside this routing pilot.
+      --forcing-output: Coordinated soil-forcing conversion is outside this routing
+        pilot.
+      --manifest: Coordinated soil-forcing conversion is outside this routing pilot.
+      --source-contract: Coordinated soil-forcing conversion is outside this routing
+        pilot.
+      --source-unit: Coordinated soil-forcing conversion is outside this routing pilot.
+      --layer-top: Coordinated soil-forcing conversion is outside this routing pilot.
+      --layer-depth: Coordinated soil-forcing conversion is outside this routing pilot.
+      --legacy-depth-is-thickness: Coordinated soil-forcing conversion is outside
+        this routing pilot.
+      --drop-legacy: Coordinated soil-forcing conversion is outside this routing pilot.
+      --dry-run: Coordinated soil-forcing conversion is outside this routing pilot.
+argument_exclusions:
+  migrate:files: Several files are supported; this pilot follows one site file.
+  validate:files: Several files are supported; this pilot validates one path.
+schema_versions:
+- 2026.6.dev11
+- 2026.6.dev12
+cli_inspection:
+  journey: tagged-dev11
+  commands:
+  - suews schema migrate
+  - suews validate
+  - suews convert
+behaviour_audit:
+  journey: tagged-dev11
+  command_step: migrate
+  output: site.migrated.yml
+  source_revision: 590d3db0355f18d7a9337ac1117e715189703974
+  source: site.yml
+  from_version: 2026.6.dev11
+  to_version: 2026.6.dev12
+  partition:
+    explicit_older:
+      indicator: {schema_version: 2026.6.dev11}
+      expected: 2026.6.dev11
+      migration_coverage: journeys
+    explicit_current:
+      indicator: {schema_version: 2026.6.dev12}
+      expected: 2026.6.dev12
+      migration_coverage: journeys
+    explicit_newer:
+      indicator: {schema_version: '2099.1'}
+      expected: '2099.1'
+      migration_coverage: missed
+    legacy_version:
+      indicator: {version: old}
+      expected: '0.0'
+      migration_coverage: missed
+    legacy_config_version:
+      indicator: {config_version: old}
+      expected: '0.0'
+      migration_coverage: missed
+    no_indicator:
+      indicator: {}
+      expected: 2026.6.dev12
+      migration_coverage: journeys
+  undocumented_effects:
+  - name: self-routing numeric zeros
+    surfaces: [paved, bldgs, evetr, dectr, grass, bsoil]
+    field: 'to_{surface}'
+    value: {value: 0.0, ref: {desc: audit provenance, ID: audit}}
+  - name: pervious to_runoff numeric zeros
+    surfaces: [evetr, dectr, grass, bsoil]
+    field: to_runoff
+    value: 0.0
+forcing_resource:
+  package: supy
+  path: sample_data/Kc_2012_data_60.txt
+  target: Kc_2012_data_60.txt
+schema_enumerations:
+  surface: [paved, bldgs]

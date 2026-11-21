@@ -21,8 +21,6 @@ def execute(command: str, cwd: Path, env: dict, timeout: int = 180) -> dict:
     args = list(lexer)
     if not args or any(any(c in token for c in ";&|<>()`$") for token in args):
         raise ValueError(f"Undeclared shell syntax: {command}")
-    if args[0] == "python":
-        args.insert(1, "-I")
     started = time.monotonic()
     try:
         result = subprocess.run(

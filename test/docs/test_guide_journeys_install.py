@@ -80,3 +80,18 @@ def test_install_cannot_escape_wheelhouse(tmp_path, command):
     """An unsupported installer line is a finding, never silently rewritten."""
     with pytest.raises(ValueError, match=r"install|wheelhouse"):
         environment.install(command, tmp_path, {})
+
+
+@pytest.mark.parametrize("launcher", ["pip", "python -m pip", "python3 -m pip"])
+def test_install_does_not_insert_interpreter_arguments(tmp_path, launcher):
+    """The installer receives the documented argv without an extra Python flag."""
+    executable = tmp_path / launcher.split()[0]
+    executable.write_text('#!/bin/sh\nprintf "%s\\n" "$*"\n', encoding="utf-8")
+    executable.chmod(0o755)
+    command = f"{launcher} install supy"
+    env = dict(
+        os.environ, PATH=str(tmp_path), PIP_NO_INDEX="1", PIP_FIND_LINKS="wheelhouse"
+    )
+    result = environment.install(command, tmp_path, env)
+    assert result["argv"] == command.split()
+    assert result["stdout"].strip() == " ".join(command.split()[1:])

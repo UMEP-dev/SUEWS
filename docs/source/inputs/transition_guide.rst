@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _transition_guide:
 
 Transitioning to YAML-based Configuration

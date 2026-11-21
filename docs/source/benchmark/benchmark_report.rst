@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _benchmark_report:
 
 Benchmark Report

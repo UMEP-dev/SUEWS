@@ -272,6 +272,7 @@ if sys.version_info >= (3, 13):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "doc_source",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",
@@ -300,6 +301,15 @@ extensions = [
     # sphinx-gallery: use load_style (CSS only) for pre-built, gen_gallery (full) otherwise
     "sphinx_gallery.load_style" if _PREBUILT_GALLERY else "sphinx_gallery.gen_gallery",
 ]
+
+# This declaration owns tool-output provenance, overriding any copied fields.
+# Keep it literal for scripts/lint/check_doc_sources.py to read without Sphinx.
+# A trailing slash declares a directory; other keys name one exact source file.
+doc_source_tool_outputs = {
+    "auto_examples/": "sphinx_gallery.gen_gallery",
+    "api/_autosummary/": "sphinx.ext.autosummary",
+    "sg_execution_times.rst": "sphinx_gallery.gen_gallery",
+}
 
 # email_automode = True
 

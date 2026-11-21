@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _api_utility_functions:
 
 Utility Functions

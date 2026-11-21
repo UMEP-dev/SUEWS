@@ -1,5 +1,6 @@
 import math
 import numbers
+from collections.abc import Mapping
 from typing import Optional, Union, List, Literal, Type
 import numpy as np
 import pandas as pd
@@ -18,9 +19,44 @@ from .type import (
     FlexibleRefValue,
     df_from_cols,
     merge_df_state_cols,
+    reject_bool_input,
     SurfaceType,
 )
 from ..._env import logger_supy
+
+
+def validate_sdd_id(value: object, path: str = "sdd_id") -> None:
+    """Require finite senescence degree days without changing value or source form.
+
+    Parameters
+    ----------
+    value : object
+        Scalar, reference wrapper or raw value mapping, including live edits.
+    path : str
+        Field location to include in an error at a configuration handoff.
+
+    Raises
+    ------
+    ValueError
+        If the supplied value is not a finite number.
+    """
+    if isinstance(value, Mapping):
+        value = value.get("value")
+    if isinstance(value, RefValue):
+        value = value.value
+    if isinstance(value, (bool, np.bool_)):
+        finite = False
+    else:
+        try:
+            finite = math.isfinite(value)
+        except (TypeError, ValueError, OverflowError):
+            finite = False
+    if not finite:
+        raise ValueError(
+            f"{path} must be a finite number in K d. Supply the initial value "
+            "from this vegetation type's site or restart record. Omit the field "
+            "only when initialising it at zero is intended."
+        )
 
 
 class SurfaceInitialState(DataModelBase):
@@ -366,7 +402,11 @@ class InitialStateVeg(SurfaceInitialState):
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
-        description="Senescence degree days at the start of the model run",
+        description=(
+            "Senescence degree days at the start of the model run. Must be finite; "
+            "negative, zero and positive values are permitted. Omit to use 0. "
+            "NaN, either infinity and null are not accepted."
+        ),
         json_schema_extra={
             "unit": "K d",
             "display_name": "Initial Senescence Degree Days",
@@ -395,6 +435,27 @@ class InitialStateVeg(SurfaceInitialState):
             )
         return values
 
+    @field_validator("sdd_id", mode="before")
+    @classmethod
+    def _reject_bool_sdd_id(cls, value):
+        if isinstance(value, Mapping) and not isinstance(value, dict):
+            reject_bool_input(dict(value), "sdd_id")
+            return value
+        return reject_bool_input(value, "sdd_id")
+
+    @field_validator("sdd_id")
+    @classmethod
+    def _validate_sdd_id(cls, value):
+        validate_sdd_id(value)
+        if isinstance(value, RefValue):
+            value._bind_reject_bool("sdd_id")
+        return value
+
+    def __setattr__(self, name: str, value) -> None:
+        if name == "sdd_id" and isinstance(value, RefValue):
+            value._bind_reject_bool("sdd_id")
+        super().__setattr__(name, value)
+
     def _get_alb_id_value(self) -> float:
         """Return a usable albedo value, falling back to a legacy default."""
         alb_val = (
@@ -413,9 +474,18 @@ class InitialStateVeg(SurfaceInitialState):
         return alb_val
 
     def _to_df_state_cols(self, grid_id: int) -> dict:
-        cols = super()._to_df_state_cols(grid_id)
         surf_idx = self.get_surface_index()
         veg_idx = surf_idx - 2
+        surface = ("evetr", "dectr", "grass")[veg_idx]
+        validate_sdd_id(
+            self.sdd_id, f"site[gridiv={grid_id}].initial_states.{surface}.sdd_id"
+        )
+        sdd_val = self.sdd_id
+        if isinstance(sdd_val, Mapping):
+            sdd_val = sdd_val.get("value")
+        if isinstance(sdd_val, RefValue):
+            sdd_val = sdd_val.value
+        cols = super()._to_df_state_cols(grid_id)
         alb_val = self._get_alb_id_value()
         merge_df_state_cols(
             cols,
@@ -431,11 +501,7 @@ class InitialStateVeg(SurfaceInitialState):
                     if isinstance(self.gdd_id, RefValue)
                     else self.gdd_id
                 ),
-                ("sdd_id", f"({veg_idx},)"): (
-                    self.sdd_id.value
-                    if isinstance(self.sdd_id, RefValue)
-                    else self.sdd_id
-                ),
+                ("sdd_id", f"({veg_idx},)"): sdd_val,
             },
         )
         # Legacy DFState retains zero placeholders, never irrigation restart memory.
@@ -473,7 +539,12 @@ class InitialStateVeg(SurfaceInitialState):
         alb_id = df.loc[grid_id, alb_key]
         lai_id = df.loc[grid_id, lai_key]
         gdd_id = df.loc[grid_id, gdd_key]
+        surface = ("evetr", "dectr", "grass")[surf_idx - 2]
+        field_path = f"site[gridiv={grid_id}].initial_states.{surface}.sdd_id"
+        if sdd_key not in df.columns:
+            raise KeyError(f"{field_path} requires column {sdd_key} in a full state DataFrame")
         sdd_id = df.loc[grid_id, sdd_key]
+        validate_sdd_id(sdd_id, field_path)
 
         # Convert to RefValue
         alb_id = RefValue(alb_id)

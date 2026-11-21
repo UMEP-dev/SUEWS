@@ -40,6 +40,7 @@ from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampRef
 from .profile import _CANONICAL_HOUR_KEY_SET, normalise_hourly_profile_mapping
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import DataModelBase, RefValue, SurfaceType, df_from_cols, merge_df_state_cols
+from .state import validate_sdd_id
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
 from ..validation.required_fields import (
@@ -4091,6 +4092,7 @@ class SUEWSConfig(DataModelBase):
         self.validate_active_veg_lai_max()
         self.validate_water_distributions()
         self.validate_hourly_profile_hours()
+        self._validate_senescence_states()
         self._validate_engine_contracts(
             require_land_cover=require_land_cover,
             require_drainage=require_drainage,
@@ -4102,8 +4104,9 @@ class SUEWSConfig(DataModelBase):
         Configuration updates and DataFrame round-trips do not execute physics.
         They retain omitted drainage blocks, but still reject invalid declared
         coefficients, non-optional null values, positive-capacity zero depths,
-        non-positive active vegetation ``lai_max``, invalid water routing, and
-        malformed hourly profiles.
+        non-positive active vegetation ``lai_max``, invalid water routing,
+        non-finite vegetation senescence (``sdd_id``), and malformed hourly
+        profiles.
         """
         self.validate_for_engine(require_land_cover=False, require_drainage=False)
 
@@ -4481,6 +4484,30 @@ class SUEWSConfig(DataModelBase):
         issues = self._check_zero_soil_depth_params()
         if issues:
             raise ValueError("\n".join(issues))
+
+    def _validate_senescence_states(self) -> None:
+        """Check live vegetation SDD values before serialisation can lose them."""
+        if not isinstance(self.sites, list):
+            return
+        for i, site in enumerate(self.sites):
+            states = self._field_or_key(site, "initial_states")
+            grid_id = self._field_or_key(site, "gridiv")
+            for surface_name in ("evetr", "dectr", "grass"):
+                surface = self._field_or_key(states, surface_name)
+                if surface is None:
+                    continue
+                # Omission in an unchecked raw mapping keeps the source default;
+                # an explicitly supplied null must still fail.
+                value = (
+                    surface.get("sdd_id", 0)
+                    if isinstance(surface, Mapping)
+                    else surface.sdd_id
+                )
+                validate_sdd_id(
+                    value,
+                    f"sites[{i}] (gridiv={grid_id}).initial_states."
+                    f"{surface_name}.sdd_id",
+                )
 
     @classmethod
     def _extract_aliased_unwrapped(cls, obj: Any, *names: str) -> Any:
@@ -6286,6 +6313,7 @@ class SUEWSConfig(DataModelBase):
         ):
             self.validate_hourly_profile_hours()
 
+        self._validate_senescence_states()
         # Use mode='json' to serialize enums as their values. round_trip
         # leaves out computed fields (stebbs.deep_soil_temperature): they are
         # derived, so a stale copy in the YAML would fail the next load once

@@ -82,6 +82,7 @@ class RefValue(BaseModel, Generic[T]):
     ref: Optional[Reference] = None
     _non_null_field_name: Optional[str] = PrivateAttr(default=None)
     _non_null_expected_kind: str = PrivateAttr(default="value")
+    _reject_bool_field_name: Optional[str] = PrivateAttr(default=None)
 
     model_config = ConfigDict(
         # Configure serialization to handle the value field properly
@@ -151,15 +152,24 @@ class RefValue(BaseModel, Generic[T]):
         self._non_null_field_name = field_name
         self._non_null_expected_kind = expected_kind
 
+    def _bind_reject_bool(self, field_name: str) -> None:
+        """Bind this wrapper so ``.value = True`` / ``np.bool_`` fails before coercion."""
+        self._reject_bool_field_name = field_name
+
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "value" and value is None:
-            field_name = getattr(self, "_non_null_field_name", None)
-            if field_name is not None:
-                reject_null_value(
-                    None,
-                    field_name,
-                    expected_kind=getattr(self, "_non_null_expected_kind", "value"),
-                )
+        if name == "value":
+            if value is None:
+                field_name = getattr(self, "_non_null_field_name", None)
+                if field_name is not None:
+                    reject_null_value(
+                        None,
+                        field_name,
+                        expected_kind=getattr(self, "_non_null_expected_kind", "value"),
+                    )
+            else:
+                bool_field = getattr(self, "_reject_bool_field_name", None)
+                if bool_field is not None:
+                    reject_bool_input(value, bool_field)
         super().__setattr__(name, value)
 
     @field_validator("value", mode="before")

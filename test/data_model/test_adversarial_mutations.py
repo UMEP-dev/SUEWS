@@ -1831,12 +1831,7 @@ def test_documented_known_good_and_known_open_controls(tmp_path: Path) -> None:
 
 
 def test_nonfinite_yaml_nan_control_on_sdd_id(tmp_path: Path) -> None:
-    """Verify Layer 2 catches ``sdd_id: {value: .nan}`` exporting ``null`` while finite values survive.
-
-    On current master, ``dectr.sdd_id: {value: null}`` raises a mutation-attributed
-    ``ValueError``, whereas ``{value: .nan}`` loads without raising and exports
-    ``null`` to ``config_to_engine_yaml()`` (tracked under #1991/#2001/#2002).
-    """
+    """Dev16 rejects a non-finite senescence value and preserves a finite one."""
     # ARRANGE
     base_data = build_anchor_dict("all_surfaces_baseline")
     entries = load_ledger()["entries"]
@@ -1849,8 +1844,7 @@ def test_nonfinite_yaml_nan_control_on_sdd_id(tmp_path: Path) -> None:
         sentinel_doc["sites"][0]["initial_states"]["dectr"]["sdd_id"]
     ) == pytest.approx(22.0)
 
-    # ACT 2: explicit YAML `.nan` is caught as non-conforming (`null_or_empty` or
-    # `invalid_type_or_nonfinite`) and fails `check_results_against_ledger`.
+    # ACT 2: explicit YAML .nan must be rejected at the mutated vegetation field.
     nan_res = evaluate_mutation(
         "all_surfaces_baseline",
         base_data,
@@ -1859,13 +1853,8 @@ def test_nonfinite_yaml_nan_control_on_sdd_id(tmp_path: Path) -> None:
         tmp_path / "sdd_nan.yml",
         via_yaml=True,
     )
-    assert nan_res.outcome in {"null_or_empty", "invalid_type_or_nonfinite"}, (
-        f"Expected Layer 2 to flag .nan on dectr.sdd_id as non-conforming, "
-        f"got {nan_res.outcome} ({nan_res.detail})"
-    )
-    nan_report = check_results_against_ledger([nan_res], entries)
-    assert not nan_report.ok
-    assert "sites[0].initial_states.dectr.sdd_id" in nan_report.format_failure()
+    assert nan_res.outcome == "rejected", nan_res
+    assert check_results_against_ledger([nan_res], entries).ok
 
 
 def test_site_scalar_omission_and_null_controls(tmp_path: Path) -> None:

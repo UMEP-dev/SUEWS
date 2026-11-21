@@ -5507,7 +5507,7 @@
             }
           ],
           "default": 0,
-          "description": "Senescence degree days at the start of the model run",
+          "description": "Senescence degree days at the start of the model run. Must be finite; negative, zero and positive values are permitted. Omit to use 0. NaN, either infinity and null are not accepted.",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
@@ -5841,7 +5841,7 @@
             }
           ],
           "default": 0,
-          "description": "Senescence degree days at the start of the model run",
+          "description": "Senescence degree days at the start of the model run. Must be finite; negative, zero and positive values are permitted. Omit to use 0. NaN, either infinity and null are not accepted.",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
@@ -6142,7 +6142,7 @@
             }
           ],
           "default": 0,
-          "description": "Senescence degree days at the start of the model run",
+          "description": "Senescence degree days at the start of the model run. Must be finite; negative, zero and positive values are permitted. Omit to use 0. NaN, either infinity and null are not accepted.",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
@@ -13735,7 +13735,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev15. Require finite drain_coef_1 and drain_coef_2 for active non-water surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains accepted. Diagnose missing active drainage blocks and fractional native/mutable selectors without assigning new equation semantics. Migration preserves supplied values and refuses to invent missing blocks or coefficients; inactive surfaces and water are unchanged.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev16. Initial vegetation senescence degree days (sdd_id) must be finite for evergreen trees, deciduous trees and grass (#2001). Omission defaults to zero. Migration preserves signed finite values and references and reports each invalid site and vegetation type.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13788,20 +13788,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev15",
+  "title": "SUEWS Configuration Schema v2026.6.dev16",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev15.json",
-  "version": "2026.6.dev15",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev16.json",
+  "version": "2026.6.dev16",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev15"
+    "schema_version": "2026.6.dev16"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev15",
+      "schema_version": "2026.6.dev16",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

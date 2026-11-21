@@ -107,6 +107,13 @@ def generate_json_schema(
                 DRAINAGE_COEFFICIENT_REQUIREMENT
             )
 
+    # Preserve the exact field description published through dev15.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev16"):
+        for model in ("InitialStateEvetr", "InitialStateDectr", "InitialStateGrass"):
+            schema["$defs"][model]["properties"]["sdd_id"]["description"] = (
+                "Senescence degree days at the start of the model run"
+            )
+
     # Add examples
     schema["examples"] = [_get_minimal_example(version)]
 

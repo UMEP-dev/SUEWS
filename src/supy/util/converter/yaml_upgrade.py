@@ -10,7 +10,8 @@ See gh#1301, gh#1304.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -46,6 +47,7 @@ from ...data_model.core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
+from ...data_model.core.state import validate_sdd_id
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
 from ...data_model.validation.required_fields import (
@@ -1631,12 +1633,13 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         logs.append(f"{key} -> soil_moisture; original method {method}")
     if active:
         # Validate all sites against the current schema using a throwaway copy
-        # stripped of legacy radiation and continuation-state placeholders; the
-        # returned dev9 mapping stays intact for later deltas and single-pass
-        # logging.
+        # stripped of legacy radiation, continuation-state placeholders, and
+        # pre-dev16 non-finite sdd_id values; the returned dev9 mapping stays
+        # intact for later deltas and single-pass logging.
         from ...data_model.core.config import SUEWSConfig
         candidate, _ = _drop_legacy_radiation_memory_zeros(result)
         candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
+        _clear_nonfinite_sdd_for_dev9_candidate(candidate)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -2406,6 +2409,93 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, _target)] = _with_drainage_delta(_handler)
 _HANDLERS[("2026.6.dev14", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev14_to_2026_6_dev15
 
+
+def _clear_nonfinite_sdd_for_dev9_candidate(candidate: dict) -> None:
+    """Keep pre-dev16 SDD representations out of the throwaway dev9 validation copy."""
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    for site in sites:
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for veg in ("evetr", "dectr", "grass"):
+            surface = states.get(veg)
+            if not isinstance(surface, dict) or "sdd_id" not in surface:
+                continue
+            raw = _unwrap_scalar(surface["sdd_id"])
+            if type(raw).__module__ == "numpy" and hasattr(raw, "item"):
+                raw = raw.item()
+            if isinstance(raw, bool):
+                surface.pop("sdd_id")
+                continue
+            if isinstance(raw, numbers.Real) or type(raw).__module__ == "numpy":
+                with suppress(TypeError, ValueError, OverflowError):
+                    if not math.isfinite(float(raw)):
+                        surface.pop("sdd_id")
+                continue
+            if isinstance(raw, str):
+                with suppress(ValueError):
+                    if not math.isfinite(float(raw)):
+                        surface.pop("sdd_id")
+
+
+def validate_vegetation_sdd_raw(cfg: dict) -> None:
+    """Report every explicitly invalid vegetation SDD without changing its source."""
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return
+    problems = []
+    for index, site in enumerate(sites):
+        if not isinstance(site, dict) or not isinstance(site.get("initial_states"), dict):
+            continue
+        grid = site.get("gridiv")
+        location = f"sites[{index}]" if grid is None else f"sites[{index}] (gridiv={grid})"
+        for name in ("evetr", "dectr", "grass"):
+            surface = site["initial_states"].get(name)
+            if not isinstance(surface, dict) or "sdd_id" not in surface:
+                continue
+            value = _unwrap_scalar(surface["sdd_id"])
+            field_path = f"{location}.initial_states.{name}.sdd_id"
+            if isinstance(value, Mapping):
+                problems.append(
+                    f"{field_path} must be a finite number in K d. Supply the initial value "
+                    "from this vegetation type's site or restart record. Omit the field "
+                    "only when initialising it at zero is intended."
+                )
+                continue
+            # The public model also accepts quoted numbers. Preserve the source form.
+            if isinstance(value, str):
+                with suppress(ValueError):
+                    value = float(value)
+            try:
+                validate_sdd_id(value, field_path)
+            except ValueError as error:
+                problems.append(str(error))
+    if problems:
+        raise YamlUpgradeError("\n".join(problems))
+
+
+def _with_senescence_check(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(handler, cfg, migration_context=migration_context)
+        validate_vegetation_sdd_raw(cfg)
+        return cfg
+    return migrate
+
+
+def _migrate_2026_6_dev15_to_2026_6_dev16(cfg: dict) -> dict:
+    validate_vegetation_sdd_raw(cfg)
+    return deepcopy(cfg)
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev15")] = _handler
+        _HANDLERS[(_source, _target)] = _with_senescence_check(_handler)
+_HANDLERS[("2026.6.dev15", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev15_to_2026_6_dev16
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_senescence_check(_identity)
 
 # ---------------------------------------------------------------------------
 # Public API

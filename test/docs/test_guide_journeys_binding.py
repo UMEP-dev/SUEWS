@@ -7,7 +7,7 @@ import pytest
 
 pytest.importorskip(
     "docutils",
-    reason="Wheel test lanes do not install the docs extra containing docutils",
+    reason="Source binding requires the optional docs dependency docutils",
 )
 
 # Script packages are not installed in the wheel; support the pytest console entry point.

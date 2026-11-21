@@ -5,9 +5,8 @@ It distinguishes a command succeeding from the guide's promised file being fresh
 It does not run simulations.
 
 Run from the repository root with Python 3.12+, PyYAML and docutils available to the harness.
-The wheel-test lanes currently install pytest tooling and the package wheels, but not the docs extra containing docutils (`.github/actions/build-suews/action.yml`, `CIBW_TEST_REQUIRES`; `.github/workflows/test-api-cross-python-reusable.yml`, dependency installation).
-The binding tests therefore explicitly skip when docutils is absent; a dedicated binding lane must install it.
-No dependency list or CI workflow is changed here.
+The source-binding tests skip explicitly when docutils is absent.
+Run the instrument by hand on an isolated build machine.
 
 ```sh
 python -m scripts.suews.guide_journeys.runner --check --revision COMMIT
@@ -16,7 +15,7 @@ python -m scripts.suews.guide_journeys.runner \
   --wheelhouse /path/to/wheelhouse --output /path/to/new-run
 ```
 
-Supply the document revision explicitly: the runner never invokes git.
+Supply the document revision explicitly: the runner resolves it to a commit and reads page text with `git show`, ignoring working-tree edits.
 The output directory must be new and outside the checkout.
 Prepare the wheelhouse on the target interpreter and platform with `pip download --only-binary=:all:` against the exact wheel under test, plus the pip version selected by `--pip-version` (default 26.3).
 If a dependency has no binary, build it in a separate recorded preparation step.
@@ -33,7 +32,10 @@ Labelled diagnostic replays deliberately bypass provenance: the clean replay mus
 A reproduced counterexample counts as an accepted diagnostic, while its normal journey remains recorded as failed.
 The same path-outcome checks apply to both revisions.
 
-The repetition and unknown-origin skip checks are labelled probes, not commands supplied by the prose.
+The repetition and unknown-origin skip checks are required acceptance probes; their failure fails the journey.
+The positive-area negative control is an optional diagnostic and never decides acceptance.
+A probe must be terminal, cannot reuse a documented step ID and cannot certify a path.
+Optional diagnostics run after path outcomes are evaluated, using a copy of the working files.
 The current guide promises no copy for a same-version migration; the repetition probe additionally checks that the entire working directory is unchanged for that exact invocation.
 Only the paved `to_soilstore` zero is removed in the pinned example: its building block already omits the field.
 
@@ -50,4 +52,11 @@ Version-detection probes do not count as migrated-file coverage for newer or leg
 
 The harness implements the migration pilot's filesystem, diagnostic and JSON promises.
 Python statement extraction is tested, but persistent Python execution, memory promises and physical checks belong to the Getting Started pilot.
-CI integration, that pilot and release scheduling remain separate slices.
+That pilot remains a separate slice.
+Guide journeys are invoked manually; there is no CI integration or scheduled run.
+
+Documented commands run in source order.
+Every omitted instruction names a bound prose condition in the journey's `skips` mapping.
+Documented step entries accept assertions and source coordinates, never replacement command text.
+Each exercised choice records a documented step that ran and the observed option value, fixture hash or directory state that selected it.
+Promise satisfaction is recorded separately from whether the choice was exercised.

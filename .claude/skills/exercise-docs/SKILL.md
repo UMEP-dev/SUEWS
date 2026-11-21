@@ -1,14 +1,16 @@
 ---
 name: exercise-docs
-description: Compile hand-written SUEWS instruction pages into repeatable reader journeys, execute them in a fresh execution environment, and draft evidence of failures. Run by hand; never repair or post. Route CLI help and docstrings to the code-text checker.
+description: Compile hand-written SUEWS instruction pages into repeatable reader journeys, execute them in a fresh execution environment, and draft evidence of failures. Use for individual pages, PR reports and baseline preparation; never repair or post. Route CLI help and docstrings to the code-text checker.
 ---
 
 # Exercise Docs
 
 The page is the source; the compiled run is a build product. A model compiles
 instructions and promises, a machine executes them without model judgement,
-and an agent diagnoses failures afterwards. Run this skill by hand, findings
-only: it adds no CI gate, script or package to the repository.
+and an agent diagnoses failures afterwards. The skill now supports the merge
+condition in #2187 and committed per-page baselines in #2188, replacing the
+earlier manual-only, findings-only scope. CI verifies the report and maintainer
+sign-off; it does not run this skill. Compiled runs remain uncommitted.
 [decision: software maintainer, 2026-11-21]
 
 Follow `AGENTS.md` and `.claude/rules/autonomous-workflow.md` (Evidence and Gates).
@@ -38,22 +40,37 @@ Hand CLI help and docstrings to the #2168 code-text checker (#2182), using its
 own documented interface at an identified revision. Its planned path is
 `scripts/lint/check_code_text.py` (not yet present at this skill revision). Until
 it is on master, report the code-text part as `not run`. Verify availability
-before invocation and record a blocker if unavailable at the selected revision. Preserve its unsupported/needs-reading
-statuses. Commands in a hand-written page still belong to that page's journey.
+before invocation and record a blocker if unavailable at the selected revision.
+Preserve its unsupported/needs-reading statuses. Commands in a hand-written page
+still belong to that page's journey.
 [procedure: Principle 1]
 
-Optional bulk triage is a bare API pass over the hand-written page inventory
-(the design baseline is 117 pages, not a fixed count to force). Use only verified
-plan-included credit with a stated hard budget cap and stop at the cap, without
-paid fallback. For each page return executable-instructions yes/no/unclear,
-approximate step count, quoted promises, and a priority with its reason. Record
-inventory revision, model ID, prompt, usage, spend and processed/unprocessed
-pages. Rank agent runs by this evidence; triage is not execution or a finding.
+For API triage, PR selection and baseline preparation, read
+[modes.md](references/modes.md). Triage uses verified plan-included credit only,
+with a hard budget cap and no paid fallback. [decision: software maintainer, 2026-11-21]
+
+## PR and baseline modes
+
+In PR mode, select changed hand-written pages plus pages affected by changed
+includes or prerequisites. Reuse unchanged cache keys and run the selected pages
+as usual. Compare findings with the base revision's baseline entries as `known`,
+`new` or `resolved`; draft the exact machine-readable report and verdict in
+[record-format.md](references/record-format.md) for the PR author to post.
+The skill never posts or applies the maintainer label. [procedure: Principle 1]
+
+The second independent compile remains required in PR mode until the pilot
+leads the software maintainer to decide otherwise.
 [decision: software maintainer, 2026-11-21]
+
+Baseline mode prepares per-page entries under `dev-ref/docs-baseline/` (planned
+for #2188; not created by this procedure change). Only these summaries are
+committed, never raw records or compiled runs. The PR changing a page updates its
+entry after maintainer sign-off, with the evidence specified in modes.md and
+record-format.md. [decision: software maintainer, 2026-11-21] (#2187, #2188)
 
 ## 2. Reuse or compile
 
-Compile-instruction version: `v13.2`. Change it whenever the compilation rules
+Compile-instruction version: `v13.3`. Change it whenever the compilation rules
 in this skill or its references change. [procedure: Principle 1]
 
 The cache key is the tuple
@@ -67,8 +84,8 @@ records before scratch is removed. [procedure: Principle 1]
 
 Compute `page_source_hash` as SHA-256 of the source snapshot: the page and any
 included or explicitly directed prerequisite text. Use sorted source paths and
-their exact byte hashes in a canonical JSON array; retain that array and the
-source bytes with revisions. Thus a changed include or directed install page
+their exact byte hashes in the canonical JSON array defined in record-format.md;
+retain that array and the source bytes with revisions. Thus a changed include or directed install page
 also changes the key. A cache hit reuses the stored script, step list and
 assertions byte for byte, without another interpretation. A changed page, instruction version
 or model ID gives a new key. A software update alone requires a fresh run, not a
@@ -213,22 +230,11 @@ result, reruns them and supplies its own output. Link both records and identify
 the reproducer. A repeated claim or compile agreement is not confirmation.
 [procedure: Principle 1]
 
-Emit this marker and YAML. Arrays hold records or are empty; counts must not
-conceal unrun targets. Each journey names compiled artefacts and evidence.
-Decision records include owner role, question and evidence; tag actual decisions
-with their recorded role and date, never an invented owner or date. Scrub private
-paths, hosts and identifiers from the shareable report; retain raw evidence
-without overwriting it. [procedure: Principle 1]
-
-```yaml
-# [exercise-docs] report
-Pages: {hand_written: [], generated_skipped: [], blocked: []}
-Journeys: {reused: [], written: [], stale: [], unrun: []}
-Findings: {reported: [], confirmed: []}  # Each record: attribution: observed | inferred
-Untested: []
-Decisions_needed: []
-Next: []
-```
+Use the exact handoff format in record-format.md for the selected mode. Counts
+must not conceal unrun targets. Scrub private paths, hosts and identifiers from
+the shareable report; retain raw evidence without overwriting it. Decision
+records name the recorded owner role and date, never an invented decision.
+[procedure: Principle 1]
 
 ## 7. Pilot and follow-up boundary
 
@@ -238,5 +244,5 @@ filed findings (#2177, #2178, #2179). After the pilot, draft revised texts for
 #2164, #2167 and #2161 for the software maintainer to inspect before any posting;
 then run optional API triage and prioritised agent journeys. Any necessary
 shared implementation is its own small proposed PR with a stated reason, never
-an addition made during this findings-only workflow.
+an addition made while exercising pages or drafting their reports.
 [decision: software maintainer, 2026-11-21]

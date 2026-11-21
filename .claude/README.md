@@ -115,7 +115,8 @@ Skills run on demand and perform multi-step workflows or atomic checks when invo
 - **Operation skills (building blocks)**: `/lint-code`, `/verify-build`, `/audit-docs`, `/exercise-docs`, `/log-changes`.
 - **User-facing plugin skill**: `/suews` (packaged into `plugins/suews/` via `make plugin`, verified by `test/mcp/test_packaging_manifests.py`).
 
-`/exercise-docs` is a manual, findings-only compile -> run -> diagnose procedure;
+`/exercise-docs` compiles and runs reader journeys, drafts PR verdicts for #2187,
+and prepares the committed baseline summaries defined by #2188;
 see `.claude/skills/exercise-docs/SKILL.md` for its approved design and gates.
 [decision: software maintainer, 2026-11-21]
 
@@ -142,7 +143,7 @@ prep-release (release workflow)
 republish-docs (docs workflow)
   `-- docs-sync + release-docs-anchor  (move tag to a clean anchor)
 
-exercise-docs (manual, findings only; procedure: Principle 1)
+exercise-docs (journeys, PR reports, baseline summaries; procedure: Principle 1)
   |-- optional API triage              (hand-written pages, capped included credit)
   |-- independent page compiles       (quoted steps + assertions; cached)
   |-- machine run                     (fresh execution environment)

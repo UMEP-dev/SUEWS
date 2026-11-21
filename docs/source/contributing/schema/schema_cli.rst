@@ -119,6 +119,9 @@ Migrate configuration files between schema versions.
 
 The input files are never modified: each migrated copy is written next to its original as ``<name>.migrated.yml``, or into ``--output-dir``.
 
+For a worked migration with a measurable change in runoff, see
+:ref:`schema_dev12_water_routing`.
+
 export
 ~~~~~~
 

@@ -57,6 +57,7 @@ EXAMPLES:
 ### 20 Nov 2026
 
 - [change][experimental] Require finite `lat`, `lng`, `alt`, `timezone`, `surfacearea` and `z` in resolved native site input instead of retaining Rust defaults. The public configuration and resolved input both use `lng` for site longitude. Native inputs that previously used `lon` must use the canonical key (#2002)
+- [bugfix] In input schema `2026.6.dev12`, a legacy zero `to_soilstore` on paving or buildings no longer overrides the configured runoff fraction. Active surfaces with a supplied routing block require seven applicable fractions summing to one. The [migration guide](https://docs.suews.io/latest/inputs/transition_guide.html#schema-dev12-water-routing) explains which files can give different runoff and how to compare an archived run (#2086, #2117).
 - [bugfix] Infer the spin-up forcing interval from regularly spaced timestamps when pandas frequency metadata is missing (#2129)
 
 - [bugfix] The standalone engine now requires a resolved `model.control.output.dir` for file runs. Exporting with `config_to_engine_yaml` captures the current directory when the source omits it. Explicit relative paths resolve beside the exported configuration. The engine no longer falls back to `./output` or the legacy `output_file.path` key (#2002)

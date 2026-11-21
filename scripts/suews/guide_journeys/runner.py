@@ -140,8 +140,14 @@ def setup_inputs(root: Path, manifest: dict, journey: dict, work: Path) -> dict:
     return inputs
 
 
-def inspect_installed(work: Path, env: dict, manifest: dict) -> dict:
+def inspect_installed(
+    work: Path, env: dict, manifest: dict, document: Document
+) -> dict:
     """Gather the installed CLI inventory and independent migration-effect audit."""
+    spec = dict(manifest["behaviour_audit"])
+    binding = next(s for s in manifest["steps"] if s["id"] == spec["command_step"])
+    span = document.span(binding)
+    spec.update(command=span.text, source_lines=[span.first, span.last])
     return {
         "inventory": isolated_python(inventory.inspection_program(), work, env),
         "schema_info": execute("suews schema info", work, env),
@@ -149,7 +155,7 @@ def inspect_installed(work: Path, env: dict, manifest: dict) -> dict:
             behaviour.inspection_program(),
             work,
             env,
-            [json.dumps([manifest["behaviour_audit"], manifest["expected_delta"]])],
+            [json.dumps([spec, manifest["expected_delta"]])],
         ),
     }
 
@@ -209,7 +215,7 @@ def run_journey(
             FORCING_SETUP, work, env, [json.dumps(forcing)]
         )
         if journey["id"] == manifest["behaviour_audit"]["journey"]:
-            record.update(inspect_installed(work, env, manifest))
+            record.update(inspect_installed(work, env, manifest, document))
         record["input_sha256s"][forcing["target"]] = record["forcing_setup"]["sha256"]
         initial = snapshot(work)
         pinned = {

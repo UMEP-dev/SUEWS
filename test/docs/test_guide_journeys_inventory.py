@@ -16,6 +16,7 @@ if str(_REPO_ROOT) not in sys.path:
 from click.testing import CliRunner  # noqa: E402 - source imports follow path setup
 import yaml  # noqa: E402 - source imports follow path setup
 
+from scripts.suews.guide_journeys.behaviour import removed_paths  # noqa: E402
 from scripts.suews.guide_journeys.inventory import (  # noqa: E402 - source script imports follow path setup
     compare,
     compare_values,
@@ -167,3 +168,24 @@ def test_omitted_audit_is_reported_and_fails_summary():
         manifest["behaviour_audit"]["journey"] in summary["behaviour_audit"]["reason"]
     )
     assert failed_summary(summary)
+
+
+def test_observed_deletions_are_not_the_planted_list():
+    """Report actual removals, including an unexpected one, and retain kept zeros."""
+
+    before = {
+        "sites": [
+            {
+                "waterdist": {
+                    "planted_zero": 0,
+                    "retained_zero": 0,
+                    "unexpected": {"ref": "keep"},
+                }
+            }
+        ]
+    }
+    after = {"sites": [{"waterdist": {"retained_zero": 0}}]}
+    assert removed_paths(before, after) == [
+        "sites/0/waterdist/planted_zero",
+        "sites/0/waterdist/unexpected",
+    ]

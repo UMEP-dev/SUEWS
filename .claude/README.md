@@ -108,7 +108,7 @@ Subagent frontmatter uses `color:` (never `colour:`) and omits `model:` so subag
 
 Skills run on demand and perform multi-step workflows or atomic checks when invoked via `/skill-name`:
 
-- **Workflow skills (orchestrators)**: `/fix-issue`, `/triage-issue`, `/triage-pr`, `/audit-pr`, `/split-pr`, `/queue-pr`, `/prep-release`, `/republish-docs`.
+- **Workflow skills (orchestrators)**: `/fix-issue`, `/triage-issue`, `/triage-pr`, `/audit-pr`, `/split-pr`, `/queue-pr`, `/prep-release`, `/republish-docs`, `/exercise-docs`.
 - **Operation skills (building blocks)**: `/lint-code`, `/verify-build`, `/audit-docs`, `/log-changes`.
 - **User-facing plugin skill**: `/suews` (packaged into `plugins/suews/` via `make plugin`, verified by `test/mcp/test_packaging_manifests.py`).
 

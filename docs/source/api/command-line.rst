@@ -101,10 +101,11 @@ Resolved physics input also requires explicit values for the four aerodynamic
 selectors ``model.physics.roughness_length_momentum``,
 ``model.physics.roughness_length_heat``, ``model.physics.roughness_sublayer``
 and ``model.physics.roughness_sublayer_level`` (an integer, ``value`` wrapper or
-registered readable name). All four remain active across runs, including
-``roughness_sublayer_level`` under MOST (``roughness_sublayer=0``). Missing,
-null, non-finite or malformed values fail with the canonical field path instead
-of retaining legacy zero fallbacks; source YAML continues to receive the data
+registered readable name). All four values are required, including
+``roughness_sublayer_level`` under MOST (``roughness_sublayer=0``). For missing,
+null, non-finite or malformed numeric values, the error identifies the full
+field path. For an unrecognised scheme name, the error identifies the selector
+and the name supplied. Source YAML continues to receive the data
 model defaults (``2``/``variable``, ``2``/``kawai``, ``2``/``variable`` and
 ``0``/``none``).
 

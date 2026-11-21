@@ -125,6 +125,9 @@ exclusions:
 promise_edits: []
 choices:
 - id: tagged-dev11
+  witness:
+    steps: [migrate]
+    condition: {kind: fixture, path: site.yml, fixture: tagged-dev11}
   kind: named alternative
   source_anchor: transition_guide/tagged-condition
   values:
@@ -132,6 +135,9 @@ choices:
   journeys:
   - tagged-dev11
 - id: untagged-known
+  witness:
+    steps: [convert]
+    condition: {kind: fixture, path: site.yml, fixture: untagged-dev11}
   kind: named alternative
   source_anchor: transition_guide/untagged-condition
   values:
@@ -139,6 +145,9 @@ choices:
   journeys:
   - untagged-known
 - id: untagged-unknown
+  witness:
+    steps: [validate-original-inline]
+    condition: {kind: fixture, path: site.yml, fixture: untagged-dev11}
   kind: named alternative
   source_anchor: transition_guide/untagged-condition
   values:
@@ -146,6 +155,9 @@ choices:
   journeys:
   - untagged-unknown
 - id: current-dev12
+  witness:
+    steps: [validate-current]
+    condition: {kind: fixture, path: site.yml, fixture: dev12}
   kind: named alternative
   source_anchor: transition_guide/current-condition
   values:
@@ -153,6 +165,9 @@ choices:
   journeys:
   - current-dev12
 - id: recovery-nonzero
+  witness:
+    steps: [migrate]
+    condition: {kind: fixture, path: site.yml, fixture: nonzero-dev11}
   kind: failure recovery
   source_anchor: transition_guide/recovery
   values:
@@ -160,6 +175,9 @@ choices:
   journeys:
   - recovery-nonzero
 - id: recovery-zero-area
+  witness:
+    steps: [validate-current]
+    condition: {kind: fixture, path: site.yml, fixture: zero-area-dev12}
   kind: failure recovery
   source_anchor: transition_guide/recovery
   values:
@@ -167,6 +185,9 @@ choices:
   journeys:
   - recovery-zero-area
 - id: earlier-clean
+  witness:
+    steps: [migrate]
+    condition: {kind: directory, path: site.migrated.yml, present: false}
   historical: true
   kind: directory state
   source_document: test/fixtures/guide_journeys/earlier-guide.rst
@@ -175,6 +196,9 @@ choices:
   journeys:
   - earlier-clean
 - id: earlier-stale
+  witness:
+    steps: [migrate]
+    condition: {kind: directory, path: site.migrated.yml, present: true}
   historical: true
   kind: directory state
   source_document: test/fixtures/guide_journeys/earlier-guide.rst
@@ -183,6 +207,9 @@ choices:
   journeys:
   - earlier-stale
 - id: pipeline-C
+  witness:
+    steps: [validate-migrated, validate-converted, validate-original-inline, validate-current]
+    condition: {kind: option, names: [--pipeline, -p], value: C}
   kind: discrete
   source_anchor: transition_guide/tagged-commands
   values:
@@ -196,6 +223,9 @@ choices:
   - earlier-clean
   - earlier-stale
 - id: format-json
+  witness:
+    steps: [validate-migrated, validate-converted, validate-original-inline, validate-current]
+    condition: {kind: option, names: [--format], value: json}
   kind: discrete
   source_anchor: transition_guide/tagged-commands
   values:
@@ -222,6 +252,9 @@ choices:
   - actual source version differs from example
   journeys: []
 - id: default-current-target
+  witness:
+    steps: [convert]
+    condition: {kind: omitted_option, names: [--target-version]}
   kind: omitted value
   source_anchor: transition_guide/untagged-commands
   values:
@@ -229,6 +262,9 @@ choices:
   journeys:
   - untagged-known
 - id: no-version-indicator
+  witness:
+    steps: [convert, validate-original-inline, migrate]
+    condition: {kind: fixture, path: site.yml, fixture: untagged-dev11}
   kind: omitted value
   source_anchor: transition_guide/untagged-condition
   values:

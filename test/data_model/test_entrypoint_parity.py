@@ -90,6 +90,84 @@ def sample_dict() -> dict[str, Any]:
     return yaml.load(resource.read_text(encoding="utf-8"), Loader=_TEST_YAML_LOADER)
 
 
+def _strip_ref_metadata(obj: Any) -> Any:
+    """Recursively omit optional ``ref`` citation blocks."""
+    if isinstance(obj, dict):
+        return {k: _strip_ref_metadata(v) for k, v in obj.items() if k != "ref"}
+    if isinstance(obj, list):
+        return [_strip_ref_metadata(v) for v in obj]
+    return obj
+
+
+@pytest.fixture(scope="module")
+def compact_valid_dict(sample_dict: dict[str, Any]) -> dict[str, Any]:
+    """Smallest valid public SUEWS configuration preserving all core surfaces and physics.
+
+    Omits optional defaulted blocks not exercised by the test (disabled STEBBS
+    and building-archetype 10-minute schedules, optional irrigation/LUMPS/SPARTACUS
+    blocks, 24-hour sub-profiles, and ``ref`` citation metadata) and uses a valid
+    1-layer vertical profile so real public YAML parsing, schema checks, and
+    Pydantic validation run without repeatedly parsing 1,456 lines of unused
+    10-minute schedules.
+    """
+    compact = _strip_ref_metadata(copy.deepcopy(sample_dict))
+    props = compact["sites"][0]["properties"]
+    for opt_block in ("stebbs", "building_archetype", "irrigation", "lumps", "spartacus"):
+        props.pop(opt_block, None)
+    if isinstance(props.get("snow"), dict):
+        props["snow"].pop("snow_profile_24hr", None)
+    ae = props.get("anthropogenic_emissions")
+    if isinstance(ae, dict):
+        ae.pop("heat", None)
+        if isinstance(ae.get("co2"), dict):
+            for key in (
+                "profile_traffic_24hr",
+                "profile_human_activity_24hr",
+                "emission_factor_co2_vehicle",
+                "traffic_rate",
+            ):
+                ae["co2"].pop(key, None)
+    vl = props["vertical_layers"]
+    vl["nlayer"] = {"value": 2}
+    vl["height"] = {"value": [0.0, 10.0, 20.0]}
+    for key in ("veg_frac", "veg_scale", "veg_ext", "building_frac", "building_scale"):
+        val = vl[key]
+        if isinstance(val, dict) and "value" in val:
+            vl[key] = {"value": val["value"][:2]}
+        elif isinstance(val, list):
+            vl[key] = val[:2]
+    vl["roofs"] = vl["roofs"][:2]
+    vl["walls"] = vl["walls"][:2]
+    init_st = compact["sites"][0]["initial_states"]
+    init_st["roofs"] = init_st["roofs"][:2]
+    init_st["walls"] = init_st["walls"][:2]
+    return compact
+
+
+@pytest.fixture(scope="module")
+def short_sample_forcing(tmp_path_factory: pytest.TempPathFactory):
+    """Load the first 288 five-minute forcing rows (1 day) via the real file loader.
+
+    Produces rows identical to ``sample_forcing_parsed(n)`` for ``n <= 288``
+    without parsing and disaggregating all 8,784 hourly rows of the full year
+    on every pytest worker.
+    """
+    sample_dir = files("supy").joinpath("sample_data")
+    forcing_src = sample_dir / "Kc_2012_data_60.txt"
+    lines = forcing_src.read_text(encoding="utf-8").splitlines()
+    tmp_dir = tmp_path_factory.mktemp("short_forcing")
+    short_file = tmp_dir / "Kc_2012_data_60.txt"
+    short_file.write_text("\n".join(lines[:26]) + "\n", encoding="utf-8")
+    df_day = SUEWSSimulation._load_forcing_file(short_file, tstep_mod=300).iloc[:288]
+
+    def _slice(n_steps: int) -> pd.DataFrame:
+        if n_steps > len(df_day):
+            raise ValueError(f"Requested {n_steps} steps > cached {len(df_day)}")
+        return df_day.iloc[:n_steps].copy()
+
+    return _slice
+
+
 @pytest.fixture(scope="module")
 def current_json_schema() -> dict[str, Any]:
     """Generate the current JSON schema once per module for validate_single_file."""
@@ -917,11 +995,11 @@ class TestFiveWayEntryPointPositiveParity:
             pd.testing.assert_frame_equal(cfg_df, ref_df)
 
     def test_partial_update_config_patch_matches_full_dict_resolution(
-        self, sample_dict
+        self, compact_valid_dict
     ):
         """Partial ``update_config`` dict patch resolves identically to a full dict."""
         # ARRANGE
-        full_payload = copy.deepcopy(sample_dict)
+        full_payload = copy.deepcopy(compact_valid_dict)
         full_payload["model"]["control"]["tstep"] = {"value": 600}
         full_payload["model"]["physics"]["emissions"] = {"value": 12}
         full_payload["sites"][0]["properties"]["anthropogenic_emissions"]["co2"][
@@ -939,7 +1017,7 @@ class TestFiveWayEntryPointPositiveParity:
 
         # ACT
         sim_patched = SUEWSSimulation().update_config(
-            copy.deepcopy(sample_dict), auto_load_forcing=False
+            copy.deepcopy(compact_valid_dict), auto_load_forcing=False
         )
         sim_patched.update_config(
             {
@@ -1149,7 +1227,7 @@ class TestFiveWayEntryPointNegativeParity:
     )
     def test_five_entrypoints_reject_invalid_configs_equivalently(
         self,
-        sample_dict,
+        compact_valid_dict,
         current_json_schema,
         tmp_path,
         case_name,
@@ -1158,7 +1236,7 @@ class TestFiveWayEntryPointNegativeParity:
     ):
         """Every single-field fault is rejected across all 5 public entry points."""
         # ARRANGE
-        bad = copy.deepcopy(sample_dict)
+        bad = copy.deepcopy(compact_valid_dict)
         mutator(bad)
         yaml_path = _write_yaml(tmp_path / f"bad_{case_name}.yml", bad)
 
@@ -1202,15 +1280,15 @@ class TestFiveWayEntryPointNegativeParity:
         assert errors
 
     def test_programmatic_bypass_rejected_atomically_on_existing_simulation(
-        self, sample_dict
+        self, compact_valid_dict
     ):
         """Handing an incomplete programmatic config to update_config leaves sim intact."""
         # ARRANGE
         sim = SUEWSSimulation().update_config(
-            copy.deepcopy(sample_dict), auto_load_forcing=False
+            copy.deepcopy(compact_valid_dict), auto_load_forcing=False
         )
         original_cfg = sim.config
-        incomplete = copy.deepcopy(sample_dict)
+        incomplete = copy.deepcopy(compact_valid_dict)
         _mutate_missing_bldgh(incomplete)
         prog_cfg = SUEWSConfig(**incomplete)
 
@@ -1221,15 +1299,15 @@ class TestFiveWayEntryPointNegativeParity:
         assert sim.config is original_cfg
 
     def test_model_construct_and_unchecked_from_dict_rejected_before_execution(
-        self, sample_dict
+        self, compact_valid_dict
     ):
         """Unvalidated model_construct() and unchecked from_dict() cannot reach the engine."""
         # ARRANGE 1: unchecked from_dict leaves raw dict sub-models
         unchecked = SUEWSConfig.from_dict(
-            copy.deepcopy(sample_dict), use_conditional_validation=False
+            copy.deepcopy(compact_valid_dict), use_conditional_validation=False
         )
         # ARRANGE 2: model_construct with out-of-range sfr and STEBBS without SPARTACUS
-        valid = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+        valid = SUEWSConfig.from_dict(copy.deepcopy(compact_valid_dict))
         bad_sfr = copy.deepcopy(valid)
         bad_sfr.sites[0].properties.land_cover.paved.sfr = -0.25
         constructed_sfr = SUEWSConfig.model_construct(
@@ -1319,13 +1397,13 @@ class TestFiveWayEntryPointNegativeParity:
         ],
     )
     def test_post_construction_in_place_mutations_rejected_before_run(
-        self, sample_dict, sample_forcing_parsed, label, mutate, expected
+        self, compact_valid_dict, short_sample_forcing, label, mutate, expected
     ):
         """In-place mutations on a valid SUEWSSimulation fail across all 5 engine boundaries."""
         assert label
-        _, df_short = sample_forcing_parsed(SHORT_RUN_STEPS)
+        df_short = short_sample_forcing(SHORT_RUN_STEPS)
         sim = SUEWSSimulation().update_config(
-            SUEWSConfig.from_dict(copy.deepcopy(sample_dict)),
+            SUEWSConfig.from_dict(copy.deepcopy(compact_valid_dict)),
             auto_load_forcing=False,
         )
         sim.update_forcing(df_short)
@@ -1343,7 +1421,7 @@ class TestFiveWayEntryPointNegativeParity:
             sim.run(end_date=df_short.index[-1])
 
     def test_from_dict_without_land_cover_blocked_before_engine_execution(
-        self, sample_dict, sample_forcing_parsed, tmp_path
+        self, compact_valid_dict, short_sample_forcing, tmp_path
     ):
         """``from_dict(sample minus land_cover)`` cannot slip into the Rust bridge.
 
@@ -1356,8 +1434,8 @@ class TestFiveWayEntryPointNegativeParity:
         boundaries must reject that sparse config before Rust runs.
         """
         # ARRANGE 1: default roughness_sublayer=2 is already rejected at from_dict
-        _, df_short = sample_forcing_parsed(SHORT_RUN_STEPS)
-        no_lc_rsl2 = copy.deepcopy(sample_dict)
+        df_short = short_sample_forcing(SHORT_RUN_STEPS)
+        no_lc_rsl2 = copy.deepcopy(compact_valid_dict)
         del no_lc_rsl2["sites"][0]["properties"]["land_cover"]
         with pytest.raises(ValueError, match=r"faibldg|bldgh"):
             SUEWSConfig.from_dict(copy.deepcopy(no_lc_rsl2))
@@ -1657,11 +1735,11 @@ class TestDfStateEngineYamlParityRatchet:
 
     @pytest.mark.medium
     def test_sparse_asymmetric_config_reaches_native_receiver_end_to_end(
-        self, sample_dict, sample_forcing_parsed
+        self, compact_valid_dict, short_sample_forcing
     ):
         """Sparse asymmetric supplied values reach the compiled native kernel while unread fields do not."""
-        _, df_short = sample_forcing_parsed(4)
-        base = self._build_asymmetric_sparse_native_dict(sample_dict)
+        df_short = short_sample_forcing(4)
+        base = self._build_asymmetric_sparse_native_dict(compact_valid_dict)
 
         def _run_short(raw_cfg: dict[str, Any], forcing):
             cfg = SUEWSConfig.from_dict(raw_cfg)
@@ -1777,7 +1855,7 @@ class TestDfStateEngineYamlParityRatchet:
             _assert_matches_shrinking_ratchet(observed_clean, stale_baseline)
 
     def test_inactive_soil_missingness_survives_df_state_roundtrip_and_blocks_reactivation(
-        self, sample_dict, sample_forcing_parsed
+        self, compact_valid_dict, short_sample_forcing
     ):
         """Missing soil params stay ``None`` across ``to_df_state()`` -> ``from_df_state()`` and block reactivation.
 
@@ -1795,8 +1873,8 @@ class TestDfStateEngineYamlParityRatchet:
            all five public engine boundaries.
         """
         # ARRANGE 1: active paved missing all 3 required soil parameters
-        _, df_short = sample_forcing_parsed(SHORT_RUN_STEPS)
-        paved_none = copy.deepcopy(sample_dict)
+        df_short = short_sample_forcing(SHORT_RUN_STEPS)
+        paved_none = copy.deepcopy(compact_valid_dict)
         paved_lc = paved_none["sites"][0]["properties"]["land_cover"]["paved"]
         paved_lc.pop("soil_depth", None)
         paved_lc.pop("soil_store_capacity", None)
@@ -1820,7 +1898,7 @@ class TestDfStateEngineYamlParityRatchet:
             assert "saturated_hydraulic_conductivity" in err_msg
 
         # ARRANGE 2: move paved area temporarily to grass (paved.sfr == 0) and omit paved soil params
-        inactive_paved = copy.deepcopy(sample_dict)
+        inactive_paved = copy.deepcopy(compact_valid_dict)
         lc = inactive_paved["sites"][0]["properties"]["land_cover"]
         orig_paved_sfr = float(_unwrap(lc["paved"]["sfr"]))
         orig_grass_sfr = float(_unwrap(lc["grass"]["sfr"]))
@@ -1899,12 +1977,12 @@ class TestDfStateEngineYamlParityRatchet:
             sim_from_state.run(end_date=df_short.index[-1])
 
     def test_explicit_150_150_00001_soil_values_preserved_through_df_state_roundtrip(
-        self, sample_dict, sample_forcing_parsed
+        self, compact_valid_dict, short_sample_forcing
     ):
         """Genuine concrete ``150.0 / 150.0 / 0.0001`` soil values survive ``to_df_state()`` -> ``from_df_state()``."""
         # ARRANGE: move paved area temporarily to grass, with EXPLICIT 150 / 150 / 0.0001
-        _, df_short = sample_forcing_parsed(SHORT_RUN_STEPS)
-        explicit_cfg = copy.deepcopy(sample_dict)
+        df_short = short_sample_forcing(SHORT_RUN_STEPS)
+        explicit_cfg = copy.deepcopy(compact_valid_dict)
         lc = explicit_cfg["sites"][0]["properties"]["land_cover"]
         orig_paved_sfr = float(_unwrap(lc["paved"]["sfr"]))
         orig_grass_sfr = float(_unwrap(lc["grass"]["sfr"]))
@@ -1982,7 +2060,7 @@ class TestDfStateEngineYamlParityRatchet:
         )
 
     def test_sdd_id_null_rejected_and_finite_sentinels_shift_daily_state(
-        self, sample_dict, sample_forcing_parsed, tmp_path
+        self, compact_valid_dict, short_sample_forcing, tmp_path
     ):
         """Pin ``sdd_id`` null rejection and finite sentinel sensitivity in ``DailyState``.
 
@@ -1994,11 +2072,11 @@ class TestDfStateEngineYamlParityRatchet:
            ``DailyState`` ``SDD_*`` outputs relative to explicit ``0.0``.
         """
         # ARRANGE: 1-day forcing slice (288 x 300 s) so DailyState updates
-        _, df_day = sample_forcing_parsed(288)
+        df_day = short_sample_forcing(288)
         end_date = df_day.index[-1]
 
         # 1. Direct YAML {value: null} on dectr.sdd_id is rejected
-        null_dict = copy.deepcopy(sample_dict)
+        null_dict = copy.deepcopy(compact_valid_dict)
         null_dict["sites"][0]["initial_states"]["dectr"]["sdd_id"] = {"value": None}
         null_yaml = _write_yaml(tmp_path / "sdd_null.yml", null_dict)
         with pytest.raises(ValueError, match="sdd_id"):
@@ -2007,7 +2085,7 @@ class TestDfStateEngineYamlParityRatchet:
             SUEWSConfig.from_dict(copy.deepcopy(null_dict))
 
         # 2. Explicit 0.0 control vs finite sentinels (11 / 22 / 33)
-        zero_dict = copy.deepcopy(sample_dict)
+        zero_dict = copy.deepcopy(compact_valid_dict)
         for surf in VEG_SURFACES:
             zero_dict["sites"][0]["initial_states"][surf]["sdd_id"] = {"value": 0.0}
         cfg_zero = SUEWSConfig.from_dict(zero_dict)
@@ -2015,7 +2093,7 @@ class TestDfStateEngineYamlParityRatchet:
         sim_zero.update_forcing(df_day)
         df_out_zero = sim_zero.run(end_date=end_date).df
 
-        sentinel_dict = copy.deepcopy(sample_dict)
+        sentinel_dict = copy.deepcopy(compact_valid_dict)
         sentinels = {"evetr": 11.0, "dectr": 22.0, "grass": 33.0}
         for surf, val in sentinels.items():
             sentinel_dict["sites"][0]["initial_states"][surf]["sdd_id"] = {"value": val}
@@ -2042,7 +2120,7 @@ class TestDfStateEngineYamlParityRatchet:
             )
 
     def test_sdd_id_nan_and_float_df_state_none_to_nan_restoration_parity(
-        self, sample_dict, sample_forcing_parsed, tmp_path
+        self, compact_valid_dict, short_sample_forcing, tmp_path
     ):
         """Pin float ``df_state`` ``None -> NaN -> null`` restoration gap vs YAML ``.nan``.
 
@@ -2053,10 +2131,10 @@ class TestDfStateEngineYamlParityRatchet:
         identically to explicit ``0.0`` across a 1-day (288-step) simulation.
         """
         # ARRANGE: 1-day forcing slice (288 x 300 s) so DailyState updates
-        _, df_day = sample_forcing_parsed(288)
+        df_day = short_sample_forcing(288)
         end_date = df_day.index[-1]
 
-        zero_dict = copy.deepcopy(sample_dict)
+        zero_dict = copy.deepcopy(compact_valid_dict)
         for surf in VEG_SURFACES:
             zero_dict["sites"][0]["initial_states"][surf]["sdd_id"] = {"value": 0.0}
         cfg_zero = SUEWSConfig.from_dict(zero_dict)
@@ -2100,7 +2178,7 @@ class TestDfStateEngineYamlParityRatchet:
     @pytest.mark.parametrize("method", [6, 8], ids=["dyohm_6", "dyohm_bldg_8"])
     @pytest.mark.parametrize("wrapped", [True, False], ids=["wrapped", "bare"])
     def test_dyohm_building_layers_validate_bare_and_wrapped_arrays(
-        self, sample_dict, method, wrapped
+        self, compact_valid_dict, method, wrapped
     ):
         """DyOHM building validation accepts finite bare/wrapped arrays and rejects bad elements.
 
@@ -2110,7 +2188,7 @@ class TestDfStateEngineYamlParityRatchet:
         ``None``, ``NaN``, ``+Inf``, ``-Inf``, and ``bool`` values.
         """
         # ARRANGE: valid DyOHM building config in wrapped or bare form
-        base = copy.deepcopy(sample_dict)
+        base = copy.deepcopy(compact_valid_dict)
         base["model"]["physics"]["storage_heat"] = (
             {"value": method} if wrapped else method
         )

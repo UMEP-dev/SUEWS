@@ -431,5 +431,13 @@ def test_model_field_descriptions_use_revision_source(tmp_path):
     assert parameters[0]["definition"] == "supy.Example.method"
     assert parameters[0]["detail"]["errors"][0]["code"] == "PR01"
     summary = checks._summarise(findings)
+    anchor = checks.Source("src/supy/__init__.py", "supy", ast.parse(source), source)
+    anchor.node.lineno = 1
+    anchor.node.end_lineno = len(source.splitlines())
+    unresolved = checks.result(
+        "fixture", anchor, "supy.unavailable", "parameters", "unsupported", {}
+    )
+    assert not unresolved["definition_resolved"]
+    assert checks._summarise([*findings, unresolved])["unique_definitions"] == 2
     assert summary["unique_definitions"] == 2
     assert summary["counts_by_check"]["field-descriptions"]["mismatch"] == 2

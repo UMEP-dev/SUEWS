@@ -117,6 +117,9 @@ def result(
         "check": check,
         "status": status,
         "detail": detail,
+        "definition_resolved": isinstance(
+            source.node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+        ),
         **source.binding(),
     }
 
@@ -657,7 +660,9 @@ def _summarise(findings: list[dict]) -> dict:
             }
     return {
         "counts_by_check": dict(sorted(by_check.items())),
-        "unique_definitions": len({(f["file"], f["definition"]) for f in findings}),
+        "unique_definitions": len({
+            (f["file"], f["definition"]) for f in findings if f["definition_resolved"]
+        }),
         "format_deviations": sum(len(f["detail"].get("formats", [])) for f in findings),
         "format_definitions": len({
             f["definition"] for f in findings if f["detail"].get("formats")

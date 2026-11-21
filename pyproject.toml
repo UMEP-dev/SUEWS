@@ -113,6 +113,8 @@ tmy = [
 
 # Core development tooling (kept separate from docs to reduce supply-chain surface)
 dev = [
+    # Static code-text reporting: NumPy parameter parsing and PR01/PR02 checks.
+    "numpydoc==1.9.0",
     # Testing
     "pytest",
     "pytest-cov",

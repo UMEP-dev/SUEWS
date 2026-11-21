@@ -124,6 +124,8 @@ public :: unpack_timer
 public :: unpack_site_scalars
 public :: unpack_site_members
 public :: unpack_state_members
+! Non-C module access for the opt-in reverse-state witness; no new C ABI.
+public :: pack_nhood_state
 
 contains
 

@@ -65,7 +65,7 @@ No `rust-toolchain.toml` -- uses system Rust. CI installs via rustup.
 - `python-extension` -- enables `python` and PyO3's extension-module linking
 - `python` -- enables PyO3; the dependency selects the Python 3.12+ stable ABI
 - `arrow-output` -- enables Apache Arrow IPC output format
-- `capi-observer` -- test-only feature (implies `physics`; mutually exclusive with `python-extension` in `build.rs`) that compiles `test_observer/capi_field_observer.f95` for the `capi_field_observer` integration test [fact: git grep -n "capi-observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs]
+- `capi-observer` -- test-only feature (implies `physics`; mutually exclusive with `python-extension` in `build.rs`) that compiles the forward field observers and the reverse neighbourhood-state observer for the `capi_field_observer` integration test [fact: git grep -n "capi-observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs]
 
 The maturin build uses `python-extension` + `physics`.
 
@@ -201,6 +201,12 @@ than relying on `*_shadow` or `*_pack` round trips.
   (`non_unpacked_types_inventory_and_codecs`), and 1 truncated-buffer rejection
   check (`observer_rejects_truncated_flat_buffer`)
   [fact: python3 scripts/suews/gen_capi_field_observer.py --check && git grep -c "^#\[test" src/suews_bridge/tests/capi_field_observer.rs].
+- **Reverse neighbourhood binding.** In the same integration target,
+  `tests/reverse_nhood/mod.rs` checks the five named `NHOOD_STATE` members
+  returned by the driver packer and the short-buffer error. The hand-written
+  `test_observer/reverse_nhood_observer.f95` assigns values directly to the
+  kernel type before calling the production packer
+  [fact: git grep -n "reverse_nhood" src/suews_bridge/build.rs src/suews_bridge/tests].
 - **Regenerate and verify** after changing any bridged Fortran `TYPE`,
   `c_api/*_unpack` routine, Rust struct/codec, or `bridge-manifest.json` entry
   (update `tests/capi_field_observer.rs` as well if struct fields or bridged
@@ -213,7 +219,7 @@ python3 scripts/suews/gen_capi_field_observer.py
 # Verify committed artefacts match fresh generator output byte for byte
 python3 scripts/suews/gen_capi_field_observer.py --check
 
-# Build Fortran kernel libraries and run all 38 observer tests
+# Build Fortran kernel libraries and run the complete observer suite
 make -C src/suews all
 cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer
 ```

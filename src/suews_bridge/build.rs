@@ -14,7 +14,7 @@
 //!    `-fcheck=all` in `checked` mode) and archives `libsuews_bridge.a`.
 //! 4. **Test-only observer (`capi-observer`)**: when enabled (mutually
 //!    exclusive with `python-extension`), compiles
-//!    `test_observer/capi_field_observer.f95` into `libsuews_capi_observer.a`
+//!    the generated forward and hand-maintained reverse observers into `libsuews_capi_observer.a`
 //!    and links it ahead of `libsuews_bridge.a`.
 //! 5. **Kernel and runtime linkage**: under `--features physics`, links the
 //!    prebuilt SUEWS archives (`libsuewsdriver.a`, `libsuewsphys.a`,
@@ -284,60 +284,64 @@ fn main() {
     }
 
     if capi_observer_enabled {
-        let observer_src = manifest_dir.join("test_observer/capi_field_observer.f95");
-        if !observer_src.exists() {
-            panic!(
-                "missing generated Fortran C-API observer {}. Run `python3 scripts/suews/gen_capi_field_observer.py` first",
-                observer_src.display()
-            );
-        }
-        println!("cargo:rerun-if-changed={}", observer_src.display());
-
-        let observer_obj = out_dir.join("capi_field_observer.o");
-        let mut obs_cmd = Command::new(&gfortran_bin);
-        obs_cmd.args([
-            "-c",
-            "-O2",
-            "-fPIC",
-            "-ffree-line-length-none",
-            "-frecursive",
-            "-finit-real=zero",
-            "-finit-integer=0",
-            "-finit-logical=false",
-            "-I",
-            out_dir.to_string_lossy().as_ref(),
-        ]);
-        if runtime_checks {
-            obs_cmd.arg("-fcheck=all");
-        }
-        let suews_mod_dir = manifest_dir.join("../suews/mod");
-        let suews_mod_dir_str = suews_mod_dir.to_string_lossy().to_string();
-        obs_cmd.args(["-I", suews_mod_dir_str.as_str()]);
-        if target_os == "macos" {
-            obs_cmd.arg("-mmacosx-version-min=11.0");
-            if target_arch == "aarch64" {
-                obs_cmd.args(["-arch", "arm64"]);
-            } else if target_arch == "x86_64" {
-                obs_cmd.args(["-arch", "x86_64"]);
+        let mut observer_objects = Vec::new();
+        for observer_name in ["capi_field_observer", "reverse_nhood_observer"] {
+            let observer_src = manifest_dir.join(format!("test_observer/{observer_name}.f95"));
+            if !observer_src.exists() {
+                panic!(
+                    "missing test-only Fortran observer source {}",
+                    observer_src.display()
+                );
             }
-        }
-        let obs_status = obs_cmd
-            .arg(&observer_src)
-            .arg("-o")
-            .arg(&observer_obj)
-            .arg("-J")
-            .arg(&out_dir)
-            .status()
-            .expect("failed to execute gfortran while compiling test C-API observer");
-        if !obs_status.success() {
-            panic!("gfortran failed to compile {}", observer_src.display());
+            println!("cargo:rerun-if-changed={}", observer_src.display());
+
+            let observer_obj = out_dir.join(format!("{observer_name}.o"));
+            let mut obs_cmd = Command::new(&gfortran_bin);
+            obs_cmd.args([
+                "-c",
+                "-O2",
+                "-fPIC",
+                "-ffree-line-length-none",
+                "-frecursive",
+                "-finit-real=zero",
+                "-finit-integer=0",
+                "-finit-logical=false",
+                "-I",
+                out_dir.to_string_lossy().as_ref(),
+            ]);
+            if runtime_checks {
+                obs_cmd.arg("-fcheck=all");
+            }
+            let suews_mod_dir = manifest_dir.join("../suews/mod");
+            let suews_mod_dir_str = suews_mod_dir.to_string_lossy().to_string();
+            obs_cmd.args(["-I", suews_mod_dir_str.as_str()]);
+            if target_os == "macos" {
+                obs_cmd.arg("-mmacosx-version-min=11.0");
+                if target_arch == "aarch64" {
+                    obs_cmd.args(["-arch", "arm64"]);
+                } else if target_arch == "x86_64" {
+                    obs_cmd.args(["-arch", "x86_64"]);
+                }
+            }
+            let obs_status = obs_cmd
+                .arg(&observer_src)
+                .arg("-o")
+                .arg(&observer_obj)
+                .arg("-J")
+                .arg(&out_dir)
+                .status()
+                .expect("failed to execute gfortran while compiling test C-API observer");
+            if !obs_status.success() {
+                panic!("gfortran failed to compile {}", observer_src.display());
+            }
+            observer_objects.push(observer_obj);
         }
 
         let obs_archive = out_dir.join("libsuews_capi_observer.a");
         let obs_ar_status = Command::new("ar")
             .arg("crus")
             .arg(&obs_archive)
-            .arg(&observer_obj)
+            .args(&observer_objects)
             .status()
             .expect("failed to execute ar while archiving test C-API observer");
         if !obs_ar_status.success() {

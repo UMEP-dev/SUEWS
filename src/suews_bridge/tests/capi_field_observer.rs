@@ -21,6 +21,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+mod reverse_nhood;
+
 use suews_bridge::{
     encode_site_members_flat, encode_site_scalars_flat, encode_state_members_flat,
     error_entry_default_from_fortran, error_entry_schema_info, error_state_default_from_fortran,

@@ -35,6 +35,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
+from ._yaml_io import safe_load_yaml
 from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import DataModelBase, RefValue, SurfaceType
@@ -2015,10 +2016,8 @@ class SUEWSConfig(DataModelBase):
     def _check_raw_yaml_for_cp_field(self, yaml_path: str, surface_path: str) -> bool:
         """Check if the raw YAML file has 'cp' instead of 'rho_cp' in thermal_layers."""
         try:
-            import yaml
-
             with open(yaml_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+                data = safe_load_yaml(f)
 
             # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
             path_parts = surface_path.replace("[", "/").replace("]", "").split("/")
@@ -5605,7 +5604,7 @@ class SUEWSConfig(DataModelBase):
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
         with open(path, "r", encoding="utf-8") as file:
-            config_data = yaml.safe_load(file)
+            config_data = safe_load_yaml(file)
 
         return cls.from_dict(
             config_data,

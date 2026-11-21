@@ -63,6 +63,7 @@ except Exception:
 
 # Import from supy modules
 try:
+    from ..data_model.core._yaml_io import safe_load_yaml
     from ..data_model.core.config import SUEWSConfig
     from ..data_model.core.field_renames import (
         read_physics_key,
@@ -78,6 +79,7 @@ except ImportError:
     import sys
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
+    from supy.data_model.core._yaml_io import safe_load_yaml
     from supy.data_model.core.config import SUEWSConfig
     from supy.data_model.core.field_renames import (
         read_physics_key,
@@ -114,7 +116,7 @@ def validate_single_file(
     try:
         # Load configuration
         with open(file_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+            config = safe_load_yaml(f)
         flatten_physics_in_config(config)
 
         target_is_current = (
@@ -581,21 +583,28 @@ def cli(
     ctx.exit(code)
 
 
-def _experimental_features_restriction(user_yaml_file, mode):
-    """Return public-mode experimental-feature violations.
+_PRELOADED_YAML_UNSET = object()
 
-    Returns:
-        tuple: ``(ok, restrictions, read_error)`` where ``ok`` is false
-        when validation should halt.
+
+def _experimental_features_restriction_with_data(user_yaml_file, mode):
+    """Return public-mode experimental-feature violations and parsed YAML data.
+
+    Returns
+    -------
+    tuple
+        ``(ok, restrictions, read_error, parsed_data)`` where ``parsed_data`` is
+        the unmutated parsed YAML document in public mode (so a single CLI
+        invocation can hand it to Phase A without re-parsing the same file), or
+        ``_PRELOADED_YAML_UNSET`` when the file was not parsed.
     """
     if mode != "public":
-        return True, [], None  # Dev mode allows all features
+        return True, [], None, _PRELOADED_YAML_UNSET  # Dev mode allows all features
 
     try:
         with open(user_yaml_file, "r", encoding="utf-8") as f:
-            user_yaml_data = yaml.safe_load(f)
+            user_yaml_data = safe_load_yaml(f)
     except Exception as e:
-        return False, [], f"Error reading YAML file: {e}"
+        return False, [], f"Error reading YAML file: {e}", _PRELOADED_YAML_UNSET
 
     # Read physics keys via helpers that accept both the new snake_case name
     # and its legacy alias — the Pydantic shim accepts both, so this gate must
@@ -625,9 +634,22 @@ def _experimental_features_restriction(user_yaml_file, mode):
         restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
 
     if restrictions_violated:
-        return False, restrictions_violated, None
+        return False, restrictions_violated, None, user_yaml_data
 
-    return True, [], None
+    return True, [], None, user_yaml_data
+
+
+def _experimental_features_restriction(user_yaml_file, mode):
+    """Return public-mode experimental-feature violations.
+
+    Returns:
+        tuple: ``(ok, restrictions, read_error)`` where ``ok`` is false
+        when validation should halt.
+    """
+    ok, restrictions, read_error, _ = _experimental_features_restriction_with_data(
+        user_yaml_file, mode
+    )
+    return ok, restrictions, read_error
 
 
 def _print_experimental_features_restriction(restrictions_violated):
@@ -947,9 +969,12 @@ def _execute_pipeline(
             data={"file": str(file)},
         )
 
-    ok_experimental, restrictions_violated, read_error = (
-        _experimental_features_restriction(user_yaml_file, mode)
-    )
+    (
+        ok_experimental,
+        restrictions_violated,
+        read_error,
+        preloaded_user_data,
+    ) = _experimental_features_restriction_with_data(user_yaml_file, mode)
     if not ok_experimental:
         if read_error:
             return _emit_pipeline_startup_error(
@@ -1003,6 +1028,12 @@ def _execute_pipeline(
         _dirname,
     ) = _processor_setup_output_paths(user_yaml_file, pipeline)
 
+    phase_a_preload_kwargs = (
+        {"_preloaded_user_data": preloaded_user_data}
+        if preloaded_user_data is not _PRELOADED_YAML_UNSET
+        else {}
+    )
+
     # Execute selected phases (logic mirrors orchestrator.main for consistency)
     if pipeline == "A":
         phase_a_report = _processor_run_phase_a(
@@ -1014,6 +1045,7 @@ def _execute_pipeline(
             phase="A",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         return _emit_pipeline_result(
             phases=[phase_a_report],
@@ -1075,6 +1107,7 @@ def _execute_pipeline(
             phase="AB",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         a_ok = not a_ok_report.has_errors
         if not a_ok:
@@ -1202,6 +1235,7 @@ def _execute_pipeline(
             phase="AC",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         a_ok = not a_ok_report.has_errors
         if not a_ok:
@@ -1493,6 +1527,7 @@ def _execute_pipeline(
         phase="ABC",
         silent=True,
         forcing=forcing,
+        **phase_a_preload_kwargs,
     )
     a_ok = not a_ok_report.has_errors
     if not a_ok:

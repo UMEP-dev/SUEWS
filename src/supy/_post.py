@@ -616,10 +616,8 @@ def _resample_output(
                         # group's columns are sliced (gh#1849)
                         df_work[group].xs(grid, level="grid"),
                         freq,
-                        # DailyState is labelled by the start of each day at
-                        # fixed frequencies; a calendar period has no such
-                        # start label, so its daily totals take the period's
-                        # label like every other group.
+                        # Fixed-frequency DailyState uses the bin's left edge.
+                        # Calendar periods use the same label for every group.
                         "left"
                         if group == "DailyState" and not calendar
                         else "right",

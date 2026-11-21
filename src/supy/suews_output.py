@@ -722,8 +722,10 @@ class SUEWSOutput:
 
         Each value covers the left-open, right-closed interval
         ``(t - freq, t]`` and is labelled by its end ``t``
-        (``closed="right", label="right"``); at fixed frequencies DailyState
-        is labelled by the start of each day, while at calendar frequencies
+        (``closed="right", label="right"``). At fixed frequencies, DailyState
+        uses the start of the bin containing the day's last model step.
+        For a last step at 23:55, that label is 23:00 for hourly output or
+        00:00 on the same day for daily output. At calendar frequencies
         (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``) every group takes the period's
         label. See :ref:`timestamp_convention`.
 

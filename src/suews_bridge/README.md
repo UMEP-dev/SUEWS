@@ -259,6 +259,13 @@ boundary is still being completed in #1991/#2002; some omitted values can
 still retain legacy bridge fallbacks. Acceptance by the engine does not
 establish that incomplete input is valid.
 
+Resolved site input requires finite `lat`, `lng`, `alt`, `timezone`, `surfacearea`
+and `z`. Both the public configuration and the standalone engine use `lng`
+for longitude. In an old standalone input that uses `lon`, replace that key
+with `lng` and retain the intended longitude value. Zero coordinates, altitude
+and UTC offset remain valid. The public data model supplies the source defaults
+when exporting a configuration through `supy._run_rust.config_to_engine_yaml`.
+
 To build a runnable engine (needs the SUEWS physics library, e.g. `make dev`):
 
 ```bash

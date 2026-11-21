@@ -19,6 +19,63 @@ import pytest
 
 import supy as sp
 from supy import SUEWSSimulation
+from supy.util import SUEWS_MISSING, SUEWS_MISSING_THRESHOLD
+
+ERA5_REQUIRED_COLUMNS = ("Tair", "RH", "pres", "U", "kdown", "ldown", "rain")
+
+
+def _assert_era5_forcing_valid(df_forcing: pd.DataFrame, df_src: pd.DataFrame) -> None:
+    """Verify ERA5 forcing timestamps, radiation, Tair, finiteness, and bounds."""
+    assert len(df_forcing) == len(df_src) > 0, (
+        f"ERA5 forcing row count mismatch: got {len(df_forcing)}, expected {len(df_src)}"
+    )
+
+    # Verify generated timestamps match the input ERA5 fixture timestamps exactly.
+    expected_times = pd.DatetimeIndex(pd.to_datetime(df_src["valid_time"]))
+    actual_times = pd.DatetimeIndex(df_forcing.index)
+    assert (actual_times == expected_times).all(), (
+        "ERA5 forcing timestamps do not match source valid_time series"
+    )
+
+    # Check temperature against the source 2 m temperature adjusted by the
+    # 100 m diagnostic height environmental lapse rate (6.5 K km-1).
+    expected_tair = df_src["t2m"].to_numpy() - (100.0 - 2.0) * 0.0065 - 273.15
+    tair = df_forcing["Tair"].to_numpy(dtype=float)
+    assert np.isfinite(tair).all(), "ERA5 forcing Tair contains non-finite values"
+    np.testing.assert_allclose(tair, np.round(expected_tair, 2), atol=0.02)
+
+    # Check shortwave and longwave radiation against fixture J m-2 -> W m-2 conversion.
+    expected_kdown = np.where(
+        df_src["ssrd"].to_numpy(dtype=float) > 0.0,
+        df_src["ssrd"].to_numpy(dtype=float) / 3600.0,
+        0.0,
+    )
+    expected_ldown = df_src["strd"].to_numpy(dtype=float) / 3600.0
+    kdown = df_forcing["kdown"].to_numpy(dtype=float)
+    ldown = df_forcing["ldown"].to_numpy(dtype=float)
+    assert np.isfinite(kdown).all(), "ERA5 forcing kdown contains non-finite values"
+    assert np.isfinite(ldown).all(), "ERA5 forcing ldown contains non-finite values"
+    np.testing.assert_allclose(kdown, np.round(expected_kdown, 2), atol=0.02)
+    np.testing.assert_allclose(ldown, np.round(expected_ldown, 2), atol=0.02)
+
+    # Verify core meteorological columns are finite (no NaN or +/-Inf),
+    # free of SUEWS missing sentinels (<= -900), and physically bounded.
+    for col in ERA5_REQUIRED_COLUMNS:
+        arr = df_forcing[col].to_numpy(dtype=float)
+        assert np.isfinite(arr).all(), (
+            f"ERA5 forcing {col} contains non-finite values (NaN or +/-Inf)"
+        )
+        assert not (arr <= SUEWS_MISSING_THRESHOLD).any(), (
+            f"ERA5 forcing {col} contains sentinel values (<= {SUEWS_MISSING_THRESHOLD})"
+        )
+
+    assert ((df_forcing["RH"] > 0.0) & (df_forcing["RH"] <= 105.0)).all()
+    assert ((df_forcing["pres"] > 85.0) & (df_forcing["pres"] < 110.0)).all()
+    assert (df_forcing["U"] >= 0.0).all()
+    assert (df_forcing["kdown"] >= 0.0).all()
+    assert (df_forcing["ldown"] > 0.0).all()
+    assert (df_forcing["rain"] >= 0.0).all()
+
 
 # Get the test data directory from the environment variable
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
@@ -323,41 +380,29 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if forcing generation working...")
 
-        # # mimic downloading
-        # dict_era5_file = sp.util.download_era5(
-        #     57.7081,
-        #     11.9653,
-        #     "20030101",
-        #     "20031231",
-        #     dir_save="./data_test/single-grid",
-        # )
-        # list_fn_ml = [k for k in dict_era5file.keys() if "ml" in k]
-        # list_fn_sfc = [k for k in dict_era5_file.keys() if "sfc" in k]
-        # test forcing generation
+        p_data_test = test_data_dir / "era5"
+        fixture_csv = p_data_test / "57.7081N11.9653E-2003-sfc.csv"
+        self.assertTrue(
+            fixture_csv.is_file(),
+            f"Vendored ERA5 fixture CSV not found at {fixture_csv}",
+        )
 
-        # skip this test if under cibuild environment where the test data is not available
-        p_data_test = Path("test/fixtures/data_test/era5")
-        if not p_data_test.exists():
-            self.assertTrue(True)
-        else:
-            # Generation must not rewrite the vendored legacy forcing header.
-            with tempfile.TemporaryDirectory() as generated:
-                for source in p_data_test.glob("*.csv"):
-                    shutil.copy2(source, Path(generated) / source.name)
-                list_fn_fc = sp.util.gen_forcing_era5(
-                    57.7081,
-                    11.9653,
-                    "20030101",
-                    "20031231",
-                    dir_save=generated,
-                )
-                df_forcing = sp.util.read_suews(list_fn_fc[0])
-                ser_tair = df_forcing.Tair
-            # ds_sfc = xr.open_mfdataset(list_fn_sfc)
-            # ser_t2 = ds_sfc.t2m.to_series()
-            # res_dif = ((df_forcing.Tair + 273.15 - ser_t2.values) / 98).round(4)
-            test_dif = -30 < ser_tair.max() < 100
-            self.assertTrue(test_dif)
+        # Generation must not rewrite the vendored legacy forcing header.
+        with tempfile.TemporaryDirectory() as generated:
+            shutil.copy2(fixture_csv, Path(generated) / fixture_csv.name)
+            list_fn_fc = sp.util.gen_forcing_era5(
+                57.7081,
+                11.9653,
+                "20030101",
+                "20031231",
+                dir_save=generated,
+            )
+            self.assertEqual(len(list_fn_fc), 1)
+            self.assertTrue(Path(list_fn_fc[0]).is_file())
+            df_forcing = sp.util.read_suews(list_fn_fc[0])
+
+        df_src = pd.read_csv(fixture_csv)
+        _assert_era5_forcing_valid(df_forcing, df_src)
 
     # Note: benchmark tests have been moved to test_sample_output.py
     # for better diagnostics and platform-specific tolerance handling
@@ -384,3 +429,84 @@ class TestSuPy(TestCase):
         smd_veg_test = cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
 
         self.assertAlmostEqual(smd_veg_correct, smd_veg_test)
+
+
+def _make_valid_era5_pair() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return a minimal valid (df_forcing, df_src) pair for ERA5 validator controls."""
+    times = pd.date_range("2003-01-01 00:00", periods=2, freq="1h")
+    df_src = pd.DataFrame({
+        "valid_time": times.strftime("%Y-%m-%d %H:%M:%S"),
+        "t2m": [273.15, 280.15],
+        "ssrd": [0.0, 432000.0],  # 0.0 and 120.0 W m-2
+        "strd": [1008000.0, 1116000.0],  # 280.0 and 310.0 W m-2
+    })
+    expected_tair = np.round(df_src["t2m"].to_numpy() - 98.0 * 0.0065 - 273.15, 2)
+    df_valid = pd.DataFrame(
+        {
+            "Tair": expected_tair,
+            "RH": [75.0, 80.0],
+            "pres": [101.2, 100.8],
+            "U": [0.0, 3.5],
+            "kdown": [0.0, 120.0],
+            "ldown": [280.0, 310.0],
+            "rain": [0.0, 0.4],
+        },
+        index=times,
+    )
+    return df_valid, df_src
+
+
+@pytest.mark.parametrize(
+    ("column", "bad_value"),
+    [
+        ("U", np.inf),
+        ("kdown", np.inf),
+        ("ldown", np.inf),
+        ("rain", np.inf),
+        ("Tair", -np.inf),
+        ("U", -np.inf),
+        ("Tair", np.nan),
+        ("rain", np.nan),
+        ("Tair", SUEWS_MISSING),
+        ("RH", SUEWS_MISSING),
+        ("pres", SUEWS_MISSING),
+        ("rain", SUEWS_MISSING),
+    ],
+)
+def test_era5_forcing_validator_rejects_nonfinite_and_sentinel_values(
+    column, bad_value
+):
+    """Non-finite (+/-Inf, NaN) and -999 sentinel values in ERA5 forcing must fail."""
+    df_valid, df_src = _make_valid_era5_pair()
+
+    # Positive control: genuine zeroes in U, kdown, rain and negative Tair pass.
+    _assert_era5_forcing_valid(df_valid, df_src)
+
+    df_bad = df_valid.copy()
+    df_bad.iloc[1, df_bad.columns.get_loc(column)] = bad_value
+    with pytest.raises(AssertionError):
+        _assert_era5_forcing_valid(df_bad, df_src)
+
+
+def test_era5_forcing_validator_rejects_timestamp_shift_and_corrupted_radiation():
+    """Shifting timestamps by 1 h or corrupting kdown/ldown must fail validation."""
+    df_valid, df_src = _make_valid_era5_pair()
+    _assert_era5_forcing_valid(df_valid, df_src)
+
+    # 1-hour timestamp shift must fail.
+    df_shifted = df_valid.copy()
+    df_shifted.index = df_shifted.index + pd.Timedelta(hours=1)
+    with pytest.raises(AssertionError, match="timestamps"):
+        _assert_era5_forcing_valid(df_shifted, df_src)
+
+    # Zeroing kdown when source ssrd is positive must fail.
+    df_zero_kdown = df_valid.copy()
+    df_zero_kdown["kdown"] = 0.0
+    with pytest.raises(AssertionError):
+        _assert_era5_forcing_valid(df_zero_kdown, df_src)
+
+    # Replacing ldown with constant 1.0 W m-2 must fail.
+    df_unit_ldown = df_valid.copy()
+    df_unit_ldown["ldown"] = 1.0
+    with pytest.raises(AssertionError):
+        _assert_era5_forcing_valid(df_unit_ldown, df_src)

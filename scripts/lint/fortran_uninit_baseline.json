@@ -8,7 +8,7 @@
     "-Wmaybe-uninitialized"
   ],
   "unit_count": 114,
-  "entry_count": 34,
+  "entry_count": 33,
   "entries": [
     {
       "file": "src/suews/ext_lib/spartacus-surface/radsurf/radsurf_urban_lw.F90",
@@ -32,12 +32,6 @@
       "file": "src/suews/src/suews_ctrl_driver.f95",
       "proc": "suews_update_tsurf",
       "var": "dif_tsfc_iter",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_phys_anthro.f95",
-      "proc": "anthropogenicemissions",
-      "var": "qf_sahp_base",
       "kind": "maybe-uninitialized"
     },
     {

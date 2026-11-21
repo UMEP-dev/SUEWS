@@ -52,6 +52,19 @@ For complete usage options and advanced features, use:
     suews schema migrate --help
     suews schema version --help
 
+Site Longitude and Resolved Engine Input
+----------------------------------------
+
+Use ``sites[*].properties.lng`` for longitude. The public configuration model
+accepts ``lng`` and reports ``lon`` as an unknown site property. When longitude
+is omitted from a source configuration, the model supplies its documented
+default of -0.13 degrees.
+
+Resolved input for the standalone ``suews-engine run`` command must contain
+finite values for ``lat``, ``lng``, ``alt``, ``timezone``, ``surfacearea`` and
+``z`` at every site it reads. Use the data model to export a source
+configuration with defaults resolved before invoking the native engine.
+
 Phase B Scientific Fix Policy
 -----------------------------
 

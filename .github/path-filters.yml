@@ -21,11 +21,13 @@
 #   tests             -- test files (single-platform build)
 #   docs              -- documentation source
 #   site              -- static site content
-#   rust_test         -- triggers folded rust-test reusable workflow
-#   rust_clippy       -- triggers folded rust-clippy reusable workflow
-#   encoding_audit    -- triggers folded encoding-audit reusable workflow
-#   workflow_security -- triggers folded workflow-security reusable workflow
-#   dependency_audit  -- triggers folded dependency-audit reusable workflow
+#   rust_test          -- triggers folded rust-test reusable workflow
+#   rust_clippy        -- triggers folded rust-clippy reusable workflow
+#   encoding_audit     -- triggers folded encoding-audit reusable workflow
+#   workflow_security  -- triggers folded workflow-security reusable workflow
+#   dependency_audit   -- triggers folded dependency-audit reusable workflow
+#   fortran_uninit     -- triggers folded fortran-uninit reusable workflow
+#   rust_capi_observer -- triggers folded rust-capi-observer reusable workflow
 
 fortran:
   # Fortran physics source
@@ -93,6 +95,8 @@ ci:
   - '.github/workflows/data-interface-version-audit.yml'
   - '.github/workflows/dependency-audit.yml'
   - '.github/workflows/encoding-audit.yml'
+  - '.github/workflows/fortran-uninit.yml'
+  - '.github/workflows/rust-capi-observer.yml'
   - '.github/workflows/rust-clippy.yml'
   - '.github/workflows/rust-test.yml'
   - '.github/workflows/schema-version-audit.yml'
@@ -116,12 +120,16 @@ rust_test:
   - 'test/fixtures/bridge/**'
   - 'src/supy/data_model/output/**'
   - '.github/workflows/rust-test.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
 
 rust_clippy:
   # Paths audited by the folded rust-clippy reusable workflow (gh#2094)
   - 'src/suews_bridge/**'
   - 'src/suews/src/suews_ctrl_const.f95'
   - '.github/workflows/rust-clippy.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
 
 encoding_audit:
   # Paths audited by the folded encoding-audit reusable workflow (gh#2094)
@@ -130,11 +138,14 @@ encoding_audit:
   - '.github/**/*.py'
   - '.claude/**/*.py'
   - '.github/workflows/encoding-audit.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
 
 workflow_security:
   # Paths audited by the folded workflow-security reusable workflow (gh#2094)
   - '.github/workflows/**'
   - '.github/actions/**'
+  - '.github/path-filters.yml'
   - '.github/scripts/check_action_pins.py'
   - '.github/scripts/post-ci-summary*'
   - '.github/scripts/package.json'
@@ -146,7 +157,36 @@ dependency_audit:
   - 'scripts/security/**'
   - '.github/workflows/dependency-audit.yml'
   - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
   - '.github/actions/build-suews/action.yml'
+
+fortran_uninit:
+  # Paths audited by the folded fortran-uninit reusable workflow (gh#2094, gh#2095)
+  - 'src/suews/src/**'
+  - 'src/suews/ext_lib/**'
+  - 'src/suews/Makefile'
+  - 'src/suews/Makefile.deps'
+  - 'src/suews/Makefile.gfortran'
+  - 'src/suews_bridge/c_api/**'
+  - 'src/suews_bridge/build.rs'
+  - 'scripts/lint/check_fortran_uninit.py'
+  - 'scripts/lint/fortran_uninit_baseline.json'
+  - '.github/workflows/fortran-uninit.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
+
+rust_capi_observer:
+  # Paths audited by the folded rust-capi-observer reusable workflow (gh#2094, gh#2096)
+  - 'src/suews_bridge/**'
+  - 'src/suews/src/**'
+  - 'src/suews/ext_lib/**'
+  - 'src/suews/Makefile'
+  - 'src/suews/Makefile.deps'
+  - 'src/suews/Makefile.gfortran'
+  - 'scripts/suews/gen_capi_field_observer.py'
+  - '.github/workflows/rust-capi-observer.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
 
 site:
   # Static site content (GitHub Pages) - separate from wheel builds

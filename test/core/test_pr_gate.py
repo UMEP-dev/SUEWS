@@ -15,6 +15,40 @@ pytestmark = [
     ),
 ]
 
+_UNCONDITIONAL_RESULT_VARS = (
+    "SCHEMA_AUDIT_RESULT",
+    "DATA_INTERFACE_AUDIT_RESULT",
+)
+
+_PATH_FILTERED_PRODUCERS = (
+    ("RUST_TEST_RESULT", "RUST_TEST_CHANGED"),
+    ("RUST_CLIPPY_RESULT", "RUST_CLIPPY_CHANGED"),
+    ("ENCODING_AUDIT_RESULT", "ENCODING_AUDIT_CHANGED"),
+    ("WORKFLOW_SECURITY_RESULT", "WORKFLOW_SECURITY_CHANGED"),
+    ("DEPENDENCY_AUDIT_RESULT", "DEPENDENCY_AUDIT_CHANGED"),
+    ("FORTRAN_UNINIT_RESULT", "FORTRAN_UNINIT_CHANGED"),
+    ("RUST_CAPI_OBSERVER_RESULT", "RUST_CAPI_OBSERVER_CHANGED"),
+)
+
+_ALL_CONSOLIDATED_ENV_VARS = (
+    "EVENT_NAME",
+    *_UNCONDITIONAL_RESULT_VARS,
+    *(var for pair in _PATH_FILTERED_PRODUCERS for var in pair),
+)
+
+
+def _stage2_green_env(event_name: str = "pull_request") -> dict[str, str]:
+    """Return a clean Stage 2 caller environment with all 9 producers green/skipped."""
+    env: dict[str, str] = {
+        "EVENT_NAME": event_name,
+        "SCHEMA_AUDIT_RESULT": "success",
+        "DATA_INTERFACE_AUDIT_RESULT": "success",
+    }
+    for result_var, changed_var in _PATH_FILTERED_PRODUCERS:
+        env[result_var] = "success"
+        env[changed_var] = "true"
+    return env
+
 
 def _run_pr_gate(env_overrides: dict[str, str]) -> subprocess.CompletedProcess[str]:
     script = Path(__file__).resolve().parents[2] / ".github/scripts/pr-gate.sh"
@@ -29,15 +63,7 @@ def _run_pr_gate(env_overrides: dict[str, str]) -> subprocess.CompletedProcess[s
         "PHYSICS_LABEL_RESULT": "success",
         "PHYSICS_CHANGE": "false",
     }
-    for key in (
-        "RUST_TEST_RESULT",
-        "RUST_CLIPPY_RESULT",
-        "SCHEMA_AUDIT_RESULT",
-        "DATA_INTERFACE_AUDIT_RESULT",
-        "ENCODING_AUDIT_RESULT",
-        "WORKFLOW_SECURITY_RESULT",
-        "DEPENDENCY_AUDIT_RESULT",
-    ):
+    for key in _ALL_CONSOLIDATED_ENV_VARS:
         base_env.pop(key, None)
     base_env.update(env_overrides)
     return subprocess.run(
@@ -55,6 +81,7 @@ class GateTests(unittest.TestCase):
             for status in ("success", "cancelled", "failure", "skipped", "", "unknown"):
                 with self.subTest(status=status, needs_build=needs_build):
                     result = _run_pr_gate({
+                        **_stage2_green_env(),
                         "DETECT_CHANGES_RESULT": status,
                         "NEEDS_BUILD": needs_build,
                     })
@@ -64,43 +91,126 @@ class GateTests(unittest.TestCase):
                         result.stdout + result.stderr,
                     )
 
-    def test_old_base_workflow_without_stage1_env_vars_still_passes(self):
-        result = _run_pr_gate({})
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(
-            "not reported by caller workflow (pre-Stage-1 base)", result.stdout
+    def test_pre_stage2_old_base_workflow_compatibility_and_fail_closed_failures(self):
+        # Pre-Stage-1 open PR caller (omits EVENT_NAME and all 9 producer vars)
+        pre_stage1 = _run_pr_gate({})
+        self.assertEqual(
+            pre_stage1.returncode, 0, pre_stage1.stdout + pre_stage1.stderr
         )
+        self.assertIn("pre-Stage-2 base", pre_stage1.stdout)
 
-    def test_stage1_consolidated_producers_observability_mode(self):
-        all_green = _run_pr_gate({
-            "RUST_TEST_RESULT": "success",
-            "RUST_CLIPPY_RESULT": "success",
+        # Stage 1 open PR caller (passes Stage 1 results without EVENT_NAME or *_CHANGED)
+        stage1_green = _run_pr_gate({
             "SCHEMA_AUDIT_RESULT": "success",
             "DATA_INTERFACE_AUDIT_RESULT": "success",
+            "RUST_TEST_RESULT": "success",
+            "RUST_CLIPPY_RESULT": "skipped",
             "ENCODING_AUDIT_RESULT": "success",
-            "WORKFLOW_SECURITY_RESULT": "success",
+            "WORKFLOW_SECURITY_RESULT": "skipped",
             "DEPENDENCY_AUDIT_RESULT": "skipped",
         })
-        self.assertEqual(all_green.returncode, 0, all_green.stdout + all_green.stderr)
-        self.assertIn("[OK] rust_test: success", all_green.stdout)
-        self.assertIn("[OK] schema_version_audit: success", all_green.stdout)
-        self.assertIn("[INFO] dependency_audit: skipped", all_green.stdout)
+        self.assertEqual(
+            stage1_green.returncode, 0, stage1_green.stdout + stage1_green.stderr
+        )
 
-        # Stage 1 logs a warning for a non-success folded producer without
-        # turning on Stage 2 fail-closed enforcement before Stage 1 lands on master.
-        stage1_warn = _run_pr_gate({
-            "RUST_TEST_RESULT": "failure",
+        # Even for pre-Stage-2 callers, reported failures and unconditional skips fail closed
+        stage1_fail = _run_pr_gate({
             "SCHEMA_AUDIT_RESULT": "success",
             "DATA_INTERFACE_AUDIT_RESULT": "success",
+            "RUST_TEST_RESULT": "failure",
         })
-        self.assertEqual(
-            stage1_warn.returncode, 0, stage1_warn.stdout + stage1_warn.stderr
-        )
-        self.assertIn(
-            "::warning::Consolidated producer 'rust_test' finished with status 'failure'",
-            stage1_warn.stdout,
-        )
-        self.assertIn("Stage 2 W1-1b", stage1_warn.stdout)
+        self.assertEqual(stage1_fail.returncode, 1, stage1_fail.stdout)
+        self.assertIn("rust_test", stage1_fail.stdout)
+
+        uncond_skip = _run_pr_gate({
+            "SCHEMA_AUDIT_RESULT": "skipped",
+            "DATA_INTERFACE_AUDIT_RESULT": "success",
+        })
+        self.assertEqual(uncond_skip.returncode, 1, uncond_skip.stdout)
+
+    def test_stage2_all_nine_producers_fail_closed_across_pr_and_merge_group(self):
+        for event_name in ("pull_request", "merge_group"):
+            with self.subTest(event=event_name, case="all-success"):
+                res = _run_pr_gate(_stage2_green_env(event_name))
+                self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+                self.assertIn("[OK] fortran_uninit: success", res.stdout)
+                self.assertIn("[OK] rust_capi_observer: success", res.stdout)
+
+            # Unconditional audits fail closed on skipped, failure, cancelled, or empty
+            for var in _UNCONDITIONAL_RESULT_VARS:
+                for bad in ("skipped", "failure", "cancelled", ""):
+                    with self.subTest(event=event_name, var=var, bad=bad):
+                        env = {**_stage2_green_env(event_name), var: bad}
+                        res = _run_pr_gate(env)
+                        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+            # Path-filtered producers:
+            # - changed=false + skipped -> PASS
+            # - changed=true + skipped  -> FAIL CLOSED (unexpected skip)
+            # - changed=true + failure/cancelled -> FAIL CLOSED
+            # - changed=false + failure -> FAIL CLOSED
+            # - invalid/empty changed flag -> FAIL CLOSED
+            for result_var, changed_var in _PATH_FILTERED_PRODUCERS:
+                with self.subTest(
+                    event=event_name, var=result_var, case="unchanged-skip-ok"
+                ):
+                    env = {
+                        **_stage2_green_env(event_name),
+                        changed_var: "false",
+                        result_var: "skipped",
+                    }
+                    res = _run_pr_gate(env)
+                    self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+                for bad_status in ("skipped", "failure", "cancelled", ""):
+                    with self.subTest(
+                        event=event_name,
+                        var=result_var,
+                        case=f"changed-true-{bad_status}",
+                    ):
+                        env = {
+                            **_stage2_green_env(event_name),
+                            changed_var: "true",
+                            result_var: bad_status,
+                        }
+                        res = _run_pr_gate(env)
+                        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+                with self.subTest(
+                    event=event_name, var=result_var, case="unchanged-failure-fails"
+                ):
+                    env = {
+                        **_stage2_green_env(event_name),
+                        changed_var: "false",
+                        result_var: "failure",
+                    }
+                    res = _run_pr_gate(env)
+                    self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+                with self.subTest(
+                    event=event_name, var=changed_var, case="empty-changed-fails"
+                ):
+                    env = {
+                        **_stage2_green_env(event_name),
+                        changed_var: "",
+                        result_var: "skipped",
+                    }
+                    res = _run_pr_gate(env)
+                    self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+    def test_stage2_missing_env_vars_fail_closed(self):
+        for event_name in ("pull_request", "merge_group"):
+            # Missing result var in Stage 2 mode must fail closed
+            for missing_var in (
+                *_UNCONDITIONAL_RESULT_VARS,
+                *(rv for rv, _ in _PATH_FILTERED_PRODUCERS),
+                *(cv for _, cv in _PATH_FILTERED_PRODUCERS),
+            ):
+                with self.subTest(event=event_name, missing=missing_var):
+                    env = _stage2_green_env(event_name)
+                    env.pop(missing_var)
+                    res = _run_pr_gate(env)
+                    self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
 
     def test_core_required_gates_remain_fail_closed(self):
         for var in (
@@ -111,5 +221,5 @@ class GateTests(unittest.TestCase):
             "PHYSICS_LABEL_RESULT",
         ):
             with self.subTest(failing_var=var):
-                result = _run_pr_gate({var: "failure"})
+                result = _run_pr_gate({**_stage2_green_env(), var: "failure"})
                 self.assertEqual(result.returncode, 1, result.stdout + result.stderr)

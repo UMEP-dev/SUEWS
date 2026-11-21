@@ -149,10 +149,15 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[cfg(all(feature = "physics", feature = "arrow-output"))]
-    /// Run SUEWS batch simulation from resolved YAML config.
+    /// Run SUEWS from resolved YAML with `model.control.output.dir` set.
     ///
     /// The config must be resolved YAML, as `suews run` hands it to the
     /// engine. Hand-written configs go through `suews run <config>`.
+    ///
+    /// Move a legacy `model.control.output_file.path` value to
+    /// `model.control.output.dir`. File exports with `config_to_engine_yaml`
+    /// use the working directory when the source omits it. Buffer-only
+    /// Python runs return arrays and can omit the directory.
     #[command(after_help = RESOLVED_YAML_HINT)]
     Run {
         /// Path to resolved config YAML (as written by `suews run`).

@@ -1,6 +1,7 @@
 """Command-line runner; every invocation supplies its document revision explicitly."""
 
 import argparse
+from contextlib import ExitStack
 from dataclasses import asdict
 import hashlib
 import json
@@ -28,6 +29,7 @@ from .oracle import evaluate, require_provenance, sha256, snapshot
 from .python_session import PythonSession
 from .record import new_record, unrun_step, write
 from .replays import assess_replay
+from .state_replay import observe_replay
 from .summary import failed_summary, summarise
 
 FORCING_SETUP = """
@@ -163,7 +165,6 @@ def run_steps(
     specs: list[dict], work: Path, env: dict, pinned: dict
 ) -> tuple[list[dict], str | None]:
     """Stop on the first failed promise and retain each later consumer as unrun."""
-    validate_probes(specs, {s["id"] for s in specs if s["kind"] == "documented"})
     session = PythonSession(work, env)
     try:
         return execute_steps(specs, work, env, pinned, session)
@@ -174,14 +175,44 @@ def run_steps(
 def execute_steps(
     specs: list[dict], work: Path, env: dict, pinned: dict, session: PythonSession
 ) -> tuple[list[dict], str | None]:
-    """Observe steps within the caller-owned interpreter lifetime."""
+    """Keep observations out of any reader with documented steps still to run."""
+    validate_probes(specs, {s["id"] for s in specs if s["kind"] == "documented"})
+    last_documented = max(
+        (i for i, spec in enumerate(specs) if spec["kind"] == "documented"),
+        default=-1,
+    )
+    with ExitStack() as stack:
+        seed = None
+        if any(
+            p["kind"] in {"memory", "physical"}
+            for spec in specs[:last_documented]
+            for p in spec["promises"]
+        ):
+            temporary = stack.enter_context(tempfile.TemporaryDirectory())
+            seed = Path(temporary) / "initial"
+            shutil.copytree(work, seed)
+        return execute_reader_steps(
+            specs, work, env, pinned, session, last_documented, seed
+        )
+
+
+def execute_reader_steps(
+    specs: list[dict],
+    work: Path,
+    env: dict,
+    pinned: dict,
+    session: PythonSession,
+    last_documented: int,
+    seed: Path | None,
+) -> tuple[list[dict], str | None]:
+    """Execute source spans and route early state promises to independent replays."""
     certified = dict(pinned)
     records = []
     stopped = False
     consumer = None
     missing = set()
     state_failed = False
-    for spec in specs:
+    for index, spec in enumerate(specs):
         record = unrun_step(spec)
         records.append(record)
         if stopped:
@@ -207,7 +238,10 @@ def execute_steps(
         after = snapshot(work)
         record.update(process, after=after)
         promises = [
-            evaluate(p, before, after, work, process, session) for p in spec["promises"]
+            observe_replay(p, specs[: index + 1], seed, work, env)
+            if index < last_documented and p["kind"] in {"memory", "physical"}
+            else evaluate(p, before, after, work, process, session)
+            for p in spec["promises"]
         ]
         record["promises"] = promises
         expected_exit = spec.get("exit_status", 0)
@@ -391,14 +425,21 @@ def execute_journey(
     diagnostic = (
         specs[-1] if specs and specs[-1].get("probe_kind") == "diagnostic" else None
     )
-    record["steps"], record["first_unrun_consumer"] = run_steps(
-        specs[:-1] if diagnostic else specs, work, env, pinned
-    )
-    final = snapshot(work)
-    last = next((s for s in reversed(record["steps"]) if s["status"] != "unrun"), {})
-    record["path_outcomes"] = [
-        evaluate(p, initial, final, work, last) for p in journey.get("outcomes", [])
-    ]
+    session = PythonSession(work, env)
+    try:
+        record["steps"], record["first_unrun_consumer"] = execute_steps(
+            specs[:-1] if diagnostic else specs, work, env, pinned, session
+        )
+        final = snapshot(work)
+        last = next(
+            (s for s in reversed(record["steps"]) if s["status"] != "unrun"), {}
+        )
+        record["path_outcomes"] = [
+            evaluate(p, initial, final, work, last, session)
+            for p in journey.get("outcomes", [])
+        ]
+    finally:
+        session.close()
     if diagnostic:
         record["steps"].append(run_diagnostic(diagnostic, work, env))
     passed = journey_passed(record["steps"], record["path_outcomes"])

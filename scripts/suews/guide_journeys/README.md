@@ -63,6 +63,11 @@ A `memory` promise evaluates `expression` in that namespace and compares its JSO
 A `physical` promise names `check: absolute_residual`, evaluates a scalar residual `expression`, and compares its absolute value with the manifest's required finite, nonnegative `tolerance`.
 This generic check supplies neither a water-balance formula nor a physical tolerance; those remain domain-owner decisions for the later Getting Started run.
 Assertion expressions must be observations, not setup or replacement statements.
+An observation must never change what a later documented step sees.
+Before the last documented step, each memory or physical promise runs in a fresh reader process using the journey's environment, with the documented spans replayed through that step and with no promises replayed.
+The replay starts from a separate copy of the initial working files; shell spans are also replayed so Python reads the files those spans produce.
+A failed replay fails its promise rather than falling back to the main namespace.
+Promises on the last documented step and journey `outcomes` observe the live main reader after documented execution, before the session closes.
 Errors and non-JSON observations fail the promise.
 Guide journeys are invoked manually; there is no CI integration or scheduled run.
 

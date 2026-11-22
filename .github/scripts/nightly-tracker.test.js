@@ -7,26 +7,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const tracker = require('./nightly-tracker.js');
-const { TITLE, MARKER, isRecordingJob, badNeeds, failedLeaves, changesFromCommits, buildReport } = tracker;
+const { trackerIdentity, isRecordingJob, verdict, failedLeaves, changesFromCommits, buildReport } = tracker;
 
-const RED_NEEDS = {
-  build_wheels: { result: 'success' },
-  build_wheels_checked: { result: 'failure' },
-  cost_markers: { result: 'failure', outputs: { status: 'drift', flagged: '3' } },
-};
-const GREEN_NEEDS = {
-  build_wheels: { result: 'success' },
-  cost_markers: { result: 'failure', outputs: { status: 'drift', flagged: '3' } },
-};
+const NIGHTLY = '.github/workflows/build-publish_to_pypi.yml';
 
 const JOBS = [
   { name: 'Build checked wheels (nightly physics tier) / cp312-manylinux x86_64', conclusion: 'failure', html_url: 'u1' },
   { name: 'wheel · cp312 · win AMD64', conclusion: 'cancelled', html_url: 'u2' },
   { name: 'wheel · cp312 · macosx arm64', conclusion: 'success', html_url: 'u3' },
-  { name: 'Cost-marker drift (Linux cp312 CPU seconds)', conclusion: 'failure', html_url: 'u4' },
   { name: 'Python coverage · Linux cp312', conclusion: 'cancelled', html_url: 'u5' },
-  { name: 'Tolerance spread / cp312-macosx arm64', conclusion: 'timed_out', html_url: 'u6' },
-  { name: 'Report scheduled run outcome', conclusion: 'failure', html_url: 'u7' },
+  { name: 'Tolerance spread / cp312-macosx arm64', conclusion: 'skipped', html_url: 'u6' },
 ];
 
 const COMMITS = [
@@ -35,21 +25,30 @@ const COMMITS = [
   { sha: 'cccccccccccc', commit: { message: 'Fix radiation again (#2201)' } },
 ];
 
+test('the main nightly keeps its legacy tracker; other workflows get their own', () => {
+  assert.deepEqual(trackerIdentity(NIGHTLY, 'x'), {
+    title: 'Nightly scheduled run is failing', marker: '<!-- nightly-run-tracker -->',
+  });
+  assert.deepEqual(trackerIdentity('.github/workflows/interaction-limits.yml', 'Enforce Interaction Limits'), {
+    title: 'Scheduled run is failing: Enforce Interaction Limits',
+    marker: '<!-- scheduled-run-tracker: interaction-limits.yml -->',
+  });
+});
+
+test('verdict: success is green; failed, cancelled and timed out are red', () => {
+  assert.equal(verdict('success'), 'green');
+  for (const c of ['failure', 'cancelled', 'timed_out', 'startup_failure']) assert.equal(verdict(c), 'red');
+  for (const c of [null, 'skipped', 'neutral', 'action_required']) assert.equal(verdict(c), 'ignore');
+});
+
 test('recording jobs match by prefix, ignoring punctuation and case', () => {
   assert.ok(isRecordingJob('Cost-marker drift (Linux cp312 CPU seconds)'));
   assert.ok(isRecordingJob('python coverage · linux'));
-  assert.ok(isRecordingJob('Tolerance spread / cp312-macosx arm64'));
   assert.ok(!isRecordingJob('wheel · cp312 · manylinux x86_64'));
 });
 
-test('badNeeds ignores cost_markers and counts skipped as bad', () => {
-  assert.deepEqual(badNeeds(RED_NEEDS), ['build_wheels_checked: failure']);
-  assert.deepEqual(badNeeds(GREEN_NEEDS), []);
-  assert.deepEqual(badNeeds({ deploy_testpypi: { result: 'skipped' } }), ['deploy_testpypi: skipped']);
-});
-
-test('failedLeaves matches on conclusion and drops recording jobs and itself', () => {
-  assert.deepEqual(failedLeaves(JOBS).map(j => j.url), ['u1', 'u2']);
+test('failedLeaves matches on conclusion and labels recording jobs', () => {
+  assert.deepEqual(failedLeaves(JOBS).map(j => [j.url, j.recording]), [['u1', false], ['u2', false], ['u5', true]]);
 });
 
 test('changesFromCommits extracts PR numbers once and keeps unnumbered commits', () => {
@@ -59,31 +58,36 @@ test('changesFromCommits extracts PR numbers once and keeps unnumbered commits',
   ]);
 });
 
-test('buildReport lists leaves, changes and the cost line', () => {
+test('buildReport names the conclusion, leaves and changes, with no tool footer', () => {
   const body = buildReport({
-    date: '2026-11-22', runUrl: 'RUN', bad: ['build_wheels_checked: failure'],
-    leaves: failedLeaves(JOBS), changes: changesFromCommits(COMMITS),
-    lastGreen: { url: 'GREEN' }, cost: 'COST',
+    date: '2026-11-21', runUrl: 'RUN', conclusion: 'cancelled', leaves: failedLeaves(JOBS),
+    cmp: { lastGreen: { url: 'GREEN' }, changes: changesFromCommits(COMMITS) },
   });
-  assert.match(body, /\*\*2026-11-22\*\*: RUN/);
-  assert.match(body, /\[wheel · cp312 · win AMD64\]\(u2\) \(cancelled\)/);
-  assert.match(body, /since the last green nightly \(GREEN\):\n- #2201 Fix radiation/);
-  assert.match(body, /COST$/);
+  assert.match(body, /\*\*2026-11-21\*\*: RUN ended `cancelled`/);
+  assert.match(body, /\[Python coverage · Linux cp312\]\(u5\) \(cancelled, recording job\)/);
+  assert.match(body, /since the last green scheduled run \(GREEN\):\n- #2201 Fix radiation/);
   assert.doesNotMatch(body, /Claude|Generated with/);
 });
 
-test('buildReport says so when nothing changed or nothing could be read', () => {
-  const body = buildReport({ date: 'd', runUrl: 'r', bad: ['x: failure'], leaves: null, changes: [], lastGreen: { url: 'G' } });
-  assert.match(body, /could not be read/);
-  assert.match(body, /no repository commits changed; the cause is undetermined/);
+test('buildReport says so when nothing changed, nothing was read, or the list is cut', () => {
+  const none = buildReport({ date: 'd', runUrl: 'r', conclusion: 'failure', leaves: null, cmp: { lastGreen: { url: 'G' }, changes: [] } });
+  assert.match(none, /could not be read/);
+  assert.match(none, /no repository commits changed; the cause is undetermined/);
+  const cut = buildReport({ date: 'd', runUrl: 'r', conclusion: 'failure', leaves: [],
+    cmp: { lastGreen: { url: 'G' }, changes: [{ ref: '#1', subject: 's' }], truncated: true, compareUrl: 'CMP' } });
+  assert.match(cut, /list cut short; full comparison: CMP/);
 });
 
 // A fake client recording every write.
-function fakeGithub({ openIssues = [], createFails = false, createError = null, pages = null } = {}) {
+function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null } = {}) {
   const calls = [];
+  const theRun = {
+    id: 1, event: 'schedule', conclusion: 'failure', path: NIGHTLY, name: 'Nightly',
+    workflow_id: 7, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'RUN', ...run,
+  };
   const rest = {
     issues: {
-      listForRepo: async () => ({ data: openIssues }),
+      listForRepo: 'issues',
       create: async p => {
         calls.push(['create', p]);
         if (createError) throw createError;
@@ -96,11 +100,11 @@ function fakeGithub({ openIssues = [], createFails = false, createError = null, 
     },
     actions: {
       listJobsForWorkflowRun: 'jobs',
-      getWorkflowRun: async () => ({ data: { workflow_id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD' } }),
-      listWorkflowRuns: async () => ({ data: { workflow_runs: [
-        { created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
-        { created_at: '2026-11-20T02:00:00Z', head_sha: 'BASE', html_url: 'GREEN' },
-      ] } }),
+      getWorkflowRun: async () => ({ data: theRun }),
+      listWorkflowRuns: async p => ({ data: { workflow_runs: p.status ? [
+        { id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
+        { id: 0, created_at: '2026-11-20T02:00:00Z', head_sha: 'BASE', html_url: 'GREEN' },
+      ] : [newest || { id: theRun.id, created_at: theRun.created_at }] } }),
     },
     repos: {
       compareCommitsWithBasehead: async p => {
@@ -110,62 +114,109 @@ function fakeGithub({ openIssues = [], createFails = false, createError = null, 
       },
     },
   };
-  return { calls, github: { rest, paginate: async () => JOBS } };
+  const paginate = async fn => (fn === 'issues' ? openIssues : JOBS);
+  return { calls, github: { rest, paginate } };
 }
 
 const fakeCore = () => {
   const warnings = [];
-  const summary = { addHeading() { return summary; }, addRaw() { return summary; }, write: async () => {} };
-  return { warnings, info() {}, warning: w => warnings.push(w), summary };
+  return { warnings, info() {}, warning: w => warnings.push(w) };
 };
 
 const context = { repo: { owner: 'o', repo: 'r' } };
-const TRACKER = { number: 5, title: TITLE, body: `${MARKER}\nx`, assignees: [] };
+const TRACKER = { number: 5, title: 'Nightly scheduled run is failing', body: '<!-- nightly-run-tracker -->\nx', assignees: [] };
 
 function withEnv(env, fn) {
   const saved = { ...process.env };
-  Object.assign(process.env, { RUN_ID: '1', RUN_URL: 'RUN', NIGHTLY_ASSIGNEE: 'sunt05', DRY_RUN: '' }, env);
+  Object.assign(process.env, { RUN_ID: '1', NIGHTLY_ASSIGNEE: 'sunt05', DRY_RUN: '' }, env);
   return fn().finally(() => { process.env = saved; });
 }
 
-test('red night with no tracker opens one issue assigned to the maintainer', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS) }, async () => {
+test('red run with no tracker opens one issue assigned to the maintainer', () =>
+  withEnv({}, async () => {
     const { github, calls } = fakeGithub();
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'opened');
     const creates = calls.filter(c => c[0] === 'create');
     assert.equal(creates.length, 1);
     assert.deepEqual(creates[0][1].assignees, ['sunt05']);
-    assert.ok(creates[0][1].body.startsWith(MARKER));
+    assert.ok(creates[0][1].body.startsWith('<!-- nightly-run-tracker -->'));
     assert.deepEqual(calls.find(c => c[0] === 'compare'), ['compare', 'BASE...HEAD']);
   }));
 
-test('red night with an open tracker comments and assigns, never duplicates', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS) }, async () => {
+test('a cancelled run counts as red', () =>
+  withEnv({}, async () => {
+    const { github } = fakeGithub({ run: { conclusion: 'cancelled' } });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'opened');
+    assert.match(out.body, /ended `cancelled`/);
+  }));
+
+test('a non-scheduled run is ignored and writes nothing', () =>
+  withEnv({}, async () => {
+    for (const event of ['pull_request', 'workflow_dispatch', 'merge_group', 'push']) {
+      const { github, calls } = fakeGithub({ run: { event } });
+      const out = await tracker({ github, context, core: fakeCore() });
+      assert.equal(out.action, 'ignored');
+      assert.deepEqual(calls, []);
+    }
+  }));
+
+test('a late re-run of an older night is superseded and writes nothing', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({
+      run: { conclusion: 'success' }, openIssues: [TRACKER],
+      newest: { id: 2, created_at: '2026-11-23T02:00:00Z' },
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'superseded');
+    assert.deepEqual(calls, []);
+  }));
+
+test('the report is dated by the run, not by the day it is written', () =>
+  withEnv({}, async () => {
+    const { github } = fakeGithub({ run: { run_started_at: '2026-11-17T02:03:00Z' } });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.match(out.body, /\*\*2026-11-17\*\*/);
+  }));
+
+test('a tracker of another workflow is not reused', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({
+      run: { path: '.github/workflows/interaction-limits.yml', name: 'Enforce Interaction Limits' },
+      openIssues: [TRACKER],
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'opened');
+    assert.equal(calls.find(c => c[0] === 'create')[1].title, 'Scheduled run is failing: Enforce Interaction Limits');
+  }));
+
+test('red run with an open tracker comments and assigns, never duplicates', () =>
+  withEnv({}, async () => {
     const { github, calls } = fakeGithub({ openIssues: [TRACKER] });
     await tracker({ github, context, core: fakeCore() });
     assert.deepEqual(calls.map(c => c[0]), ['compare', 'comment', 'assign']);
     assert.match(calls[1][1].body, /^Still failing\./);
   }));
 
-test('green night closes an open tracker', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(GREEN_NEEDS) }, async () => {
-    const { github, calls } = fakeGithub({ openIssues: [TRACKER] });
+test('green run closes an open tracker', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({ run: { conclusion: 'success' }, openIssues: [TRACKER] });
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'closed');
     assert.deepEqual(calls.map(c => c[0]), ['comment', 'update']);
     assert.equal(calls[1][1].state, 'closed');
   }));
 
-test('green night without a tracker writes nothing', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(GREEN_NEEDS) }, async () => {
-    const { github, calls } = fakeGithub();
+test('green run without a tracker writes nothing', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({ run: { conclusion: 'success' } });
     await tracker({ github, context, core: fakeCore() });
     assert.deepEqual(calls, []);
   }));
 
 test('a rejected assignee still opens the issue unassigned', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS) }, async () => {
+  withEnv({}, async () => {
     const { github, calls } = fakeGithub({ createFails: true });
     const core = fakeCore();
     await tracker({ github, context, core });
@@ -175,27 +226,28 @@ test('a rejected assignee still opens the issue unassigned', () =>
     assert.equal(core.warnings.length, 1);
   }));
 
-test('dry run writes nothing', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS), DRY_RUN: 'true' }, async () => {
-    const { github, calls } = fakeGithub({ openIssues: [TRACKER] });
-    await tracker({ github, context, core: fakeCore() });
-    assert.deepEqual(calls.filter(c => c[0] !== 'compare'), []);
-  }));
-
 test('an ambiguous create error is rethrown, not retried into a duplicate', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS) }, async () => {
+  withEnv({}, async () => {
     const { github, calls } = fakeGithub({ createError: Object.assign(new Error('bad gateway'), { status: 502 }) });
     await assert.rejects(tracker({ github, context, core: fakeCore() }), /bad gateway/);
     assert.equal(calls.filter(c => c[0] === 'create').length, 1);
   }));
 
 test('a comparison over several pages lists the newest pull requests first', () =>
-  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS) }, async () => {
+  withEnv({}, async () => {
     const commit = n => ({ sha: `s${n}`, commit: { message: `Change ${n} (#${n})` } });
     const all = Array.from({ length: 130 }, (_, i) => commit(i + 1));
     const { github, calls } = fakeGithub({ pages: [all.slice(0, 100), all.slice(100)] });
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(calls.filter(c => c[0] === 'compare').length, 2);
-    assert.match(out.body, /green nightly \(GREEN\):\n- #130 Change 130\n/);
+    assert.match(out.body, /green scheduled run \(GREEN\):\n- #130 Change 130\n/);
     assert.match(out.body, /and 115 more/);
+    assert.doesNotMatch(out.body, /cut short/);
+  }));
+
+test('dry run writes nothing', () =>
+  withEnv({ DRY_RUN: 'true' }, async () => {
+    const { github, calls } = fakeGithub({ openIssues: [TRACKER] });
+    await tracker({ github, context, core: fakeCore() });
+    assert.deepEqual(calls.filter(c => c[0] !== 'compare'), []);
   }));

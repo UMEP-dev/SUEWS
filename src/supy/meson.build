@@ -258,7 +258,6 @@ src_f95_all = [
   'suews_phys_atmmoiststab.f95',
   'suews_phys_beers.f95',
   'suews_phys_biogenco2.f95',
-  'suews_phys_bluews.f95',
   'suews_phys_dailystate.f95',
   'suews_phys_ehc.f95',
   'suews_phys_evap.f95',

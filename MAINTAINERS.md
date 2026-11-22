@@ -52,7 +52,7 @@ Any new `src/suews/src/suews_phys_*.f95` module not listed in this file is treat
 | SOLWEIG | [`2-module:solweig`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asolweig) | `/src/suews/src/suews_phys_solweig.f95` |
 | BEERS | [`2-module:beers`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abeers) | `/src/suews/src/suews_phys_beers.f95` |
 | Resistance | [`2-module:resist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aresist) | `/src/suews/src/suews_phys_resist.f95` |
-| BLUEWS | [`2-module:bluews`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abluews) | `/src/suews/src/suews_phys_bluews.f95` |
+| BLUEWS (disabled) | [`2-module:bluews`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abluews) | out of the build since gh#2172; source in git history, see [`BLUEWS_REACTIVATION.md`](dev-ref/BLUEWS_REACTIVATION.md) |
 | Daily state | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_dailystate.f95` |
 | LAI phenology (GDD/SDD) | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_lai.f95` |
 

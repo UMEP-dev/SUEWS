@@ -7,8 +7,8 @@
     "-Wuninitialized",
     "-Wmaybe-uninitialized"
   ],
-  "unit_count": 114,
-  "entry_count": 33,
+  "unit_count": 113,
+  "entry_count": 30,
   "entries": [
     {
       "file": "src/suews/ext_lib/spartacus-surface/radsurf/radsurf_urban_lw.F90",
@@ -164,24 +164,6 @@
       "file": "src/suews/src/suews_phys_atmmoiststab.f95",
       "proc": "psi_mom_w16",
       "var": "psym",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_phys_bluews.f95",
-      "proc": "diff",
-      "var": "dhds",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_phys_bluews.f95",
-      "proc": "gamma_sonde",
-      "var": "gamqq",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_phys_bluews.f95",
-      "proc": "gamma_sonde",
-      "var": "gamtt",
       "kind": "maybe-uninitialized"
     },
     {

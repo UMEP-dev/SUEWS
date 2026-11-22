@@ -13,6 +13,7 @@ inner retry passes.
 from __future__ import annotations
 
 import copy
+import dataclasses
 from importlib import import_module
 import json
 from pathlib import Path
@@ -396,3 +397,64 @@ def test_dyohm_updates_daily_coefficients_under_iter_reset(storage_method):
     assert any(abs(val) > 1.0e-3 for val in qn_rav_vals), (
         "DyOHM running-average net radiation qn_rav froze at 0"
     )
+
+
+def _with_old_style_ohm_iter_safe(checkpoint):
+    """Return ``checkpoint`` with ``OHM_STATE%iter_safe`` set as pre-fix kernels wrote it."""
+    bridge = import_module("supy.suews_bridge")
+    grid_states = {}
+    for grid_id, state_json in checkpoint.grid_states.items():
+        payload = json.loads(state_json)
+        ohm_payload = payload["state"]["members"]["ohm_state"]
+        state = bridge.OhmState.from_values_payload(
+            ohm_payload["schema_version"], ohm_payload["values"]
+        )
+        assert state.to_dict()["iter_safe"] == pytest.approx(0.0)
+        state.update_from_dict({"iter_safe": 1.0})
+        schema_version, values = state.to_values_payload()
+        ohm_payload["schema_version"] = schema_version
+        ohm_payload["values"] = values
+        grid_states[grid_id] = json.dumps(payload)
+    return dataclasses.replace(checkpoint, grid_states=grid_states)
+
+
+@pytest.mark.core
+def test_resume_from_old_style_checkpoint_ignores_stored_ohm_iter_safe():
+    """A checkpoint written before the fix (``iter_safe = 1``) resumes as a current one.
+
+    ``iter_safe`` describes the OHM state type, not the model state: a stored
+    ``.TRUE.`` must not switch off the per-pass OHM reset on a resumed run.
+    """
+    sim_template = sp.SUEWSSimulation.from_sample_data()
+    cfg = copy.deepcopy(sim_template.config)
+    cfg.model.physics.net_radiation = 3
+    cfg.model.physics.storage_heat = StorageHeatMethod.OHM_WITHOUT_QF
+    cfg.model.physics.ohm_inc_qf = 0
+    df_forcing = sim_template.forcing.df.iloc[: TIMESTEPS_PER_DAY * 2].copy()
+    df_first, df_second = (
+        df_forcing.iloc[:TIMESTEPS_PER_DAY],
+        df_forcing.iloc[TIMESTEPS_PER_DAY:],
+    )
+
+    sim_first, _ = _run_config(cfg, df_first)
+    checkpoint = sim_first.checkpoint
+    old_style = _with_old_style_ohm_iter_safe(checkpoint)
+
+    def resume(ckpt):
+        sim = sp.SUEWSSimulation.from_checkpoint(cfg, ckpt)
+        sim.update_forcing(df_second)
+        df_out = sim.run(
+            start_date=df_second.index[0], end_date=df_second.index[-1], n_jobs=1
+        ).df
+        return sim, df_out
+
+    _, df_current = resume(checkpoint)
+    sim_old, df_old = resume(old_style)
+
+    # The resumed day takes several surface-temperature passes, so a stale
+    # iter_safe would advance the OHM running means more than once per step.
+    assert (
+        float(np.mean(df_current.loc[1, ("debug", "iter")].to_numpy(dtype=float))) > 1.0
+    )
+    pd.testing.assert_frame_equal(df_old, df_current)
+    assert _decode_ohm_checkpoint(sim_old)["iter_safe"] == pytest.approx(0.0)

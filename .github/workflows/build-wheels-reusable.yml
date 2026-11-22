@@ -318,12 +318,15 @@ jobs:
 
       # The exact sample-output check writes the regenerated reference under
       # SUEWS_CI_METRICS_DIR when the run no longer reproduces the committed
-      # shards (see the wheel job's upload in .github/actions/build-suews).
+      # shards. The artefact keeps the wheel job's name, which the test's
+      # failure message and the reference-refresh procedure name: only the
+      # shard that holds that test writes files, and the other shards and the
+      # untested wheel job upload nothing (if-no-files-found: ignore).
       - name: Upload regenerated sample-output reference
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: ${{ inputs.artifact_prefix }}reference-regenerated-${{ env.METRICS_NAME }}
+          name: ${{ inputs.artifact_prefix }}reference-regenerated-${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
           path: ci-metrics/reference-regenerated/
           if-no-files-found: ignore
           retention-days: 14

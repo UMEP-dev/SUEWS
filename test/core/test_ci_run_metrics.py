@@ -327,6 +327,14 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
     assert chain_with["api_shard_python"].startswith("${{ (((github.event_name")
     assert "SUEWS_FORTRAN_PROBES_PREBUILT=1" in run["run"]
     assert '"$MANYLINUX_IMAGE"' in run["run"]
+    reference = next(
+        s for s in physics["steps"] if s.get("name") == "Upload regenerated sample-output reference"
+    )
+    # The name test_sample_output_exact.py tells a physics PR to download.
+    assert reference["with"]["name"] == (
+        "${{ inputs.artifact_prefix }}reference-regenerated-${{ matrix.python }}-"
+        "${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}"
+    )
     assert wheels["env"]["MANYLINUX_IMAGE"].startswith("quay.io/pypa/manylinux2014_x86_64:")
     action = (root / ".github/actions/build-suews/action.yml").read_text(encoding="utf-8")
     assert "CIBW_TEST_SKIP: ${{ inputs.skip_tests == 'true' && '*' || '' }}" in action

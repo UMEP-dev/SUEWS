@@ -46,6 +46,7 @@ from ..core.yaml_helpers import (
     parse_simulation_bounds,
 )
 from ...core.field_renames import normalise_yaml_renames
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
 from .phase_b_rules import (
     RulesRegistry,
@@ -316,6 +317,7 @@ def validate_phase_b_inputs(
             # use load_user_yaml_normalised (the path-based canonical loader);
             # the normalise_yaml_renames call keeps it equivalent.
             uptodate_data = normalise_yaml_renames(yaml.safe_load(uptodate_content))
+            uptodate_data, _ = normalise_hourly_profile_keys_in_raw_config(uptodate_data)
 
         is_phase_a_output = "UP TO DATE YAML" in uptodate_content
 

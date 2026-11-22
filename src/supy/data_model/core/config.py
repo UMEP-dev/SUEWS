@@ -36,6 +36,7 @@ from pathlib import Path
 import warnings
 
 from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
+from .profile import _CANONICAL_HOUR_KEY_SET, normalise_hourly_profile_mapping
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import DataModelBase, RefValue, SurfaceType
 
@@ -4310,6 +4311,7 @@ class SUEWSConfig(DataModelBase):
         self.validate_soil_depths()
         self.validate_active_veg_lai_max()
         self.validate_water_distributions()
+        self.validate_hourly_profile_hours()
 
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
@@ -5105,25 +5107,32 @@ class SUEWSConfig(DataModelBase):
                     if day_profile is None:
                         continue
 
-                    # Check hour keys can be converted to integers and are in valid range
-                    try:
-                        hours = [int(h) for h in day_profile.keys()]
-                    except (ValueError, TypeError):
+                    if not isinstance(day_profile, dict):
                         errors.append(
-                            f"{site_name}: {profile_name}.{day_type} has invalid hour keys. "
-                            f"Hour keys must be convertible to integers."
+                            f"{site_name}: {profile_name}.{day_type} must be a mapping "
+                            f"keyed by hours '1'..'24', got {type(day_profile).__name__}."
                         )
                         continue
 
-                    # Check hour range (1-24)
-                    if not all(1 <= h <= 24 for h in hours):
+                    # Strictly normalise keys ("01".."09" -> "1".."9") and reject
+                    # malformed, out-of-range, or colliding keys.
+                    try:
+                        normalised = normalise_hourly_profile_mapping(day_profile)
+                    except ValueError as exc:
                         errors.append(
-                            f"{site_name}: {profile_name}.{day_type} has hour values outside range 1-24. "
-                            f"Found hours: {sorted(hours)}"
+                            f"{site_name}: {profile_name}.{day_type}: {exc}"
                         )
+                        continue
 
-                    # Check complete coverage (must have hours 1-24)
-                    if sorted(hours) != list(range(1, 25)):
+                    if (
+                        normalised != day_profile
+                        or list(normalised.keys()) != list(day_profile.keys())
+                    ):
+                        setattr(profile, day_type, normalised)
+
+                    # Check complete coverage (must have canonical hours "1".."24")
+                    if set(normalised.keys()) != _CANONICAL_HOUR_KEY_SET:
+                        hours = [int(h) for h in normalised.keys()]
                         missing_hours = set(range(1, 25)) - set(hours)
                         extra_hours = set(hours) - set(range(1, 25))
                         error_parts = []

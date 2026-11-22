@@ -25,6 +25,7 @@ from pathlib import Path
 
 from .report_writer import REPORT_WRITER, sync_text_report_stopping_phase
 from ...core.physics_families import flatten_physics_in_config
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
 # Import Phase A and B functions
 try:
@@ -1035,8 +1036,20 @@ def _run_phase_c_legacy(
                     original_data, processed_data, "", standard_data
                 )
 
-                # Pydantic validation passed - create updatedC YAML with standardized header
-                copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
+                # Pydantic validation passed - create updatedC YAML with standardized header.
+                # Normalise unambiguous non-canonical 24-hour profile keys on export
+                # while keeping canonical files on the comment-preserving copy path.
+                with open(input_yaml_file, "r", encoding="utf-8") as _raw_f:
+                    _raw_yaml_data = yaml.safe_load(_raw_f)
+                _normalised_yaml_data, _hourly_keys_normalised = (
+                    normalise_hourly_profile_keys_in_raw_config(_raw_yaml_data)
+                )
+                if _hourly_keys_normalised:
+                    write_yaml_with_standard_header(
+                        _normalised_yaml_data, pydantic_yaml_file
+                    )
+                else:
+                    copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
 
                 # Build passed phases header based on which phases ran successfully
                 if phases_run:
@@ -1422,6 +1435,31 @@ Phase C validation could not be executed due to system errors.
         return False
 
 
+_STANDARD_UPDATED_YAML_HEADER = """# ==============================================================================
+# Updated YAML
+# ==============================================================================
+#
+# This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+# Details of changes are in the generated report.
+#
+# ==============================================================================
+
+"""
+
+
+def write_yaml_with_standard_header(data: object, dest_file: str) -> None:
+    """Serialise normalised YAML data with the standardised processor header."""
+    with open(dest_file, "w", encoding="utf-8", newline="\n") as f:
+        f.write(_STANDARD_UPDATED_YAML_HEADER)
+        yaml.dump(
+            data,
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+        )
+
+
 def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
     """Copy YAML file and add standardised header."""
     with open(source_file, "r", encoding="utf-8", errors="replace") as f:
@@ -1439,19 +1477,8 @@ def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
 
     clean_content = "\n".join(lines[content_start_idx:])
 
-    standard_header = """# ==============================================================================
-# Updated YAML
-# ==============================================================================
-#
-# This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
-# Details of changes are in the generated report.
-#
-# ==============================================================================
-
-"""
-
     with open(dest_file, "w", encoding="utf-8", newline="\n") as f:
-        f.write(standard_header + clean_content)
+        f.write(_STANDARD_UPDATED_YAML_HEADER + clean_content)
 
 
 def main():

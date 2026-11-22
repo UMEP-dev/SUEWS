@@ -18,6 +18,7 @@ from ...core.physics_families import (
     coerce_nested_to_flat,
     flatten_physics_in_config,
 )
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -376,6 +377,7 @@ def _normalise_phase_a_compatibility(
     normalised, replacements = _normalise_model_control_subobjects(config_data)
     normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
     replacements.extend(stebbs_replacements)
+    normalised, _ = normalise_hourly_profile_keys_in_raw_config(normalised)
     return normalised, replacements
 
 

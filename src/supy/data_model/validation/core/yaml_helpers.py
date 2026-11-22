@@ -40,6 +40,7 @@ from ...core.field_renames import (
 )
 from ...core.physics_families import coerce_nested_to_flat, flatten_physics_in_config
 from ...core.physics_orthogonal import coerce_orthogonal_to_flat
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -131,7 +132,9 @@ def load_user_yaml_normalised(path: str) -> Any:
         ``normalise_yaml_renames``).
     """
     with open(path, "r", encoding="utf-8") as f:
-        return normalise_yaml_renames(yaml.safe_load(f))
+        data = normalise_yaml_renames(yaml.safe_load(f))
+    data, _ = normalise_hourly_profile_keys_in_raw_config(data)
+    return data
 
 
 def get_value_safe(param_dict, param_key, default=None):

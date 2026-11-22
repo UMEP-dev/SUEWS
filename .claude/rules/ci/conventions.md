@@ -454,7 +454,7 @@ trusted, which is what the alert job below is for.
 |---|---|---|---|
 | `build_wheels` at test tier `all` | every event, but `all` only on schedule, tag and manual dispatch (`test_tier: all`, the dispatch default) | the `cp*` wheels and the `ci-metrics-*` artefacts | anyone diagnosing a lane's cost with `scripts/suews/analyse_ci_run.py` or `benchmark_ci_metrics.py` |
 | `build_wheels_checked` | `schedule` only | `checked-cp*` wheels, built `-O0 -fcheck=all`, running the full physics tier | whoever investigates a Fortran runtime error; the release-profile run in the same night is the comparison |
-| `python_coverage` (inside the Linux `build_wheels` call, chained behind that wheel only) | `schedule`, or `workflow_dispatch` with the `python_coverage` input | the `python-coverage` artefact (`coverage.json`, `coverage.xml`, 30-day retention) and a job-summary table of line and branch coverage per package, for `supy` and `suews_mcp` over the whole suite except `qgis` on the Linux cp312 wheel | whoever asks which code no test reaches; `pytest --cov` reproduces it locally from the `[tool.coverage.*]` tables in `pyproject.toml` |
+| `python_coverage` | `schedule`, or `workflow_dispatch` with the `python_coverage` input | the `python-coverage` artefact (`coverage.json`, `coverage.xml`, 30-day retention) and a job-summary table of line and branch coverage per package, for `supy` and `suews_mcp` over the whole suite except `qgis` on the Linux cp312 wheel | whoever asks which code no test reaches; `pytest --cov` reproduces it locally from the `[tool.coverage.*]` tables in `pyproject.toml` |
 | `tolerance_spread` | `schedule`, or `workflow_dispatch` with the `tolerance_spread` input | one `tolerance-spread-<platform>-<arch>-<cpXY>` JSON per matrix cell, 30-day retention | the tolerance derivation for `test/core/test_sample_output.py`, via `tolerance_spread.py summarise` (see `.claude/rules/tests/patterns.md`) |
 | `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds, and a drift status and count that `report_scheduled_run` prints (its job summary, and the tracking-issue comment on a night that fails for another reason) | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md`. Pull requests get the same check on the test files they change from `cost_markers_pr`, in the CI summary comment |
 | `report_scheduled_run` | `schedule` only | the `2-infra:ci` tracking issue "Nightly scheduled run is failing" | everyone; the first green night closes it |
@@ -498,15 +498,10 @@ counting only `failure` and `cancelled` would report that night as green and
 close the tracking issue.
 
 `python_coverage` is a recording job in the same way: `continue-on-error: true`,
-a step timeout under its job timeout (so a slow night fails the step instead of
-cancelling the job, and the summary and upload still run), and no direct place
-in `report_scheduled_run`'s or `pr-gate`'s needs. It runs inside the Linux
-`build_wheels` call, chained behind that wheel only, so it starts when the
-Linux wheel exists instead of after every platform's api lane; like the other
-inner recording jobs, its `continue-on-error` keeps the `build_wheels` result
-green. A failing test lowers its figures and is reported by the test lanes,
-not by it; `scripts/suews/nightly_streak.py` lists its failures with the other
-recording jobs.
+a timeout, and in neither `report_scheduled_run`'s needs nor `pr-gate`'s. A
+failing test lowers its figures and is reported by the test lanes, not by it;
+`scripts/suews/nightly_streak.py` lists its failures with the other recording
+jobs.
 
 ### Where a new expensive check goes
 

@@ -52,6 +52,22 @@ def tier_expression(kind: str, tier: str) -> str:
         raise ValueError(f"unknown test tier {tier!r}") from None
 
 
+def main(argv: list[str] | None = None) -> int:
+    """Print the marker expression for ``KIND TIER`` (used by the physics shard jobs)."""
+    import sys
+
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) != 2:
+        print("usage: ci_tiers.py physics|api TIER", file=sys.stderr)
+        return 2
+    try:
+        print(tier_expression(args[0], args[1]))
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    return 0
+
+
 def matches(expression: str, markers: Iterable[str]) -> bool:
     """Evaluate a pytest ``-m`` expression against a test's marker names."""
     from _pytest.mark.expression import Expression
@@ -60,3 +76,7 @@ def matches(expression: str, markers: Iterable[str]) -> bool:
     return Expression.compile(expression).evaluate(
         lambda name, /, **_kwargs: name in names
     )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

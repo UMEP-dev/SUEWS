@@ -294,7 +294,7 @@ jobs:
               "$UV" venv --quiet --python "$PY" /tmp/venv
               "$UV" pip install --quiet --python /tmp/venv/bin/python --only-binary :all:                 pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0                 wheelhouse/*.whl
               git config --global --add safe.directory /project
-              EXPR="$(/tmp/venv/bin/python -c "import sys; sys.path.insert(0, "scripts/suews"); from ci_tiers import tier_expression; print(tier_expression("physics", sys.argv[1]))" "$TIER")"
+              EXPR="$(/tmp/venv/bin/python scripts/suews/ci_tiers.py physics "$TIER")"
               SHARD_ARGS=()
               if [[ -n "$SHARD" ]]; then
                 SHARD_ARGS=(-p scripts.suews.pytest_shard --suews-shard "${SHARD/-of-//}")

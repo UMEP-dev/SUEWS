@@ -136,6 +136,7 @@ py.install_sources(
             'data_model/core/surface.py',
             'data_model/core/timezone_enum.py',
             'data_model/core/type.py',
+            'data_model/core/unit_metadata.py',
             'data_model/configuration/__init__.py',
             'data_model/configuration/version.py',
             'data_model/configuration/migration.py',

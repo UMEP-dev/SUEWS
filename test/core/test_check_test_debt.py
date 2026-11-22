@@ -50,7 +50,6 @@ def tree(tmp_path):
         "scripts/lint/fortran_uninit_baseline.json",
         "scripts/lint/fortran_snan_expected_failures.json",
         "scripts/lint/check_saved_fortran_locals.py",
-        "test/data_model/test_unit_metadata.py",
         "test/data_model/test_legacy_table_roundtrip.py",
         checker.OPTION_SWEEP,
         "test/physics/test_calendar_profiles.py",

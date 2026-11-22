@@ -21,6 +21,11 @@ from .type import (
     RefValue,
     SurfaceType,
 )
+from .unit_metadata import (
+    ConditionalUnitCase,
+    ConditionalUnitSpec,
+    conditional_unit_extra,
+)
 
 
 class WaterDistribution(DataModelBase):
@@ -586,7 +591,73 @@ class StorageDrainParams(DataModelBase):
             "Drainage coefficient 1; interpretation and units depend on drain_eq"
         ),
         json_schema_extra={
-            "unit": "equation-dependent",
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="drain_eq",
+                    selector_scope="sibling",
+                    selector_model="StorageDrainParams",
+                    selector_field="drain_eq",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="Threshold power law",
+                            kind="formula",
+                            expression="(kg m-2)^(1 - drain_coef_2) h-1",
+                            base_units=("kg m-2", "h"),
+                            depends_on=("drain_coef_2",),
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(state - store_cap)**drain_coef_2 / nsh_real "
+                                "for state >= store_cap, else 0"
+                            ),
+                            note=(
+                                "No fixed CF unit: the storage-unit exponent depends on "
+                                "the fitted dimensionless exponent drain_coef_2 "
+                                "(1 kg m-2 = 1 mm liquid water; "
+                                "nsh_real = 3600 / tstep is timesteps per hour)."
+                            ),
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="Modified Rutter exponential",
+                            kind="cf",
+                            unit="kg m-2 h-1",
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(exp(drain_coef_2 * state) - 1) / nsh_real"
+                            ),
+                            note=(
+                                "Hourly drainage flux scale (numerically equal to "
+                                "mm h-1 for liquid water; nsh_real = 3600 / tstep "
+                                "is timesteps per hour)."
+                            ),
+                        ),
+                        "3": ConditionalUnitCase(
+                            label="Power law without threshold",
+                            kind="formula",
+                            expression="(kg m-2)^(1 - drain_coef_2) h-1",
+                            base_units=("kg m-2", "h"),
+                            depends_on=("drain_coef_2",),
+                            formula=(
+                                "drain = drain_coef_1 * state**drain_coef_2 / nsh_real"
+                            ),
+                            note=(
+                                "No fixed CF unit: the storage-unit exponent depends on "
+                                "the fitted dimensionless exponent drain_coef_2 "
+                                "(1 kg m-2 = 1 mm liquid water; "
+                                "nsh_real = 3600 / tstep is timesteps per hour)."
+                            ),
+                        ),
+                    },
+                    activation_note=(
+                        "Applied to non-water surfaces with positive surface fraction "
+                        "(sfr > 0); ignored for water and inactive surfaces."
+                    ),
+                    inactive_note=(
+                        "drain_eq = 0 is an unset placeholder and any code outside "
+                        "{1, 2, 3} (including retired equation 4) selects no drainage "
+                        "branch in Fortran."
+                    ),
+                )
+            ),
             "display_name": "Drainage Coefficient 1",
         },
     )
@@ -596,7 +667,59 @@ class StorageDrainParams(DataModelBase):
             "Drainage coefficient 2; interpretation and units depend on drain_eq"
         ),
         json_schema_extra={
-            "unit": "equation-dependent",
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="drain_eq",
+                    selector_scope="sibling",
+                    selector_model="StorageDrainParams",
+                    selector_field="drain_eq",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="Threshold power law",
+                            kind="cf",
+                            unit="1",
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(state - store_cap)**drain_coef_2 / nsh_real "
+                                "for state >= store_cap, else 0"
+                            ),
+                            note="Dimensionless power-law exponent.",
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="Modified Rutter exponential",
+                            kind="cf",
+                            unit="m2 kg-1",
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(exp(drain_coef_2 * state) - 1) / nsh_real"
+                            ),
+                            note=(
+                                "Inverse surface-water storage scale multiplying "
+                                "state in kg m-2 (numerically equal to mm-1 for "
+                                "liquid water)."
+                            ),
+                        ),
+                        "3": ConditionalUnitCase(
+                            label="Power law without threshold",
+                            kind="cf",
+                            unit="1",
+                            formula=(
+                                "drain = drain_coef_1 * state**drain_coef_2 / nsh_real"
+                            ),
+                            note="Dimensionless power-law exponent.",
+                        ),
+                    },
+                    activation_note=(
+                        "Applied to non-water surfaces with positive surface fraction "
+                        "(sfr > 0); ignored for water and inactive surfaces."
+                    ),
+                    inactive_note=(
+                        "drain_eq = 0 is an unset placeholder and any code outside "
+                        "{1, 2, 3} (including retired equation 4) selects no drainage "
+                        "branch in Fortran."
+                    ),
+                )
+            ),
             "display_name": "Drainage Coefficient 2",
         },
     )

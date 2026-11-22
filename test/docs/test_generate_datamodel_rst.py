@@ -10,29 +10,31 @@ import re
 import pytest
 
 from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.human_activity import CO2Params
 from supy.data_model.core.hydro import StorageDrainParams, WaterDistribution
 from supy.data_model.core.model import OutputControl
 from supy.data_model.core.physics_families import PHYSICS_FAMILIES, resolve_scalar_name
-from supy.data_model.core.site import (
-    DectrProperties,
-    EvetrProperties,
-    GrassProperties,
-)
-from supy.data_model.core.surface import (
-    BldgsProperties,
-    BsoilProperties,
-    PavedProperties,
-    WaterProperties,
-)
 from supy.data_model.core.physics_orthogonal import (
     coerce_orthogonal_to_flat,
     fold_storage_heat_ohm_inc_qf,
+)
+from supy.data_model.core.site import (
+    Conductance,
+    DectrProperties,
+    EvetrProperties,
+    GrassProperties,
 )
 from supy.data_model.core.state import (
     InitialStateDectr,
     InitialStateEvetr,
     InitialStateGrass,
     InitialStateVeg,
+)
+from supy.data_model.core.surface import (
+    BldgsProperties,
+    BsoilProperties,
+    PavedProperties,
+    WaterProperties,
 )
 from supy.data_model.parameter_examples import (
     get_all_parameter_examples,
@@ -1009,24 +1011,38 @@ def test_parameter_examples_limit_display_precision_without_changing_raw_data() 
 
 
 def test_selector_dependent_examples_keep_their_method_context() -> None:
-    """Flattened rows retain the selector needed to interpret their values."""
+    """Flattened rows retain selector context and resolve fixed CF branch units."""
     # ARRANGE
     module = _load_generator_module()
+    models = module.ModelDocExtractor().extract_all_models()["models"]
+    conductance_fields = {
+        field["name"]: field for field in models["Conductance"]["fields"]
+    }
+    drainage_fields = {
+        field["name"]: field for field in models["StorageDrainParams"]["fields"]
+    }
     conductance_examples = get_parameter_examples("Conductance", "g_q_base")
-    drainage_examples = get_parameter_examples("StorageDrainParams", "drain_coef_2")
 
     # ACT
-    conductance_rendered = "\n".join(
-        module.RSTGenerator({})._format_parameter_examples({
-            "unit": "model-dependent",
-            "examples": conductance_examples,
-        })
+    g_q_base_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(
+            conductance_fields["g_q_base"]
+        )
     )
-    drainage_rendered = "\n".join(
-        module.RSTGenerator({})._format_parameter_examples({
-            "unit": "equation-dependent",
-            "examples": drainage_examples,
-        })
+    g_q_shape_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(
+            conductance_fields["g_q_shape"]
+        )
+    )
+    drain_coef_1_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(
+            drainage_fields["drain_coef_1"]
+        )
+    )
+    drain_coef_2_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(
+            drainage_fields["drain_coef_2"]
+        )
     )
 
     # ASSERT
@@ -1035,11 +1051,25 @@ def test_selector_dependent_examples_keep_their_method_context() -> None:
         2,
         1,
     ]
-    assert "gs_model=1" in conductance_rendered
-    assert "gs_model=2" in conductance_rendered
-    assert "drain_eq=2" in drainage_rendered
-    assert "drain_eq=3" in drainage_rendered
-    assert "``0.2163`` model-dependent" not in conductance_rendered
+    assert "gs_model=1" in g_q_base_rendered
+    assert "gs_model=2" in g_q_base_rendered
+    assert "``0.2163`` kg |g^-1|" in g_q_base_rendered
+    assert "``0.13`` (dimensionless)" in g_q_base_rendered
+    assert "model-dependent" not in g_q_base_rendered
+
+    assert "``3.3649`` g |kg^-1|" in g_q_shape_rendered
+    assert "* - ``0.7``\n" in g_q_shape_rendered
+    assert "``0.7`` (dimensionless)" not in g_q_shape_rendered
+
+    assert "``0.013`` kg |m^-2| |h^-1|" in drain_coef_1_rendered
+    assert "* - ``10``\n" in drain_coef_1_rendered
+    assert "equation-dependent" not in drain_coef_1_rendered
+
+    assert "drain_eq=2" in drain_coef_2_rendered
+    assert "drain_eq=3" in drain_coef_2_rendered
+    assert "``1.71`` |m^2| |kg^-1|" in drain_coef_2_rendered
+    assert "``3`` (dimensionless)" in drain_coef_2_rendered
+    assert "equation-dependent" not in drain_coef_2_rendered
 
 
 def test_published_example_fields_use_physically_consistent_units() -> None:
@@ -1056,6 +1086,7 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
             "LAIPowerCoefficients",
             "PavedProperties",
             "StorageDrainParams",
+            "CO2Params",
         )
     }
 
@@ -1063,8 +1094,27 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
     assert fields["Conductance"]["g_max"]["unit"] == "1"
     assert fields["Conductance"]["g_k"]["unit"] == "W m-2"
     assert fields["Conductance"]["g_sm"]["unit"] == "m2 kg-1"
-    assert fields["Conductance"]["g_q_base"]["unit"] == "model-dependent"
-    assert fields["Conductance"]["g_q_shape"]["unit"] == "model-dependent"
+    assert "unit" not in fields["Conductance"]["g_q_base"]
+    assert fields["Conductance"]["g_q_base"]["conditional_unit"]["selector"] == (
+        "model.physics.surface_conductance"
+    )
+    assert (
+        fields["Conductance"]["g_q_base"]["conditional_unit"]["cases"]["1"]["unit"]
+        == "kg g-1"
+    )
+    assert (
+        fields["Conductance"]["g_q_base"]["conditional_unit"]["cases"]["2"]["unit"]
+        == "1"
+    )
+    assert "unit" not in fields["Conductance"]["g_q_shape"]
+    assert (
+        fields["Conductance"]["g_q_shape"]["conditional_unit"]["cases"]["1"]["unit"]
+        == "g kg-1"
+    )
+    assert (
+        fields["Conductance"]["g_q_shape"]["conditional_unit"]["cases"]["2"]["kind"]
+        == "empirical_base"
+    )
     assert fields["LAIPowerCoefficients"]["growth_gdd"]["unit"] == "K-1 d-1"
     assert fields["LAIPowerCoefficients"]["senescence_sdd"]["unit"] == ("K-1 d-1")
     assert fields["PavedProperties"]["state_limit"]["description"] == (
@@ -1075,10 +1125,40 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
         "surface resistance becomes zero"
         in fields["PavedProperties"]["wet_threshold"]["description"]
     )
-    assert fields["StorageDrainParams"]["drain_coef_1"]["unit"] == (
-        "equation-dependent"
+    assert "unit" not in fields["StorageDrainParams"]["drain_coef_1"]
+    assert (
+        fields["StorageDrainParams"]["drain_coef_1"]["conditional_unit"]["selector"]
+        == "drain_eq"
+    )
+    assert (
+        fields["StorageDrainParams"]["drain_coef_1"]["conditional_unit"]["cases"]["1"][
+            "kind"
+        ]
+        == "formula"
+    )
+    assert (
+        fields["StorageDrainParams"]["drain_coef_1"]["conditional_unit"]["cases"]["2"][
+            "unit"
+        ]
+        == "kg m-2 h-1"
+    )
+    assert "unit" not in fields["StorageDrainParams"]["drain_coef_2"]
+    assert (
+        fields["StorageDrainParams"]["drain_coef_2"]["conditional_unit"]["cases"]["2"][
+            "unit"
+        ]
+        == "m2 kg-1"
     )
     assert "modified Rutter" in fields["StorageDrainParams"]["drain_eq"]["description"]
+    assert "unit" not in fields["CO2Params"]["traffic_rate"]
+    assert (
+        fields["CO2Params"]["traffic_rate"]["conditional_unit"]["cases"]["1"]["unit"]
+        == "km m-2 d-1"
+    )
+    assert (
+        fields["CO2Params"]["traffic_rate"]["conditional_unit"]["cases"]["2"]["unit"]
+        == "km d-1"
+    )
 
     wet_threshold_rendered = "\n".join(
         module.RSTGenerator({})._format_parameter_examples(
@@ -1228,3 +1308,60 @@ def test_waterdist_user_docs_and_committed_schema_match_implementation() -> None
             ]
             == surface_cls.model_fields["waterdist"].description
         )
+
+
+def test_generated_conditional_unit_rst_and_committed_schema_match(tmp_path) -> None:
+    """Generated reference pages and committed schema.json render all five conditional fields."""
+    # ARRANGE
+    module = _load_generator_module()
+    doc_data = module.ModelDocExtractor().extract_all_models()
+    committed_schema = json.loads(
+        (
+            PROJECT_ROOT / "docs" / "source" / "inputs" / "tables" / "schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    live_schema = SUEWSConfig.model_json_schema()
+
+    # ACT
+    module.RSTGenerator(doc_data).generate_all_rst(tmp_path, style="hybrid")
+    drain_page = (tmp_path / "storagedrainparams.rst").read_text(encoding="utf-8")
+    cond_page = (tmp_path / "conductance.rst").read_text(encoding="utf-8")
+    co2_page = (tmp_path / "co2params.rst").read_text(encoding="utf-8")
+
+    # ASSERT: generated RST pages render selector paths, branch units/formulas, and no legacy prose
+    assert ":Unit: Depends on ``drain_eq``:" in drain_page
+    assert "``(kg m-2)^(1 - drain_coef_2) h-1``" in drain_page
+    assert "kg |m^-2| |h^-1|" in drain_page
+    assert "|m^2| |kg^-1|" in drain_page
+    assert "``1`` (dimensionless)" in drain_page
+    assert "equation-dependent" not in drain_page
+
+    assert ":Unit: Depends on ``model.physics.surface_conductance``:" in cond_page
+    assert "kg |g^-1|" in cond_page
+    assert "g |kg^-1|" in cond_page
+    assert (
+        "empirical power base for exponent in g |kg^-1|; log unit: kg |g^-1|"
+        in cond_page
+    )
+    assert "model-dependent" not in cond_page
+
+    assert ":Unit: Depends on ``type_traffic_rate``:" in co2_page
+    assert "km |m^-2| |d^-1|" in co2_page
+    assert "km |d^-1|" in co2_page
+    assert "vehicle km m-2 day-1" not in co2_page
+
+    # ASSERT: committed schema.json stays synced with live model conditional_unit metadata
+    for model_cls, field_name in (
+        (StorageDrainParams, "drain_coef_1"),
+        (StorageDrainParams, "drain_coef_2"),
+        (Conductance, "g_q_base"),
+        (Conductance, "g_q_shape"),
+        (CO2Params, "traffic_rate"),
+    ):
+        model_name = model_cls.__name__
+        live_prop = live_schema["$defs"][model_name]["properties"][field_name]
+        committed_prop = committed_schema["$defs"][model_name]["properties"][field_name]
+        assert "unit" not in live_prop
+        assert "unit" not in committed_prop
+        assert committed_prop["conditional_unit"] == live_prop["conditional_unit"]
+        assert committed_prop["description"] == live_prop["description"]

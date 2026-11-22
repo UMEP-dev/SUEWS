@@ -523,11 +523,6 @@ mappings:
     issue: 2175
     classification: "coverage_gap"
   - selector:
-      ledger: "Q"
-    contract: "C-SCHEMA"
-    issue: 2174
-    classification: "defect"
-  - selector:
       ledger: "T1"
     contract: "C-ROUNDTRIP"
     issue: 2083

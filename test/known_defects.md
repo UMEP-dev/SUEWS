@@ -36,7 +36,6 @@ The registered sources are:
 | X1 | `test/physics/test_option_sweep.py` | `OPTION_VALUES_XFAIL` entry |
 | X | Python files under `test/` and `benchmark/` | Other xfail source site, identified by file, scope and ordinal |
 | rust-ignore | Rust files under `src/suews_bridge/` | Ignore attribute, including conditional ignore (currently empty) |
-| Q | `test/data_model/test_unit_metadata.py` | Conditional unit exception |
 | T1, T2 | `test/data_model/test_legacy_table_roundtrip.py` | Sentinel column or version/variable pair |
 | Z | `scripts/lint/check_saved_fortran_locals.py` | Allowed file/local pair (currently empty) |
 

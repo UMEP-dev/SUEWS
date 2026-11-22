@@ -278,40 +278,20 @@ def _calendar_binning(obj, freq):
     return shifted
 
 
-def _dailystate_period_end(obj, source_s):
-    """Return DailyState rows stamped just before the end of the period they hold.
+def _fixed_origin(index: pd.DatetimeIndex):
+    """Return the midnight starting the first right-closed interval of *index*.
 
-    DailyState rows carry one of two stamps in a frame whose other groups
-    hold intervals of ``source_s`` seconds:
-
-    - native stamps, the last model step of each day (``23:55`` at a
-      five-minute step). Streamed output keeps these beside rows resampled
-      to the output frequency, and a native frame has them on its own grid;
-    - start labels from a fixed-frequency resample (``label="left"``), on the
-      ``source_s`` grid counted from the first row's midnight: ``00:00`` of
-      each day at ``"D"``, the start of the day's last bin at ``"h"``.
-
-    A row holding one day (native, or resampled below a day) moves to
-    the last tick of its day; a row holding ``source_s`` of a day or
-    more moves forward by ``source_s`` and back by one tick. Binning the
-    moved rows again (for example ``"D"`` then ``"ME"``) then assigns each as
-    binning the native rows would. Rows at a calendar or unknown interval
-    (``source_s`` is ``None``) are returned unchanged; calendar rows already
-    carry their period's end label, see :func:`_calendar_binning`.
+    Under SUEWS's ``closed="right", label="right"`` convention, a daily row
+    labelled ``D+1 00:00`` closes day ``D``, so ``(t_min - 1 tick).normalize()``
+    yields ``D 00:00`` for both native (``D 00:05``) and daily (``D+1 00:00``)
+    inputs. Passing this as ``origin`` for tz-naive fixed-frequency resamples
+    keeps multi-day bins (such as ``"2D"``) aligned across groups and across
+    chained resamples (``"D"`` then ``"2D"``). Returns ``None`` for empty or
+    tz-aware indexes.
     """
-    if source_s is None or len(obj.index) == 0:
-        return obj
-    index = obj.index
-    step = pd.Timedelta(source_s, "s")
-    day = pd.Timedelta(1, "D")
-    on_grid = ((index - index.min().normalize()) % step == pd.Timedelta(0)).all()
-    shifted = obj.copy(deep=False)
-    if step >= day and on_grid:
-        shifted.index = _shift_keeping_resolution(index, step)
-    else:
-        # Native last-step stamps are off the grid of any coarser interval.
-        shifted.index = _shift_keeping_resolution(index.normalize(), day)
-    return shifted
+    if len(index) == 0 or index.tz is not None:
+        return None
+    return (index.min() - pd.Timedelta(1, index.unit)).normalize()
 
 
 def _aggregate_bins(resampler, dict_aggm_group, columns):
@@ -420,25 +400,19 @@ def _resample_output(
 
     **Timestamp Convention**
 
-    Each resampled value covers the left-open, right-closed interval
-    ``(t - freq, t]`` and is labelled by its end ``t`` (``closed='right',
-    label='right'``), except DailyState, which uses ``label='left'`` at fixed
-    frequencies. At calendar frequencies (``W``, ``MS``, ``ME``, ``YE``) every
-    group, DailyState included, takes the period's pandas label, and the step
-    that closes a period counts towards it; see the
-    "Timestamp convention" page of the documentation
-    (``timestamp_convention``).
+    Every output group, ``DailyState`` included, uses the left-open,
+    right-closed convention ``(t - freq, t]`` labelled by its end ``t``
+    (``closed='right', label='right'``). At hourly and daily frequencies,
+    day ``D``'s ``DailyState`` row is therefore labelled ``D+1 00:00``,
+    aligning on the same row as ``SUEWS`` and every other group; at calendar
+    frequencies (``W``, ``MS``, ``ME``, ``YE``) every group likewise shares
+    the period's label. See the "Timestamp convention" page of the
+    documentation (``timestamp_convention``).
 
-    As a result, when resampling 7 full days of simulation data to daily
-    frequency, the combined output may contain 8 unique dates:
-
-    - SUEWS group: Jan 2 through Jan 8 (7 days)
-    - DailyState group: Jan 1 through Jan 7 (7 days)
-    - Combined: Jan 1 through Jan 8 (8 unique dates)
-
-    The first date (Jan 1) will have NaN for SUEWS variables, and the last
-    date (Jan 8) will have NaN for DailyState variables. This asymmetry
-    reflects the different semantic meanings of each group's timestamps.
+    Note that the Fortran kernel still accumulates ``DailyState`` over the
+    calendar-day steps ``00:00`` to ``23:55`` (at a 5-minute timestep) and
+    emits each day's values on its final step (``23:55``); resampling places
+    that record in the ``(t - freq, t]`` bin ending at ``D+1 00:00``.
 
     Examples
     --------
@@ -479,19 +453,26 @@ def _resample_output(
     dict_coverage = {}
 
     # Helper function to resample a group with specified parameters
-    def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None, grid=None):
-        """Resample a dataframe group with specified aggregation rules.
+    def _resample_group(
+        df_group, freq, dict_aggm_group, group_name=None, grid=None, origin=None
+    ):
+        """Resample a dataframe group with ``closed='right', label='right'``.
 
         Args:
             df_group: DataFrame group to resample
             freq: Resampling frequency
-            label: Label parameter for resample ('left' or 'right')
             dict_aggm_group: Aggregation dictionary for this group
             group_name: Name of the group (used to apply dropna only to DailyState)
+            grid: Grid identifier (for coverage lookup)
+            origin: Optional fixed-frequency origin shared across groups of a grid
 
         Returns:
             Resampled DataFrame
         """
+        resample_kw = {"closed": "right", "label": "right"}
+        if origin is not None:
+            resample_kw["origin"] = origin
+
         # Only apply dropna to DailyState group
         # Other groups may have NaN values in some variables (e.g., Fcld)
         if group_name == "DailyState":
@@ -510,19 +491,23 @@ def _resample_output(
             # contains the correct timestamps.
             coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
             ser_daily_seconds = pd.Series(
-                [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_to_resample.index],
+                [
+                    coverage.get(f"{grid}|{date.isoformat()}", float("nan"))
+                    for date in df_to_resample.index
+                ],
                 index=df_to_resample.index,
             )
-            # Coverage is keyed by the held labels, so look it up before the
-            # rows are moved to the end of the period they cover.
-            ser_daily_seconds = _dailystate_period_end(ser_daily_seconds, source_s)
-            df_to_resample = _dailystate_period_end(df_to_resample, source_s)
-            daily_seconds = _calendar_binning(ser_daily_seconds, freq).resample(
-                freq, closed="right", label=label
-            ).sum(min_count=1)
-            dict_daily_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in daily_seconds.dropna().items()})
+            daily_seconds = (
+                _calendar_binning(ser_daily_seconds, freq)
+                .resample(freq, **resample_kw)
+                .sum(min_count=1)
+            )
+            dict_daily_coverage.update({
+                f"{grid}|{date.isoformat()}": value
+                for date, value in daily_seconds.dropna().items()
+            })
             return _aggregate_bins(
-                _calendar_binning(df_to_resample, freq).resample(freq, closed="right", label=label),
+                _calendar_binning(df_to_resample, freq).resample(freq, **resample_kw),
                 dict_aggm_group,
                 df_to_resample.columns,
             )
@@ -535,20 +520,28 @@ def _resample_output(
         covered = None
         if ser_coverage is not None:
             covered = ser_coverage.xs(grid, level="grid")
-            target = _calendar_binning(covered, freq).resample(freq, closed="right", label=label).sum()
-            dict_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in target.items()})
+            target = (
+                _calendar_binning(covered, freq).resample(freq, **resample_kw).sum()
+            )
+            dict_coverage.update({
+                f"{grid}|{date.isoformat()}": value for date, value in target.items()
+            })
         if columns_rate:
             df_to_resample = df_to_resample.copy(deep=False)
-            df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(covered, axis=0)
-        bins = _calendar_binning(df_to_resample, freq).resample(freq, closed="right", label=label)
+            df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(
+                covered, axis=0
+            )
+        bins = _calendar_binning(df_to_resample, freq).resample(freq, **resample_kw)
         result = _aggregate_bins(bins, dict_aggm_group, df_to_resample.columns)
         if columns_rate:
-            result[columns_rate] = result[columns_rate].div(target.where(target > 0), axis=0)
+            result[columns_rate] = result[columns_rate].div(
+                target.where(target > 0), axis=0
+            )
         # Some calendar offsets produce an empty boundary bin. Trim only
         # empty edges, preserving internal gaps and a covered partial last bin.
         occupied = bins.size().loc[lambda counts: counts > 0].index
         if len(occupied):
-            result = result.loc[occupied[0]:occupied[-1]]
+            result = result.loc[occupied[0] : occupied[-1]]
         return result
 
     calendar = _is_calendar_frequency(freq)
@@ -558,6 +551,21 @@ def _resample_output(
     list_group = df_output.columns.get_level_values("group").unique()
     if groups is not None:
         list_group = [group for group in list_group if group in groups]
+
+    # Share one fixed-frequency origin per grid so sparse DailyState and
+    # chained resamples ("D" then "2D") land on the same bins as SUEWS.
+    dict_grid_origin = {
+        grid: (
+            None
+            if calendar
+            else _fixed_origin(
+                df_output.index.get_level_values("datetime")[
+                    df_output.index.get_level_values("grid") == grid
+                ]
+            )
+        )
+        for grid in list_grid
+    }
 
     # resampling output according to different rules defined in dict_aggm
     # note the setting in .resample: (closed='right',label='right')
@@ -572,16 +580,10 @@ def _resample_output(
                         # group's columns are sliced (gh#1849)
                         df_output[group].xs(grid, level="grid"),
                         freq,
-                        # DailyState is labelled by the start of each day at
-                        # fixed frequencies; a calendar period has no such
-                        # start label, so its daily totals take the period's
-                        # label like every other group.
-                        "left"
-                        if group == "DailyState" and not calendar
-                        else "right",
                         dict_aggm[group],
                         group_name=group,
                         grid=grid,
+                        origin=dict_grid_origin[grid],
                     )
                     for group in list_group
                     if group in dict_aggm  # Only process groups that are in dict_aggm

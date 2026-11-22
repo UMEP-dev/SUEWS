@@ -16,6 +16,12 @@ non-daily files twice with identical bytes, and now does so once.
 Output contract 2.0.0 deliberately updates the SUEWS hashes for rain rates
 and scientific notation; all non-SUEWS hashes remain unchanged.
 
+Unifying DailyState under the ``closed="right", label="right"`` convention
+updates only the ``follow``-mode DailyState hashes so ``2013-01-01 00:00``
+closes 31 December 2012 in the 2012 file, matching SUEWS, and gives identical
+DailyState bytes whether ``save_tstep`` is ``False`` or ``True``; all SUEWS,
+RSL, UTC and daylight hashes remain unchanged.
+
 The table is synthetic rather than a model run, so the hashes do not move
 with the platform-dependent kernel. Values are multiples of 1/8, so
 resampled sums are exact and means are correctly rounded on every
@@ -159,34 +165,34 @@ def _save_case(case: str, dir_save: Path) -> list:
 # fmt: off
 _EXPECTED = {
     "default": [
-        ("T1_2012_DailyState.txt", "94cf92ac083a08f0d9ef14d33960d0cc46d6776ae8cb146e6303c16310bd126f"),
-        ("T1_2013_DailyState.txt", "36e2aa232e415dadab47721c51a688f42b46fe2c36c8972a2d610dc958599353"),
-        ("T2_2012_DailyState.txt", "75d880f2a16e54014f2a55a3f296163f37ee23a6e601e1ea29d92dc369aded6c"),
-        ("T2_2013_DailyState.txt", "2ee142e7af93eed1364b6c50e4d3858e388911759047036dafb0995394302c16"),
+        ("T1_2012_DailyState.txt", "39439ec0f0b55b5df20952433fe061d78d2bb3bccdacfebaf186426f4df782b8"),
+        ("T1_2013_DailyState.txt", "09844db83831387b05d4d47c8a20d7854747d737ef5671b058fd6ebd10cff9df"),
+        ("T2_2012_DailyState.txt", "c2fb16cce75f182e46458e2f3088efc433904e4c0c058f31d6fb087ad14aa699"),
+        ("T2_2013_DailyState.txt", "a2c19690797691d1a735fd7b8adb2a69826e83554bd5fda87fddabb592df0c19"),
         ("T1_2012_SUEWS_60.txt", "ea9d9e3d5c62ddbe02c5b665b2f3773cf985d30a5037eed2cc7d4a7d577e1d47"),
         ("T1_2013_SUEWS_60.txt", "d632dde45cb20d338bd4107fbce487e7fdcdd5b648d80bb81b3c53f62e1242bd"),
         ("T2_2012_SUEWS_60.txt", "3d9c795d72770c978c865965d8e04a2bcd315d10a1ab410aa6935cad2ba8147c"),
         ("T2_2013_SUEWS_60.txt", "4bbd0b737e847c3c2ade4c406e3b01aa20bcf568df7985695ebb0494972ed792"),
     ],
     "dailystate_only": [
-        ("T1_2012_DailyState.txt", "94cf92ac083a08f0d9ef14d33960d0cc46d6776ae8cb146e6303c16310bd126f"),
-        ("T1_2013_DailyState.txt", "36e2aa232e415dadab47721c51a688f42b46fe2c36c8972a2d610dc958599353"),
-        ("T2_2012_DailyState.txt", "75d880f2a16e54014f2a55a3f296163f37ee23a6e601e1ea29d92dc369aded6c"),
-        ("T2_2013_DailyState.txt", "2ee142e7af93eed1364b6c50e4d3858e388911759047036dafb0995394302c16"),
+        ("T1_2012_DailyState.txt", "39439ec0f0b55b5df20952433fe061d78d2bb3bccdacfebaf186426f4df782b8"),
+        ("T1_2013_DailyState.txt", "09844db83831387b05d4d47c8a20d7854747d737ef5671b058fd6ebd10cff9df"),
+        ("T2_2012_DailyState.txt", "c2fb16cce75f182e46458e2f3088efc433904e4c0c058f31d6fb087ad14aa699"),
+        ("T2_2013_DailyState.txt", "a2c19690797691d1a735fd7b8adb2a69826e83554bd5fda87fddabb592df0c19"),
     ],
     "all_groups_save_tstep": [
         ("T1_2012_SUEWS_5.txt", "357e17df6563fc4386add2ededabcd83e571e2fd4907fc70ff9aecf0c8940276"),
         ("T1_2013_SUEWS_5.txt", "6e3f3fa5f71994c731647279a2374e668f0fb10acd0d0d939d7f7f300c5c44c1"),
         ("T1_2012_RSL_5.txt", "0fca5f847bfad86aa24b68605b603ca80fcd3d428778bd24fad5ca6ae0aa5d10"),
         ("T1_2013_RSL_5.txt", "37c82fca44ab4cfaf12007a9410ee20f4f9f5d3571b22ddc5e35d189a685b172"),
-        ("T1_2012_DailyState.txt", "3b676dcbd230aae16c87f17b30f4f980dc5adf0e0f586e6030a26ea654e718df"),
-        ("T1_2013_DailyState.txt", "bee27f80bdf171df02cf6e74f539fb990d33ccf9f0bc834d284c25d58f09da12"),
         ("T2_2012_SUEWS_5.txt", "38a66720b384456fc7b8203285f42670cdb94e5eadd8f44269087d6cd6550baf"),
         ("T2_2013_SUEWS_5.txt", "466048dcf6f189cf0614361cf91d0a4cf1e5eb0cd4547a0711f11b1822c8b7da"),
         ("T2_2012_RSL_5.txt", "fc2375189bc35b80409736ca2767e40c65d5c912b786e3119596cc1e0f30f1f9"),
         ("T2_2013_RSL_5.txt", "a46da013c725b421a9df081d80553e07d59df4e4be06d9c7ab6ad35fa5b0b443"),
-        ("T2_2012_DailyState.txt", "b248b7e569ca962020608fff92024ecb22ed1a5655d6d698e810412c43597794"),
-        ("T2_2013_DailyState.txt", "0b62c2909960b1615ee367a4c28895ab25775dc799c4df09985a377cc7519d97"),
+        ("T1_2012_DailyState.txt", "39439ec0f0b55b5df20952433fe061d78d2bb3bccdacfebaf186426f4df782b8"),
+        ("T1_2013_DailyState.txt", "09844db83831387b05d4d47c8a20d7854747d737ef5671b058fd6ebd10cff9df"),
+        ("T2_2012_DailyState.txt", "c2fb16cce75f182e46458e2f3088efc433904e4c0c058f31d6fb087ad14aa699"),
+        ("T2_2013_DailyState.txt", "a2c19690797691d1a735fd7b8adb2a69826e83554bd5fda87fddabb592df0c19"),
         ("T1_2012_SUEWS_60.txt", "ea9d9e3d5c62ddbe02c5b665b2f3773cf985d30a5037eed2cc7d4a7d577e1d47"),
         ("T1_2013_SUEWS_60.txt", "d632dde45cb20d338bd4107fbce487e7fdcdd5b648d80bb81b3c53f62e1242bd"),
         ("T1_2012_RSL_60.txt", "6bc61a22b591fc4cf8ebe5f5f01e020d48f5f069f4e59694f5121bae6c591940"),

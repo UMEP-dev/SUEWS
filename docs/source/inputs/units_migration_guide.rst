@@ -348,12 +348,13 @@ partial or calendar bin is divided by the seconds covered, not by the nominal
 length of the bin. Resampling a rate again weights each source bin by its
 coverage, and a sum over a bin with no data is missing rather than zero.
 
-Every group of a calendar-resampled output is binned and labelled in the same
-way, so one row holds one period: ``output.resample("ME")`` puts January's
-``Rain`` and January's DailyState ``P_day`` in the row labelled ``2012-01-31``,
-and the step stamped ``2012-02-01 00:00``, which closes January, counts towards
-January. At fixed frequencies DailyState keeps its own label, the start of each
-day (see :ref:`timestamp_convention`).
+Every group, ``DailyState`` included, is binned and labelled with the same
+``closed="right", label="right"`` rule at both fixed and calendar frequencies,
+so one row holds one period across all groups: ``output.resample("D")`` labels
+day ``D``'s ``Rain`` and ``DailyState`` ``P_day`` alike at ``D+1 00:00``, and
+``output.resample("ME")`` puts January's ``Rain`` and January's ``DailyState``
+``P_day`` in the row labelled ``2012-01-31``, with the step stamped
+``2012-02-01 00:00`` counting towards January (see :ref:`timestamp_convention`).
 
 Output resampled to a fixed frequency (for example ``output.resample("D")``)
 is saved at that interval, and its files and metadata say so, with one

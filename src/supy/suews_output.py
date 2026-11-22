@@ -715,12 +715,13 @@ class SUEWSOutput:
         - Accumulated variables: sum
         - State variables: last
 
-        Each value covers the left-open, right-closed interval
-        ``(t - freq, t]`` and is labelled by its end ``t``
-        (``closed="right", label="right"``); at fixed frequencies DailyState
-        is labelled by the start of each day, while at calendar frequencies
-        (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``) every group takes the period's
-        label. See :ref:`timestamp_convention`.
+        Every output group, including ``DailyState``, covers the left-open,
+        right-closed interval ``(t - freq, t]`` and is labelled by its end
+        ``t`` (``closed="right", label="right"``) at both fixed and calendar
+        frequencies (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``). At hourly and
+        daily frequencies, day ``D``'s ``DailyState`` row is therefore
+        labelled ``D+1 00:00``, aligning on the same row as ``SUEWS``.
+        See :ref:`timestamp_convention`.
 
         Parameters
         ----------

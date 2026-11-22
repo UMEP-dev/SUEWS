@@ -1232,43 +1232,18 @@ def _read_streamed(path_dir):
 def _expected_streamed(df_whole, groups, freq_s, tstep_s=TSTEP_S):
     """What a streamed folder holds, built from a whole run's Parquet frame.
 
-    - Groups other than DailyState: the whole run's rows and values, less
-      rows labelled before the run's first timestamp, which hold only the
-      first day's DailyState in daily output (asserted).
-    - DailyState: one row per grid and day, at its own time, the day's last
-      model step. The whole run labels each daily value at the start of the
-      output interval holding that step; the streamed output at the step
-      itself, the whole-run label + freq - tstep. Rows of the whole run's
-      DailyState that hold no value are not DailyState rows (the remaining
-      labels must be exactly the days' last steps, asserted).
-
-    Columns keep the whole run's order; rows are sorted by grid and time.
+    Every group — DailyState included — uses the shared ``closed="right",
+    label="right"`` rule in both streamed and whole-run Parquet output, so the
+    streamed folder matches the selected groups of ``df_whole`` directly with
+    no timestamp shifting or leading DailyState-only row. When ``DailyState``
+    is requested alone, only rows carrying DailyState values are written (one
+    per grid and day).
     """
     ser_group = df_whole.columns.get_level_values("group")
     df_sel = df_whole.loc[:, ser_group.isin(groups)]
-    ser_sel = df_sel.columns.get_level_values("group")
-    list_frame = []
-    list_main = [g for g in groups if g != "DailyState"]
-    if list_main:
-        df_main = df_sel.loc[:, ser_sel.isin(list_main)]
-        ser_dt = df_main.index.get_level_values("datetime")
-        mask_lead = ser_dt < FIRST_FORCING
-        assert df_main.loc[mask_lead].isna().all().all()
-        list_frame.append(df_main.loc[~mask_lead])
-    if "DailyState" in groups:
-        df_daily = df_sel.loc[:, ser_sel == "DailyState"]
-        df_daily = df_daily.loc[df_daily.notna().any(axis=1).to_numpy()]
-        shift = pd.Timedelta(freq_s - tstep_s, "s")
-        index = df_daily.index
-        df_daily.index = index.set_levels(index.levels[1] + shift, level="datetime")
-        # One row per grid and day, all at the same step of the day.
-        ser_own = df_daily.index.get_level_values("datetime")
-        assert len(set(ser_own.time)) == 1
-        n_day = df_daily.groupby(level="grid").size()
-        assert (n_day == n_day.iloc[0]).all() and n_day.iloc[0] > 0
-        list_frame.append(df_daily)
-    df = list_frame[0] if len(list_frame) == 1 else pd.concat(list_frame, axis=1)
-    return df.reindex(columns=df_sel.columns).sort_index()
+    if list(groups) == ["DailyState"]:
+        df_sel = df_sel.loc[df_sel.notna().any(axis=1).to_numpy()]
+    return df_sel.sort_index()
 
 
 def _assert_identical(df_streamed, df_expected):
@@ -1494,10 +1469,10 @@ def test_parquet_reload_resamples_dailystate_like_the_run(
 ):
     """Streamed hourly Parquet reloaded and resampled keeps each day's period.
 
-    The folder declares one-hour rows while DailyState keeps its native
-    23:55 stamps, so treating those stamps as hourly start labels moved
-    31 December's P_day and daily coverage into the next year (and each
-    month's last day into the next month).
+    Streamed Parquet resamples DailyState onto the same ``D+1 00:00`` rows as
+    ``SUEWS``, so reloading and resampling to calendar frequencies puts
+    31 December's ``P_day`` and coverage in its own year (and each month's last
+    day in its own month), matching the direct resample of the run.
     """
     from supy._post import _resample_output
     from supy.suews_output import SUEWSOutput

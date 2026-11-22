@@ -175,10 +175,6 @@ def resolve_held_interval(
 
     Without any of these the interval is ``"unknown"``; callers then skip
     what depends on it rather than guess.
-
-    DailyState rows may keep their native last-step stamps beside rows at the
-    held interval (streamed output); :func:`supy._post._dailystate_period_end`
-    tells the two apart from the stamps themselves.
     """
     to_offset = pd.tseries.frequencies.to_offset
     if freq_source is not None:

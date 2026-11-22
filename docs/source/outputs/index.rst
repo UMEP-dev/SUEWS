@@ -137,18 +137,11 @@ Compared with ``run()`` followed by ``save(format="parquet")``:
 
 - It holds only the groups listed in ``groups``. Parquet saved after a run that
   was not streamed ignores ``groups`` and holds every group the model writes.
-- The groups other than ``DailyState`` hold the same rows and values, a row
-  for every output interval even where the groups listed hold no value. Daily
-  output saved whole also has a row labelled 00:00 on the run's first day that
-  holds only that day's ``DailyState``; the folder has no such row.
-- ``DailyState`` keeps its own rows, one per grid and day at the day's last
-  model step (23:55 with a 5-minute timestep), as the text output does, with
-  the same values. Saved whole, ``DailyState`` is resampled to the output
-  frequency and labelled at the start of the output interval that holds that
-  step (23:00 for hourly output, 00:00 of the same day for daily output); at
-  the model timestep the two agree. With an output frequency longer than the
-  model timestep, the folder therefore has one more row per grid and day,
-  holding ``DailyState`` only.
+- Every group, ``DailyState`` included, is resampled using the same
+  ``closed="right", label="right"`` rule and holds the exact same rows and
+  values as a run saved whole (for the chosen groups), with day ``D``'s
+  ``DailyState`` labelled ``D+1 00:00`` at hourly and daily frequencies and
+  aligned on the same row as ``SUEWS``.
 - The values keep full double (float64) precision, where text files carry four
   decimal places. Prefer Parquet for streamed runs whose output will be read
   back for analysis.
@@ -252,12 +245,15 @@ Temporal Information
    local standard time by default, or UTC when ``timestamp_reference: utc``.
    It indicates the **ending timestamp** of each period.
 
-   For example, for hourly data, ``2021-09-12 13:00`` indicates a record for the period
-   between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
+   For example, for hourly data, ``2021-09-12 13:00`` indicates a record for
+   the left-open, right-closed period ``(2021-09-12 12:00, 2021-09-12 13:00]``,
+   covering model steps ending after 12:00 and up to and including 13:00.
 
-   **Exception for DailyState**: Its daily boundary follows the same forcing/main
-   clock. When resampled to daily frequency, DailyState uses day-start labelling
-   for readability. See :ref:`output-dailystate` for details.
+   ``DailyState`` follows the same end-of-period rule (day ``D`` is labelled
+   ``D+1 00:00`` at hourly and daily frequencies, matching ``SUEWS``); note
+   that the Fortran kernel still accumulates daily values across the
+   calendar-day steps ``00:00`` to ``23:55`` (at a 5-minute timestep). See
+   :ref:`timestamp_convention` and :ref:`output-dailystate` for details.
 
 Saved Timestamp Reference
 -------------------------

@@ -892,10 +892,10 @@ class SUEWSSimulation:
         it when the run ends. ``pandas.read_parquet(folder)`` reads the
         parts back as one frame. It holds only the groups in
         ``output.groups`` (Parquet saved after an unstreamed run holds every
-        group), at full float64 precision. The groups other than DailyState
-        are resampled exactly as ``save(format="parquet")`` resamples them;
-        DailyState keeps its own rows, the last step of each day, as the text
-        output does, instead of being resampled to the output frequency.
+        group), at full float64 precision. Every group, DailyState included,
+        is resampled using the same right-labelled rule as
+        ``save(format="parquet")``, so the folder matches a whole run saved
+        as Parquet row for row for the chosen groups.
         See the outputs page of the documentation for how the frame compares
         with a run saved whole.
 

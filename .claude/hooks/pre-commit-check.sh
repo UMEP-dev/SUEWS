@@ -183,7 +183,16 @@ if [[ -n "$CHANGELOG_FRAGMENTS" ]] && [[ -f "scripts/suews/fold_changelog.py" ]]
     echo "-- CHANGELOG fragments detected --"
     PYTHON_BIN="$(command -v python3 || command -v python || true)"
     if [[ -n "$PYTHON_BIN" ]]; then
-        FRAG_OUT=$("$PYTHON_BIN" scripts/suews/fold_changelog.py --check 2>&1) && report_pass "CHANGELOG fragments" || report_fail "CHANGELOG fragments" "$FRAG_OUT"
+        # Check the staged copies only: export them from the index into a scratch root,
+        # so unstaged edits and untracked fragments neither hide nor cause a failure.
+        FRAG_ROOT=$(mktemp -d)
+        STAGED_FRAGMENTS=$(git diff --cached --name-only --diff-filter=ACMR -- 'changes/*' || true)
+        if [[ -n "$STAGED_FRAGMENTS" ]]; then
+            printf '%s\n' "$STAGED_FRAGMENTS" | git checkout-index --prefix="$FRAG_ROOT/" --stdin
+        fi
+        mkdir -p "$FRAG_ROOT/changes"
+        FRAG_OUT=$("$PYTHON_BIN" scripts/suews/fold_changelog.py --root "$FRAG_ROOT" --check 2>&1) && report_pass "CHANGELOG fragments" || report_fail "CHANGELOG fragments" "$FRAG_OUT"
+        rm -rf "$FRAG_ROOT"
     fi
 fi
 

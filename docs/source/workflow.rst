@@ -459,7 +459,7 @@ Multi-Site and Comparative Studies
    checkpoints = {}
    for name, output in results:
        t2 = output.get_variable('T2', group='SUEWS')
-       monthly_temps[name] = t2.iloc[:, 0].groupby(t2.index.month).mean()
+       monthly_temps[name] = t2.iloc[:, 0].groupby(t2.index.get_level_values("datetime").month).mean()
        checkpoints[name] = output.checkpoint
 
    temp_comparison = pd.DataFrame(monthly_temps)
@@ -574,12 +574,12 @@ Advanced Analysis Patterns
        rural_temp = rural_sim.get_variable('T2', group='SUEWS').iloc[:, 0]
 
        # UHI intensity by time of day
-       uhi_diurnal = urban_temp.groupby(urban_temp.index.hour).mean() - \
-                     rural_temp.groupby(rural_temp.index.hour).mean()
+       uhi_diurnal = urban_temp.groupby(urban_temp.index.get_level_values("datetime").hour).mean() - \
+                     rural_temp.groupby(rural_temp.index.get_level_values("datetime").hour).mean()
 
        # Seasonal UHI patterns
-       uhi_seasonal = urban_temp.groupby(urban_temp.index.month).mean() - \
-                      rural_temp.groupby(rural_temp.index.month).mean()
+       uhi_seasonal = urban_temp.groupby(urban_temp.index.get_level_values("datetime").month).mean() - \
+                      rural_temp.groupby(rural_temp.index.get_level_values("datetime").month).mean()
 
        return uhi_diurnal, uhi_seasonal
 
@@ -614,7 +614,7 @@ Advanced Analysis Patterns
 
        # Seasonal energy partitioning
        df_fluxes = pd.DataFrame({'QS': qs, 'QE': qe, 'QH': qh})
-       seasonal_partition = df_fluxes.groupby(df_fluxes.index.month).mean()
+       seasonal_partition = df_fluxes.groupby(df_fluxes.index.get_level_values("datetime").month).mean()
 
        # Bowen ratio (sensible/latent heat)
        bowen_ratio = qh / qe

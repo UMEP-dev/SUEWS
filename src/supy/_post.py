@@ -1,11 +1,15 @@
+import copy
+
 import numpy as np
 import pandas as pd
 
 from ._env import logger_supy
 from ._misc import infer_freq_offset
 from ._output_metadata import (
+    copy_attrs_except,
     output_covered_seconds,
     resolve_held_interval,
+    strip_attrs,
     water_flux_variables,
     with_daily_coverage,
 )
@@ -471,12 +475,18 @@ def _resample_output(
     # Calendar rows carry their individual coverage.
     source_s = held.seconds if held.kind == "fixed" else None
     df_output = with_daily_coverage(df_output, source_s)
+    attrs_source = df_output.attrs
+    dict_daily_coverage_in = attrs_source.get("supy_output_daily_coverage_s") or {}
     dict_daily_coverage = {}
-    dict_units = df_output.attrs.get("supy_output_units", {})
+    dict_units = attrs_source.get("supy_output_units", {})
     water_columns = [c for c in df_output.columns if c in water_flux_variables()]
     rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
     ser_coverage = output_covered_seconds(df_output, source_s) if water_columns else None
     dict_coverage = {}
+    # Strip attrs before slicing, resampling and concatenating so pandas'
+    # NDFrame.__finalize__ does not deep-copy heavy metadata dicts on every
+    # intermediate frame; attrs are reattached once at the boundary below.
+    df_work = strip_attrs(df_output)
 
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None, grid=None):
@@ -508,9 +518,13 @@ def _resample_output(
             # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
-            coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
             ser_daily_seconds = pd.Series(
-                [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_to_resample.index],
+                [
+                    dict_daily_coverage_in.get(
+                        f"{grid}|{date.isoformat()}", float("nan")
+                    )
+                    for date in df_to_resample.index
+                ],
                 index=df_to_resample.index,
             )
             # Coverage is keyed by the held labels, so look it up before the
@@ -570,7 +584,7 @@ def _resample_output(
                     group: _resample_group(
                         # select the group before the grid, so only the
                         # group's columns are sliced (gh#1849)
-                        df_output[group].xs(grid, level="grid"),
+                        df_work[group].xs(grid, level="grid"),
                         freq,
                         # DailyState is labelled by the start of each day at
                         # fixed frequencies; a calendar period has no such
@@ -606,19 +620,25 @@ def _resample_output(
 
     # Pandas owns calendar boundaries. Retain the last partial bin even
     # though its right-hand label lies after the final source timestamp.
-    df_rsmp.attrs = df_output.attrs.copy()
     try:
         interval_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
     except ValueError:
         interval_s = None
+    has_dailystate = "DailyState" in df_rsmp.columns.get_level_values("group")
+    replaced_keys = {"supy_output_interval_s"}
+    if dict_daily_coverage or has_dailystate:
+        replaced_keys.add("supy_output_daily_coverage_s")
+    if dict_coverage:
+        replaced_keys.add("supy_output_coverage_s")
+    df_rsmp.attrs = copy_attrs_except(attrs_source, replaced_keys)
     df_rsmp.attrs["supy_output_interval_s"] = interval_s
     if dict_daily_coverage:
         df_rsmp.attrs["supy_output_daily_coverage_s"] = dict_daily_coverage
-    elif "DailyState" in df_rsmp.columns.get_level_values("group"):
+    elif has_dailystate:
         # Unknown native coverage stays unknown: the new output interval is
         # not a model timestep from which daily coverage can be reconstructed.
-        df_rsmp.attrs["supy_output_daily_coverage_s"] = df_output.attrs.get(
-            "supy_output_daily_coverage_s"
+        df_rsmp.attrs["supy_output_daily_coverage_s"] = copy.deepcopy(
+            attrs_source.get("supy_output_daily_coverage_s")
         )
     if dict_coverage:
         # Fixed intervals need only exceptions (partial bins and daily-only

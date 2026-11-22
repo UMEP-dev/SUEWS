@@ -5,11 +5,20 @@ set -o pipefail
 usage() {
     cat <<'USAGE'
 Usage:
-  queue-ready-prs.sh [--base master] [--limit 100] [--comment] [--allow-third-party-comment] [--enqueue]
+  queue-ready-prs.sh [--base master] [--limit 100] [--lane all|fast] [--max-batch N] [--comment] [--allow-third-party-comment] [--enqueue]
 
 Scans open ready-for-review pull requests for a base branch, orders queueable
-PRs by merge-queue risk, and optionally writes coordination comments or
+PRs by CI-lane speed and merge-queue risk (no-build -> fast-linux ->
+native-build -> physics-full, then high-risk/shared/file count), skips PRs
+already in the live merge queue, and optionally writes coordination comments or
 enqueues them in that order.
+
+Options:
+  --lane all|fast   Default 'all'. With 'fast', keep only conflict-free
+                    no-build and fast-linux PRs so a fast ready batch lands
+                    ahead of slower native/physics lanes.
+  --max-batch N     Cap how many PRs --enqueue requests in one pass (0 = all;
+                    e.g. 5 to match GitHub's maximumEntriesToBuild).
 
 Default mode is dry-run. Use --comment to create or update one coordination
 comment on each non-draft PR authored by the authenticated user (third-party PRs
@@ -24,8 +33,11 @@ die() {
     exit 2
 }
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
 base="master"
 limit="100"
+lane_filter="all"
+max_batch="0"
 comment=0
 allow_third_party_comment=0
 enqueue=0
@@ -40,6 +52,22 @@ while [ "$#" -gt 0 ]; do
         --limit)
             [ "$#" -ge 2 ] || die "--limit requires a value"
             limit="$2"
+            shift 2
+            ;;
+        --lane)
+            [ "$#" -ge 2 ] || die "--lane requires a value"
+            case "$2" in
+                all|fast) lane_filter="$2" ;;
+                *) die "invalid --lane value: $2 (expected all or fast)" ;;
+            esac
+            shift 2
+            ;;
+        --max-batch)
+            [ "$#" -ge 2 ] || die "--max-batch requires a value"
+            case "$2" in
+                ''|*[!0-9]*) die "invalid --max-batch value: $2 (expected non-negative integer)" ;;
+            esac
+            max_batch="$2"
             shift 2
             ;;
         --comment)
@@ -86,6 +114,8 @@ overlap_counts="$tmp_root/overlap-counts.tsv"
 risk_counts="$tmp_root/risk-counts.tsv"
 order_tsv="$tmp_root/order.tsv"
 rank_tsv="$tmp_root/rank.tsv"
+queued_prs="$tmp_root/queued-prs.txt"
+live_queue_summary=""
 
 cleanup() {
     rm -rf "$tmp_root"
@@ -97,18 +127,35 @@ trap cleanup EXIT
 : > "$skipped_tsv"
 : > "$diff_failed"
 : > "$all_changes"
+: > "$queued_prs"
+
+if [ -x "$script_dir/manage-merge-queue.sh" ] && command -v jq >/dev/null 2>&1; then
+    if live_mq_json="$("$script_dir/manage-merge-queue.sh" status --base "$base" --json 2>/dev/null)"; then
+        printf '%s' "$live_mq_json" \
+            | jq -r '.data.repository.mergeQueue.entries.nodes[]?.pullRequest.number // empty' \
+            > "$queued_prs" || : > "$queued_prs"
+        live_mq_count="$(wc -l < "$queued_prs" | tr -d ' ')"
+        live_mq_max="$(printf '%s' "$live_mq_json" | jq -r '.data.repository.mergeQueue.configuration.maximumEntriesToBuild // "unknown"')"
+        live_mq_nums="$(printf '%s' "$live_mq_json" | jq -r '[.data.repository.mergeQueue.entries.nodes // [] | sort_by(.position) | .[] | "#" + (.pullRequest.number | tostring)] | join(", ")')"
+        if [ -n "$live_mq_nums" ]; then
+            live_queue_summary="$live_mq_count entry/entries (max_build=$live_mq_max): $live_mq_nums"
+        else
+            live_queue_summary="empty (max_build=$live_mq_max)"
+        fi
+    fi
+fi
 
 if ! gh pr list \
     --state open \
     --base "$base" \
     --limit "$limit" \
-    --json number,title,headRefName,headRefOid,isDraft,reviewDecision,mergeStateStatus,mergeable,updatedAt,createdAt,url,author \
-    --jq '.[] | [.number, (.isDraft | tostring), ((.reviewDecision // "none") | if . == "" then "none" else . end), ((.mergeStateStatus // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), ((.mergeable // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), .headRefName, .headRefOid, .createdAt, .updatedAt, .url, (.author.login // "unknown"), .title] | @tsv' \
+    --json number,title,headRefName,headRefOid,isDraft,reviewDecision,mergeStateStatus,mergeable,updatedAt,createdAt,url,author,labels \
+    --jq '.[] | [.number, (.isDraft | tostring), ((.reviewDecision // "none") | if . == "" then "none" else . end), ((.mergeStateStatus // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), ((.mergeable // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), .headRefName, .headRefOid, .createdAt, .updatedAt, .url, (.author.login // "unknown"), (((.labels // []) | map(.name) | join(",")) | if . == "" then "none" else . end), .title] | @tsv' \
     > "$prs_tsv"; then
     die "could not list pull requests for base: $base"
 fi
 
-while IFS="$tab" read -r number is_draft review state mergeable head oid created updated url author title; do
+while IFS="$tab" read -r number is_draft review state mergeable head oid created updated url author labels title; do
     [ -n "${number:-}" ] || continue
 
     if [ "$is_draft" = "true" ]; then
@@ -120,7 +167,9 @@ while IFS="$tab" read -r number is_draft review state mergeable head oid created
         "$number" "$review" "$state" "$mergeable" "$head" "$oid" "$created" "$url" "$author" "$title" >> "$ready_tsv"
 
     reason=""
-    if [ "$review" = "CHANGES_REQUESTED" ]; then
+    if grep -qx "$number" "$queued_prs"; then
+        reason="already in merge queue"
+    elif [ "$review" = "CHANGES_REQUESTED" ]; then
         reason="changes requested"
     elif [ "$state" = "DIRTY" ] || [ "$mergeable" = "CONFLICTING" ]; then
         reason="merge conflict"
@@ -133,12 +182,12 @@ while IFS="$tab" read -r number is_draft review state mergeable head oid created
     if [ -n "$reason" ]; then
         printf '%s\t%s\t%s\t%s\n' "$number" "$reason" "$title" "ready" >> "$skipped_tsv"
     else
-        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "$number" "$review" "$state" "$mergeable" "$head" "$oid" "$created" "$url" "$title" >> "$queueable_tsv"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$number" "$review" "$state" "$mergeable" "$head" "$oid" "$created" "$url" "$labels" "$title" >> "$queueable_tsv"
     fi
 done < "$prs_tsv"
 
-while IFS="$tab" read -r number review state mergeable head oid created url title; do
+while IFS="$tab" read -r number review state mergeable head oid created url labels title; do
     [ -n "${number:-}" ] || continue
     files="$tmp_root/pr-$number.files"
     if ! gh pr diff "$number" --name-only | sort -u > "$files"; then
@@ -227,7 +276,53 @@ lookup_count() {
     awk -F '\t' -v pr="$pr" '$1 == pr { print $2; found = 1 } END { if (!found) print 0 }' "$file"
 }
 
-while IFS="$tab" read -r number review state mergeable head oid created url title; do
+classify_ci_lane() {
+    files_path="$1"
+    labels_csv="$2"
+    case ",$labels_csv," in
+        *",0-physics:change,"*|*",0-numerics:change,"*)
+            printf '3\tphysics-full\n'
+            return
+            ;;
+    esac
+    awk '
+        {
+            p = $0
+            if (p ~ /^src\/suews\// ||
+                p ~ /^src\/suews_bridge\// ||
+                p == "meson.build" ||
+                p == "meson_options.txt" ||
+                p == "src/supy/meson.build" ||
+                p == "get_ver_git.py" ||
+                p == "pyproject.toml") {
+                native = 1
+            }
+            if (!(p ~ /^docs\// ||
+                  p ~ /^site\// ||
+                  p ~ /^\.claude\// ||
+                  p ~ /^dev-ref\// ||
+                  p ~ /^changes\// ||
+                  p ~ /^\.github\/ISSUE_TEMPLATE\// ||
+                  p ~ /^\.github\/releases\// ||
+                  p == ".github/PULL_REQUEST_TEMPLATE.md" ||
+                  p == ".github/CODEOWNERS" ||
+                  p ~ /^[^\/]+\.md$/)) {
+                needs_build = 1
+            }
+        }
+        END {
+            if (native) {
+                print "2\tnative-build"
+            } else if (needs_build) {
+                print "1\tfast-linux"
+            } else {
+                print "0\tno-build"
+            }
+        }
+    ' "$files_path"
+}
+
+while IFS="$tab" read -r number review state mergeable head oid created url labels title; do
     [ -n "${number:-}" ] || continue
     if grep -qx "$number" "$diff_failed"; then
         continue
@@ -235,16 +330,23 @@ while IFS="$tab" read -r number review state mergeable head oid created url titl
     file_count="$(wc -l < "$tmp_root/pr-$number.files" | tr -d ' ')"
     risk_count="$(lookup_count "$number" "$risk_counts")"
     overlap_count="$(lookup_count "$number" "$overlap_counts")"
-    score=$((risk_count * 1000 + overlap_count * 100 + file_count))
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$score" "$created" "$number" "$state" "$review" "$mergeable" "$file_count" "$risk_count" "$overlap_count" "$oid" "$url" "$title"
+    lane_info="$(classify_ci_lane "$tmp_root/pr-$number.files" "$labels")"
+    ci_tier="${lane_info%%"$tab"*}"
+    ci_lane="${lane_info#*"$tab"}"
+    if [ "$lane_filter" = "fast" ] && { [ "$ci_tier" -gt 1 ] || [ "$overlap_count" -gt 0 ] || [ "$state" = "BLOCKED" ]; }; then
+        printf '%s\t%s\t%s\t%s\n' "$number" "outside fast lane ($ci_lane, state=$state, shared=$overlap_count)" "$title" "ready" >> "$skipped_tsv"
+        continue
+    fi
+    score=$((ci_tier * 100000 + risk_count * 1000 + overlap_count * 100 + file_count))
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$score" "$created" "$number" "$ci_lane" "$state" "$review" "$mergeable" "$file_count" "$risk_count" "$overlap_count" "$oid" "$url" "$title"
 done < "$queueable_tsv" | sort -t "$tab" -k1,1n -k2,2 > "$order_tsv"
 
 : > "$rank_tsv"
 rank=1
-while IFS="$tab" read -r score created number state review mergeable file_count risk_count overlap_count oid url title; do
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$number" "$rank" "$score" "$created" "$state" "$review" "$mergeable" "$file_count" "$risk_count" "$overlap_count" "$oid" "$url" "$title" >> "$rank_tsv"
+while IFS="$tab" read -r score created number ci_lane state review mergeable file_count risk_count overlap_count oid url title; do
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$number" "$rank" "$score" "$created" "$ci_lane" "$state" "$review" "$mergeable" "$file_count" "$risk_count" "$overlap_count" "$oid" "$url" "$title" >> "$rank_tsv"
     rank=$((rank + 1))
 done < "$order_tsv"
 
@@ -280,8 +382,8 @@ print_matching_files() {
 }
 
 print_queue_order_markdown() {
-    while IFS="$tab" read -r pr rank score created state review mergeable file_count risk_count overlap_count oid url title; do
-        printf '%s. [#%s](%s) - %s\n' "$rank" "$pr" "$url" "$title"
+    while IFS="$tab" read -r pr rank score created ci_lane state review mergeable file_count risk_count overlap_count oid url title; do
+        printf '%s. [#%s](%s) (`%s`) - %s\n' "$rank" "$pr" "$url" "$ci_lane" "$title"
     done < "$rank_tsv"
 }
 
@@ -298,12 +400,12 @@ build_comment() {
         printf 'Current scan: `%s` on base `%s`.\n\n' "$scan_time" "$base"
 
         if [ -n "$rank_line" ]; then
-            IFS="$tab" read -r _number rank score created state review mergeable file_count risk_count overlap_count oid url _title <<EOF
+            IFS="$tab" read -r _number rank score created ci_lane state review mergeable file_count risk_count overlap_count oid url _title <<EOF
 $rank_line
 EOF
             printf '**Current queue position:** %s of %s.\n\n' "$rank" "$queueable_count"
-            printf '**Why this position:** `%s` merge state, %s changed file(s), %s high-risk SUEWS file(s), %s shared file(s) with other ready PRs.\n\n' \
-                "$state" "$file_count" "$risk_count" "$overlap_count"
+            printf '**Why this position:** `%s` CI lane, `%s` merge state, %s changed file(s), %s high-risk SUEWS file(s), %s shared file(s) with other ready PRs.\n\n' \
+                "$ci_lane" "$state" "$file_count" "$risk_count" "$overlap_count"
             printf '**Recommendation:** keep this PR ready, avoid touching shared coordination files unless necessary, and re-run smoke tests after any rebase.\n'
             if [ "$rank" -gt 1 ]; then
                 printf 'Wait for the PRs above this one to land or be revalidated before expecting this PR to enter the queue cleanly.\n'
@@ -408,6 +510,10 @@ elif [ "$enqueue" -eq 1 ]; then
 else
     printf 'Mode: dry-run\n'
 fi
+printf 'Filter: lane=%s max_batch=%s\n' "$lane_filter" "$max_batch"
+if [ -n "$live_queue_summary" ]; then
+    printf 'Live merge queue: %s\n' "$live_queue_summary"
+fi
 printf 'Scope: base=%s, ready-for-review filter; %s fetched / %s open; truncated: %s\n' "$base" "$open_count" "${total_open:-unknown}" "$truncated"
 printf 'Candidates: %s open PRs, %s ready-for-review, %s queueable\n\n' "$open_count" "$ready_count" "$queueable_count"
 
@@ -416,10 +522,14 @@ if [ "$queueable_count" -eq 0 ]; then
     printf -- '- none\n'
 else
     rank=1
-    while IFS="$tab" read -r score created number state review mergeable file_count risk_count overlap_count oid url title; do
-        printf '%s. #%s %s\n' "$rank" "$number" "$title"
-        printf '   state=%s review=%s files=%s high-risk=%s shared=%s score=%s\n' \
-            "$state" "${review:-none}" "$file_count" "$risk_count" "$overlap_count" "$score"
+    while IFS="$tab" read -r score created number ci_lane state review mergeable file_count risk_count overlap_count oid url title; do
+        batch_tag=""
+        if [ "$max_batch" -gt 0 ] && [ "$rank" -gt "$max_batch" ]; then
+            batch_tag=" [deferred beyond max_batch=$max_batch]"
+        fi
+        printf '%s. #%s %s%s\n' "$rank" "$number" "$title" "$batch_tag"
+        printf '   lane=%s state=%s review=%s files=%s high-risk=%s shared=%s score=%s\n' \
+            "$ci_lane" "$state" "${review:-none}" "$file_count" "$risk_count" "$overlap_count" "$score"
         rank=$((rank + 1))
     done < "$order_tsv"
 fi
@@ -484,11 +594,17 @@ if [ "$enqueue" -ne 1 ]; then
 fi
 
 printf 'Actions:\n'
-while IFS="$tab" read -r score created number state review mergeable file_count risk_count overlap_count oid url title; do
-    printf -- '- enqueue #%s: ' "$number"
+enqueued=0
+while IFS="$tab" read -r score created number ci_lane state review mergeable file_count risk_count overlap_count oid url title; do
+    if [ "$max_batch" -gt 0 ] && [ "$enqueued" -ge "$max_batch" ]; then
+        printf -- '- enqueue #%s: deferred (max_batch=%s reached)\n' "$number" "$max_batch"
+        continue
+    fi
+    printf -- '- enqueue #%s (%s): ' "$number" "$ci_lane"
     merge_output="$tmp_root/merge-$number.out"
     if gh pr merge "$number" --auto --match-head-commit "$oid" >"$merge_output" 2>&1; then
         printf 'requested\n'
+        enqueued=$((enqueued + 1))
     else
         printf 'failed\n'
         sed 's/^/  /' "$merge_output"

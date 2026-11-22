@@ -12,12 +12,7 @@ intentional.
 
 ## Safety Rules
 
-- `--enqueue` (any `gh pr merge`) is human-gated. It must never run in
-  autonomous, unattended, or batch mode. It requires explicit per-run user
-  approval naming the merge action ("put these in the merge queue"); the
-  conversational note in step 3 is not sufficient on its own. Never pass
-  `--admin`, never delete branches, and stop if GitHub rejects a PR rather than
-  forcing it through.
+- `--enqueue` (any `gh pr merge`) and live queue mutations (`manage-merge-queue.sh dequeue` / `jump`) are human-gated. They must never run in autonomous, unattended, or batch mode. They require explicit per-run user approval naming the action ("put these in the merge queue", "dequeue #N", "jump #N to front"); the conversational note in step 3 is not sufficient on its own. Never pass `--admin`, never delete branches, and stop if GitHub rejects a PR rather than forcing it through. `manage-merge-queue.sh status` is read-only and auto-applicable.
 - Posting `--comment` to PRs you do not author/own requires approval, because on
   a collaboration repo it lands on third parties' PRs. The read-only dry-run scan
   and comments on your own PRs may proceed when clearly scoped.
@@ -66,10 +61,23 @@ git worktree add -b mq/pr-1391 ../mq-repair/pr-1391 <PR_HEAD_SHA>
 ```
 
 Only after the PR worktrees have acted on those comments and a fresh scan is
-clean, enqueue in the proposed order:
+clean, enqueue in the proposed order (batching fast conflict-free PRs first to
+avoid head-of-line blocking under `ALLGREEN` / `maximumEntriesToBuild = 5`):
 
 ```bash
+# Fast conflict-free wave first (up to 5 PRs)
+.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --lane fast --max-batch 5 --enqueue
+
+# Or enqueue all queueable PRs in CI-lane + risk order
 .claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --enqueue
+```
+
+Inspect or adjust the live GitHub merge queue (read-only `status`; human-gated `dequeue` and `jump`):
+
+```bash
+.claude/skills/queue-pr/scripts/manage-merge-queue.sh status --base master
+.claude/skills/queue-pr/scripts/manage-merge-queue.sh dequeue <PR> --base master
+.claude/skills/queue-pr/scripts/manage-merge-queue.sh jump <PR> --base master
 ```
 
 For the current local branch:
@@ -103,9 +111,21 @@ make test-smoke
      with changes requested, merge conflicts, dirty merge state, unknown
      mergeability, or failing checks unless a future operator deliberately
      opts into a broader policy.
-   - Read the generated order before acting. It sorts lower-risk PRs first:
-     fewer high-risk SUEWS files, fewer shared files with other PRs, then
-     smaller file count and older creation time.
+   - Read the generated order before acting. It skips PRs already in the live
+     merge queue and sorts fastest, lowest-risk PRs first: CI lane (`no-build`
+     -> `fast-linux` -> `native-build` -> `physics-full`), then fewer
+     high-risk SUEWS files, fewer shared files with other PRs, smaller file
+     count, and older creation time.
+   - Prefer batching clean, conflict-free fast-lane PRs (`--lane fast
+     --max-batch 5`) ahead of slow native or `physics-full` PRs so fast merges
+     do not stall behind a slow position-1 build under GitHub's `ALLGREEN`
+     merge queue.
+   - Use `manage-merge-queue.sh status` to inspect live queue entries before
+     enqueueing. Use `dequeue <PR>` (human-gated) to pull a failing or stalled
+     position-1 PR early, and reserve `jump <PR>` (human-gated) for urgent
+     CI/gate unblockers or newly started heads -- jumping restarts speculative
+     `merge_group` builds behind position 1, so avoid jumping past a position-1
+     build that is nearly green.
 
 2. **Comment before queueing**
    - Treat comments as the normal coordination mechanism. Run:

@@ -522,21 +522,25 @@ jobs:
       # PR that introduces or extends the api_buildplat output would otherwise
       # skip every api lane until the script change lands on master.
       #
-      # Pull requests skip the macOS api cells: macOS runners are the scarce
-      # class, and those two cells queued for up to ~90 min under burst pushes
-      # on 22 Nov 2026, while the macOS wheel is still built and runs its
-      # physics tier on every 3-platform PR. The merge queue (cp312 on all three OS families)
-      # and the nightly (every bookend) keep the macOS api coverage. The
-      # pr_api_lane dispatch input applies the same layout to a dispatch.
-      run_api_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) && !((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'macosx') }}
+      # Pull requests and the merge queue skip the macOS api cells: macOS
+      # runners are the scarce class, and those cells queued for up to ~90 min
+      # under burst pushes on 22 Nov 2026, while the macOS wheel is still
+      # built and runs its physics tier on cp312 in both events. In the merge
+      # queue the api cell was a second macOS job queued behind the build, so
+      # macOS took two runner waits against the queue's 90-minute check
+      # timeout; with it gone macOS is one cp312 build-and-physics cell. The
+      # nightly (every bookend) keeps the macOS api coverage. The pr_api_lane
+      # dispatch input applies the same layout to a dispatch.
+      run_api_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) && !((github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane) && matrix.buildplat[1] == 'macosx') }}
       # Pull requests split the Windows cp312 api cell, the usual critical
       # path, into two shards (scripts/suews/pytest_shard.py); Windows
       # runners queue at about zero, so the extra runner costs no wait. The
       # merge queue and the nightly run every cell whole.
       api_shard_python: ${{ (github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win' && 'cp312' || '' }}
       # A ready PR already validates both supported Python bookends. The merge
-      # queue revalidates the combined tree on the abi3 floor only, across all
-      # three supported OS families, instead of repeating the full suite twice.
+      # queue revalidates the combined tree on the abi3 floor only, on Linux
+      # and Windows (macOS skips its api cell, see run_api_tests above),
+      # instead of repeating the full suite twice.
       # Use the build-Python output here as a compatibility bridge while the
       # trusted determine-matrix script is still read from the base branch.
       api_python_json: >-

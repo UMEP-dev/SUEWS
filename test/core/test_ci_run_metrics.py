@@ -262,11 +262,13 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
 def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
     """Pull requests run no macOS api cell and split the Windows cp312 cell.
 
-    The merge queue and the nightly keep every cell whole and keep the macOS
-    api coverage, so both conditions name the pull_request event (or the
-    pr_api_lane dispatch input that measures the layout) explicitly. The
-    sharded cell gets its own job name and artefact name per shard, while an
-    unsharded cell keeps the names the cost-marker and coverage jobs read.
+    The merge queue also runs no macOS api cell, so macOS there is one cp312
+    build-and-physics job, but it keeps every remaining cell whole; only the
+    nightly keeps the macOS api coverage. Both conditions therefore name their
+    events (or the pr_api_lane dispatch input that measures the layout)
+    explicitly. The sharded cell gets its own job name and artefact name per
+    shard, while an unsharded cell keeps the names the cost-marker and
+    coverage jobs read.
     """
     root = Path(__file__).resolve().parents[2]
     caller = yaml.safe_load(
@@ -275,9 +277,13 @@ def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
         )
     )
     layout = "(github.event_name == 'pull_request' || inputs.pr_api_lane)"
+    no_macos_api = (
+        "(github.event_name == 'pull_request' || "
+        "github.event_name == 'merge_group' || inputs.pr_api_lane)"
+    )
     chain_with = caller["jobs"]["build_wheels"]["with"]
     assert chain_with["run_api_tests"].endswith(
-        f"&& !({layout} && matrix.buildplat[1] == 'macosx') }}}}"
+        f"&& !({no_macos_api} && matrix.buildplat[1] == 'macosx') }}}}"
     )
     assert chain_with["api_shard_python"] == (
         f"${{{{ {layout} && matrix.buildplat[1] == 'win' && 'cp312' || '' }}}}"

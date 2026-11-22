@@ -57,6 +57,7 @@ EXAMPLES:
 ### 22 Nov 2026
 
 - [maintenance] On pull requests, skip the macOS api cross-CPython cells (the macOS wheel and its physics tier still run; the merge queue and nightly keep macOS api coverage) and split the Windows cp312 api cell into two deterministic shards with the new `scripts/suews/pytest_shard.py` plugin, to shorten pull-request CI wall time; a `pr_api_lane` dispatch input applies the same layout to a dispatch
+- [maintenance] In the merge queue, also skip the macOS api cross-CPython cell, so macOS runs as one cp312 wheel build with its physics tier instead of a build followed by a separately queued api job; macOS api coverage is now nightly-only
 
 ### 21 Nov 2026
 

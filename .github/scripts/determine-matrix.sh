@@ -202,7 +202,10 @@ elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
   echo "test_tier=$MERGE_TIER" >> "$GITHUB_OUTPUT"
   # Ready-PR CI already exercises the API suite on both Python bookends. The
   # queue's job is to validate the combined tree, so repeat it only on the
-  # abi3 floor while retaining all three OS families.
+  # abi3 floor. The wheel is still built and physics-tested on all three OS
+  # families, but the caller (build-publish_to_pypi.yml, run_api_tests)
+  # skips the macOS api cell in the queue, so the api lane runs on Linux
+  # and Windows only.
   API_PYTHON="$BUILD_PYTHON"
 
 elif [[ "${EVENT_NAME}" == "schedule" ]]; then

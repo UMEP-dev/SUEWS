@@ -31,7 +31,13 @@ def daily_water_variables() -> dict:
 
 
 def strip_attrs(df: pd.DataFrame) -> pd.DataFrame:
-    """Return a shallow copy of *df* with empty ``attrs``.
+    """Return a shallow frame sharing *df*'s data and axes with empty ``attrs``.
+
+    Uses ``pd.DataFrame(df, copy=False)``, which takes ``df``'s manager
+    directly via ``NDFrame.__init__`` without calling ``__finalize__`` (so
+    ``df.attrs`` is never deep-copied) on pandas 2.x and 3.x. Falls back to
+    ``df.copy(deep=False)`` only if a pandas release propagates ``attrs``
+    through the constructor.
 
     Parameters
     ----------
@@ -45,8 +51,10 @@ def strip_attrs(df: pd.DataFrame) -> pd.DataFrame:
     """
     if not df.attrs:
         return df
-    df_bare = df.copy(deep=False)
-    df_bare.attrs = {}
+    df_bare = pd.DataFrame(df, copy=False)
+    if df_bare.attrs:
+        df_bare = df.copy(deep=False)
+        df_bare.attrs = {}
     return df_bare
 
 

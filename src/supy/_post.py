@@ -44,6 +44,42 @@ dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.s
 #  {group: {var: agg_method}}
 dict_var_aggm = OUTPUT_REGISTRY.get_aggregation_rules()
 
+# Built-in non-string aggregation callables from the registry (never read attrs).
+_BUILTIN_AGG_FUNCS: frozenset = frozenset(
+    func
+    for group_rules in dict_var_aggm.values()
+    for func in group_rules.values()
+    if not isinstance(func, str)
+)
+
+
+def _is_builtin_agg(spec) -> bool:
+    """Return True when *spec* is a string or one of supy's built-in callables."""
+    if isinstance(spec, str):
+        return True
+    try:
+        return spec in _BUILTIN_AGG_FUNCS
+    except TypeError:
+        return False
+
+
+def _can_strip_attrs(dict_aggm, list_group, columns: pd.MultiIndex) -> bool:
+    """Return True when every active aggregation spec is a string or built-in."""
+    if dict_aggm is dict_var_aggm:
+        return True
+    present_by_group: dict[str, set] = {}
+    for group, var in columns:
+        present_by_group.setdefault(group, set()).add(var)
+    for group in list_group:
+        group_rules = dict_aggm.get(group)
+        if not group_rules:
+            continue
+        present = present_by_group.get(group, ())
+        for var, spec in group_rules.items():
+            if var in present and not _is_builtin_agg(spec):
+                return False
+    return True
+
 
 # generate index for variables in different model groups
 def gen_group_cols(group_x):
@@ -483,10 +519,21 @@ def _resample_output(
     rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
     ser_coverage = output_covered_seconds(df_output, source_s) if water_columns else None
     dict_coverage = {}
+    # get grid and group names
+    list_grid = df_output.index.get_level_values("grid").unique()
+    list_group = df_output.columns.get_level_values("group").unique()
+    if groups is not None:
+        list_group = [group for group in list_group if group in groups]
+
     # Strip attrs before slicing, resampling and concatenating so pandas'
     # NDFrame.__finalize__ does not deep-copy heavy metadata dicts on every
-    # intermediate frame; attrs are reattached once at the boundary below.
-    df_work = strip_attrs(df_output)
+    # intermediate frame; skip stripping if any active user-supplied callable
+    # might read Series.attrs. Attrs are reattached once at the boundary below.
+    df_work = (
+        strip_attrs(df_output)
+        if _can_strip_attrs(dict_aggm, list_group, df_output.columns)
+        else df_output
+    )
 
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None, grid=None):
@@ -566,12 +613,6 @@ def _resample_output(
         return result
 
     calendar = _is_calendar_frequency(freq)
-
-    # get grid and group names
-    list_grid = df_output.index.get_level_values("grid").unique()
-    list_group = df_output.columns.get_level_values("group").unique()
-    if groups is not None:
-        list_group = [group for group in list_group if group in groups]
 
     # resampling output according to different rules defined in dict_aggm
     # note the setting in .resample: (closed='right',label='right')

@@ -19,7 +19,7 @@ import pyarrow.parquet as pq
 import pytest
 
 import supy._output_metadata as output_metadata_mod
-from supy._output_metadata import prepare_output, with_daily_coverage
+from supy._output_metadata import prepare_output, strip_attrs, with_daily_coverage
 import supy._post as post_mod
 from supy._post import _resample_output
 import supy._save as save_mod
@@ -28,6 +28,7 @@ from supy._save import (
     save_df_output,
     save_df_output_parquet,
 )
+from supy.data_model.output import OUTPUT_REGISTRY
 import supy.suews_output as suews_output_mod
 
 pytestmark = [
@@ -364,3 +365,108 @@ def test_save_text_and_streamed_parquet_match_master(
         columns=["creation_time"]
     )
     pd.testing.assert_frame_equal(meta_new, meta_master, check_exact=True)
+
+
+def test_strip_attrs_avoids_deepcopy_and_leaves_source_untouched(monkeypatch):
+    """``strip_attrs`` builds a bare view without invoking ``copy.deepcopy``."""
+    index = pd.MultiIndex.from_product(
+        [[1, 2], pd.date_range("2012-01-01 00:05", periods=4, freq="5min")],
+        names=["grid", "datetime"],
+    )
+    columns = pd.MultiIndex.from_tuples(
+        [("SUEWS", "QH"), ("SUEWS", "Rain")], names=["group", "var"]
+    )
+    df = pd.DataFrame(1.0, index=index, columns=columns)
+    df.attrs = {
+        "supy_output_daily_coverage_s": {
+            f"1|2012-{day:03d}": 86400.0 for day in range(1, 367)
+        },
+        "supy_output_units": {"SUEWS": {"Rain": "mm h-1"}},
+        "custom_meta": {"nested": [1, 2, 3]},
+    }
+    snapshot = copy.deepcopy(df.attrs)
+    calls = 0
+    real_deepcopy = copy.deepcopy
+
+    def counting_deepcopy(obj, *args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return real_deepcopy(obj, *args, **kwargs)
+
+    monkeypatch.setattr(copy, "deepcopy", counting_deepcopy)
+    bare = strip_attrs(df)
+
+    assert calls == 0
+    assert bare.attrs == {}
+    assert df.attrs == snapshot
+    assert bare.index.equals(df.index)
+    assert bare.columns.equals(df.columns)
+    pd.testing.assert_frame_equal(bare, df, check_exact=True)
+
+
+def test_resample_custom_callable_reads_attrs_like_master(sample_outputs):
+    """User-supplied agg callables still see ``Series.attrs`` as on master."""
+    df_in = sample_outputs["1grid"].df.loc[:, ["SUEWS"]].copy()
+    df_in.attrs["scale"] = 2.5
+    custom_aggm = {
+        "SUEWS": {
+            "QH": lambda ser: ser.mean() * ser.attrs["scale"],
+            "Rain": "sum",
+        }
+    }
+
+    actual = _resample_output(
+        df_in, freq=pd.Timedelta(3600, "s"), dict_aggm=custom_aggm
+    )
+    expected = MASTER_REF._resample_output(
+        df_in, freq=pd.Timedelta(3600, "s"), dict_aggm=custom_aggm
+    )
+
+    pd.testing.assert_frame_equal(actual, expected, check_exact=True)
+    assert actual.attrs == expected.attrs
+    assert actual.attrs["scale"] == 2.5
+    assert not actual[("SUEWS", "QH")].isna().all()
+
+
+def test_resample_default_and_builtin_rules_take_stripped_path(
+    sample_outputs, monkeypatch
+):
+    """Default, registry-built and string-only rules take the stripped path."""
+    df_in = sample_outputs["1grid"].df.copy()
+    strip_calls = 0
+    real_strip_attrs = post_mod.strip_attrs
+
+    def counting_strip(df):
+        nonlocal strip_calls
+        strip_calls += 1
+        return real_strip_attrs(df)
+
+    monkeypatch.setattr(post_mod, "strip_attrs", counting_strip)
+
+    # Default dict_var_aggm uses the stripped fast path.
+    _resample_output(df_in, freq=pd.Timedelta(3600, "s"))
+    assert strip_calls == 1
+
+    # Fresh registry aggregation rules also use the stripped fast path.
+    _resample_output(
+        df_in,
+        freq=pd.Timedelta(3600, "s"),
+        dict_aggm=OUTPUT_REGISTRY.get_aggregation_rules(),
+    )
+    assert strip_calls == 2
+
+    # String-only custom rules also use the stripped fast path.
+    _resample_output(
+        df_in,
+        freq=pd.Timedelta(3600, "s"),
+        dict_aggm={"SUEWS": {"QH": "mean", "Rain": "sum"}},
+    )
+    assert strip_calls == 3
+
+    # User-supplied callable skips stripping so attrs stay visible to it.
+    _resample_output(
+        df_in,
+        freq=pd.Timedelta(3600, "s"),
+        dict_aggm={"SUEWS": {"QH": lambda ser: ser.mean()}},
+    )
+    assert strip_calls == 3

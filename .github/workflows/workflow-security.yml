@@ -7,6 +7,7 @@ on:
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
       - '.github/scripts/post-ci-summary*'
+      - '.github/scripts/nightly-tracker*'
       - '.github/scripts/package.json'
   push:
     branches: [master]
@@ -15,6 +16,7 @@ on:
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
       - '.github/scripts/post-ci-summary*'
+      - '.github/scripts/nightly-tracker*'
       - '.github/scripts/package.json'
   schedule:
     - cron: '15 6 * * 1'
@@ -59,6 +61,11 @@ jobs:
       # descriptor to what determine-matrix.sh actually emits.
       - name: Run post-ci-summary unit tests
         run: node --test .github/scripts/post-ci-summary.test.js
+
+      # nightly-tracker.js opens, updates and closes the nightly tracking
+      # issue from report_scheduled_run; the test drives it with a fake client.
+      - name: Run nightly-tracker unit tests
+        run: node --test .github/scripts/nightly-tracker.test.js
 
   zizmor:
     name: Advisory workflow audit

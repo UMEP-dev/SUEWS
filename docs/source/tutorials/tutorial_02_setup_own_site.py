@@ -121,6 +121,12 @@ print("Site properties configured")
 # Load meteorological observations from the US-AR1 site.
 # The forcing file contains hourly observations for 2010.
 #
+# The ``sm`` column is left missing (``-999``) because its unit and
+# represented soil-layer depth are undocumented; no conversion is assumed.
+# This tutorial uses the sample configuration's
+# ``model.physics.soil_moisture: modelled`` option, so it does not require
+# observed soil moisture. See :ref:`units_migration_observed_soil`.
+#
 # .. note::
 #
 #    ``update_forcing()`` automatically resamples the forcing data to match

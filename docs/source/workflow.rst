@@ -111,16 +111,16 @@ Quick Start: Sample Data Tutorial
     axes[0,0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
     # Monthly patterns
-    monthly_energy = df_energy.groupby(df_energy.index.get_level_values(1).month).mean()
+    monthly_energy = df_energy.groupby(df_energy.index.get_level_values("datetime").month).mean()
     monthly_energy.plot(kind='bar', ax=axes[0,1], title='Monthly Energy Balance')
     axes[0,1].set_ylabel('Energy Flux (W/m²)')
     axes[0,1].set_xlabel('Month')
 
     # Diurnal patterns (summer months)
     t2 = sim.get_variable('T2', group='SUEWS')
-    summer_mask = t2.index.get_level_values(1).month.isin([6,7,8])
+    summer_mask = t2.index.get_level_values("datetime").month.isin([6,7,8])
     summer_temp = t2[summer_mask]
-    hourly_temp = summer_temp.groupby(summer_temp.index.get_level_values(1).hour).mean()
+    hourly_temp = summer_temp.groupby(summer_temp.index.get_level_values("datetime").hour).mean()
     hourly_temp.iloc[:, 0].plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
     axes[1,0].set_ylabel('Air Temperature (°C)')
     axes[1,0].set_xlabel('Hour of Day')
@@ -458,8 +458,10 @@ Multi-Site and Comparative Studies
    monthly_temps = {}
    checkpoints = {}
    for name, output in results:
+       # One grid per simulation; otherwise apply .xs(grid_id, level="grid") to each result.
        t2 = output.get_variable('T2', group='SUEWS')
-       monthly_temps[name] = t2.iloc[:, 0].groupby(t2.index.month).mean()
+       dt = t2.index.get_level_values("datetime")
+       monthly_temps[name] = t2.iloc[:, 0].groupby(dt.month).mean()
        checkpoints[name] = output.checkpoint
 
    temp_comparison = pd.DataFrame(monthly_temps)
@@ -569,17 +571,21 @@ Advanced Analysis Patterns
        urban_sim, rural_sim : SUEWSSimulation
            Completed simulations for urban and rural sites
        """
+       # One grid per simulation; otherwise apply .xs(grid_id, level="grid") to each result.
        # Extract temperature using get_variable()
        urban_temp = urban_sim.get_variable('T2', group='SUEWS').iloc[:, 0]
        rural_temp = rural_sim.get_variable('T2', group='SUEWS').iloc[:, 0]
 
+       urban_dt = urban_temp.index.get_level_values("datetime")
+       rural_dt = rural_temp.index.get_level_values("datetime")
+
        # UHI intensity by time of day
-       uhi_diurnal = urban_temp.groupby(urban_temp.index.hour).mean() - \
-                     rural_temp.groupby(rural_temp.index.hour).mean()
+       uhi_diurnal = urban_temp.groupby(urban_dt.hour).mean() - \
+                     rural_temp.groupby(rural_dt.hour).mean()
 
        # Seasonal UHI patterns
-       uhi_seasonal = urban_temp.groupby(urban_temp.index.month).mean() - \
-                      rural_temp.groupby(rural_temp.index.month).mean()
+       uhi_seasonal = urban_temp.groupby(urban_dt.month).mean() - \
+                      rural_temp.groupby(rural_dt.month).mean()
 
        return uhi_diurnal, uhi_seasonal
 
@@ -595,6 +601,7 @@ Advanced Analysis Patterns
        sim : SUEWSSimulation
            Completed simulation
        """
+       # One grid per simulation; otherwise apply .xs(grid_id, level="grid") to each result.
        # Helper to extract variables
        def get_var(name):
            return sim.get_variable(name, group='SUEWS').iloc[:, 0]
@@ -614,7 +621,8 @@ Advanced Analysis Patterns
 
        # Seasonal energy partitioning
        df_fluxes = pd.DataFrame({'QS': qs, 'QE': qe, 'QH': qh})
-       seasonal_partition = df_fluxes.groupby(df_fluxes.index.month).mean()
+       dt = df_fluxes.index.get_level_values("datetime")
+       seasonal_partition = df_fluxes.groupby(dt.month).mean()
 
        # Bowen ratio (sensible/latent heat)
        bowen_ratio = qh / qe

@@ -149,7 +149,7 @@ def _export_regenerated(regenerated_dir: Path, df) -> Path | None:
 
 
 @pytest.mark.core
-@pytest.mark.medium
+@pytest.mark.slow
 def test_sample_run_reproduces_reference_exactly(sample_reference_dir):
     """The full-year sample run matches the stored shards byte for byte."""
     # ARRANGE: decide whether this build can reproduce the reference exactly

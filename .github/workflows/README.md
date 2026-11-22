@@ -54,7 +54,8 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   two CPython bookends per platform and records the zero-tolerance spread of
   the sample comparison; it records and never gates.
 - The nightly `Python coverage (Linux cp312)` job (also on dispatch with the
-  `python_coverage` input) installs the Linux cp312 wheel, runs the whole suite
+  `python_coverage` input), chained inside the Linux `build-wheels-reusable.yml`
+  call behind that wheel only, installs the Linux cp312 wheel, runs the whole suite
   except `qgis` on four workers under coverage, and uploads `coverage.json` and
   `coverage.xml` as the `python-coverage` artefact with a per-package summary;
   the configuration is in `pyproject.toml`, so `pytest --cov` gives the same

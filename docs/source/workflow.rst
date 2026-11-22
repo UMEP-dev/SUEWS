@@ -285,28 +285,25 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
 Validate Your Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Before running simulations, validate your configuration to catch and fix common issues:
+Before running simulations, validate your configuration and review any issues:
 
 .. code-block:: bash
 
-   # Validate and automatically fix your configuration
+   # Validate your configuration and report suggested updates
    suews validate config.yml
 
-   # This creates:
-   # - updated_config.yml (corrected configuration)
+   # Output files:
+   # - updated_config.yml (updated configuration)
    # - report_config.txt (detailed validation report)
+   # - report_config.json (machine-readable validation report)
 
-The validator automatically:
+By default, the validator writes recognised parameter-name updates and may add null placeholders for missing parameters. It reports missing values and physics option conflicts for your attention; the output is not necessarily ready to run.
 
-- Adds missing parameters with sensible defaults
-- Normalises surface fractions to sum to 1.0
-- Sets initial temperatures based on location and season
-- Ensures physics options are compatible
-- Updates deprecated parameter names to current standards
+The command prints "Validation failed" and exits with status 1 if any validation check reports an error; suggestions alone exit with status 0. Before running simulations, address the report's **ACTION NEEDED** section and replace any null placeholders listed there with real values.
 
-The validation report consolidates all changes made across multiple validation phases, providing a clear summary of what was automatically fixed and what requires your attention.
+Scientific changes, such as initial temperatures and small surface-fraction corrections, are only suggested in the report, not written to the YAML. Use ``--science-fixes apply`` to write these changes, or ``--science-fixes off`` to suppress scientific suggestions while retaining validation checks.
 
-For more details, see :doc:`/inputs/yaml/validation`.
+For the scientific fix policy, output files and report sections, see :doc:`/inputs/yaml/validation`.
 
 Setup Your Site Tutorial
 ^^^^^^^^^^^^^^^^^^^^^^^^^

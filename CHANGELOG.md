@@ -61,6 +61,7 @@ EXAMPLES:
 
 ### 21 Nov 2026
 
+- [bugfix] Use the supplied cloud fraction to calculate incoming longwave radiation in net radiation methods 2, 12, 200 and 1002. Previously these methods calculated clear-sky longwave radiation even when observations indicated cloud (#2100).
 - [bugfix] Exclude zero-area surfaces (`sfr_surf == 0`) and absent building facets (`sfr_surf(BldgSurf) == 0`) from the `suews_update_tsurf` surface-temperature and EHC sensible-heat convergence stop criteria so absent surfaces cannot prolong fixed-point iterations or leak into grid-scale fluxes (#2173)
 
 ### 20 Nov 2026

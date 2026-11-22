@@ -2001,10 +2001,6 @@ CONTAINS
                   ! IF (SnowUse==0) SnowFrac=snowFrac_obs
                   IF (SnowUse == 0) SnowFrac = 0
 
-                  IF (ldown_option == 2) THEN !observed cloud fraction provided as forcing
-                     fcld = fcld_obs
-                  END IF
-
                   !write(*,*) DecidCap(id), id, it, imin, 'Calc - near start'
 
                   ! Update variables that change daily and represent seasonal variability
@@ -2024,7 +2020,7 @@ CONTAINS
                   CALL NARP( &
                      nsurf, sfr_surf, tsfc_surf, SnowFrac, alb, emis, IceFrac, & !
                      NARP_TRANS_SITE, NARP_EMIS_SNOW, &
-                     dectime, ZENITH_deg, kdown, Tair_C, avRH, ea_hPa, qn1_obs, ldown_obs, &
+                     dectime, ZENITH_deg, kdown, Tair_C, avRH, ea_hPa, qn1_obs, ldown_obs, fcld_obs, &
                      SnowAlb, &
                      AlbedoChoice, ldown_option, NetRadiationMethod_use, DiagQN, &
                      qn_surf, & ! output:

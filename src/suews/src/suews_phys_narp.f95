@@ -132,7 +132,7 @@ CONTAINS
    SUBROUTINE NARP( &
       nsurf, sfr_surf, tsfc_surf, SnowFrac, alb, emis, IceFrac, & ! input:
       NARP_TRANS_SITE, NARP_EMIS_SNOW, &
-      DTIME, ZENITH_deg, kdown, Temp_C, RH, Press_hPa, qn1_obs, ldown_obs, &
+      DTIME, ZENITH_deg, kdown, Temp_C, RH, Press_hPa, qn1_obs, ldown_obs, fcld_obs, &
       SnowAlb, &
       AlbedoChoice, ldown_option, &
       NetRadiationMethod_use, DiagQN, &
@@ -209,6 +209,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: Press_hPa
       REAL(KIND(1D0)), INTENT(in) :: qn1_obs
       REAL(KIND(1D0)), INTENT(in) :: ldown_obs
+      REAL(KIND(1D0)), INTENT(in) :: fcld_obs ! observed cloud fraction [0-1] for ldown_option 2
       REAL(KIND(1D0)), INTENT(in) :: SnowAlb
       REAL(KIND(1D0)), INTENT(in) :: NARP_TRANS_SITE
       REAL(KIND(1D0)), INTENT(in) :: NARP_EMIS_SNOW
@@ -301,7 +302,7 @@ CONTAINS
          LDOWN = 0
       END IF
       LUPall = 0
-      fcld = 0
+      fcld = MERGE(fcld_obs, 0.0D0, ldown_option == 2)
       TSURFall = 0
 
       qn1_ind_snow = 0

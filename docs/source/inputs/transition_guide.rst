@@ -500,10 +500,10 @@ to :meth:`~supy.SUEWSOutput.save` or :meth:`~supy.SUEWSSimulation.save` instead.
 For streamed output, set the configuration switch before calling
 :meth:`~supy.SUEWSSimulation.run`, because that call writes the files.
 
-The migration from ``2026.6.dev5`` stamps ``schema_version: '2026.6.dev6'``
-without changing content and does not turn the switch on; add it yourself
-if you rely on one of these groups. Earlier schemas still undergo their
-registered content migrations when upgraded with ``suews convert``.
+The ``2026.6.dev5`` -> ``2026.6.dev6`` step leaves content unchanged and
+does not turn the switch on; add it yourself if you rely on one of these
+groups. ``suews convert`` applies the registered content migrations through
+to the current schema and stamps the output with that version.
 Default output groups and non-streaming Parquet output are unchanged.
 
 .. _schema_dev5_shortwave_migration:
@@ -524,10 +524,9 @@ text selector in both bare and ``value``-wrapped forms under
 ``model.physics.kdown_split_method``. It preserves reference metadata and
 all other settings. Numeric option ``3`` and its calculations remain
 unchanged; numeric selections and omitted selectors require no content
-changes in this step. ``suews convert`` then
-continues through the migration chain and stamps the output with the current
-schema version. Merely changing the version stamp does not rename the old
-selector.
+changes in this step. ``suews convert`` then continues through the migration
+chain and stamps the output with the current schema version. Merely changing
+the version stamp does not rename the old selector.
 
 The new ``reindl`` option (numeric ``4``) is opt-in and needs no additional
 inputs. See :ref:`shortwave_partition` for both splitting methods.
@@ -639,10 +638,9 @@ building storage heat flux only. Other land-cover surfaces continue to use
 ordinary OHM, and DyOHM surface temperatures are not passed back to the
 radiation calculation.
 
-Existing ``2026.6.dev1`` YAMLs do not need content edits because the new
-selector is optional. The registered ``(2026.6.dev1 -> 2026.6.dev2)``
-handler is therefore a no-op content migration that stamps the new
-``schema_version``:
+Existing ``2026.6.dev1`` YAMLs do not need content edits for this step
+because the new selector is optional. The following command migrates to
+the current schema and stamps ``schema_version`` with that version:
 
 .. code-block:: bash
 
@@ -683,10 +681,9 @@ surface with default-backed controls:
   the vegetation extinction coefficient per vertical layer; ``-999``
   keeps the LAI-derived behaviour.
 
-Existing ``2026.5`` YAMLs do not need content edits because all new
-fields have defaults. The registered ``(2026.5 -> 2026.6.dev1)``
-handler is therefore a no-op content migration that stamps the new
-``schema_version``:
+Existing ``2026.5`` YAMLs do not need content edits for this step because
+all new fields have defaults. The following command migrates to the
+current schema and stamps ``schema_version`` with that version:
 
 .. code-block:: bash
 
@@ -746,7 +743,7 @@ Run the migrator to bring an existing YAML onto the new shape:
 
 For a combined legacy-table-plus-schema upgrade, use ``suews convert``,
 which runs the table conversion first and then walks the schema chain
-to the current schema, stamping the output with the current schema version.
+to the current schema and stamps the output with that version.
 
 The handler logs every field rename and drop via
 ``[yaml-upgrade]   renamed 'old' -> 'new'`` (and a human-readable
@@ -785,7 +782,7 @@ Run:
 
 The migrator accepts any registered intermediate (for example
 ``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
-further to the current 2026.5 schema, use
+further to the 2026.5 schema, use
 ``--target-version 2026.5`` (or omit the flag to reach the latest).
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)

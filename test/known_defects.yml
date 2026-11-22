@@ -109,12 +109,6 @@ mappings:
     classification: "coverage_gap"
   - selector:
       ledger: "U"
-      file: "src/suews/src/suews_phys_narp.f95"
-    contract: "C-RESPONSE"
-    issue: 2106
-    classification: "defect"
-  - selector:
-      ledger: "U"
       file: "src/suews_bridge/c_api/heat_state.f95"
     contract: "C-CAPI"
     issue: 2096

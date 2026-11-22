@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 22 Nov 2026
+
+- [maintenance] Pull the digest-pinned GCC 14.2.0 image for the Fortran `-Wuninitialized` ratchet from Docker Hub instead of the Amazon ECR Public mirror, whose anonymous pulls fail with "Data limit exceeded"; the manifest digest, compiler and baseline keys are unchanged (#2237)
+
 ### 21 Nov 2026
 
 - [bugfix] Exclude zero-area surfaces (`sfr_surf == 0`) and absent building facets (`sfr_surf(BldgSurf) == 0`) from the `suews_update_tsurf` surface-temperature and EHC sensible-heat convergence stop criteria so absent surfaces cannot prolong fixed-point iterations or leak into grid-scale fluxes (#2173)

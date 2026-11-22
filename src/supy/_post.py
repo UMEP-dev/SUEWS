@@ -431,15 +431,28 @@ def _resample_output(
         held = resolve_held_interval(df_output, freq_source)
 
     # Skip resampling entirely when the data is already at the requested
-    # frequency
+    # frequency (except sparse native DailyState rows spaced 24 h apart at
+    # e.g. 23:55, which are not yet aligned to right-closed daily bins).
+    already_at_freq = False
     if held.kind == "fixed":
         try:
             target_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
         except ValueError:
             target_s = None  # A calendar frequency never equals a fixed interval.
         if target_s == held.seconds:
-            return df_output
+            idx_dt = df_output.index.get_level_values(
+                "datetime" if "datetime" in df_output.index.names else -1
+            )
+            daily_unaligned = (
+                held.source == "index"
+                and target_s == 86400
+                and "DailyState" in df_output.columns.get_level_values("group")
+                and bool((idx_dt != idx_dt.normalize()).any())
+            )
+            already_at_freq = not daily_unaligned
     elif held.kind == "unknown" and _index_freq_matches(df_output, freq):
+        already_at_freq = True
+    if already_at_freq:
         return df_output
 
     # Calendar rows carry their individual coverage.

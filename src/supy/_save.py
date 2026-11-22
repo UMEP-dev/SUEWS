@@ -1209,6 +1209,13 @@ def save_df_output(
 
     # Extract DailyState at daily resolution (closed="right", label="right"),
     # so day D is labelled D+1 00:00 like every other daily output group.
+    # Only pass freq_source when it came from df_state_final so _resample_output
+    # keeps the true source (attrs vs index) for sparse native DailyState rows.
+    freq_from_state = (
+        pd.Timedelta(held_s, "s")
+        if held_s is not None and held.source == "state"
+        else None
+    )
     df_dailystate = None
     if "DailyState" in list_group_save:
         _check_dailystate_interval(held_s)
@@ -1216,7 +1223,7 @@ def save_df_output(
             df_output,
             pd.Timedelta(86400, "s"),
             groups=["DailyState"],
-            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
+            freq_source=freq_from_state,
         )
         df_dailystate = _dailystate_rows(df_daily_rsmp)
         df_dailystate.attrs = df_daily_rsmp.attrs.copy()
@@ -1233,7 +1240,7 @@ def save_df_output(
     if list_group_no_daily:
         df_rsmp = _resample_output(
             df_output, freq_save, groups=list_group_no_daily,
-            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
+            freq_source=freq_from_state,
         )
         list_group_rsmp = [
             g
@@ -1865,9 +1872,14 @@ def save_df_output_parquet(
         df_to_save = _parquet_chunk_frame(df_save, freq_save, streamed_parquet.tstep_s)
     elif not save_tstep:
         # Resample output
+        freq_from_state = (
+            pd.Timedelta(held_s, "s")
+            if held_s is not None and held.source == "state"
+            else None
+        )
         df_rsmp = _resample_output(
             df_save, freq_save,
-            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
+            freq_source=freq_from_state,
         )
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?

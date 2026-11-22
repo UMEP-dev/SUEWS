@@ -24,7 +24,7 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``2.1.0`` and the output contract at ``2.0.0``.
+The forcing contract is published at ``2.1.0`` and the output contract at ``2.1.0``.
 Forcing ``2.1.0`` adds a canonical declared water-rate unit while retaining legacy undeclared amounts.
 Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
@@ -55,6 +55,7 @@ Their model sums, including a partial first day, are written unchanged (a run en
 Amount units (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.
 Per-step water fluxes are written as ``kg m-2 s-1`` rates.
 Output ``2.0.0`` is frozen like every earlier version: its digest is immutable, and any later correction needs a new version.
+Output ``2.1.0`` appends seven EHC diagnostics to the end of the EHC group (``dUdt_EHC``, ``QBot_EHC``, ``QIndoor_EHC``, ``QF_Bldg``, ``QF_Air``, ``T_Indoor_EHC``, ``T_Deep_EHC``), leaving every existing column, ordinal, unit and description unchanged.
 Native in-memory amounts remain available, with their actual units exposed by the output accessor.
 :ref:`units_migration_guide` describes what these forcing and output versions change for users.
 Each forcing release is stored as an immutable canonical

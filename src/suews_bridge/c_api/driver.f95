@@ -9,9 +9,11 @@
 ! -----------------------------------------------------------------------------
 module module_c_api_driver
 use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double, c_char
+use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer
+use module_c_api_config, only: SUEWS_CAPI_CONFIG_LEN
 use module_ctrl_const_allocate, only: ncolumnsDataOutSUEWS, nspec, nsurf, nvegsurf, &
    ncolumnsDataOutSnow, ncolumnsDataOutBEERS, ncolumnsDataOutESTM, ncolumnsDataOutEHC, &
    ncolumnsDataOutDailyState, ncolumnsDataOutRSL, ncolumnsDataOutDebug, &
@@ -60,7 +62,6 @@ implicit none
 private
 
 integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 24_c_int
 ! Must equal SUEWS_CAPI_SITE_SCALARS_LEN in src/sim.rs (not checked at run
 ! time). The layout is encode_site_scalars (Rust) / unpack_site_scalars here.
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
@@ -1167,6 +1168,22 @@ subroutine unpack_config(flat, n_flat, config, err)
       return
    end if
 
+   if (.not. ieee_is_finite(flat(25)) .or. &
+       (flat(25)/=0.0_c_double .and. flat(25)/=1.0_c_double)) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+   if (.not. ieee_is_finite(flat(27)) .or. flat(27)<0.0_c_double .or. &
+       .not. ieee_is_finite(flat(28)) .or. flat(28)<0.0_c_double) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+   if (.not. ieee_is_finite(flat(29)) .or. &
+       (flat(29)/=0.0_c_double .and. flat(29)/=1.0_c_double .and. flat(29)/=2.0_c_double)) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+
    config%RSLMethod = int(nint(flat(1)))
    config%EmissionsMethod = int(nint(flat(2)))
    config%RoughLenHeatMethod = int(nint(flat(3)))
@@ -1191,6 +1208,11 @@ subroutine unpack_config(flat, n_flat, config, err)
    config%flag_test = flat(22)>=0.5_c_double
    config%KdownSplitMethod = int(nint(flat(23)))
    config%ForcingTimestampReference = int(nint(flat(24)))
+   config%EHCSurfaceCoupling = int(nint(flat(25)))
+   config%control_ehc_initial_profile = flat(26)>=0.5_c_double
+   config%resistance_ehc_indoor_roof = flat(27)
+   config%resistance_ehc_indoor_wall = flat(28)
+   config%control_ehc_stability = int(nint(flat(29)))
 
    err = SUEWS_CAPI_OK
 

@@ -1900,7 +1900,9 @@ def audit_manifest_and_inventory(
 ) -> tuple[list[dict[str, str]], dict[str, list[LeafField]]]:
     """Validate 100% manifest coverage across all 49 bridged types and their leaves."""
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest_entries: list[dict[str, str]] = manifest["types"]
+    manifest_entries: list[dict[str, str]] = [
+        entry for entry in manifest["types"] if entry.get("status") != "excluded"
+    ]
 
     _audit_category_completeness(manifest_entries, types_by_lower)
     _audit_capi_unpack_registry(capi_dir)

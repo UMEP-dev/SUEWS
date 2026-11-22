@@ -258,6 +258,15 @@ impl ExpectedStruct {
         val
     }
 
+    fn int_enum(&mut self, path: &str, val: i32) -> i32 {
+        self.record_bounds(path, ExpectedBounds::scalar());
+        let prev = self
+            .values
+            .insert((path.to_string(), 0, 0), ExpectedVal::Int(i64::from(val)));
+        assert!(prev.is_none(), "duplicate expected enum int '{path}'");
+        val
+    }
+
     fn real_arr_1d<const N: usize>(&mut self, path: &str, lb1: i32) -> [f64; N] {
         self.record_bounds(path, ExpectedBounds::rank1(lb1, lb1 + N as i32 - 1));
         std::array::from_fn(|offset| {
@@ -2636,9 +2645,18 @@ fn observe_surf_store_prm() {
 
 #[test]
 fn observe_suews_config() {
-    for (use_sw_direct_albedo, flag_test) in
-        [(false, false), (false, true), (true, false), (true, true)]
-    {
+    for (
+        use_sw_direct_albedo,
+        flag_test,
+        ehc_surface_coupling,
+        control_ehc_stability,
+        control_ehc_initial_profile,
+    ) in [
+        (false, false, 0, 0, false),
+        (false, true, 1, 1, true),
+        (true, false, 0, 2, true),
+        (true, true, 1, 0, false),
+    ] {
         let mut exp = ExpectedStruct::new();
         let cfg = SuewsConfig {
             rsl_method: exp.int("RSLMethod"),
@@ -2665,6 +2683,14 @@ fn observe_suews_config() {
             flag_test: exp.logical("flag_test", flag_test),
             kdown_split_method: exp.int("KdownSplitMethod"),
             forcing_timestamp_reference: exp.int("ForcingTimestampReference"),
+            ehc_surface_coupling: exp.int_enum("EHCSurfaceCoupling", ehc_surface_coupling),
+            control_ehc_initial_profile: exp.logical(
+                "control_ehc_initial_profile",
+                control_ehc_initial_profile,
+            ),
+            resistance_ehc_indoor_roof: exp.real("resistance_ehc_indoor_roof"),
+            resistance_ehc_indoor_wall: exp.real("resistance_ehc_indoor_wall"),
+            control_ehc_stability: exp.int_enum("control_ehc_stability", control_ehc_stability),
         };
         let flat = cfg.to_flat();
         assert_eq!(SuewsConfig::from_flat(&flat).unwrap(), cfg);

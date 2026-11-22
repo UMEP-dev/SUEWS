@@ -1178,6 +1178,9 @@ fn prepare_checkpoint_input(
         )));
     }
     run_cfg.state = checkpoint.state;
+    // A saved state owns its envelope profile, even if its elapsed timer was
+    // reset externally. The configuration-start option must never replace it.
+    run_cfg.config.control_ehc_initial_profile = false;
 
     // Set timer fields from the first forcing row.
     let first_row = &forcing_block[..MET_FORCING_COLS];

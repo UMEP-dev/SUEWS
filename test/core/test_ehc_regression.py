@@ -1,3 +1,5 @@
+"""Legacy explicit EHC regression tests; implicit coupling has separate coverage."""
+
 import copy
 
 import numpy as np
@@ -61,6 +63,7 @@ def _run_short_ehc_with_surface_cp(rho_cp, surface_rho_cp=None, zero_kdown=False
                 "physics": {
                     "net_radiation": {"value": 3},
                     "storage_heat": {"value": 5},
+                    "ehc_surface_coupling": "explicit",
                 }
             },
             "sites": {
@@ -135,6 +138,7 @@ def _run_short_spartacus_ehc_with_building_cp(rho_cp):
     vertical_layers["veg_scale"]["value"][2] = 0.0
     cfg["model"]["physics"]["net_radiation"] = {"value": 1003}
     cfg["model"]["physics"]["storage_heat"] = {"value": 5}
+    cfg["model"]["physics"]["ehc_surface_coupling"] = "explicit"
     for internal_key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
         cfg.pop(internal_key, None)
 

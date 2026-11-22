@@ -1,3 +1,4 @@
+from math import isfinite
 from pydantic import (
     ConfigDict,
     Field,
@@ -81,6 +82,15 @@ class ThermalLayers(DataModelBase):
     def _reject_boolean_layers(cls, value, info):
         """Refuse booleans, which Pydantic would coerce to layer properties."""
         return reject_bool_input(value, f"thermal_layers.{info.field_name}")
+
+    @field_validator("dz", "k", "rho_cp")
+    @classmethod
+    def validate_finite_properties(cls, value):
+        """Reject non-finite material data before JSON can turn it into null."""
+        values = value.value if isinstance(value, RefValue) else value
+        if values is not None and any(v is not None and not isfinite(v) for v in values):
+            raise ValueError("thermal layer properties must be finite (no NaN or infinity)")
+        return value
 
     def _to_df_state_cols(
         self,

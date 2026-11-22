@@ -2685,6 +2685,42 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, "2026.6.dev16")] = _handler
         _HANDLERS[(_source, _target)] = _with_integer_doy_delta(_handler)
 _HANDLERS[("2026.6.dev16", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev16_to_2026_6_dev17
+
+
+def _migrate_2026_6_dev17_to_2026_6_dev18(cfg: dict) -> dict:
+    """Record the default EHC surface-coupling change for storage_heat=5 YAMLs."""
+    physics = (cfg.get("model") or {}).get("physics") or {}
+    storage_heat = physics.get("storage_heat", physics.get("storageheatmethod"))
+    if isinstance(storage_heat, dict):
+        storage_heat = storage_heat.get("value", storage_heat)
+    is_ehc = storage_heat in (5, "5", "ehc", "EHC") or (
+        isinstance(storage_heat, dict) and "ehc" in storage_heat
+    )
+    if is_ehc and "ehc_surface_coupling" not in physics:
+        _log(
+            "[yaml-upgrade] model.physics.ehc_surface_coupling omitted with storage_heat=5: "
+            "2026.6.dev18 defaults to implicit coupling; set ehc_surface_coupling: explicit "
+            "to retain legacy explicit coupling"
+        )
+    return cfg
+
+
+def _with_ehc_implicit_default_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev17_to_2026_6_dev18(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev17")] = _handler
+        _HANDLERS[(_source, _target)] = _with_ehc_implicit_default_delta(_handler)
+_HANDLERS[("2026.6.dev17", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev17_to_2026_6_dev18
 _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
     _with_senescence_check(_identity)
 )

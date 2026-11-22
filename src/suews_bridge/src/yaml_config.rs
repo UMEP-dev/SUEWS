@@ -3492,6 +3492,73 @@ fn apply_config_overrides(
     config.flag_test = require_i32(root, &["model", "control", "flag_test"], "")? != 0;
     config.diag_qs = require_i32(root, &["model", "control", "diag_qs"], "")?;
     config.kdown_split_method = require_i32(root, &["model", "physics", "kdown_split_method"], "")?;
+    let coupling_path = &["model", "physics", "ehc_surface_coupling"];
+    if get_path(root, coupling_path)
+        .and_then(given_value)
+        .is_some()
+    {
+        let v = require_i32(root, coupling_path, "").map_err(|_| {
+            "ehc_surface_coupling must be explicit (0) or implicit (1)".to_string()
+        })?;
+        if v != 0 && v != 1 {
+            return Err("ehc_surface_coupling must be explicit (0) or implicit (1)".to_string());
+        }
+        config.ehc_surface_coupling = v;
+    }
+    let stability_path = &["model", "physics", "control_ehc_stability"];
+    if get_path(root, stability_path)
+        .and_then(given_value)
+        .is_some()
+    {
+        let v = require_i32(root, stability_path, "")
+            .map_err(|_| "control_ehc_stability must be off, relax or secant".to_string())?;
+        if !(0..=2).contains(&v) {
+            return Err("control_ehc_stability must be off, relax or secant".to_string());
+        }
+        config.control_ehc_stability = v;
+    }
+    let init_profile_path = &["model", "physics", "control_ehc_initial_profile"];
+    if let Some(scalar) = get_path(root, init_profile_path).and_then(given_value) {
+        config.control_ehc_initial_profile = match scalar {
+            Value::Bool(b) => *b,
+            Value::Number(n) => match n.as_f64() {
+                Some(0.0) => false,
+                Some(1.0) => true,
+                _ => {
+                    return Err(
+                        "control_ehc_initial_profile must be a boolean (or 0/1)".to_string(),
+                    );
+                }
+            },
+            _ => {
+                return Err("control_ehc_initial_profile must be a boolean (or 0/1)".to_string());
+            }
+        };
+    }
+    let r_roof_path = &["model", "physics", "resistance_ehc_indoor_roof"];
+    if get_path(root, r_roof_path).and_then(given_value).is_some() {
+        let v = require_numeric(root, r_roof_path, "").map_err(|_| {
+            "resistance_ehc_indoor_roof must be finite and non-negative".to_string()
+        })?;
+        if v < 0.0 {
+            return Err(
+                "resistance_ehc_indoor_roof must be finite and non-negative".to_string(),
+            );
+        }
+        config.resistance_ehc_indoor_roof = v;
+    }
+    let r_wall_path = &["model", "physics", "resistance_ehc_indoor_wall"];
+    if get_path(root, r_wall_path).and_then(given_value).is_some() {
+        let v = require_numeric(root, r_wall_path, "").map_err(|_| {
+            "resistance_ehc_indoor_wall must be finite and non-negative".to_string()
+        })?;
+        if v < 0.0 {
+            return Err(
+                "resistance_ehc_indoor_wall must be finite and non-negative".to_string(),
+            );
+        }
+        config.resistance_ehc_indoor_wall = v;
+    }
     // The kernel reads this switch from the run configuration, but users set
     // it per site under `properties.spartacus` (gh#1858). Same threshold as
     // `SuewsConfig::from_flat`. Option-gated on SPARTACUS (BR-03).
@@ -5294,6 +5361,87 @@ mod tests {
             let expected = format!("`sites[gridiv=43].properties.lumps.{field}`");
             assert!(error.contains(&expected), "{error}");
             assert!(error.contains(reason), "{error}");
+        }
+    }
+
+    #[test]
+    fn parses_ehc_stability_controls() {
+        for (name, code) in [("off", 0), ("relax", 1), ("secant", 2)] {
+            for selector in [name.to_string(), format!("{{value: {name}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["control_ehc_stability"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let run_cfg = load_run_config_from_value(&mut root).unwrap();
+                assert_eq!(run_cfg.config.control_ehc_stability, code);
+            }
+        }
+    }
+
+    #[test]
+    fn ehc_coupling_omission_defaults_to_implicit_and_explicit_remains_available() {
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        root["model"]["physics"]
+            .as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("ehc_surface_coupling".into()));
+        let omitted = load_run_config_from_value(&mut root).unwrap();
+        assert_eq!(omitted.config.ehc_surface_coupling, 1);
+        root["model"]["physics"]["ehc_surface_coupling"] = Value::String("explicit".into());
+        let explicit = load_run_config_from_value(&mut root).unwrap();
+        assert_eq!(explicit.config.ehc_surface_coupling, 0);
+    }
+
+    #[test]
+    fn parses_ehc_coupling_controls() {
+        for (value, code) in [
+            ("explicit", 0),
+            ("implicit", 1),
+            ("0", 0),
+            ("1", 1),
+            ("0.0", 0),
+            ("1.0", 1),
+        ] {
+            for selector in [value.to_string(), format!("{{value: {value}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["ehc_surface_coupling"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let run_cfg = load_run_config_from_value(&mut root).unwrap();
+                assert_eq!(run_cfg.config.ehc_surface_coupling, code);
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_ehc_coupling_controls() {
+        for value in [
+            "unknown",
+            "-999",
+            "-1",
+            "2",
+            "0.5",
+            "1.5",
+            "1.0000000001",
+            ".nan",
+            ".inf",
+            "null",
+        ] {
+            for selector in [value.to_string(), format!("{{value: {value}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["ehc_surface_coupling"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let err = load_run_config_from_value(&mut root).unwrap_err();
+                assert!(err.contains("ehc_surface_coupling"), "{selector}: {err}");
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_ehc_stability_controls() {
+        for selector in ["unknown", "-999", "-1", "3", "1.5", ".nan", ".inf", "null"] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            root["model"]["physics"]["control_ehc_stability"] =
+                serde_yaml::from_str(selector).unwrap();
+            assert!(load_run_config_from_value(&mut root).is_err(), "{selector}");
         }
     }
 

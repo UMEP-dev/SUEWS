@@ -1,0 +1,97 @@
+{
+  "build": {
+    "compilers": {
+      "c": {
+        "full_version": "cc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
+        "id": "gcc",
+        "version": "10.2.1"
+      },
+      "fortran": {
+        "full_version": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
+        "id": "gcc",
+        "version": "10.2.1"
+      }
+    },
+    "fortran_build_profile": "release",
+    "git_commit": "37ba917",
+    "supy_version": "2026.11.21.dev19"
+  },
+  "cases": {
+    "ehc_facets": {
+      "annual_rows": 105408,
+      "capped_steps": 0,
+      "columns": [
+        "SUEWS|QN",
+        "SUEWS|QF",
+        "SUEWS|QS",
+        "SUEWS|QH",
+        "SUEWS|QE",
+        "SUEWS|Ts",
+        "SUEWS|RA",
+        "EHC|dUdt_EHC",
+        "EHC|QBot_EHC",
+        "EHC|QIndoor_EHC",
+        "EHC|QF_Air",
+        "EHC|T_Indoor_EHC",
+        "EHC|T_Deep_EHC",
+        "debug|iter"
+      ],
+      "config_sha256": "6f9f5f965ce1efa7846c32dd0db00399e18b6b74e325fd4c71955dc2f3ec4179",
+      "negative_qf_air_steps": 100,
+      "rows": 2591,
+      "sha256": "ae9ef3909f5fb6d62d4979a40ec92740ef8367043387d71f66be2ffea753fd22"
+    },
+    "ehc_slab": {
+      "annual_rows": 105408,
+      "capped_steps": 0,
+      "columns": [
+        "SUEWS|QN",
+        "SUEWS|QF",
+        "SUEWS|QS",
+        "SUEWS|QH",
+        "SUEWS|QE",
+        "SUEWS|Ts",
+        "SUEWS|RA",
+        "EHC|dUdt_EHC",
+        "EHC|QBot_EHC",
+        "EHC|QIndoor_EHC",
+        "EHC|QF_Air",
+        "EHC|T_Indoor_EHC",
+        "EHC|T_Deep_EHC",
+        "debug|iter"
+      ],
+      "config_sha256": "84712f54bddb79ca922ff12b0da9757677c9af0b7171d74071ac5db56c0bbadd",
+      "negative_qf_air_steps": 0,
+      "rows": 2591,
+      "sha256": "a51fd021a577bb8bdf3587f1c7f2d0abb7f7234462d75b268f3b2db52f86c189"
+    }
+  },
+  "float_format": "%.7g",
+  "format_version": 1,
+  "generated_utc": "2026-11-22T07:08:10.444138+00:00",
+  "platform": {
+    "libc": "glibc 2.17",
+    "machine": "x86_64",
+    "pandas": "2.3.2",
+    "python": "3.12.12",
+    "system": "Linux"
+  },
+  "windows_exclusive_end": [
+    [
+      "2012-01-01",
+      "2012-01-03"
+    ],
+    [
+      "2012-02-01",
+      "2012-02-04"
+    ],
+    [
+      "2012-08-09",
+      "2012-08-10"
+    ],
+    [
+      "2012-08-17",
+      "2012-08-20"
+    ]
+  ]
+}

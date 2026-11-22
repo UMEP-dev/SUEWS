@@ -1216,11 +1216,24 @@ class TestGetVariable:
     """Test variable extraction helper method."""
 
     def test_get_variable_with_group(self, completed_sample_sim):
-        """Test variable extraction with group specification."""
-        # Explicit group selection also works for a single-group variable.
+        """Explicit group= keeps the two-level (group, var) columns.
+
+        Before single-group variables were recognised, every variable took
+        the (group, var) cross-section; existing ``group=`` calls, including
+        the documented ``get_variable('QH', group='SUEWS')``, must keep it.
+        """
+        df_output = completed_sample_sim.output.df
         qh = completed_sample_sim.get_variable("QH", group="SUEWS")
-        assert qh is not None
+        assert qh.columns.names == ["group", "var"]
+        assert qh.columns.tolist() == [("SUEWS", "QH")]
         assert len(qh) == len(completed_sample_sim.forcing)
+        pd.testing.assert_frame_equal(
+            qh, df_output.xs(("SUEWS", "QH"), level=("group", "var"), axis=1)
+        )
+        # The output accessors return the same structure for the same call.
+        pd.testing.assert_frame_equal(
+            completed_sample_sim.output.get_variable("QH", group="SUEWS"), qh
+        )
 
     @pytest.mark.parametrize("accessor", ["simulation", "output"])
     def test_get_variable_ambiguous_raises(self, completed_sample_sim, accessor):
@@ -1253,6 +1266,13 @@ class TestGetVariable:
         pd.testing.assert_frame_equal(
             output.get_variable("qh", group="suews"), expected
         )
+
+    @pytest.mark.parametrize("key", ["QH", "qh"])
+    def test_output_subscription_single_group(self, completed_sample_sim, key):
+        """``output["QH"]`` selects the variable, case-insensitively."""
+        output = completed_sample_sim.output
+        expected = output.df.xs(("SUEWS", "QH"), level=("group", "var"), axis=1)
+        pd.testing.assert_frame_equal(output[key], expected)
 
     def test_get_variable_not_run(self, short_sample_sim):
         """Test get_variable fails gracefully if not run."""

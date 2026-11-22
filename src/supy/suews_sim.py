@@ -2437,7 +2437,15 @@ class SUEWSSimulation:
                     f"Variable '{var_name}' only exists in group '{matching_groups[0]}', "
                     f"not in '{group}'"
                 )
-            result = self._df_output.xs(var_name, level="var", axis=1)
+            if group is None:
+                result = self._df_output.xs(var_name, level="var", axis=1)
+            else:
+                # An explicit group keeps the (group, var) cross-section that
+                # callers received before single-group variables were
+                # recognised, so existing group= calls see no column change.
+                result = self._df_output.xs(
+                    (group, var_name), level=("group", "var"), axis=1
+                )
 
         # Filter by site if requested
         if site is not None:

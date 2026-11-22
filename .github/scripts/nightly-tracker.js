@@ -18,6 +18,7 @@
 //
 // Environment (set by the workflow step):
 //   RUN_ID            the workflow run being reported
+//   RUN_ATTEMPT       the attempt of that run that completed (the event's)
 //   NIGHTLY_ASSIGNEE  GitHub login to assign (empty: no assignee)
 //   DRY_RUN           'true' logs the intended action and writes nothing
 //
@@ -172,10 +173,12 @@ function buildReport({ date, runId, attempt, runUrl, conclusion, leaves, cmp }) 
   return lines.join('\n');
 }
 
-async function readLeaves(github, owner, repo, runId) {
+// Jobs of one attempt, so a re-run starting meanwhile cannot mix its jobs
+// into the report of the attempt that completed.
+async function readLeaves(github, owner, repo, runId, attempt) {
   try {
-    const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
-      owner, repo, run_id: runId, filter: 'latest', per_page: 100,
+    const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRunAttempt, {
+      owner, repo, run_id: runId, attempt_number: attempt, per_page: 100,
     });
     return failedLeaves(jobs);
   } catch (err) {
@@ -233,7 +236,12 @@ module.exports = async ({ github, context, core }) => {
     await fn();
   };
 
-  let { data: run } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
+  // Read the attempt the event reports, not the run's current state: a
+  // re-run may already be in progress and would hide this attempt's verdict.
+  const eventAttempt = Number(env.RUN_ATTEMPT) || null;
+  let { data: run } = eventAttempt
+    ? await github.rest.actions.getWorkflowRunAttempt({ owner, repo, run_id: runId, attempt_number: eventAttempt })
+    : await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
   if (run.event !== 'schedule') {
     core.info(`Run ${runId} was triggered by ${run.event}, not schedule; nothing to report.`);
     return { action: 'ignored' };
@@ -250,8 +258,11 @@ module.exports = async ({ github, context, core }) => {
     owner, repo, workflow_id: run.workflow_id, event: 'schedule', status: 'completed', per_page: 1,
   });
   const newest = (latest.workflow_runs || [])[0];
-  if (newest && newest.id !== run.id && newest.created_at > run.created_at) {
-    core.info(`Run ${runId} is superseded by the newer scheduled run ${newest.id}.`);
+  const attemptOf = r => r.run_attempt || 1;
+  const newerRun = newest && newest.id !== run.id && newest.created_at > run.created_at;
+  const newerAttempt = newest && newest.id === run.id && attemptOf(newest) > attemptOf(run);
+  if (newerRun || newerAttempt) {
+    core.info(`Run ${runId} attempt ${attemptOf(run)} is superseded by run ${newest.id} attempt ${attemptOf(newest)}.`);
     // A dry run carries on with the given run, so a past run can be replayed.
     if (!dryRun) {
       ({ data: run } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: newest.id }));
@@ -301,7 +312,7 @@ module.exports = async ({ github, context, core }) => {
     }
   }
 
-  const leaves = await readLeaves(github, owner, repo, run.id);
+  const leaves = await readLeaves(github, owner, repo, run.id, run.run_attempt || 1);
   const cmp = await readChanges(github, owner, repo, run);
   const report = buildReport({ date, runId: run.id, attempt: run.run_attempt || 1, runUrl: run.html_url, conclusion: run.conclusion, leaves, cmp });
 

@@ -115,7 +115,7 @@ test('buildReport says so when nothing changed, nothing was read, or the list is
 });
 
 // A fake client recording every write.
-function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null, comments = [] } = {}) {
+function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null, comments = [], attempts = {} } = {}) {
   const calls = [];
   const theRun = {
     id: 1, event: 'schedule', conclusion: 'failure', path: NIGHTLY, name: 'Nightly',
@@ -136,7 +136,11 @@ function fakeGithub({ run = {}, openIssues = [], createFails = false, createErro
       addAssignees: async p => { calls.push(['assign', p]); return {}; },
     },
     actions: {
-      listJobsForWorkflowRun: 'jobs',
+      listJobsForWorkflowRunAttempt: 'jobs',
+      getWorkflowRunAttempt: async p => {
+        calls.push(['attempt', p.attempt_number]);
+        return { data: { ...theRun, run_attempt: p.attempt_number, ...(attempts[p.attempt_number] || {}) } };
+      },
       getWorkflowRun: async p => ({ data: newest && p.run_id === newest.id ? { ...theRun, ...newest } : theRun }),
       listWorkflowRuns: async p => ({ data: { workflow_runs: p.status === 'success' ? [
         { id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
@@ -370,4 +374,30 @@ test('a report first posted by a reconciling reporter is not repeated by the run
     const out2 = await tracker({ github: second.github, context, core: fakeCore() });
     assert.equal(out2.action, 'none');
     assert.deepEqual(second.calls, []);
+  }));
+
+test('the event\'s completed attempt is reported even while a re-run is in progress', () =>
+  withEnv({ RUN_ATTEMPT: '1' }, async () => {
+    const { github, calls } = fakeGithub({
+      run: { status: 'in_progress', conclusion: null, run_attempt: 2 },
+      attempts: { 1: { status: 'completed', conclusion: 'cancelled' } },
+      newest: { id: 0, created_at: '2026-11-21T02:00:00Z' },
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.deepEqual(calls[0], ['attempt', 1]);
+    assert.equal(out.action, 'opened');
+    assert.match(out.body, /attempt 1 -->/);
+    assert.match(out.body, /ended `cancelled`/);
+  }));
+
+test('a newer completed attempt of the same run supersedes an older attempt\'s report', () =>
+  withEnv({ RUN_ATTEMPT: '1' }, async () => {
+    const { github, calls } = fakeGithub({
+      openIssues: [TRACKER],
+      attempts: { 1: { conclusion: 'failure' } },
+      newest: { id: 1, created_at: '2026-11-22T02:00:00Z', run_attempt: 2, conclusion: 'success' },
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'closed');
+    assert.deepEqual(calls.filter(c => c[0] !== 'attempt').map(c => c[0]), ['comment', 'update']);
   }));

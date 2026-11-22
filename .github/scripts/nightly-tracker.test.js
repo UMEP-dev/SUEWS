@@ -75,7 +75,7 @@ test('buildReport lists leaves, changes and the cost line', () => {
 test('buildReport says so when nothing changed or nothing could be read', () => {
   const body = buildReport({ date: 'd', runUrl: 'r', bad: ['x: failure'], leaves: null, changes: [], lastGreen: { url: 'G' } });
   assert.match(body, /could not be read/);
-  assert.match(body, /none, so the cause is outside the code/);
+  assert.match(body, /no repository commits changed; the cause is undetermined/);
 });
 
 // A fake client recording every write.

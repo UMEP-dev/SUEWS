@@ -118,7 +118,7 @@ function buildReport({ date, runUrl, bad, leaves, changes, lastGreen, cost }) {
   } else if (changes === null) {
     lines.push(`Changes since the last green nightly (${lastGreen.url}): could not be compared.`);
   } else if (changes.length === 0) {
-    lines.push(`Changes since the last green nightly (${lastGreen.url}): none, so the cause is outside the code (runner, network or a flaky test).`);
+    lines.push(`Changes since the last green nightly (${lastGreen.url}): no repository commits changed; the cause is undetermined (runner, network, an intermittent or date-dependent defect).`);
   } else {
     lines.push(`Changes since the last green nightly (${lastGreen.url}):`);
     lines.push(...listLines(changes, c => `- ${c.ref} ${c.subject}`));

@@ -61,7 +61,6 @@ EXAMPLES:
 
 ### 21 Nov 2026
 
-- [maintenance] Retire the unreferenced BLUEWS CBL slab module (`src/suews/src/suews_phys_bluews.f95`) from the SUEWS build following the ESTM precedent (`#1802`), recording reactivation requirements in `dev-ref/BLUEWS_REACTIVATION.md` and shrinking the Fortran uninitialised-variable (`33 -> 30`) and literals (`kelvin_offset: 2 -> 1`) baselines (#2172)
 - [bugfix] Exclude zero-area surfaces (`sfr_surf == 0`) and absent building facets (`sfr_surf(BldgSurf) == 0`) from the `suews_update_tsurf` surface-temperature and EHC sensible-heat convergence stop criteria so absent surfaces cannot prolong fixed-point iterations or leak into grid-scale fluxes (#2173)
 
 ### 20 Nov 2026

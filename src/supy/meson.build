@@ -120,6 +120,7 @@ py.install_sources(
             'data_model/parameter_examples.py',
             'data_model/parameter_examples.json',
             'data_model/core/__init__.py',
+            'data_model/core/_yaml_io.py',
             'data_model/core/config.py',
             'data_model/core/df_column_renames.py',
             'data_model/core/field_renames.py',

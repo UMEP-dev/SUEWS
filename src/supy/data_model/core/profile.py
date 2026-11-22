@@ -224,6 +224,16 @@ class DayProfile(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
+        day_map = {
+            "working_day": 0,
+            "holiday": 1,
+        }
+        cols = {("gridiv", "0"): grid_id}
+        for day, idx in day_map.items():
+            cols[(param_name, f"({idx},)")] = getattr(self, day)
+        return cols
+
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:
         """
         Convert day profile to DataFrame state format.
@@ -235,17 +245,10 @@ class DayProfile(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing day profile parameters.
         """
-
-        day_map = {
-            "working_day": 0,
-            "holiday": 1,
-        }
-
-        cols = {("gridiv", "0"): grid_id}
-        for day, idx in day_map.items():
-            cols[(param_name, f"({idx},)")] = getattr(self, day)
-
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, param_name),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(
@@ -298,6 +301,21 @@ class WeeklyProfile(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
+        day_map = {
+            "monday": 0,
+            "tuesday": 1,
+            "wednesday": 2,
+            "thursday": 3,
+            "friday": 4,
+            "saturday": 5,
+            "sunday": 6,
+        }
+        cols = {("gridiv", "0"): grid_id}
+        for day, idx in day_map.items():
+            cols[(param_name, f"({idx},)")] = getattr(self, day)
+        return cols
+
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:
         """Convert weekly profile to DataFrame state format.
 
@@ -308,22 +326,10 @@ class WeeklyProfile(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing weekly profile parameters
         """
-        # Map days to their index
-        day_map = {
-            "monday": 0,
-            "tuesday": 1,
-            "wednesday": 2,
-            "thursday": 3,
-            "friday": 4,
-            "saturday": 5,
-            "sunday": 6,
-        }
-
-        cols = {("gridiv", "0"): grid_id}
-        for day, idx in day_map.items():
-            cols[(param_name, f"({idx},)")] = getattr(self, day)
-
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, param_name),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(
@@ -423,6 +429,14 @@ class HourlyProfile(DataModelBase):
                 out[k] = float(val)
         return out
 
+    def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
+        cols = {("gridiv", "0"): grid_id}
+        for hour, value in self.working_day.items():
+            cols[(param_name, f"({int(hour) - 1}, 0)")] = value
+        for hour, value in self.holiday.items():
+            cols[(param_name, f"({int(hour) - 1}, 1)")] = value
+        return cols
+
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:
         """Convert hourly profile to DataFrame state format.
 
@@ -433,17 +447,10 @@ class HourlyProfile(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing hourly profile parameters
         """
-        cols = {("gridiv", "0"): grid_id}
-
-        # Set working day values (index 0)
-        for hour, value in self.working_day.items():
-            cols[(param_name, f"({int(hour) - 1}, 0)")] = value
-
-        # Set holiday/weekend values (index 1)
-        for hour, value in self.holiday.items():
-            cols[(param_name, f"({int(hour) - 1}, 1)")] = value
-
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, param_name),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(
@@ -522,6 +529,14 @@ class TenMinuteProfile(DataModelBase):
                 out[str(k)] = float(val)
         return out
 
+    def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
+        cols = {("gridiv", "0"): grid_id}
+        for bin_id, value in self.working_day.items():
+            cols[(param_name, f"({int(bin_id) - 1}, 0)")] = value
+        for bin_id, value in self.holiday.items():
+            cols[(param_name, f"({int(bin_id) - 1}, 1)")] = value
+        return cols
+
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:
         """Convert 10-minute profile to DataFrame state format.
 
@@ -532,17 +547,10 @@ class TenMinuteProfile(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing 10-minute profile parameters
         """
-        cols = {("gridiv", "0"): grid_id}
-
-        # Set working day values (index 0)
-        for bin_id, value in self.working_day.items():
-            cols[(param_name, f"({int(bin_id) - 1}, 0)")] = value
-
-        # Set holiday/weekend values (index 1)
-        for bin_id, value in self.holiday.items():
-            cols[(param_name, f"({int(bin_id) - 1}, 1)")] = value
-
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, param_name),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(

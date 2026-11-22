@@ -307,18 +307,29 @@ def migrate_config_file(
     logger.info(f"Migrated configuration saved to {output_file}")
 
 
-def check_migration_needed(config_path: str) -> bool:
+_UNSET = object()
+
+
+def check_migration_needed(
+    config_path: str, *, _parsed_config: Any = _UNSET
+) -> bool:
     """
     Check if a configuration file needs migration.
 
     Args:
         config_path: Path to YAML configuration file
+        _parsed_config: Optional pre-parsed YAML document from the same file
+            (internal fast path for callers that already loaded ``config_path``
+            via ``yaml.safe_load``).
 
     Returns:
         True if migration is needed, False otherwise
     """
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+    if _parsed_config is _UNSET:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+    else:
+        config = _parsed_config
 
     migrator = SchemaMigrator()
     detected_version = migrator.auto_detect_version(config)

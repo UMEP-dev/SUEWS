@@ -51,6 +51,27 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   (`report_scheduled_run`) names the PRs merged since the last green night (#2241). Tag releases build
   and test the full matrix, and every publish job needs `build_wheels` to
   succeed, so the full matrix is the release gate.
+- **Linux tests run in parallel on ready pull requests and in the merge
+  queue.** The Linux wheel uploads untested (`CIBW_TEST_SKIP`), then its
+  tests fan out at once:
+  - `physics | cp312 | manylinux x86_64 shard K-of-2` (`K-of-3` for
+    physics-full) runs the physics tier in the same manylinux2014 image the
+    wheel is built in, with the reference lane on, so the exact sample-output
+    reproduction runs where it always has; `fortran probes | cp312 | manylinux
+    x86_64` builds the Fortran probe libraries once, in parallel with the
+    wheel;
+  - `api | cp312 | manylinux x86_64 shard K-of-4` runs the build Python's api
+    tier in four shards;
+  - on a pull request, `api | cp315 | manylinux x86_64` runs the
+    `core-bookend` api tier (every core api test, slow ones included, plus
+    smoke) in one job; the non-core api tests on the newer Python wait for the
+    nightly, and the merge queue runs the build Python only.
+
+  `test layout` (`scripts/suews/ci_test_layout.py`) turns the call's inputs
+  into those jobs; draft tiers keep the physics run inside the wheel job and
+  are never sharded, and the nightly and releases are unchanged. The api lane
+  and the physics shards install with uv and a cache. The lowest-direct
+  dependency smoke tests run inside the Linux call as soon as its wheel exists.
 - **Core tests always pass on Linux before a merge.** The `Core-test guard
   (Linux)` job (`scripts/suews/check_core_guard.py`) runs on every ready-tier
   run (standard or physics-full: ready pull requests and the merge queue) and

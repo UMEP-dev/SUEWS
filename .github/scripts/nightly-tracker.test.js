@@ -115,7 +115,7 @@ test('buildReport says so when nothing changed, nothing was read, or the list is
 });
 
 // A fake client recording every write.
-function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null, comments = [], attempts = {} } = {}) {
+function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null, comments = [], attempts = {}, newestAny = null } = {}) {
   const calls = [];
   const theRun = {
     id: 1, event: 'schedule', conclusion: 'failure', path: NIGHTLY, name: 'Nightly',
@@ -139,13 +139,19 @@ function fakeGithub({ run = {}, openIssues = [], createFails = false, createErro
       listJobsForWorkflowRunAttempt: 'jobs',
       getWorkflowRunAttempt: async p => {
         calls.push(['attempt', p.attempt_number]);
-        return { data: { ...theRun, run_attempt: p.attempt_number, ...(attempts[p.attempt_number] || {}) } };
+        const base = newest && p.run_id === newest.id ? { ...theRun, ...newest } : theRun;
+        return { data: { ...base, run_attempt: p.attempt_number, ...(attempts[`${p.run_id}:${p.attempt_number}`] || attempts[p.attempt_number] || {}) } };
       },
       getWorkflowRun: async p => ({ data: newest && p.run_id === newest.id ? { ...theRun, ...newest } : theRun }),
-      listWorkflowRuns: async p => ({ data: { workflow_runs: p.status === 'success' ? [
-        { id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
-        { id: 0, created_at: '2026-11-20T02:00:00Z', head_sha: 'BASE', html_url: 'GREEN' },
-      ] : (p.status === 'completed' ? [newest || { id: theRun.id, created_at: theRun.created_at }] : []) } }),
+      listWorkflowRuns: async p => {
+        const done = { status: 'completed', ...(newest || { id: theRun.id, created_at: theRun.created_at, run_attempt: theRun.run_attempt }) };
+        if (p.status === 'success') return { data: { workflow_runs: [
+          { id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
+          { id: 0, created_at: '2026-11-20T02:00:00Z', head_sha: 'BASE', html_url: 'GREEN' },
+        ] } };
+        if (p.status === 'completed') return { data: { workflow_runs: [done] } };
+        return { data: { workflow_runs: [newestAny || done] } };
+      },
     },
     repos: {
       compareCommitsWithBasehead: async p => {
@@ -212,7 +218,7 @@ test('a late green re-run does not close the tracker over a newer red run alread
     });
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'none');
-    assert.deepEqual(calls, []);
+    assert.deepEqual(calls.filter(c => c[0] !== 'attempt'), []);
   }));
 
 test('reconciliation reports a newer red run whose own report was displaced', () =>
@@ -251,7 +257,7 @@ test('a superseded red re-run closes the tracker when the newest run is green', 
     });
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'closed');
-    assert.deepEqual(calls.map(c => c[0]), ['comment', 'update']);
+    assert.deepEqual(calls.filter(c => c[0] !== 'attempt').map(c => c[0]), ['comment', 'update']);
   }));
 
 test('the report is dated by the run, not by the day it is written', () =>
@@ -400,4 +406,32 @@ test('a newer completed attempt of the same run supersedes an older attempt\'s r
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'closed');
     assert.deepEqual(calls.filter(c => c[0] !== 'attempt').map(c => c[0]), ['comment', 'update']);
+  }));
+
+test('an older run\'s late green report does not close a tracker while the newer red run is being re-run', () =>
+  withEnv({ RUN_ATTEMPT: '1' }, async () => {
+    const { github, calls } = fakeGithub({
+      run: { id: 1, conclusion: 'success', created_at: '2026-11-21T02:00:00Z' },
+      openIssues: [TRACKER],
+      newest: { id: 1, created_at: '2026-11-21T02:00:00Z' },
+      newestAny: { id: 2, created_at: '2026-11-22T02:00:00Z', status: 'in_progress', run_attempt: 2 },
+      attempts: { '2:1': { id: 2, conclusion: 'failure', created_at: '2026-11-22T02:00:00Z' } },
+      comments: [{ user: { login: 'github-actions[bot]' }, body: `${tracker.runTag(2, 1)}\nreported` }],
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'none');
+    assert.deepEqual(calls.filter(c => c[0] !== 'attempt'), []);
+  }));
+
+test('an older run\'s late red report does not reopen after a newer green attempt while it is re-run again', () =>
+  withEnv({ RUN_ATTEMPT: '1' }, async () => {
+    const { github, calls } = fakeGithub({
+      run: { id: 1, conclusion: 'failure', created_at: '2026-11-21T02:00:00Z' },
+      newest: { id: 1, created_at: '2026-11-21T02:00:00Z' },
+      newestAny: { id: 2, created_at: '2026-11-22T02:00:00Z', status: 'in_progress', run_attempt: 3 },
+      attempts: { '2:2': { id: 2, conclusion: 'success', created_at: '2026-11-22T02:00:00Z' } },
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'none');
+    assert.deepEqual(calls.filter(c => c[0] !== 'attempt'), []);
   }));

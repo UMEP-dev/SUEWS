@@ -246,26 +246,41 @@ module.exports = async ({ github, context, core }) => {
     core.info(`Run ${runId} was triggered by ${run.event}, not schedule; nothing to report.`);
     return { action: 'ignored' };
   }
-  // A re-run of an older night finishing late must not close or reopen the
-  // tracker over a newer scheduled run's verdict. Only a newer run that has
-  // completed counts; one still queued or running has no verdict yet. The
-  // tracker then reconciles with that newest run instead of returning,
-  // because its own report may have been replaced in the concurrency queue
-  // by this one: it opens or closes the issue if the newest verdict needs it,
-  // and adds no comment to an issue that is already open.
-  let reconcile = false;
-  const { data: latest } = await github.rest.actions.listWorkflowRuns({
-    owner, repo, workflow_id: run.workflow_id, event: 'schedule', status: 'completed', per_page: 1,
+  // A late report of an older run or attempt must not close or reopen the
+  // tracker over a newer scheduled run's verdict. The newer verdict is the
+  // newest scheduled run's last completed attempt: the run itself when it has
+  // completed, the attempt before the current one while it is being re-run,
+  // or, while a first attempt is still running (no verdict yet), the newest
+  // completed scheduled run. The tracker then reconciles with that verdict
+  // instead of returning, because its own report may have been replaced in
+  // the concurrency queue by this one.
+  const attemptOf = r => (r && r.run_attempt) || 1;
+  const newer = r => r && ((r.id !== run.id && r.created_at > run.created_at)
+    || (r.id === run.id && attemptOf(r) > attemptOf(run)));
+  let target = null;
+  const { data: anyRuns } = await github.rest.actions.listWorkflowRuns({
+    owner, repo, workflow_id: run.workflow_id, event: 'schedule', per_page: 1,
   });
-  const newest = (latest.workflow_runs || [])[0];
-  const attemptOf = r => r.run_attempt || 1;
-  const newerRun = newest && newest.id !== run.id && newest.created_at > run.created_at;
-  const newerAttempt = newest && newest.id === run.id && attemptOf(newest) > attemptOf(run);
-  if (newerRun || newerAttempt) {
-    core.info(`Run ${runId} attempt ${attemptOf(run)} is superseded by run ${newest.id} attempt ${attemptOf(newest)}.`);
+  const newestAny = (anyRuns.workflow_runs || [])[0];
+  if (newestAny && newestAny.status === 'completed') {
+    target = { id: newestAny.id, attempt: attemptOf(newestAny), created_at: newestAny.created_at };
+  } else if (newestAny && attemptOf(newestAny) > 1) {
+    target = { id: newestAny.id, attempt: attemptOf(newestAny) - 1, created_at: newestAny.created_at };
+  } else {
+    const { data: done } = await github.rest.actions.listWorkflowRuns({
+      owner, repo, workflow_id: run.workflow_id, event: 'schedule', status: 'completed', per_page: 1,
+    });
+    const c = (done.workflow_runs || [])[0];
+    if (c) target = { id: c.id, attempt: attemptOf(c), created_at: c.created_at };
+  }
+  let reconcile = false;
+  if (target && newer({ id: target.id, run_attempt: target.attempt, created_at: target.created_at })) {
+    core.info(`Run ${runId} attempt ${attemptOf(run)} is superseded by run ${target.id} attempt ${target.attempt}.`);
     // A dry run carries on with the given run, so a past run can be replayed.
     if (!dryRun) {
-      ({ data: run } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: newest.id }));
+      ({ data: run } = await github.rest.actions.getWorkflowRunAttempt({
+        owner, repo, run_id: target.id, attempt_number: target.attempt,
+      }));
       reconcile = true;
     }
   }

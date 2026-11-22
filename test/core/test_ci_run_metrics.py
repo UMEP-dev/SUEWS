@@ -202,7 +202,7 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
         root / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
 
-    assert "python -m pip install pytest==9.1.1 pytest-xdist==3.8.0" in workflow
+    assert "pytest==9.1.1 pytest-xdist==3.8.0" in workflow
     main_invocation = re.search(
         r"^[ \t]*python -m pytest -p scripts\.suews\.pytest_ci_metrics test \\\n"
         r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25 \$XDIST_ARGS \$SHARD_ARGS[ \t]*$",
@@ -259,15 +259,16 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
 
 
 @pytest.mark.core
-def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
-    """Pull requests run no macOS api cell and split the Windows cp312 cell.
+def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api() -> None:
+    """Pull requests run no macOS api cell and shard the build-Python cells.
 
-    The nightly keeps every cell whole and the macOS api coverage, and the
-    merge queue runs the api lane on Linux only (its own term), so the PR
-    conditions name the pull_request event (or the pr_api_lane dispatch input
-    that measures the layout) explicitly. The
-    sharded cell gets its own job name and artefact name per shard, while an
-    unsharded cell keeps the names the cost-marker and coverage jobs read.
+    Ready pull requests and the merge queue split the Linux wheel's tests into
+    parallel jobs: physics shards in the wheel's manylinux image and the
+    build-Python api cell as four shards; on a pull request the newer bookend
+    runs the core-bookend tier in one job. Windows (on a labelled PR) keeps its
+    two cp312 shards. The layout itself is scripts/suews/ci_test_layout.py; the
+    api reusable workflow runs whatever cells it is given, with each shard's
+    job and artefact named after the shard.
     """
     root = Path(__file__).resolve().parents[2]
     caller = yaml.safe_load(
@@ -281,9 +282,17 @@ def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
         f"&& !({layout} && matrix.buildplat[1] == 'macosx') "
         "&& !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}"
     )
-    assert chain_with["api_shard_python"] == (
-        f"${{{{ {layout} && matrix.buildplat[1] == 'win' && 'cp312' || '' }}}}"
+    ready = (
+        "(needs.determine_matrix.outputs.test_tier == 'standard' || "
+        "needs.determine_matrix.outputs.test_tier == 'physics-full')"
     )
+    assert "matrix.buildplat[1] == 'manylinux'" in chain_with["split_tests"]
+    assert ready in chain_with["split_tests"]
+    assert "github.event_name == 'merge_group'" in chain_with["split_tests"]
+    assert ready in chain_with["api_bookend_core"]
+    assert "merge_group" not in chain_with["api_bookend_core"]
+    assert chain_with["api_shard_count"] == "${{ matrix.buildplat[1] == 'manylinux' && 4 || 2 }}"
+    assert "physics-full' && 3 || 2" in chain_with["physics_shards"]
     dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
     assert dispatch_inputs["pr_api_lane"]["default"] is False
 
@@ -292,40 +301,51 @@ def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
             encoding="utf-8"
         )
     )
-    assert not wheels[True]["workflow_call"]["inputs"]["api_shard_python"]["default"]
-    assert wheels["jobs"]["api_cross_python"]["with"]["shard_python"] == (
-        "${{ inputs.api_shard_python }}"
+    wheel_inputs = wheels[True]["workflow_call"]["inputs"]
+    assert not wheel_inputs["api_shard_python"]["default"]
+    assert wheel_inputs["split_tests"]["default"] is False
+    assert wheel_inputs["api_bookend_core"]["default"] is False
+    jobs = wheels["jobs"]
+    assert jobs["api_cross_python"]["with"]["cells_json"] == (
+        "${{ needs.layout.outputs.api_cells }}"
     )
+    build_step = next(s for s in jobs["build"]["steps"] if s.get("name") == "Build SUEWS wheels")
+    assert build_step["with"]["skip_tests"] == "${{ inputs.split_tests }}"
+    physics = jobs["physics"]
+    assert physics["if"] == "inputs.split_tests"
+    assert set(physics["needs"]) == {"layout", "build", "fortran_probes"}
+    assert physics["strategy"]["matrix"]["shard"] == (
+        "${{ fromJson(needs.layout.outputs.physics_shards) }}"
+    )
+    assert physics["name"].startswith("physics | ")
+    run = next(s for s in physics["steps"] if s.get("name", "").startswith("Run the physics shard"))
+    assert "SUEWS_REFERENCE_LANE=1" in run["run"]
+    assert "SUEWS_FORTRAN_PROBES_PREBUILT=1" in run["run"]
+    assert '"$MANYLINUX_IMAGE"' in run["run"]
+    assert wheels["env"]["MANYLINUX_IMAGE"].startswith("quay.io/pypa/manylinux2014_x86_64:")
+    action = (root / ".github/actions/build-suews/action.yml").read_text(encoding="utf-8")
+    assert "CIBW_TEST_SKIP: ${{ inputs.skip_tests == 'true' && '*' || '' }}" in action
 
     api_text = (
         root / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
     api = yaml.safe_load(api_text)
-    assert not api[True]["workflow_call"]["inputs"]["shard_python"]["default"]
     job = api["jobs"]["api_cross_python"]
-    matrix = job["strategy"]["matrix"]
-    assert matrix["shard"] == [""]
-    guard = (
-        "inputs.shard_python && contains(inputs.api_python_json, "
-        "format('\"{0}\"', inputs.shard_python)) &&"
-    )
-    assert guard in matrix["exclude"]
-    assert guard in matrix["include"]
-    assert '"shard":"1-of-2"' in matrix["include"]
-    assert '"shard":"2-of-2"' in matrix["include"]
-    assert "toJSON(fromJson(inputs.buildplat_json)[0])" in matrix["include"]
-    suffix = "${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}"
+    assert job["strategy"]["matrix"]["cell"] == "${{ fromJson(inputs.cells_json) }}"
+    suffix = "${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}"
     run_step = next(
         s for s in job["steps"] if s.get("name") == "Install wheel and run api tests"
     )
-    assert run_step["env"]["SHARD"] == "${{ matrix.shard }}"
+    assert run_step["env"]["SHARD"] == "${{ matrix.cell.shard }}"
     assert run_step["env"]["SUEWS_CI_METRICS"].endswith(f"{suffix}.json")
+    marker = next(s for s in job["steps"] if s.get("id") == "marker")
+    assert marker["env"]["TIER"] == "${{ matrix.cell.tier || inputs.test_tier }}"
     upload = next(s for s in job["steps"] if s.get("name") == "Upload API test metrics")
     assert upload["with"]["name"] == (
-        "ci-metrics-api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-"
+        "ci-metrics-api-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-"
         "${{ matrix.buildplat[2] }}" + suffix
     )
-    assert "matrix.shard && format(' shard {0}', matrix.shard)" in job["name"]
+    assert "matrix.cell.shard && format(' shard {0}', matrix.cell.shard)" in job["name"]
     # The protocol collection pass stays unsharded: it would collect nothing
     # in the shard that does not own the protocol test.
     assert (
@@ -359,7 +379,7 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
         )
     )
     api_job = wheels_workflow["jobs"]["api_cross_python"]
-    assert api_job["needs"] == "build"
+    assert api_job["needs"] == ["layout", "build"]
     assert api_job["if"] == "inputs.run_api_tests"
     assert api_job["uses"].endswith("/test-api-cross-python-reusable.yml")
 
@@ -368,7 +388,7 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     ).read_text(encoding="utf-8")
     assert "name: suews-mcp-dist" in api_workflow
     assert "path: mcp-dist/" in api_workflow
-    assert "python -m pip install wheelhouse/*.whl mcp-dist/*.whl" in api_workflow
+    assert "wheelhouse/*.whl mcp-dist/*.whl" in api_workflow
 
     declared_needs = json.loads(
         (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
@@ -987,7 +1007,7 @@ def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
         encoding="utf-8"
     )
     api_install = next(
-        line for line in api_workflow.splitlines() if "pip install pytest==" in line
+        line for line in api_workflow.splitlines() if "pytest==" in line
     )
     assert pins(api_install) <= pins(install)
     assert {p.split("==")[0] for p in pins(install) - pins(api_install)} == {

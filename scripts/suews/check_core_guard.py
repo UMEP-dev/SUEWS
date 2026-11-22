@@ -358,6 +358,7 @@ def run_guard(
     api_pythons: list[str],
     physics_python: str = "cp312",
     allowlist_path: Path = DEFAULT_ALLOWLIST,
+    bookend_core: bool = False,
 ) -> Report:
     """Run every check over the metrics under ``metrics_dir``."""
     report = Report()
@@ -390,7 +391,14 @@ def run_guard(
         union = merge_shards(key, lanes[key], report)
         if union is None or key not in required:
             continue
-        check_linux_lane(key, union, inventory, tier, allowlist, report)
+        # A ready pull request runs the newer api bookend at core-bookend
+        # (every core api test plus smoke); the build Python runs the full tier.
+        lane_tier = (
+            "core-bookend"
+            if bookend_core and key[0] == "api" and key[1] != physics_python
+            else tier
+        )
+        check_linux_lane(key, union, inventory, lane_tier, allowlist, report)
     return report
 
 
@@ -416,12 +424,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--physics-python", default="cp312")
     parser.add_argument("--allowlist", type=Path, default=DEFAULT_ALLOWLIST)
+    parser.add_argument(
+        "--bookend-core",
+        action="store_true",
+        help="api Pythons other than the physics Python ran the core-bookend tier",
+    )
     parser.add_argument("--summary", type=Path, help="Append a Markdown summary here")
     args = parser.parse_args(argv)
 
     api_pythons = json.loads(args.api_python)
     report = run_guard(
-        args.metrics_dir, args.tier, api_pythons, args.physics_python, args.allowlist
+        args.metrics_dir,
+        args.tier,
+        api_pythons,
+        args.physics_python,
+        args.allowlist,
+        bookend_core=args.bookend_core,
     )
     for note in report.notes:
         print(f"[OK] {note}")

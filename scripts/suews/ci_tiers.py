@@ -29,6 +29,10 @@ API_TIERS: dict[str, str] = {
     "standard": "api and (core or not slow) and not qgis",
     "physics-full": "api and (core or not slow) and not qgis",
     "all": "api",
+    # The newer Python bookend on a ready pull request (22 Nov 2026): every
+    # core api test, slow ones included, plus smoke; the non-core api tests
+    # on that Python wait for the nightly. The build Python runs the full tier.
+    "core-bookend": "api and (smoke or core) and not qgis",
 }
 
 # Tiers that run every core test of both axes. Only these are mergeable

@@ -562,11 +562,37 @@ jobs:
       # Windows api coverage. The pr_api_lane dispatch input applies the
       # pull-request layout to a dispatch.
       run_api_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) && !((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'macosx') && !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}
+      # Ready pull requests and the merge queue (and the pr_api_lane
+      # dispatch, which measures that layout on a branch) test the Linux
+      # wheel in parallel jobs instead of serially (22 Nov 2026): the wheel
+      # uploads untested, then the physics tier runs as two shards (three for
+      # physics-full) in the wheel's manylinux image while the api lane runs
+      # the build Python as four shards. On a pull request the newer Python
+      # bookend runs the core-bookend api tier (every core api test plus
+      # smoke) in one job; its non-core api tests wait for the nightly, and
+      # the merge queue runs the build Python only. The core-test guard
+      # checks the shards add up. Draft tiers keep the wheel-job physics run
+      # and are never sharded. scripts/suews/ci_test_layout.py turns these
+      # inputs into the jobs.
+      split_tests: >-
+        ${{ matrix.buildplat[1] == 'manylinux' &&
+        (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
+        (github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)) }}
+      physics_shards: ${{ needs.determine_matrix.outputs.test_tier == 'physics-full' && 3 || 2 }}
+      api_bookend_core: >-
+        ${{ matrix.buildplat[1] == 'manylinux' &&
+        (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
+        (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)) }}
       # Pull requests split the Windows cp312 api cell, the usual critical
       # path, into two shards (scripts/suews/pytest_shard.py); Windows
       # runners queue at about zero, so the extra runner costs no wait. The
-      # merge queue and the nightly run every cell whole.
-      api_shard_python: ${{ (github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win' && 'cp312' || '' }}
+      # Linux build-Python cell runs as four shards on pull requests and in
+      # the merge queue. The nightly runs every cell whole.
+      api_shard_python: >-
+        ${{ ((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win') ||
+        (matrix.buildplat[1] == 'manylinux' && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane))
+        && fromJson(needs.determine_matrix.outputs.python)[0] || '' }}
+      api_shard_count: ${{ matrix.buildplat[1] == 'manylinux' && 4 || 2 }}
       # A ready PR already validates both supported Python bookends. The merge
       # queue revalidates the combined tree on the abi3 floor only, on Linux,
       # instead of repeating the full suite twice.
@@ -844,13 +870,17 @@ jobs:
       - name: Download the Linux cp312 api metrics
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ci-metrics-api-cp312-manylinux-x86_64
+          # A pattern, so a sharded lane (one artefact per shard) is read whole.
+          pattern: ci-metrics-api-cp312-manylinux-x86_64*
+          merge-multiple: true
           path: ci-metrics/api
 
       - name: Download the Linux cp312 physics metrics
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ci-metrics-physics-cp312-manylinux-x86_64
+          # A pattern, so a sharded lane (one artefact per shard) is read whole.
+          pattern: ci-metrics-physics-cp312-manylinux-x86_64*
+          merge-multiple: true
           path: ci-metrics/physics
 
       - name: Check cost markers against measured CPU seconds
@@ -930,14 +960,18 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ci-metrics-api-cp312-manylinux-x86_64
+          # A pattern, so a sharded lane (one artefact per shard) is read whole.
+          pattern: ci-metrics-api-cp312-manylinux-x86_64*
+          merge-multiple: true
           path: ci-metrics/api
 
       - name: Download the Linux cp312 physics metrics
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ci-metrics-physics-cp312-manylinux-x86_64
+          # A pattern, so a sharded lane (one artefact per shard) is read whole.
+          pattern: ci-metrics-physics-cp312-manylinux-x86_64*
+          merge-multiple: true
           path: ci-metrics/physics
 
       - name: Check the cost markers of the changed test files
@@ -1346,11 +1380,14 @@ jobs:
           # The api lane's Python list, exactly as build_wheels passes it.
           API_PYTHON: ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
           PHYSICS_PYTHON: ${{ fromJson(needs.determine_matrix.outputs.python)[0] }}
+          # Mirrors build_wheels' api_bookend_core for the Linux call.
+          BOOKEND_CORE: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true) }}
         run: |
           python -m pip install --quiet pytest==9.1.1
-          python scripts/suews/check_core_guard.py ci-metrics \
-            --tier "$TEST_TIER" --api-python "$API_PYTHON" \
-            --physics-python "$PHYSICS_PYTHON" --summary "$GITHUB_STEP_SUMMARY"
+          args=(--tier "$TEST_TIER" --api-python "$API_PYTHON"
+                --physics-python "$PHYSICS_PYTHON" --summary "$GITHUB_STEP_SUMMARY")
+          [[ "$BOOKEND_CORE" == "true" ]] && args+=(--bookend-core)
+          python scripts/suews/check_core_guard.py ci-metrics "${args[@]}"
 
   pr-gate:
     name: PR build validation

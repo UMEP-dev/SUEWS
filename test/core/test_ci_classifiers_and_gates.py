@@ -1432,10 +1432,10 @@ def test_nested_leaf_job_names_say_what_the_job_does() -> None:
     """
     cell = {
         "${{ matrix.python }}": "cp312",
-        "${{ matrix.python_version }}": "cp312",
+        "${{ matrix.cell.python_version }}": "cp312",
         "${{ matrix.buildplat[1] }}": "win",
         "${{ matrix.buildplat[2] }}": "AMD64",
-        "${{ matrix.shard && format(' shard {0}', matrix.shard) || '' }}": "",
+        "${{ matrix.cell.shard && format(' shard {0}', matrix.cell.shard) || '' }}": "",
     }
 
     def render(workflow: str, job: str) -> str:

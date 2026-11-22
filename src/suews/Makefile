@@ -196,7 +196,6 @@ PHYS =	\
 	suews_phys_spartacus.o \
 	suews_phys_atmmoiststab.o \
 	suews_phys_resist.o \
-	suews_phys_bluews.o \
 	suews_phys_waterdist.o \
 	suews_phys_evap.o \
 	suews_phys_snow.o \

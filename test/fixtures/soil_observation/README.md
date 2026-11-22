@@ -1,9 +1,11 @@
 # Canonical forcing fixtures
 
-These fixtures copy the corresponding historical benchmark / named-column
-forcing tables, changing only the entirely missing xsmd placeholder header
-to sm. Every value in that column was checked to equal -999 before copying.
-Historical files are untouched. No populated observation was relabelled.
+These fixtures were copied from the corresponding historical benchmark /
+named-column forcing tables, changing only the entirely missing xsmd placeholder
+header to sm. Every value in that column was checked to equal -999 before
+copying. No populated observation was relabelled. The benchmark1 source files
+retain xsmd. The forcing/kc_*.txt source files now also use sm, so each kc_*
+source and its copy below differ only in header padding.
 
 - modelled_content.txt: benchmark1/forcing/Kc1_2011_data_5_tiny.txt
 - modelled_content_short.txt: benchmark1/forcing/Kc1_2011_data_5_short.txt

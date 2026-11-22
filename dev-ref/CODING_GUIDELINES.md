@@ -305,9 +305,10 @@ make test-qgis
 
 - `src/suews_bridge/src/lib.rs` exposes the active Rust entry points, and `src/suews_bridge/c_api/driver.f95::suews_cal_multitsteps_c` materialises `SUEWS_TIMER`, `SUEWS_CONFIG`, `SUEWS_SITE`, and `SUEWS_STATE` as call-local values.
 - `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` stores fatal error flags, codes, and messages in C11 thread-local storage (`src/suews/src/suews_ctrl_error_tls.c`, GH#1736), and `suews_cal_multitsteps_c` calls `reset_supy_error()` at every driver entry; non-fatal warnings accumulate per grid on `modState%errorstate` (GH#1737).
-- Module-level variables remain in `src/suews/src/suews_ctrl_const.f95` (for example the allocatable arrays in `module_ctrl_const_allocate`) and in `src/suews/src/suews_phys_bluews.f95::module_phys_bluews_cbl` (state for the standalone CBL routines); new physics must not add to them, and keeps run state on `SUEWS_STATE` instead.
+- Module-level variables remain in `src/suews/src/suews_ctrl_const.f95` (for example the allocatable arrays in `module_ctrl_const_allocate`); new physics must not add to them, and keeps run state on `SUEWS_STATE` instead.
 - `python scripts/lint/check_saved_fortran_locals.py` fails on any implicitly `SAVE`d procedure local under `src/suews/src/`.
 - ESTM (`storage_heat = 4`) is out of the build because its run state lived in module variables; `dev-ref/ESTM_REACTIVATION.md` lists what must change before it returns.
+- BLUEWS (the standalone CBL slab model) is out of the build because it had zero callers and kept its run state in module variables (`module_phys_bluews_cbl`); `dev-ref/BLUEWS_REACTIVATION.md` lists what must change before it returns.
 
 ## Version Control and CHANGELOG Practices
 

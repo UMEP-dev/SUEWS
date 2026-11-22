@@ -109,18 +109,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "U"
-      file: "src/suews/ext_lib/spartacus-surface/radsurf/radsurf_urban_lw.F90"
-    contract: "C-RESPONSE"
-    issue: 2172
-    classification: "coverage_gap"
-  - selector:
-      ledger: "U"
-      file: "src/suews/ext_lib/spartacus-surface/radsurf/radsurf_urban_sw.F90"
-    contract: "C-RESPONSE"
-    issue: 2172
-    classification: "coverage_gap"
-  - selector:
-      ledger: "U"
       file: "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90"
     contract: "C-RESPONSE"
     issue: 2172

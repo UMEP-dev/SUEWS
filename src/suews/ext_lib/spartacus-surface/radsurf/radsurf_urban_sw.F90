@@ -334,6 +334,7 @@ contains
         end if
 
         norm_perim = 0.0_jprb
+        norm_perim_air_veg = 0.0_jprb
         if (nreg > 1) then
           associate ( veg_fraction => canopy_props%veg_fraction(ilay1:ilay2) ) 
           if (veg_fraction(jlay) > config%min_vegetation_fraction) then

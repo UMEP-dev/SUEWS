@@ -241,3 +241,27 @@ def test_repository_tree_is_fully_tagged():
         "Test-contract tags must reference test/contracts.yml.\n"
         + checker.render_report(report)
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "source"),
+    [
+        ("benchmark/tests/test_run.py", 'pytestmark = pytest.mark.contract("C-A")'),
+        (".claude/scripts/test_rules.py", 'pytestmark = pytest.mark.contract("C-A")'),
+        (
+            "src/suews_bridge/test_observer/group.rs",
+            "// contract: C-A\n#[test]\nfn observed_value() {}",
+        ),
+    ],
+)
+def test_additional_repository_suites_are_included(tree, name, source):
+    _write(tree, name, source)
+    assert checker.check_tree(tree)["files"] == {name: ["C-A"]}
+
+
+def test_empty_test_inventory_is_reported_and_fails_strict_mode(tree):
+    report = checker.check_tree(tree)
+    assert report["summary"]["files"] == 0
+    assert "No test files" in " ".join(report["errors"])
+    assert checker.main(["--root", str(tree), "--report"]) == 0
+    assert checker.main(["--root", str(tree), "--strict"]) == 1

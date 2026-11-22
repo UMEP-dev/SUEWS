@@ -19,13 +19,16 @@ faithfully from the source tables) are Phase-C candidates and are documented in
 ``benchmark/inputs/legacy/README.md`` rather than committed as fixtures.
 
 This test lives under ``benchmark/tests/`` (outside the repo ``test/`` tree),
-so it needs no ``pytest.mark`` registration.
+so it carries no nature marker while declaring its contract tags for the
+repository census.
 """
 import sys
 from pathlib import Path
 
 import pytest
 import yaml
+
+pytestmark = pytest.mark.contract("C-TOOLING", "C-VALID", "C-ROUNDTRIP")
 
 # supy is the heavy dependency; skip cleanly if the editable build is absent so
 # the pure-Python benchmark units still run in a minimal environment.

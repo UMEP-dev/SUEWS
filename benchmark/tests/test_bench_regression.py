@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.contract("C-TOOLING")
+
 BENCH = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BENCH))
 

@@ -273,23 +273,10 @@ mappings:
     issue: 2083
     classification: "accepted_exception"
   - selector:
-      ledger: "M"
-      category: "unwired_parameter"
-      owner_issue: "#2109"
-    contract: "C-BIND"
-    issue: 2109
-    classification: "defect"
-  - selector:
       ledger: "J1"
       id_prefix: "sites[0].properties.vertical_layers.roofs["
     contract: "C-BIND"
     issue: 2085
-    classification: "defect"
-  - selector:
-      ledger: "J1"
-      id_prefix: "sites[0].properties.snow.ohm_"
-    contract: "C-BIND"
-    issue: 2109
     classification: "defect"
   - selector:
       ledger: "J1"

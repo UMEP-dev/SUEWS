@@ -554,7 +554,12 @@ CONTAINS
             CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_s_av_prev, qn1_S, dqnsdt_prev, &
                                  qn_s_av_next, dqnsdt_next)
 
-            ! Calculate net storage heat flux for snow surface (winter wet conditions)
+            ! Calculate net storage heat flux for snow surface using winter_wet
+            ! coefficients OHM_coef(nsurf + 1, 3, 1:3) = (a1, a2, a3).
+            ! All four regimes and OHM_threshSW(8)/OHM_threshWD(8) are wired
+            ! into OHM_coef(8, :, :) and OHM_thresh*(8) in SUEWS_cal_Qs, while
+            ! the snow OHM formulation intentionally selects winter_wet (index 3)
+            ! unconditionally and permits signed deltaQi (no positivity clamp).
             CALL OHM_QS_cal(qn1_S, dqnsdt_next, &
                             OHM_coef(nsurf + 1, 3, 1), OHM_coef(nsurf + 1, 3, 2), OHM_coef(nsurf + 1, 3, 3), &
                             deltaQi0)

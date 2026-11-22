@@ -612,7 +612,55 @@
       "rationale": "Snowpack limits and snow initial states are inactive when snow processes are disabled."
     },
     {
-      "id": "snow-ohm-coef-unwired",
+      "id": "snow-ohm-coef-active",
+      "anchors": [
+        "snow_cold"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.ohm_coef.winter_wet.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when snow_use=1 with OHM-calling storage heat (snow_cold anchor; wired in #2109, winter_wet read by OHM).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "Active snow winter_wet OHM coefficients a1/a2/a3 default to None in OHMCoefficients and are dropped or nulled in engine YAML even when snow OHM is active."
+    },
+    {
+      "id": "snow-ohm-coef-winter-wet-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.ohm_coef.winter_wet.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when snow_use=0 (snow disabled).",
+      "owner_issue": "#2101",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "Snow winter_wet OHM coefficients are unused when snow processes are disabled and permit conditional absence under BR-03."
+    },
+    {
+      "id": "snow-ohm-coef-unconsumed-regimes-inactive",
       "anchors": [
         "all_surfaces_baseline",
         "co2_methods",
@@ -622,23 +670,25 @@
         "irrigation_and_dls"
       ],
       "path_patterns": [
-        "sites[0].properties.snow.ohm_coef.*.*"
+        "sites[0].properties.snow.ohm_coef.summer_dry.*",
+        "sites[0].properties.snow.ohm_coef.summer_wet.*",
+        "sites[0].properties.snow.ohm_coef.winter_dry.*"
       ],
       "mutations": {
         "omit": "dropped",
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
-      "category": "unwired_parameter",
-      "active_condition": "Unwired across Rust bridge and Fortran kernel (deltaQi === 0).",
-      "owner_issue": "#2109",
+      "category": "inactive_optional",
+      "active_condition": "Unconsumed across all anchors: OHM (suews_phys_ohm.f95) evaluates snow deltaQi unconditionally from winter_wet OHM_coef(nsurf + 1, 3, 1:3).",
+      "owner_issue": "#2101",
       "related_issues": [
-        "#2084"
+        "#2083"
       ],
-      "rationale": "Snow OHM coefficients are unwired in the bridge/kernel and default to None."
+      "rationale": "Non-winter_wet snow OHM regimes are transported when present but never read by OHM, so conditional absence is permitted under BR-03."
     },
     {
-      "id": "snow-ohm-thresholds-unwired",
+      "id": "snow-ohm-thresholds-inactive",
       "anchors": [
         "all_surfaces_baseline",
         "co2_methods",
@@ -655,13 +705,13 @@
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
-      "category": "unwired_parameter",
-      "active_condition": "Unwired across Rust bridge and Fortran kernel.",
-      "owner_issue": "#2109",
+      "category": "inactive_optional",
+      "active_condition": "Unconsumed across all anchors: OHM (suews_phys_ohm.f95) does not switch snow regimes via OHM_threshSW(8) or OHM_threshWD(8).",
+      "owner_issue": "#2101",
       "related_issues": [
-        "#2084"
+        "#2083"
       ],
-      "rationale": "Snow OHM thresholds are unwired in the bridge/kernel and accept explicit nulls."
+      "rationale": "Snow OHM thresholds are transported when present but never read by OHM, so conditional absence is permitted under BR-03."
     },
     {
       "id": "stebbs-roof-and-outer-null-active",

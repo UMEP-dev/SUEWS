@@ -359,6 +359,7 @@ NESTED_IN_PARENT_SPECS: dict[str, tuple[str, ...]] = {
         "LC_EVETR_PRM%ohm%ohm_coef_lc",
         "LC_GRASS_PRM%ohm%ohm_coef_lc",
         "LC_WATER_PRM%ohm%ohm_coef_lc",
+        "SNOW_PRM%ohm%ohm_coef_lc",
     ),
     "ohm_prm": (
         "LC_PAVED_PRM%ohm",
@@ -368,6 +369,7 @@ NESTED_IN_PARENT_SPECS: dict[str, tuple[str, ...]] = {
         "LC_EVETR_PRM%ohm",
         "LC_GRASS_PRM%ohm",
         "LC_WATER_PRM%ohm",
+        "SNOW_PRM%ohm",
     ),
     "soil_prm": (
         "LC_PAVED_PRM%soil",

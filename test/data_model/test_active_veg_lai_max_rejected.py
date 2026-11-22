@@ -48,7 +48,11 @@ _prepare_forcing_block = _run_rust_mod._prepare_forcing_block
 _run_grid_into = _run_rust_mod._run_grid_into
 config_to_engine_yaml = _run_rust_mod.config_to_engine_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-STRICT", "C-BIND"),
+]
 
 VEG_SURFACES: tuple[str, ...] = ("evetr", "dectr", "grass")
 
@@ -214,7 +218,9 @@ def test_inactive_vegetated_surface_allows_zero_lai_max(
     engine_yaml = config_to_engine_yaml(cfg)
 
     veg_idx = VEG_SURFACES.index(surface)
-    assert float(df_state.iloc[0]["sfr_surf", f"({veg_idx + 2},)"]) == pytest.approx(0.0)
+    assert float(df_state.iloc[0]["sfr_surf", f"({veg_idx + 2},)"]) == pytest.approx(
+        0.0
+    )
     assert float(df_state.iloc[0]["laimax", f"({veg_idx},)"]) == pytest.approx(0.0)
     assert engine_yaml
 

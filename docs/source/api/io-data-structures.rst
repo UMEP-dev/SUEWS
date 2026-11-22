@@ -122,7 +122,7 @@ Output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``df_output`` is organised with **temporal records of grids** in rows (MultiIndex: grid, datetime)
-and **output variables by group** in columns (MultiIndex: group, variable).
+and **output variables by group** in columns (MultiIndex levels: ``group`` and ``var``).
 
 .. code-block:: python
 

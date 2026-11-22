@@ -57,6 +57,7 @@ EXAMPLES:
 ### 22 Nov 2026
 
 - [maintenance] Pull the digest-pinned GCC 14.2.0 image for the Fortran `-Wuninitialized` ratchet from Docker Hub instead of the Amazon ECR Public mirror, whose anonymous pulls fail with "Data limit exceeded"; the manifest digest, compiler and baseline keys are unchanged (#2237)
+- [maintenance] On pull requests, skip the macOS api cross-CPython cells (the macOS wheel and its physics tier still run; the merge queue and nightly keep macOS api coverage) and split the Windows cp312 api cell into two deterministic shards with the new `scripts/suews/pytest_shard.py` plugin, to shorten pull-request CI wall time; a `pr_api_lane` dispatch input applies the same layout to a dispatch
 
 ### 21 Nov 2026
 

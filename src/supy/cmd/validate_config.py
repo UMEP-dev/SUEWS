@@ -928,10 +928,23 @@ def _emit_pipeline_startup_error(
             started_at=started_at,
         ).emit()
     else:
-        console.print(_status_text(message, ok=False))
+        # Soft wrap keeps long output paths intact for copying.
+        console.print(_status_text(message, ok=False), soft_wrap=True)
         if data and data.get("evidence_dir"):
             console.print(_console_text(f"Phase evidence: {data['evidence_dir']}"), soft_wrap=True)
     return 1
+
+
+def _interrupted_publication_message(exc) -> str:
+    """Describe outputs an interrupted ABC publication could not restore."""
+    lines = [str(exc)]
+    for item in exc.unrestored:
+        recovery = (
+            f"previous copy kept at {item.backup}" if item.backup
+            else "no previous copy existed; delete it"
+        )
+        lines.append(f"  {item.path}: {item.error} ({recovery})")
+    return "\n".join(lines)
 
 
 def _execute_pipeline(
@@ -1030,7 +1043,7 @@ def _execute_pipeline(
 
     if pipeline == "ABC":
         from ..data_model.validation.pipeline.orchestrator import (
-            ABCOutputError, run_abc_pipeline,
+            ABCOutputError, ABCPublicationInterrupted, run_abc_pipeline,
         )
 
         logger = logging.getLogger("SuPy")
@@ -1047,6 +1060,28 @@ def _execute_pipeline(
                     user_yaml_file, mode=mode, forcing=forcing,
                     science_fixes=science_fixes,
                 )
+        except ABCPublicationInterrupted as exc:
+            # Name the outputs left inconsistent before the interrupt
+            # propagates; Click would otherwise print only "Aborted!".
+            logger.disabled = was_disabled
+            _emit_pipeline_startup_error(
+                _interrupted_publication_message(exc), out_format=out_format,
+                command=command_str, started_at=started_at,
+                code="output_publication_interrupted",
+                data={
+                    "file": user_yaml_file,
+                    "evidence_dir": str(exc.evidence_dir),
+                    "unrestored_outputs": [
+                        {
+                            "path": str(item.path),
+                            "error": item.error,
+                            "backup": str(item.backup) if item.backup else None,
+                        }
+                        for item in exc.unrestored
+                    ],
+                },
+            )
+            raise
         except ABCOutputError as exc:
             return _emit_pipeline_startup_error(
                 str(exc), out_format=out_format, command=command_str,
@@ -1054,9 +1089,12 @@ def _execute_pipeline(
                 data={"file": user_yaml_file, "evidence_dir": str(exc.evidence_dir)},
             )
         except Exception as exc:
+            # Keep rollback-failure notes a non-OSError publication failure carries.
+            notes = [str(note) for note in getattr(exc, "__notes__", ())]
             return _emit_pipeline_startup_error(
-                str(exc), out_format=out_format, command=command_str,
-                started_at=started_at, code="pipeline_execution_failed",
+                "; ".join([str(exc), *notes]), out_format=out_format,
+                command=command_str, started_at=started_at,
+                code="pipeline_execution_failed",
                 data={"file": user_yaml_file},
             )
         finally:

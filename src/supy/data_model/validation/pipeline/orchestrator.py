@@ -719,13 +719,65 @@ def _publish_abc_outputs(
                     # Continue best-effort restoration of remaining outputs
                     # without masking the original publication failure.
                     restore_errors.append((destination, restore_exc))
-            if restore_errors and hasattr(exc, "add_note"):
-                details = "; ".join(
-                    f"{destination}: {restore_exc}"
-                    for destination, restore_exc in restore_errors
+            if not restore_errors:
+                raise
+            details = "; ".join(
+                f"{destination}: {restore_exc}"
+                for destination, restore_exc in restore_errors
+            )
+            note = f"Rollback failed for {details}"
+            exc.add_note(note)
+            if isinstance(exc, KeyboardInterrupt):
+                # Click reduces a bare interrupt to "Aborted!", which would
+                # hide outputs left in an inconsistent state. Carry them, with
+                # the retained backups, to the CLI renderer.
+                interrupted = ABCPublicationInterrupted(
+                    exc,
+                    [
+                        UnrestoredOutput(
+                            destination, str(restore_exc), backups.get(destination)
+                        )
+                        for destination, restore_exc in restore_errors
+                    ],
+                    workspace,
                 )
-                exc.add_note(f"Rollback failed for {details}")
+                interrupted.add_note(note)
+                raise interrupted from exc
             raise
+
+
+@dataclass(frozen=True)
+class UnrestoredOutput:
+    """A canonical output that rollback could not return to its prior state."""
+
+    path: Path
+    error: str
+    backup: Path | None
+    """Retained copy of the previous file; None when the output was new."""
+
+
+class ABCPublicationInterrupted(KeyboardInterrupt):
+    """Interrupt during publication whose rollback left outputs unrestored.
+
+    Remains a ``KeyboardInterrupt`` so interrupt semantics (exit status,
+    Click's ``Aborted!``) are unchanged; the CLI renders the unrestored outputs
+    and the evidence directory before re-raising.
+    """
+
+    def __init__(
+        self,
+        interrupt: BaseException,
+        unrestored: list[UnrestoredOutput],
+        evidence_dir: Path,
+    ):
+        names = ", ".join(str(item.path) for item in unrestored)
+        reason = str(interrupt) or type(interrupt).__name__
+        super().__init__(
+            f"Validation interrupted during output publication ({reason}); "
+            f"outputs not restored: {names}"
+        )
+        self.unrestored = unrestored
+        self.evidence_dir = evidence_dir
 
 
 @dataclass

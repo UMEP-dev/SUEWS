@@ -150,6 +150,30 @@ engine.os.replace = replace
     return directory
 
 
+@pytest.fixture
+def interrupt_hooks(tmp_path):
+    """Interrupt the final publication step and fail one rollback restore."""
+    directory = tmp_path / "interrupt-hooks"
+    directory.mkdir()
+    (directory / "sitecustomize.py").write_text('''
+from pathlib import Path
+from supy.data_model.validation.pipeline import orchestrator as engine
+
+original_replace = engine.os.replace
+
+def replace(source, destination):
+    name = Path(source).name
+    if name == "publish_2":
+        raise KeyboardInterrupt("injected interrupt during JSON publication")
+    if name == "previous_1":
+        raise OSError("injected rollback failure on the text report")
+    return original_replace(source, destination)
+
+engine.os.replace = replace
+''', encoding="utf-8")
+    return directory
+
+
 def _start_pair(source, routes, mode, hooks, control, fail_off=False):
     processes = {}
     for science, route in zip(("off", "suggest"), routes):
@@ -484,3 +508,56 @@ def test_installed_validator_legacy_stream_usage_and_public_restriction(source):
     assert "  - STEBBS is enabled" in restricted.stdout
     assert "--mode dev" in restricted.stdout
     assert "Traceback" not in usage.stderr + restricted.stderr
+
+
+@pytest.mark.parametrize("route", ["suews", "suews-validate"])
+@pytest.mark.parametrize("out_format", [None, "json"])
+def test_public_abc_interrupt_with_failed_rollback_names_unrestored_outputs(
+    source, interrupt_hooks, route, out_format,
+):
+    """Ctrl-C during publication must not hide outputs rollback left changed.
+
+    Click turns a bare KeyboardInterrupt into "Aborted!"; the CLI first names
+    the unrestored output, its retained previous copy and the evidence directory.
+    """
+    _success(_run(route, source, "suggest"), "suggest")
+    before = _products(source)
+    report_txt = source.parent / f"report_{source.stem}.txt"
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(interrupt_hooks) + os.pathsep + os.environ.get("PYTHONPATH", ""),
+    }
+    # A different generation makes the unrestored text report detectable.
+    result = subprocess.run(
+        _command(route, source, "off", out_format=out_format),
+        cwd=source.parent.parent, capture_output=True, text=True, timeout=180, env=env,
+    )
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
+    assert "Aborted!" in result.stderr
+    evidence, = source.parent.glob(".suews-validate-*")
+    if out_format == "json":
+        envelope = json.loads(result.stdout)  # Exactly one envelope on stdout.
+        assert envelope["status"] == "error"
+        error, = envelope["errors"]
+        assert error["code"] == "output_publication_interrupted"
+        assert str(report_txt) in error["message"]
+        assert "injected interrupt during JSON publication" in error["message"]
+        assert "injected rollback failure on the text report" in error["message"]
+        assert Path(envelope["data"]["evidence_dir"]) == evidence
+        unrestored, = envelope["data"]["unrestored_outputs"]
+        assert Path(unrestored["path"]) == report_txt
+        assert unrestored["error"] == "injected rollback failure on the text report"
+        backup = Path(unrestored["backup"])
+    else:
+        assert "outputs not restored" in result.stdout
+        assert f"{report_txt}: injected rollback failure on the text report" in result.stdout
+        backup = evidence / "previous_1"
+        assert f"previous copy kept at {backup}" in result.stdout
+        assert f"Phase evidence: {evidence}" in result.stdout
+    assert backup.parent == evidence
+    assert backup.read_bytes() == before[report_txt.name]
+    after = _products(source)
+    assert after[report_txt.name] != before[report_txt.name]  # Left unrestored.
+    for name in (f"updated_{source.name}", f"report_{source.stem}.json"):
+        assert after[name] == before[name]  # Restored by the rollback.

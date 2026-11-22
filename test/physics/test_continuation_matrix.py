@@ -2,15 +2,16 @@
 
 No tolerance: identical execution must preserve every floating-point bit,
 except that NaN payloads are immaterial. Sentinels are compared exactly.
-The spin-up row uses the documented from_checkpoint(check_continuity=False)
-route: the evolved first half is handed to the main run. It tests hand-over,
-not convergence or the separate pure-cover get_spinup_state algorithm.
+There is no spin-up row: the public API has no spin-up-to-main-run hand-over
+distinct from from_checkpoint, which the checkpoint row already covers, and the
+pure-cover get_spinup_state algorithm is a separate route not tested here.
 """
 
 import json
 import os
 from pathlib import Path
 
+from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pandas as pd
 import pytest
@@ -27,8 +28,9 @@ pytestmark = [
 ]
 
 STEPS = 576
-# 23 h 35 min: deliberately away from midnight and hourly forcing knots.
-SPLIT = 283
+# 12:20 on the first day: daytime (shortwave and photosynthesis active) and
+# away from midnight and the hourly forcing knots.
+SPLIT = 147
 
 
 class ContinuationDifference(AssertionError):
@@ -240,7 +242,7 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode, monkeypatch):
         "co2",
     ],
 )
-@pytest.mark.parametrize("mechanism", ["chunk", "checkpoint", "stream", "spinup"])
+@pytest.mark.parametrize("mechanism", ["chunk", "checkpoint", "stream"])
 def test_continuation_matrix(
     sample_config_loaded, sample_data_loaded, tmp_path, monkeypatch, mode, mechanism
 ):
@@ -264,13 +266,12 @@ def test_continuation_matrix(
         monkeypatch.setenv("SUEWS_EHC_DUAL_TIMESCALE", "1")
     if mechanism == "chunk":
         actual = _run(_simulation(path), forcing, chunk_day=1)
-    elif mechanism in {"checkpoint", "spinup"}:
+    elif mechanism == "checkpoint":
         first = _simulation(path)
         head = _run(first, forcing.iloc[:SPLIT])
         second = SUEWSSimulation.from_checkpoint(
             path,
             first.checkpoint.to_file(tmp_path / "checkpoint.json"),
-            check_continuity=mechanism != "spinup",
         )
         actual = pd.concat([head, _run(second, forcing.iloc[SPLIT:])])
     else:
@@ -293,6 +294,10 @@ def test_continuation_matrix(
         streamed.run(start_date=forcing.index[0], end_date=forcing.index[-1], n_jobs=1)
         (saved,) = (tmp_path / "stream").glob("*SUEWS_output*.parquet")
         actual = pd.read_parquet(saved).sort_index()
+        assert actual.index.is_unique, "Streamed output repeats a timestamp"
+        pd.testing.assert_index_equal(
+            actual.index.get_level_values("datetime"), forcing.index, check_names=False
+        )
         # save() converts accumulated native quantities (e.g. Evap mm/step)
         # to declared output units (mm/s). Compare two persisted representations,
         # as test_stream_chunk does, never persisted values against native units.
@@ -301,7 +306,7 @@ def test_continuation_matrix(
         whole.save(tmp_path / "whole", format="parquet", include_provisional=True)
         (saved,) = (tmp_path / "whole").glob("*SUEWS_output*.parquet")
         expected = pd.read_parquet(saved).sort_index()
-    boundary = forcing.index[SPLIT if mechanism in {"checkpoint", "spinup"} else 288]
+    boundary = forcing.index[SPLIT if mechanism == "checkpoint" else TIMESTEPS_PER_DAY]
     _compare(actual, expected, mode=mode, boundary=boundary)
     _active(actual, mode)
 

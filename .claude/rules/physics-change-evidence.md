@@ -317,12 +317,13 @@ Today: the continuation matrix. The physics axis of `standard` runs
 the only tests the label can add are those matching
 `physics and slow and not core`. That set is the module
 `test/physics/test_continuation_matrix.py`: the parametrised
-`test_continuation_matrix` (chunked, checkpoint-resumed, streamed and
-spin-up-handed-over runs against an uninterrupted run, crossed with the default,
+`test_continuation_matrix` (chunked, checkpoint-resumed and streamed
+runs against an uninterrupted run, crossed with the default,
 snow, SPARTACUS, STEBBS, dual-timescale EHC, irrigation and CO2 modes) and its
 negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
 not `core` on purpose: #2100 asks for this restart verification to be opt-in, so
-it runs on `0-physics:change` and `0-numerics:change` PRs and in the nightly,
+it runs on ready `0-physics:change` and `0-numerics:change` PRs and their
+merge-queue runs, in the nightly, tag and full-dispatch runs (`test_tier=all`),
 and not on every PR. [decision: software maintainer, 2026-11-22] The two `slow`
 physics regressions
 (`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`

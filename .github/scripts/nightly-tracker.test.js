@@ -112,7 +112,7 @@ function fakeGithub({ run = {}, openIssues = [], createFails = false, createErro
     },
     actions: {
       listJobsForWorkflowRun: 'jobs',
-      getWorkflowRun: async () => ({ data: theRun }),
+      getWorkflowRun: async p => ({ data: newest && p.run_id === newest.id ? { ...theRun, ...newest } : theRun }),
       listWorkflowRuns: async p => ({ data: { workflow_runs: p.status === 'success' ? [
         { id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
         { id: 0, created_at: '2026-11-20T02:00:00Z', head_sha: 'BASE', html_url: 'GREEN' },
@@ -174,15 +174,38 @@ test('a non-scheduled run is ignored and writes nothing', () =>
     }
   }));
 
-test('a late re-run of an older night is superseded and writes nothing', () =>
+test('a late green re-run of an older night does not close the tracker over a newer red run', () =>
   withEnv({}, async () => {
     const { github, calls } = fakeGithub({
       run: { conclusion: 'success' }, openIssues: [TRACKER],
-      newest: { id: 2, created_at: '2026-11-23T02:00:00Z' },
+      newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'failure' },
     });
     const out = await tracker({ github, context, core: fakeCore() });
-    assert.equal(out.action, 'superseded');
+    assert.equal(out.action, 'none');
     assert.deepEqual(calls, []);
+  }));
+
+test('a superseded re-run reconciles: opens for a newer red run whose own report was lost', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({
+      run: { conclusion: 'success' },
+      newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'failure', html_url: 'NEWEST' },
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'opened');
+    assert.match(out.body, /NEWEST ended `failure`/);
+    assert.equal(calls.filter(c => c[0] === 'create').length, 1);
+  }));
+
+test('a superseded red re-run closes the tracker when the newest run is green', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({
+      openIssues: [TRACKER],
+      newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'success', html_url: 'NEWEST' },
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'closed');
+    assert.deepEqual(calls.map(c => c[0]), ['comment', 'update']);
   }));
 
 test('the report is dated by the run, not by the day it is written', () =>

@@ -209,28 +209,35 @@ module.exports = async ({ github, context, core }) => {
     await fn();
   };
 
-  const { data: run } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
+  let { data: run } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
   if (run.event !== 'schedule') {
     core.info(`Run ${runId} was triggered by ${run.event}, not schedule; nothing to report.`);
     return { action: 'ignored' };
   }
-  const state = verdict(run.conclusion);
-  if (state === 'ignore') {
-    core.info(`Run ${runId} concluded ${run.conclusion}; neither red nor green.`);
-    return { action: 'ignored' };
-  }
-
   // A re-run of an older night finishing late must not close or reopen the
   // tracker over a newer scheduled run's verdict. Only a newer run that has
-  // completed counts; one still queued or running has no verdict yet.
+  // completed counts; one still queued or running has no verdict yet. The
+  // tracker then reconciles with that newest run instead of returning,
+  // because its own report may have been replaced in the concurrency queue
+  // by this one: it opens or closes the issue if the newest verdict needs it,
+  // and adds no comment to an issue that is already open.
+  let reconcile = false;
   const { data: latest } = await github.rest.actions.listWorkflowRuns({
     owner, repo, workflow_id: run.workflow_id, event: 'schedule', status: 'completed', per_page: 1,
   });
   const newest = (latest.workflow_runs || [])[0];
   if (newest && newest.id !== run.id && newest.created_at > run.created_at) {
-    core.info(`Run ${runId} is superseded by the newer scheduled run ${newest.id}; nothing to report.`);
-    // A dry run carries on, so a past run can be replayed to check the report.
-    if (!dryRun) return { action: 'superseded' };
+    core.info(`Run ${runId} is superseded by the newer scheduled run ${newest.id}.`);
+    // A dry run carries on with the given run, so a past run can be replayed.
+    if (!dryRun) {
+      ({ data: run } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: newest.id }));
+      reconcile = true;
+    }
+  }
+  const state = verdict(run.conclusion);
+  if (state === 'ignore') {
+    core.info(`Run ${run.id} concluded ${run.conclusion}; neither red nor green.`);
+    return { action: 'ignored' };
   }
 
   const date = String(run.run_started_at || run.created_at || '').slice(0, 10);
@@ -254,7 +261,12 @@ module.exports = async ({ github, context, core }) => {
     return { action: tracker ? 'closed' : 'none' };
   }
 
-  const leaves = await readLeaves(github, owner, repo, runId);
+  if (tracker && reconcile) {
+    core.info(`#${tracker.number} is already open for the newest run's red verdict; nothing to add.`);
+    return { action: 'none' };
+  }
+
+  const leaves = await readLeaves(github, owner, repo, run.id);
   const cmp = await readChanges(github, owner, repo, run);
   const report = buildReport({ date, runUrl: run.html_url, conclusion: run.conclusion, leaves, cmp });
 

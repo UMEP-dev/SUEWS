@@ -10,6 +10,10 @@
 #   BUILD_MCP_RESULT             -- needs.build_mcp.result
 #   TEST_BRIDGE_RESULT           -- needs.build_wheels.result: the api cross-CPython lanes are
 #                                   chained behind each platform's wheel build inside that job
+#   CORE_GUARD_RESULT            -- needs.core_guard.result: every core test passed on Linux
+#                                   (scripts/suews/check_core_guard.py); required when
+#                                   build_wheels succeeded at a ready tier
+#   TEST_TIER                    -- needs.determine_matrix.outputs.test_tier
 #   CHECK_MARKERS_RESULT         -- needs.check_test_markers.result
 #   PHYSICS_LABEL_RESULT         -- needs.check_physics_label.result
 #   LOWEST_DIRECT_DEPS_RESULT    -- needs.lowest_direct_deps.result (optional; defaults to skipped)
@@ -46,6 +50,8 @@ LOWEST_DIRECT_DEPS_RESULT="${LOWEST_DIRECT_DEPS_RESULT:-skipped}"
 LOWEST_DIRECT_DEPS_REQUIRED="${LOWEST_DIRECT_DEPS_REQUIRED:-false}"
 BUILD_MCP_RESULT="${BUILD_MCP_RESULT:-skipped}"
 PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
+CORE_GUARD_RESULT="${CORE_GUARD_RESULT-unset}"
+TEST_TIER="${TEST_TIER:-}"
 
 SCHEMA_AUDIT_RESULT="${SCHEMA_AUDIT_RESULT-unset}"
 DATA_INTERFACE_AUDIT_RESULT="${DATA_INTERFACE_AUDIT_RESULT-unset}"
@@ -70,6 +76,7 @@ echo "detect-changes: ${DETECT_CHANGES_RESULT}"
 echo "build_wheels: ${BUILD_WHEELS_RESULT}"
 echo "build_mcp: ${BUILD_MCP_RESULT}"
 echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
+echo "core_guard: ${CORE_GUARD_RESULT} (test_tier=${TEST_TIER:-unset})"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "check_physics_label: ${PHYSICS_LABEL_RESULT}"
 echo "lowest_direct_deps: ${LOWEST_DIRECT_DEPS_RESULT} (required=${LOWEST_DIRECT_DEPS_REQUIRED})"
@@ -219,6 +226,29 @@ else
       fi
     done
   fi
+fi
+
+# Every core test must pass on Linux before a merge (22 Nov 2026). The guard
+# runs whenever build_wheels ran at a ready tier (standard or physics-full);
+# draft tiers run a subset by design, and a run that needs no build (in
+# practice documentation-only) skips build_wheels and the guard together,
+# which is the single documented exemption.
+echo "Validating the core-test guard..."
+if [[ "${TEST_TIER}" == "standard" || "${TEST_TIER}" == "physics-full" ]] && \
+   [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+  if [[ "${CORE_GUARD_RESULT}" == "success" ]]; then
+    echo "[OK] Every core test passed on Linux"
+  elif [[ "${CORE_GUARD_RESULT}" == "unset" ]] && [[ "${STRICT_CONSOLIDATED}" == "false" ]]; then
+    echo "[INFO] core_guard: not reported by caller workflow (rebase onto master)"
+  else
+    echo "[X] Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
+    VALIDATION_PASSED=false
+  fi
+elif [[ "${CORE_GUARD_RESULT}" == "failure" ]] || [[ "${CORE_GUARD_RESULT}" == "cancelled" ]]; then
+  echo "[X] Core-test guard finished with '${CORE_GUARD_RESULT}'"
+  VALIDATION_PASSED=false
+else
+  echo "[OK] Core-test guard not required (tier ${TEST_TIER:-unset}, build_wheels ${BUILD_WHEELS_RESULT})"
 fi
 
 check_unconditional_producer() {

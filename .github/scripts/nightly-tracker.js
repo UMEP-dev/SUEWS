@@ -151,10 +151,18 @@ async function readChanges(github, owner, repo, runId) {
     const lastGreen = { url: green.html_url, sha: green.head_sha };
     if (green.head_sha === run.head_sha) return { lastGreen, changes: [] };
     try {
-      const { data: cmp } = await github.rest.repos.compareCommitsWithBasehead({
-        owner, repo, basehead: `${green.head_sha}...${run.head_sha}`, per_page: 100,
-      });
-      return { lastGreen, changes: changesFromCommits(cmp.commits).reverse() };
+      // The compare endpoint pages its commits oldest first; read every page
+      // so a long red streak still lists the newest pull requests.
+      const commits = [];
+      for (let page = 1; page <= 20; page += 1) {
+        const { data: cmp } = await github.rest.repos.compareCommitsWithBasehead({
+          owner, repo, basehead: `${green.head_sha}...${run.head_sha}`, per_page: 100, page,
+        });
+        const batch = cmp.commits || [];
+        commits.push(...batch);
+        if (batch.length < 100 || commits.length >= (cmp.total_commits || 0)) break;
+      }
+      return { lastGreen, changes: changesFromCommits(commits).reverse() };
     } catch (err) {
       return { lastGreen, changes: null };
     }
@@ -240,7 +248,10 @@ module.exports = async ({ github, context, core }) => {
     try {
       await github.rest.issues.create(assignee ? { ...params, assignees: [assignee] } : params);
     } catch (err) {
-      // An assignee GitHub rejects must not lose the alert itself.
+      // An assignee GitHub rejects (422) must not lose the alert itself. Any
+      // other error is rethrown: the issue may have been created, and a blind
+      // retry would leave a duplicate tracker.
+      if (!assignee || err.status !== 422) throw err;
       core.warning(`Could not open the issue assigned to ${assignee}: ${err.message}; opening it unassigned.`);
       await github.rest.issues.create(params);
     }

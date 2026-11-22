@@ -79,14 +79,15 @@ test('buildReport says so when nothing changed or nothing could be read', () => 
 });
 
 // A fake client recording every write.
-function fakeGithub({ openIssues = [], createFails = false } = {}) {
+function fakeGithub({ openIssues = [], createFails = false, createError = null, pages = null } = {}) {
   const calls = [];
   const rest = {
     issues: {
       listForRepo: async () => ({ data: openIssues }),
       create: async p => {
         calls.push(['create', p]);
-        if (createFails && p.assignees) throw new Error('invalid assignee');
+        if (createError) throw createError;
+        if (createFails && p.assignees) throw Object.assign(new Error('invalid assignee'), { status: 422 });
         return { data: { number: 9 } };
       },
       createComment: async p => { calls.push(['comment', p]); return {}; },
@@ -104,7 +105,8 @@ function fakeGithub({ openIssues = [], createFails = false } = {}) {
     repos: {
       compareCommitsWithBasehead: async p => {
         calls.push(['compare', p.basehead]);
-        return { data: { commits: COMMITS } };
+        if (pages) return { data: { commits: pages[p.page - 1] || [], total_commits: pages.flat().length } };
+        return { data: { commits: COMMITS, total_commits: COMMITS.length } };
       },
     },
   };
@@ -178,4 +180,22 @@ test('dry run writes nothing', () =>
     const { github, calls } = fakeGithub({ openIssues: [TRACKER] });
     await tracker({ github, context, core: fakeCore() });
     assert.deepEqual(calls.filter(c => c[0] !== 'compare'), []);
+  }));
+
+test('an ambiguous create error is rethrown, not retried into a duplicate', () =>
+  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS) }, async () => {
+    const { github, calls } = fakeGithub({ createError: Object.assign(new Error('bad gateway'), { status: 502 }) });
+    await assert.rejects(tracker({ github, context, core: fakeCore() }), /bad gateway/);
+    assert.equal(calls.filter(c => c[0] === 'create').length, 1);
+  }));
+
+test('a comparison over several pages lists the newest pull requests first', () =>
+  withEnv({ NEEDS_JSON: JSON.stringify(RED_NEEDS) }, async () => {
+    const commit = n => ({ sha: `s${n}`, commit: { message: `Change ${n} (#${n})` } });
+    const all = Array.from({ length: 130 }, (_, i) => commit(i + 1));
+    const { github, calls } = fakeGithub({ pages: [all.slice(0, 100), all.slice(100)] });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(calls.filter(c => c[0] === 'compare').length, 2);
+    assert.match(out.body, /green nightly \(GREEN\):\n- #130 Change 130\n/);
+    assert.match(out.body, /and 115 more/);
   }));

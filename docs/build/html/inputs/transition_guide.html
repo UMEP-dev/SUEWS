@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.21.dev11 documentation</title>
+    <meta property="article:modified_time" content="2026-11-21T23:58:22+00:00" />
+    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.21.dev13 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=e05182e1"></script>
+    <script src="../_static/documentation_options.js?v=4cd9809a"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.7. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.21.dev11" />
+  <meta name="docsearch:version" content="2026.11.21.dev13" />
     <meta name="docbuild:last-update" content="2026-11-21"/>
   
     
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.21.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d3d2d143004230027835cf588cf030d303196747" style="color: #31708f;">d3d2d14</a>).
+        (2026.11.21.dev13, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a612963b4d37d625bd37796aad313b9eb18b7efc" style="color: #31708f;">a612963</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -157,8 +157,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.21.dev11 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.21.dev11 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.21.dev13 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.21.dev13 documentation - Home"/>
   
   
 </a></div>
@@ -663,6 +663,7 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options">4.8.6. Nested Physics Sub-Options</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#within-grid-water-distribution-waterdist">4.8.7. Within-grid water distribution (<code class="docutils literal notranslate"><span class="pre">waterdist</span></code>)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-and-output-units">4.8.8. Forcing and output units</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#radiation-memory-in-the-2026-6-dev13-development-schema">4.8.9. Radiation memory in the 2026.6.dev13 development schema</a></li>
 </ul>
             </nav>
         </div>
@@ -1598,6 +1599,36 @@ interval-mean rates in kg m<sup>-2</sup> s<sup>-1</sup>, units sidecars and Dail
 totals) change forcing files and saved output instead; see
 <a class="reference internal" href="units_migration_guide.html#units-migration-guide"><span class="std std-ref">Upgrading Across the Units Change</span></a>.</p>
 </section>
+<section id="radiation-memory-in-the-2026-6-dev13-development-schema">
+<span id="schema-dev13-radiation-memory"></span><h2><span class="section-number">4.8.9. </span>Radiation memory in the 2026.6.dev13 development schema<a class="headerlink" href="#radiation-memory-in-the-2026-6-dev13-development-schema" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">initial_states.qn_surfs</span></code> and <code class="docutils literal notranslate"><span class="pre">initial_states.dqndt_surf</span></code> are no longer
+fresh-run inputs, including when their values are zero. Radiation memory is
+formed internally using the existing numerical initialisation and recurrence.
+No preceding meteorological data are required, and all requested output
+intervals are retained. Early results may depend on cold-start initialisation;
+there is no fixed time at which the model declares them fully warmed.</p>
+<p>Older signed configurations containing seven numeric zeros in either array
+are accepted with an explicit removal message. Other values, including nulls
+and malformed arrays, are rejected rather than silently discarded. Remove
+these fields if a cold start is intended; use a complete checkpoint if
+continuation is intended. A configuration or a legacy DFState alone cannot
+restore the complete state and elapsed clock. Zero DFState placeholders remain
+supported for legacy fresh-run adapters; nonzero memory entries are rejected.</p>
+<p>To write an upgraded configuration explicitly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev13
+</pre></div>
+</div>
+<p>Unsigned YAML is treated as current input by the Python loader. For an older
+unsigned file, use <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span> <span class="pre">--from</span> <span class="pre">&lt;known-source-version&gt;</span> <span class="pre">-i</span> <span class="pre">old.yml</span>
+<span class="pre">-o</span> <span class="pre">new.yml</span></code> to migrate it; do not merely relabel its schema version.
+The native engine expects resolved current input and rejects either field
+regardless of a version label, so migrate legacy YAML through Python or the
+CLI before passing it directly to the native engine.</p>
+<p>The checkpoint representation is unchanged. Its seven-surface order remains
+paved, bldg, evetr, dectr, grass, bsoil, water; mean radiation memory uses
+<span class="math notranslate nohighlight">\(\mathrm{W\,m^{-2}}\)</span> and its rate uses
+<span class="math notranslate nohighlight">\(\mathrm{W\,m^{-2}\,h^{-1}}\)</span>.</p>
+</section>
 </section>
 
 
@@ -1686,6 +1717,7 @@ totals) change forcing files and saved output instead; see
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options">4.8.6. Nested Physics Sub-Options</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#within-grid-water-distribution-waterdist">4.8.7. Within-grid water distribution (<code class="docutils literal notranslate"><span class="pre">waterdist</span></code>)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-and-output-units">4.8.8. Forcing and output units</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#radiation-memory-in-the-2026-6-dev13-development-schema">4.8.9. Radiation memory in the 2026.6.dev13 development schema</a></li>
 </ul>
   </nav></div>
 
@@ -1727,8 +1759,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.21.dev11 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d3d2d143004230027835cf588cf030d303196747">d3d2d14</a> |
+  <p>Version: 2026.11.21.dev13 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a612963b4d37d625bd37796aad313b9eb18b7efc">a612963</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

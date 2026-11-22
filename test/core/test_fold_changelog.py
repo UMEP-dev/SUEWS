@@ -284,6 +284,13 @@ def test_date_comes_from_the_commit_that_added_the_fragment(tmp_path):
 
     assert fold_changelog.git_added_date(frag, tmp_path) == dt.date(2026, 11, 21)
 
+    frag.unlink()
+    git("commit", "-q", "-am", "fold", date="2026-11-24T10:00:00+00:00")
+    frag.write_text("- [bugfix] y, a later entry (#12)\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-q", "-m", "re-add", date="2026-12-02T10:00:00+00:00")
+    assert fold_changelog.git_added_date(frag, tmp_path) == dt.date(2026, 12, 2)
+
     untracked = write_fragment(tmp_path / "changes", "13.doc.md", "- [doc] y (#13)\n")
     assert fold_changelog.git_added_date(untracked, tmp_path) is None
     assert fold_changelog.main(["--root", str(tmp_path)]) == 1

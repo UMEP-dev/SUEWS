@@ -170,7 +170,7 @@ def collect_fragments(fragment_dir: Path) -> tuple[list[Fragment], list[str]]:
 
 
 def git_added_date(path: Path, repo_root: Path) -> dt.date | None:
-    """Committer date of the commit that first added ``path`` on HEAD."""
+    """Committer date of the latest commit that added ``path`` on HEAD."""
     result = subprocess.run(
         [
             "git",
@@ -189,7 +189,9 @@ def git_added_date(path: Path, repo_root: Path) -> dt.date | None:
     stamps = [line for line in result.stdout.splitlines() if line.strip()]
     if result.returncode != 0 or not stamps:
         return None
-    return dt.date.fromisoformat(stamps[-1].strip())
+    # git log lists newest first; a file name reused after an earlier fold
+    # was deleted takes the date of its latest addition.
+    return dt.date.fromisoformat(stamps[0].strip())
 
 
 def _sort_key(fragment: Fragment) -> tuple[int, int]:

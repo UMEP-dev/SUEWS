@@ -293,21 +293,17 @@ Before running simulations, validate your configuration and review any issues:
    suews validate config.yml
 
    # Output files:
-   # - updated_config.yml (from the last successful validation phase)
+   # - updated_config.yml (updated configuration)
    # - report_config.txt (detailed validation report)
    # - report_config.json (machine-readable validation report)
 
-By default, the validator writes recognised parameter-name updates and may add
-null placeholders for missing parameters. It reports missing values and physics
-option conflicts for your attention; the output is not necessarily ready to run.
+By default, the validator writes recognised parameter-name updates and may add null placeholders for missing parameters. It reports missing values and physics option conflicts for your attention; the output is not necessarily ready to run.
 
-Scientific changes, such as initial temperatures and small surface-fraction
-corrections, are only suggested in the report, not written to the YAML.
-Use ``--science-fixes apply`` to write these changes, or ``--science-fixes off``
-to suppress scientific suggestions while retaining validation checks.
+The command prints "Validation failed" and exits with status 1 if any validation check reports an error; suggestions alone exit with status 0. Before running simulations, address the report's **ACTION NEEDED** section and replace any null placeholders listed there with real values.
 
-Review the report before running simulations. For the scientific fix policy,
-see :doc:`/inputs/yaml/validation`.
+Scientific changes, such as initial temperatures and small surface-fraction corrections, are only suggested in the report, not written to the YAML. Use ``--science-fixes apply`` to write these changes, or ``--science-fixes off`` to suppress scientific suggestions while retaining validation checks.
+
+For the scientific fix policy, output files and report sections, see :doc:`/inputs/yaml/validation`.
 
 Setup Your Site Tutorial
 ^^^^^^^^^^^^^^^^^^^^^^^^^

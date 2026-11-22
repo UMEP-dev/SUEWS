@@ -26,7 +26,10 @@ from supy.data_model.validation.pipeline.orchestrator import (
     run_phase_c,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.contract("C-VALID", "C-ROUNDTRIP", "C-STRICT"),
+]
 
 SEVEN_PROFILE_PATHS: tuple[tuple[str, ...], ...] = (
     ("snow", "snow_profile_24hr"),
@@ -182,20 +185,22 @@ def test_hourly_profile_direct_rejects_malformed_keys(bad_key: object) -> None:
     day = {str(h): 1.0 / 24.0 for h in range(2, 25)}
     day[bad_key] = 1.0 / 24.0
     with pytest.raises(ValidationError, match="Invalid 24-hour profile key"):
-        HourlyProfile(working_day=day, holiday={str(h): 1.0 / 24.0 for h in range(1, 25)})
+        HourlyProfile(
+            working_day=day, holiday={str(h): 1.0 / 24.0 for h in range(1, 25)}
+        )
 
 
 @pytest.mark.parametrize(("key_a", "key_b"), COLLISION_KEY_PAIRS)
-def test_hourly_profile_direct_rejects_collisions(
-    key_a: object, key_b: object
-) -> None:
+def test_hourly_profile_direct_rejects_collisions(key_a: object, key_b: object) -> None:
     """Direct HourlyProfile validation rejects canonical key collisions."""
     day: dict[object, float] = {str(h): 1.0 / 24.0 for h in range(1, 25)}
     day.pop(normalise_hourly_profile_key(key_a), None)
     day[key_a] = 0.1
     day[key_b] = 0.2
     with pytest.raises(ValidationError, match="Duplicate 24-hour profile key"):
-        HourlyProfile(working_day=day, holiday={str(h): 1.0 / 24.0 for h in range(1, 25)})
+        HourlyProfile(
+            working_day=day, holiday={str(h): 1.0 / 24.0 for h in range(1, 25)}
+        )
 
 
 def test_all_seven_profiles_normalise_across_config_export_and_simulation(
@@ -227,18 +232,24 @@ def test_all_seven_profiles_normalise_across_config_export_and_simulation(
     sim_direct_raw = deepcopy(raw)
     sim_direct_raw["model"]["control"]["forcing"]["file"] = None
     sim_direct = SUEWSSimulation(sim_direct_raw)
-    assert tuple(
-        sim_direct.config.sites[0].properties.snow.snow_profile_24hr.working_day.keys()
-    ) == CANONICAL_HOUR_KEYS
+    assert (
+        tuple(
+            sim_direct.config.sites[
+                0
+            ].properties.snow.snow_profile_24hr.working_day.keys()
+        )
+        == CANONICAL_HOUR_KEYS
+    )
     updated_sites = deepcopy(raw["sites"])
     updated_sites[0]["properties"]["snow"]["snow_profile_24hr"] = {
         "working_day": _make_zero_padded_hours(base=9.0),
         "holiday": _make_zero_padded_hours(base=9.5),
     }
     sim.update_config({"sites": updated_sites}, auto_load_forcing=False)
-    assert tuple(
-        sim.config.sites[0].properties.snow.snow_profile_24hr.working_day.keys()
-    ) == CANONICAL_HOUR_KEYS
+    assert (
+        tuple(sim.config.sites[0].properties.snow.snow_profile_24hr.working_day.keys())
+        == CANONICAL_HOUR_KEYS
+    )
     assert sim.config.sites[0].properties.snow.snow_profile_24hr.working_day[
         "1"
     ] == pytest.approx(9.01)
@@ -247,7 +258,9 @@ def test_all_seven_profiles_normalise_across_config_export_and_simulation(
     yaml_out = tmp_path / "exported.yml"
     cfg_from_yaml.to_yaml(str(yaml_out))
     exported_data = yaml.safe_load(yaml_out.read_text(encoding="utf-8"))
-    engine_data = yaml.safe_load(config_to_engine_yaml(cfg_from_dict, for_file_output=False))
+    engine_data = yaml.safe_load(
+        config_to_engine_yaml(cfg_from_dict, for_file_output=False)
+    )
 
     for idx, rel_path in enumerate(SEVEN_PROFILE_PATHS, start=1):
         for dumped in (exported_data, engine_data):
@@ -287,7 +300,9 @@ def test_all_seven_profiles_reject_malformed_colliding_and_incomplete_keys(
 
     # Completeness (missing hour 24)
     raw_missing = _load_sample_dict()
-    wd_missing = _get_nested(raw_missing["sites"][0]["properties"], rel_path)["working_day"]
+    wd_missing = _get_nested(raw_missing["sites"][0]["properties"], rel_path)[
+        "working_day"
+    ]
     wd_missing.pop("24")
     with pytest.raises(ValueError, match=r"missing hours:\s*\[24\]"):
         SUEWSConfig.from_dict(raw_missing)
@@ -298,9 +313,9 @@ def test_post_construction_mutation_validated_before_engine_export() -> None:
     cfg = SUEWSConfig.from_dict(_load_sample_dict())
 
     # Valid zero-padded mutation is normalised before engine export
-    cfg.sites[0].properties.snow.snow_profile_24hr.working_day = _make_zero_padded_hours(
-        base=3.0
-    )
+    cfg.sites[
+        0
+    ].properties.snow.snow_profile_24hr.working_day = _make_zero_padded_hours(base=3.0)
     engine_data = yaml.safe_load(config_to_engine_yaml(cfg, for_file_output=False))
     snow_wd = engine_data["sites"][0]["properties"]["snow"]["snow_profile_24hr"][
         "working_day"
@@ -328,9 +343,9 @@ def test_post_construction_mutation_validated_before_to_yaml(tmp_path: Path) -> 
     cfg = SUEWSConfig.from_dict(_load_sample_dict())
 
     # Valid zero-padded mutation is normalised to canonical "1".."24" on YAML export
-    cfg.sites[0].properties.snow.snow_profile_24hr.working_day = _make_zero_padded_hours(
-        base=4.0
-    )
+    cfg.sites[
+        0
+    ].properties.snow.snow_profile_24hr.working_day = _make_zero_padded_hours(base=4.0)
     valid_out = tmp_path / "valid_mutated.yml"
     cfg.to_yaml(str(valid_out))
     dumped = yaml.safe_load(valid_out.read_text(encoding="utf-8"))
@@ -384,9 +399,9 @@ def _prepare_zero_padded_sample_dir(tmp_path: Path) -> Path:
     raw["sites"][0]["properties"]["anthropogenic_emissions"]["heat"]["ahprof_24hr"][
         "working_day"
     ] = _make_zero_padded_hours(base=0.5)
-    raw["sites"][0]["properties"]["snow"]["snow_profile_24hr"][
-        "holiday"
-    ] = _make_zero_padded_hours(base=0.2)
+    raw["sites"][0]["properties"]["snow"]["snow_profile_24hr"]["holiday"] = (
+        _make_zero_padded_hours(base=0.2)
+    )
     cfg_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
     return cfg_path
 
@@ -411,16 +426,22 @@ def test_validation_pipeline_phases_normalise_zero_padded_keys(tmp_path: Path) -
         )
         assert not report_a.has_errors, report_a.issues
         data_a = yaml.safe_load(out_a_yaml.read_text(encoding="utf-8"))
-        assert tuple(
-            data_a["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
-                "ahprof_24hr"
-            ]["working_day"].keys()
-        ) == CANONICAL_HOUR_KEYS
-        assert tuple(
-            data_a["sites"][0]["properties"]["snow"]["snow_profile_24hr"][
-                "holiday"
-            ].keys()
-        ) == CANONICAL_HOUR_KEYS
+        assert (
+            tuple(
+                data_a["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+                    "ahprof_24hr"
+                ]["working_day"].keys()
+            )
+            == CANONICAL_HOUR_KEYS
+        )
+        assert (
+            tuple(
+                data_a["sites"][0]["properties"]["snow"]["snow_profile_24hr"][
+                    "holiday"
+                ].keys()
+            )
+            == CANONICAL_HOUR_KEYS
+        )
 
         report_b = run_phase_b(
             str(cfg_path),
@@ -436,11 +457,14 @@ def test_validation_pipeline_phases_normalise_zero_padded_keys(tmp_path: Path) -
         )
         assert not report_b.has_errors, report_b.issues
         data_b = yaml.safe_load(out_b_yaml.read_text(encoding="utf-8"))
-        assert tuple(
-            data_b["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
-                "ahprof_24hr"
-            ]["working_day"].keys()
-        ) == CANONICAL_HOUR_KEYS
+        assert (
+            tuple(
+                data_b["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+                    "ahprof_24hr"
+                ]["working_day"].keys()
+            )
+            == CANONICAL_HOUR_KEYS
+        )
 
     out_c_yaml = tmp_path / "out_c.yml"
     out_c_report = tmp_path / "report_c.txt"
@@ -449,11 +473,14 @@ def test_validation_pipeline_phases_normalise_zero_padded_keys(tmp_path: Path) -
     )
     assert not report_c.has_errors, report_c.issues
     data_c = yaml.safe_load(out_c_yaml.read_text(encoding="utf-8"))
-    assert tuple(
-        data_c["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
-            "ahprof_24hr"
-        ]["working_day"].keys()
-    ) == CANONICAL_HOUR_KEYS
+    assert (
+        tuple(
+            data_c["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+                "ahprof_24hr"
+            ]["working_day"].keys()
+        )
+        == CANONICAL_HOUR_KEYS
+    )
     assert (
         "found missing in user YAML at level sites.1.properties.anthropogenic_emissions.heat.ahprof_24hr"
         not in out_c_report.read_text(encoding="utf-8")

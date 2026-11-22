@@ -9,7 +9,7 @@ import pytest
 
 from supy import SUEWSSimulation
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 
 @pytest.fixture(scope="module")

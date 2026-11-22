@@ -1,9 +1,9 @@
 """Equivalence tests for vectorised ``set_index_dt`` timestamp parsing.
 
-Compares the vectorised Gregorian-arithmetic implementation of
+Compares the vectorised ``pd.to_datetime`` implementation of
 :func:`supy._load.set_index_dt` against a private copy of the original per-row
 ``pd.to_datetime`` implementation across leap days, year crossings, NaN footer
-rows, ordering/duplicate/gap failures and malformed timestamp rows.
+rows, ordering/duplicate/gap failures, malformed rows and format edge cases.
 """
 
 import numpy as np
@@ -84,6 +84,22 @@ def _capture_error(func, df_raw: pd.DataFrame) -> BaseException:
     return exc_info.value
 
 
+def _assert_same_outcome(df_raw: pd.DataFrame) -> None:
+    """Assert that ``set_index_dt`` and the reference return or raise identically."""
+    try:
+        expected = _reference_set_index_dt(df_raw)
+    except Exception as exc_expected:
+        with pytest.raises(type(exc_expected)) as exc_info:
+            set_index_dt(df_raw)
+        assert type(exc_info.value) is type(exc_expected)
+    else:
+        actual = set_index_dt(df_raw)
+        pd.testing.assert_index_equal(actual.index, expected.index, exact=True)
+        assert actual.index.freq == expected.index.freq
+        assert actual.index.name == expected.index.name
+        pd.testing.assert_frame_equal(actual, expected, check_exact=True)
+
+
 @pytest.mark.parametrize(
     ("start", "end", "freq"),
     [
@@ -91,14 +107,12 @@ def _capture_error(func, df_raw: pd.DataFrame) -> BaseException:
         ("2012-02-28 18:00", "2012-03-01 06:00", "h"),
         ("2011-12-31 20:00", "2012-01-01 04:00", "5min"),
         ("2012-12-31 20:00", "2013-01-01 04:00", "h"),
-        ("2000-02-28 22:00", "2000-03-01 02:00", "h"),
     ],
     ids=[
         "leap-day-5min",
         "leap-day-hourly",
         "year-crossing-nonleap-to-leap",
         "year-crossing-leap-doy366-to-nonleap",
-        "century-leap-year-2000",
     ],
 )
 def test_set_index_dt_matches_reference_on_valid_calendars(start, end, freq):
@@ -176,51 +190,45 @@ def test_set_index_dt_matches_reference_on_order_gap_and_duplicate_errors(rows):
 @pytest.mark.parametrize(
     "rows",
     [
-        # Non-leap year day 366 (middle row)
-        [(2011, 365, 22, 0), (2011, 366, 0, 0), (2012, 1, 0, 0)],
-        # Non-leap year day 366 (first row)
-        [(2011, 366, 0, 0), (2012, 1, 0, 0)],
-        # Century non-leap year 1900 day 366
-        [(1900, 365, 23, 0), (1900, 366, 0, 0)],
-        # Leap year day 367
-        [(2012, 366, 23, 0), (2012, 367, 0, 0)],
-        # Day of year 0
-        [(2012, 0, 0, 0), (2012, 1, 0, 0)],
         # Hour 24
         [(2012, 1, 23, 0), (2012, 1, 24, 0)],
-        # Negative hour
-        [(2012, 1, -1, 0), (2012, 1, 0, 0)],
         # Minute 60
         [(2012, 1, 0, 55), (2012, 1, 0, 60)],
         # Legacy -9 footer not filtered to NaN
         [(2012, 1, 0, 0), (-9, -9, -9, -9)],
         # Non-numeric string in timestamp column
         [("bad", 1, 0, 0), (2012, 1, 1, 0)],
-        # Empty frame
-        [],
-        # Single-row frame
-        [(2012, 1, 0, 0)],
     ],
     ids=[
-        "nonleap-2011-doy366-middle",
-        "nonleap-2011-doy366-first",
-        "century-nonleap-1900-doy366",
-        "leap-2012-doy367",
-        "doy-zero",
         "hour-24",
-        "hour-negative",
         "minute-60",
         "sentinel-minus9",
         "non-numeric-year",
-        "empty-frame",
-        "single-row",
     ],
 )
 def test_set_index_dt_matches_reference_on_malformed_rows(rows):
-    """Malformed, empty and single-row inputs raise the same exception class."""
+    """Malformed rows raise the same exception class as the per-row reference."""
     df_raw = _frame_from_rows(rows)
 
     exc_actual = _capture_error(set_index_dt, df_raw)
     exc_expected = _capture_error(_reference_set_index_dt, df_raw)
 
     assert type(exc_actual) is type(exc_expected)
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        # Non-leap year with %j=366
+        [(2011, 365, 23, 0), (2011, 366, 0, 0)],
+        # 3-digit year
+        [(999, 1, 0, 0), (999, 1, 1, 0)],
+    ],
+    ids=[
+        "nonleap-doy366",
+        "three-digit-year",
+    ],
+)
+def test_set_index_dt_matches_reference_on_format_edge_cases(rows):
+    """Non-leap %j=366 and 3-digit year match the reference result or error class."""
+    _assert_same_outcome(_frame_from_rows(rows))

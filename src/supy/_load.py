@@ -744,75 +744,45 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
     # drop rows with missing timestamp information (e.g., footer lines with -9)
     df_raw = df_raw.dropna(subset=BASELINE_DATETIME_FORCING_SET)
 
-    ar_dt = (
-        df_raw[list(BASELINE_DATETIME_FORCING_COLUMNS)]
-        .astype(np.int64)
-        .to_numpy()
+    # parse timestamps once via pandas' vectorised string-format parser
+    df_dt_str = (
+        df_raw[list(BASELINE_DATETIME_FORCING_COLUMNS)].astype(int).astype(str)
     )
-    if ar_dt.shape[0] == 0:
-        raise IndexError("Cannot set datetime index on an empty DataFrame")
-
-    iy = ar_dt[:, 0]
-    doy = ar_dt[:, 1]
-    hour = ar_dt[:, 2]
-    minute = ar_dt[:, 3]
-
-    is_leap = ((iy % 4 == 0) & (iy % 100 != 0)) | (iy % 400 == 0)
-    max_doy = np.where(is_leap, 366, 365)
-    invalid = (
-        (iy < 1000)
-        | (iy > 9999)
-        | (doy < 1)
-        | (doy > max_doy)
-        | (hour < 0)
-        | (hour > 23)
-        | (minute < 0)
-        | (minute > 59)
+    ser_dt_str = (
+        df_dt_str.iloc[:, 0]
+        + " "
+        + df_dt_str.iloc[:, 1]
+        + " "
+        + df_dt_str.iloc[:, 2]
+        + " "
+        + df_dt_str.iloc[:, 3]
     )
-    if invalid.any():
-        first_bad = int(np.flatnonzero(invalid)[0])
-        raise ValueError(
-            f"Invalid timestamp at row {first_bad}: "
-            f"iy={iy[first_bad]}, id={doy[first_bad]}, "
-            f"it={hour[first_bad]}, imin={minute[first_bad]}"
-        )
+    idx_parsed = pd.DatetimeIndex(pd.to_datetime(ser_dt_str, format="%Y %j %H %M"))
 
-    # Parse boundary timestamps through pd.to_datetime so index resolution
-    # matches pandas' default on both pandas 2 (ns) and pandas 3 (us).
-    start_ts = pd.to_datetime(
-        f"{iy[0]} {doy[0]} {hour[0]} {minute[0]}", format="%Y %j %H %M"
+    # set timestamp as index
+    idx_dt = pd.date_range(
+        idx_parsed[0],
+        idx_parsed[-1],
+        periods=df_raw.shape[0],
     )
-    end_ts = pd.to_datetime(
-        f"{iy[-1]} {doy[-1]} {hour[-1]} {minute[-1]}", format="%Y %j %H %M"
-    )
-    idx_dt = pd.date_range(start_ts, end_ts, periods=df_raw.shape[0])
-
-    # Vectorised Gregorian calendar arithmetic in whole minutes for gap,
-    # ordering and duplicate checks.
-    dt_days = (iy - 1970).astype("datetime64[Y]").astype("datetime64[D]") + (
-        doy - 1
-    ).astype("timedelta64[D]")
-    dt_mins = dt_days.astype("datetime64[m]") + (hour * 60 + minute).astype(
-        "timedelta64[m]"
-    )
-    diff_min = np.diff(dt_mins).astype(np.int64)
-    if diff_min.size == 0:
-        raise IndexError("set_index_dt requires at least two timestamp rows")
-
+    ser_dt = idx_parsed.to_series()
+    ser_dt_diff = ser_dt.diff()
+    ser_dt_diff_sec = ser_dt_diff.dt.total_seconds()
     # check if the timestamps are in order
-    min_abs_diff = int(np.abs(diff_min).min())
-    bad_pos = np.flatnonzero(diff_min != min_abs_diff)
-    if bad_pos.size == 0:
-        second_ts = pd.to_datetime(
-            f"{iy[1]} {doy[1]} {hour[1]} {minute[1]}", format="%Y %j %H %M"
-        )
-        freq = second_ts - start_ts
+    dif_dt = ser_dt_diff_sec.abs().min()
+    ser_test = ser_dt_diff_sec.eq(dif_dt)
+    loc_issue = ser_dt_diff_sec.reset_index().index[~ser_test][1:] + 2
+    if loc_issue.size == 0:
+        # empty list of `loc_issue`
+        freq = ser_dt_diff.iloc[1]
         df_datetime = df_raw.set_index(idx_dt).asfreq(freq)
     else:
-        loc_issue = (bad_pos + 3).tolist()
+        # non-empty list of `loc_issue`
+        # locate the problematic indices
+        # loc_issue = df_raw[1:].index[~ser_test]
         raise RuntimeError(
             f"Loaded forcing files have gaps/duplicates; "
-            f"suspious lines include: {loc_issue}. "
+            f"suspious lines include: {loc_issue.to_list()}. "
             f"NOTE: the reported line numbers are NOT completely accurate: only for your reference."
         )
 

@@ -132,7 +132,7 @@ def with_daily_coverage(
         coverage[f"{grid}|{date.isoformat()}"] = float(count * step_s)
     result = df_bare.copy(deep=False)
     if attrs_source:
-        result.attrs = copy_attrs_except(attrs_source)
+        result.attrs = copy_attrs_except(attrs_source, {key})
     result.attrs[key] = coverage
     return result
 

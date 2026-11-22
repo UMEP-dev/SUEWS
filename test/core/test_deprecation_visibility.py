@@ -9,7 +9,7 @@ import textwrap
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 REMOVED_FUNCTIONAL_NAMES = {

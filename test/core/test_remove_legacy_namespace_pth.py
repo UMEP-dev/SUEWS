@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "security" / "remove_legacy_namespace_pth.py"

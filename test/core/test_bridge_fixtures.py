@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-EMIT", "C-TOOLING")]
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts/suews/gen_bridge_fixtures.py"
 SPEC = importlib.util.spec_from_file_location("gen_bridge_fixtures", SCRIPT)

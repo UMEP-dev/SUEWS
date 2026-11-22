@@ -174,6 +174,7 @@ crate::codec::impl_state_module_fns! {
     ffi_schema_version_fn = ffi::suews_timer_schema_version,
     ffi_default_fn = ffi::suews_timer_default,
 }
+// contract: C-CODEC, C-CLOCK
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,7 +7,7 @@ The test-local geometry changes are not a new scientific reference dataset.
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.rust]
+pytestmark = [pytest.mark.physics, pytest.mark.rust, pytest.mark.contract("C-RESPONSE")]
 
 
 @pytest.mark.parametrize("split_method", ["perez", "reindl"])

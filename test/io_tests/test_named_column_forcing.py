@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "soil_observation"
 CANONICAL_FIXTURE = FIXTURE_DIR / "modelled_content.txt"

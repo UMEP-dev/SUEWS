@@ -18,7 +18,7 @@ from supy.data_model.validation.pipeline.report_writer import (
     format_report_stopping_phase,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
 
 
 def test_issue_round_trips_through_dict():

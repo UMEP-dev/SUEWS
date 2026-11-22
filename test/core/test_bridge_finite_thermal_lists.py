@@ -10,7 +10,12 @@ from supy import SUEWSSimulation
 from supy.data_model.core.surface import ThermalLayers
 
 _run_rust = import_module("supy._run_rust")
-pytestmark = [pytest.mark.api, pytest.mark.core, pytest.mark.rust]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.core,
+    pytest.mark.rust,
+    pytest.mark.contract("C-STRICT"),
+]
 
 
 @pytest.mark.parametrize("wrapped", [False, True])

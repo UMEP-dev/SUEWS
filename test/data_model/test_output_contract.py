@@ -18,7 +18,7 @@ from supy.data_model.output import (
 )
 from supy.data_model.output.version import CURRENT_OUTPUT_VERSION
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT")]
 
 _GROUP_VARIABLE_EXPORTS = (
     ("DATETIME_VARIABLES", "datetime_vars"),

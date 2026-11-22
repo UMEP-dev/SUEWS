@@ -1785,6 +1785,7 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
     Ok(())
 }
 
+// contract: C-API
 #[cfg(test)]
 mod tests {
     use super::*;

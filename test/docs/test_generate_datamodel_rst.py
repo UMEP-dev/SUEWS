@@ -44,7 +44,7 @@ from supy.data_model.validation.derived_fields import (
 )
 from supy.data_model.validation.required_fields import DOC_REQUIRED_WHEN
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA", "C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

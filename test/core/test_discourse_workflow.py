@@ -15,6 +15,7 @@ pytestmark = [
         os.name == "nt",
         reason="These Linux workflow regressions require POSIX shell executable fixtures",
     ),
+    pytest.mark.contract("C-TOOLING"),
 ]
 
 WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/discourse-to-issue.yml"

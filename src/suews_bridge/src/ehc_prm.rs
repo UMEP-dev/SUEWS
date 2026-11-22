@@ -542,6 +542,7 @@ pub fn ehc_prm_default_from_fortran() -> Result<EhcPrm, BridgeError> {
     EhcPrm::from_flat_with_dims(&flat, nlayer, ndepth)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

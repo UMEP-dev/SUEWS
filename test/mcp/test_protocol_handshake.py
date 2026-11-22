@@ -25,7 +25,7 @@ import time
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.smoke]
+pytestmark = [pytest.mark.api, pytest.mark.smoke, pytest.mark.contract("C-API")]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

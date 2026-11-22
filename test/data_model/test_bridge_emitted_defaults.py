@@ -21,7 +21,11 @@ from supy.data_model.core.hydro import StorageDrainParams
 from supy.data_model.core.model import ModelControl, ModelPhysics
 from supy.data_model.core.surface import VerticalLayers
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-EMIT", "C-ROUNDTRIP"),
+]
 
 
 def _sample_dump():

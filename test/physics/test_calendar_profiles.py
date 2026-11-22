@@ -45,7 +45,10 @@ from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
 from supy.data_model.core.model import WaterUseMethod
 
-pytestmark = pytest.mark.physics
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.contract("C-CLOCK", "C-BIND", "C-BALANCE"),
+]
 
 WATER_CLOSURE_TOLERANCE_MM = 1e-4
 WEEKDAYS = (

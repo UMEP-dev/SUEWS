@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 
 def _required_output(output, state, forcing, group, variables):

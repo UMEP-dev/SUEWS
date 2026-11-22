@@ -31,7 +31,7 @@ import yaml
 from supy._env import trv_supy_module
 from supy.validation import analyze_config_methods
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE", "C-ROUNDTRIP")]
 
 from supy.data_model.core.df_column_renames import (
     ALL_DF_COLUMN_RENAMES,

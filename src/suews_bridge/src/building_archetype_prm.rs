@@ -685,6 +685,7 @@ pub fn building_archetype_prm_default_from_fortran() -> Result<BuildingArchetype
     BuildingArchetypePrm::from_flat(&flat)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -17,7 +17,7 @@ import pytest
 from supy import _save  # ruff: ignore[import-private-name]
 from supy._save import _write_df_txt, save_df_grid_group  # ruff: ignore[import-private-name]
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
 
 
 def _reference_text(df_grid_group: pd.DataFrame, path_out: Path) -> bytes:

@@ -17,7 +17,7 @@ from supy.data_model.forcing import FORCING_REGISTRY
 from supy.data_model.output import get_output_contract_catalogue
 from supy.units import UnitError, parse_unit
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA")]
 
 # Capped, field-specific debt: these need structural metadata in a later change.
 CONDITIONAL_UNIT_EXCEPTIONS = {

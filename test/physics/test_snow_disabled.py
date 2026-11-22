@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE", "C-WARMSTART")]
 
 SURFACES = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
 SNOW_STATE = {

@@ -19,7 +19,7 @@ import pytest
 
 import supy
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE")]
 
 RA_FORMER_CAP = 120.0  # removed hard cap [s m-1]
 RA_FLOOR = 10.0  # retained lower limit [s m-1]

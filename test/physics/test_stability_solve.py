@@ -16,7 +16,7 @@ import subprocess
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE")]
 
 STABILITY_METHODS = (2, 3, 4)  # W16, K75 (Campbell & Norman), B71
 ZL_STABLE_MAX, ZL_UNSTABLE_MIN = 0.5, -2.0  # clips in cal_Stab [-]

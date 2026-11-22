@@ -39,7 +39,7 @@ import pytest
 
 from supy import _post, _save  # ruff: ignore[import-private-name]
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
 
 # Frozen aggregation rules: real variable names (the SUEWS group is filtered
 # by output level through the registry), fixed methods.

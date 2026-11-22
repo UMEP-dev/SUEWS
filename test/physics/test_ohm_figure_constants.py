@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-SCHEMA")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FORTRAN = REPO_ROOT / "src" / "suews" / "src" / "suews_phys_ohm.f95"

@@ -8,7 +8,11 @@ import subprocess
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-BALANCE", "C-NATIVE-ERROR"),
+]
 
 GROUND = [0, 4, 5, 6]
 TREES = [2, 3]

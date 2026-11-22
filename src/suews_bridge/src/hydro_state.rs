@@ -837,6 +837,7 @@ pub fn hydro_state_default_from_fortran() -> Result<HydroState, BridgeError> {
     HydroState::from_flat_with_lens(&flat, alloc_lens)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

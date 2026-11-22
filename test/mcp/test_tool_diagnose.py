@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 def test_diagnose_returns_envelope_from_subprocess(

@@ -22,7 +22,7 @@ from supy.util.converter.yaml_upgrade import (
     upgrade_yaml,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "soil_observation"
 
 

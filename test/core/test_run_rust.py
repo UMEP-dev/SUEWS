@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-OUTPUT")]
 
 _run_rust = import_module("supy._run_rust")
 

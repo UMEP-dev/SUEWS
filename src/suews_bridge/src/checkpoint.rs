@@ -174,6 +174,7 @@ pub fn suews_checkpoint_from_json(json_text: &str) -> Result<SuewsCheckpointData
     Ok(SuewsCheckpointData { state, timer })
 }
 
+// contract: C-RESTART, C-SEQUENCE
 #[cfg(test)]
 mod tests {
     use super::*;

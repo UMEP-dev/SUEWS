@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-CAPI", "C-TOOLING")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

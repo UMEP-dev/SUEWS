@@ -2217,6 +2217,7 @@ fn normalize_field_names_at(root: &mut Value, path: &str) -> Result<(), String> 
     Ok(())
 }
 
+// contract: C-MIGRATE
 #[cfg(test)]
 mod tests {
     use super::*;

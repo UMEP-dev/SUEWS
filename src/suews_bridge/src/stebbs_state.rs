@@ -491,6 +491,7 @@ pub fn stebbs_state_default_from_fortran() -> Result<StebbsState, BridgeError> {
     StebbsState::from_flat(&flat)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

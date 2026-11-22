@@ -29,7 +29,7 @@ from supy.data_model.core.type import Reference, RefValue
 from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ROUNDTRIP", "C-VALID")]
 
 
 # ===========================================================================

@@ -17,7 +17,7 @@ from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-OUTPUT")]
 
 # Any non-zero value exposes the sign error; 20 mm lies in the documented
 # 10-100 mm range of the deficit threshold.

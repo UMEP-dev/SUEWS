@@ -9,7 +9,7 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-PARITY")]
 
 _MODULE_EXPORTS: dict[str, tuple[str, ...]] = {
     "": (

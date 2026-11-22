@@ -55,7 +55,7 @@ from sample_output_io import (
     write_sample_output_shards,
 )
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LANE_ENV = "SUEWS_REFERENCE_LANE"

@@ -8,7 +8,7 @@ import pytest
 from supy import SUEWSOutput
 from supy.data_model.output.suews_vars import SUEWS_VARIABLES
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT")]
 
 # The owning registry supplies identities; the driver supplies activation:
 # suews_ctrl_driver.f95:SUEWS_cal_BiogenCO2 calculates these for emissions >= 11

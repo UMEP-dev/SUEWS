@@ -21,7 +21,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     get_mean_monthly_air_temperature,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID")]
 
 
 class TestCRUDataLoading:

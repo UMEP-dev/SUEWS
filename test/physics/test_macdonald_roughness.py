@@ -18,7 +18,7 @@ import yaml
 from supy._env import trv_supy_module
 from supy.data_model import SUEWSConfig
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 # Roughness lengths of the non-roughness (zh = 0) surfaces, mirroring the
 # PARAMETER values in suews_phys_resist.f95.

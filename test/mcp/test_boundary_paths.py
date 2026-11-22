@@ -5,7 +5,7 @@ import subprocess
 import pytest
 import yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
 
 
 @pytest.fixture

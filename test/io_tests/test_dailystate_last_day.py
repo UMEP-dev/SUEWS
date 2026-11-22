@@ -14,7 +14,7 @@ import pytest
 
 from supy import SUEWSSimulation
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-CLOCK", "C-OUTPUT")]
 
 START = "2012-01-01"
 END = "2012-03-02 01:15"

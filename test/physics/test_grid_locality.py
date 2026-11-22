@@ -32,7 +32,7 @@ import pytest
 from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-ISOLATION")]
 
 N_DAYS = 2
 N_STEPS = TIMESTEPS_PER_DAY * N_DAYS

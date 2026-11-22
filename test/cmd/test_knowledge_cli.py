@@ -11,7 +11,7 @@ import pytest
 from supy.cmd.suews_cli import cli
 from supy.knowledge import build_pack
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 def _write(path: Path, text: str) -> None:

@@ -48,7 +48,10 @@ from supy.data_model.core.model import ModelControl, OutputControl, OutputFormat
 from supy.data_model.output import PROVISIONAL_OUTPUT_GROUPS
 import supy.suews_sim as suews_sim_module
 
-pytestmark = pytest.mark.api
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.contract("C-RESTART", "C-SAVE", "C-RESAMPLE", "C-CLOCK", "C-VALID"),
+]
 
 GROUPS = ["SUEWS", "DailyState", "RSL", "debug"]
 GROUPS_NO_DAILY = ["SUEWS", "RSL", "debug"]

@@ -40,7 +40,7 @@ from supy.util.converter.table.table_writer import df_state_to_tables
 
 # Nature axis (gh#1300): exercises the converter / pandas / pydantic surface,
 # not compiled physics.
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE", "C-ROUNDTRIP")]
 
 # Vendored parameter tables (no forcing) -- see the fixture README.
 # Self-contained so the test runs under the standard (shallow) CI checkout,

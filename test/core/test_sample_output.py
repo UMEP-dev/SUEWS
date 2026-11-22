@@ -40,7 +40,7 @@ import yaml
 import supy as sp
 from supy.cmd import rust_bridge
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-PARITY", "C-RESPONSE")]
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"

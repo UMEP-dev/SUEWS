@@ -1,5 +1,6 @@
 //! The resolved forcing clock is required at every native reader entry point.
 #![cfg(feature = "physics")]
+// contract: C-STRICT, C-BIND, C-CLOCK, C-PARITY
 
 use serde_yaml::Value;
 use std::fs;

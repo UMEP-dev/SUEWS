@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
 
 # These tools rely on the bundled supy sample_data; skip cleanly if supy is
 # not available in this environment.

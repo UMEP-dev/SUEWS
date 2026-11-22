@@ -277,7 +277,7 @@ workflow's `on:` / `paths:` rather than assuming.
 - **`Physics-change label`** (`check_physics_label` in `build-publish_to_pypi.yml`)
   - Enforces `.claude/rules/physics-change-evidence.md` (`needs:` of `PR build validation`):
     fails if stored reference outputs (`test/fixtures/data_test/sample_output_2012-*.csv`,
-    `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change
+    `provenance.json`, `stebbs_test/sample_output_stebbs.csv`, `w16_most.csv`) change
     without **exactly one** of `0-physics:change` or `0-numerics:change`, fails if a PR
     carries both labels simultaneously or if a labelled ready PR / `merge_group` run did not
     execute `test_tier=physics-full` (and `PR build validation` requires `build_wheels == success`

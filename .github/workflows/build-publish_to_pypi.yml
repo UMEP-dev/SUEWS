@@ -1093,7 +1093,7 @@ jobs:
           LABELS_JSON: '["0-physics:change", "0-numerics:change"]'
         run: |
           set -euo pipefail
-          ref_regex='^test/fixtures/(data_test/(sample_output_2012-[0-9]{2}\.csv|provenance\.json|stebbs_test/.+)|benchmark1/.+|w16_most\.csv)$'
+          ref_regex='^test/fixtures/(data_test/(sample_output_2012-[0-9]{2}\.csv|provenance\.json|stebbs_test/sample_output_stebbs\.csv)|w16_most\.csv)$'
           phys_regex='^src/suews/src/suews_phys_[^/]+\.f9[05]$'
 
           if [[ "${DETERMINE_MATRIX_RESULT:-}" != "success" ]]; then

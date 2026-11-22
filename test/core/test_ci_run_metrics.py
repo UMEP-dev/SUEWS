@@ -1403,6 +1403,61 @@ def test_determine_matrix_label_step_reads_live_api_labels(
         ),
         pytest.param(
             {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": (
+                    "PR #42 changes stored reference outputs without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="pr-unlabelled-stebbs-output-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": (
+                    "test/fixtures/data_test/stebbs_test/sample_config.yml\n"
+                    "test/fixtures/data_test/stebbs_test/test_2017_data_15_mp.txt"
+                ),
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] No reference outputs or physics source changed"
+                ),
+            },
+            id="pr-unlabelled-stebbs-inputs-pass",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": (
+                    "test/fixtures/benchmark1/forcing/Kc1_2011_data_5.txt\n"
+                    "test/fixtures/benchmark1/benchmark1b.yml\n"
+                    "test/fixtures/benchmark1/benchmark1b.pkl"
+                ),
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] No reference outputs or physics source changed"
+                ),
+            },
+            id="pr-unlabelled-benchmark1-fixtures-pass",
+        ),
+        pytest.param(
+            {
                 "event_name": "merge_group",
                 "is_draft": "false",
                 "test_tier": "physics-full",
@@ -1473,6 +1528,56 @@ def test_check_physics_label_gate_enforces_exclusivity_tier_and_queue_refs(
     # ASSERT
     assert result.returncode == case["expected_rc"], result.stdout + result.stderr
     assert str(case["expected_substring"]) in result.stdout
+
+
+@pytest.mark.smoke
+def test_check_physics_label_ref_regex_governs_only_live_reference_outputs() -> None:
+    """check_physics_label ref_regex matches only live reference outputs, not inputs or dead fixtures."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    run_script = workflow["jobs"]["check_physics_label"]["steps"][0]["run"]
+    match = re.search(r"ref_regex='([^']+)'", run_script)
+    assert match is not None, "ref_regex definition missing from check_physics_label"
+    ref_pattern = re.compile(match.group(1))
+
+    # ACT
+    fixtures_root = root / "test/fixtures"
+    matched_files = sorted(
+        path.relative_to(root).as_posix()
+        for path in fixtures_root.rglob("*")
+        if path.is_file() and ref_pattern.search(path.relative_to(root).as_posix())
+    )
+    expected_files = sorted([
+        *(
+            f"test/fixtures/data_test/sample_output_2012-{month:02d}.csv"
+            for month in range(1, 13)
+        ),
+        "test/fixtures/data_test/provenance.json",
+        "test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv",
+        "test/fixtures/w16_most.csv",
+    ])
+
+    # ASSERT
+    assert matched_files == expected_files
+    test_sources = "\n".join(
+        path.read_text(encoding="utf-8", errors="ignore")
+        for path in (root / "test").rglob("*.py")
+        if path != Path(__file__).resolve()
+    )
+    for token in (
+        "sample_output_2012-",
+        "provenance.json",
+        "sample_output_stebbs.csv",
+        "w16_most.csv",
+    ):
+        assert token in test_sources, (
+            f"Governed reference fixture {token!r} is not read by any test"
+        )
 
 
 @pytest.mark.smoke

@@ -135,7 +135,7 @@ def load_lanes(
 def load_inventory(path: Path) -> dict[str, set[str]]:
     """Return ``{node_id: marker names}`` from a ``pytest_inventory`` file."""
     document = json.loads(path.read_text(encoding="utf-8"))
-    return {record["node_id"]: set(record["markers"]) for record in document["tests"]}
+    return {record["node_id"]: set(record["markers"]) for record in document["nodes"]}
 
 
 def load_allowlist(path: Path) -> list[dict[str, str]]:

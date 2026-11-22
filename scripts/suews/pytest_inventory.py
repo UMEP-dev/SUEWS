@@ -38,7 +38,14 @@ def inventory(items: list[pytest.Item]) -> dict[str, object]:
         for item in items
     ]
     tests.sort(key=lambda record: record["node_id"])
-    return {"schema_version": SCHEMA_VERSION, "node_count": len(tests), "tests": tests}
+    # "nodes", not "tests": the metrics readers (scripts/lint/check_cost_markers.py
+    # and others) treat any document with a "tests" list as pytest metrics.
+    return {
+        "kind": "test-inventory",
+        "schema_version": SCHEMA_VERSION,
+        "node_count": len(tests),
+        "nodes": tests,
+    }
 
 
 @pytest.hookimpl(trylast=True)

@@ -70,7 +70,7 @@ def _layout(
     lane = metrics / "ci-metrics-api-cp312-manylinux-x86_64"
     lane.mkdir(parents=True)
     (lane / "inventory-cp312-manylinux-x86_64.json").write_text(
-        json.dumps({"tests": inventory}), encoding="utf-8"
+        json.dumps({"kind": "test-inventory", "nodes": inventory}), encoding="utf-8"
     )
     physics = _selected("physics")
     outcomes = {SKIPPY: "skipped", **(physics_outcomes or {})}
@@ -283,3 +283,14 @@ def test_guard_is_wired_into_the_gate() -> None:
         PROJECT_ROOT / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
     assert "scripts.suews.pytest_inventory" in api_workflow
+
+
+def test_inventory_is_not_read_as_pytest_metrics(tmp_path: Path) -> None:
+    """The inventory sits beside the api metrics, which other readers glob."""
+    from scripts.lint.check_cost_markers import load_tests
+
+    metrics = _layout(tmp_path)
+    inventory = next(metrics.rglob("inventory-*.json"))
+    skipped: list[str] = []
+    load_tests([inventory], skipped=skipped)
+    assert skipped == [inventory.as_posix()]

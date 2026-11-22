@@ -3,6 +3,7 @@
 import copy
 import gzip
 from importlib import import_module
+from importlib.resources import as_file, files
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,7 @@ import yaml
 
 import supy as sp
 from supy.cmd.SUEWS import SUEWS
+from supy.data_model import SUEWSConfig
 
 pytestmark = [
     pytest.mark.physics,
@@ -576,3 +578,81 @@ def test_suews_run_cli_forced_rsl_zero_pai_fails_with_code_114(
     )
     assert "successfully done" not in combined
     assert not list(tmp_path.glob("*_SUEWS_output.*"))
+
+
+def _locate_suews_engine() -> Path:
+    """Return the bundled or locally built ``suews-engine`` binary."""
+    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
+    bundled = files("supy").joinpath("bin").joinpath(binary_name)
+    with as_file(bundled) as bundled_path:
+        if bundled_path.exists():
+            return Path(bundled_path)
+    repo_root = Path(__file__).resolve().parents[2]
+    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
+    if dev_binary.exists():
+        return dev_binary
+    pytest.skip("Rust CLI binary not found; build with: make bridge")
+
+
+def _run_suews_engine(run_dir: Path, mutate_config=None, mutate_resolved=None):
+    """Run ``suews-engine run`` on the sample case cut to four forcing rows.
+
+    ``mutate_config`` edits the YAML mapping before ``SUEWSConfig`` validates
+    it; ``mutate_resolved`` edits the resolved engine YAML afterwards, for
+    values the data model would refuse.
+    """
+    sample_dir = files("supy").joinpath("sample_data")
+    cfg = yaml.safe_load(
+        sample_dir.joinpath("sample_config.yml").read_text(encoding="utf-8")
+    )
+    control = cfg["model"]["control"]
+    control["output"]["dir"] = str(run_dir)
+    forcing_entry = control["forcing"]["file"]
+    forcing_name = (
+        forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry
+    )
+    if mutate_config is not None:
+        mutate_config(cfg)
+    run_rust = import_module("supy._run_rust")
+    resolved = yaml.safe_load(
+        run_rust.config_to_engine_yaml(SUEWSConfig.from_dict(cfg))
+    )
+    if mutate_resolved is not None:
+        mutate_resolved(resolved)
+    forcing_lines = [
+        line
+        for line in sample_dir
+        .joinpath(forcing_name)
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    (run_dir / forcing_name).write_text(
+        "\n".join(forcing_lines[:5]) + "\n", encoding="utf-8"
+    )
+    config_path = run_dir / "engine_config.yml"
+    config_path.write_text(yaml.safe_dump(resolved, sort_keys=False), encoding="utf-8")
+    return subprocess.run(
+        [str(_locate_suews_engine()), "run", str(config_path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+
+def test_suews_engine_cli_forced_rsl_zero_pai_fails_with_code_114(tmp_path):
+    """Standalone ``suews-engine run`` exits non-zero with code 114 and no output."""
+
+    def forced_rsl_zero_pai(cfg):
+        cfg["model"]["physics"]["roughness_sublayer"] = {"value": 1}
+        land_cover = cfg["sites"][0]["properties"]["land_cover"]
+        for key in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"):
+            land_cover[key]["sfr"] = {"value": 1.0 if key == "paved" else 0.0}
+
+    result = _run_suews_engine(tmp_path, mutate_config=forced_rsl_zero_pai)
+
+    assert result.returncode != 0, result.stderr
+    assert "114" in result.stderr, result.stderr
+    assert "RSL_cal_prms: non-finite canopy drag length scale Lc_min" in result.stderr
+    assert not list(tmp_path.glob("*.arrow"))

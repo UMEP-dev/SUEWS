@@ -312,16 +312,24 @@ Together: an output-moving change cannot merge without a refresh, and a refresh 
 
 ## What `physics-full` adds over `standard`
 
-Today: nothing. The physics axis of `standard` runs
+Today: the continuation matrix. The physics axis of `standard` runs
 `-m "physics and (core or not slow)"` and `physics-full` runs `-m physics`, so
 the only tests the label can add are those matching
-`physics and slow and not core`, and that expression collects zero nodes: on
-9 September 2026 (master at `ce29700498`) both tiers collected the same 178
-physics nodes, because the two `slow` physics regressions
+`physics and slow and not core`. That set is the module
+`test/physics/test_continuation_matrix.py`: the parametrised
+`test_continuation_matrix` (chunked, checkpoint-resumed and streamed
+runs against an uninterrupted run, crossed with the default,
+snow, SPARTACUS, STEBBS, dual-timescale EHC, irrigation and CO2 modes) and its
+negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
+not `core` on purpose: #2100 asks for this restart verification to be opt-in, so
+it runs on ready `0-physics:change` and `0-numerics:change` PRs and their
+merge-queue runs, in the nightly, tag and full-dispatch runs (`test_tier=all`),
+and not on every PR. [decision: software maintainer, 2026-11-22] The two `slow`
+physics regressions
 (`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`
-and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also
-`core` and already run in `standard`. The label's present value is the
-evidence and sign-off contract above, not extra test coverage.
+and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also `core`
+and run in `standard`. Before this module (9 September 2026, master at
+`ce29700498`) the two tiers collected the same 178 physics nodes.
 
 A collection check keeps this paragraph honest.
 `test/core/test_physics_tier_delta.py::test_physics_full_tier_adds_exactly_what_the_rule_records`
@@ -341,7 +349,8 @@ collect with.
 
 <!-- physics-full-only nodes: begin -->
 ```text
-(none)
+test/physics/test_continuation_matrix.py::test_continuation_matrix[*]
+test/physics/test_continuation_matrix.py::test_checkpoint_perturbation_is_detected
 ```
 <!-- physics-full-only nodes: end -->
 

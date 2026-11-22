@@ -223,10 +223,21 @@ recurring-signature check is the oscillation guard.
      outside fix-issue's authority, so stop and record it in `Remaining` naming
      the check and the action needed. Never call the PR ready over a red CI gate.
 3. Address all valid blocking/major findings in the branch, run the relevant
-   validation again, commit scoped fixes, and push.
-4. Re-run `audit-pr` on the updated PR/head. Repeat this address-and-re-audit loop
-   until `audit-pr` returns `Verdict: clean` **and** `CI gate` is not `red`, to a
-   maximum of 3 iterations. The
+   validation again (verifying any user-visible output or error-propagation fix
+   through the outermost public entry point per
+   `.claude/rules/review-convergence.md`, "Outer-boundary fix verification"),
+   and commit scoped fixes locally. Run the blind cold-start full-diff pass
+   ("Cold-start final pass" in `.claude/rules/review-convergence.md`) before
+   pushing a final multi-round (`>1` round) or post-rebase revision to
+   `origin`.
+4. Re-run `audit-pr` on the updated head (and check hosted CI after pushing).
+   Repeat this address-and-re-audit loop until `audit-pr` (including the
+   cold-start final pass when triggered by `>1` round or a rebase) returns
+   `Verdict: clean` **and** `CI gate` is not `red`, to a maximum of 3
+   iterations; then verify target-platform CI execution plus CI bot advisories
+   ("Pre-enqueue CI coverage and advisory audit" in
+   `.claude/rules/review-convergence.md`) before calling the PR ready or
+   enqueueing it. The
    operative gate is whether any valid blocking/major finding remains, which the
    per-finding `[severity]` field reports: a `needs-attention` verdict carrying
    only `minor`/`nit` findings (or findings dismissed as `false-positive`) still

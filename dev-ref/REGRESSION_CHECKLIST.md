@@ -15,6 +15,7 @@ An item whose check is now enforced by CI or a hook is removed, with the enforci
 | New or changed text in print or logging calls, validation reports, or generated files | ASCII only | `.claude/rules/00-project-essentials.md` |
 | A file listed in `.claude/rules/docs/conventions.md`, "Generated files (do not hand-edit)", changed | The change is made in the generator or its source registry, and the output is only regenerated, not hand-edited | `.claude/rules/docs/conventions.md` |
 | Any substantive pull request (beyond a trivial typo or one-line tweak) | PR description follows `.claude/rules/pr-description.md` (`## Why`, `## What changed` with known limits, `## How to review`, and PR-specific `## Verification` without copy-pasted batch boilerplate) | gh#2067-gh#2075; `.claude/rules/pr-description.md` |
+| A fix or review response affecting user-facing output, CLI/JSON formatting, exception wrapping, or cross-layer error propagation | Verify through the outermost public entry point (CLI stdout/JSON/exit code or public API), not only an internal helper, and trace wrapped exceptions (for example `str(exc)` stripping `__notes__`) across every wrapper layer | gh#2158; `.claude/rules/review-convergence.md` |
 
 Each row is an index entry: the rule file named in Origin holds the requirement, and the Check column only summarises it; where they differ, the rule file governs.
 The rows above were seeded from rules that already exist, so they predate the admission test in this file's header; maintainers add rows from future incidents.

@@ -124,6 +124,10 @@ make test-smoke
    - If the user says "put them in the merge queue", "enqueue ready PRs", or
      equivalent, first make sure a fresh dry-run still shows the intended
      order and no unexpected conflicts.
+   - Confirm each PR about to be enqueued has cleared `.claude/rules/review-convergence.md`
+     ("Cold-start final pass" and "Pre-enqueue CI coverage and advisory audit":
+     no unconfirmed skips on claimed target platforms, no silently ignored CI
+     bot advisories).
    - Then rerun the queue scanner with `--enqueue`.
    - The script uses `gh pr merge <N> --auto --match-head-commit <SHA>`.
      On merge-queue-protected branches, this adds the PR to the queue when

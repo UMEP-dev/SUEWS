@@ -406,8 +406,11 @@ def test_module_abc_replaces_output_symlinks_without_touching_targets(tmp_path, 
     original = sample_config.read_bytes()
     notes = tmp_path / "notes.txt"
     notes.write_bytes(b"unrelated user notes")
-    (tmp_path / "updated_sample_config.yml").symlink_to(sample_config)
-    (tmp_path / "report_sample_config.txt").symlink_to(notes)
+    try:
+        (tmp_path / "updated_sample_config.yml").symlink_to(sample_config)
+        (tmp_path / "report_sample_config.txt").symlink_to(notes)
+    except OSError as exc:
+        pytest.skip(f"Symlinks unavailable on this platform: {exc}")
     result = _run_module(sample_config)
     assert result.returncode == 0, result.stdout + result.stderr
     assert sample_config.read_bytes() == original

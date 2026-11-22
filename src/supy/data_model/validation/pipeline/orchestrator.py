@@ -679,11 +679,12 @@ def _abc_publication_lock(report_path: Path) -> Iterator[None]:
 def _publish_abc_outputs(
     outputs: dict[Path, Path | None], workspace: Path, report_path: Path
 ) -> None:
-    """Replace the canonical set, restoring previous files on a write failure.
+    """Replace the canonical set, restoring previous files on failure.
 
-    Staged files and backups stay in the invocation directory on failure.
-    The lock covers backups through rollback, so a failed invocation cannot
-    restore its backups over a later successful publisher's files.
+    Staged source files stay in the invocation directory on failure while
+    backups are restored over any partially published destinations. The lock
+    covers backups through rollback, so a failed invocation cannot restore
+    its backups over a later successful publisher's files.
     """
     with _abc_publication_lock(report_path):
         backups = {}
@@ -698,19 +699,32 @@ def _publish_abc_outputs(
         try:
             for index, (destination, source) in enumerate(outputs.items()):
                 if source is None:
+                    published.append(destination)
                     destination.unlink(missing_ok=True)
                 else:
                     # Keep the staged evidence even if a later replacement fails.
                     candidate = workspace / f"publish_{index}"
                     shutil.copy2(source, candidate)
+                    published.append(destination)
                     os.replace(candidate, destination)
-                published.append(destination)
-        except OSError:
+        except BaseException as exc:
+            restore_errors: list[tuple[Path, OSError]] = []
             for destination in reversed(published):
-                if destination in backups:
-                    os.replace(backups[destination], destination)
-                else:
-                    destination.unlink(missing_ok=True)
+                try:
+                    if destination in backups:
+                        os.replace(backups[destination], destination)
+                    else:
+                        destination.unlink(missing_ok=True)
+                except OSError as restore_exc:
+                    # Continue best-effort restoration of remaining outputs
+                    # without masking the original publication failure.
+                    restore_errors.append((destination, restore_exc))
+            if restore_errors and hasattr(exc, "add_note"):
+                details = "; ".join(
+                    f"{destination}: {restore_exc}"
+                    for destination, restore_exc in restore_errors
+                )
+                exc.add_note(f"Rollback failed for {details}")
             raise
 
 
@@ -1190,7 +1204,7 @@ def run_phase_b(
         ))
 
     if science_report_file:
-        if not Path(science_yaml_file).is_file():
+        if not science_yaml_file or not Path(science_yaml_file).is_file():
             phase_report.yaml_out = None
         _write_missing_phase_report(phase_report, mode)
         sync_text_report_stopping_phase(science_report_file, [phase_report])

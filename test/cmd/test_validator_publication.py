@@ -167,3 +167,98 @@ def test_publication_serialises_rollback_but_other_inputs_progress(tmp_path, suf
             process.join(10)
         for connection in connections:
             connection.close()
+
+
+def test_publication_rollback_handles_interrupt_and_partial_restore_failure(tmp_path):
+    """Best-effort rollback covers BaseException and never masks the original error."""
+    from supy.data_model.validation.pipeline import orchestrator
+
+    report_path = tmp_path / "report_sample.txt"
+    workspace = tmp_path / "workspace"
+    outputs = _staged_outputs(tmp_path, workspace, "sample", "candidate")
+    initial = {}
+    for destination in outputs:
+        initial[destination] = f"initial: {destination.name}\n".encode()
+        destination.write_bytes(initial[destination])
+
+    original_replace = os.replace
+
+    def interrupt_on_third(source, destination):
+        if Path(source).name == "publish_2":
+            raise KeyboardInterrupt("simulated interrupt")
+        if Path(source).name == "previous_1":
+            raise OSError("simulated rollback failure on report")
+        original_replace(source, destination)
+
+    with (
+        patch.object(os, "replace", interrupt_on_third),
+        pytest.raises(KeyboardInterrupt, match="simulated interrupt") as exc_info,
+    ):
+        orchestrator._publish_abc_outputs(outputs, workspace, report_path)
+
+    # First published destination (updated_sample.yml) was still restored even
+    # though restoring the second destination raised OSError, and the partial
+    # rollback failure was surfaced as an exception note.
+    yaml_dest = tmp_path / "updated_sample.yml"
+    json_dest = tmp_path / "report_sample.json"
+    assert yaml_dest.read_bytes() == initial[yaml_dest]
+    assert json_dest.read_bytes() == initial[json_dest]
+    notes = getattr(exc_info.value, "__notes__", ())
+    assert any(
+        str(report_path) in note and "simulated rollback failure on report" in note
+        for note in notes
+    ), notes
+
+
+def test_publication_rollback_restores_destination_interrupted_on_replace_or_unlink(
+    tmp_path,
+):
+    """An interrupt right after os.replace or unlink still restores that destination."""
+    from supy.data_model.validation.pipeline import orchestrator
+
+    # Case 1: real os.replace completes on publish_1, then KeyboardInterrupt fires.
+    report_path = tmp_path / "report_sample.txt"
+    workspace = tmp_path / "workspace_replace"
+    outputs = _staged_outputs(tmp_path, workspace, "sample", "candidate")
+    initial = {}
+    for destination in outputs:
+        initial[destination] = f"initial: {destination.name}\n".encode()
+        destination.write_bytes(initial[destination])
+
+    original_replace = os.replace
+
+    def interrupt_right_after_replace(source, destination):
+        original_replace(source, destination)
+        if Path(source).name == "publish_1":
+            raise KeyboardInterrupt("interrupted right after os.replace")
+
+    with (
+        patch.object(os, "replace", interrupt_right_after_replace),
+        pytest.raises(KeyboardInterrupt, match="interrupted right after os.replace"),
+    ):
+        orchestrator._publish_abc_outputs(outputs, workspace, report_path)
+
+    for destination, content in initial.items():
+        assert destination.read_bytes() == content
+
+    # Case 2: real unlink removes stale YAML (source is None), then KeyboardInterrupt fires.
+    workspace_unlink = tmp_path / "workspace_unlink"
+    unlink_outputs = _staged_outputs(tmp_path, workspace_unlink, "sample", "rejected")
+    yaml_dest = tmp_path / "updated_sample.yml"
+    unlink_outputs[yaml_dest] = None
+
+    original_unlink = Path.unlink
+
+    def interrupt_right_after_unlink(self, missing_ok=False):
+        original_unlink(self, missing_ok=missing_ok)
+        if self == yaml_dest:
+            raise KeyboardInterrupt("interrupted right after unlink")
+
+    with (
+        patch.object(Path, "unlink", interrupt_right_after_unlink),
+        pytest.raises(KeyboardInterrupt, match="interrupted right after unlink"),
+    ):
+        orchestrator._publish_abc_outputs(unlink_outputs, workspace_unlink, report_path)
+
+    for destination, content in initial.items():
+        assert destination.read_bytes() == content

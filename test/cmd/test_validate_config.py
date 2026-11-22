@@ -777,7 +777,8 @@ def test_public_validate_dry_run_reports_field_reason_without_writes(
                 for issue in envelope["errors"]
             ), envelope["errors"]
     else:
-        rendered = re.sub(r"\s+", " ", result.stdout.replace("│", " "))
+        assert "\u2502" not in result.stdout
+        rendered = re.sub(r"\s+", " ", result.stdout.replace("|", " "))
         assert f"Summary: {1 if valid else 0}/1 files valid" in rendered
         assert ("Valid" if valid else "Invalid") in rendered
         if not valid:

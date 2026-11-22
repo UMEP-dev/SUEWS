@@ -17,6 +17,7 @@ from pathlib import Path
 import importlib.resources
 from typing import Optional, List
 import jsonschema
+from rich import box
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -106,10 +107,7 @@ def _console_text(value: str, style: str = "") -> Text:
 
 
 def _status_text(message: str, ok: bool) -> Text:
-    if console.options.ascii_only:
-        marker = "[OK]" if ok else "[X]"
-    else:
-        marker = "✓" if ok else "✗"
+    marker = "[OK]" if ok else "[X]"
     return _console_text(f"{marker} {message}", "green" if ok else "red")
 
 
@@ -526,7 +524,7 @@ def cli(
                     results, target_version, started_at
                 )
             else:
-                table = Table(title="Validation Results")
+                table = Table(title="Validation Results", box=box.ASCII)
                 table.add_column("File", style="cyan")
                 table.add_column("Status", justify="center")
                 table.add_column("Issues", style="yellow")
@@ -576,7 +574,7 @@ def cli(
             started_at = _now_iso()
             _emit_validation_envelope(result, target_version, started_at)
         else:
-            table = Table(title="Validation Results")
+            table = Table(title="Validation Results", box=box.ASCII)
             table.add_column("File", style="cyan")
             table.add_column("Status", justify="center")
             table.add_column("Issues", style="yellow")
@@ -665,9 +663,8 @@ def _print_experimental_features_restriction(restrictions_violated):
     console.print(
         _status_text("Configuration contains experimental features restricted in public mode:", ok=False)
     )
-    bullet = "-" if console.options.ascii_only else "•"
     for restriction in restrictions_violated:
-        console.print(_console_text(f"  {bullet} {restriction}"))
+        console.print(_console_text(f"  - {restriction}"))
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")

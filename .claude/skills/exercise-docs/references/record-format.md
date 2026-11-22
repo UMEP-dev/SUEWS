@@ -216,8 +216,12 @@ A `blocked` entry requires a non-empty `blocking_reason` (for example an externa
 service, a GUI-only step or unavailable data), explicit non-empty `untested_scope`
 and evidence of the blocker; other statuses use null `blocking_reason`.
 It counts towards #2187 switch-on coverage only when a maintainer accepts it in
-`sign_off`, using the same durable approval record as other sign-offs. A blocked
-page is never reported as passing or exercised; its PR report remains incomplete.
+`sign_off`, using the same durable approval record as other sign-offs: acceptance
+means the maintainer agrees that the stated reason prevents execution and that
+the untested scope is listed. A blocked page is never reported as passing or
+exercised; its PR report remains `incomplete`.
+A PR touching a blocked page reports `incomplete`, which does not by itself block
+merge under #2187; the gate requires a current report and the maintainer sign-off.
 Untested scope must remain explicit, and never turns into evidence of success.
 Do not embed raw logs or scripts in an entry. [procedure: Principle 1]
 

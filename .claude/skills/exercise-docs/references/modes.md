@@ -2,12 +2,14 @@
 
 ## API triage
 
-Use a bare API pass over the labelled hand-written inventory at a pinned commit.
+Triage is a bare API pass with a hard budget cap and no spend beyond that cap.
+[decision: software maintainer, 2026-11-21] (#2188)
+
+Use the labelled hand-written inventory at a pinned commit.
 The design's 117 pages is a baseline, not a forced count. Record the model ID,
 prompt, hard budget, actual usage and spend, including failed/retried requests.
-State a hard budget cap and spend no more than that cap. [procedure: Principle 1]
 Rank executable pages for subsequent journeys. Triage is neither execution nor a finding.
-[decision: software maintainer, 2026-11-21] (#2188)
+[procedure: Principle 1]
 
 Emit JSON using the triage schema in record-format.md. Every processed page has
 executable steps yes/no, rough step count, quoted promises, rank and budget used.
@@ -31,6 +33,10 @@ compiles during the pilot. Reuse each independent compile only if its own cache
 key matches; a cache hit does not reuse execution results. Check current head
 sources again before handing off. Any page or dependency hash change makes that
 page's report stale and requires a fresh run. [procedure: Principle 1]
+
+The second independent compile remains required in PR mode after the pilot as
+well, until the software maintainer decides otherwise from pilot evidence.
+[decision: software maintainer, 2026-11-21]
 
 Read baseline entries at the pinned PR base, not the proposed updates in the PR.
 Match by stable finding ID and evidence of the same failing promise/behaviour,
@@ -57,6 +63,8 @@ switched on only after #2188 covers every hand-written page on master.
 
 A baseline entry with `status: blocked` counts towards #2187 switch-on coverage
 only after a maintainer accepts it through the baseline `sign_off` record.
+Acceptance means the maintainer agrees that the stated reason prevents execution
+and that the untested scope is listed.
 It states the blocking reason and untested scope as required in record-format.md;
 coverage acceptance never reports a blocked page as passing. [procedure: Principle 1]
 

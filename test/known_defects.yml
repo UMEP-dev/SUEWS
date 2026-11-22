@@ -518,12 +518,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "X"
-      id: "test/physics/test_parameter_sensitivity.py::test_zero_area_surface_radiation_perturbation_leaves_grid_fluxes_invariant::1"
-    contract: "C-RESPONSE"
-    issue: 2173
-    classification: "defect"
-  - selector:
-      ledger: "X"
       id: "test/physics/test_spartacus_ground_budget.py::ground_radiation.run::1"
     contract: "C-NATIVE-ERROR"
     issue: 2175

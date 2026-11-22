@@ -1174,7 +1174,14 @@ CONTAINS
             END IF
 
             IF (StorageHeatMethod /= 5) THEN
-               dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf))
+               ! Exclude absent surfaces (sfr_surf == 0) from convergence
+               ! stopping so their uncoupled temperatures cannot add
+               ! iterations and leak into grid-scale fluxes.
+               IF (ANY(sfr_surf > 0.0D0)) THEN
+                  dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf), MASK=(sfr_surf > 0.0D0))
+               ELSE
+                  dif_tsfc_iter = 0.0D0
+               END IF
             END IF
             dif_qh_iter = 0.0D0
             qh_flux_tol = 5.0D0
@@ -1226,19 +1233,29 @@ CONTAINS
                ! carried into the next iteration, after relaxation and physical
                ! limiting. Testing the raw fixed-point proposal can report
                ! non-convergence even when the applied update is already small.
-               dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf))
-               IF (use_building_facets_for_ehc) THEN
+               ! Exclude absent surfaces (sfr_surf == 0) and absent building
+               ! facets (sfr_surf(BldgSurf) == 0) from both temperature and flux
+               ! residuals so uncoupled absent surfaces cannot drive convergence
+               ! or ehc_restore_best_mode selection.
+               IF (ANY(sfr_surf > 0.0D0)) THEN
+                  dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf), MASK=(sfr_surf > 0.0D0))
+               ELSE
+                  dif_tsfc_iter = 0.0D0
+               END IF
+               IF (use_building_facets_for_ehc .AND. sfr_surf(BldgSurf) > 0.0D0) THEN
                   dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc_roof - tsfc0_out_roof)), dif_tsfc_iter)
                   dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc0_out_wall - tsfc_wall)), dif_tsfc_iter)
                END IF
 
                IF (RA_h /= 0.0D0 .AND. avdens > 0.0D0 .AND. avcp > 0.0D0) THEN
                   DO i_surf = 1, nsurf
+                     IF (sfr_surf(i_surf) > 0.0D0) THEN
                         qh_resist_iter = avdens*avcp*(tsfc_surf(i_surf) - temp_c)/RA_h
                         dif_qh_iter = MAX(dif_qh_iter, ABS( &
                            QN_surf(i_surf) + qf_surf_ehc(i_surf) - QS_surf(i_surf) - QE_surf(i_surf) - qh_resist_iter))
-                     END DO
-                  IF (use_building_facets_for_ehc) THEN
+                     END IF
+                  END DO
+                  IF (use_building_facets_for_ehc .AND. sfr_surf(BldgSurf) > 0.0D0) THEN
                      DO i_layer = 1, nlayer
                         qh_resist_iter = avdens*avcp*(tsfc_roof(i_layer) - temp_c)/RA_h
                         dif_qh_iter = MAX(dif_qh_iter, ABS( &

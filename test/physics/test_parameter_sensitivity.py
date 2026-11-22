@@ -17,8 +17,13 @@ kernel) across major SUEWS physics subsystems:
 Every active perturbation checks three properties:
 1. Non-vacuous sensitivity (``max|dFlux| > eps``),
 2. Physically expected sign where deterministic, and
-3. Surface energy-balance and water-balance conservation on both baseline and
-   perturbed runs.
+3. Surface energy-balance conservation on both baseline and perturbed runs, plus
+   water-balance conservation except where a documented pre-existing hydrology
+   exception applies (snow-path runs under gh#1905/#1927/#1958, and combined
+   EHC + SPARTACUS building-facet runs where ``SUEWS_cal_QE`` routes building
+   storage through ``cal_water_storage_building`` and divides
+   ``soilstore_building / capStore_builing`` (``0/0`` leaving ``SMDBldgs``,
+   ``SMD``, and ``TotCh`` as ``NaN`` when ``bldgs.sfr == 0``)).
 
 Every inactive perturbation (disabled physics module or ``sfr == 0`` surface)
 verifies strict invariance (``max|dFlux| == 0.0``) across grid-level fluxes.
@@ -603,30 +608,11 @@ def test_zero_area_surface_hydrology_perturbation_is_invariant(
         )
 
 
-class _ZeroAreaRadiationLeakDefectError(AssertionError):
-    """Targeted failure for unmasked zero-area tsfc_surf convergence stopping."""
-
-
-@pytest.mark.xfail(
-    strict=True,
-    raises=_ZeroAreaRadiationLeakDefectError,
-    reason=(
-        "SUEWS_cal_Main (src/suews/src/suews_ctrl_driver.f95:1175) computes "
-        "dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf)) across all 7 "
-        "surfaces without masking sfr_surf > 0, so perturbing evetr.emis (sfr == 0) "
-        "changes fixed-point iteration stopping and leaks into grid fluxes"
-    ),
-)
+@pytest.mark.core
 def test_zero_area_surface_radiation_perturbation_leaves_grid_fluxes_invariant(
     sensitivity_env,
 ):
-    """Perturbing radiation parameters of ``evetr`` (``sfr == 0``) should leave grid fluxes invariant.
-
-    Pinned ``xfail(strict=True, raises=_ZeroAreaRadiationLeakDefectError)``
-    witness: setup, simulation, conservation, and exact ``QN``/``Kup``/``Lup``
-    invariance raise ordinary exceptions, and only the grid-flux leak raises
-    ``_ZeroAreaRadiationLeakDefectError``.
-    """
+    """Perturbing radiation parameters of ``evetr`` (``sfr == 0``) must leave grid fluxes invariant."""
     # ARRANGE
     cfg_pert = copy.deepcopy(sensitivity_env["base_cfg"])
     evetr = cfg_pert.sites[0].properties.land_cover.evetr
@@ -636,24 +622,299 @@ def test_zero_area_surface_radiation_perturbation_leaves_grid_fluxes_invariant(
     # ACT
     df_out_pert = _run_and_verify_conservation(cfg_pert, sensitivity_env["df_rain_day"])
 
-    # ASSERT (radiative fluxes must stay bit-exact; ordinary AssertionError if broken)
+    # ASSERT
     base_suews = sensitivity_env["out_rain_base"].loc[1, "SUEWS"]
     pert_suews = df_out_pert.loc[1, "SUEWS"]
-    for rad_col in ("QN", "Kup", "Lup"):
-        np.testing.assert_array_equal(
-            pert_suews[rad_col].to_numpy(),
-            base_suews[rad_col].to_numpy(),
-            err_msg=f"Zero-area evetr.emis unexpectedly changed radiative flux {rad_col}",
-        )
+    np.testing.assert_array_equal(
+        pert_suews[list(GRID_FLUX_COLUMNS)].to_numpy(),
+        base_suews[list(GRID_FLUX_COLUMNS)].to_numpy(),
+        err_msg="Perturbing zero-area evetr.emis changed grid fluxes",
+    )
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, ("debug", "iter")].to_numpy(),
+        sensitivity_env["out_rain_base"].loc[1, ("debug", "iter")].to_numpy(),
+        err_msg="Perturbing zero-area evetr.emis changed iteration counts",
+    )
 
-    s_base = base_suews[list(GRID_FLUX_COLUMNS)].to_numpy()
-    s_pert = pert_suews[list(GRID_FLUX_COLUMNS)].to_numpy()
-    if not np.array_equal(s_pert, s_base):
-        max_diff = strict_max_abs(s_pert - s_base, label="evetr_emis_grid_leak")
-        raise _ZeroAreaRadiationLeakDefectError(
-            "Perturbing zero-area evetr.emis changed grid fluxes via unmasked "
-            f"dif_tsfc_iter (max_abs_diff={max_diff:.6g})"
+
+@pytest.mark.core
+@pytest.mark.parametrize("scheme", ["narp_13", "spartacus_1003", "ehc_5"])
+def test_zero_area_surface_radiation_perturbation_invariant_across_coupled_schemes(
+    sensitivity_env, scheme
+):
+    """Absent ``evetr`` emissivity perturbation must be invariant under NARP-13, SPARTACUS-1003, and EHC."""
+    # ARRANGE
+    cfg_base = copy.deepcopy(sensitivity_env["base_cfg"])
+    if scheme == "narp_13":
+        cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_AIR_SURFACE
+    elif scheme == "spartacus_1003":
+        cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+        vl = cfg_base.sites[0].properties.vertical_layers
+        vl.building_frac.value[0] = cfg_base.sites[
+            0
+        ].properties.land_cover.bldgs.sfr.value
+        vl.veg_frac.value[2] = 0.0
+        vl.veg_scale.value[2] = 0.0
+    else:
+        cfg_base.model.physics.storage_heat = StorageHeatMethod.EHC
+
+    cfg_pert = copy.deepcopy(cfg_base)
+    evetr = cfg_pert.sites[0].properties.land_cover.evetr
+    np.testing.assert_equal(evetr.sfr.value, 0.0)
+    evetr.emis.value = 0.85
+    df_rain = sensitivity_env["df_rain_day"]
+
+    # ACT
+    df_out_base = _run_and_verify_conservation(cfg_base, df_rain)
+    df_out_pert = _run_and_verify_conservation(cfg_pert, df_rain)
+
+    # ASSERT
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, "SUEWS"][list(GRID_FLUX_COLUMNS)].to_numpy(),
+        df_out_base.loc[1, "SUEWS"][list(GRID_FLUX_COLUMNS)].to_numpy(),
+        err_msg=f"Zero-area evetr.emis changed grid fluxes under {scheme}",
+    )
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, ("debug", "iter")].to_numpy(),
+        df_out_base.loc[1, ("debug", "iter")].to_numpy(),
+        err_msg=f"Zero-area evetr.emis changed iteration counts under {scheme}",
+    )
+
+
+@pytest.mark.core
+def test_all_active_surfaces_respond_to_evetr_emissivity_perturbation(
+    sensitivity_env,
+):
+    """When all 7 surfaces have ``sfr > 0``, perturbing ``evetr.emis`` must alter grid fluxes."""
+    # ARRANGE
+    cfg_base = copy.deepcopy(sensitivity_env["base_cfg"])
+    lc = cfg_base.sites[0].properties.land_cover
+    lc.evetr.sfr.value = 0.05
+    lc.bsoil.sfr.value = 0.05
+    lc.paved.sfr.value = round(lc.paved.sfr.value - 0.10, 10)
+    sfr_values = [
+        getattr(lc, name).sfr.value
+        for name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
+    ]
+    assert all(val > 0.0 for val in sfr_values)
+    np.testing.assert_allclose(sum(sfr_values), 1.0, rtol=0.0, atol=1e-12)
+
+    cfg_pert = copy.deepcopy(cfg_base)
+    cfg_pert.sites[0].properties.land_cover.evetr.emis.value = 0.85
+    df_rain = sensitivity_env["df_rain_day"]
+
+    # ACT
+    df_out_base = _run_and_verify_conservation(cfg_base, df_rain)
+    df_out_pert = _run_and_verify_conservation(cfg_pert, df_rain)
+
+    # ASSERT
+    s_base = df_out_base.loc[1, "SUEWS"]
+    s_pert = df_out_pert.loc[1, "SUEWS"]
+    d_qn = (s_pert["QN"] - s_base["QN"]).to_numpy()
+    d_lup = (s_pert["Lup"] - s_base["Lup"]).to_numpy()
+    d_qs = (s_pert["QS"] - s_base["QS"]).to_numpy()
+
+    assert strict_max_abs(d_qn, label="all_active_evetr.dQN") > 0.2
+    assert strict_max_abs(d_lup, label="all_active_evetr.dLup") > 0.2
+    assert strict_max_abs(d_qs, label="all_active_evetr.dQS") > 0.1
+
+
+@pytest.mark.core
+def test_ehc_low_wind_absent_surface_does_not_block_convergence(sensitivity_env):
+    """Absent surfaces must not force EHC to stall at ``max_iter = 60`` under low wind."""
+    # ARRANGE
+    cfg_base = copy.deepcopy(sensitivity_env["base_cfg"])
+    cfg_base.model.physics.storage_heat = StorageHeatMethod.EHC
+    evetr = cfg_base.sites[0].properties.land_cover.evetr
+    np.testing.assert_equal(evetr.sfr.value, 0.0)
+
+    cfg_pert = copy.deepcopy(cfg_base)
+    cfg_pert.sites[0].properties.land_cover.evetr.emis.value = 0.85
+
+    df_low_wind = sensitivity_env["df_rain_day"].copy()
+    df_low_wind["U"] = 0.35
+    df_low_wind["kdown"] = np.maximum(
+        0.0,
+        900.0 * np.sin(np.pi * (np.arange(len(df_low_wind)) - 72) / 144.0),
+    )
+
+    # ACT
+    df_out_base = _run_and_verify_conservation(cfg_base, df_low_wind)
+    df_out_pert = _run_and_verify_conservation(cfg_pert, df_low_wind)
+
+    # ASSERT: without the sfr_surf > 0 mask, absent evetr hits the +50 K clamp
+    # with QS_surf(absent) == 0 and locks step 83 (and 109/288 steps overall)
+    # at i_iter == 60; with the mask, step 83 converges well below 60 and
+    # absent-surface emissivity perturbations remain bit-identical.
+    iters = strict_finite_array(
+        df_out_base.loc[1, ("debug", "iter")], label="ehc_low_wind.iter"
+    )
+    assert iters[83] < 60.0, (
+        f"Step 83 failed to converge under low-wind EHC: i_iter={iters[83]:.0f}"
+    )
+    n_hit_cap = int(np.sum(iters >= 60.0))
+    assert n_hit_cap < 60, (
+        f"Too many low-wind EHC steps hit max_iter=60: {n_hit_cap}/288"
+    )
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, "SUEWS"][list(GRID_FLUX_COLUMNS)].to_numpy(),
+        df_out_base.loc[1, "SUEWS"][list(GRID_FLUX_COLUMNS)].to_numpy(),
+        err_msg="Zero-area evetr.emis changed grid fluxes under low-wind EHC",
+    )
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, ("debug", "iter")].to_numpy(),
+        df_out_base.loc[1, ("debug", "iter")].to_numpy(),
+        err_msg="Zero-area evetr.emis changed iteration counts under low-wind EHC",
+    )
+
+
+@pytest.mark.core
+def test_ehc_spartacus_absent_building_facets_leave_grid_fluxes_invariant(
+    sensitivity_env,
+):
+    """When ``bldgs.sfr == 0`` under EHC + SPARTACUS, facet perturbations must leave grid fluxes invariant."""
+    # ARRANGE
+    cfg_base = copy.deepcopy(sensitivity_env["base_cfg"])
+    cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+    cfg_base.model.physics.storage_heat = StorageHeatMethod.EHC
+    lc = cfg_base.sites[0].properties.land_cover
+    lc.paved.sfr.value = round(lc.paved.sfr.value + lc.bldgs.sfr.value, 10)
+    lc.bldgs.sfr.value = 0.0
+    np.testing.assert_equal(lc.bldgs.sfr.value, 0.0)
+    vl = cfg_base.sites[0].properties.vertical_layers
+    vl.building_frac.value = [0.0] * len(vl.building_frac.value)
+    vl.veg_frac.value[2] = 0.0
+    vl.veg_scale.value[2] = 0.0
+
+    cfg_pert = copy.deepcopy(cfg_base)
+    for roof in cfg_pert.sites[0].properties.vertical_layers.roofs:
+        roof.alb.value = 0.80
+        roof.emis.value = 0.70
+        roof.thermal_layers.k.value = [20.0] * 5
+        roof.thermal_layers.rho_cp.value = [5.0e6] * 5
+        roof.thermal_layers.dz.value = [0.02] * 5
+    for wall in cfg_pert.sites[0].properties.vertical_layers.walls:
+        wall.alb.value = 0.80
+        wall.emis.value = 0.70
+        wall.thermal_layers.k.value = [20.0] * 5
+        wall.thermal_layers.rho_cp.value = [5.0e6] * 5
+        wall.thermal_layers.dz.value = [0.02] * 5
+    # Exercise both moderate wind/warm morning (where dif_tsfc_iter > 0.05 K
+    # triggers on absent facets) and high wind/cold afternoon (where small RA_h
+    # and high-conductance roof/wall QS make dif_qh_iter > 5 W m-2 trigger even
+    # when dif_tsfc_iter is guarded) so both sfr_surf(BldgSurf) > 0 guards are
+    # individually discriminated.
+    df_facet = sensitivity_env["df_rain_day"].copy()
+    df_facet["U"] = np.where(np.arange(len(df_facet)) < 144, 3.5, 15.0)
+    df_facet["Tair"] = np.where(np.arange(len(df_facet)) < 144, 20.0, 0.0)
+
+    # ACT
+    # Run directly rather than through full-frame finiteness: SUEWS_cal_QE:3631
+    # has a pre-existing 0/0 in soilstore_building/capStore_builing when
+    # bldgs.sfr == 0 (leaving SMDBldgs, SMD, and TotCh as NaN), while every
+    # other active SUEWS output column and energy-balance closure remain finite.
+    excluded_suews_cols = set(SUEWS_ABSENT_OBSERVED_LDOWN) | {
+        "SMDBldgs",
+        "SMD",
+        "TotCh",
+    }
+    outputs = []
+    checked_suews_cols: list[str] = []
+    for label, cfg in (("base", cfg_base), ("pert", cfg_pert)):
+        sim = SUEWSSimulation()
+        sim.update_config(cfg, auto_load_forcing=False)
+        sim.update_forcing(df_facet)
+        df_out = sim.run(
+            start_date=df_facet.index[0],
+            end_date=df_facet.index[-1],
+            n_jobs=1,
+        ).df
+        suews = df_out.loc[1, "SUEWS"]
+        assert suews.index.equals(df_facet.index)
+        assert excluded_suews_cols.issubset(suews.columns)
+        checked_suews_cols = [
+            col for col in suews.columns if col not in excluded_suews_cols
+        ]
+        for col in checked_suews_cols:
+            strict_finite_array(
+                suews[col], label=f"ehc_spartacus_bldg0.{label}.{col}"
+            )
+        strict_finite_array(
+            df_out.loc[1, ("debug", "iter")],
+            label=f"ehc_spartacus_bldg0.{label}.iter",
         )
+        eb_residual = (
+            suews["QN"] + suews["QF"] - suews["QH"] - suews["QE"] - suews["QS"]
+        )
+        assert (
+            strict_max_abs(eb_residual, label=f"ehc_spartacus_bldg0.{label}.eb")
+            < ENERGY_CLOSURE_TOLERANCE_W_M2
+        )
+        outputs.append(df_out)
+    df_out_base, df_out_pert = outputs
+
+    # ASSERT: every active SUEWS column (all columns except Fcld and the three
+    # documented capStore_builing 0/0 columns) and debug.iter stay bit-identical.
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, "SUEWS"][checked_suews_cols].to_numpy(),
+        df_out_base.loc[1, "SUEWS"][checked_suews_cols].to_numpy(),
+        err_msg="Absent building-facet perturbation changed SUEWS outputs under EHC + SPARTACUS",
+    )
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, ("debug", "iter")].to_numpy(),
+        df_out_base.loc[1, ("debug", "iter")].to_numpy(),
+        err_msg="Absent building-facet perturbation changed iteration counts under EHC + SPARTACUS",
+    )
+
+
+@pytest.mark.core
+def test_ehc_spartacus_active_building_facets_respond_to_perturbation(
+    sensitivity_env,
+):
+    """When ``bldgs.sfr > 0`` under EHC + SPARTACUS, facet perturbations must alter grid fluxes."""
+    # ARRANGE
+    cfg_base = copy.deepcopy(sensitivity_env["base_cfg"])
+    cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+    cfg_base.model.physics.storage_heat = StorageHeatMethod.EHC
+    bldg_sfr = cfg_base.sites[0].properties.land_cover.bldgs.sfr.value
+    assert bldg_sfr > 0.0
+    vl = cfg_base.sites[0].properties.vertical_layers
+    vl.building_frac.value[0] = bldg_sfr
+    vl.veg_frac.value[2] = 0.0
+    vl.veg_scale.value[2] = 0.0
+
+    cfg_pert = copy.deepcopy(cfg_base)
+    for roof in cfg_pert.sites[0].properties.vertical_layers.roofs:
+        roof.alb.value = 0.80
+        roof.thermal_layers.rho_cp.value = [4.0e6] * 5
+    for wall in cfg_pert.sites[0].properties.vertical_layers.walls:
+        wall.thermal_layers.rho_cp.value = [4.0e6] * 5
+    df_dry = sensitivity_env["df_dry_day"]
+
+    # ACT
+    # Multi-layer building facet water storage under EHC + SPARTACUS routes
+    # through cal_water_storage_building rather than the 7-surface soil-store
+    # ledger checked by water_balance_residual_mm; assert full output
+    # finiteness and strict surface energy-balance closure.
+    df_out_base = _run_and_verify_conservation(
+        cfg_base, df_dry, check_water_balance=False
+    )
+    df_out_pert = _run_and_verify_conservation(
+        cfg_pert, df_dry, check_water_balance=False
+    )
+
+    # ASSERT
+    s_base = df_out_base.loc[1, "SUEWS"]
+    s_pert = df_out_pert.loc[1, "SUEWS"]
+    d_qn = (s_pert["QN"] - s_base["QN"]).to_numpy()
+    d_kup = (s_pert["Kup"] - s_base["Kup"]).to_numpy()
+    d_qs = (s_pert["QS"] - s_base["QS"]).to_numpy()
+    d_qh = (s_pert["QH"] - s_base["QH"]).to_numpy()
+
+    assert strict_max_abs(d_qn, label="ehc_spartacus_bldg.dQN") > 10.0
+    assert strict_max_abs(d_kup, label="ehc_spartacus_bldg.dKup") > 10.0
+    assert strict_max_abs(d_qs, label="ehc_spartacus_bldg.dQS") > 5.0
+    assert strict_max_abs(d_qh, label="ehc_spartacus_bldg.dQH") > 5.0
 
 
 @pytest.mark.core
@@ -727,7 +988,7 @@ def test_disabled_module_parameter_perturbation_is_invariant(
 
 
 # =============================================================================
-# Negative & positive controls for finiteness, alignment, and xfail scoping
+# Negative & positive controls for finiteness and alignment
 # =============================================================================
 
 
@@ -931,22 +1192,3 @@ def test_strict_reductions_and_water_balance_reject_sentinels_and_misalignment(
             water_balance_residual_mm(
                 bad_wb, state_init, grid=1, expected_timestamps=df_rain_forcing.index
             )
-
-
-@pytest.mark.core
-def test_zero_area_radiation_xfail_marker_narrows_to_defect_subclass():
-    """The zero-area radiation xfail marker must only absorb its dedicated defect class."""
-    marks = [
-        m
-        for m in getattr(
-            test_zero_area_surface_radiation_perturbation_leaves_grid_fluxes_invariant,
-            "pytestmark",
-            [],
-        )
-        if m.name == "xfail"
-    ]
-    assert len(marks) == 1
-    assert marks[0].kwargs.get("strict") is True
-    assert marks[0].kwargs.get("raises") is _ZeroAreaRadiationLeakDefectError
-    for unrelated in (KeyError, AttributeError, ValueError, AssertionError):
-        assert not issubclass(unrelated, _ZeroAreaRadiationLeakDefectError)

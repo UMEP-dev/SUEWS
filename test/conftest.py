@@ -1,10 +1,14 @@
 """pytest configuration for SUEWS test suite."""
 
 from collections.abc import Iterator
+import copy
 from functools import lru_cache
 from importlib.resources import as_file
 from inspect import signature
+import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import warnings
@@ -63,6 +67,54 @@ except ImportError:
 # Named constants for test clarity
 TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
 SHORT_RUN_STEPS = 24  # Two hours; enough for lifecycle/output checks
+
+# Opt-in reference-run construction counter/logger.
+# Set SUEWS_LOG_REFERENCE_RUNS=1 (or "true"/"stderr") to emit one ASCII log
+# line per cached reference-run build to stderr, or set it to a file path to
+# append one JSON line per build (safe across xdist workers).
+REFERENCE_RUN_LOG_ENV = "SUEWS_LOG_REFERENCE_RUNS"
+_REFERENCE_RUN_COUNTS: dict[tuple[str, str], int] = {}
+
+
+def _record_reference_run(fixture_name: str, key: str) -> None:
+    """Record one session-scoped reference-run construction (cache miss)."""
+    count_key = (fixture_name, key)
+    _REFERENCE_RUN_COUNTS[count_key] = _REFERENCE_RUN_COUNTS.get(count_key, 0) + 1
+
+    target = os.environ.get(REFERENCE_RUN_LOG_ENV, "").strip()
+    if not target or target.lower() in {"0", "false", "no", "off"}:
+        return
+
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    pid = os.getpid()
+    if target.lower() in {"1", "true", "yes", "stderr"}:
+        sys.stderr.write(
+            f"[ref-run] worker={worker} pid={pid} "
+            f"fixture={fixture_name} key={key}\n"
+        )
+        sys.stderr.flush()
+        return
+
+    record = {
+        "worker": worker,
+        "pid": pid,
+        "fixture": fixture_name,
+        "key": key,
+    }
+    path_log = Path(target)
+    path_log.parent.mkdir(parents=True, exist_ok=True)
+    with open(path_log, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+
+
+def get_reference_run_counts() -> dict[tuple[str, str], int]:
+    """Return a snapshot of in-process cached reference-run build counts."""
+    return dict(_REFERENCE_RUN_COUNTS)
+
+
+def reset_reference_run_counts() -> None:
+    """Clear the in-process reference-run build counter (for unit tests)."""
+    _REFERENCE_RUN_COUNTS.clear()
 
 
 @pytest.fixture
@@ -585,6 +637,7 @@ def completed_sample_sim(sample_yaml_path):
     sim.update_forcing(df_forcing_short)
     # The YAML requests the full sample year; bound the run explicitly so the
     # truncated forcing is a covered request rather than a silent clip.
+    _record_reference_run("completed_sample_sim", f"n_steps={SHORT_RUN_STEPS}")
     sim.run(end_date=df_forcing_short.index[-1])
     return sim
 
@@ -619,6 +672,7 @@ def sample_dailystate_full_year(sample_data_loaded):
     """
     import gc
 
+    _record_reference_run("sample_dailystate_full_year", "full_year")
     df_state_init, df_forcing = sample_data_loaded
     simulation = supy.SUEWSSimulation.from_state(df_state_init.copy())
     simulation.update_forcing(df_forcing)
@@ -698,6 +752,7 @@ def sample_run_cached(sample_data_loaded):
 
     def _run(n_steps=None):
         if n_steps not in cache:
+            _record_reference_run("sample_run_cached", f"n_steps={n_steps}")
             df_forcing_window = (
                 df_forcing if n_steps is None else df_forcing.iloc[:n_steps]
             )
@@ -709,3 +764,330 @@ def sample_run_cached(sample_data_loaded):
         return df_output.copy(), df_state_final.copy()
 
     return _run
+
+
+def _normalise_period_key(value):
+    """Build a hashable cache key preserving date-only strings vs Timestamps.
+
+    ``SUEWSSimulation.run`` treats a date-only string such as ``"2012-01-01"``
+    differently from ``pd.Timestamp("2012-01-01")``, so the key includes the
+    runtime type name alongside the string value.
+    """
+    if value is None:
+        return None
+    return (type(value).__qualname__, str(value))
+
+
+def _clone_suews_output(output):
+    """Return an independent deep copy of a ``SUEWSOutput`` instance.
+
+    Every mutable component (``_df_output`` and its ``attrs``,
+    ``_df_state_final``, ``_config``, ``_checkpoint``, ``_metadata``, and
+    ``_kernel_warnings``) is copied so a test cannot poison a session-scoped
+    cache entry by mutating any attribute or DataFrame in place.
+    """
+    df_output = output._df_output.copy(deep=True)
+    df_output.attrs = copy.deepcopy(output._df_output.attrs)
+    df_state_final = (
+        output._df_state_final.copy(deep=True)
+        if output._df_state_final is not None
+        else None
+    )
+    config = (
+        output._config.model_copy(deep=True)
+        if output._config is not None and hasattr(output._config, "model_copy")
+        else copy.deepcopy(output._config)
+    )
+    checkpoint = copy.deepcopy(output._checkpoint)
+    metadata = copy.deepcopy(output._metadata)
+    kernel_warnings = (
+        output._kernel_warnings.copy(deep=True)
+        if output._kernel_warnings is not None
+        else None
+    )
+    return supy.SUEWSOutput(
+        df_output=df_output,
+        df_state_final=df_state_final,
+        config=config,
+        metadata=metadata,
+        checkpoint=checkpoint,
+        kernel_warnings=kernel_warnings,
+        streamed_paths=list(output._streamed_paths)
+        if output._streamed_paths is not None
+        else None,
+    )
+
+
+@pytest.fixture(scope="session")
+def sample_config_run_cached():
+    """Session-scoped factory memoising ``SUEWSSimulation.from_sample_data().run(...)``.
+
+    Unlike ``sample_run_cached`` (which runs ``SUEWSSimulation.from_state``
+    without a ``SUEWSConfig``), this factory constructs the simulation via
+    ``SUEWSSimulation.from_sample_data()`` and runs ``run(start_date=...,
+    end_date=...)`` once per distinct period per session, returning a complete
+    ``SUEWSOutput`` (including file-based config and forcing provenance
+    metadata, ``config``, ``checkpoint``, ``state_final``, and ``attrs``).
+
+    CONTRACT:
+    - Every call returns an independent deep copy via ``_clone_suews_output``
+      so mutating the returned output, its DataFrames, ``attrs``,
+      ``metadata``, or ``config`` cannot poison the session cache.
+    """
+    cache: dict = {}
+
+    def _run(start_date=None, end_date=None):
+        key = (_normalise_period_key(start_date), _normalise_period_key(end_date))
+        if key not in cache:
+            _record_reference_run(
+                "sample_config_run_cached",
+                f"start={start_date!r},end={end_date!r}",
+            )
+            simulation = supy.SUEWSSimulation.from_sample_data()
+            cache[key] = simulation.run(start_date=start_date, end_date=end_date)
+        return _clone_suews_output(cache[key])
+
+    return _run
+
+
+_STREAM_CHUNK_DEFAULT_GROUPS = ("SUEWS", "DailyState", "RSL", "debug")
+_STREAM_CHUNK_CLOCK_FOLLOW = ("local_standard_time", "follow")
+
+
+def _with_replicated_sites(config, list_gridiv):
+    """Return a deep copy of *config* with one site per *list_gridiv* entry.
+
+    Each copy is 10 degrees further north than the one before, so the grids'
+    outputs differ and a block of rows carrying the wrong grid's label would
+    not match.
+    """
+    config = config.model_copy(deep=True)
+    site0 = config.sites[0]
+    list_site = []
+    for pos, gridiv in enumerate(list_gridiv):
+        site = site0.model_copy(deep=True)
+        site.gridiv = gridiv
+        site.name = f"grid{gridiv}"
+        site.properties.lat.value += 10.0 * pos
+        list_site.append(site)
+    config.sites = list_site
+    return config
+
+
+def _with_site_clock(config, timezone, startdls, enddls):
+    """Return a deep copy of *config* with site time zone and DLS window."""
+    config = config.model_copy(deep=True)
+    for site in config.sites:
+        site.properties.timezone.value = timezone
+        site.properties.anthropogenic_emissions.startdls.value = startdls
+        site.properties.anthropogenic_emissions.enddls.value = enddls
+    return config
+
+
+def _year_crossing_forcing(sim, end=None, start=None):
+    """Relabel the January short sample forcing to run across 1 January.
+
+    With *start* or *end*, the forcing starts or stops at that row.
+    """
+    forcing = sim.forcing.df.copy()
+    forcing.index -= pd.Timedelta(days=16)
+    forcing.index.freq = forcing.index[1] - forcing.index[0]
+    if start is not None:
+        forcing = forcing.loc[pd.Timestamp(start) :]
+    if end is not None:
+        forcing = forcing.loc[: pd.Timestamp(end)]
+    for col, values in (
+        ("iy", forcing.index.year),
+        ("id", forcing.index.day_of_year),
+        ("it", forcing.index.hour),
+        ("imin", forcing.index.minute),
+    ):
+        if col in forcing.columns:
+            forcing[col] = values
+    return forcing
+
+
+def build_year_crossing_sim(
+    short_sample_sim,
+    path_out,
+    freq_s,
+    stream_chunk,
+    list_gridiv=None,
+    groups=_STREAM_CHUNK_DEFAULT_GROUPS,
+    clock=_STREAM_CHUNK_CLOCK_FOLLOW,
+    end=None,
+    start=None,
+    site_clock=None,
+    fmt="txt",
+):
+    """Build a one-month year-crossing simulation saving *groups* to *path_out*.
+
+    *site_clock* is ``(timezone, startdls, enddls)`` for every site; *fmt* is
+    the output format.
+    """
+    from supy.data_model.output import PROVISIONAL_OUTPUT_GROUPS
+
+    list_groups = list(groups)
+    sim = short_sample_sim()
+    forcing = _year_crossing_forcing(sim, end=end, start=start)
+    config = sim.config
+    if list_gridiv is not None:
+        config = _with_replicated_sites(config, list_gridiv)
+    if site_clock is not None:
+        config = _with_site_clock(config, *site_clock)
+    output = {
+        "format": fmt,
+        "freq": freq_s,
+        "dir": str(path_out),
+        "groups": list_groups,
+        "include_provisional": bool(set(list_groups) & PROVISIONAL_OUTPUT_GROUPS),
+        "timestamp_reference": clock[1],
+    }
+    if stream_chunk is not None:
+        output["stream_chunk"] = stream_chunk
+    update = {
+        "model": {
+            "control": {
+                "start_time": str(forcing.index[0]),
+                "end_time": str(forcing.index[-1]),
+                "forcing": {"timestamp_reference": clock[0]},
+                "output": output,
+            }
+        }
+    }
+    if config is not sim.config:
+        # Changed sites travel in the same update, which replaces the sites
+        # list wholesale, so the state frame is built from the configuration
+        # once rather than once per change.
+        update["sites"] = [
+            site.model_dump(exclude_unset=True, round_trip=True, mode="json")
+            for site in config.sites
+        ]
+    sim.update_config(update, auto_load_forcing=False)
+    sim.update_forcing(forcing)
+    return sim
+
+
+@pytest.fixture(scope="session")
+def stream_chunk_reference_dir(short_sample_sim, tmp_path_factory):
+    """Session-scoped factory of year-crossing reference output folders.
+
+    Computes each distinct settings tuple once per pytest session (once per
+    worker under xdist):
+
+    - ``stream_chunk=None`` (default): runs ``sim.run()`` followed by
+      ``sim.save()`` (the unstreamed reference folder).
+    - ``stream_chunk=<int>``: runs ``sim.run()`` with ``output.stream_chunk``
+      set (the uninterrupted streamed reference folder).
+
+    READ-ONLY by default: consumers must not write into or delete files from
+    the returned directory. Pass ``copy_dir=True`` when a test needs a private
+    writable copy of the reference folder.
+    """
+    dict_dir: dict = {}
+
+    def _ref_dir(
+        freq_s,
+        list_gridiv=None,
+        groups=_STREAM_CHUNK_DEFAULT_GROUPS,
+        clock=_STREAM_CHUNK_CLOCK_FOLLOW,
+        end=None,
+        start=None,
+        site_clock=None,
+        fmt="txt",
+        *,
+        stream_chunk=None,
+        copy_dir: bool = False,
+    ) -> Path:
+        key = (
+            freq_s,
+            tuple(list_gridiv or ()),
+            tuple(groups),
+            clock,
+            end,
+            start,
+            site_clock,
+            fmt,
+            stream_chunk,
+        )
+        if key not in dict_dir:
+            _record_reference_run("stream_chunk_reference_dir", repr(key))
+            prefix = "whole" if stream_chunk is None else "streamed"
+            path = tmp_path_factory.mktemp(prefix)
+            sim = build_year_crossing_sim(
+                short_sample_sim,
+                path,
+                freq_s,
+                stream_chunk,
+                list_gridiv=list_gridiv,
+                groups=groups,
+                clock=clock,
+                end=end,
+                start=start,
+                site_clock=site_clock,
+                fmt=fmt,
+            )
+            sim.run()
+            if stream_chunk is None:
+                sim.save()
+            dict_dir[key] = path
+        path_cached = dict_dir[key]
+        if copy_dir:
+            path_copy = tmp_path_factory.mktemp("ref_copy")
+            shutil.copytree(path_cached, path_copy, dirs_exist_ok=True)
+            return path_copy
+        return path_cached
+
+    return _ref_dir
+
+
+@pytest.fixture(scope="session")
+def stream_chunk_reference_output(short_sample_sim, tmp_path_factory):
+    """Session-scoped factory of unstreamed year-crossing ``SUEWSOutput``.
+
+    Computes each distinct settings tuple once per pytest session and hands
+    back an independent deep copy via ``_clone_suews_output`` on every call so
+    callers cannot poison the cache.
+    """
+    dict_output: dict = {}
+
+    def _ref_output(
+        freq_s,
+        list_gridiv=None,
+        groups=_STREAM_CHUNK_DEFAULT_GROUPS,
+        clock=_STREAM_CHUNK_CLOCK_FOLLOW,
+        end=None,
+        start=None,
+        site_clock=None,
+        fmt="txt",
+    ):
+        key = (
+            freq_s,
+            tuple(list_gridiv or ()),
+            tuple(groups),
+            clock,
+            end,
+            start,
+            site_clock,
+            fmt,
+        )
+        if key not in dict_output:
+            _record_reference_run("stream_chunk_reference_output", repr(key))
+            path = tmp_path_factory.mktemp("whole_output")
+            sim = build_year_crossing_sim(
+                short_sample_sim,
+                path,
+                freq_s,
+                None,
+                list_gridiv=list_gridiv,
+                groups=groups,
+                clock=clock,
+                end=end,
+                start=start,
+                site_clock=site_clock,
+                fmt=fmt,
+            )
+            dict_output[key] = sim.run()
+        return _clone_suews_output(dict_output[key])
+
+    return _ref_output

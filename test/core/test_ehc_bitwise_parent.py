@@ -1,8 +1,8 @@
-"""Annual EHC comparisons against the limiter parent and the previous EHC head.
+"""Annual EHC comparisons against the explicit Step-1 parent and the previous EHC head.
 
 Explicit coupling must preserve every parent column over the entire year.
 Default implicit coupling must preserve all recorded columns with stability
-control off, bit for bit. Set SUEWS_EHC_EXPLICIT_REFERENCE to the limiter-only
+control off, bit for bit. Set SUEWS_EHC_EXPLICIT_REFERENCE to the Step-1
 annual output directory and SUEWS_EHC_IMPLICIT_REFERENCE to the previous EHC
 annual output directory. References use flat group|variable column names.
 The compact, committed references in test_ehc_reference.py provide the CI gate;
@@ -55,7 +55,7 @@ def _save_result(frame, name):
 
 
 @pytest.mark.parametrize("case", ["sample", "ehc_slab", "ehc_facets"])
-def test_explicit_matches_limiter_parent(case):
+def test_explicit_matches_step1_parent(case):
     reference = _reference_dir("SUEWS_EHC_EXPLICIT_REFERENCE") / f"{case}.parquet"
     assert reference.is_file(), reference
     expected = pd.read_parquet(reference)

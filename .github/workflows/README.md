@@ -65,8 +65,11 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
     applies fails;
   - `test_sample_run_reproduces_reference_exactly` passed in the physics lane.
 
-  Core tests marked `qgis` are listed, not required: no tier before merge runs
-  `qgis`. **The single exemption** is a run whose paths need no build
+  Two kinds of test cannot run in a Linux lane, and each needs its own
+  allowlist entry: a core test marked `qgis` (no tier before merge runs
+  `qgis`), by node id with the outcome `not run`, and a test module that skips
+  while it is collected (`pytest.importorskip`), which contributes no node ids
+  at all, by module path. **The single exemption** is a run whose paths need no build
   (`needs-build` false and no physics or numerics label), in practice a
   documentation-only change: it builds no wheel and runs no tests, so neither
   the lanes nor the guard run. Draft tiers run a subset by design and are not

@@ -1419,6 +1419,28 @@ jobs:
           PHYSICS_CHANGE: ${{ needs.determine_matrix.outputs.physics_change || 'false' }}
         run: bash .github/scripts/pr-gate.sh
 
+      # pr-gate.sh is read from the base branch, so a gate change only takes
+      # effect after it merges. This step enforces the core-test guard from
+      # the workflow under test as well, so it also holds on the run that
+      # introduces it and on any branch whose base predates it. The rule
+      # matches pr-gate.sh: required when build_wheels succeeded at a ready tier.
+      - name: Require the core-test guard at ready tiers
+        env:
+          BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
+          CORE_GUARD_RESULT: ${{ needs.core_guard.result }}
+          TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
+        run: |
+          if [[ "$TEST_TIER" == "standard" || "$TEST_TIER" == "physics-full" ]] && \
+             [[ "$BUILD_WHEELS_RESULT" == "success" ]] && [[ "$CORE_GUARD_RESULT" != "success" ]]; then
+            echo "::error::Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
+            exit 1
+          fi
+          if [[ "$CORE_GUARD_RESULT" == "failure" || "$CORE_GUARD_RESULT" == "cancelled" ]]; then
+            echo "::error::Core-test guard finished with '${CORE_GUARD_RESULT}'"
+            exit 1
+          fi
+          echo "Core-test guard: ${CORE_GUARD_RESULT} (tier ${TEST_TIER:-unset}, build_wheels ${BUILD_WHEELS_RESULT})"
+
   ci_observability:
     name: CI observability summary
     runs-on: ubuntu-latest

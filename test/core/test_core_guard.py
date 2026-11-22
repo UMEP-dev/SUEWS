@@ -63,6 +63,9 @@ def _layout(
     api_nodes: list[str] | None = None,
     drop_shard: int | None = None,
     duplicate: str | None = None,
+    collection_skips: tuple[str, ...] = (),
+    allowed_skips: tuple[str, ...] = (),
+    allow_qgis: bool = True,
 ) -> Path:
     """Write one green standard-tier run, then apply one defect."""
     metrics = root / "ci-metrics"
@@ -70,7 +73,15 @@ def _layout(
     lane = metrics / "ci-metrics-api-cp312-manylinux-x86_64"
     lane.mkdir(parents=True)
     (lane / "inventory-cp312-manylinux-x86_64.json").write_text(
-        json.dumps({"kind": "test-inventory", "nodes": inventory}), encoding="utf-8"
+        json.dumps(
+            {
+                "kind": "test-inventory",
+                "nodes": inventory,
+                "collection_skips": [
+                    {"node_id": m, "reason": "could not import 'x'"} for m in collection_skips
+                ],
+            }
+        ), encoding="utf-8"
     )
     physics = _selected("physics")
     outcomes = {SKIPPY: "skipped", **(physics_outcomes or {})}
@@ -97,18 +108,27 @@ def _layout(
             )
     else:
         _write(lane / "api-cp312-manylinux-x86_64.json", api)
-    allowlist = root / "allow.json"
-    allowlist.write_text(
-        json.dumps({
-            "allowed": [
-                {
-                    "node_id": SKIPPY,
-                    "lane": "physics",
-                    "outcome": "skipped",
-                    "reason": "tool not built",
-                }
-            ]
-        }),
+    allowed = [
+        {"node_id": SKIPPY, "lane": "physics", "outcome": "skipped", "reason": "tool not built"}
+    ]
+    if allow_qgis:
+        allowed.append(
+            {
+                "node_id": "test/core/test_api.py::test_qgis_core",
+                "lane": "api",
+                "outcome": "not run",
+                "reason": "needs QGIS on Windows",
+            }
+        )
+    (root / "allow.json").write_text(
+        json.dumps(
+            {
+                "allowed": allowed,
+                "collection_skips": [
+                    {"node_id": m, "reason": "optional tool"} for m in allowed_skips
+                ],
+            }
+        ),
         encoding="utf-8",
     )
     return metrics
@@ -193,13 +213,24 @@ def test_draft_tiers_are_refused(tmp_path: Path) -> None:
     assert any("not a ready tier" in e for e in _guard(tmp_path, metrics, tier="smoke"))
 
 
-def test_qgis_core_tests_are_listed_not_required(tmp_path: Path) -> None:
+def test_qgis_core_tests_need_an_allowlist_entry_each(tmp_path: Path) -> None:
     metrics = _layout(tmp_path)
-    report = run_guard(
-        metrics, "standard", ["cp312"], allowlist_path=tmp_path / "allow.json"
-    )
+    report = run_guard(metrics, "standard", ["cp312"], allowlist_path=tmp_path / "allow.json")
     assert report.errors == []
-    assert any("marked qgis are not run before merge" in n for n in report.notes)
+    assert any("allowlisted qgis core tests not run" in n for n in report.notes)
+    errors = _guard(tmp_path / "b", _layout(tmp_path / "b", allow_qgis=False))
+    assert any("marked qgis, which no tier before merge runs" in e for e in errors), errors
+
+
+def test_collection_skips_need_an_allowlist_entry_each(tmp_path: Path) -> None:
+    module = "test/core/test_optional.py"
+    errors = _guard(tmp_path / "a", _layout(tmp_path / "a", collection_skips=(module,)))
+    assert any("skipped at collection" in e and module in e for e in errors), errors
+    listed = _layout(tmp_path / "b", collection_skips=(module,), allowed_skips=(module,))
+    assert _guard(tmp_path / "b", listed) == []
+    stale = _layout(tmp_path / "c", allowed_skips=(module,))
+    assert any("no longer skip" in e for e in _guard(tmp_path / "c", stale))
+
 
 
 def test_cli_exit_codes(tmp_path: Path) -> None:
@@ -232,7 +263,7 @@ def test_repository_allowlist_entries_name_physics_core_tests() -> None:
     )
     for entry in document["allowed"]:
         assert entry["lane"] in {"physics", "api"}
-        assert entry["outcome"] == "skipped"
+        assert entry["outcome"] in {"skipped", "not run"}
         assert entry["reason"].strip()
         assert entry["node_id"] != EXACT_REFERENCE_TEST
 
@@ -275,6 +306,13 @@ def test_guard_is_wired_into_the_gate() -> None:
     )
     assert env["CORE_GUARD_RESULT"] == "${{ needs.core_guard.result }}"
     assert env["TEST_TIER"] == "${{ needs.determine_matrix.outputs.test_tier }}"
+    # The gate script is read from the base branch, so the workflow enforces
+    # the guard itself as well.
+    inline = next(
+        s for s in gate["steps"] if s.get("name") == "Require the core-test guard at ready tiers"
+    )
+    assert inline["env"]["CORE_GUARD_RESULT"] == "${{ needs.core_guard.result }}"
+    assert 'exit 1' in inline["run"]
     needs_map = json.loads(
         (PROJECT_ROOT / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )

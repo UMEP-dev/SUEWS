@@ -23,9 +23,12 @@ selected did not fail, so this guard checks node ids instead:
   must be in the inventory, marked core, and passed in the physics lane,
   because outside its reference environment it skips instead of failing.
 
-Core tests marked ``qgis`` are excluded from every api tier before merge (they
-need the QGIS runtime on Windows); the guard counts and lists them rather than
-requiring them.
+Two kinds of test cannot run in a Linux lane and so need an explicit
+allowlist entry each: core tests marked ``qgis`` (no tier before merge runs
+``qgis``; they need the QGIS runtime on Windows), listed by node id with the
+outcome ``not run``; and test modules that skip while they are collected
+(``pytest.importorskip``), which contribute no node ids at all and are listed
+by module path.
 
 The guard runs on ready tiers only (``standard`` and ``physics-full``): draft
 tiers deliberately run a subset. A pull request whose paths need no build
@@ -132,18 +135,43 @@ def load_lanes(
     return lanes, inventories
 
 
-def load_inventory(path: Path) -> dict[str, set[str]]:
-    """Return ``{node_id: marker names}`` from a ``pytest_inventory`` file."""
+def load_inventory(path: Path) -> tuple[dict[str, set[str]], dict[str, str]]:
+    """Return ``{node_id: markers}`` and ``{collector: skip reason}`` from an inventory."""
     document = json.loads(path.read_text(encoding="utf-8"))
-    return {record["node_id"]: set(record["markers"]) for record in document["nodes"]}
+    nodes = {record["node_id"]: set(record["markers"]) for record in document["nodes"]}
+    skips = {
+        record["node_id"]: record.get("reason", "")
+        for record in document.get("collection_skips", [])
+    }
+    return nodes, skips
 
 
-def load_allowlist(path: Path) -> list[dict[str, str]]:
-    """Return the allowlist entries, or none when the file is absent."""
+def load_allowlist(path: Path) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Return the test and collection-skip allowlist entries (empty when absent)."""
     if not path.exists():
-        return []
+        return [], []
     document = json.loads(path.read_text(encoding="utf-8"))
-    return list(document.get("allowed", []))
+    return list(document.get("allowed", [])), list(document.get("collection_skips", []))
+
+
+def check_collection_skips(
+    skips: dict[str, str], allowed: list[dict[str, str]], report: Report
+) -> None:
+    """Refuse modules that skipped at collection unless each is allowlisted."""
+    listed = {entry["node_id"]: entry for entry in allowed}
+    unlisted = [f"{node}: {reason}" for node, reason in sorted(skips.items()) if node not in listed]
+    if unlisted:
+        report.error(
+            f"{len(unlisted)} test modules skipped at collection, so none of their tests"
+            " (core or not) are in the inventory; fix the dependency or allowlist the module",
+            unlisted,
+        )
+    stale = sorted(node for node in listed if node not in skips)
+    if stale:
+        report.error("collection-skip allowlist entries no longer skip; remove them", stale)
+    excused = sorted(node for node in skips if node in listed)
+    if excused:
+        report.note(f"{len(excused)} modules skipped at collection, allowlisted", excused)
 
 
 def _lane_name(key: tuple[str, str, str, str]) -> str:
@@ -235,14 +263,29 @@ def check_linux_lane(
         for node, markers in inventory.items()
         if kind in markers and "core" in markers
     }
+    allowed = {
+        entry["node_id"]: entry for entry in allowlist if entry.get("lane") == kind
+    }
     if kind == "api":
-        exempt = sorted(node for node in core if "qgis" in inventory[node])
-        if exempt:
-            report.note(
-                f"{name}: {len(exempt)} core tests marked qgis are not run before merge",
-                exempt,
+        # No tier before merge runs qgis, so each such core test is an explicit
+        # allowlist entry (outcome "not run"), never a blanket exemption.
+        qgis = sorted(node for node in core if "qgis" in inventory[node])
+        unlisted = [
+            node
+            for node in qgis
+            if allowed.get(node, {}).get("outcome") != "not run"
+        ]
+        if unlisted:
+            report.error(
+                f"{name}: {len(unlisted)} core tests are marked qgis, which no tier before"
+                " merge runs; drop the core marker or allowlist each with outcome 'not run'",
+                unlisted,
             )
-        core -= set(exempt)
+        if len(qgis) > len(unlisted):
+            report.note(
+                f"{name}: {len(qgis) - len(unlisted)} allowlisted qgis core tests not run before merge"
+            )
+        core -= set(qgis)
     unselected = sorted(core - expected)
     if unselected:
         report.error(
@@ -250,9 +293,6 @@ def check_linux_lane(
             unselected,
         )
 
-    allowed = {
-        entry["node_id"]: entry for entry in allowlist if entry.get("lane") == kind
-    }
     bad: list[str] = []
     excused: list[str] = []
     for node in sorted(core):
@@ -280,6 +320,9 @@ def check_linux_lane(
     for node in sorted(allowed):
         if node not in inventory:
             report.error(f"{name}: allowlist entry is not in the inventory: {node}")
+        elif entry_outcome(allowed[node]) == "not run":
+            if "qgis" not in inventory[node]:
+                report.error(f"{name}: 'not run' allowlist entry is not marked qgis: {node}")
         elif node not in core:
             report.error(f"{name}: allowlist entry is not a {kind} core test: {node}")
         elif outcomes.get(node) == "passed":
@@ -304,6 +347,11 @@ def check_linux_lane(
                 report.error(f"{name}: {EXACT_REFERENCE_TEST} {outcome}")
 
 
+def entry_outcome(entry: dict[str, str]) -> str:
+    """Return the outcome an allowlist entry excuses (``skipped`` by default)."""
+    return entry.get("outcome", "skipped")
+
+
 def run_guard(
     metrics_dir: Path,
     tier: str,
@@ -325,9 +373,10 @@ def run_guard(
             [str(path) for path in inventories],
         )
         return report
-    inventory = load_inventory(inventories[0])
+    inventory, collection_skips = load_inventory(inventories[0])
     report.note(f"inventory: {len(inventory)} tests from {inventories[0].name}")
-    allowlist = load_allowlist(allowlist_path)
+    allowlist, allowed_skips = load_allowlist(allowlist_path)
+    check_collection_skips(collection_skips, allowed_skips, report)
 
     required = [("physics", physics_python, *LINUX)] + [
         ("api", python, *LINUX) for python in api_pythons

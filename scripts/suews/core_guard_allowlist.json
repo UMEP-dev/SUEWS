@@ -1,5 +1,5 @@
 {
-  "_comment": "Core tests that may skip in a Linux lane before merge, by exact node id. Read by scripts/suews/check_core_guard.py; an entry that no longer skips, or names a test that is not a core test of its lane, fails the guard. Adding an entry needs a reason a reviewer can check.",
+  "_comment": "Tests the core-test guard (scripts/suews/check_core_guard.py) may accept without a Linux pass, each by exact id with a reason a reviewer can check. 'allowed': core tests that may skip in a Linux lane (outcome 'skipped'), or core tests marked qgis, which no tier before merge runs (outcome 'not run'). 'collection_skips': test modules that skip while being collected in the Linux cp312 api cell, so none of their tests reach the inventory. An entry that stops applying fails the guard.",
   "schema_version": 1,
   "allowed": [
     {
@@ -19,6 +19,12 @@
       "lane": "physics",
       "outcome": "skipped",
       "reason": "Needs the standalone SPARTACUS executable built with NetCDF and OpenMP (src/suews/ext_lib/spartacus-surface/bin/spartacus_surface), which no CI wheel lane builds; the fixture skips without it."
+    }
+  ],
+  "collection_skips": [
+    {
+      "node_id": "test/docs/test_code_text_checks.py",
+      "reason": "Module-level pytest.importorskip('numpydoc'): numpydoc is a dev extra the api lanes do not install. The module carries no core test."
     }
   ]
 }

@@ -46,31 +46,12 @@ still belong to that page's journey.
 [procedure: Principle 1]
 
 For API triage, PR selection and baseline preparation, read
-[modes.md](references/modes.md). Triage uses verified plan-included credit only,
-with a hard budget cap and no paid fallback. [decision: software maintainer, 2026-11-21]
-
-## PR and baseline modes
-
-In PR mode, select changed hand-written pages plus pages affected by changed
-includes or prerequisites. Reuse unchanged cache keys and run the selected pages
-as usual. Compare findings with the base revision's baseline entries as `known`,
-`new` or `resolved`; draft the exact machine-readable report and verdict in
-[record-format.md](references/record-format.md) for the PR author to post.
-The skill never posts or applies the maintainer label. [procedure: Principle 1]
-
-The second independent compile remains required in PR mode until the pilot
-leads the software maintainer to decide otherwise.
-[decision: software maintainer, 2026-11-21]
-
-Baseline mode prepares per-page entries under `dev-ref/docs-baseline/` (planned
-for #2188; not created by this procedure change). Only these summaries are
-committed, never raw records or compiled runs. The PR changing a page updates its
-entry after maintainer sign-off, with the evidence specified in modes.md and
-record-format.md. [decision: software maintainer, 2026-11-21] (#2187, #2188)
+[modes.md](references/modes.md). Triage requires a stated hard budget cap and
+no spend beyond it. [procedure: Principle 1]
 
 ## 2. Reuse or compile
 
-Compile-instruction version: `v13.3`. Change it whenever the compilation rules
+Compile-instruction version: `v13.4`. Change it whenever the compilation rules
 in this skill or its references change. [procedure: Principle 1]
 
 The cache key is the tuple
@@ -131,7 +112,7 @@ flow and stop conditions; the model must not select or alter commands mid-run.
 ## 3. Obtain the independent compile
 
 During the pilot, every page receives two independent compiles: one by Opus
-(on an available seat or as a subagent) and one by Codex. Use different model
+(in a separate session or subagent) and one by Codex. Use different model
 families and separate contexts. Neither sees the other's output, run results,
 suspected findings or the known-answer report. Give both the same pinned page,
 prerequisite sources, input provenance and compile instructions. Record actual
@@ -144,8 +125,10 @@ order, inferred actions, exclusions and branch coverage. Record agreement,
 disagreement and unresolved items with quotations and reasons. Agreement settles
 the reading, not the correctness of the software. For a disagreement, identify a
 wrong reading from the source or report page ambiguity; do not quietly merge the
-two scripts or choose the one that passes. Record which compiled attempt is run
-and why; keep disputed branches distinguishable. [procedure: Principle 1]
+two scripts or choose the one that passes. Execute both independent compiles,
+each in its own fresh environment, even when their step lists agree. Neither
+run is chosen after seeing results. Report any difference in results, and keep
+disputed branches distinguishable. [procedure: Principle 1]
 
 A previously independent cached compile may be reused under section 2; do not
 show it to the other compiler. If independent compilation cannot be obtained,
@@ -201,15 +184,17 @@ Attribute each failure with evidence to one of three causes:
 - **Software**: the page describes intended behaviour and software breaks it.
   Cite evidence of that intent, not merely the failed assertion. Draft a code finding.
 - **Compile**: the agent misread the page. Recompile with failure feedback at
-  most twice per page (initial compile plus two corrections), retaining every
-  failed attempt. If still unsettled, report the page as unclear.
+  most twice per compiler per page (each compiler's initial compile plus two
+  corrective recompiles), retaining every failed attempt. If still unsettled,
+  report the page as unclear. [procedure: Principle 1]
 
 Record the failed observation, competing causes, attribution evidence and next
 discriminating step. Keep infrastructure/setup blockers separate; do not force
 an unavailable service into a page or software defect. A corrective compile is
 a new immutable attempt under its key, not an edit to cached evidence. Compare
-changed steps/assertions against the independent reading and disclose feedback
-exposure; do not call a feedback-informed compile blind. Stop early on a recurring
+each corrective recompile's steps/assertions against the other compiler's
+current compile; a new third independent compile is not required. Disclose
+feedback exposure; do not call a feedback-informed compile blind. Stop early on a recurring
 finding signature per `.claude/rules/review-convergence.md`. [procedure: Principle 1]
 
 For scientific thresholds or unresolved intended behaviour, use the owner and

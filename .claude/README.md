@@ -51,7 +51,7 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 |   |-- audit-docs/        # Operation: docs ASCII + bib topic-tag checks
 |   |-- exercise-docs/     # Operation: compile pages, run journeys, draft findings
 |   |   |-- SKILL.md
-|   |   `-- references/    # Record format, illustrative example and pilot
+|   |   `-- references/    # record-format.md, example.md, pilot.md and modes.md
 |   |-- log-changes/       # Operation: CHANGELOG management
 |   `-- suews/             # User-facing simulation skill (bundled into plugins/suews/)
 |

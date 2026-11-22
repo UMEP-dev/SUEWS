@@ -100,9 +100,10 @@ an explanation for unknown software revision or unavailable distribution hashes.
 
 The comparison names both compiler identities, briefs and frozen artefacts,
 when comparison began, per-step and per-assertion agree/disagree/unresolved
-entries with quoted evidence, and the selected attempt with reason. Retain
-branch/exclusion differences. A corrective attempt records failure feedback and
-its comparison against the original independent output. [procedure: Principle 1]
+entries with quoted evidence, and both executed attempts with their results.
+Retain branch/exclusion and result differences, including when step lists agree.
+A corrective attempt records failure feedback and its comparison against the
+other compiler's current compile. [procedure: Principle 1]
 
 Each finding has `observation`, `observation_status` (`reported` or `confirmed`),
 `attribution` (`observed` or `inferred`), `cause` (`page`, `software`, `compile`,
@@ -158,9 +159,11 @@ or trailing newline (`ensure_ascii=true`, separators `,` and `:`). Hash the exac
 source bytes before constructing that array. This is also the baseline hash
 convention. [procedure: Principle 1]
 
-`cache_key` identifies the selected executed compile. `independent_cache_keys`
-lists both blind compile keys during the pilot, including the selected key;
-the evidence points to their comparison and all attempts. For no executable
+`cache_key` identifies the primary compile, designated before results are seen;
+it does not select a run after execution. `independent_cache_keys` lists both
+blind compile keys during the pilot, including the primary key. Both compiles
+must be executed in separate fresh environments; the evidence points to their
+comparison, both run records, result differences and all corrective attempts. For no executable
 steps or a block before compilation, use null and an empty array; explain why
 in evidence/blockers. Never fabricate a compile key for an uncompiled page.
 `baseline.revision` is the PR base commit at which the entry was read. Preserve
@@ -175,6 +178,8 @@ findings require current observation evidence; untested known findings retain
 the baseline evidence and explain the gap. Never count resolved findings as new.
 Use `incomplete` if any selected page, comparison, required independent compile
 or required check is blocked/unrun, or material promised scope is untested.
+A new or newly labelled page's absent prior baseline is not a blocked comparison;
+apply the missing-baseline distinction in modes.md.
 Otherwise use `new-findings` if the count is positive, or `no-new-findings` if
 zero. Incomplete takes precedence even at zero. This verdict describes evidence,
 not merge permission: #2187's maintainer sign-off is separate and required.
@@ -191,7 +196,8 @@ artefact prohibition at the start of this reference. [procedure: Principle 1]
 ```text
 Baseline = {
   schema_version: 1, page: string, commit: Commit, page_hash: Hash,
-  cache_key: CacheKey|null, status: "exercised"|"no-executable-steps",
+  cache_key: CacheKey|null, status: "exercised"|"no-executable-steps"|"blocked",
+  blocking_reason: string|null,
   findings: [{id: string, summary: string, evidence: [string],
               disposition: {issue: string}|{declined: string}}],
   untested_scope: [string], evidence: [string],
@@ -205,10 +211,15 @@ form of `declined: <reason>`). IDs are unique within the page and stable across
 updates. `sign_off` identifies the approving maintainer and a durable approval
 record. `evidence` at entry level links the source inventory, independent compile
 comparison and machine record, or the factual-check record for a no-step page.
-Use null `cache_key` only for `no-executable-steps`. Blocked execution does not
-qualify as an exercised entry; keep it in the incomplete report. Untested scope
-must remain explicit, and never turns into evidence of success. Do not embed
-raw logs or scripts in an entry. [procedure: Principle 1]
+Use null `cache_key` for `no-executable-steps` or a block before compilation.
+A `blocked` entry requires a non-empty `blocking_reason` (for example an external
+service, a GUI-only step or unavailable data), explicit non-empty `untested_scope`
+and evidence of the blocker; other statuses use null `blocking_reason`.
+It counts towards #2187 switch-on coverage only when a maintainer accepts it in
+`sign_off`, using the same durable approval record as other sign-offs. A blocked
+page is never reported as passing or exercised; its PR report remains incomplete.
+Untested scope must remain explicit, and never turns into evidence of success.
+Do not embed raw logs or scripts in an entry. [procedure: Principle 1]
 
 ## API triage output (schema version 1)
 

@@ -5,8 +5,8 @@
 Use a bare API pass over the labelled hand-written inventory at a pinned commit.
 The design's 117 pages is a baseline, not a forced count. Record the model ID,
 prompt, hard budget, actual usage and spend, including failed/retried requests.
-Stop at the cap; do not buy credit or use paid fallback. Rank executable pages
-for subsequent journeys. Triage is neither execution nor a finding.
+State a hard budget cap and spend no more than that cap. [procedure: Principle 1]
+Rank executable pages for subsequent journeys. Triage is neither execution nor a finding.
 [decision: software maintainer, 2026-11-21] (#2188)
 
 Emit JSON using the triage schema in record-format.md. Every processed page has
@@ -39,8 +39,12 @@ finding without a baseline match is `new`. A baseline finding is `resolved` only
 when current evidence exercises its former failure and shows it absent. If that
 scope was not tested, retain it as `known` with `verification: untested` and list
 the gap; do not claim resolution. New IDs are page-local and never reuse retired
-IDs. A missing baseline blocks comparison and makes the verdict `incomplete`;
-list observed findings as `new` provisionally, never assume a clean baseline.
+IDs. A missing baseline makes the verdict `incomplete` only for a page that
+existed and was labelled hand-written at the PR base but lacks an entry; list
+its observed findings as `new` provisionally, never assume a clean baseline.
+A new or newly labelled page has no prior baseline by definition: all its
+findings are `new`, and it can reach a normal verdict. Its page-changing PR
+creates the first baseline entry.
 [procedure: Principle 1]
 
 Draft the report for the PR author to post. Known findings do not themselves
@@ -50,6 +54,11 @@ the PR author. That sign-off confirms no new findings or acceptance/filing of
 each new one. The skill neither posts nor creates/applies labels. The check is
 switched on only after #2188 covers every hand-written page on master.
 [decision: software maintainer, 2026-11-21] (#2187, #2188)
+
+A baseline entry with `status: blocked` counts towards #2187 switch-on coverage
+only after a maintainer accepts it through the baseline `sign_off` record.
+It states the blocking reason and untested scope as required in record-format.md;
+coverage acceptance never reports a blocked page as passing. [procedure: Principle 1]
 
 ## Baseline preparation and maintenance
 
@@ -70,7 +79,10 @@ snapshots, logs and compiled scripts stay with the preserved run evidence.
 [procedure: Principle 1]
 
 The PR changing the page owns its baseline update, after maintainer sign-off.
-Initial entries belong to the #2188 baseline PR. Supply pinned source hashes,
+Initial entries for the existing inventory belong to the #2188 baseline PR;
+new or newly labelled pages follow the first-entry procedure above.
+[procedure: Principle 1]
+Supply pinned source hashes,
 independent compile comparison, run/factual-check evidence, finding disposition
 and untested scope for that sign-off. Every retained finding must link a filed
 issue or record `declined: <reason>` from the maintainer; do not invent a decision

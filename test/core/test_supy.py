@@ -387,7 +387,7 @@ class TestSuPy(TestCase):
             f"Vendored ERA5 fixture CSV not found at {fixture_csv}",
         )
 
-        # Generation must not rewrite the vendored legacy forcing header.
+        # Generation must not rewrite the vendored forcing fixture.
         with tempfile.TemporaryDirectory() as generated:
             shutil.copy2(fixture_csv, Path(generated) / fixture_csv.name)
             list_fn_fc = sp.util.gen_forcing_era5(

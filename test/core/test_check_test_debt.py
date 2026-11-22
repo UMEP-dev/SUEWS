@@ -56,6 +56,7 @@ def tree(tmp_path):
         "test/physics/test_calendar_profiles.py",
         "test/physics/test_parameter_sensitivity.py",
         "test/physics/test_spartacus_ground_budget.py",
+        "test/physics/test_continuation_matrix.py",
     ]
     for name in paths:
         target = tmp_path / name

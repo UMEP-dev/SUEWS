@@ -92,19 +92,13 @@ pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-SAVE", "C-FORCIN
 class TestSuPy(TestCase):
     @pytest.fixture(autouse=True, scope="class")
     @classmethod
-    def _sample_fixtures(
-        cls,
-        request,
-        sample_data_loaded,
-        sample_run_cached,
-        sample_config_run_cached,
-    ):
+    def _sample_fixtures(cls, request, sample_data_loaded, sample_run_cached):
         """Bridge session-scoped sample fixtures onto this unittest.TestCase.
 
         ``sample_data_loaded`` is the bundled ``(df_state_init, df_forcing)``
-        tuple loaded once for the session; ``sample_run_cached`` and
-        ``sample_config_run_cached`` are the matching OOP run factories (see
-        conftest.py). Methods below MUST ``.copy()`` any frame they mutate.
+        tuple loaded once for the session; ``sample_run_cached`` is the
+        matching OOP run factory (see conftest.py). Methods below
+        MUST ``.copy()`` any frame they mutate.
 
         ``@classmethod``: a class-scoped fixture runs once per class, not
         once per test instance, so it must set attributes on ``cls`` rather
@@ -113,7 +107,6 @@ class TestSuPy(TestCase):
         """
         request.cls._sample_data = sample_data_loaded
         request.cls._sample_run = staticmethod(sample_run_cached)
-        request.cls._sample_config_run = staticmethod(sample_config_run_cached)
 
     # test if single-tstep mode can run
     @pytest.mark.physics
@@ -219,14 +212,15 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if current SUEWS version is saved...")
 
-        # Reuse the shared 12-step sample-config run (session-scoped).
-        _, df_forcing = self._sample_data
-        results = self._sample_config_run(end_date=df_forcing.index[11])
-        state_final = results.state_final
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Run only 1 hour (12 timesteps) instead of 8 hours
+        results = sim.run(end_date=sim.forcing.index[11])
 
         # Verify version column exists and contains correct version
-        self.assertIn(("version", "0"), state_final.columns)
-        self.assertTrue(all(state_final[("version", "0")] == sp.__version__))
+        self.assertIn(("version", "0"), sim.state_final.columns)
+        self.assertTrue(all(sim.state_final[("version", "0")] == sp.__version__))
 
     def test_metadata_columns_are_strings(self):
         """Test that metadata columns (config, description, version) are plain Python strings, not numpy arrays.
@@ -240,15 +234,16 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing metadata columns are plain strings not numpy arrays...")
 
-        # Reuse the shared 12-step sample-config run (session-scoped).
-        _, df_forcing = self._sample_data
-        results = self._sample_config_run(end_date=df_forcing.index[11])
-        state_final = results.state_final
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Run a short simulation
+        results = sim.run(end_date=sim.forcing.index[11])
 
         # Check that version metadata exists and is a string
-        self.assertIn(("version", "0"), state_final.columns)
+        self.assertIn(("version", "0"), sim.state_final.columns)
         # Use .iloc to get the first cell value, accounting for MultiIndex
-        version_value = state_final[("version", "0")].iloc[0]
+        version_value = sim.state_final[("version", "0")].iloc[0]
         self.assertIsInstance(
             version_value,
             str,
@@ -262,8 +257,8 @@ class TestSuPy(TestCase):
 
         # Check config and description if they exist
         for metadata_col in ["config", "description"]:
-            if (metadata_col, "0") in state_final.columns:
-                col_value = state_final[(metadata_col, "0")].iloc[0]
+            if (metadata_col, "0") in sim.state_final.columns:
+                col_value = sim.state_final[(metadata_col, "0")].iloc[0]
                 self.assertIsInstance(
                     col_value,
                     str,

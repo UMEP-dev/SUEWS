@@ -33,6 +33,8 @@ from supy import SUEWSSimulation
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING", "C-ISOLATION")]
 
 CLOCK_FOLLOW = ("local_standard_time", "follow")
+# Wall-clock timestamps in SUEWSOutput.metadata that naturally differ between runs.
+WALL_CLOCK_METADATA_KEYS = frozenset({"started_at", "ended_at"})
 
 
 def test_normalise_period_key_distinguishes_date_only_string_and_timestamp():
@@ -73,6 +75,18 @@ def test_sample_config_run_cached_computes_once_and_matches_direct_run(
     )
     assert out_first.config.sites[0].name == out_direct.config.sites[0].name
     assert out_first.checkpoint.last_timestamp == out_direct.checkpoint.last_timestamp
+
+    meta_cached = {
+        k: v for k, v in out_first.metadata.items() if k not in WALL_CLOCK_METADATA_KEYS
+    }
+    meta_direct = {
+        k: v
+        for k, v in out_direct.metadata.items()
+        if k not in WALL_CLOCK_METADATA_KEYS
+    }
+    assert meta_cached == meta_direct
+    assert out_first.metadata["inputs"]["config"]["source"] == "file"
+    assert out_first.metadata["inputs"]["forcing"]["source"] == "files"
 
 
 def test_sample_config_run_cached_isolates_mutations(

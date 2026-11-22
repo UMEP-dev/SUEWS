@@ -819,25 +819,21 @@ def _clone_suews_output(output):
 
 
 @pytest.fixture(scope="session")
-def sample_config_run_cached(sample_config_loaded, sample_data_loaded):
-    """Session-scoped factory memoising sample-config runs by ``(start_date, end_date)``.
+def sample_config_run_cached():
+    """Session-scoped factory memoising ``SUEWSSimulation.from_sample_data().run(...)``.
 
     Unlike ``sample_run_cached`` (which runs ``SUEWSSimulation.from_state``
-    without a ``SUEWSConfig``), this factory attaches the bundled
-    ``SUEWSConfig`` and runs ``SUEWSSimulation.run(start_date=...,
-    end_date=...)`` on the bundled sample forcing, returning a complete
-    ``SUEWSOutput`` (with ``config``, ``checkpoint``, ``state_final``, and
-    ``attrs``) once per distinct period per session.
+    without a ``SUEWSConfig``), this factory constructs the simulation via
+    ``SUEWSSimulation.from_sample_data()`` and runs ``run(start_date=...,
+    end_date=...)`` once per distinct period per session, returning a complete
+    ``SUEWSOutput`` (including file-based config and forcing provenance
+    metadata, ``config``, ``checkpoint``, ``state_final``, and ``attrs``).
 
     CONTRACT:
     - Every call returns an independent deep copy via ``_clone_suews_output``
-      so mutating the returned output, its DataFrames, ``attrs``, or
-      ``config`` cannot poison the session cache.
-    - Does not attach ``_config_path`` or file-based forcing provenance; tests
-      that assert on provenance sidecars or ``SUEWSSimulation.save()`` must
-      construct their own simulation.
+      so mutating the returned output, its DataFrames, ``attrs``,
+      ``metadata``, or ``config`` cannot poison the session cache.
     """
-    _, df_forcing = sample_data_loaded
     cache: dict = {}
 
     def _run(start_date=None, end_date=None):
@@ -847,12 +843,7 @@ def sample_config_run_cached(sample_config_loaded, sample_data_loaded):
                 "sample_config_run_cached",
                 f"start={start_date!r},end={end_date!r}",
             )
-            simulation = supy.SUEWSSimulation()
-            simulation.update_config(
-                sample_config_loaded.model_copy(deep=True),
-                auto_load_forcing=False,
-            )
-            simulation.update_forcing(df_forcing)
+            simulation = supy.SUEWSSimulation.from_sample_data()
             cache[key] = simulation.run(start_date=start_date, end_date=end_date)
         return _clone_suews_output(cache[key])
 

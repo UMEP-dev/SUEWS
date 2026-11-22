@@ -18,8 +18,10 @@ The installed package supplies export identities, signatures, Click definitions
 and rendered `--help` output. Its version and build commit are recorded separately,
 with `installed_matches_revision` showing whether that commit matches. The caller
 must install that revision in the fresh environment. Reports include the source spans read,
-complete rendered help, documentation mention lines, counts for all four
-statuses and an unabridged mismatch list. Counts describe checks, not objects.
+complete rendered help, documentation mention lines, counts for all five statuses
+(`ok`, `mismatch`, `format`, `unsupported`, `needs-reading`) and an unabridged
+mismatch list. Counts describe checks, not objects.
+`format` means a parameter entry uses `name: type` instead of `name : type`, but no parameter-name mismatches remain after normalisation.
 
 ## Scope and parameters
 

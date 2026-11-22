@@ -215,7 +215,7 @@ reader of that table.
 
 **Script**: `coverage_summary.py`
 
-The nightly `python_coverage` job in `build-publish_to_pypi.yml` runs the
+The nightly `python_coverage` job in `build-wheels-reusable.yml` runs the
 whole suite except `qgis` under coverage on the Linux cp312 wheel and writes
 `coverage.json`; this script turns that report into the job summary: total line
 and branch percentages, then one row per package (each top-level `supy`

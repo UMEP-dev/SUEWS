@@ -546,6 +546,17 @@ jobs:
       # every event, serialises the named platforms without a workflow edit.
       # The reusable workflow forwards this to the api lane it chains.
       serial_platforms: ${{ inputs.api_serial_platforms || vars.SUEWS_API_SERIAL_PLATFORMS || '' }}
+      # The nightly coverage recording job runs inside the Linux call, chained
+      # behind that platform's wheel only, so it no longer waits for every
+      # platform's api lane (it started ~58 min into the 22 Nov 2026 nightly
+      # and hit its timeout on 21 Nov). The trigger stays here because
+      # inputs.python_coverage inside the reusable workflow would be the
+      # workflow_call input, not the dispatch input. It needs the MCP
+      # distribution as the api lane does.
+      run_python_coverage: >-
+        ${{ matrix.buildplat[1] == 'manylinux' && matrix.buildplat[2] == 'x86_64' &&
+        needs.build_mcp.result == 'success' &&
+        (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.python_coverage == true)) }}
 
   # Nightly only: build the checked profile (-O0 -fcheck=all) on every platform
   # and run the full physics tier on it, so out-of-bounds and uninitialised
@@ -644,89 +655,6 @@ jobs:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.bookend_python }}
       build_profile: ${{ inputs.build_profile || 'release' }}
-
-  # Nightly and on demand: Python line and branch coverage of supy and
-  # suews_mcp over the whole suite except the qgis tests, on the Linux cp312
-  # wheel this run built, installed as the api lane installs it, with the
-  # configuration in pyproject.toml ([tool.coverage.*]) so `pytest --cov`
-  # gives the same numbers locally. The test requirements are the api lane's
-  # exact pins plus pytest-cov and coverage, pinned the same way. It records
-  # and never gates: continue-on-error keeps a failing test, an install
-  # failure or the timeout from turning the nightly red, and the job feeds
-  # neither report_scheduled_run nor pr-gate; a failing test is the api and
-  # physics lanes' to report, here it only lowers the figures. It uploads
-  # coverage.json and coverage.xml as the python-coverage artefact and writes
-  # totals and a per-package table to the job summary; no external service.
-  python_coverage:
-    name: Python coverage (Linux cp312)
-    needs: [build_wheels, build_mcp]
-    if: |
-      always() &&
-      needs.build_wheels.result == 'success' &&
-      needs.build_mcp.result == 'success' &&
-      (
-        github.event_name == 'schedule' ||
-        (github.event_name == 'workflow_dispatch' && inputs.python_coverage == true)
-      )
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: '3.12'
-
-      - name: Download the Linux cp312 wheel
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: cp312-manylinux-x86_64
-          path: wheelhouse/
-
-      - name: Download MCP distribution
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: suews-mcp-dist
-          path: mcp-dist/
-
-      - name: Install the wheel and the pinned test requirements
-        shell: bash
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0 \
-            pytest-cov==7.1.0 coverage==7.17.3
-          python -m pip install wheelhouse/*.whl mcp-dist/*.whl
-
-      # Four workers, as the Linux api lane measured (#1786). pytest-cov writes
-      # the reports whatever the test outcome.
-      - name: Run the suite under coverage
-        shell: bash
-        run: >-
-          python -m pytest test -m "not qgis"
-          -n 4 --dist worksteal -q --tb=short -p no:cacheprovider
-          --cov
-          --cov-report=json:coverage/coverage.json
-          --cov-report=xml:coverage/coverage.xml
-          --cov-report=term
-
-      - name: Summarise coverage
-        if: always()
-        shell: bash
-        run: python scripts/suews/coverage_summary.py coverage/coverage.json --markdown "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload the coverage reports
-        if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: python-coverage
-          path: |
-            coverage/coverage.json
-            coverage/coverage.xml
-          if-no-files-found: error
-          retention-days: 30
 
   # Verify the built Linux cp312 wheel installs and passes core/smoke tests
   # against the lowest declared runtime dependency floors via uv

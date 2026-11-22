@@ -272,18 +272,6 @@ mappings:
     classification: "accepted_exception"
   - selector:
       ledger: "O"
-      id_prefix: "heat_state.temp_surf_ehc_"
-    contract: "C-EHC-RESTART"
-    issue: 2108
-    classification: "defect"
-  - selector:
-      ledger: "O"
-      id_prefix: "heat_state.ehc_iter_"
-    contract: "C-CAPI"
-    issue: 2083
-    classification: "accepted_exception"
-  - selector:
-      ledger: "O"
       id_prefix: "suews_timer."
     contract: "C-CAPI"
     issue: 2083
@@ -371,9 +359,3 @@ mappings:
     contract: "C-ROUNDTRIP"
     issue: 2083
     classification: "accepted_exception"
-  - selector:
-      ledger: "X"
-      id: "test/physics/test_continuation_matrix.py::test_continuation_matrix::1"
-    contract: "C-EHC-RESTART"
-    issue: 2108
-    classification: "defect"

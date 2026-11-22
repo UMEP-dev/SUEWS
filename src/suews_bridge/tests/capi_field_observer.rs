@@ -3004,8 +3004,8 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
         "unexpectedly small direct leaf count {direct_leaves}"
     );
     assert_eq!(
-        direct_unbridged, 5,
-        "expected exactly 5 reviewed unbridged leaves across the 30 direct types"
+        direct_unbridged, 0,
+        "expected zero unbridged leaves across the 30 direct types"
     );
 
     for (name, table) in all_driver_tables {

@@ -918,6 +918,121 @@ jobs:
         run: |
           echo "::notice title=Cost markers::This pull request comes from a fork, whose workflow token is read-only, so the CI summary comment is not edited. The cost-marker result is in this job's summary."
 
+  # Pull requests (standard tier only): report-only guard that checks whether
+  # the PR makes the Linux cp312 API or physics test lanes slower by more than
+  # 10% after per-artefact runner normalisation against the committed baseline
+  # (`scripts/lint/test_duration_baseline.json`), or leaves new/changed tests
+  # over the repository's cost-marker thresholds without the matching marker.
+  # It downloads both unsharded and N-sharded API artefacts (aggregating across
+  # shards after per-shard runner normalisation), emits warning annotations and
+  # a job summary, and adds an advisory section to the CI summary comment.
+  # It never gates: continue-on-error is true on the job and steps, and neither
+  # pr-gate nor report_scheduled_run depends on it. Waiting on cost_markers_pr
+  # (with always()) prevents concurrent updates to the sticky PR comment.
+  test_duration_guard:
+    name: Test duration guard (Linux cp312)
+    needs: [detect-changes, determine_matrix, build_wheels, cost_markers_pr]
+    if: |
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.determine_matrix.result == 'success' &&
+      needs.determine_matrix.outputs.test_tier == 'standard' &&
+      (needs.build_wheels.result == 'success' || needs.build_wheels.result == 'failure') &&
+      (needs.cost_markers_pr.result == 'success' || needs.cost_markers_pr.result == 'failure' || needs.cost_markers_pr.result == 'skipped')
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: |
+            scripts/lint/check_cost_markers.py
+            scripts/lint/check_test_duration.py
+            scripts/lint/test_duration_baseline.json
+            .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      # Pattern matches both an unsharded Linux cp312 API artefact and any
+      # sharded artefacts (`...-shard-K-of-N`) into separate subdirectories.
+      - name: Download the Linux cp312 api metrics
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ci-metrics-api-cp312-manylinux-x86_64*
+          path: ci-metrics/api
+
+      - name: Download the Linux cp312 physics metrics
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ci-metrics-physics-cp312-manylinux-x86_64
+          path: ci-metrics/physics
+
+      - name: Check runner-normalised test durations against baseline
+        continue-on-error: true
+        shell: bash
+        env:
+          TESTS_FILES: ${{ needs.detect-changes.outputs.tests-files || '[]' }}
+        run: |
+          if [ ! -f scripts/lint/check_test_duration.py ] || [ ! -f scripts/lint/test_duration_baseline.json ]; then
+            echo "check_test_duration.py or its baseline is not yet on the base branch; skipping."
+            exit 0
+          fi
+          if [ ! -d ci-metrics ]; then
+            echo "No ci-metrics artefacts downloaded; skipping."
+            exit 0
+          fi
+          # File names are PR data: read them into an array through jq, never
+          # into the text of a command.
+          mapfile -t files < <(printf '%s' "$TESTS_FILES" | jq -r '.[] | select(test("^test/.+\\.py$"))')
+          args=()
+          if [ "${#files[@]}" -eq 0 ]; then
+            args+=(--no-changed-test-files)
+          else
+            for f in "${files[@]}"; do args+=(--test-file "$f"); done
+          fi
+          python scripts/lint/check_test_duration.py ci-metrics \
+            --baseline scripts/lint/test_duration_baseline.json \
+            "${args[@]}" \
+            --annotations \
+            --json duration-guard.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Add the duration-guard result to the CI summary comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('duration-guard.json')) {
+              core.info('No duration-guard report; comment left as it is.');
+              return;
+            }
+            const summaryMod = require('./.github/scripts/post-ci-summary.js');
+            if (typeof summaryMod.postDurationGuard !== 'function') {
+              core.info('postDurationGuard not yet on base branch; comment left as it is.');
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync('duration-guard.json', 'utf8'));
+            await summaryMod.postDurationGuard({ github, context, core, report });
+
+      - name: Explain why a fork PR gets no duration-guard comment
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        shell: bash
+        run: |
+          echo "::notice title=Test duration guard::This pull request comes from a fork, whose workflow token is read-only, so the CI summary comment is not edited. The duration-guard result is in this job's summary."
+
   # Standalone static lints over the test tree. Both use AST-based scripts
   # that never import supy, so CI can run them without building — that is
   # what keeps the check cheap for test-only PRs.

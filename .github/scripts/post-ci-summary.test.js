@@ -177,3 +177,128 @@ test('postCostMarkers updates only the bot summary comment, and only when it cha
   await postCostMarkers({ github: none, context: fakeContext, core: fakeCore, report: DRIFT });
   assert.equal(none.calls.length, 0);
 });
+
+// ---- Test duration guard section (postDurationGuard) ----
+
+const { durationGuardSection, withDurationGuardSection, postDurationGuard } = require('./post-ci-summary.js');
+
+function durationReport(overrides) {
+  return {
+    ok: true,
+    max_regression: 0.1,
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'ok',
+        baseline_total_seconds: 5333.2,
+        raw_total_seconds: 3583.6,
+        scaled_total_seconds: 5333.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '0.67x',
+      },
+      physics: {
+        lane: 'physics',
+        status: 'ok',
+        baseline_total_seconds: 1606.2,
+        raw_total_seconds: 2054.4,
+        scaled_total_seconds: 1606.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.28x',
+      },
+    },
+    marker_warnings: [],
+    ...overrides,
+  };
+}
+
+const DURATION_REGRESSION = durationReport({
+  ok: false,
+  lanes: {
+    api: {
+      lane: 'api',
+      status: 'regressed',
+      baseline_total_seconds: 5333.2,
+      raw_total_seconds: 4088.1,
+      scaled_total_seconds: 6084.0,
+      delta_ratio: 0.1408,
+      delta_percent: 14.08,
+      regressed: true,
+      factor_summary: '0.67x',
+    },
+    physics: {
+      lane: 'physics',
+      status: 'ok',
+      baseline_total_seconds: 1606.2,
+      raw_total_seconds: 2054.4,
+      scaled_total_seconds: 1606.2,
+      delta_ratio: 0.0,
+      delta_percent: 0.0,
+      regressed: false,
+      factor_summary: '1.28x',
+    },
+  },
+  marker_warnings: [
+    {
+      node_id: 'test/core/test_x.py::test_heavy`a`',
+      lane: 'api',
+      raw_cpu_seconds: 16.5,
+      scaled_cpu_seconds: 24.6,
+      runner_factor: 0.67,
+      current: null,
+      wanted: 'medium',
+    },
+  ],
+});
+
+test('duration-guard section is empty when no lane was evaluated and no warnings exist', () => {
+  const empty = durationReport({
+    lanes: {
+      api: { lane: 'api', status: 'missing', scaled_total_seconds: null, delta_percent: null, regressed: false },
+    },
+  });
+  assert.equal(durationGuardSection(empty), '');
+  assert.equal(durationGuardSection(null), '');
+});
+
+test('duration-guard section is one line when clean', () => {
+  const line = durationGuardSection(durationReport({}));
+  assert.equal(line.split('\n').length, 1);
+  assert.match(line, /within \+10% of baseline \(api \+0\.0%, physics \+0\.0%; runner-normalised\)/);
+});
+
+test('duration-guard section lists lane regressions and under-marked tests without gating', () => {
+  const section = durationGuardSection(DURATION_REGRESSION);
+  assert.match(section, /information only, not a gate/);
+  assert.match(section, /\*\*api\*\* lane: \+14\.1% normalised call CPU-s \(6084\.0 s vs 5333\.2 s baseline, threshold \+10%; runner 0\.67x\)/);
+  assert.match(section, /- `test\/core\/test_x\.py::test_heavy'a'`: 24\.6 normalised CPU-s \(raw 16\.5 s, runner 0\.67x\), no cost marker -> medium/);
+  assert.doesNotMatch(section, /\*\*physics\*\* lane/);
+});
+
+test('duration-guard block coexists cleanly with cost-markers block and is idempotent', () => {
+  const body = buildBody(envFor({ TESTS_CHANGED: 'true' }), ctx);
+  const withCost = withCostMarkerSection(body, costMarkerSection(DRIFT));
+  const withBoth = withDurationGuardSection(withCost, durationGuardSection(DURATION_REGRESSION));
+  assert.ok(withBoth.includes('<!-- cost-markers:start -->'));
+  assert.ok(withBoth.includes('<!-- duration-guard:start -->'));
+  assert.ok(withBoth.indexOf('<!-- duration-guard:end -->') < withBoth.lastIndexOf('\n---\n'));
+  // Idempotent update and clean removal leaving cost-markers intact.
+  assert.equal(withDurationGuardSection(withBoth, durationGuardSection(DURATION_REGRESSION)), withBoth);
+  assert.equal(withDurationGuardSection(withBoth, ''), withCost);
+});
+
+test('postDurationGuard updates only the bot summary comment and skips when unchanged', async () => {
+  const body = buildBody(envFor({}), ctx);
+  const gh = fakeGithub([{ id: 2, user: { type: 'Bot' }, body }]);
+  await postDurationGuard({ github: gh, context: fakeContext, core: fakeCore, report: DURATION_REGRESSION });
+  assert.equal(gh.calls.length, 1);
+  assert.equal(gh.calls[0].comment_id, 2);
+  assert.match(gh.calls[0].body, /duration-guard:start/);
+
+  const already = fakeGithub([{ id: 2, user: { type: 'Bot' }, body: gh.calls[0].body }]);
+  await postDurationGuard({ github: already, context: fakeContext, core: fakeCore, report: DURATION_REGRESSION });
+  assert.equal(already.calls.length, 0);
+});

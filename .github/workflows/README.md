@@ -119,6 +119,13 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   `standard` includes non-slow tests plus essential `core` regressions even
   when they are slow. All normal tiers exclude `qgis`; `all` is reserved for
   scheduled builds, tagged releases, and explicit manual validation.
+- On `standard`-tier pull requests, the report-only `Test duration guard (Linux
+  cp312)` job (`scripts/lint/check_test_duration.py`) normalises each API shard
+  and the physics lane against `scripts/lint/test_duration_baseline.json` and
+  warns when a lane grows by more than 10% or a changed test exceeds the
+  cost-marker thresholds without the matching marker. It never gates merges.
+  Regenerate the baseline after deliberate suite growth or hotspot speed-ups
+  with `python scripts/lint/check_test_duration.py --write-baseline <run_dirs...>`.
 - UMEP/QGIS tests are `api + qgis`: they are not physics backend tests, and
   run only when `all` reaches the Windows + Python 3.12 compatibility cell or
   when selected explicitly.

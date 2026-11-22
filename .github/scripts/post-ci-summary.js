@@ -181,6 +181,9 @@ const MARKER = '<!-- ci-build-plan -->';
 const COST_START = '<!-- cost-markers:start -->';
 const COST_END = '<!-- cost-markers:end -->';
 const COST_BLOCK = new RegExp(`\\n*${COST_START}[\\s\\S]*?${COST_END}\\n*`);
+const DURATION_START = '<!-- duration-guard:start -->';
+const DURATION_END = '<!-- duration-guard:end -->';
+const DURATION_BLOCK = new RegExp(`\\n*${DURATION_START}[\\s\\S]*?${DURATION_END}\\n*`);
 const COST_LIST_LIMIT = 15;
 
 // Node ids come from the PR's own test run, so keep them inside one code span.
@@ -268,6 +271,100 @@ async function postCostMarkers({ github, context, core, report, testTier }) {
   });
 }
 
+function formatSignedPercent(deltaPercent) {
+  const n = Number(deltaPercent);
+  const clamped = Math.abs(n) < 0.05 ? 0 : n;
+  return `${clamped >= 0 ? '+' : ''}${clamped.toFixed(1)}%`;
+}
+
+// The duration-guard section for a report written by
+// `scripts/lint/check_test_duration.py --json`. Empty when no lane was
+// evaluated and no marker warnings were emitted; one line when clean; a
+// concise advisory list otherwise.
+function durationGuardSection(report) {
+  if (!report || !report.lanes) return '';
+  const laneEntries = Object.values(report.lanes);
+  const evaluated = laneEntries.filter(l => l.scaled_total_seconds !== null && l.delta_percent !== null);
+  const regressed = evaluated.filter(l => l.regressed);
+  const warnings = [...(report.marker_warnings || [])].sort(
+    (a, b) => b.scaled_cpu_seconds - a.scaled_cpu_seconds
+  );
+  if (evaluated.length === 0 && warnings.length === 0) return '';
+
+  const thresholdPct = Math.round(Number(report.max_regression || 0.1) * 100);
+  const laneParts = evaluated.map(
+    l => `${l.lane} ${formatSignedPercent(l.delta_percent)}`
+  );
+
+  if (report.ok || (regressed.length === 0 && warnings.length === 0)) {
+    return (
+      `**Test duration guard** (Linux cp312, \`standard\` tier): within +${thresholdPct}% of baseline ` +
+      `(${laneParts.join(', ')}; runner-normalised).`
+    );
+  }
+
+  const lines = [
+    `**Test duration guard** (information only, not a gate; Linux cp312, \`standard\` tier):`,
+    '',
+  ];
+  for (const lane of regressed) {
+    const pct = formatSignedPercent(lane.delta_percent);
+    const scaled = Number(lane.scaled_total_seconds).toFixed(1);
+    const base = Number(lane.baseline_total_seconds).toFixed(1);
+    lines.push(
+      `- **${lane.lane}** lane: ${pct} normalised call CPU-s (${scaled} s vs ${base} s baseline, ` +
+        `threshold +${thresholdPct}%; runner ${lane.factor_summary})`
+    );
+  }
+  for (const w of warnings.slice(0, COST_LIST_LIMIT)) {
+    const scaled = Number(w.scaled_cpu_seconds).toFixed(1);
+    const raw = Number(w.raw_cpu_seconds).toFixed(1);
+    const factor = Number(w.runner_factor).toFixed(2);
+    lines.push(
+      `- ${codeSpan(w.node_id)}: ${scaled} normalised CPU-s (raw ${raw} s, runner ${factor}x), ` +
+        `${w.current || 'no cost marker'} -> ${w.wanted}`
+    );
+  }
+  if (warnings.length > COST_LIST_LIMIT) {
+    lines.push(`- _...and ${warnings.length - COST_LIST_LIMIT} more_`);
+  }
+  lines.push(
+    '',
+    'See the "Test duration guard (Linux cp312)" job summary for details and `.claude/rules/tests/patterns.md` for cost-marker thresholds.',
+  );
+  return lines.join('\n');
+}
+
+// Replace (or drop, for an empty section) the duration-guard block in a
+// summary comment body, placing it just above the footer rule. Idempotent.
+function withDurationGuardSection(body, section) {
+  const base = body.replace(DURATION_BLOCK, '\n\n');
+  if (!section) return base;
+  const block = `${DURATION_START}\n${section}\n${DURATION_END}`;
+  const footer = base.lastIndexOf('\n---\n');
+  if (footer === -1) return `${base.trimEnd()}\n\n${block}\n`;
+  return `${base.slice(0, footer).trimEnd()}\n\n${block}\n${base.slice(footer)}`;
+}
+
+async function postDurationGuard({ github, context, core, report }) {
+  const existing = await findSummaryComment(github, context);
+  if (!existing) {
+    core.info('No CI summary comment on this PR; nothing to add the duration guard to.');
+    return;
+  }
+  const body = withDurationGuardSection(existing.body, durationGuardSection(report));
+  if (body === existing.body) {
+    core.info('Duration-guard section unchanged.');
+    return;
+  }
+  await github.rest.issues.updateComment({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    comment_id: existing.id,
+    body: body
+  });
+}
+
 module.exports = async ({ github, context }) => {
   const env = process.env;
   const prNumber = context.issue.number;
@@ -306,3 +403,6 @@ module.exports.TIER_DESC = TIER_DESC;
 module.exports.costMarkerSection = costMarkerSection;
 module.exports.withCostMarkerSection = withCostMarkerSection;
 module.exports.postCostMarkers = postCostMarkers;
+module.exports.durationGuardSection = durationGuardSection;
+module.exports.withDurationGuardSection = withDurationGuardSection;
+module.exports.postDurationGuard = postDurationGuard;

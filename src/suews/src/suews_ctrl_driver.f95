@@ -223,6 +223,9 @@ CONTAINS
       TYPE(dts_ehc_stability_iteration) :: ehc_stability
       INTEGER, PARAMETER :: ehc_stability_first_pass = 16
       LOGICAL :: use_ehc_stability, verify_ehc_stability, relax_ehc_stability
+      ! DyOHM guards its daily running averages and midnight coefficient updates via
+      ! timer%dt_since_start_prev and timer%new_day; save/restore them alongside ohmState.
+      INTEGER :: timer_dt_since_start_prev_start, timer_new_day_start
 
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
@@ -328,6 +331,8 @@ CONTAINS
 
             ! save initial values of model states
             modState_tstepstart = modState
+            timer_dt_since_start_prev_start = timer%dt_since_start_prev
+            timer_new_day_start = timer%new_day
 
             ! ########################################3
             ! set initial values for output arrays
@@ -424,6 +429,10 @@ CONTAINS
                ! IMPORTANT: restore some initial states as they SHOULD NOT be changed during iterations
                IF (((.NOT. flag_converge) .AND. i_iter > 1) .OR. (flag_converge .AND. i_iter == 2)) THEN
                   CALL modState%check_and_reset_states(modState_tstepstart)
+                  IF (.NOT. modState%ohmState%iter_safe) THEN
+                     timer%dt_since_start_prev = timer_dt_since_start_prev_start
+                     timer%new_day = timer_new_day_start
+                  END IF
                   IF (config%StorageHeatMethod == 5) THEN
                      CALL reset_ehc_heat_state_for_tsurf_iteration( &
                         modState%heatState, modState_tstepstart%heatState)
@@ -2199,7 +2208,7 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(in) :: timer
+      TYPE(SUEWS_TIMER), INTENT(inout) :: timer
       TYPE(SUEWS_CONFIG), INTENT(in) :: config
       TYPE(SUEWS_FORCING), INTENT(in) :: forcing
       TYPE(SUEWS_SITE), INTENT(in) :: siteInfo
@@ -2228,6 +2237,10 @@ CONTAINS
       ! internal use arrays
       REAL(KIND(1D0)) :: Tair_mav_5d ! Tair_mav_5d=HDD(id-1,4) HDD at the begining of today (id-1)
       REAL(KIND(1D0)) :: qn_use ! qn used in OHM calculations [W m-2]
+      ! Local copies avoid Fortran 2018 15.5.2.13 INTENT(IN)/INTENT(OUT) aliasing in OHM and AnOHM
+      REAL(KIND(1D0)) :: qn_av_prev_ohm, dqndt_prev_ohm
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_surfs_prev_ohm, dqndt_surf_prev_ohm
+      REAL(KIND(1D0)) :: qn_s_av_prev_ohm, dqnsdt_prev_ohm
       CHARACTER(LEN=12) :: str_storage_heat ! StorageHeatMethod as text for the error message
       ! EHC implicit surface coupling: linearised surface energy balance,
       ! lower-boundary temperatures and the solved surface temperatures
@@ -2553,6 +2566,13 @@ CONTAINS
                      dataOutLineSTEBBS) ! output
                END IF
 
+               IF (StorageHeatMethod == 3) THEN
+                  ! Promote any completed calendar-day buffer before AnOHM dispatch so
+                  ! day-rollover steps diagnose the new day's coefficients consistently
+                  ! on every pass and leave live coefficients in checkpoints.
+                  CALL anohm_rollover_if_needed(timer, ohmState)
+               END IF
+
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
@@ -2561,11 +2581,17 @@ CONTAINS
                        (StorageHeatMethod == 3 .AND. .NOT. ohmState%anohm_coeff_ready)) THEN !OHM, or AnOHM spin-up fallback
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
-                  CALL OHM(qn_use, qn_surf, ohmState%qn_av, ohmState%dqndt, &
+                  qn_av_prev_ohm = ohmState%qn_av
+                  dqndt_prev_ohm = ohmState%dqndt
+                  qn_surfs_prev_ohm = ohmState%qn_surfs
+                  dqndt_surf_prev_ohm = ohmState%dqndt_surf
+                  qn_s_av_prev_ohm = ohmState%qn_s_av
+                  dqnsdt_prev_ohm = ohmState%dqnsdt
+                  CALL OHM(qn_use, qn_surf, qn_av_prev_ohm, dqndt_prev_ohm, &
                            ohmState%qn_av, ohmState%dqndt, &
+                           qn_surfs_prev_ohm, dqndt_surf_prev_ohm, &
                            ohmState%qn_surfs, ohmState%dqndt_surf, &
-                           ohmState%qn_surfs, ohmState%dqndt_surf, &
-                           qn_snow, ohmState%qn_s_av, ohmState%dqnsdt, &
+                           qn_snow, qn_s_av_prev_ohm, dqnsdt_prev_ohm, &
                            ohmState%qn_s_av, ohmState%dqnsdt, &
                            tstep, dt_since_start, &
                            sfr_surf, nsurf, &
@@ -2620,9 +2646,11 @@ CONTAINS
                   END DO
 
                   IF (Diagnose == 1) WRITE (*, *) 'Calling AnOHM...'
+                  qn_av_prev_ohm = ohmState%qn_av
+                  dqndt_prev_ohm = ohmState%dqndt
                   CALL AnOHM( &
                      tstep, dt_since_start, &
-                     qn_use, ohmState%qn_av, ohmState%dqndt, &
+                     qn_use, qn_av_prev_ohm, dqndt_prev_ohm, &
                      ohmState%anohm_coeff_sd(1:ohmState%anohm_coeff_count), &
                      ohmState%anohm_coeff_ta(1:ohmState%anohm_coeff_count), &
                      ohmState%anohm_coeff_rh(1:ohmState%anohm_coeff_count), &

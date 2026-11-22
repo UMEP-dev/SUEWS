@@ -71,7 +71,7 @@ CONTAINS
       USE module_ctrl_type, ONLY: SUEWS_TIMER
       USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER) :: timer
+      TYPE(SUEWS_TIMER), INTENT(inout) :: timer
       INTEGER, INTENT(in) :: StorageHeatMethod !
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
@@ -169,6 +169,16 @@ CONTAINS
       dyohm_with_stebbs = StorageHeatMethod == 7
       dyohm_building_only = StorageHeatMethod == 8
       dyohm_active = dyohm_all_surfaces .OR. dyohm_with_stebbs .OR. dyohm_building_only
+
+      ! Preserve previous radiation histories on branches that do not update all six
+      ! INTENT(OUT) slots (surface arrays in grid OHM, grid scalars in full DyOHM,
+      ! or snow history when SnowUse == 0).
+      qn_av_next = qn_av_prev
+      dqndt_next = dqndt_prev
+      qn_surf_next = qn_surf_prev
+      dqndt_surf_next = dqndt_surf_prev
+      qn_s_av_next = qn_s_av_prev
+      dqnsdt_next = dqnsdt_prev
 
       IF (dyohm_active) THEN
          ! MP 14/04/2025
@@ -437,8 +447,6 @@ CONTAINS
             IF (dyohm_building_only) THEN
                ! Hybrid method: start from ordinary grid OHM, then replace
                ! only the building contribution with DyOHM storage heat.
-               qn_surf_next = qn_surf_prev
-               dqndt_surf_next = dqndt_surf_prev
                CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
                                  qn_av_next, dqndt_next)
                CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs_ohm_grid)

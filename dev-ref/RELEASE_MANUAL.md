@@ -180,7 +180,7 @@ When writing `docs/source/version-history/vYYYY.M.D.rst` and `.github/releases/Y
 ### Hotfix Procedure (`YYYY.M.D.PATCH`)
 Even for urgent hotfixes, **do not push directly to `master`**:
 1. Branch from `origin/master` (`git checkout -b fix/hotfix-YYYY.M.D.1 origin/master`).
-2. Implement the minimal fix + regression test, add a `changes/` fragment, fold it (`python scripts/suews/fold_changelog.py`), update `.github/releases/YYYY.M.D.1.md`, and run `make test-smoke && make test`.
+2. Implement the minimal fix + regression test, add a `changes/` fragment and commit it with the fix, then fold it (`python scripts/suews/fold_changelog.py`, which dates fragments by their commit; or pass `--date YYYY-MM-DD`) and commit the folded `CHANGELOG.md`, update `.github/releases/YYYY.M.D.1.md`, and run `make test-smoke && make test`.
 3. Open a PR, pass `pr-gate`, and merge via the merge queue.
 4. Tag `YYYY.M.D.1` on the merge commit on `origin/master`, push the tag, and run `release-docs-anchor.yml` once PyPI and `docs-sync.yml` complete.
 

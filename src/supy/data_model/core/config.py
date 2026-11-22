@@ -4168,13 +4168,15 @@ class SUEWSConfig(DataModelBase):
         return None
 
     def _iter_active_veg_lai_max_issues(self) -> list[dict[str, str]]:
-        """Return issues for non-positive or non-finite ``lai_max`` on active vegetation.
+        """Return issues for invalid explicit ``lai_max`` on active vegetation.
 
         Applies unconditionally (without gating on ``_yaml_raw``) across the
         three vegetated surfaces (``evetr``, ``dectr``, ``grass``) whenever
-        ``sfr > 0`` and an explicit numeric ``lai_max`` (or legacy ``laimax``)
-        is ``<= 0`` or non-finite. Absent/null ``lai_max`` is handled separately
-        by :meth:`_iter_critical_null_site_param_issues`; inactive vegetated
+        ``sfr > 0`` and an explicit ``lai_max`` (or legacy ``laimax``) is
+        non-positive (``<= 0``), non-finite, an explicit boolean (``bool`` or
+        ``np.bool_``), or another malformed non-null value. Omitted/``None``
+        values (including ``{value: null}`` wrapped nulls) are left to
+        :meth:`_iter_critical_null_site_param_issues`; inactive vegetated
         surfaces (``sfr == 0``) remain permitted to carry ``lai_max == 0``
         (gh#2149).
 

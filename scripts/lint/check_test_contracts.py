@@ -6,6 +6,8 @@ module-level pytestmark (single, list or tuple) or function/class decorators.
 Aliases and computed ids are deliberately not evaluated. Rust tags are
 standalone ``// contract: C-A, C-B`` lines in files containing ``#[test]``;
 this is a textual convention, not a Rust parser or feature-gate analysis.
+Python coverage includes the main suite, benchmark tests and repository-rule tests.
+Rust coverage includes field observers alongside the unit and integration tests.
 Counts describe tag presence, not executed tests or proof of a contract.
 
 Report mode always returns zero for findings. Strict mode also fails on
@@ -153,8 +155,11 @@ def _rust_tags(source: str) -> tuple[set[str], list[str]]:
 def _scan_files(root: Path) -> tuple[dict[str, list[str]], list[str]]:
     paths = sorted({
         *(root / "test").rglob("test_*.py"),
+        *(root / "benchmark/tests").rglob("test_*.py"),
+        *(root / ".claude/scripts").rglob("test_*.py"),
         *(root / "src/suews_bridge/src").rglob("*.rs"),
         *(root / "src/suews_bridge/tests").rglob("*.rs"),
+        *(root / "src/suews_bridge/test_observer").rglob("*.rs"),
     })
     files = {}
     errors = []
@@ -186,6 +191,8 @@ def check_tree(root: Path) -> dict:
     contracts, errors = _load_registry(root / REGISTRY_PATH)
     files, scan_errors = _scan_files(root)
     errors.extend(scan_errors)
+    if not files:
+        errors.append("No test files were found in the supported test directories.")
     unknown = {}
     counts = dict.fromkeys(sorted(contracts), 0)
     for name, tags in files.items():

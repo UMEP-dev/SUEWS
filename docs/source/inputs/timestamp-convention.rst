@@ -121,11 +121,14 @@ takes the period's label.
 
 .. note::
 
-   In native model-timestep output, the Fortran kernel still accumulates daily
-   totals, means and extremes across the calendar-day timestamps ``00:00`` to
-   ``23:55`` (at a 5-minute timestep) and emits each day's ``DailyState`` row
-   on the last step of that calendar date (``23:55``), rather than over
-   ``(D 00:00, D+1 00:00]``. Resampling and the output writers place that
+   In native model-timestep output (in-memory ``SUEWSOutput.df``, as well as
+   Parquet saved at the native timestep via ``save_tstep=True`` or
+   ``freq == tstep``), the Fortran kernel still accumulates daily totals, means
+   and extremes across the calendar-day timestamps ``00:00`` to ``23:55`` (at a
+   5-minute timestep) and emits each day's ``DailyState`` row on ``23:55`` (the
+   right edge of ``(23:50, 23:55]``), rather than over ``(D 00:00, D+1 00:00]``.
+   Any coarser resample (including hourly, daily and calendar frequencies) and
+   the daily text ``DailyState`` file (always written at ``86400 s``) place that
    record into the right-closed bin ending at ``D+1 00:00``.
 
 Forcing stamped at the start of each interval

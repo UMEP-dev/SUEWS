@@ -797,7 +797,7 @@ def _gen_df_year(
         df_year = df_year.loc[f"{year}"].copy(deep=False)
     # shift back to align with SUEWS end-of-period convention
     if not timestamps_are_final:
-        if df_year.index.freq is None and step_s is not None:
+        if step_s is not None:
             df_year.index = df_year.index + pd.Timedelta(seconds=step_s)
         else:
             df_year.index = df_year.index.shift(1)
@@ -957,26 +957,20 @@ def _save_row_index(
         index = index.remove_unused_levels()
         idx_dt = index.get_level_values("datetime").drop_duplicates()
 
-        # cast freq to index if not associated
-        shifted_by_step = False
-        if idx_dt.freq is None:
-            ser_idx = idx_dt.to_series()
-            if len(ser_idx) > 1:
+        if step_s is not None:
+            # Shift by the known period length rather than inferring a cadence
+            # from consecutive stamps, which would over-shift across gaps (e.g.
+            # a missing day in DailyState moving 2 Jan back into the prior year).
+            idx_dt = idx_dt - pd.Timedelta(seconds=step_s)
+        else:
+            if idx_dt.freq is None and len(idx_dt) > 1:
+                ser_idx = idx_dt.to_series()
                 freq = ser_idx.diff().iloc[-1]
                 idx_asfreq = ser_idx.asfreq(freq).index
                 if len(idx_asfreq) == len(idx_dt):
                     idx_dt = idx_asfreq
-                elif step_s is not None:
-                    idx_dt = idx_dt - pd.Timedelta(seconds=step_s)
-                    shifted_by_step = True
-            else:
-                idx_dt = ser_idx.index
-
-        if not shifted_by_step:
             if len(idx_dt) > 1 and idx_dt.freq is not None:
                 idx_dt = idx_dt.shift(-1)
-            elif step_s is not None:
-                idx_dt = idx_dt - pd.Timedelta(seconds=step_s)
 
         index = index.set_levels(idx_dt, level="datetime")
     return _relabel_output_index(
@@ -1288,6 +1282,14 @@ def save_df_output(
             if timestamps_are_final
             else None
         )
+        metadata_interval_s = fallback_frequency_s
+        if save_tstep and df_save is df_output:
+            metadata_interval_s = held_s
+        shift_step_s = (
+            int(metadata_interval_s)
+            if metadata_interval_s is not None
+            else fallback_frequency_s
+        )
         # Shift temporal index back by one step so rows are grouped into
         # calendar-year files by interval start, then restored to period end
         # in _gen_df_year (applies uniformly to every group, DailyState included).
@@ -1297,7 +1299,7 @@ def save_df_output(
             timestamp_reference,
             forcing_timestamp_reference,
             df_state_final,
-            step_s=fallback_frequency_s,
+            step_s=shift_step_s,
         )
         index_final = (
             _relabel_output_index(
@@ -1309,9 +1311,6 @@ def save_df_output(
             if "DailyState" in list_group
             else None
         )
-        metadata_interval_s = fallback_frequency_s
-        if save_tstep and df_save is df_output:
-            metadata_interval_s = held_s
         df_written = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
         list_path_save += _save_groups(
             df_written,
@@ -1323,7 +1322,7 @@ def save_df_output(
             timestamp_reference,
             timestamps_are_final=timestamps_are_final,
             dict_group_frequency_s=dict_group_frequency_s,
-            step_s=fallback_frequency_s,
+            step_s=shift_step_s,
             metadata_interval_s=metadata_interval_s,
             streamed_files=streamed_files,
             index_final=index_final,

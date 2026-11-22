@@ -141,7 +141,11 @@ Compared with ``run()`` followed by ``save(format="parquet")``:
   ``closed="right", label="right"`` rule and holds the exact same rows and
   values as a run saved whole (for the chosen groups), with day ``D``'s
   ``DailyState`` labelled ``D+1 00:00`` at hourly and daily frequencies and
-  aligned on the same row as ``SUEWS``.
+  aligned on the same row as ``SUEWS``. At the native model timestep
+  (``freq == tstep``), neither streamed nor unstreamed Parquet resamples
+  ``DailyState``, so both retain the kernel's native ``D 23:55`` emission row
+  (whereas text output always writes ``DailyState`` as a daily ``86400 s`` file
+  labelled ``D+1 00:00``).
 - The values keep full double (float64) precision, where text files carry four
   decimal places. Prefer Parquet for streamed runs whose output will be read
   back for analysis.

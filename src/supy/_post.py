@@ -278,18 +278,26 @@ def _calendar_binning(obj, freq):
     return shifted
 
 
+def _is_day_offset(freq) -> bool:
+    """Return True when *freq* resolves to a pandas ``Day`` offset (e.g. ``"D"``, ``"2D"``)."""
+    try:
+        return isinstance(pd.tseries.frequencies.to_offset(freq), pd.offsets.Day)
+    except ValueError:
+        return False
+
+
 def _fixed_origin(index: pd.DatetimeIndex):
     """Return the midnight starting the first right-closed interval of *index*.
 
     Under SUEWS's ``closed="right", label="right"`` convention, a daily row
     labelled ``D+1 00:00`` closes day ``D``, so ``(t_min - 1 tick).normalize()``
     yields ``D 00:00`` for both native (``D 00:05``) and daily (``D+1 00:00``)
-    inputs. Passing this as ``origin`` for tz-naive fixed-frequency resamples
-    keeps multi-day bins (such as ``"2D"``) aligned across groups and across
-    chained resamples (``"D"`` then ``"2D"``). Returns ``None`` for empty or
-    tz-aware indexes.
+    inputs. Passing this as ``origin`` for fixed-frequency resamples keeps
+    multi-day bins (such as ``"2D"`` or ``"48h"``) aligned across groups and
+    across chained resamples (``"D"`` then ``"2D"``), for both tz-naive and
+    tz-aware indexes. Returns ``None`` for an empty index.
     """
-    if len(index) == 0 or index.tz is not None:
+    if len(index) == 0:
         return None
     return (index.min() - pd.Timedelta(1, index.unit)).normalize()
 
@@ -482,9 +490,32 @@ def _resample_output(
         Returns:
             Resampled DataFrame
         """
+        tz_day = df_group.index.tz if day_offset and origin is not None else None
         resample_kw = {"closed": "right", "label": "right"}
         if origin is not None:
-            resample_kw["origin"] = origin
+            resample_kw["origin"] = (
+                origin.tz_localize(None) if tz_day is not None else origin
+            )
+
+        def _prep_for_resample(obj):
+            if tz_day is not None:
+                # Pandas ignores ``origin`` (and emits RuntimeWarning) for Day
+                # offsets on tz-aware indexes. Binning in wall-clock local time
+                # honours the shared grid origin across groups and chained
+                # resamples ("D" -> "2D"), then relocalises bin midnights back.
+                naive = obj.copy(deep=False)
+                naive.index = obj.index.tz_localize(None)
+                return naive
+            return _calendar_binning(obj, freq)
+
+        def _restore_tz(obj):
+            if tz_day is None:
+                return obj
+            restored = obj.copy(deep=False)
+            restored.index = obj.index.tz_localize(
+                tz_day, nonexistent="shift_forward", ambiguous=False
+            )
+            return restored
 
         # Only apply dropna to DailyState group
         # Other groups may have NaN values in some variables (e.g., Fcld)
@@ -494,9 +525,9 @@ def _resample_output(
             df_to_resample = df_group.dropna(how="all")
 
             if df_to_resample.empty:
-                # No data at all - return empty DataFrame with proper structure
+                # No data at all - return empty DataFrame preserving index tz/unit
                 return pd.DataFrame(
-                    index=pd.DatetimeIndex([]), columns=df_group.columns
+                    index=df_group.index[:0], columns=df_group.columns
                 )
 
             # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
@@ -510,8 +541,8 @@ def _resample_output(
                 ],
                 index=df_to_resample.index,
             )
-            daily_seconds = (
-                _calendar_binning(ser_daily_seconds, freq)
+            daily_seconds = _restore_tz(
+                _prep_for_resample(ser_daily_seconds)
                 .resample(freq, **resample_kw)
                 .sum(min_count=1)
             )
@@ -519,10 +550,12 @@ def _resample_output(
                 f"{grid}|{date.isoformat()}": value
                 for date, value in daily_seconds.dropna().items()
             })
-            return _aggregate_bins(
-                _calendar_binning(df_to_resample, freq).resample(freq, **resample_kw),
-                dict_aggm_group,
-                df_to_resample.columns,
+            return _restore_tz(
+                _aggregate_bins(
+                    _prep_for_resample(df_to_resample).resample(freq, **resample_kw),
+                    dict_aggm_group,
+                    df_to_resample.columns,
+                )
             )
         else:
             df_to_resample = df_group
@@ -533,8 +566,8 @@ def _resample_output(
         covered = None
         if ser_coverage is not None:
             covered = ser_coverage.xs(grid, level="grid")
-            target = (
-                _calendar_binning(covered, freq).resample(freq, **resample_kw).sum()
+            target = _restore_tz(
+                _prep_for_resample(covered).resample(freq, **resample_kw).sum()
             )
             dict_coverage.update({
                 f"{grid}|{date.isoformat()}": value for date, value in target.items()
@@ -544,8 +577,10 @@ def _resample_output(
             df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(
                 covered, axis=0
             )
-        bins = _calendar_binning(df_to_resample, freq).resample(freq, **resample_kw)
-        result = _aggregate_bins(bins, dict_aggm_group, df_to_resample.columns)
+        bins = _prep_for_resample(df_to_resample).resample(freq, **resample_kw)
+        result = _restore_tz(
+            _aggregate_bins(bins, dict_aggm_group, df_to_resample.columns)
+        )
         if columns_rate:
             result[columns_rate] = result[columns_rate].div(
                 target.where(target > 0), axis=0
@@ -553,11 +588,16 @@ def _resample_output(
         # Some calendar offsets produce an empty boundary bin. Trim only
         # empty edges, preserving internal gaps and a covered partial last bin.
         occupied = bins.size().loc[lambda counts: counts > 0].index
+        if tz_day is not None:
+            occupied = occupied.tz_localize(
+                tz_day, nonexistent="shift_forward", ambiguous=False
+            )
         if len(occupied):
             result = result.loc[occupied[0] : occupied[-1]]
         return result
 
     calendar = _is_calendar_frequency(freq)
+    day_offset = not calendar and _is_day_offset(freq)
 
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()

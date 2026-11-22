@@ -55,6 +55,8 @@ def strip_attrs(df: pd.DataFrame) -> pd.DataFrame:
     if df_bare.attrs:
         df_bare = df.copy(deep=False)
         df_bare.attrs = {}
+    if not df.flags.allows_duplicate_labels:
+        df_bare.flags.allows_duplicate_labels = False
     return df_bare
 
 

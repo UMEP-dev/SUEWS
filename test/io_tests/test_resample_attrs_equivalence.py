@@ -367,8 +367,23 @@ def test_save_text_and_streamed_parquet_match_master(
     pd.testing.assert_frame_equal(meta_new, meta_master, check_exact=True)
 
 
-def test_strip_attrs_avoids_deepcopy_and_leaves_source_untouched(monkeypatch):
-    """``strip_attrs`` builds a bare view without invoking ``copy.deepcopy``."""
+class _CopyTracker:
+    """Payload whose ``__deepcopy__`` records every copy made by any binding."""
+
+    def __init__(self, log: list[str], value: int = 1) -> None:
+        self.log = log
+        self.value = value
+
+    def __deepcopy__(self, memo):
+        self.log.append("deepcopy")
+        return _CopyTracker(self.log, self.value)
+
+    def __eq__(self, other):
+        return isinstance(other, _CopyTracker) and self.value == other.value
+
+
+def test_strip_attrs_avoids_deepcopy_and_leaves_source_untouched():
+    """``strip_attrs`` does zero deep copies; boundaries copy the payload once."""
     index = pd.MultiIndex.from_product(
         [[1, 2], pd.date_range("2012-01-01 00:05", periods=4, freq="5min")],
         names=["grid", "datetime"],
@@ -377,31 +392,70 @@ def test_strip_attrs_avoids_deepcopy_and_leaves_source_untouched(monkeypatch):
         [("SUEWS", "QH"), ("SUEWS", "Rain")], names=["group", "var"]
     )
     df = pd.DataFrame(1.0, index=index, columns=columns)
+    log: list[str] = []
+    tracker = _CopyTracker(log, value=7)
     df.attrs = {
         "supy_output_daily_coverage_s": {
             f"1|2012-{day:03d}": 86400.0 for day in range(1, 367)
         },
-        "supy_output_units": {"SUEWS": {"Rain": "mm h-1"}},
         "custom_meta": {"nested": [1, 2, 3]},
+        "tracker": tracker,
     }
-    snapshot = copy.deepcopy(df.attrs)
-    calls = 0
-    real_deepcopy = copy.deepcopy
 
-    def counting_deepcopy(obj, *args, **kwargs):
-        nonlocal calls
-        calls += 1
-        return real_deepcopy(obj, *args, **kwargs)
-
-    monkeypatch.setattr(copy, "deepcopy", counting_deepcopy)
     bare = strip_attrs(df)
 
-    assert calls == 0
+    assert len(log) == 0
     assert bare.attrs == {}
-    assert df.attrs == snapshot
+    assert df.attrs["tracker"] is tracker
     assert bare.index.equals(df.index)
     assert bare.columns.equals(df.columns)
     pd.testing.assert_frame_equal(bare, df, check_exact=True)
+
+    # Confirm the tracker is live: boundary operations copy the payload once.
+    prep = prepare_output(df, units={"Rain": "mm h-1"}, interval_s=TSTEP_S)
+    assert len(log) == 1
+    assert prep.attrs["tracker"] == tracker
+    assert prep.attrs["tracker"] is not tracker
+
+    log.clear()
+    rsmp = _resample_output(df, freq=pd.Timedelta(3600, "s"))
+    assert len(log) == 1
+    assert rsmp.attrs["tracker"] == tracker
+    assert rsmp.attrs["tracker"] is not tracker
+
+
+def test_allows_duplicate_labels_flag_matches_master(sample_outputs):
+    """``flags.allows_duplicate_labels=False`` matches master across prep and resample."""
+    df_in = sample_outputs["1grid"].df.copy()
+    df_in.flags.allows_duplicate_labels = False
+
+    bare = strip_attrs(df_in)
+    assert bare.flags.allows_duplicate_labels is False
+    assert df_in.flags.allows_duplicate_labels is False
+
+    units_req = {"Rain": "mm h-1", "T2": "K"}
+    prep_new = prepare_output(
+        df_in, units=units_req, interval_s=TSTEP_S, write=True
+    )
+    prep_master = MASTER_REF.prepare_output(
+        df_in, units=units_req, interval_s=TSTEP_S, write=True
+    )
+    pd.testing.assert_frame_equal(prep_new, prep_master, check_exact=True)
+    assert prep_new.attrs == prep_master.attrs
+    assert (
+        prep_new.flags.allows_duplicate_labels
+        is prep_master.flags.allows_duplicate_labels
+    )
+    assert prep_new.flags.allows_duplicate_labels is False
+
+    rsmp_new = _resample_output(df_in, freq=pd.Timedelta(3600, "s"))
+    rsmp_master = MASTER_REF._resample_output(df_in, freq=pd.Timedelta(3600, "s"))
+    pd.testing.assert_frame_equal(rsmp_new, rsmp_master, check_exact=True)
+    assert rsmp_new.attrs == rsmp_master.attrs
+    assert (
+        rsmp_new.flags.allows_duplicate_labels
+        is rsmp_master.flags.allows_duplicate_labels
+    )
 
 
 def test_resample_custom_callable_reads_attrs_like_master(sample_outputs):
@@ -426,6 +480,28 @@ def test_resample_custom_callable_reads_attrs_like_master(sample_outputs):
     assert actual.attrs == expected.attrs
     assert actual.attrs["scale"] == 2.5
     assert not actual[("SUEWS", "QH")].isna().all()
+
+
+def test_resample_mutated_default_dict_var_aggm_matches_master(
+    sample_outputs, monkeypatch
+):
+    """Mutating ``dict_var_aggm`` in place with a callable still matches master."""
+    df_in = sample_outputs["1grid"].df.loc[:, ["SUEWS"]].copy()
+    df_in.attrs["scale"] = 3.0
+    monkeypatch.setitem(
+        post_mod.dict_var_aggm["SUEWS"],
+        "T2",
+        lambda ser: ser.mean() * ser.attrs["scale"],
+    )
+
+    actual = _resample_output(df_in, freq=pd.Timedelta(3600, "s"))
+    expected = MASTER_REF._resample_output(
+        df_in, freq=pd.Timedelta(3600, "s"), dict_aggm=post_mod.dict_var_aggm
+    )
+
+    pd.testing.assert_frame_equal(actual, expected, check_exact=True)
+    assert actual.attrs == expected.attrs
+    assert not actual[("SUEWS", "T2")].isna().all()
 
 
 def test_resample_default_and_builtin_rules_take_stripped_path(

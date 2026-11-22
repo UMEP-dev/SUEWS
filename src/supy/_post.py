@@ -14,6 +14,7 @@ from ._output_metadata import (
     with_daily_coverage,
 )
 from .data_model.output import OUTPUT_REGISTRY
+from .data_model.output.variables import _agg_last
 
 
 ##############################################################################
@@ -45,28 +46,16 @@ dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.s
 dict_var_aggm = OUTPUT_REGISTRY.get_aggregation_rules()
 
 # Built-in non-string aggregation callables from the registry (never read attrs).
-_BUILTIN_AGG_FUNCS: frozenset = frozenset(
-    func
-    for group_rules in dict_var_aggm.values()
-    for func in group_rules.values()
-    if not isinstance(func, str)
-)
+_BUILTIN_AGG_FUNCS = (_agg_last,)
 
 
 def _is_builtin_agg(spec) -> bool:
     """Return True when *spec* is a string or one of supy's built-in callables."""
-    if isinstance(spec, str):
-        return True
-    try:
-        return spec in _BUILTIN_AGG_FUNCS
-    except TypeError:
-        return False
+    return isinstance(spec, str) or any(spec is fn for fn in _BUILTIN_AGG_FUNCS)
 
 
 def _can_strip_attrs(dict_aggm, list_group, columns: pd.MultiIndex) -> bool:
     """Return True when every active aggregation spec is a string or built-in."""
-    if dict_aggm is dict_var_aggm:
-        return True
     present_by_group: dict[str, set] = {}
     for group, var in columns:
         present_by_group.setdefault(group, set()).add(var)

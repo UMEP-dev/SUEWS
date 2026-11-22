@@ -26,15 +26,17 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: scheduled-run-tracker-${{ github.event.workflow_run.workflow_id }}
-  cancel-in-progress: false
-
 jobs:
   track:
     name: Track scheduled run outcome
     if: github.event.workflow_run.event == 'schedule'
     runs-on: ubuntu-latest
+    # On the job, after the schedule filter, so a pull-request or merge-queue
+    # completion never enters the group and cannot replace a pending
+    # scheduled report. Reports of one workflow are serialised.
+    concurrency:
+      group: scheduled-run-tracker-${{ github.event.workflow_run.workflow_id }}
+      cancel-in-progress: false
     timeout-minutes: 10
     permissions:
       issues: write     # open, comment on, assign and close the tracking issue

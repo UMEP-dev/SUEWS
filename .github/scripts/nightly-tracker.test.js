@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const tracker = require('./nightly-tracker.js');
-const { trackerIdentity, isRecordingJob, verdict, failedLeaves, changesFromCommits, buildReport } = tracker;
+const { trackerIdentity, findTracker, isRecordingJob, verdict, failedLeaves, changesFromCommits, buildReport } = tracker;
 
 const NIGHTLY = '.github/workflows/build-publish_to_pypi.yml';
 
@@ -27,12 +27,24 @@ const COMMITS = [
 
 test('the main nightly keeps its legacy tracker; other workflows get their own', () => {
   assert.deepEqual(trackerIdentity(NIGHTLY, 'x'), {
-    title: 'Nightly scheduled run is failing', marker: '<!-- nightly-run-tracker -->',
+    title: 'Nightly scheduled run is failing', marker: '<!-- nightly-run-tracker -->', legacyTitle: null,
   });
   assert.deepEqual(trackerIdentity('.github/workflows/interaction-limits.yml', 'Enforce Interaction Limits'), {
     title: 'Scheduled run is failing: Enforce Interaction Limits',
     marker: '<!-- scheduled-run-tracker: interaction-limits.yml -->',
+    legacyTitle: 'CI: monthly interaction-limit enforcement failed',
   });
+});
+
+test('findTracker matches by marker despite a renamed title, adopts a legacy title, skips PRs', () => {
+  const id = trackerIdentity('.github/workflows/interaction-limits.yml', 'Renamed workflow');
+  const byMarker = { number: 1, title: 'Scheduled run is failing: Old name', body: `${id.marker}\nx` };
+  const legacy = { number: 2, title: 'CI: monthly interaction-limit enforcement failed', body: 'no marker' };
+  const pr = { number: 3, title: 'x', body: id.marker, pull_request: {} };
+  assert.equal(findTracker([pr, legacy, byMarker], id).number, 1);
+  assert.equal(findTracker([pr, legacy], id).number, 2);
+  assert.equal(findTracker([pr], id), undefined);
+  assert.equal(findTracker([legacy], trackerIdentity('.github/workflows/benchmark-regression.yml', 'B')), undefined);
 });
 
 test('verdict: success is green; failed, cancelled and timed out are red', () => {
@@ -101,10 +113,10 @@ function fakeGithub({ run = {}, openIssues = [], createFails = false, createErro
     actions: {
       listJobsForWorkflowRun: 'jobs',
       getWorkflowRun: async () => ({ data: theRun }),
-      listWorkflowRuns: async p => ({ data: { workflow_runs: p.status ? [
+      listWorkflowRuns: async p => ({ data: { workflow_runs: p.status === 'success' ? [
         { id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
         { id: 0, created_at: '2026-11-20T02:00:00Z', head_sha: 'BASE', html_url: 'GREEN' },
-      ] : [newest || { id: theRun.id, created_at: theRun.created_at }] } }),
+      ] : (p.status === 'completed' ? [newest || { id: theRun.id, created_at: theRun.created_at }] : []) } }),
     },
     repos: {
       compareCommitsWithBasehead: async p => {

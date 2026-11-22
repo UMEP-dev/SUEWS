@@ -26,19 +26,34 @@
 
 const LABEL = '2-infra:ci';
 
-// The main nightly keeps the title and marker its tracker has always had,
-// so an issue opened before this workflow existed is still found.
+// A tracker is found by its marker, which is derived from the workflow file
+// and survives a rename of the workflow's display name. The main nightly
+// keeps the title and marker its tracker has always had. Interaction limits
+// used to open its own issue (no marker); an open one with that exact title
+// is adopted, so the move to this tracker leaves no orphan.
 const NIGHTLY_PATH = '.github/workflows/build-publish_to_pypi.yml';
+const LEGACY_TITLES = {
+  '.github/workflows/interaction-limits.yml': 'CI: monthly interaction-limit enforcement failed',
+};
 
 function trackerIdentity(path, workflowName) {
   if (path === NIGHTLY_PATH) {
-    return { title: 'Nightly scheduled run is failing', marker: '<!-- nightly-run-tracker -->' };
+    return { title: 'Nightly scheduled run is failing', marker: '<!-- nightly-run-tracker -->', legacyTitle: null };
   }
   const file = String(path || '').split('/').pop();
   return {
     title: `Scheduled run is failing: ${workflowName}`,
     marker: `<!-- scheduled-run-tracker: ${file} -->`,
+    legacyTitle: LEGACY_TITLES[path] || null,
   };
+}
+
+// The open issue that tracks this workflow: by marker first, then by a
+// legacy title. Pull requests (listed by the issues API too) never match.
+function findTracker(openIssues, { marker, legacyTitle }) {
+  const issues = (openIssues || []).filter(i => !i.pull_request);
+  return issues.find(i => (i.body || '').includes(marker))
+    || (legacyTitle ? issues.find(i => i.title === legacyTitle) : undefined);
 }
 
 // Recording jobs by display-name prefix, matched case-insensitively and
@@ -206,9 +221,10 @@ module.exports = async ({ github, context, core }) => {
   }
 
   // A re-run of an older night finishing late must not close or reopen the
-  // tracker over a newer scheduled run's verdict.
+  // tracker over a newer scheduled run's verdict. Only a newer run that has
+  // completed counts; one still queued or running has no verdict yet.
   const { data: latest } = await github.rest.actions.listWorkflowRuns({
-    owner, repo, workflow_id: run.workflow_id, event: 'schedule', per_page: 1,
+    owner, repo, workflow_id: run.workflow_id, event: 'schedule', status: 'completed', per_page: 1,
   });
   const newest = (latest.workflow_runs || [])[0];
   if (newest && newest.id !== run.id && newest.created_at > run.created_at) {
@@ -218,11 +234,12 @@ module.exports = async ({ github, context, core }) => {
   }
 
   const date = String(run.run_started_at || run.created_at || '').slice(0, 10);
-  const { title, marker } = trackerIdentity(run.path, run.name);
+  const identity = trackerIdentity(run.path, run.name);
+  const { title, marker } = identity;
   const open = await github.paginate(github.rest.issues.listForRepo, {
-    owner, repo, state: 'open', labels: LABEL, per_page: 100,
+    owner, repo, state: 'open', per_page: 100,
   });
-  const tracker = open.find(i => i.title === title && (i.body || '').includes(marker));
+  const tracker = findTracker(open, identity);
 
   if (state === 'green') {
     if (tracker) {
@@ -281,6 +298,7 @@ module.exports = async ({ github, context, core }) => {
 };
 
 module.exports.trackerIdentity = trackerIdentity;
+module.exports.findTracker = findTracker;
 module.exports.isRecordingJob = isRecordingJob;
 module.exports.verdict = verdict;
 module.exports.failedLeaves = failedLeaves;

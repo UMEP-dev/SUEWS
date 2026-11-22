@@ -312,6 +312,32 @@ def reject_null_value(value, field_name: str, *, expected_kind: str = "number"):
 NULL_REJECTED_FIELDS: set[str] = set()
 
 
+def reject_bool_input(value, field_name: str):
+    """Reject booleans in a numeric field before Pydantic coerces them.
+
+    In lax mode Pydantic turns ``True``/``False`` into ``1.0``/``0.0`` for a
+    ``float`` field, so a check that runs after validation can no longer see
+    that the input was a boolean. Used as a ``mode="before"`` validator on
+    numeric inputs that have no boolean meaning; accepts a bare scalar, a list,
+    a ``{value: ...}`` mapping or a ``RefValue``.
+
+    Raises
+    ------
+    ValueError
+        If the value, or any element of a list value, is a boolean.
+    """
+    inner = value.value if isinstance(value, RefValue) else value
+    if isinstance(inner, dict) and "value" in inner:
+        inner = inner["value"]
+    items = inner if isinstance(inner, (list, tuple)) else [inner]
+    for item in items:
+        if isinstance(item, (bool, np.bool_)):
+            raise ValueError(
+                f"{field_name} must be numeric; boolean {item!r} is not accepted"
+            )
+    return value
+
+
 def _unwrap_annotated(annotation: Any) -> Any:
     while get_origin(annotation) is Annotated:
         annotation = get_args(annotation)[0]

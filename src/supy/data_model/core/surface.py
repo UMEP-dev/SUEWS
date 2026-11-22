@@ -16,6 +16,7 @@ from .type import (
     df_from_col_items,
     df_from_cols,
     merge_df_state_col_items,
+    reject_bool_input,
 )
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
 from ..._env import logger_supy
@@ -74,6 +75,12 @@ class ThermalLayers(DataModelBase):
     )
 
     ref: Optional[Reference] = None
+
+    @field_validator("dz", "k", "rho_cp", mode="before")
+    @classmethod
+    def _reject_boolean_layers(cls, value, info):
+        """Refuse booleans, which Pydantic would coerce to layer properties."""
+        return reject_bool_input(value, f"thermal_layers.{info.field_name}")
 
     def _to_df_state_cols(
         self,

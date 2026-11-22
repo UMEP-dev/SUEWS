@@ -2216,7 +2216,14 @@ class TestDfStateEngineYamlParityRatchet:
         # Each field has distinct invalid inputs; the valid input above is shared.
         for field_name, valid_values in valid_arrays.items():
             # ACT & ASSERT 2: invalid elements rejected in both forms at load and handoff
-            for bad_elem in (None, float("nan"), float("inf"), float("-inf")):
+            for bad_elem in (
+                None,
+                float("nan"),
+                float("inf"),
+                float("-inf"),
+                True,
+                False,
+            ):
                 bad = copy.deepcopy(base)
                 bad_list = list(valid_values)
                 bad_list[1] = bad_elem
@@ -2240,7 +2247,7 @@ class TestDfStateEngineYamlParityRatchet:
                     mutated.validate_for_engine()
 
         # ACT & ASSERT 3: lambda_c missing/non-finite/bool rejected in both bare & wrapped forms
-        for bad_lam in (None, float("nan"), float("inf"), float("-inf")):
+        for bad_lam in (None, float("nan"), float("inf"), float("-inf"), True, False):
             bad_lam_dict = copy.deepcopy(base)
             bad_lam_dict["sites"][0]["properties"]["lambda_c"] = (
                 {"value": bad_lam} if wrapped else bad_lam
@@ -2257,3 +2264,42 @@ class TestDfStateEngineYamlParityRatchet:
             )
             with pytest.raises(ValueError, match="lambda_c"):
                 mutated_lam.validate_for_engine()
+
+    @staticmethod
+    @pytest.mark.parametrize("flag", [True, False], ids=["true", "false"])
+    @pytest.mark.parametrize("wrapped", [True, False], ids=["wrapped", "bare"])
+    @pytest.mark.parametrize("target", ["dz", "k", "rho_cp", "lambda_c"])
+    def test_dyohm_boolean_inputs_rejected_at_yaml_and_simulation_boundaries(
+        compact_valid_dict, tmp_path, target, wrapped, flag
+    ):
+        """Booleans in DyOHM inputs are refused before Pydantic can coerce them.
+
+        Lax float coercion would turn ``True``/``False`` into ``1.0``/``0.0``
+        before ``_validate_storage`` sees them, so the rejection has to hold at
+        ``SUEWSConfig.from_yaml`` and ``SUEWSSimulation.update_config`` too.
+        """
+        base = copy.deepcopy(compact_valid_dict)
+        base["model"]["physics"]["storage_heat"] = {"value": 6}
+        props = base["sites"][0]["properties"]
+        props["lambda_c"] = {"value": 0.4}
+        th = props["land_cover"]["bldgs"]["thermal_layers"]
+        th["dz"] = {"value": [0.2, 0.1, 0.1, 0.5, 1.5]}
+        th["k"] = {"value": [1.2, 1.1, 1.1, 1.5, 1.6]}
+        th["rho_cp"] = {"value": [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]}
+        if target == "lambda_c":
+            props["lambda_c"] = {"value": flag} if wrapped else flag
+            match = "lambda_c"
+        else:
+            values = list(th[target]["value"])
+            values[1] = flag
+            th[target] = {"value": values} if wrapped else values
+            match = rf"thermal_layers\.{target}"
+        path_yaml = tmp_path / "dyohm_bool.yml"
+        path_yaml.write_text(yaml.safe_dump(base, sort_keys=False), encoding="utf-8")
+
+        with pytest.raises(ValueError, match=match):
+            SUEWSConfig.from_yaml(str(path_yaml))
+        with pytest.raises(ValueError, match=match):
+            SUEWSSimulation().update_config(
+                copy.deepcopy(base), auto_load_forcing=False
+            )

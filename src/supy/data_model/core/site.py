@@ -1,6 +1,6 @@
 import math
 from typing import Optional
-from pydantic import ConfigDict, Field, computed_field, model_validator
+from pydantic import ConfigDict, Field, computed_field, field_validator, model_validator
 from .type import (
     DataModelBase,
     RefValue,
@@ -10,6 +10,7 @@ from .type import (
     df_from_cols,
     merge_df_state_col_items,
     merge_df_state_cols,
+    reject_bool_input,
 )
 from .unit_metadata import (
     ConditionalUnitCase,
@@ -3481,6 +3482,12 @@ class SiteProperties(DataModelBase):
     )
 
     ref: Optional[Reference] = None
+
+    @field_validator("lambda_c", mode="before")
+    @classmethod
+    def _reject_boolean_lambda_c(cls, value):
+        """Refuse a boolean, which Pydantic would coerce to a surface-area ratio."""
+        return reject_bool_input(value, "lambda_c")
 
     @model_validator(mode="before")
     @classmethod

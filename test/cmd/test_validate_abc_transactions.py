@@ -443,7 +443,16 @@ def test_installed_validator_dry_run_literal_issue_and_filename(source, pipeline
     assert result.returncode == 1, result.stdout + result.stderr
     assert "Traceback" not in result.stdout + result.stderr
     display = key if encoding == "utf-8" else r"bad[red]\u7ad9"
-    assert "\u2502" not in result.stdout
+    assert not any("\u2500" <= ch <= "\u257f" for ch in result.stdout)
+    border_lines = [
+        line.strip()
+        for line in result.stdout.splitlines()
+        if line.strip().startswith("+")
+    ]
+    assert len(border_lines) >= 2, result.stdout
+    assert all(
+        line.isascii() and set(line) <= set("+-=") for line in border_lines
+    ), border_lines
     rows = [line.split("|") for line in result.stdout.splitlines()]
     assert any(
         len(cells) >= 5

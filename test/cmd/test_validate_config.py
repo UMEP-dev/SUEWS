@@ -777,7 +777,16 @@ def test_public_validate_dry_run_reports_field_reason_without_writes(
                 for issue in envelope["errors"]
             ), envelope["errors"]
     else:
-        assert "\u2502" not in result.stdout
+        assert not any("\u2500" <= ch <= "\u257f" for ch in result.stdout)
+        border_lines = [
+            line.strip()
+            for line in result.stdout.splitlines()
+            if line.strip().startswith("+")
+        ]
+        assert len(border_lines) >= 2, result.stdout
+        assert all(
+            line.isascii() and set(line) <= set("+-=") for line in border_lines
+        ), border_lines
         rendered = re.sub(r"\s+", " ", result.stdout.replace("|", " "))
         assert f"Summary: {1 if valid else 0}/1 files valid" in rendered
         assert ("Valid" if valid else "Invalid") in rendered

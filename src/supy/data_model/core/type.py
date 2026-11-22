@@ -479,6 +479,17 @@ def null_rejecting_validator(field_name: str):
     return field_validator(field_name, mode="after")(_reject)
 
 
+# pandas 2.x sorts unioned columns in DataFrame.combine_first(), while pandas 3.x
+# preserves left-then-right column order. Probe the active runtime once so
+# combine_df_states() matches DataFrame.combine_first() across both major versions.
+_COMBINE_FIRST_COLUMN_SORT: Literal[False] | None = (
+    None
+    if pd.DataFrame({"z": [1]}).combine_first(pd.DataFrame({"a": [2]})).columns[0]
+    == "a"
+    else False
+)
+
+
 def combine_df_states(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
     """Fill missing state values without aligning every disjoint profile column.
 
@@ -495,17 +506,17 @@ def combine_df_states(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
         or right.empty
     ):
         return left.combine_first(right)
-    shared = left.columns.intersection(right.columns)
-    left_only = left.columns.difference(right.columns)
-    right_only = right.columns.difference(left.columns)
-    return pd.concat(
-        [
-            left.loc[:, left_only],
-            left.loc[:, shared].combine_first(right.loc[:, shared]),
-            right.loc[:, right_only],
-        ],
-        axis=1,
-    ).reindex(columns=left.columns.union(right.columns))
+    sort = _COMBINE_FIRST_COLUMN_SORT
+    shared = left.columns.intersection(right.columns, sort=sort)
+    left_only = left.columns.difference(right.columns, sort=sort)
+    right_only = right.columns.difference(left.columns, sort=sort)
+    parts = [left.loc[:, left_only]]
+    if len(shared):
+        parts.append(left.loc[:, shared].combine_first(right.loc[:, shared]))
+    parts.append(right.loc[:, right_only])
+    return pd.concat(parts, axis=1).reindex(
+        columns=left.columns.union(right.columns, sort=sort)
+    )
 
 
 def merge_df_state_cols(

@@ -279,24 +279,25 @@ function formatSignedPercent(deltaPercent) {
 
 // The duration-guard section for a report written by
 // `scripts/lint/check_test_duration.py --json`. Empty when no lane was
-// evaluated and no marker warnings were emitted; one line when clean; a
-// concise advisory list otherwise.
+// evaluated or unavailable and no marker warnings were emitted; one line when
+// clean; a concise advisory list otherwise.
 function durationGuardSection(report) {
   if (!report || !report.lanes) return '';
   const laneEntries = Object.values(report.lanes);
   const evaluated = laneEntries.filter(l => l.scaled_total_seconds !== null && l.delta_percent !== null);
+  const unavailable = laneEntries.filter(l => l.status === 'unavailable');
   const regressed = evaluated.filter(l => l.regressed);
   const warnings = [...(report.marker_warnings || [])].sort(
     (a, b) => b.scaled_cpu_seconds - a.scaled_cpu_seconds
   );
-  if (evaluated.length === 0 && warnings.length === 0) return '';
+  if (evaluated.length === 0 && unavailable.length === 0 && warnings.length === 0) return '';
 
   const thresholdPct = Math.round(Number(report.max_regression || 0.1) * 100);
   const laneParts = evaluated.map(
     l => `${l.lane} ${formatSignedPercent(l.delta_percent)}`
   );
 
-  if (report.ok || (regressed.length === 0 && warnings.length === 0)) {
+  if (regressed.length === 0 && warnings.length === 0 && unavailable.length === 0) {
     return (
       `**Test duration guard** (Linux cp312, \`standard\` tier): within +${thresholdPct}% of baseline ` +
       `(${laneParts.join(', ')}; runner-normalised).`
@@ -315,6 +316,10 @@ function durationGuardSection(report) {
       `- **${lane.lane}** lane: ${pct} normalised call CPU-s (${scaled} s vs ${base} s baseline, ` +
         `threshold +${thresholdPct}%; runner ${lane.factor_summary})`
     );
+  }
+  for (const lane of unavailable) {
+    const reason = lane.reason ? ` (${lane.reason})` : '';
+    lines.push(`- **${lane.lane}** lane: unavailable${reason}`);
   }
   for (const w of warnings.slice(0, COST_LIST_LIMIT)) {
     const scaled = Number(w.scaled_cpu_seconds).toFixed(1);

@@ -301,22 +301,171 @@ def test_changed_reference_files_are_excluded_from_runner_factor() -> None:
 def test_insufficient_reference_matches_marks_lane_unavailable_without_false_alarm() -> None:
     """Fewer than min_reference_matches unchanged references reports unavailable, not regressed."""
     baseline = _synthetic_baseline()
-    items = [
-        ("test/core/test_ref_00.py::test_r", 20.0, ("api",)),
-        ("test/core/test_ref_01.py::test_r", 20.0, ("api",)),
-    ]
+    # Full test count (100% coverage) so this isolates the reference-match gate.
+    ref_nodes = list(baseline.lanes["api"].reference_tests)
+    changed_files = [cost_markers.node_file(nid) for nid in ref_nodes[2:]]
+    items = [(nid, 20.0, ("api",)) for nid in ref_nodes]
     report = guard.check_durations(
         [_artefact_from_costs("api-cp312-manylinux-x86_64.json", "api", items)],
         baseline,
-        changed_test_files=[],
+        changed_test_files=changed_files,
         min_reference_matches=5,
     )
 
     assert report.ok
     assert report.lanes["api"].status == "unavailable"
+    assert "too few unchanged reference matches" in (report.lanes["api"].reason or "")
     assert report.lanes["api"].regressed is False
     assert report.lanes["physics"].status == "missing"
     assert report.lanes["physics"].regressed is False
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_missing_shard_or_incomplete_session_marks_lane_unavailable_never_ok() -> None:
+    """Missing shards, interrupted sessions, or low coverage never read as ok."""
+    baseline = _synthetic_baseline()
+    api_refs = baseline.lanes["api"].reference_tests
+
+    # 3 of 4 shards present, with a +15% slowdown injected into shard 1:
+    # raw/scaled partial total is below baseline (~75% * 1.15 < 100%), yet
+    # the lane MUST be unavailable rather than ok.
+    three_shards: list[guard.ArtefactTests] = []
+    for shard_idx in (1, 2, 3):
+        items = [
+            (nid, cpu * (1.15 if shard_idx == 1 else 1.0), ("api",))
+            for nid, cpu in api_refs.items()
+            if _shard_of(nid, 4) == shard_idx
+        ]
+        three_shards.append(
+            _artefact_from_costs(
+                f"api-cp312-manylinux-x86_64-shard-{shard_idx}-of-4.json",
+                "api",
+                items,
+            )
+        )
+    missing_shard_report = guard.check_durations(
+        three_shards, baseline, changed_test_files=[]
+    )
+    assert missing_shard_report.lanes["api"].status == "unavailable"
+    assert missing_shard_report.lanes["api"].scaled_total_seconds is None
+    assert "missing shard(s) 4 of 4" in (missing_shard_report.lanes["api"].reason or "")
+    assert "missing shard(s) 4 of 4" in missing_shard_report.markdown()
+
+    # Complete 4 shards, but shard 2 exited with pytest interrupted code 2.
+    all_four = list(three_shards)
+    shard4_items = [
+        (nid, cpu, ("api",))
+        for nid, cpu in api_refs.items()
+        if _shard_of(nid, 4) == 4
+    ]
+    all_four.append(
+        _artefact_from_costs(
+            "api-cp312-manylinux-x86_64-shard-4-of-4.json", "api", shard4_items
+        )
+    )
+    all_four[1] = guard.ArtefactTests(
+        source=all_four[1].source,
+        lane="api",
+        tests=all_four[1].tests,
+        shard=(2, 4),
+        exit_code=2,
+    )
+    interrupted = guard.check_durations(all_four, baseline, changed_test_files=[])
+    assert interrupted.lanes["api"].status == "unavailable"
+    assert "exit_code=2" in (interrupted.lanes["api"].reason or "")
+
+    # Complete shard filenames, but one shard recorded fewer outcomes than collected.
+    all_four[1] = guard.ArtefactTests(
+        source=all_four[1].source,
+        lane="api",
+        tests=all_four[1].tests,
+        shard=(2, 4),
+        exit_code=1,
+        collected_count=len(all_four[1].tests) + 3,
+        recorded_outcome_count=len(all_four[1].tests),
+    )
+    short_session = guard.check_durations(all_four, baseline, changed_test_files=[])
+    assert short_session.lanes["api"].status == "unavailable"
+    assert "collected tests recorded" in (short_session.lanes["api"].reason or "")
+
+    # Unsharded lane with < 90% of baseline measured_test_count (30 of 40 = 75%).
+    partial_unsharded = [
+        (nid, cpu, ("api",)) for nid, cpu in list(api_refs.items())[:30]
+    ]
+    low_cov = guard.check_durations(
+        [_artefact_from_costs("api-cp312-manylinux-x86_64.json", "api", partial_unsharded)],
+        baseline,
+        changed_test_files=[],
+    )
+    assert low_cov.lanes["api"].status == "unavailable"
+    assert "below 90% of baseline" in (low_cov.lanes["api"].reason or "")
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_build_baseline_normalises_mixed_speed_rotating_shards_per_artefact(
+    tmp_path: Path,
+) -> None:
+    """Rotating 2x slow shards across runs must not inflate the baseline total.
+
+    Pooling raw shards before computing one lane-wide median factor leaves the
+    2x shard un-normalised (baseline ~25% high), masking a genuine +20%
+    regression as ~-4%. Normalising each shard with the evaluation estimator
+    recovers the exact 1x baseline total and catches the +20% slowdown.
+    """
+    api_nodes = [f"test/core/test_rot_{i:02d}.py::test_a" for i in range(48)]
+    base_cost = 2.0  # true 1x lane total = 48 * 2.0 = 96.0 s
+
+    run_dirs: list[Path] = []
+    for run_idx in range(1, 5):
+        run_dir = tmp_path / f"run_{run_idx}"
+        run_dirs.append(run_dir)
+        for shard_idx in range(1, 5):
+            factor = 2.0 if shard_idx == run_idx else 1.0
+            recs = [
+                _record(nid, call=base_cost * factor, markers=("api",))
+                for nid in api_nodes
+                if _shard_of(nid, 4) == shard_idx
+            ]
+            _write_artefact(
+                run_dir
+                / "api"
+                / f"ci-metrics-api-cp312-manylinux-x86_64-shard-{shard_idx}-of-4"
+                / f"api-cp312-manylinux-x86_64-shard-{shard_idx}-of-4.json",
+                recs,
+            )
+
+    baseline = guard.build_baseline(run_dirs)
+    assert baseline.lanes["api"].total_cpu_seconds == pytest.approx(96.0)
+    assert baseline.lanes["api"].measured_test_count == 48
+
+    # Now evaluate a new 4-shard run with a genuine +20% slowdown (+19.2 s in a changed file).
+    eval_shards: list[guard.ArtefactTests] = []
+    for shard_idx in range(1, 5):
+        items = [
+            (nid, base_cost, ("api",))
+            for nid in api_nodes
+            if _shard_of(nid, 4) == shard_idx
+        ]
+        if shard_idx == 1:
+            items.append(("test/core/test_added.py::test_slow", 19.2, ("api", "medium")))
+        eval_shards.append(
+            _artefact_from_costs(
+                f"api-cp312-manylinux-x86_64-shard-{shard_idx}-of-4.json",
+                "api",
+                items,
+            )
+        )
+
+    report = guard.check_durations(
+        eval_shards,
+        baseline,
+        changed_test_files=["test/core/test_added.py"],
+    )
+    assert not report.ok
+    assert report.lanes["api"].regressed is True
+    assert report.lanes["api"].delta_ratio == pytest.approx(0.20)
 
 
 def test_dual_marked_test_is_judged_once_across_api_and_physics() -> None:

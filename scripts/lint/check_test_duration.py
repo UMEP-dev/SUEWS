@@ -73,9 +73,16 @@ DEFAULT_MAX_REGRESSION = 0.10
 DEFAULT_MIN_REFERENCE_SECONDS = 1.0
 DEFAULT_MAX_REFERENCES_PER_LANE = 200
 DEFAULT_MIN_REFERENCE_MATCHES = 5
+DEFAULT_MIN_COVERAGE_RATIO = 0.90
 UNDERMARKED_KINDS = frozenset({"unmarked-over-medium", "medium-over-slow"})
 TOP_CONTRIBUTORS_LIMIT = 10
 _TOKEN_SPLIT_RE = re.compile(r"[^a-z0-9]+")
+_SHARD_NAME_RE = re.compile(
+    r"(?:^|[-_])shard[-_](\d+)[-_]of[-_](\d+)(?:$|[-_.])",
+    re.IGNORECASE,
+)
+_COMPLETE_EXIT_CODES = frozenset({0, 1})
+_VALID_OUTCOMES = frozenset({"passed", "failed", "skipped", "xfailed", "xpassed"})
 
 
 @dataclass(frozen=True)
@@ -107,6 +114,10 @@ class ArtefactTests:
     source: str
     lane: str
     tests: tuple[cost_markers.TestCost, ...]
+    shard: tuple[int, int] | None = None
+    exit_code: int | None = None
+    collected_count: int | None = None
+    recorded_outcome_count: int | None = None
 
 
 @dataclass(frozen=True)
@@ -394,6 +405,16 @@ class DurationReport:
                     f"{res.raw_total_seconds:.1f} | n/a | {res.measured_count} |"
                 )
 
+        incomplete = [
+            res
+            for res in self.lanes.values()
+            if res.status in ("unavailable", "missing") and res.reason
+        ]
+        if incomplete:
+            lines.append("")
+            for res in incomplete:
+                lines.append(f"- `{res.lane}` ({res.status}): {res.reason}")
+
         if self.marker_warnings:
             lines.extend([
                 "",
@@ -502,6 +523,55 @@ def _tokens(text: str) -> set[str]:
     return {tok for tok in _TOKEN_SPLIT_RE.split(text.lower()) if tok}
 
 
+def parse_shard_from_name(name: str) -> tuple[int, int] | None:
+    """Extract ``(index, total)`` from a ``-shard-K-of-N`` artefact name, or None."""
+    match = _SHARD_NAME_RE.search(name)
+    if match is None:
+        return None
+    return int(match.group(1)), int(match.group(2))
+
+
+def _parse_shard_from_path(path: Path) -> tuple[int, int] | None:
+    """Extract ``(index, total)`` from an artefact's filename or parent directory."""
+    for candidate in (path.stem, path.parent.name):
+        parsed = parse_shard_from_name(candidate)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _session_metadata(
+    metrics: dict[str, Any],
+    tests: Sequence[cost_markers.TestCost],
+) -> tuple[int | None, int | None, int | None]:
+    """Read optional pytest exit code, collected count, and recorded outcome count."""
+    result = metrics.get("result")
+    exit_code: int | None = None
+    recorded_count: int | None = None
+    if isinstance(result, dict):
+        raw_exit = result.get("exit_code")
+        if isinstance(raw_exit, int) and not isinstance(raw_exit, bool):
+            exit_code = raw_exit
+        outcomes = result.get("outcomes")
+        if isinstance(outcomes, dict):
+            recorded_count = sum(
+                int(val)
+                for val in outcomes.values()
+                if isinstance(val, int) and not isinstance(val, bool)
+            )
+
+    inventory = metrics.get("inventory")
+    collected_count: int | None = None
+    if isinstance(inventory, dict):
+        raw_collected = inventory.get("node_count")
+        if isinstance(raw_collected, int) and not isinstance(raw_collected, bool):
+            collected_count = raw_collected
+
+    if recorded_count is None and collected_count is not None:
+        recorded_count = sum(1 for test in tests if test.outcome in _VALID_OUTCOMES)
+    return exit_code, collected_count, recorded_count
+
+
 def infer_lane(
     path: Path,
     tests: Sequence[cost_markers.TestCost],
@@ -578,7 +648,18 @@ def load_artefacts(
             if skipped is not None:
                 skipped.append(path.as_posix())
             continue
-        artefacts.append(ArtefactTests(source=path.name, lane=lane, tests=tuple(tests)))
+        exit_code, collected_count, recorded_count = _session_metadata(metrics, tests)
+        artefacts.append(
+            ArtefactTests(
+                source=path.name,
+                lane=lane,
+                tests=tuple(tests),
+                shard=_parse_shard_from_path(path),
+                exit_code=exit_code,
+                collected_count=collected_count,
+                recorded_outcome_count=recorded_count,
+            )
+        )
     return artefacts
 
 
@@ -665,19 +746,104 @@ def _select_reference_nodes(
     return sorted(hashed[:max_references_per_lane])
 
 
+def _check_session_completeness(
+    lane_artefacts: Sequence[ArtefactTests],
+) -> str | None:
+    """Return a reason string if any artefact records an incomplete pytest session."""
+    for artefact in lane_artefacts:
+        if (
+            artefact.exit_code is not None
+            and artefact.exit_code not in _COMPLETE_EXIT_CODES
+        ):
+            return (
+                f"incomplete session in {artefact.source} "
+                f"(pytest exit_code={artefact.exit_code})"
+            )
+        if (
+            artefact.collected_count is not None
+            and artefact.collected_count > 0
+            and artefact.recorded_outcome_count is not None
+            and artefact.recorded_outcome_count < artefact.collected_count
+        ):
+            return (
+                f"incomplete session in {artefact.source} "
+                f"({artefact.recorded_outcome_count}/{artefact.collected_count} "
+                "collected tests recorded)"
+            )
+    return None
+
+
+def _check_shard_completeness(
+    lane_artefacts: Sequence[ArtefactTests],
+) -> str | None:
+    """Return a reason string if sharded artefacts are missing shards or inconsistent."""
+    specs = [
+        (art.source, art.shard or parse_shard_from_name(art.source))
+        for art in lane_artefacts
+    ]
+    sharded = [(src, spec) for src, spec in specs if spec is not None]
+    if not sharded:
+        return None
+    if len(sharded) != len(specs):
+        return "mixed sharded and unsharded artefacts in lane"
+    for src, (index, total) in sharded:
+        if total < 1 or not 1 <= index <= total:
+            return f"invalid shard identifier {index}-of-{total} in {src}"
+    totals = {total for _, (_, total) in sharded}
+    if len(totals) > 1:
+        return (
+            f"inconsistent shard totals ({', '.join(str(t) for t in sorted(totals))})"
+        )
+    expected_total = next(iter(totals))
+    present = {index for _, (index, _) in sharded}
+    missing = sorted(set(range(1, expected_total + 1)) - present)
+    if missing:
+        missing_str = ", ".join(str(idx) for idx in missing)
+        return (
+            f"incomplete shard set: missing shard(s) {missing_str} of "
+            f"{expected_total} (found {len(present)}/{expected_total})"
+        )
+    return None
+
+
+def _check_artefact_and_shard_completeness(
+    lane_artefacts: Sequence[ArtefactTests],
+) -> str | None:
+    """Return a reason string if any artefact session or shard set is incomplete."""
+    return _check_session_completeness(lane_artefacts) or _check_shard_completeness(
+        lane_artefacts
+    )
+
+
 def _build_lane_baseline(
     lane: str,
-    runs: list[dict[str, float]],
+    run_artefacts_list: list[list[ArtefactTests]],
     *,
     min_reference_seconds: float,
     max_references_per_lane: int,
+    min_reference_matches: int = DEFAULT_MIN_REFERENCE_MATCHES,
 ) -> LaneBaseline:
-    """Compute reference tests and median normalised total for one lane."""
-    common_nodes = sorted(set.intersection(*(set(run) for run in runs)))
+    """Compute reference tests and median normalised total for one lane.
+
+    Normalises each artefact or shard independently with ``_scale_artefact``
+    before aggregating across shards, matching the evaluation estimator so
+    mixed-speed shards cannot bias the committed lane total.
+    """
+    per_run_raw: list[dict[str, float]] = []
+    for run_artefacts in run_artefacts_list:
+        incomplete = _check_artefact_and_shard_completeness(run_artefacts)
+        if incomplete is not None:
+            raise ValueError(f"lane {lane!r}: {incomplete}")
+        deduped_raw = cost_markers.largest_per_node(
+            test for art in run_artefacts for test in art.tests if test.measured
+        )
+        per_run_raw.append({test.node_id: test.cpu_seconds for test in deduped_raw})
+
+    common_nodes = sorted(set.intersection(*(set(run) for run in per_run_raw)))
     if not common_nodes:
         raise ValueError(f"lane {lane!r} has no measured tests common to all runs")
     median_costs = {
-        node_id: statistics.median(run[node_id] for run in runs)
+        node_id: statistics.median(run[node_id] for run in per_run_raw)
         for node_id in common_nodes
     }
     selected = _select_reference_nodes(
@@ -686,24 +852,38 @@ def _build_lane_baseline(
         max_references_per_lane=max_references_per_lane,
     )
     reference_tests = {node_id: round(median_costs[node_id], 4) for node_id in selected}
+    provisional = LaneBaseline(
+        lane=lane,
+        total_cpu_seconds=1.0,
+        measured_test_count=0,
+        reference_tests=reference_tests,
+    )
 
     scaled_totals: list[float] = []
-    for run in runs:
-        ratios = [
-            run[node_id] / reference_tests[node_id]
-            for node_id in selected
-            if run[node_id] > 0.0
-        ]
-        if not ratios:
-            raise ValueError(
-                f"lane {lane!r} has no positive reference readings in a baseline run"
+    measured_counts: list[int] = []
+    for run_artefacts in run_artefacts_list:
+        scaled_run: list[ScaledTest] = []
+        for artefact in run_artefacts:
+            scale, scaled, _unmeasured = _scale_artefact(
+                artefact,
+                provisional,
+                set(),
+                min_reference_matches=min_reference_matches,
             )
-        scaled_totals.append(sum(run.values()) / statistics.median(ratios))
+            if scale.runner_factor is None:
+                raise ValueError(
+                    f"lane {lane!r}: too few reference matches in {artefact.source} "
+                    f"({scale.matched_references}/{min_reference_matches})"
+                )
+            scaled_run.extend(scaled)
+        deduped_scaled = _dedupe_scaled(scaled_run)
+        scaled_totals.append(sum(item.scaled_cpu_seconds for item in deduped_scaled))
+        measured_counts.append(len(deduped_scaled))
 
     return LaneBaseline(
         lane=lane,
         total_cpu_seconds=round(statistics.median(scaled_totals), 2),
-        measured_test_count=int(round(statistics.median(len(run) for run in runs))),
+        measured_test_count=int(round(statistics.median(measured_counts))),
         reference_tests=reference_tests,
     )
 
@@ -714,6 +894,7 @@ def build_baseline(
     phase: str = cost_markers.DEFAULT_PHASE,
     min_reference_seconds: float = DEFAULT_MIN_REFERENCE_SECONDS,
     max_references_per_lane: int = DEFAULT_MAX_REFERENCES_PER_LANE,
+    min_reference_matches: int = DEFAULT_MIN_REFERENCE_MATCHES,
 ) -> DurationBaseline:
     """Build a duration baseline from one or more run artefact directories.
 
@@ -728,25 +909,22 @@ def build_baseline(
         raise ValueError("min_reference_seconds must be positive")
     if max_references_per_lane < 1:
         raise ValueError("max_references_per_lane must be at least 1")
+    if min_reference_matches < 1:
+        raise ValueError("min_reference_matches must be at least 1")
 
-    per_lane_runs: dict[str, list[dict[str, float]]] = {lane: [] for lane in LANES}
+    per_lane_runs: dict[str, list[list[ArtefactTests]]] = {lane: [] for lane in LANES}
     run_labels: list[str] = []
 
     for run_path in run_paths:
         run_labels.append(run_path.name)
         artefacts = load_artefacts([run_path], phase=phase)
-        by_lane: dict[str, list[cost_markers.TestCost]] = {}
+        by_lane: dict[str, list[ArtefactTests]] = {}
         for artefact in artefacts:
             if artefact.lane in per_lane_runs:
-                by_lane.setdefault(artefact.lane, []).extend(artefact.tests)
-        for lane, tests in by_lane.items():
-            deduped = cost_markers.largest_per_node(
-                test for test in tests if test.measured
-            )
-            if deduped:
-                per_lane_runs[lane].append(
-                    {test.node_id: test.cpu_seconds for test in deduped}
-                )
+                by_lane.setdefault(artefact.lane, []).append(artefact)
+        for lane, lane_arts in by_lane.items():
+            if any(test.measured for art in lane_arts for test in art.tests):
+                per_lane_runs[lane].append(lane_arts)
 
     lane_baselines = {
         lane: _build_lane_baseline(
@@ -754,6 +932,7 @@ def build_baseline(
             runs,
             min_reference_seconds=min_reference_seconds,
             max_references_per_lane=max_references_per_lane,
+            min_reference_matches=min_reference_matches,
         )
         for lane, runs in per_lane_runs.items()
         if runs
@@ -873,6 +1052,7 @@ def _evaluate_lane(
     *,
     max_regression: float,
     min_reference_matches: int,
+    min_coverage_ratio: float,
 ) -> tuple[LaneResult, list[ScaledTest]]:
     """Normalise every artefact in ``lane``, aggregate across shards, and judge total."""
     if not lane_artefacts:
@@ -915,6 +1095,53 @@ def _evaluate_lane(
         unmeasured_total += unmeasured
 
     raw_total = sum(raw_by_node.values())
+    measured_count = len(raw_by_node)
+
+    incomplete_reason = _check_artefact_and_shard_completeness(lane_artefacts)
+    if incomplete_reason is not None:
+        return (
+            LaneResult(
+                lane=lane,
+                status="unavailable",
+                baseline_total_seconds=lane_baseline.total_cpu_seconds,
+                raw_total_seconds=raw_total,
+                scaled_total_seconds=None,
+                delta_ratio=None,
+                regressed=False,
+                measured_count=measured_count,
+                unmeasured_count=unmeasured_total,
+                artefacts=tuple(artefact_scales),
+                reason=incomplete_reason,
+            ),
+            _dedupe_scaled(scaled_all),
+        )
+
+    if (
+        lane_baseline.measured_test_count > 0
+        and min_coverage_ratio > 0.0
+        and measured_count < lane_baseline.measured_test_count * min_coverage_ratio
+    ):
+        return (
+            LaneResult(
+                lane=lane,
+                status="unavailable",
+                baseline_total_seconds=lane_baseline.total_cpu_seconds,
+                raw_total_seconds=raw_total,
+                scaled_total_seconds=None,
+                delta_ratio=None,
+                regressed=False,
+                measured_count=measured_count,
+                unmeasured_count=unmeasured_total,
+                artefacts=tuple(artefact_scales),
+                reason=(
+                    f"incomplete lane coverage: {measured_count} measured tests is "
+                    f"below {min_coverage_ratio * 100:g}% of baseline "
+                    f"({lane_baseline.measured_test_count})"
+                ),
+            ),
+            _dedupe_scaled(scaled_all),
+        )
+
     missing_factors = [art for art in artefact_scales if art.runner_factor is None]
     if missing_factors:
         detail = ", ".join(
@@ -930,7 +1157,7 @@ def _evaluate_lane(
                 scaled_total_seconds=None,
                 delta_ratio=None,
                 regressed=False,
-                measured_count=len(raw_by_node),
+                measured_count=measured_count,
                 unmeasured_count=unmeasured_total,
                 artefacts=tuple(artefact_scales),
                 reason=f"too few unchanged reference matches in {detail}",
@@ -1007,6 +1234,7 @@ def check_durations(
     slow_seconds: float = cost_markers.SLOW_CPU_SECONDS,
     band: float = cost_markers.BAND,
     min_reference_matches: int = DEFAULT_MIN_REFERENCE_MATCHES,
+    min_coverage_ratio: float = DEFAULT_MIN_COVERAGE_RATIO,
 ) -> DurationReport:
     """Evaluate normalised lane totals and cost markers of changed tests.
 
@@ -1033,6 +1261,9 @@ def check_durations(
     min_reference_matches : int, optional
         Minimum unchanged reference tests required per artefact to estimate a
         runner speed factor, by default ``5``.
+    min_coverage_ratio : float, optional
+        Minimum fraction of ``baseline.lanes[lane].measured_test_count``
+        required before a lane total is judged, by default ``0.90``.
 
     Returns
     -------
@@ -1047,6 +1278,8 @@ def check_durations(
         raise ValueError("the band must be at least 1")
     if min_reference_matches < 1:
         raise ValueError("min_reference_matches must be at least 1")
+    if not 0.0 <= min_coverage_ratio <= 1.0:
+        raise ValueError("min_coverage_ratio must lie in [0, 1]")
 
     artefact_list = list(artefacts)
     restricted_to: tuple[str, ...] | None = None
@@ -1072,6 +1305,7 @@ def check_durations(
             changed_set,
             max_regression=max_regression,
             min_reference_matches=min_reference_matches,
+            min_coverage_ratio=min_coverage_ratio,
         )
         lane_results[lane] = result
         all_scaled.extend(scaled_lane)
@@ -1223,6 +1457,15 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--min-coverage-ratio",
+        type=float,
+        default=DEFAULT_MIN_COVERAGE_RATIO,
+        help=(
+            "minimum fraction of baseline measured_test_count required to judge "
+            f"a lane total (default {DEFAULT_MIN_COVERAGE_RATIO:g})"
+        ),
+    )
+    parser.add_argument(
         "--test-file",
         dest="test_files",
         action="append",
@@ -1268,6 +1511,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.paths,
                 min_reference_seconds=args.min_reference_seconds,
                 max_references_per_lane=args.max_references,
+                min_reference_matches=args.min_reference_matches,
             )
         except (OSError, ValueError, cost_markers.UnsupportedMetricsSchema) as exc:
             print(f"[X] {exc}")
@@ -1321,6 +1565,7 @@ def main(argv: list[str] | None = None) -> int:
         slow_seconds=args.slow_seconds,
         band=args.band,
         min_reference_matches=args.min_reference_matches,
+        min_coverage_ratio=args.min_coverage_ratio,
     )
     print(report.message())
     if args.annotations:

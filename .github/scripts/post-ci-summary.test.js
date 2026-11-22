@@ -278,6 +278,36 @@ test('duration-guard section lists lane regressions and under-marked tests witho
   assert.doesNotMatch(section, /\*\*physics\*\* lane/);
 });
 
+test('duration-guard section lists unavailable lanes rather than claiming clean', () => {
+  const partial = durationReport({
+    ok: true,
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'unavailable',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'incomplete shard set: missing shard(s) 4 of 4 (found 3/4)',
+      },
+      physics: {
+        lane: 'physics',
+        status: 'ok',
+        baseline_total_seconds: 1606.2,
+        raw_total_seconds: 1606.2,
+        scaled_total_seconds: 1606.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+    },
+  });
+  const section = durationGuardSection(partial);
+  assert.match(section, /\*\*api\*\* lane: unavailable \(incomplete shard set: missing shard\(s\) 4 of 4 \(found 3\/4\)\)/);
+  assert.doesNotMatch(section, /within \+10% of baseline/);
+});
+
 test('duration-guard block coexists cleanly with cost-markers block and is idempotent', () => {
   const body = buildBody(envFor({ TESTS_CHANGED: 'true' }), ctx);
   const withCost = withCostMarkerSection(body, costMarkerSection(DRIFT));

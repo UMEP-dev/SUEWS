@@ -7,7 +7,11 @@ import pytest
 
 from supy.data_model.validation.core.feedback import ValidationLevel, ValidationReport
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-ERROR"),
+]
 
 
 @pytest.mark.parametrize("level", [None, ValidationLevel.WARNING, ValidationLevel.INFO])

@@ -9,7 +9,11 @@ import sys
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-ERROR"),
+]
 
 
 @pytest.fixture

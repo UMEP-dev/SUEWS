@@ -8,7 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-ISOLATION"),
+]
 
 
 def _publisher(outputs, workspace, report_path, connection, fail=False, observe=False):

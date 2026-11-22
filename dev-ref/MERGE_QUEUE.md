@@ -109,6 +109,7 @@ gh api graphql -f query='mutation { dequeuePullRequest(input: {id: "<PR_NODE_ID>
    ```
 3. **Order overlapping PRs**:
    - **Independent PRs** (disjoint subsystems, no shared high-risk files): safe to batch together.
+   - **CHANGELOG entries**: PRs add a fragment under `changes/` (see `changes/README.md`) instead of editing `CHANGELOG.md`, so an entry alone no longer makes two PRs overlap. A PR that still edits `CHANGELOG.md` directly is a shared-file PR; convert its entry to a fragment when rebasing.
    - **Shared-file PRs** (`CHANGELOG.md`, `meson.build`, schema/sample config, reference shards): queue sequentially, rebasing the second PR after the first lands.
    - **Stacked PRs** (`PR2` depends on `PR1`): target `PR2` at `PR1`'s branch until `PR1` merges through the queue, then rebase `PR2` onto `origin/master` and enqueue `PR2`. Never enqueue dependent stacked PRs simultaneously.
 

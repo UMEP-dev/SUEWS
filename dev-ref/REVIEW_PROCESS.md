@@ -118,7 +118,7 @@ PRs enter the GitHub merge queue (always human-gated; never pushed directly to `
 - Required CI gates (`pr-gate`, including `physics-full` when `0-physics:change` or `0-numerics:change` is present) are green.
 - Code review is approved and all review threads have converged (`.claude/rules/review-convergence.md`).
 - Required domain-owner sign-off is recorded for any `0-physics:change` PR.
-- Documentation and `CHANGELOG.md` (where applicable) are updated.
+- Documentation is updated and a CHANGELOG fragment is added under `changes/` (where applicable).
 
 ## Guidelines for AI-Assisted Changes
 

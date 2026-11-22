@@ -22,7 +22,7 @@ This workflow is **workspace-independent** - run from any worktree.
 2. **Create release branch** - `git checkout -b release/YYYY.M.D origin/master`
 3. **Schema version audit and `.devN` collapse** - `git log <last-release-tag>..HEAD -- src/supy/data_model/`. If any commit is a structural change (see `.claude/rules/python/schema-versioning.md` for triggers), collapse any `.devN` schema chain into the plain CalVer target label (`"YYYY.M.devN"` -> `"YYYY.M"`): update `CURRENT_SCHEMA_VERSION` and consolidate `SCHEMA_VERSIONS` in `src/supy/data_model/configuration/version.py`, collapse the dev handlers into a single `(<prev-release>, "YYYY.M")` entry and add the release-tag mapping in `src/supy/util/converter/yaml_upgrade.py` (`_HANDLERS` and `_PACKAGE_TO_SCHEMA`), update `src/supy/sample_data/sample_config.yml` and regenerate `python test/fixtures/sample_short/make_sample_short.py`, and vendor `test/fixtures/release_configs/<VERSION>.yml`. Stop and fix if any are missing -- this was the gap closed in gh#1304.
 4. **Benchmark gate (PREREQUISITE)** - Build supy from the release candidate (the selected dev tag / release branch via the `build-suews` artefact or `make dev` -- NOT PyPI, which has nothing yet) and run the multi-version benchmark: require a reproducible fingerprint and **no energy-balance regression vs the previous release**. This **gates the release** -- do NOT proceed to deposit (PR merge, tag, PyPI, GitHub Release, Zenodo) on an unreviewed regression. See `## Benchmark gate`.
-5. **CHANGELOG analysis** - Use log-changes or manual (current format)
+5. **CHANGELOG analysis** - Fold `changes/` fragments first (`python scripts/suews/fold_changelog.py`; release notes are cut from `CHANGELOG.md`, so unfolded fragments drop out), then use log-changes or manual for commits without a fragment
 6. **Update docs and verify knowledge-pack freshness** - `CHANGELOG.md`, version history RST (`:pr:` syntax), toctree, and run `python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>` (`src/supy/meson.build` builds `manifest.json` + `chunks.jsonl.gz` into `@OUTDIR@` automatically on every wheel build; never commit `src/supy/knowledge/pack/current/`).
 6a. **Docs sanity check** - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o docs/source/inputs/tables/schema.json`) and scan for stray `.dev` schema labels per `.claude/rules/docs/release-docs-sanity.md` (or dispatch the `docs-reviewer` agent in release mode, which runs the same scan plus a house-style pass). The banner-free `stable` build is produced post-tag by `release-docs-anchor.yml` (step 11a).
 7. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
@@ -171,7 +171,7 @@ git checkout -b release/$VERSION origin/master
 # - CHANGELOG.md
 # - docs/source/version-history/v$VERSION.rst
 # - .github/releases/$VERSION.md (GitHub Release notes)
-git add CHANGELOG.md docs/source/version-history/ .github/releases/
+git add CHANGELOG.md changes/ docs/source/version-history/ .github/releases/
 git commit -m "docs: update changelog and version history for $VERSION"
 
 # 4. Submit PR

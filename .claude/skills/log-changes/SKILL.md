@@ -7,8 +7,14 @@ description: Update CHANGELOG.md with recent commits. Follows SUEWS conventions.
 
 Fill CHANGELOG.md gap from last documented date to today.
 
+Pull requests record their entries as fragments in `changes/` (see `changes/README.md`), not in `CHANGELOG.md`.
+
+- **Inside a PR**: write a fragment `changes/<number>.<category>.md` with the entry lines; do not edit `CHANGELOG.md`.
+- **On master, gap-filling**: fold the fragments first (`python scripts/suews/fold_changelog.py`), then add entries only for commits that carried no fragment, so nothing is logged twice.
+
 ## Workflow
 
+0. **Fold fragments**: `python scripts/suews/fold_changelog.py --dry-run`, then without `--dry-run`
 1. **Identify gap**: Last CHANGELOG date -> today
 2. **Get commits**: `git log --format="%ad||%h||%s" --date=format:"%d %b %Y"`
 3. **Categorise**: `[feature]`, `[bugfix]`, `[change]`, `[maintenance]`, `[doc]`

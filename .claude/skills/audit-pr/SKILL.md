@@ -143,7 +143,7 @@ named amendment), and the payload race: `references/ci-gates.md`.
 
 For PRs that add new features or breaking changes:
 
-- Verify CHANGELOG entries have appropriate status tags
+- Verify CHANGELOG fragments (`changes/*.md`) have appropriate status tags
 - New `[feature]` entries should have `[experimental]` tag by default
 - Flag if `[stable]` tag is used without governance approval
 - Check PR description mentions if feature is experimental

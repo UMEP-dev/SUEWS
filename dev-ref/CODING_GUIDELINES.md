@@ -330,7 +330,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`. Do not add A
 
 ### 7.3 `CHANGELOG.md` Format
 
-Follow [`.claude/rules/changelog/format.md`](../.claude/rules/changelog/format.md) (or run `/log-changes`):
+Follow [`.claude/rules/changelog/format.md`](../.claude/rules/changelog/format.md). A pull request does not edit `CHANGELOG.md`: it adds a fragment `changes/<number>.<category>.md` holding its entry lines, and a maintainer folds the fragments in before each release (`changes/README.md`). The entry text follows the same format:
 - Date heading: `### DD Mon YYYY` (no leading zero on single-digit days, three-letter month, actual commit date; for example `### 6 May 2026` or `### 26 Nov 2025`).
 - Entry format: `- [category] Description (#PR)` or `- [category][status] Description (#PR)`.
 - Categories: `[feature]`, `[bugfix]`, `[change]`, `[maintenance]`, `[doc]`.

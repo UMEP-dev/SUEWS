@@ -75,7 +75,7 @@ Quick Start: Sample Data Tutorial
    print(f"Output groups: {sim.results.columns.get_level_values('group').unique().tolist()}")
 
    # Extract key variables using get_variable() helper
-   # (Results use MultiIndex columns with (group, variable) structure)
+   # (Results use MultiIndex columns with levels 'group' and 'var')
    qn = sim.get_variable('QN', group='SUEWS')
    qh = sim.get_variable('QH', group='SUEWS')
    print("\nSample energy flux statistics:")
@@ -186,7 +186,7 @@ The simulation produces comprehensive urban climate data:
 
 **Working with Results (Important!)**
 
-Results are stored with MultiIndex columns ``(group, variable)``. Always use ``sim.get_variable()`` to extract data:
+Results are stored with MultiIndex columns with levels ``group`` and ``var``. Always use ``sim.get_variable()`` to extract data:
 
 .. code-block:: python
 

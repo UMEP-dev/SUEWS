@@ -4,6 +4,11 @@ from typing import Optional, Union
 import pandas as pd
 import warnings
 from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
+from .unit_metadata import (
+    ConditionalUnitCase,
+    ConditionalUnitSpec,
+    conditional_unit_extra,
+)
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
 from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
 from ..validation.core.utils import (
@@ -570,8 +575,63 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
         description="Mean traffic activity; basis selected by type_traffic_rate",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": (
-                "vehicle km m-2 day-1 (type 1) or vehicle km cap-1 day-1 (type 2)"
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="type_traffic_rate",
+                    selector_scope="sibling",
+                    selector_model="CO2Params",
+                    selector_field="type_traffic_rate",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="Per area",
+                            kind="cf",
+                            unit="km m-2 d-1",
+                            formula=(
+                                "QF_traff = traffic_rate / 86400 * "
+                                "emission_factor_energy_vehicle * profile_traffic; "
+                                "Fc_traff = traffic_rate / 86400 * "
+                                "emission_factor_co2_vehicle * 1e9 / 44 * "
+                                "profile_traffic"
+                            ),
+                            note=(
+                                "Daily vehicle-km per m2 of grid area (counted "
+                                "vehicles leave the CF unit string; 86400 s d-1 "
+                                "converts per-day activity to per-second fluxes)."
+                            ),
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="Per capita",
+                            kind="cf",
+                            unit="km d-1",
+                            formula=(
+                                "QF_traff = traffic_rate / 86400 * "
+                                "emission_factor_energy_vehicle * profile_traffic * "
+                                "(pop_density / 10000); "
+                                "Fc_traff = traffic_rate / 86400 * "
+                                "emission_factor_co2_vehicle * 1e9 / 44 * "
+                                "profile_traffic * (pop_density / 10000)"
+                            ),
+                            note=(
+                                "Daily vehicle-km per person (counted vehicles and "
+                                "people leave the CF unit string; pop_density in "
+                                "ha-1 is divided by 10000 m2 ha-1 to convert "
+                                "per-capita traffic to grid area)."
+                            ),
+                        ),
+                    },
+                    activation_note=(
+                        "Used only when model.physics.emissions selects a detailed "
+                        "anthropogenic branch (codes 4-6, 14-16, 24-26, 34-36, "
+                        "44-46); codes 4-6 still include traffic heat QF_traff "
+                        "while zeroing Fc_anthro in the driver."
+                    ),
+                    inactive_note=(
+                        "Ignored when model.physics.emissions is 0 or ends in 1-3; "
+                        "inside detailed emissions branches, any type_traffic_rate "
+                        "other than 1 or 2 (including unset/0) raises Fortran "
+                        "ErrorHint(75)."
+                    ),
+                )
             ),
             "display_name": "Traffic Rate",
         },

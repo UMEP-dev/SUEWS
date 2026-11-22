@@ -2,6 +2,11 @@ import math
 from typing import Optional
 from pydantic import ConfigDict, Field, computed_field, model_validator
 from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
+from .unit_metadata import (
+    ConditionalUnitCase,
+    ConditionalUnitSpec,
+    conditional_unit_extra,
+)
 from .profile import (
     HourlyProfile,
     DayProfile,
@@ -145,22 +150,119 @@ class Conductance(DataModelBase):
     g_q_base: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description=(
-            "Base conductance response parameter for vapour pressure deficit; "
-            "its interpretation and units depend on the surface-conductance model"
+            "Base conductance response parameter for specific humidity deficit; "
+            "its interpretation and units depend on model.physics.surface_conductance"
         ),
         json_schema_extra={
-            "unit": "model-dependent",
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="model.physics.surface_conductance",
+                    selector_scope="config",
+                    selector_model="ModelPhysics",
+                    selector_field="surface_conductance",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="J11 (Jarvi et al. 2011)",
+                            kind="cf",
+                            unit="kg g-1",
+                            formula=(
+                                "g_dq = 1 - g_q_base * min(dq, g_q_shape), "
+                                "with dq in g kg-1"
+                            ),
+                            note=(
+                                "Reciprocal of specific humidity deficit in g kg-1 "
+                                "(1 / (g kg-1) = kg g-1)."
+                            ),
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="W16 (Ward et al. 2016)",
+                            kind="cf",
+                            unit="1",
+                            formula=(
+                                "g_dq = g_q_base + (1 - g_q_base) * (g_q_shape**dq), "
+                                "with dq in g kg-1"
+                            ),
+                            note=(
+                                "Dimensionless asymptotic lower bound of the "
+                                "specific-humidity-deficit conductance modifier."
+                            ),
+                        ),
+                    },
+                    activation_note=(
+                        "Applied when any vegetated surface (evetr, dectr, grass) "
+                        "has positive surface fraction (sfr > 0)."
+                    ),
+                    inactive_note=(
+                        "Public YAML accepts only surface_conductance in "
+                        "{1 (J11), 2 (W16)}; retired legacy Fortran codes 3 and 4 "
+                        "mapped to the J11 and W16 humidity forms respectively, and "
+                        "other codes raise ErrorHint(71)."
+                    ),
+                )
+            ),
             "display_name": "VPD Response Base Value",
         },
     )
     g_q_shape: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description=(
-            "Shape conductance response parameter for vapour pressure deficit; "
-            "its interpretation and units depend on the surface-conductance model"
+            "Shape conductance response parameter for specific humidity deficit; "
+            "its interpretation and units depend on model.physics.surface_conductance"
         ),
         json_schema_extra={
-            "unit": "model-dependent",
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="model.physics.surface_conductance",
+                    selector_scope="config",
+                    selector_model="ModelPhysics",
+                    selector_field="surface_conductance",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="J11 (Jarvi et al. 2011)",
+                            kind="cf",
+                            unit="g kg-1",
+                            formula=(
+                                "g_dq = 1 - g_q_base * min(dq, g_q_shape), "
+                                "with dq in g kg-1"
+                            ),
+                            note=(
+                                "Specific humidity deficit threshold above which "
+                                "g_dq stays constant."
+                            ),
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="W16 (Ward et al. 2016)",
+                            kind="empirical_base",
+                            expression=(
+                                "empirical power base for g_q_shape**dq with dq in "
+                                "g kg-1; ln(g_q_shape) has unit kg g-1"
+                            ),
+                            basis_unit="g kg-1",
+                            log_unit="kg g-1",
+                            formula=(
+                                "g_dq = g_q_base + (1 - g_q_base) * (g_q_shape**dq), "
+                                "with dq in g kg-1"
+                            ),
+                            note=(
+                                "Not dimensionless: changing dq from g kg-1 to "
+                                "kg kg-1 transforms g_q_shape nonlinearly "
+                                "(g_q_shape -> g_q_shape**1000) because "
+                                "g_q_shape**dq = exp((ln(g_q_shape) / (1 g kg-1)) * dq)."
+                            ),
+                        ),
+                    },
+                    activation_note=(
+                        "Applied when any vegetated surface (evetr, dectr, grass) "
+                        "has positive surface fraction (sfr > 0)."
+                    ),
+                    inactive_note=(
+                        "Public YAML accepts only surface_conductance in "
+                        "{1 (J11), 2 (W16)}; retired legacy Fortran codes 3 and 4 "
+                        "mapped to the J11 and W16 humidity forms respectively, and "
+                        "other codes raise ErrorHint(71)."
+                    ),
+                )
+            ),
             "display_name": "VPD Response Shape Parameter",
         },
     )

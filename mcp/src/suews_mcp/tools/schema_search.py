@@ -228,6 +228,42 @@ def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
     return result
 
 
+def _compact_conditional_unit(spec: dict[str, Any]) -> dict[str, Any]:
+    """Keep structured ``conditional_unit`` readable inside bounded search matches."""
+    summary: dict[str, Any] = {}
+    for key in ("selector", "selector_scope", "selector_model", "selector_field"):
+        if key in spec:
+            summary[key] = spec[key]
+    raw_cases = spec.get("cases")
+    if isinstance(raw_cases, dict):
+        cases_summary: dict[str, Any] = {}
+        for code, case in raw_cases.items():
+            if not isinstance(case, dict):
+                cases_summary[code] = _shallow(case, depth=1)
+                continue
+            entry: dict[str, Any] = {}
+            for attr in (
+                "label",
+                "kind",
+                "unit",
+                "expression",
+                "basis_unit",
+                "log_unit",
+            ):
+                if attr in case:
+                    entry[attr] = case[attr]
+            for attr in ("depends_on", "base_units"):
+                if attr in case and isinstance(case[attr], list):
+                    entry[attr] = list(case[attr])
+            cases_summary[code] = entry
+        summary["cases"] = cases_summary
+    for key in ("activation_note", "inactive_note"):
+        val = spec.get(key)
+        if isinstance(val, str):
+            summary[key] = val[:200] + "..." if len(val) > 200 else val
+    return summary
+
+
 def _shallow(value: Any, depth: int = 0) -> Any:
     """Trim deep substructures so search results stay small.
 
@@ -237,12 +273,16 @@ def _shallow(value: Any, depth: int = 0) -> Any:
     ``depth=0`` keep scalar entries verbatim and only stub the nested
     structures; at ``depth>=1`` collapse dicts/lists to their type name.
 
-    Special case at ``depth=0``: a JSON-Schema object node has a
-    ``properties`` dict whose keys are the field names the user actually
-    wants to see (e.g. ``EvetrProperties.properties`` lists every field
-    of the evergreen-tree config block). Replace such a dict with the
-    sorted list of its keys so callers can discover field names without
-    a follow-up call, while still keeping the response bounded.
+    Special cases at ``depth=0``:
+
+    - a JSON-Schema object node has a ``properties`` dict whose keys are
+      the field names the user actually wants to see (e.g.
+      ``EvetrProperties.properties`` lists every field of the
+      evergreen-tree config block). Replace such a dict with the sorted
+      list of its keys so callers can discover field names without a
+      follow-up call, while still keeping the response bounded;
+    - a field carrying ``conditional_unit`` keeps its selector and per-case
+      unit/expression summary rather than collapsing to ``"<dict>"``.
 
     Long string scalars (>200 chars) are truncated to keep envelopes
     bounded.
@@ -254,6 +294,8 @@ def _shallow(value: Any, depth: int = 0) -> Any:
         for k, v in value.items():
             if k == "properties" and isinstance(v, dict):
                 result[k] = sorted(v.keys())
+            elif k == "conditional_unit" and isinstance(v, dict):
+                result[k] = _compact_conditional_unit(v)
             else:
                 result[k] = _shallow(v, depth + 1)
         return result

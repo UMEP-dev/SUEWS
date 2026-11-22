@@ -20,11 +20,13 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 try:
+    from supy.data_model.core.unit_metadata import resolve_conditional_unit_case
     from supy.data_model.doc_utils import ModelDocExtractor
 except ImportError:
     # If supy is not installed, add src to path for development
     SRC_PATH = PROJECT_ROOT / "src"
     sys.path.insert(0, str(SRC_PATH))
+    from supy.data_model.core.unit_metadata import resolve_conditional_unit_case
     from supy.data_model.doc_utils import ModelDocExtractor
 
 try:
@@ -628,11 +630,63 @@ class RSTGenerator:
 
         return lines
 
+    def _format_conditional_unit(
+        self, conditional_unit: dict[str, Any]
+    ) -> list[str]:
+        """Format structured conditional-unit metadata as an RST ``:Unit:`` field."""
+        selector = conditional_unit["selector"]
+        cases = conditional_unit.get("cases", {})
+        lines = [f"   :Unit: Depends on ``{selector}``:", ""]
+
+        for code, case in cases.items():
+            label = case["label"]
+            kind = case["kind"]
+            if kind == "cf":
+                raw_unit = case["unit"]
+                unit_display = (
+                    "``1`` (dimensionless)"
+                    if raw_unit == "1"
+                    else self._format_unit(raw_unit)
+                )
+            elif kind == "formula":
+                depends = ", ".join(f"``{dep}``" for dep in case["depends_on"])
+                bases = ", ".join(self._format_unit(u) for u in case["base_units"])
+                unit_display = (
+                    f"``{case['expression']}`` "
+                    f"(formula; depends on {depends}; base units: {bases})"
+                )
+            elif kind == "empirical_base":
+                basis = self._format_unit(case["basis_unit"])
+                log_u = self._format_unit(case["log_unit"])
+                unit_display = (
+                    f"``{case['expression']}`` "
+                    f"(empirical power base for exponent in {basis}; "
+                    f"log unit: {log_u})"
+                )
+            else:
+                raise ValueError(f"Unsupported conditional_unit case kind: {kind!r}")
+
+            detail_parts = [f"Equation: ``{case['formula']}``."]
+            if note := case.get("note"):
+                detail_parts.append(note)
+            detail = " ".join(detail_parts)
+            lines.append(f"      - ``{code}`` ({label}): {unit_display}. {detail}")
+
+        if activation_note := conditional_unit.get("activation_note"):
+            lines.extend(["", f"      *Active:* {activation_note}"])
+        if inactive_note := conditional_unit.get("inactive_note"):
+            lines.extend(["", f"      *Inactive / other values:* {inactive_note}"])
+        lines.append("")
+        return lines
+
     def _format_unit_and_legacy_name(self, field_doc: dict[str, Any]) -> list[str]:
         """Format unit and legacy-name metadata for a field."""
         lines = []
+        conditional_unit = field_doc.get("conditional_unit")
         unit = field_doc.get("unit")
-        if unit and not field_doc.get("options"):
+        if conditional_unit and not field_doc.get("options"):
+            lines.extend(self._format_conditional_unit(conditional_unit))
+        elif unit and not field_doc.get("options"):
             lines.append(f"   :Unit: {self._format_unit(unit)}")
 
         legacy_name = field_doc.get("legacy_name")
@@ -647,10 +701,8 @@ class RSTGenerator:
         if not examples:
             return []
 
-        unit = self._format_unit(field_doc.get("unit", ""))
-        display_unit = (
-            unit if unit not in {"equation-dependent", "model-dependent"} else ""
-        )
+        static_unit = self._format_unit(field_doc.get("unit", ""))
+        conditional_unit = field_doc.get("conditional_unit")
         lines = [
             "",
             "   .. rubric:: Example values",
@@ -669,6 +721,21 @@ class RSTGenerator:
             if isinstance(example_value, float):
                 example_value = format(example_value, ".7g")
             value = f"``{example_value}``"
+            display_unit = static_unit
+            if (
+                not display_unit
+                and conditional_unit
+                and (selector := example.get("selector"))
+            ):
+                case = resolve_conditional_unit_case(
+                    conditional_unit, selector.get("value")
+                )
+                if case is not None and case.kind == "cf" and case.unit is not None:
+                    display_unit = (
+                        "(dimensionless)"
+                        if case.unit == "1"
+                        else self._format_unit(case.unit)
+                    )
             if display_unit:
                 value = f"{value} {display_unit}"
 
@@ -905,6 +972,7 @@ class RSTGenerator:
             "m^3",
             "s^-1",
             "kg^-1",
+            "g^-1",
             "K^-1",
             "J^-1",
             "W^-1",

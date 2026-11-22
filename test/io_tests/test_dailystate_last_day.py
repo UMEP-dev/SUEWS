@@ -12,8 +12,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from supy import SUEWSSimulation
-
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-CLOCK", "C-OUTPUT")]
 
 START = "2012-01-01"
@@ -58,18 +56,18 @@ def _assert_daily_coverage(daily, expected):
 
 
 @pytest.fixture(scope="module")
-def run_input():
-    sim = SUEWSSimulation.from_sample_data()
-    step = pd.Timedelta(seconds=sim.config.model.control.tstep)
-    forcing = sim.forcing.df.index.copy()
+def run_input(sample_config_loaded, sample_data_loaded):
+    _, df_forcing = sample_data_loaded
+    step = pd.Timedelta(seconds=sample_config_loaded.model.control.tstep)
+    forcing = df_forcing.index.copy()
     # Independently express the documented date-only/exact-time bounds;
     # do not call the production period slicer to construct the oracle.
     forcing = forcing[(forcing > pd.Timestamp(START)) & (forcing <= pd.Timestamp(END))]
     assert step == pd.Timedelta(minutes=5)
     assert forcing[0] == pd.Timestamp(START) + step
     assert forcing[-1] == pd.Timestamp(END)
-    grids = [site.gridiv for site in sim.config.sites]
-    return sim, forcing, step, grids
+    grids = [site.gridiv for site in sample_config_loaded.sites]
+    return None, forcing, step, grids
 
 
 @pytest.fixture(scope="module")
@@ -79,10 +77,9 @@ def expected_publications(run_input):
 
 
 @pytest.fixture(scope="module")
-def output(run_input):
+def output(sample_config_run_cached):
     """The original public-API sample run, including leap day and partial end."""
-    sim, _, _, _ = run_input
-    return sim.run(start_date=START, end_date=END)
+    return sample_config_run_cached(START, END)
 
 
 def test_last_partial_day_has_no_dailystate_row(output, expected_publications):

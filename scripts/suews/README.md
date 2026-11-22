@@ -437,3 +437,15 @@ come from `gh api`; `--runs-json` and `--jobs-json` read saved payloads instead.
 The verification criterion for the nightly-as-scientific-tier arrangement is
 thirty consecutive green runs; see `.claude/rules/ci/conventions.md` ("The
 Nightly as the Scientific Tier").
+
+## CHANGELOG fragments
+
+**Script**: `fold_changelog.py`
+
+Pull requests add their CHANGELOG entry as a fragment `changes/<number>.<category>.md`
+instead of editing `CHANGELOG.md` (format: `changes/README.md` and
+`.claude/rules/changelog/format.md`). This script validates the fragments
+(`--check`) and, before a release, folds them into `CHANGELOG.md` under the
+date each fragment was committed, then deletes them (`--dry-run` shows the
+diff; `--date YYYY-MM-DD` overrides the git date; `--keep` leaves the files).
+It only inserts lines. Tests: `test/core/test_fold_changelog.py`.

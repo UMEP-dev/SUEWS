@@ -46,6 +46,11 @@ on:
         required: false
         type: boolean
         default: false
+      api_shard_python:
+        description: 'Test-time CPython tag whose api cell on this call''s platform is split into two shards (the pull-request layout passes cp312 for Windows); empty runs every api cell whole. Only read when run_api_tests is true'
+        required: false
+        type: string
+        default: ''
       api_python_json:
         description: 'JSON array of test-time CPython tags for the api lane (e.g. ["cp312","cp315"]); only read when run_api_tests is true'
         required: false
@@ -120,6 +125,7 @@ jobs:
     uses: $/.github/workflows/test-api-cross-python-reusable.yml
     with:
       buildplat_json: ${{ inputs.buildplat_json }}
+      shard_python: ${{ inputs.api_shard_python }}
       api_python_json: ${{ inputs.api_python_json }}
       test_tier: ${{ inputs.test_tier }}
       serial_platforms: ${{ inputs.serial_platforms }}

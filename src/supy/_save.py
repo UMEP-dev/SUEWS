@@ -1698,9 +1698,9 @@ def _parquet_chunk_frame(
     if coverage:
         replaced_keys.add("supy_output_coverage_s")
     df_chunk.attrs = copy_attrs_except(merged_attrs, replaced_keys)
+    df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
     if coverage:
         df_chunk.attrs["supy_output_coverage_s"] = coverage
-    df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
     return df_chunk
 
 

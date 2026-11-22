@@ -92,6 +92,7 @@ def _assert_same_outcome(df_raw: pd.DataFrame) -> None:
         with pytest.raises(type(exc_expected)) as exc_info:
             set_index_dt(df_raw)
         assert type(exc_info.value) is type(exc_expected)
+        assert str(exc_info.value) == str(exc_expected)
     else:
         actual = set_index_dt(df_raw)
         pd.testing.assert_index_equal(actual.index, expected.index, exact=True)
@@ -198,22 +199,26 @@ def test_set_index_dt_matches_reference_on_order_gap_and_duplicate_errors(rows):
         [(2012, 1, 0, 0), (-9, -9, -9, -9)],
         # Non-numeric string in timestamp column
         [("bad", 1, 0, 0), (2012, 1, 1, 0)],
+        # Interior bad value paired with invalid final endpoint (endpoint-first order)
+        [(2012, 1, 0, 0), ("bad", 1, 1, 0), (2012, 1, 24, 0)],
     ],
     ids=[
         "hour-24",
         "minute-60",
         "sentinel-minus9",
         "non-numeric-year",
+        "interior-bad-and-invalid-final",
     ],
 )
 def test_set_index_dt_matches_reference_on_malformed_rows(rows):
-    """Malformed rows raise the same exception class as the per-row reference."""
+    """Malformed rows raise the exact same exception class and message as reference."""
     df_raw = _frame_from_rows(rows)
 
     exc_actual = _capture_error(set_index_dt, df_raw)
     exc_expected = _capture_error(_reference_set_index_dt, df_raw)
 
     assert type(exc_actual) is type(exc_expected)
+    assert str(exc_actual) == str(exc_expected)
 
 
 @pytest.mark.parametrize(

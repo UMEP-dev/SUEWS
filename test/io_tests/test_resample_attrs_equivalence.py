@@ -1,39 +1,34 @@
-"""Equivalence and attrs-isolation tests for attrs-stripped resampling and saving.
+"""Differential equivalence and attrs-isolation tests for Hotspot A.
 
-Verifies that stripping ``DataFrame.attrs`` during internal resampling,
-aggregation, unit conversion and save slicing produces frames and ``attrs``
-identical to the original attrs-carrying algorithm, while keeping ``attrs``
-independently owned across returned frames.
+Compares the attrs-stripped implementations of ``with_daily_coverage``,
+``prepare_output``, ``_resample_output``, ``_output_group_frequencies``,
+``_save_groups`` and ``_parquet_chunk_frame`` against verbatim master
+(``141f0c347b``) copies in ``_master_attrs_reference.py`` across resampling,
+unit conversion (including water-rate ``mm`` columns requiring coverage),
+text saving and streamed Parquet saving.
 """
 
 import copy
+import importlib.util
 import json
+from pathlib import Path
 
 from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 
-from supy._output_metadata import (
-    output_covered_seconds,
-    prepare_output,
-    resolve_held_interval,
-    water_flux_variables,
-    with_daily_coverage,
-)
-from supy._post import (
-    _aggregate_bins,
-    _calendar_binning,
-    _dailystate_period_end,
-    _index_freq_matches,
-    _is_calendar_frequency,
-    _resample_output,
-    dict_var_aggm,
-)
+import supy._output_metadata as output_metadata_mod
+from supy._output_metadata import prepare_output, with_daily_coverage
+import supy._post as post_mod
+from supy._post import _resample_output
+import supy._save as save_mod
 from supy._save import (
     StreamedParquetParts,
     save_df_output,
     save_df_output_parquet,
 )
+import supy.suews_output as suews_output_mod
 
 pytestmark = [
     pytest.mark.api,
@@ -44,169 +39,48 @@ DAYS_SAMPLE = 3
 TSTEP_S = 300
 
 
-def _reference_resample_output_with_attrs(
-    df_output,
-    freq="60min",
-    dict_aggm=dict_var_aggm,
-    groups=None,
-    freq_source=None,
-    drop_empty_rows=True,
-):
-    """Reference copy of the original attrs-carrying ``_resample_output`` path."""
-    if hasattr(df_output, "_df_output"):
-        held = df_output._held_interval(freq_source)
-        df_output = df_output._df_output
-    else:
-        held = resolve_held_interval(df_output, freq_source)
+def _load_master_reference():
+    """Load the sibling master-reference helper without relying on sys.path."""
+    path_ref = Path(__file__).parent / "_master_attrs_reference.py"
+    spec = importlib.util.spec_from_file_location("_master_attrs_reference", path_ref)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
-    if held.kind == "fixed":
-        try:
-            target_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
-        except ValueError:
-            target_s = None
-        if target_s == held.seconds:
-            return df_output
-    elif held.kind == "unknown" and _index_freq_matches(df_output, freq):
-        return df_output
 
-    source_s = held.seconds if held.kind == "fixed" else None
-    df_output = with_daily_coverage(df_output, source_s)
-    dict_daily_coverage = {}
-    dict_units = df_output.attrs.get("supy_output_units", {})
-    water_columns = [c for c in df_output.columns if c in water_flux_variables()]
-    rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
-    ser_coverage = (
-        output_covered_seconds(df_output, source_s) if water_columns else None
+MASTER_REF = _load_master_reference()
+
+
+def _patch_master(monkeypatch) -> None:
+    """Bind all changed output/resample/save functions to their master copies."""
+    monkeypatch.setattr(
+        output_metadata_mod, "with_daily_coverage", MASTER_REF.with_daily_coverage
     )
-    dict_coverage = {}
-
-    def _resample_group(
-        df_group, freq, label, dict_aggm_group, group_name=None, grid=None
-    ):
-        if group_name == "DailyState":
-            df_to_resample = df_group.dropna(how="all")
-            if df_to_resample.empty:
-                return pd.DataFrame(
-                    index=pd.DatetimeIndex([]), columns=df_group.columns
-                )
-            coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
-            ser_daily_seconds = pd.Series(
-                [
-                    coverage.get(f"{grid}|{date.isoformat()}", float("nan"))
-                    for date in df_to_resample.index
-                ],
-                index=df_to_resample.index,
-            )
-            ser_daily_seconds = _dailystate_period_end(ser_daily_seconds, source_s)
-            df_to_resample = _dailystate_period_end(df_to_resample, source_s)
-            daily_seconds = (
-                _calendar_binning(ser_daily_seconds, freq)
-                .resample(freq, closed="right", label=label)
-                .sum(min_count=1)
-            )
-            dict_daily_coverage.update({
-                f"{grid}|{date.isoformat()}": value
-                for date, value in daily_seconds.dropna().items()
-            })
-            return _aggregate_bins(
-                _calendar_binning(df_to_resample, freq).resample(
-                    freq, closed="right", label=label
-                ),
-                dict_aggm_group,
-                df_to_resample.columns,
-            )
-        else:
-            df_to_resample = df_group
-
-        columns_rate = [name for group, name in rate_columns if group == group_name]
-        covered = None
-        if ser_coverage is not None:
-            covered = ser_coverage.xs(grid, level="grid")
-            target = (
-                _calendar_binning(covered, freq)
-                .resample(freq, closed="right", label=label)
-                .sum()
-            )
-            dict_coverage.update({
-                f"{grid}|{date.isoformat()}": value for date, value in target.items()
-            })
-        if columns_rate:
-            df_to_resample = df_to_resample.copy(deep=False)
-            df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(
-                covered, axis=0
-            )
-        bins = _calendar_binning(df_to_resample, freq).resample(
-            freq, closed="right", label=label
-        )
-        result = _aggregate_bins(bins, dict_aggm_group, df_to_resample.columns)
-        if columns_rate:
-            result[columns_rate] = result[columns_rate].div(
-                target.where(target > 0), axis=0
-            )
-        occupied = bins.size().loc[lambda counts: counts > 0].index
-        if len(occupied):
-            result = result.loc[occupied[0] : occupied[-1]]
-        return result
-
-    calendar = _is_calendar_frequency(freq)
-    list_grid = df_output.index.get_level_values("grid").unique()
-    list_group = df_output.columns.get_level_values("group").unique()
-    if groups is not None:
-        list_group = [group for group in list_group if group in groups]
-
-    df_rsmp = pd.concat(
-        {
-            grid: pd.concat(
-                {
-                    group: _resample_group(
-                        df_output[group].xs(grid, level="grid"),
-                        freq,
-                        "left" if group == "DailyState" and not calendar else "right",
-                        dict_aggm[group],
-                        group_name=group,
-                        grid=grid,
-                    )
-                    for group in list_group
-                    if group in dict_aggm
-                },
-                axis=1,
-                names=["group", "var"],
-            )
-            for grid in list_grid
-        },
-        names=["grid"],
+    monkeypatch.setattr(
+        output_metadata_mod, "prepare_output", MASTER_REF.prepare_output
     )
-
-    if drop_empty_rows:
-        df_rsmp = df_rsmp.dropna(how="all", axis=0)
-
-    if isinstance(df_rsmp.index, pd.MultiIndex):
-        if df_rsmp.index.names[1] is None:
-            df_rsmp.index = df_rsmp.index.set_names(["grid", "datetime"])
-
-    df_rsmp.attrs = df_output.attrs.copy()
-    try:
-        interval_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
-    except ValueError:
-        interval_s = None
-    df_rsmp.attrs["supy_output_interval_s"] = interval_s
-    if dict_daily_coverage:
-        df_rsmp.attrs["supy_output_daily_coverage_s"] = dict_daily_coverage
-    elif "DailyState" in df_rsmp.columns.get_level_values("group"):
-        df_rsmp.attrs["supy_output_daily_coverage_s"] = df_output.attrs.get(
-            "supy_output_daily_coverage_s"
-        )
-    if dict_coverage:
-        dict_actual = {
-            f"{grid}|{date.isoformat()}": dict_coverage.get(
-                f"{grid}|{date.isoformat()}", 0.0
-            )
-            for grid, date in df_rsmp.index
-        }
-        df_rsmp.attrs["supy_output_coverage_s"] = {
-            key: value for key, value in dict_actual.items() if value != interval_s
-        }
-    return df_rsmp
+    monkeypatch.setattr(
+        post_mod, "with_daily_coverage", MASTER_REF.with_daily_coverage
+    )
+    monkeypatch.setattr(post_mod, "_resample_output", MASTER_REF._resample_output)
+    monkeypatch.setattr(
+        save_mod, "with_daily_coverage", MASTER_REF.with_daily_coverage
+    )
+    monkeypatch.setattr(save_mod, "prepare_output", MASTER_REF.prepare_output)
+    monkeypatch.setattr(save_mod, "_resample_output", MASTER_REF._resample_output)
+    monkeypatch.setattr(
+        save_mod, "_output_group_frequencies", MASTER_REF._output_group_frequencies
+    )
+    monkeypatch.setattr(save_mod, "_save_groups", MASTER_REF._save_groups)
+    monkeypatch.setattr(
+        save_mod, "_parquet_chunk_frame", MASTER_REF._parquet_chunk_frame
+    )
+    monkeypatch.setattr(
+        suews_output_mod, "with_daily_coverage", MASTER_REF.with_daily_coverage
+    )
+    monkeypatch.setattr(
+        suews_output_mod, "prepare_output", MASTER_REF.prepare_output
+    )
 
 
 def _run_short_sample(short_sample_sim, list_gridiv=None):
@@ -240,6 +114,30 @@ def _run_short_sample(short_sample_sim, list_gridiv=None):
     return sim.run()
 
 
+def _write_streamed_parquet(df_in, df_state_final, dir_pq: Path, freq_s: int):
+    """Write *df_in* as two streamed Parquet chunks into *dir_pq*."""
+    dir_pq.mkdir(parents=True, exist_ok=True)
+    cutoff = pd.Timestamp("2012-01-02 00:00")
+    dt_level = df_in.index.get_level_values("datetime")
+    chunks = [
+        df_in.loc[dt_level <= cutoff].copy(),
+        df_in.loc[dt_level > cutoff].copy(),
+    ]
+    stream = StreamedParquetParts(dir_pq / "SUEWS_output.parquet", tstep_s=TSTEP_S)
+    stream.prepare()
+    for idx, chunk in enumerate(chunks, start=1):
+        stream.start_chunk(2012, idx)
+        save_df_output_parquet(
+            chunk,
+            df_state_final,
+            freq_s=freq_s,
+            path_dir_save=dir_pq,
+            save_state=False,
+            streamed_parquet=stream,
+        )
+    return stream.finish()
+
+
 @pytest.fixture(scope="module")
 def sample_outputs(short_sample_sim):
     """Module-scoped 1-grid and 2-grid 3-day sample outputs."""
@@ -256,10 +154,8 @@ def sample_outputs(short_sample_sim):
     [pd.Timedelta(TSTEP_S, "s"), pd.Timedelta(3600, "s"), "D"],
     ids=["300s", "3600s", "daily"],
 )
-def test_resample_matches_attrs_carrying_reference(
-    sample_outputs, case, with_units, freq
-):
-    """Stripped resampling matches the attrs-carrying reference bit for bit."""
+def test_resample_matches_master_reference(sample_outputs, case, with_units, freq):
+    """Stripped resampling matches the verbatim master path bit for bit."""
     output = sample_outputs[case]
     source = output.to_units({"Rain": "mm h-1"}) if with_units else output
     df_in = source.df.copy()
@@ -267,7 +163,7 @@ def test_resample_matches_attrs_carrying_reference(
     attrs_before = copy.deepcopy(df_in.attrs)
 
     actual = _resample_output(df_in, freq=freq)
-    expected = _reference_resample_output_with_attrs(df_in, freq=freq)
+    expected = MASTER_REF._resample_output(df_in, freq=freq)
 
     pd.testing.assert_frame_equal(actual, expected, check_exact=True)
     assert actual.attrs == expected.attrs
@@ -315,72 +211,156 @@ def test_resample_output_attrs_are_independent(sample_outputs, case):
     assert output.df.attrs["supy_output_units"]["SUEWS"]["Rain"] == "mm h-1"
 
 
-def test_prepare_output_and_save_preserve_attrs_without_aliasing(
-    sample_outputs, tmp_path
+def test_with_daily_coverage_and_prepare_output_match_master(sample_outputs):
+    """Unit conversion on native mm water-rate columns matches master exactly."""
+    df_native = sample_outputs["2grids"].df.copy()
+    df_native.attrs["custom_meta"] = {"tags": ["x"]}
+
+    # Exercise with_daily_coverage from scratch when other attrs are present.
+    df_no_cov = df_native.copy()
+    df_no_cov.attrs = {"custom_meta": {"tags": ["x"]}}
+    cov_new = with_daily_coverage(df_no_cov, interval_s=TSTEP_S)
+    cov_master = MASTER_REF.with_daily_coverage(df_no_cov, interval_s=TSTEP_S)
+    pd.testing.assert_frame_equal(cov_new, cov_master, check_exact=True)
+    assert cov_new.attrs == cov_master.attrs
+    assert cov_new.attrs["custom_meta"] is not df_no_cov.attrs["custom_meta"]
+
+    # Exercise prepare_output touching water-rate columns (mm -> coverage),
+    # daily water amount (P_day) and standard unit conversion (T2).
+    attrs_before = copy.deepcopy(df_native.attrs)
+    units_req = {"Rain": "mm h-1", "P_day": "m", "T2": "K"}
+    prep_new = prepare_output(
+        df_native, units=units_req, interval_s=TSTEP_S, write=True
+    )
+    prep_master = MASTER_REF.prepare_output(
+        df_native, units=units_req, interval_s=TSTEP_S, write=True
+    )
+    prep_second = prepare_output(
+        df_native, units=units_req, interval_s=TSTEP_S, write=True
+    )
+
+    pd.testing.assert_frame_equal(prep_new, prep_master, check_exact=True)
+    assert prep_new.attrs == prep_master.attrs
+    assert df_native.attrs == attrs_before
+
+    # Verify independent ownership across returned prepare_output frames.
+    snapshot_second = copy.deepcopy(prep_second.attrs)
+    prep_new.attrs["custom_meta"]["tags"].append("mutated")
+    prep_new.attrs["supy_output_units"]["SUEWS"]["Rain"] = "m s-1"
+    prep_new.attrs["supy_water_rate_columns"].append(("SUEWS", "fake"))
+    prep_new.attrs["supy_output_daily_coverage_s"]["extra"] = 1.0
+    assert prep_second.attrs == snapshot_second
+    assert df_native.attrs == attrs_before
+
+
+@pytest.mark.parametrize(
+    ("case", "freq_s", "timestamp_reference"),
+    [
+        ("1grid", TSTEP_S, "follow"),
+        ("1grid", 3600, "follow"),
+        ("2grids", TSTEP_S, "follow"),
+        ("2grids", 3600, "follow"),
+        ("2grids", 3600, "local_standard_time"),
+    ],
+    ids=[
+        "1grid-300s-follow",
+        "1grid-3600s-follow",
+        "2grids-300s-follow",
+        "2grids-3600s-follow",
+        "2grids-3600s-lst",
+    ],
+)
+def test_save_text_and_streamed_parquet_match_master(
+    sample_outputs, tmp_path, monkeypatch, case, freq_s, timestamp_reference
 ):
-    """Unit preparation and text/Parquet saves keep attrs accurate and isolated."""
-    output = sample_outputs["2grids"]
+    """Full text and streamed Parquet save paths match master byte for byte."""
+    output = sample_outputs[case]
     df_in = output.df.copy()
-    df_in.attrs["custom_meta"] = {"tags": ["x"]}
+    df_in.attrs["custom_meta"] = {"case": case}
     attrs_before = copy.deepcopy(df_in.attrs)
 
-    prep_a = prepare_output(df_in, units={"Rain": "mm h-1"}, interval_s=TSTEP_S)
-    prep_b = prepare_output(df_in, units={"Rain": "mm h-1"}, interval_s=TSTEP_S)
-    snapshot_b = copy.deepcopy(prep_b.attrs)
+    dir_txt_new = tmp_path / "txt_new"
+    dir_txt_master = tmp_path / "txt_master"
+    dir_pq_new = tmp_path / "pq_new"
+    dir_pq_master = tmp_path / "pq_master"
+    dir_txt_new.mkdir()
+    dir_txt_master.mkdir()
 
-    pd.testing.assert_frame_equal(prep_a, prep_b, check_exact=True)
-    assert prep_a.attrs == prep_b.attrs
-    assert prep_a.attrs is not prep_b.attrs
-    prep_a.attrs["custom_meta"]["tags"].append("mutated")
-    prep_a.attrs["supy_output_units"]["SUEWS"]["Rain"] = "m s-1"
-    prep_a.attrs["supy_output_daily_coverage_s"]["extra"] = 1.0
-    assert prep_b.attrs == snapshot_b
-    assert df_in.attrs == attrs_before
-
-    # Text save path (multi-grid, DailyState + SUEWS at 3600 s).
-    dir_txt = tmp_path / "txt"
-    dir_txt.mkdir()
-    txt_paths = save_df_output(
+    # Run new code first.
+    save_df_output(
         df_in,
-        freq_s=3600,
-        path_dir_save=dir_txt,
+        freq_s=freq_s,
+        path_dir_save=dir_txt_new,
         output_groups=["SUEWS", "DailyState"],
+        timestamp_reference=timestamp_reference,
         df_state_final=output.state_final,
     )
+    _write_streamed_parquet(df_in, output.state_final, dir_pq_new, freq_s)
     assert df_in.attrs == attrs_before
-    daily_sidecars = sorted(dir_txt.glob("*DailyState*.units.json"))
-    assert len(daily_sidecars) == 2
-    for sidecar in daily_sidecars:
-        payload = json.loads(sidecar.read_text(encoding="utf-8"))
-        grid_prefix = sidecar.name.split("_", 1)[0]
-        expected_grid_coverage = {
-            key: val
-            for key, val in df_in.attrs["supy_output_daily_coverage_s"].items()
-            if key.startswith(f"{grid_prefix}|")
-        }
-        assert payload["daily_coverage_s"]
-        assert payload["daily_coverage_s"] == expected_grid_coverage
-    assert any(p.name.endswith("_SUEWS_60.txt") for p in txt_paths)
 
-    # Streamed Parquet chunk path (exercises _parquet_chunk_frame).
-    dir_pq = tmp_path / "pq"
-    dir_pq.mkdir()
-    stream = StreamedParquetParts(dir_pq / "SUEWS_output.parquet", tstep_s=TSTEP_S)
-    stream.prepare()
-    stream.start_chunk(2012, 1)
-    save_df_output_parquet(
-        df_in,
-        output.state_final,
-        freq_s=3600,
-        path_dir_save=dir_pq,
-        save_state=False,
-        streamed_parquet=stream,
-    )
-    pq_paths = stream.finish()
-    reloaded = pd.read_parquet(pq_paths[0])
-    assert reloaded.attrs["supy_output_interval_s"] == 3600
-    assert (
-        reloaded.attrs["supy_output_daily_coverage_s"]
-        == df_in.attrs["supy_output_daily_coverage_s"]
-    )
+    # Run verbatim master code with monkeypatched module bindings.
+    with monkeypatch.context() as mp:
+        _patch_master(mp)
+        save_df_output(
+            df_in,
+            freq_s=freq_s,
+            path_dir_save=dir_txt_master,
+            output_groups=["SUEWS", "DailyState"],
+            timestamp_reference=timestamp_reference,
+            df_state_final=output.state_final,
+        )
+        _write_streamed_parquet(df_in, output.state_final, dir_pq_master, freq_s)
     assert df_in.attrs == attrs_before
+
+    # Text outputs and sidecars: identical file sets and identical bytes.
+    txt_names_new = sorted(p.name for p in dir_txt_new.iterdir())
+    txt_names_master = sorted(p.name for p in dir_txt_master.iterdir())
+    assert txt_names_new == txt_names_master
+    for name in txt_names_new:
+        assert (dir_txt_new / name).read_bytes() == (
+            dir_txt_master / name
+        ).read_bytes(), name
+
+    # Streamed Parquet outputs: identical file sets, exact tables, attrs and schemas.
+    pq_names_new = sorted(p.name for p in dir_pq_new.iterdir())
+    pq_names_master = sorted(p.name for p in dir_pq_master.iterdir())
+    assert pq_names_new == pq_names_master
+
+    parts_new = sorted(
+        p.name for p in (dir_pq_new / "SUEWS_output.parquet").iterdir()
+    )
+    parts_master = sorted(
+        p.name for p in (dir_pq_master / "SUEWS_output.parquet").iterdir()
+    )
+    assert parts_new == parts_master
+
+    df_pq_new = pd.read_parquet(dir_pq_new / "SUEWS_output.parquet")
+    df_pq_master = pd.read_parquet(dir_pq_master / "SUEWS_output.parquet")
+    pd.testing.assert_frame_equal(df_pq_new, df_pq_master, check_exact=True)
+    assert df_pq_new.attrs == df_pq_master.attrs
+
+    for part_name in parts_new:
+        schema_new = pq.read_schema(dir_pq_new / "SUEWS_output.parquet" / part_name)
+        schema_master = pq.read_schema(
+            dir_pq_master / "SUEWS_output.parquet" / part_name
+        )
+        assert set(schema_new.metadata) == set(schema_master.metadata)
+        for key in schema_new.metadata:
+            if key in (b"PANDAS_ATTRS", b"pandas"):
+                assert json.loads(schema_new.metadata[key]) == json.loads(
+                    schema_master.metadata[key]
+                )
+            else:
+                assert schema_new.metadata[key] == schema_master.metadata[key]
+        assert [field.metadata for field in schema_new] == [
+            field.metadata for field in schema_master
+        ]
+
+    # Metadata sidecar matches in every field except its wall-clock creation_time.
+    meta_new = pd.read_parquet(dir_pq_new / "SUEWS_metadata.parquet").drop(
+        columns=["creation_time"]
+    )
+    meta_master = pd.read_parquet(dir_pq_master / "SUEWS_metadata.parquet").drop(
+        columns=["creation_time"]
+    )
+    pd.testing.assert_frame_equal(meta_new, meta_master, check_exact=True)

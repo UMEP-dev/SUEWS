@@ -727,6 +727,48 @@ def resample_forcing_met(
     return data_met_tstep
 
 
+def _set_index_dt_per_row(df_raw: pd.DataFrame) -> pd.DataFrame:
+    """Fallback per-row parser reproducing master's endpoint-first error path."""
+    # set timestamp as index
+    idx_dt = pd.date_range(
+        *df_raw.iloc[[0, -1]][list(BASELINE_DATETIME_FORCING_COLUMNS)]
+        .astype(int)
+        .astype(str)
+        .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
+        .map(lambda dt: pd.to_datetime(dt, format="%Y %j %H %M")),
+        periods=df_raw.shape[0],
+    )
+    list_dt = [
+        *df_raw[list(BASELINE_DATETIME_FORCING_COLUMNS)]
+        .astype(int)
+        .astype(str)
+        .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
+        .map(lambda dt: pd.to_datetime(dt, format="%Y %j %H %M"))
+    ]
+    ser_dt = pd.DatetimeIndex(list_dt).to_series()
+    ser_dt_diff = ser_dt.diff()
+    ser_dt_diff_sec = ser_dt_diff.dt.total_seconds()
+    # check if the timestamps are in order
+    dif_dt = ser_dt_diff_sec.abs().min()
+    ser_test = ser_dt_diff_sec.eq(dif_dt)
+    loc_issue = ser_dt_diff_sec.reset_index().index[~ser_test][1:] + 2
+    if loc_issue.size == 0:
+        # empty list of `loc_issue`
+        freq = ser_dt_diff.iloc[1]
+        df_datetime = df_raw.set_index(idx_dt).asfreq(freq)
+    else:
+        # non-empty list of `loc_issue`
+        # locate the problematic indices
+        # loc_issue = df_raw[1:].index[~ser_test]
+        raise RuntimeError(
+            f"Loaded forcing files have gaps/duplicates; "
+            f"suspious lines include: {loc_issue.to_list()}. "
+            f"NOTE: the reported line numbers are NOT completely accurate: only for your reference."
+        )
+
+    return df_datetime
+
+
 def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
     """convert raw SUEWS DataFrame to datetime-aware DataFrame.
 
@@ -744,27 +786,31 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
     # drop rows with missing timestamp information (e.g., footer lines with -9)
     df_raw = df_raw.dropna(subset=BASELINE_DATETIME_FORCING_SET)
 
-    # parse timestamps once via pandas' vectorised string-format parser
-    df_dt_str = (
-        df_raw[list(BASELINE_DATETIME_FORCING_COLUMNS)].astype(int).astype(str)
-    )
-    ser_dt_str = (
-        df_dt_str.iloc[:, 0]
-        + " "
-        + df_dt_str.iloc[:, 1]
-        + " "
-        + df_dt_str.iloc[:, 2]
-        + " "
-        + df_dt_str.iloc[:, 3]
-    )
-    idx_parsed = pd.DatetimeIndex(pd.to_datetime(ser_dt_str, format="%Y %j %H %M"))
+    try:
+        # parse timestamps once via pandas' vectorised string-format parser
+        df_dt_str = (
+            df_raw[list(BASELINE_DATETIME_FORCING_COLUMNS)].astype(int).astype(str)
+        )
+        ser_dt_str = (
+            df_dt_str.iloc[:, 0]
+            + " "
+            + df_dt_str.iloc[:, 1]
+            + " "
+            + df_dt_str.iloc[:, 2]
+            + " "
+            + df_dt_str.iloc[:, 3]
+        )
+        idx_parsed = pd.DatetimeIndex(pd.to_datetime(ser_dt_str, format="%Y %j %H %M"))
+        idx_dt = pd.date_range(
+            idx_parsed[0],
+            idx_parsed[-1],
+            periods=df_raw.shape[0],
+        )
+    except Exception:
+        # Re-run the endpoint-first per-row path so error type, message and
+        # reported row match the original implementation exactly.
+        return _set_index_dt_per_row(df_raw)
 
-    # set timestamp as index
-    idx_dt = pd.date_range(
-        idx_parsed[0],
-        idx_parsed[-1],
-        periods=df_raw.shape[0],
-    )
     ser_dt = idx_parsed.to_series()
     ser_dt_diff = ser_dt.diff()
     ser_dt_diff_sec = ser_dt_diff.dt.total_seconds()

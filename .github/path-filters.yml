@@ -148,6 +148,7 @@ workflow_security:
   - '.github/path-filters.yml'
   - '.github/scripts/check_action_pins.py'
   - '.github/scripts/post-ci-summary*'
+  - '.github/scripts/nightly-tracker*'
   - '.github/scripts/package.json'
 
 dependency_audit:

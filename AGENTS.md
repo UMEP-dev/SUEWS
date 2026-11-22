@@ -61,7 +61,7 @@ Read the unscoped rules below before making changes. Read scoped rules before wo
 
 - [.claude/rules/00-project-essentials.md](.claude/rules/00-project-essentials.md) - all work.
 - [.claude/rules/autonomous-workflow.md](.claude/rules/autonomous-workflow.md) - all work; Principle 1, 2, 3.
-- [.claude/rules/changelog/format.md](.claude/rules/changelog/format.md) - `CHANGELOG.md`.
+- [.claude/rules/changelog/format.md](.claude/rules/changelog/format.md) - `CHANGELOG.md`, `changes/*.md`.
 - [.claude/rules/ci/conventions.md](.claude/rules/ci/conventions.md) - `.github/workflows/**/*.yml`, `.github/workflows/**/*.yaml`, `.github/actions/**/*`, `.github/scripts/**/*`, `.github/path-filters.yml`, `.github/ci-metrics-needs.json`; Principle 1.
 - [.claude/rules/code-design.md](.claude/rules/code-design.md) - all work.
 - [.claude/rules/dependency-safety.md](.claude/rules/dependency-safety.md) - `pyproject.toml`, `mcp/pyproject.toml`, `scripts/security/**/*`, `.github/workflows/**/*`, `.github/actions/**/*`.

@@ -211,7 +211,7 @@ make test-smoke
 
 Treat these as coordination points:
 
-- `CHANGELOG.md`
+- `CHANGELOG.md` (PRs should add a `changes/` fragment instead; a PR that still edits it needs converting on rebase, see `changes/README.md`)
 - `meson.build`
 - `src/supy/meson.build`
 - `src/suews/Makefile*` (`Makefile`, `Makefile.deps`, `Makefile.gfortran`, etc.)

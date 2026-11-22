@@ -26,6 +26,7 @@
 
 - Every `test/**/test_*.py` (outside auto-marked `test/umep/`) declares `physics` or `api` (`check_test_markers.py`), and never inspects imported modules via `.__file__` (`check_packaged_data_paths.py`)
 - `physics and slow and not core` tests match the marker block in `.claude/rules/physics-change-evidence.md` (`check_physics_tier_delta.py`)
+- `changes/*.md` fragments: `python scripts/suews/fold_changelog.py --check` (file name `<number>.<category>.md`, tag matches the name, no headings)
 - `CHANGELOG.md`: date format `### DD Mon YYYY`, category tags `[feature]`, `[bugfix]`, `[change]`, `[maintenance]`, `[doc]` (optional `[experimental]`, `[stable]`, `[internal]` governance tags, no trailing colon)
 
 ## Active Static and Contract Linter Commands

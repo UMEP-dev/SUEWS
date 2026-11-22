@@ -142,7 +142,14 @@ Run the multi-version regression gate (`benchmark/REPRODUCE.md`) **before** merg
 
 ## Step 5: CHANGELOG Analysis
 
-Use `/log-changes` or inspect commits since the last formal release:
+First fold the per-PR fragments in `changes/` into `CHANGELOG.md` (see `changes/README.md`). Do this before tagging: the release workflow cuts the GitHub Release notes from the `### D Mon YYYY` section of `CHANGELOG.md`, so an unfolded fragment is silently missing from them.
+
+```bash
+python scripts/suews/fold_changelog.py --dry-run   # review
+python scripts/suews/fold_changelog.py             # write CHANGELOG.md, delete fragments
+```
+
+Then use `/log-changes` or inspect commits since the last formal release for anything merged without a fragment:
 
 ```bash
 LAST_RELEASE=$(git tag -l "[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | grep -v -E "dev" | head -1)
@@ -223,7 +230,7 @@ Update the parent release issue (`2-meta:release`) with the governance and bench
 ## Step 9: Submit PR and Merge
 
 ```bash
-git add CHANGELOG.md docs/source/version-history/ docs/source/inputs/tables/schema.json .github/releases/
+git add CHANGELOG.md changes/ docs/source/version-history/ docs/source/inputs/tables/schema.json .github/releases/
 # Include schema collapse, sample_short, and release_configs files if updated (never src/supy/knowledge/pack/current/)
 git commit -m "docs: prepare release $VERSION"
 git push -u origin "release/$VERSION"

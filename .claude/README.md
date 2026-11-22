@@ -156,6 +156,7 @@ pre-commit-check.sh (PreToolUse on git commit)
   |-- build-registration check         (new .f95 in src/supy/meson.build, src/suews/Makefile, build.rs)
   |-- RST heading depth check          (staged .rst)
   |-- CHANGELOG ### DD Mon YYYY + tag  (staged CHANGELOG.md additions)
+  |-- fold_changelog.py --check        (staged changes/*.md fragments)
   |-- validate-claude-md.py            (staged AGENTS.md / CLAUDE.md / MAINTAINERS.md / .claude / dev-ref)
   `-- make test-smoke                  (staged Python or Fortran)
 ```

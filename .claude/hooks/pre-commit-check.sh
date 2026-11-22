@@ -54,6 +54,7 @@ F90_FILES=$(echo "$STAGED" | grep -E '\.(f95|f90|F90)$' || true)
 F90_FMT_FILES=$(echo "$STAGED" | grep -E '^src/suews/src/.*\.f95$' || true)
 RST_FILES=$(echo "$STAGED" | grep -E '\.rst$' || true)
 CHANGELOG=$(echo "$STAGED" | grep -E '^CHANGELOG\.md$' || true)
+CHANGELOG_FRAGMENTS=$(echo "$STAGED" | grep -E '^changes/' || true)
 AGENT_FILES=$(echo "$STAGED" | grep -E '^(AGENTS\.md|CLAUDE\.md|MAINTAINERS\.md|dev-ref/.*\.md|\.claude/)' || true)
 
 ERRORS=""
@@ -174,6 +175,15 @@ if [[ -n "$CHANGELOG" ]] && [[ -f "CHANGELOG.md" ]]; then
         report_fail "CHANGELOG categories" "Unknown category tag (use [feature], [bugfix], [change], [maintenance], [doc]): $BAD_CATS"
     else
         report_pass "CHANGELOG categories"
+    fi
+fi
+
+# --- CHANGELOG fragment checks (changes/<number>.<category>.md) ---
+if [[ -n "$CHANGELOG_FRAGMENTS" ]] && [[ -f "scripts/suews/fold_changelog.py" ]]; then
+    echo "-- CHANGELOG fragments detected --"
+    PYTHON_BIN="$(command -v python3 || command -v python || true)"
+    if [[ -n "$PYTHON_BIN" ]]; then
+        FRAG_OUT=$("$PYTHON_BIN" scripts/suews/fold_changelog.py --check 2>&1) && report_pass "CHANGELOG fragments" || report_fail "CHANGELOG fragments" "$FRAG_OUT"
     fi
 fi
 

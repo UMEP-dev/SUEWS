@@ -50,10 +50,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      # gcc:14.2.0-bookworm (linux/amd64) on Amazon ECR Public mirror of Docker
-      # Official Images -- pinned by immutable manifest digest so the gfortran
-      # binary and its -Wmaybe-uninitialized diagnostics never drift.
-      image: public.ecr.aws/docker/library/gcc@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82
+      # gcc:14.2.0-bookworm (linux/amd64) Docker Official Image on Docker Hub,
+      # pinned by immutable manifest digest so the gfortran binary and its
+      # -Wmaybe-uninitialized diagnostics never drift. This is the same
+      # manifest digest previously pulled from the Amazon ECR Public mirror,
+      # whose anonymous pulls began failing with "Data limit exceeded"; the
+      # runner retries a failed container pull three times with back-off.
+      image: docker.io/library/gcc@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6

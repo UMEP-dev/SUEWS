@@ -204,7 +204,7 @@ test('a late green re-run does not close the tracker over a newer red run alread
     const { github, calls } = fakeGithub({
       run: { conclusion: 'success' }, openIssues: [TRACKER],
       newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'failure' },
-      comments: [{ user: { login: 'github-actions[bot]' }, body: `Still failing.\n\n${tracker.runTag(2)}\n...` }],
+      comments: [{ user: { login: 'github-actions[bot]' }, body: `Still failing.\n\n${tracker.runTag(2, 1)}\n...` }],
     });
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'none');
@@ -217,13 +217,13 @@ test('reconciliation reports a newer red run whose own report was displaced', ()
       run: { conclusion: 'success' }, openIssues: [TRACKER],
       newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'failure', html_url: 'NEWEST' },
       comments: [
-        { user: { login: 'github-actions[bot]' }, body: `${tracker.runTag(1)} earlier night` },
-        { user: { login: 'someone' }, body: `${tracker.runTag(2)} planted` },
+        { user: { login: 'github-actions[bot]' }, body: `${tracker.runTag(1, 1)}\nearlier night` },
+        { user: { login: 'someone' }, body: `${tracker.runTag(2, 1)}\nplanted` },
       ],
     });
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'commented');
-    assert.match(out.body, /<!-- scheduled-run: 2 -->\n\*\*/);
+    assert.match(out.body, /<!-- scheduled-run: 2 attempt 1 -->\n\*\*/);
     assert.equal(calls.filter(c => c[0] === 'comment').length, 1);
   }));
 
@@ -327,4 +327,47 @@ test('dry run writes nothing', () =>
     const { github, calls } = fakeGithub({ openIssues: [TRACKER] });
     await tracker({ github, context, core: fakeCore() });
     assert.deepEqual(calls.filter(c => c[0] !== 'compare'), []);
+  }));
+
+test('a run attempt already reported is not reported twice', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({
+      openIssues: [TRACKER],
+      comments: [{ user: { login: 'github-actions[bot]' }, body: `Still failing.\n\n${tracker.runTag(1, 1)}\n...` }],
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'none');
+    assert.deepEqual(calls, []);
+  }));
+
+test('a new attempt of an already reported run is reported', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({
+      run: { run_attempt: 2 }, openIssues: [TRACKER],
+      comments: [{ user: { login: 'github-actions[bot]' }, body: `Still failing.\n\n${tracker.runTag(1, 1)}\n...` }],
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'commented');
+    assert.match(out.body, /<!-- scheduled-run: 1 attempt 2 -->/);
+    assert.equal(calls.filter(c => c[0] === 'comment').length, 1);
+  }));
+
+test('a report first posted by a reconciling reporter is not repeated by the run\'s own reporter', () =>
+  withEnv({}, async () => {
+    // Step 1: an older run reconciles to the newest red run (id 2) and comments.
+    const first = fakeGithub({
+      run: { conclusion: 'success' }, openIssues: [TRACKER],
+      newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'failure' },
+    });
+    const out1 = await tracker({ github: first.github, context, core: fakeCore() });
+    assert.equal(out1.action, 'commented');
+    // Step 2: run 2's own reporter sees that comment and adds nothing.
+    const second = fakeGithub({
+      run: { id: 2, created_at: '2026-11-23T02:00:00Z' }, openIssues: [TRACKER],
+      newest: { id: 2, created_at: '2026-11-23T02:00:00Z' },
+      comments: [{ user: { login: 'github-actions[bot]' }, body: out1.body }],
+    });
+    const out2 = await tracker({ github: second.github, context, core: fakeCore() });
+    assert.equal(out2.action, 'none');
+    assert.deepEqual(second.calls, []);
   }));

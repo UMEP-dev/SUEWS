@@ -133,8 +133,8 @@ function listLines(items, render, more = 0) {
 
 // Hidden tag naming the run a report describes, so a later reconciliation
 // can tell whether that run was already reported.
-function runTag(runId) {
-  return `<!-- scheduled-run: ${runId} -->`;
+function runTag(runId, attempt = 1) {
+  return `<!-- scheduled-run: ${runId} attempt ${attempt} -->`;
 }
 
 // Text copied into a report (commit subjects, job names) must not be able to
@@ -145,8 +145,8 @@ function inert(text) {
 
 // Body of the issue (first report) or of a "still failing" comment.
 // `cmp` is { lastGreen, changes, truncated, compareUrl }.
-function buildReport({ date, runId, runUrl, conclusion, leaves, cmp }) {
-  const lines = [runTag(runId), `**${date}**: ${runUrl} ended \`${conclusion}\`.`, ''];
+function buildReport({ date, runId, attempt, runUrl, conclusion, leaves, cmp }) {
+  const lines = [runTag(runId, attempt), `**${date}**: ${runUrl} ended \`${conclusion}\`.`, ''];
   if (leaves === null) {
     lines.push('Failed jobs: could not be read from the API; see the run page.');
   } else if (leaves.length === 0) {
@@ -285,23 +285,25 @@ module.exports = async ({ github, context, core }) => {
     return { action: tracker ? 'closed' : 'none' };
   }
 
-  if (tracker && reconcile) {
-    // Comment only if the newest run's own report never reached the issue.
+  if (tracker) {
+    // Comment only if this run attempt's report is not on the issue yet: a
+    // reconciling reporter may have posted it already, or a repeated
+    // delivery of this event may be running.
     const comments = await github.paginate(github.rest.issues.listComments, {
       owner, repo, issue_number: tracker.number, per_page: 100,
     });
-    const tag = runTag(run.id);
+    const tag = runTag(run.id, run.run_attempt || 1);
     const reported = [tracker.body, ...comments.filter(c => c.user && c.user.login === TRACKER_AUTHOR).map(c => c.body)]
       .some(b => (b || '').split('\n').some(line => line.trim() === tag));
     if (reported) {
-      core.info(`#${tracker.number} already reports run ${run.id}; nothing to add.`);
+      core.info(`#${tracker.number} already reports run ${run.id} attempt ${run.run_attempt || 1}; nothing to add.`);
       return { action: 'none' };
     }
   }
 
   const leaves = await readLeaves(github, owner, repo, run.id);
   const cmp = await readChanges(github, owner, repo, run);
-  const report = buildReport({ date, runId: run.id, runUrl: run.html_url, conclusion: run.conclusion, leaves, cmp });
+  const report = buildReport({ date, runId: run.id, attempt: run.run_attempt || 1, runUrl: run.html_url, conclusion: run.conclusion, leaves, cmp });
 
   if (tracker) {
     const body = `Still failing.\n\n${report}`;

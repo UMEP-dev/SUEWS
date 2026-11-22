@@ -19,11 +19,10 @@ Every active perturbation checks three properties:
 2. Physically expected sign where deterministic, and
 3. Surface energy-balance conservation on both baseline and perturbed runs, plus
    water-balance conservation except where a documented pre-existing hydrology
-   exception applies (snow-path runs under gh#1905/#1927/#1958, and combined
-   EHC + SPARTACUS building-facet runs where ``SUEWS_cal_QE`` routes building
-   storage through ``cal_water_storage_building`` and divides
-   ``soilstore_building / capStore_builing`` (``0/0`` leaving ``SMDBldgs``,
-   ``SMD``, and ``TotCh`` as ``NaN`` when ``bldgs.sfr == 0``)).
+   exception applies (snow-path runs under gh#1905/#1927/#1958, and active
+   ``bldgs.sfr > 0`` combined EHC + SPARTACUS runs where ``SUEWS_cal_QE``
+   routes building storage through ``cal_water_storage_building`` rather than
+   the 7-surface soil-store ledger checked by ``water_balance_residual_mm``).
 
 Every inactive perturbation (disabled physics module or ``sfr == 0`` surface)
 verifies strict invariance (``max|dFlux| == 0.0``) across grid-level fluxes.
@@ -126,6 +125,8 @@ def _run_and_verify_conservation(
     snow_use = int(getattr(phys.snow_use, "value", phys.snow_use))
     nlayer_cfg = config.sites[0].properties.vertical_layers.nlayer
     nlayer = int(getattr(nlayer_cfg, "value", nlayer_cfg))
+    bldg_sfr_cfg = config.sites[0].properties.land_cover.bldgs.sfr
+    has_buildings = float(getattr(bldg_sfr_cfg, "value", bldg_sfr_cfg)) > 0.0
     assert_simulation_output_finiteness(
         df_out,
         expected_grids=(1,),
@@ -135,6 +136,7 @@ def _run_and_verify_conservation(
         net_radiation=net_radiation,
         snow_use=snow_use,
         nlayer=nlayer,
+        has_buildings=has_buildings,
     )
 
     suews = df_out.loc[1, "SUEWS"]
@@ -790,12 +792,18 @@ def test_ehc_spartacus_absent_building_facets_leave_grid_fluxes_invariant(
     for roof in cfg_pert.sites[0].properties.vertical_layers.roofs:
         roof.alb.value = 0.80
         roof.emis.value = 0.70
+        roof.state_limit.value = 25.0
+        roof.soil_store_capacity = 200.0
+        roof.wet_threshold.value = 2.0
         roof.thermal_layers.k.value = [20.0] * 5
         roof.thermal_layers.rho_cp.value = [5.0e6] * 5
         roof.thermal_layers.dz.value = [0.02] * 5
     for wall in cfg_pert.sites[0].properties.vertical_layers.walls:
         wall.alb.value = 0.80
         wall.emis.value = 0.70
+        wall.state_limit.value = 25.0
+        wall.soil_store_capacity = 200.0
+        wall.wet_threshold.value = 2.0
         wall.thermal_layers.k.value = [20.0] * 5
         wall.thermal_layers.rho_cp.value = [5.0e6] * 5
         wall.thermal_layers.dz.value = [0.02] * 5
@@ -808,62 +816,84 @@ def test_ehc_spartacus_absent_building_facets_leave_grid_fluxes_invariant(
     df_facet["U"] = np.where(np.arange(len(df_facet)) < 144, 3.5, 15.0)
     df_facet["Tair"] = np.where(np.arange(len(df_facet)) < 144, 20.0, 0.0)
 
-    # ACT
-    # Run directly rather than through full-frame finiteness: SUEWS_cal_QE:3631
-    # has a pre-existing 0/0 in soilstore_building/capStore_builing when
-    # bldgs.sfr == 0 (leaving SMDBldgs, SMD, and TotCh as NaN), while every
-    # other active SUEWS output column and energy-balance closure remain finite.
-    excluded_suews_cols = set(SUEWS_ABSENT_OBSERVED_LDOWN) | {
-        "SMDBldgs",
-        "SMD",
-        "TotCh",
-    }
-    outputs = []
-    checked_suews_cols: list[str] = []
-    for label, cfg in (("base", cfg_base), ("pert", cfg_pert)):
-        sim = SUEWSSimulation()
-        sim.update_config(cfg, auto_load_forcing=False)
-        sim.update_forcing(df_facet)
-        df_out = sim.run(
-            start_date=df_facet.index[0],
-            end_date=df_facet.index[-1],
-            n_jobs=1,
-        ).df
-        suews = df_out.loc[1, "SUEWS"]
-        assert suews.index.equals(df_facet.index)
-        assert excluded_suews_cols.issubset(suews.columns)
-        checked_suews_cols = [
-            col for col in suews.columns if col not in excluded_suews_cols
-        ]
-        for col in checked_suews_cols:
-            strict_finite_array(
-                suews[col], label=f"ehc_spartacus_bldg0.{label}.{col}"
-            )
-        strict_finite_array(
-            df_out.loc[1, ("debug", "iter")],
-            label=f"ehc_spartacus_bldg0.{label}.iter",
-        )
-        eb_residual = (
-            suews["QN"] + suews["QF"] - suews["QH"] - suews["QE"] - suews["QS"]
-        )
-        assert (
-            strict_max_abs(eb_residual, label=f"ehc_spartacus_bldg0.{label}.eb")
-            < ENERGY_CLOSURE_TOLERANCE_W_M2
-        )
-        outputs.append(df_out)
-    df_out_base, df_out_pert = outputs
+    # ACT: assert full active-output finiteness (including SMDBldgs, SMD, TotCh,
+    # debug.ss_Bldgs_next, EHC, and SPARTACUS) and strict energy/water closure.
+    df_out_base = _run_and_verify_conservation(cfg_base, df_facet)
+    df_out_pert = _run_and_verify_conservation(cfg_pert, df_facet)
 
-    # ASSERT: every active SUEWS column (all columns except Fcld and the three
-    # documented capStore_builing 0/0 columns) and debug.iter stay bit-identical.
+    # ASSERT: every active SUEWS column (all columns except Fcld, explicitly
+    # including SMDBldgs, SMD, and TotCh), debug.ss_Bldgs_next, and debug.iter
+    # stay bit-identical under absent building-facet perturbations.
+    suews_base = df_out_base.loc[1, "SUEWS"]
+    active_suews_cols = [
+        col for col in suews_base.columns if col not in SUEWS_ABSENT_OBSERVED_LDOWN
+    ]
+    assert {"SMDBldgs", "SMD", "TotCh"}.issubset(active_suews_cols)
     np.testing.assert_array_equal(
-        df_out_pert.loc[1, "SUEWS"][checked_suews_cols].to_numpy(),
-        df_out_base.loc[1, "SUEWS"][checked_suews_cols].to_numpy(),
+        df_out_pert.loc[1, "SUEWS"][active_suews_cols].to_numpy(),
+        suews_base[active_suews_cols].to_numpy(),
         err_msg="Absent building-facet perturbation changed SUEWS outputs under EHC + SPARTACUS",
+    )
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, ("debug", "ss_Bldgs_next")].to_numpy(),
+        df_out_base.loc[1, ("debug", "ss_Bldgs_next")].to_numpy(),
+        err_msg="Absent building-facet perturbation changed building soil store under EHC + SPARTACUS",
     )
     np.testing.assert_array_equal(
         df_out_pert.loc[1, ("debug", "iter")].to_numpy(),
         df_out_base.loc[1, ("debug", "iter")].to_numpy(),
         err_msg="Absent building-facet perturbation changed iteration counts under EHC + SPARTACUS",
+    )
+    ehc_water_cols = [
+        f"{prefix}_{i}"
+        for prefix in (
+            "QE_Roof",
+            "St_Roof",
+            "SS_Roof",
+            "QE_Wall",
+            "St_Wall",
+            "SS_Wall",
+        )
+        for i in range(1, len(vl.roofs) + 1)
+    ]
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, "EHC"][ehc_water_cols].to_numpy(),
+        df_out_base.loc[1, "EHC"][ehc_water_cols].to_numpy(),
+        err_msg="Absent building-facet perturbation changed EHC roof/wall water outputs",
+    )
+
+
+@pytest.mark.core
+def test_ehc_spartacus_zero_facet_soil_capacity_keeps_soil_outputs_finite(
+    sensitivity_env,
+):
+    """When ``bldgs.sfr > 0`` has zero roof/wall soil capacity, EHC + SPARTACUS must avoid 0/0 NaN."""
+    # ARRANGE
+    cfg = copy.deepcopy(sensitivity_env["base_cfg"])
+    cfg.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+    cfg.model.physics.storage_heat = StorageHeatMethod.EHC
+    bldg_sfr = cfg.sites[0].properties.land_cover.bldgs.sfr.value
+    assert bldg_sfr > 0.0
+    vl = cfg.sites[0].properties.vertical_layers
+    vl.building_frac.value[0] = bldg_sfr
+    vl.veg_frac.value[2] = 0.0
+    vl.veg_scale.value[2] = 0.0
+    for roof in vl.roofs:
+        roof.soil_store_capacity = 0.0
+    for wall in vl.walls:
+        wall.soil_store_capacity = 0.0
+
+    # ACT & ASSERT: full active-output finiteness (including SMDBldgs, SMD,
+    # TotCh, and debug.ss_Bldgs_next) and strict surface energy-balance closure.
+    df_out = _run_and_verify_conservation(
+        cfg, sensitivity_env["df_rain_day"], check_water_balance=False
+    )
+    suews = df_out.loc[1, "SUEWS"]
+    for col in ("SMDBldgs", "SMD", "TotCh"):
+        strict_finite_array(suews[col], label=f"ehc_spartacus_zero_cap.{col}")
+    strict_finite_array(
+        df_out.loc[1, ("debug", "ss_Bldgs_next")],
+        label="ehc_spartacus_zero_cap.ss_Bldgs_next",
     )
 
 

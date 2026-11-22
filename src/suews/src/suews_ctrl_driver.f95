@@ -3392,7 +3392,14 @@ CONTAINS
 
       ! load dim constants
       nlayer = siteInfo%nlayer
-      use_building_facets_for_ehc = config%StorageHeatMethod == 5 .AND. config%NetRadiationMethod > 1000
+      use_building_facets_for_ehc = config%StorageHeatMethod == 5 &
+                                    .AND. config%NetRadiationMethod > 1000 &
+                                    .AND. siteInfo%sfr_surf(BldgSurf) > 0.0D0
+      state_building = 0.0D0
+      soilstore_building = 0.0D0
+      capStore_builing = 0.0D0
+      runoff_building = 0.0D0
+      qe_building = 0.0D0
 
       ALLOCATE (rss_roof(nlayer))
       ALLOCATE (runoff_roof(nlayer))
@@ -3628,7 +3635,9 @@ CONTAINS
                   ! update building specific values
                   qe_surf(BldgSurf) = qe_building
                   state_surf(BldgSurf) = state_building
-                  soilstore_surf(BldgSurf) = soilstore_building/capStore_builing*capStore_surf(BldgSurf)
+                  IF (capStore_builing > 0.0D0) THEN
+                     soilstore_surf(BldgSurf) = soilstore_building/capStore_builing*capStore_surf(BldgSurf)
+                  END IF
                   runoff_surf(BldgSurf) = runoff_building
                END IF
 

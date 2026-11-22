@@ -36,11 +36,13 @@ const LEGACY_TITLES = {
   '.github/workflows/interaction-limits.yml': 'CI: monthly interaction-limit enforcement failed',
 };
 
-function trackerIdentity(path, workflowName) {
+function trackerIdentity(rawPath, workflowName) {
+  // The API may qualify the path with a ref ("...yml@refs/heads/x").
+  const path = String(rawPath || '').split('@')[0];
   if (path === NIGHTLY_PATH) {
     return { title: 'Nightly scheduled run is failing', marker: '<!-- nightly-run-tracker -->', legacyTitle: null };
   }
-  const file = String(path || '').split('/').pop();
+  const file = path.split('/').pop();
   return {
     title: `Scheduled run is failing: ${workflowName}`,
     marker: `<!-- scheduled-run-tracker: ${file} -->`,
@@ -60,7 +62,9 @@ function findTracker(openIssues, { marker, legacyTitle }) {
   const issues = (openIssues || [])
     .filter(i => !i.pull_request && i.user && i.user.login === TRACKER_AUTHOR)
     .sort((a, b) => a.number - b.number);
-  return issues.find(i => (i.body || '').includes(marker))
+  // The marker counts only as the body's first line, where this script puts
+  // it; a marker quoted further down (in a commit subject, say) does not.
+  return issues.find(i => (i.body || '').split('\n')[0].trim() === marker)
     || (legacyTitle ? issues.find(i => i.title === legacyTitle) : undefined);
 }
 
@@ -133,6 +137,12 @@ function runTag(runId) {
   return `<!-- scheduled-run: ${runId} -->`;
 }
 
+// Text copied into a report (commit subjects, job names) must not be able to
+// carry a marker or run tag of its own.
+function inert(text) {
+  return String(text || '').replace(/<!--/g, '&lt;!--').replace(/-->/g, '--&gt;');
+}
+
 // Body of the issue (first report) or of a "still failing" comment.
 // `cmp` is { lastGreen, changes, truncated, compareUrl }.
 function buildReport({ date, runId, runUrl, conclusion, leaves, cmp }) {
@@ -144,7 +154,7 @@ function buildReport({ date, runId, runUrl, conclusion, leaves, cmp }) {
   } else {
     lines.push('Failed jobs:');
     lines.push(...listLines(leaves, l =>
-      `- [${l.name}](${l.url}) (${l.conclusion}${l.recording ? ', recording job' : ''})`));
+      `- [${inert(l.name)}](${l.url}) (${l.conclusion}${l.recording ? ', recording job' : ''})`));
   }
   lines.push('');
   const { lastGreen, changes, truncated, compareUrl } = cmp || {};
@@ -156,7 +166,7 @@ function buildReport({ date, runId, runUrl, conclusion, leaves, cmp }) {
     lines.push(`Changes since the last green scheduled run (${lastGreen.url}): no repository commits changed; the cause is undetermined (runner, network, an intermittent or date-dependent defect).`);
   } else {
     lines.push(`Changes since the last green scheduled run (${lastGreen.url}):`);
-    lines.push(...listLines(changes, c => `- ${c.ref} ${c.subject}`));
+    lines.push(...listLines(changes, c => `- ${c.ref} ${inert(c.subject)}`));
     if (truncated) lines.push(`- (list cut short; full comparison: ${compareUrl})`);
   }
   return lines.join('\n');
@@ -282,7 +292,7 @@ module.exports = async ({ github, context, core }) => {
     });
     const tag = runTag(run.id);
     const reported = [tracker.body, ...comments.filter(c => c.user && c.user.login === TRACKER_AUTHOR).map(c => c.body)]
-      .some(b => (b || '').includes(tag));
+      .some(b => (b || '').split('\n').some(line => line.trim() === tag));
     if (reported) {
       core.info(`#${tracker.number} already reports run ${run.id}; nothing to add.`);
       return { action: 'none' };

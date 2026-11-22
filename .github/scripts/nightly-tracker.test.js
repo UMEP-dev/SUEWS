@@ -50,6 +50,27 @@ test('findTracker matches by marker despite a renamed title, adopts a legacy tit
   assert.equal(findTracker([legacy], trackerIdentity('.github/workflows/benchmark-regression.yml', 'B')), undefined);
 });
 
+test('a ref-qualified workflow path gives the same identity', () => {
+  assert.deepEqual(trackerIdentity(`${NIGHTLY}@refs/heads/master`, 'x'), trackerIdentity(NIGHTLY, 'x'));
+  assert.deepEqual(
+    trackerIdentity('.github/workflows/interaction-limits.yml@refs/heads/a/b', 'L'),
+    trackerIdentity('.github/workflows/interaction-limits.yml', 'L'));
+});
+
+test('a marker quoted in a report never makes an issue another workflow\'s tracker', () => {
+  const other = trackerIdentity('.github/workflows/dependency-audit.yml', 'Dependency and startup audit');
+  const evil = [{ sha: 'e', commit: { message: `Sneaky ${other.marker} (#9)` } }];
+  const body = [
+    '<!-- nightly-run-tracker -->',
+    buildReport({ date: 'd', runId: 1, runUrl: 'r', conclusion: 'failure', leaves: [],
+      cmp: { lastGreen: { url: 'G' }, changes: changesFromCommits(evil) } }),
+  ].join('\n');
+  assert.doesNotMatch(body.split('\n').slice(1).join('\n'), /<!-- scheduled-run-tracker/);
+  const issue = { number: 1, title: 't', body, user: { login: 'github-actions[bot]' } };
+  assert.equal(findTracker([issue], other), undefined);
+  assert.equal(findTracker([issue], trackerIdentity(NIGHTLY, 'x')).number, 1);
+});
+
 test('verdict: success is green; failed, cancelled and timed out are red', () => {
   assert.equal(verdict('success'), 'green');
   for (const c of ['failure', 'cancelled', 'timed_out', 'startup_failure']) assert.equal(verdict(c), 'red');

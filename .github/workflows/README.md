@@ -42,13 +42,24 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   selected Python versions. Each platform's api lane is chained behind that
   platform's wheel build (one `build-wheels-reusable.yml` call per platform),
   so it starts as soon as its own wheel exists.
-- On pull requests the api lane runs no macOS cell, and the Windows cp312
-  cell runs as two shards (`cp312-win AMD64 shard 1-of-2` and `2-of-2`),
-  each taking half of the selected tests by SHA-256 of the node id
-  (`scripts/suews/pytest_shard.py`). The merge queue (cp312 on all three OS
-  families) and the nightly (every bookend) keep the macOS api cells and run
-  every cell whole. The `pr_api_lane` dispatch input applies the
-  pull-request layout to a dispatch, so it can be measured on a branch.
+- **Three layers.** Pull requests build and test on Linux only. The merge
+  queue runs Linux at its full tier (standard, or physics-full for a physics-
+  or numerics-change PR) with the cp312 api lane, and in parallel builds the
+  Windows wheel and runs only its smoke tier, with no Windows api lane; macOS
+  is not in the queue (a tests-only queue group stays Linux only). The
+  nightly keeps the full matrix on master; its tracking issue
+  (`report_scheduled_run`) names the PRs merged since the last green night (#2241). Tag releases build
+  and test the full matrix, and every publish job needs `build_wheels` to
+  succeed, so the full matrix is the release gate.
+- The `0-ci:full-matrix` label opts a pull request into every PR platform
+  (Linux, macOS arm64, Windows); use it for build-system, Fortran I/O and
+  path-handling changes. It is read live when the run starts, so add it and
+  then re-run the workflow (or push). On such a PR the api lane runs no macOS
+  cell, and the Windows cp312 cell runs as two shards (`api | cp312 | win AMD64
+  shard 1-of-2` and `2-of-2`), each taking half of the selected tests by SHA-256 of
+  the node id (`scripts/suews/pytest_shard.py`). The `pr_api_lane` dispatch
+  input applies that pull-request api layout to a dispatch, so it can be
+  measured on a branch.
 - The nightly `Tolerance spread` group (`tolerance-spread-reusable.yml`, also on
   dispatch with the `tolerance_spread` input) installs the built wheel on the
   two CPython bookends per platform and records the zero-tolerance spread of

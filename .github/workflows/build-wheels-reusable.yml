@@ -72,7 +72,10 @@ permissions:
 
 jobs:
   build:
-    name: ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    # Leaf names say what the job does: the caller's group name collapses
+    # into the checks list, where a bare cp312-<platform> leaf would read the
+    # same as the api lane's leaf.
+    name: wheel | ${{ matrix.python }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
       matrix:

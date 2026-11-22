@@ -31,7 +31,12 @@ DEFAULT_LIMIT = 30
 # Display-name patterns of the jobs that record rather than gate: they are
 # `continue-on-error: true`, count as failures in neither report_scheduled_run
 # nor pr-gate, so their failure is information, not a red nightly.
-NON_GATING_JOB_PATTERNS = ("Tolerance spread*", "Cost-marker drift*", "Python coverage*")
+NON_GATING_JOB_PATTERNS = (
+    "Tolerance spread*",
+    "Cost-marker drift*",
+    "Python coverage*",
+    "* / Python coverage*",
+)
 
 BAD_CONCLUSIONS = ("failure", "cancelled", "timed_out")
 

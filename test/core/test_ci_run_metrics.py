@@ -870,13 +870,27 @@ def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
     caller = yaml.safe_load(
         (root / ".github/workflows/build-publish_to_pypi.yml").read_text(encoding="utf-8")
     )
-    job = caller["jobs"]["python_coverage"]
+    wheels = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(encoding="utf-8")
+    )
+    # The job is chained behind the Linux wheel build inside the per-platform
+    # reusable call, so it no longer waits for every platform's api lane.
+    assert "python_coverage" not in caller["jobs"]
+    job = wheels["jobs"]["python_coverage"]
+    trigger = caller["jobs"]["build_wheels"]["with"]["run_python_coverage"]
 
     assert job["name"] == "Python coverage (Linux cp312)"
+    assert job["needs"] == "build"
+    assert job["if"] == "inputs.run_python_coverage"
     assert job["continue-on-error"] is True
     assert 0 < job["timeout-minutes"] <= 120
-    assert "github.event_name == 'schedule'" in job["if"]
-    assert "inputs.python_coverage == true" in job["if"]
+    run_step = next(s for s in job["steps"] if "--cov" in str(s.get("run", "")))
+    # The step times out before the job does, so the summary and upload run.
+    assert 0 < run_step["timeout-minutes"] < job["timeout-minutes"]
+    assert "matrix.buildplat[1] == 'manylinux'" in trigger
+    assert "needs.build_mcp.result == 'success'" in trigger
+    assert "github.event_name == 'schedule'" in trigger
+    assert "inputs.python_coverage == true" in trigger
     assert "python_coverage" not in caller["jobs"]["report_scheduled_run"]["needs"]
     assert "python_coverage" not in caller["jobs"]["pr-gate"]["needs"]
 

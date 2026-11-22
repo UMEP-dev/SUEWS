@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarise a coverage.py JSON report as totals and a per-package table.
 
-The nightly `python_coverage` job in `build-publish_to_pypi.yml` runs the
+The nightly `python_coverage` job in `build-wheels-reusable.yml` runs the
 suite under coverage with the configuration in `pyproject.toml`
 (`[tool.coverage.*]`) and writes `coverage.json`. This script reads that file
 and prints the total line and branch percentages and one row per package: each

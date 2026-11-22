@@ -48,10 +48,18 @@ function trackerIdentity(path, workflowName) {
   };
 }
 
+// Only issues the workflow token opened can be a tracker: anyone can open an
+// issue carrying the marker or the legacy title, and the tracker must not
+// comment on, adopt or close theirs.
+const TRACKER_AUTHOR = 'github-actions[bot]';
+
 // The open issue that tracks this workflow: by marker first, then by a
-// legacy title. Pull requests (listed by the issues API too) never match.
+// legacy title; the oldest wins if several match. Pull requests (listed by
+// the issues API too) never match.
 function findTracker(openIssues, { marker, legacyTitle }) {
-  const issues = (openIssues || []).filter(i => !i.pull_request);
+  const issues = (openIssues || [])
+    .filter(i => !i.pull_request && i.user && i.user.login === TRACKER_AUTHOR)
+    .sort((a, b) => a.number - b.number);
   return issues.find(i => (i.body || '').includes(marker))
     || (legacyTitle ? issues.find(i => i.title === legacyTitle) : undefined);
 }
@@ -119,10 +127,16 @@ function listLines(items, render, more = 0) {
   return shown;
 }
 
+// Hidden tag naming the run a report describes, so a later reconciliation
+// can tell whether that run was already reported.
+function runTag(runId) {
+  return `<!-- scheduled-run: ${runId} -->`;
+}
+
 // Body of the issue (first report) or of a "still failing" comment.
 // `cmp` is { lastGreen, changes, truncated, compareUrl }.
-function buildReport({ date, runUrl, conclusion, leaves, cmp }) {
-  const lines = [`**${date}**: ${runUrl} ended \`${conclusion}\`.`, ''];
+function buildReport({ date, runId, runUrl, conclusion, leaves, cmp }) {
+  const lines = [runTag(runId), `**${date}**: ${runUrl} ended \`${conclusion}\`.`, ''];
   if (leaves === null) {
     lines.push('Failed jobs: could not be read from the API; see the run page.');
   } else if (leaves.length === 0) {
@@ -262,13 +276,22 @@ module.exports = async ({ github, context, core }) => {
   }
 
   if (tracker && reconcile) {
-    core.info(`#${tracker.number} is already open for the newest run's red verdict; nothing to add.`);
-    return { action: 'none' };
+    // Comment only if the newest run's own report never reached the issue.
+    const comments = await github.paginate(github.rest.issues.listComments, {
+      owner, repo, issue_number: tracker.number, per_page: 100,
+    });
+    const tag = runTag(run.id);
+    const reported = [tracker.body, ...comments.filter(c => c.user && c.user.login === TRACKER_AUTHOR).map(c => c.body)]
+      .some(b => (b || '').includes(tag));
+    if (reported) {
+      core.info(`#${tracker.number} already reports run ${run.id}; nothing to add.`);
+      return { action: 'none' };
+    }
   }
 
   const leaves = await readLeaves(github, owner, repo, run.id);
   const cmp = await readChanges(github, owner, repo, run);
-  const report = buildReport({ date, runUrl: run.html_url, conclusion: run.conclusion, leaves, cmp });
+  const report = buildReport({ date, runId: run.id, runUrl: run.html_url, conclusion: run.conclusion, leaves, cmp });
 
   if (tracker) {
     const body = `Still failing.\n\n${report}`;
@@ -311,6 +334,7 @@ module.exports = async ({ github, context, core }) => {
 
 module.exports.trackerIdentity = trackerIdentity;
 module.exports.findTracker = findTracker;
+module.exports.runTag = runTag;
 module.exports.isRecordingJob = isRecordingJob;
 module.exports.verdict = verdict;
 module.exports.failedLeaves = failedLeaves;

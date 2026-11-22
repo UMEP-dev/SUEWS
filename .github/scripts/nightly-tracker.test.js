@@ -38,10 +38,13 @@ test('the main nightly keeps its legacy tracker; other workflows get their own',
 
 test('findTracker matches by marker despite a renamed title, adopts a legacy title, skips PRs', () => {
   const id = trackerIdentity('.github/workflows/interaction-limits.yml', 'Renamed workflow');
-  const byMarker = { number: 1, title: 'Scheduled run is failing: Old name', body: `${id.marker}\nx` };
-  const legacy = { number: 2, title: 'CI: monthly interaction-limit enforcement failed', body: 'no marker' };
-  const pr = { number: 3, title: 'x', body: id.marker, pull_request: {} };
-  assert.equal(findTracker([pr, legacy, byMarker], id).number, 1);
+  const bot = { login: 'github-actions[bot]' };
+  const byMarker = { number: 1, title: 'Scheduled run is failing: Old name', body: `${id.marker}\nx`, user: bot };
+  const legacy = { number: 2, title: 'CI: monthly interaction-limit enforcement failed', body: 'no marker', user: bot };
+  const pr = { number: 3, title: 'x', body: id.marker, pull_request: {}, user: bot };
+  const planted = { number: 0, title: 'CI: monthly interaction-limit enforcement failed', body: id.marker, user: { login: 'someone' } };
+  assert.equal(findTracker([planted, pr, legacy, byMarker], id).number, 1);
+  assert.equal(findTracker([planted], id), undefined);
   assert.equal(findTracker([pr, legacy], id).number, 2);
   assert.equal(findTracker([pr], id), undefined);
   assert.equal(findTracker([legacy], trackerIdentity('.github/workflows/benchmark-regression.yml', 'B')), undefined);
@@ -91,7 +94,7 @@ test('buildReport says so when nothing changed, nothing was read, or the list is
 });
 
 // A fake client recording every write.
-function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null } = {}) {
+function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null, comments = [] } = {}) {
   const calls = [];
   const theRun = {
     id: 1, event: 'schedule', conclusion: 'failure', path: NIGHTLY, name: 'Nightly',
@@ -100,6 +103,7 @@ function fakeGithub({ run = {}, openIssues = [], createFails = false, createErro
   const rest = {
     issues: {
       listForRepo: 'issues',
+      listComments: 'comments',
       create: async p => {
         calls.push(['create', p]);
         if (createError) throw createError;
@@ -126,7 +130,7 @@ function fakeGithub({ run = {}, openIssues = [], createFails = false, createErro
       },
     },
   };
-  const paginate = async fn => (fn === 'issues' ? openIssues : JOBS);
+  const paginate = async fn => (fn === 'issues' ? openIssues : fn === 'comments' ? comments : JOBS);
   return { calls, github: { rest, paginate } };
 }
 
@@ -136,7 +140,7 @@ const fakeCore = () => {
 };
 
 const context = { repo: { owner: 'o', repo: 'r' } };
-const TRACKER = { number: 5, title: 'Nightly scheduled run is failing', body: '<!-- nightly-run-tracker -->\nx', assignees: [] };
+const TRACKER = { number: 5, title: 'Nightly scheduled run is failing', body: '<!-- nightly-run-tracker -->\nx', assignees: [], user: { login: 'github-actions[bot]' } };
 
 function withEnv(env, fn) {
   const saved = { ...process.env };
@@ -174,15 +178,32 @@ test('a non-scheduled run is ignored and writes nothing', () =>
     }
   }));
 
-test('a late green re-run of an older night does not close the tracker over a newer red run', () =>
+test('a late green re-run does not close the tracker over a newer red run already reported', () =>
   withEnv({}, async () => {
     const { github, calls } = fakeGithub({
       run: { conclusion: 'success' }, openIssues: [TRACKER],
       newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'failure' },
+      comments: [{ user: { login: 'github-actions[bot]' }, body: `Still failing.\n\n${tracker.runTag(2)}\n...` }],
     });
     const out = await tracker({ github, context, core: fakeCore() });
     assert.equal(out.action, 'none');
     assert.deepEqual(calls, []);
+  }));
+
+test('reconciliation reports a newer red run whose own report was displaced', () =>
+  withEnv({}, async () => {
+    const { github, calls } = fakeGithub({
+      run: { conclusion: 'success' }, openIssues: [TRACKER],
+      newest: { id: 2, created_at: '2026-11-23T02:00:00Z', conclusion: 'failure', html_url: 'NEWEST' },
+      comments: [
+        { user: { login: 'github-actions[bot]' }, body: `${tracker.runTag(1)} earlier night` },
+        { user: { login: 'someone' }, body: `${tracker.runTag(2)} planted` },
+      ],
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'commented');
+    assert.match(out.body, /<!-- scheduled-run: 2 -->\n\*\*/);
+    assert.equal(calls.filter(c => c[0] === 'comment').length, 1);
   }));
 
 test('a superseded re-run reconciles: opens for a newer red run whose own report was lost', () =>

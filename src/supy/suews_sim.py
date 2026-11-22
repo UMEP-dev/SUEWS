@@ -58,7 +58,7 @@ from .data_model.core.model import OutputControl, check_stream_chunk
 # Import new OOP classes
 from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
-from .suews_output import SUEWSOutput, streamed_output_error
+from .suews_output import SUEWSOutput, _variable_groups, streamed_output_error
 from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
@@ -2406,14 +2406,7 @@ class SUEWSSimulation:
             )
 
         # Check if variable appears in multiple groups
-        matching_groups = []
-        for grp in self._df_output.columns.get_level_values("group").unique():
-            try:
-                # Check if this group contains the variable
-                _ = self._df_output.xs((grp, var_name), level=("group", "var"), axis=1)
-                matching_groups.append(grp)
-            except KeyError:
-                continue
+        matching_groups = _variable_groups(self._df_output.columns, var_name)
 
         if len(matching_groups) == 0:
             # Should not happen if var_name was found above

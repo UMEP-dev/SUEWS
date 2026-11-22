@@ -1217,16 +1217,42 @@ class TestGetVariable:
 
     def test_get_variable_with_group(self, completed_sample_sim):
         """Test variable extraction with group specification."""
-        # QH appears in multiple groups, must specify which one
+        # Explicit group selection also works for a single-group variable.
         qh = completed_sample_sim.get_variable("QH", group="SUEWS")
         assert qh is not None
         assert len(qh) == len(completed_sample_sim.forcing)
 
-    def test_get_variable_ambiguous_raises(self, completed_sample_sim):
+    @pytest.mark.parametrize("accessor", ["simulation", "output"])
+    def test_get_variable_ambiguous_raises(self, completed_sample_sim, accessor):
         """Test get_variable raises error for ambiguous variable without group."""
-        # QH appears in multiple groups - should raise error
+        # QS is defined in SUEWS and ESTM; QH exists only in SUEWS.
+        output = completed_sample_sim.output
+        assert ("SUEWS", "QS") in output.df.columns
+        assert ("ESTM", "QS") in output.df.columns
+        target = completed_sample_sim if accessor == "simulation" else output
         with pytest.raises(ValueError, match="appears in multiple groups"):
-            completed_sample_sim.get_variable("QH")
+            target.get_variable("QS")
+
+    def test_get_variable_single_group(self, completed_sample_sim):
+        """Resolve QH without a group while retaining simulation result columns."""
+        df_output = completed_sample_sim.output.df
+        expected = df_output.xs("QH", level="var", axis=1)
+        assert expected.columns.tolist() == ["SUEWS"]
+        pd.testing.assert_frame_equal(
+            completed_sample_sim.get_variable("QH"), expected
+        )
+
+    def test_output_get_variable_single_group(self, completed_sample_sim):
+        """Resolve QH through the output method and attribute access."""
+        output = completed_sample_sim.output
+        expected = output.df.xs(("SUEWS", "QH"), level=("group", "var"), axis=1)
+        assert expected.shape[1] == 1
+        pd.testing.assert_frame_equal(output.get_variable("QH"), expected)
+        pd.testing.assert_frame_equal(output.QH, expected)
+        pd.testing.assert_frame_equal(output.get_variable("qh"), expected)
+        pd.testing.assert_frame_equal(
+            output.get_variable("qh", group="suews"), expected
+        )
 
     def test_get_variable_not_run(self, short_sample_sim):
         """Test get_variable fails gracefully if not run."""
@@ -1244,7 +1270,10 @@ class TestGetVariable:
     def test_get_variable_wrong_group(self, completed_sample_sim):
         """Test get_variable with wrong group specification."""
         # QH exists but not in a non-existent group
-        with pytest.raises(ValueError, match="not found in group"):
+        with pytest.raises(
+            ValueError,
+            match="only exists in group 'SUEWS', not in 'NONEXISTENT_GROUP'",
+        ):
             completed_sample_sim.get_variable("QH", group="NONEXISTENT_GROUP")
 
 

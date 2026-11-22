@@ -262,9 +262,10 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
 def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
     """Pull requests run no macOS api cell and split the Windows cp312 cell.
 
-    The merge queue and the nightly keep every cell whole and keep the macOS
-    api coverage, so both conditions name the pull_request event (or the
-    pr_api_lane dispatch input that measures the layout) explicitly. The
+    The nightly keeps every cell whole and the macOS api coverage, and the
+    merge queue runs the api lane on Linux only (its own term), so the PR
+    conditions name the pull_request event (or the pr_api_lane dispatch input
+    that measures the layout) explicitly. The
     sharded cell gets its own job name and artefact name per shard, while an
     unsharded cell keeps the names the cost-marker and coverage jobs read.
     """
@@ -277,7 +278,8 @@ def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
     layout = "(github.event_name == 'pull_request' || inputs.pr_api_lane)"
     chain_with = caller["jobs"]["build_wheels"]["with"]
     assert chain_with["run_api_tests"].endswith(
-        f"&& !({layout} && matrix.buildplat[1] == 'macosx') }}}}"
+        f"&& !({layout} && matrix.buildplat[1] == 'macosx') "
+        "&& !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}"
     )
     assert chain_with["api_shard_python"] == (
         f"${{{{ {layout} && matrix.buildplat[1] == 'win' && 'cp312' || '' }}}}"
@@ -408,11 +410,11 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
         (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
     wheel_jobs = [
-        f"Build and test ({platform}) / cp312-{platform}"
+        f"Build and test ({platform}) / wheel | cp312 | {platform}"
         for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64")
     ]
     for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64"):
-        api_job = f"Build and test ({platform}) / API cross-CPython tests / cp312-x"
+        api_job = f"Build and test ({platform}) / API cross-CPython tests / api | cp312 | x"
         patterns = [k for k in declared_needs if fnmatchcase(api_job, k)]
         dependencies = {d for k in patterns for d in declared_needs[k]}
         wheels_waited_for = [
@@ -420,12 +422,15 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
             for wheel in wheel_jobs
             if any(fnmatchcase(wheel, d) for d in dependencies)
         ]
-        assert wheels_waited_for == [f"Build and test ({platform}) / cp312-{platform}"]
+        assert wheels_waited_for == [
+            f"Build and test ({platform}) / wheel | cp312 | {platform}"
+        ]
     gate = declared_needs["PR build validation"]
     assert any(fnmatchcase(wheel_jobs[0], d) for d in gate)
     assert any(
         fnmatchcase(
-            "Build and test (win AMD64) / API cross-CPython tests / cp312-win AMD64", d
+            "Build and test (win AMD64) / API cross-CPython tests / api | cp312 | win AMD64",
+            d,
         )
         for d in gate
     )
@@ -728,7 +733,7 @@ def test_tolerance_spread_group_is_one_reusable_call() -> None:
     dependencies = declared_needs[patterns[0]]
     assert "Determine build matrix" in dependencies
     assert any(
-        fnmatchcase("Build and test (win AMD64) / cp312-win AMD64", d)
+        fnmatchcase("Build and test (win AMD64) / wheel | cp312 | win AMD64", d)
         for d in dependencies
     )
 
@@ -1608,7 +1613,10 @@ def test_determine_matrix_and_pr_gate_enforce_physics_or_numerics_override(
     )
     assert pr_kv["test_tier"] == "physics-full"
     assert mq_kv["test_tier"] == "physics-full"
-    assert len(json.loads(mq_kv["buildplat"])) == 3
+    # The queue builds Linux (full tier) and Windows (smoke tier, set by the
+    # caller), and runs the api lane on Linux only.
+    assert [p[1] for p in json.loads(mq_kv["buildplat"])] == ["manylinux", "win"]
+    assert [p[1] for p in json.loads(mq_kv["api_buildplat"])] == ["manylinux"]
 
     assert gate_fail.returncode == 1
     assert "0-physics:change or 0-numerics:change" in gate_fail.stdout

@@ -166,7 +166,6 @@ def test_validate_storage_rejects_nonfinite_values():
     issues = SUEWSConfig._validate_storage(cfg, site, 2)
 
     assert any("thermal_layers.dz" in issue and "finite" in issue for issue in issues)
-    assert any("dqndt_surf" in issue and "finite" in issue for issue in issues)
 
 
 def test_validate_lai_ranges_no_land_cover():

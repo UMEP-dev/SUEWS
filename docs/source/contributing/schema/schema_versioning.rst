@@ -187,7 +187,14 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev12** (current development version)
+**Schema 2026.6.dev13** (current development version)
+   Removes fresh-run ``qn_surfs`` and ``dqndt_surf`` inputs. Older seven-zero
+   placeholders are removed with a migration message; other supplied values
+   require an explicit choice of cold start or checkpoint continuation.
+   Numerical initialisation and all requested output times are unchanged.
+   See :ref:`schema_dev13_radiation_memory`.
+
+**Schema 2026.6.dev12** (development)
    Corrects runoff routing when an old YAML supplies an unused zero soil
    destination for paving or buildings. The same input can now produce a
    different runoff total. See :ref:`schema_dev12_water_routing` for an

@@ -280,5 +280,10 @@ def test_cli_run_records_command(tmp_path):
     # The sample config saves to ``./Output`` relative to the config file.
     prov = read_provenance(tmp_path / "Output")
     assert prov["run"]["interface"] == "cli"
+    assert prov["run"]["initialisation"] == {
+        "origin": "cold_start",
+        "radiation_memory": "internal",
+        "warmup_completion": "not_assessed",
+    }
     assert prov["run"]["command"] == "suews run case.yml"
     assert prov["config"]["name"] == "case.yml"

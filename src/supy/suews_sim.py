@@ -1165,6 +1165,7 @@ class SUEWSSimulation:
             checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings.to_frame(),
             streamed_paths=self._streamed_paths,
+            metadata=copy.deepcopy(self._run_metadata or {}),
         )
 
     def save(
@@ -1743,6 +1744,11 @@ class SUEWSSimulation:
             "n_jobs": int(n_jobs),
             "chunk_day": int(chunk_day),
             "continued_from_checkpoint": self._checkpoint is not None,
+            "initialisation": {
+                "origin": "checkpoint" if self._checkpoint is not None else "cold_start",
+                "radiation_memory": "restored" if self._checkpoint is not None else "internal",
+                "warmup_completion": "not_assessed",
+            },
         }
 
     def _snapshot_input_identity(self, df_forcing_slice: pd.DataFrame) -> dict:
@@ -1838,6 +1844,7 @@ class SUEWSSimulation:
             "ended_at": run_metadata.get("ended_at"),
             "n_jobs": run_metadata.get("n_jobs"),
             "chunk_day": run_metadata.get("chunk_day"),
+            "initialisation": run_metadata.get("initialisation"),
             "continued_from_checkpoint": run_metadata.get(
                 "continued_from_checkpoint", False
             ),
@@ -2570,6 +2577,7 @@ class SUEWSSimulation:
             checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings.to_frame(),
             streamed_paths=self._streamed_paths,
+            metadata=copy.deepcopy(self._run_metadata or {}),
         )
 
     @property

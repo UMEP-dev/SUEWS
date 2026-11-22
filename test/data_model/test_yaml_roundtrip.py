@@ -400,14 +400,13 @@ class TestToYamlRoundTrip:
 
         Path(tmp_path).unlink(missing_ok=True)
 
-    def test_default_round_trip_preserves_internal_fields(self, sample_config):
-        """Default to_yaml() should preserve internal state on round-trip."""
+    def test_default_round_trip_preserves_other_internal_fields(self, sample_config):
+        """Other internal fields retain their existing YAML round-trip contract."""
         # ARRANGE
         sample_config.model.control.diagnose = 2
         sample_config.model.control.kdownzen = 1
         sample_config.sites[0].initial_states.dqndt = 12.5
         sample_config.sites[0].initial_states.hdd_id.hdd_daily = 7.0
-        sample_config.sites[0].initial_states.qn_surfs = [1.0] * 7
 
         with tempfile.NamedTemporaryFile(
             encoding="utf-8", suffix=".yml", delete=False, mode="w"
@@ -423,7 +422,6 @@ class TestToYamlRoundTrip:
         assert reloaded.model.control.kdownzen == 1
         assert reloaded.sites[0].initial_states.dqndt == 12.5
         assert reloaded.sites[0].initial_states.hdd_id.hdd_daily == 7.0
-        assert reloaded.sites[0].initial_states.qn_surfs == [1.0] * 7
 
         Path(tmp_path).unlink(missing_ok=True)
 

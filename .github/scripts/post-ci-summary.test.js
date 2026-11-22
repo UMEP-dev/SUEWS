@@ -254,14 +254,62 @@ const DURATION_REGRESSION = durationReport({
   ],
 });
 
-test('duration-guard section is empty when no lane was evaluated and no warnings exist', () => {
-  const empty = durationReport({
+test('duration-guard section reports missing lanes as incomplete and stays empty only for null or no lanes', () => {
+  const allMissing = durationReport({
+    ok: false,
+    complete: false,
+    status: 'incomplete',
     lanes: {
-      api: { lane: 'api', status: 'missing', scaled_total_seconds: null, delta_percent: null, regressed: false },
+      api: {
+        lane: 'api',
+        status: 'missing',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'no metrics artefacts found for lane',
+      },
     },
   });
-  assert.equal(durationGuardSection(empty), '');
+  const section = durationGuardSection(allMissing);
+  assert.match(section, /comparison incomplete; information only, not a gate/);
+  assert.match(section, /\*\*api\*\* lane: missing \(no metrics artefacts found for lane\)/);
+  assert.doesNotMatch(section, /within \+10% of baseline/);
+  assert.equal(durationGuardSection(durationReport({ lanes: {} })), '');
   assert.equal(durationGuardSection(null), '');
+});
+
+test('duration-guard section reports wholly missing API lane alongside clean physics as incomplete', () => {
+  const apiMissing = durationReport({
+    ok: false,
+    complete: false,
+    status: 'incomplete',
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'missing',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'no metrics artefacts found for lane',
+      },
+      physics: {
+        lane: 'physics',
+        status: 'ok',
+        baseline_total_seconds: 1606.2,
+        raw_total_seconds: 1606.2,
+        scaled_total_seconds: 1606.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+    },
+  });
+  const section = durationGuardSection(apiMissing);
+  assert.match(section, /comparison incomplete; information only, not a gate/);
+  assert.match(section, /\*\*api\*\* lane: missing \(no metrics artefacts found for lane\)/);
+  assert.match(section, /Completed lane\(s\) within \+10%: physics \+0\.0%/);
+  assert.doesNotMatch(section, /within \+10% of baseline/);
 });
 
 test('duration-guard section is one line when clean', () => {

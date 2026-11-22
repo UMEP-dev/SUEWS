@@ -78,6 +78,18 @@ def _synthetic_baseline() -> guard.DurationBaseline:
     )
 
 
+def _api_only_baseline() -> guard.DurationBaseline:
+    full = _synthetic_baseline()
+    return guard.DurationBaseline(
+        schema_version=full.schema_version,
+        phase=full.phase,
+        min_reference_seconds=full.min_reference_seconds,
+        max_references_per_lane=full.max_references_per_lane,
+        generated_from_runs=full.generated_from_runs,
+        lanes={"api": full.lanes["api"]},
+    )
+
+
 def _artefact_from_costs(
     source: str,
     lane: str,
@@ -140,7 +152,7 @@ def test_bimodal_runners_normalise_without_false_positive() -> None:
 @pytest.mark.core
 def test_four_way_sharded_api_aggregates_across_mixed_speed_runners() -> None:
     """Four API shards on mixed fast/slow VMs normalise per shard before summing."""
-    baseline = _synthetic_baseline()
+    baseline = _api_only_baseline()
     shard_factors = {1: 0.65, 2: 1.55, 3: 0.70, 4: 1.50}
     shard_artefacts: list[guard.ArtefactTests] = []
     for shard_idx in range(1, 5):
@@ -199,7 +211,7 @@ def test_four_way_sharded_api_aggregates_across_mixed_speed_runners() -> None:
 @pytest.mark.core
 def test_normalised_cost_marker_check_reuses_policy_and_excludes_unchanged_files() -> None:
     """Changed tests are judged on normalised call CPU-s with medium=10, slow=30, band=2."""
-    baseline = _synthetic_baseline()
+    baseline = _api_only_baseline()
     # Fast runner (0.65x): a raw 15 s unmarked test normalises to 23.1 s (>= 20 s -> medium).
     # Raw check_cost_markers would miss 15 s; normalised guard catches it.
     # A raw 6 s test (9.2 s normalised) must NOT be flagged (no competing 5 s rule).
@@ -299,7 +311,7 @@ def test_changed_reference_files_are_excluded_from_runner_factor() -> None:
 
 
 def test_insufficient_reference_matches_marks_lane_unavailable_without_false_alarm() -> None:
-    """Fewer than min_reference_matches unchanged references reports unavailable, not regressed."""
+    """Fewer than min_reference_matches unchanged references reports incomplete, not regressed."""
     baseline = _synthetic_baseline()
     # Full test count (100% coverage) so this isolates the reference-match gate.
     ref_nodes = list(baseline.lanes["api"].reference_tests)
@@ -312,12 +324,117 @@ def test_insufficient_reference_matches_marks_lane_unavailable_without_false_ala
         min_reference_matches=5,
     )
 
-    assert report.ok
+    assert not report.ok
+    assert not report.complete
+    assert report.status == "incomplete"
+    assert report.regressed_lanes == []
     assert report.lanes["api"].status == "unavailable"
     assert "too few unchanged reference matches" in (report.lanes["api"].reason or "")
     assert report.lanes["api"].regressed is False
     assert report.lanes["physics"].status == "missing"
     assert report.lanes["physics"].regressed is False
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_wholly_missing_api_lane_with_clean_physics_reports_incomplete_never_ok() -> None:
+    """Wholly missing API artefacts with clean physics never print [OK] within threshold."""
+    baseline = _synthetic_baseline()
+    phys_items = [
+        (nid, cpu, ("physics",))
+        for nid, cpu in baseline.lanes["physics"].reference_tests.items()
+    ]
+    report = guard.check_durations(
+        [
+            _artefact_from_costs(
+                "physics-cp312-manylinux-x86_64-pytest.json", "physics", phys_items
+            )
+        ],
+        baseline,
+        changed_test_files=[],
+    )
+
+    assert not report.ok
+    assert not report.complete
+    assert report.status == "incomplete"
+    assert report.lanes["physics"].status == "ok"
+    assert report.lanes["api"].status == "missing"
+    assert [res.lane for res in report.incomplete_lanes] == ["api"]
+
+    msg = report.message()
+    assert "[OK] normalised lane totals within threshold" not in msg
+    assert "[INCOMPLETE] comparison incomplete; could not compare: api (missing:" in msg
+
+    md = report.markdown()
+    assert "Status: **INCOMPLETE**" in md
+    assert "`api` (missing: no metrics artefacts found for lane)" in md
+
+    annotations = report.annotations()
+    assert len(annotations) == 1
+    assert "::warning title=Test duration guard incomplete::api lane comparison incomplete (missing:" in annotations[0]
+
+    payload = report.to_dict()
+    assert payload["ok"] is False
+    assert payload["complete"] is False
+    assert payload["status"] == "incomplete"
+    assert payload["incomplete_lanes"] == ["api"]
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_partial_shard_failure_concludes_incomplete_across_all_reporting_surfaces() -> None:
+    """A 3-of-4 shard run with clean physics reports incomplete on text, markdown, JSON, and annotations."""
+    baseline = _synthetic_baseline()
+    api_refs = baseline.lanes["api"].reference_tests
+    phys_items = [
+        (nid, cpu, ("physics",))
+        for nid, cpu in baseline.lanes["physics"].reference_tests.items()
+    ]
+    artefacts: list[guard.ArtefactTests] = [
+        _artefact_from_costs(
+            "physics-cp312-manylinux-x86_64-pytest.json", "physics", phys_items
+        )
+    ]
+    for shard_idx in (1, 2, 3):
+        items = [
+            (nid, cpu * (1.15 if shard_idx == 1 else 1.0), ("api",))
+            for nid, cpu in api_refs.items()
+            if _shard_of(nid, 4) == shard_idx
+        ]
+        artefacts.append(
+            _artefact_from_costs(
+                f"api-cp312-manylinux-x86_64-shard-{shard_idx}-of-4.json",
+                "api",
+                items,
+            )
+        )
+
+    report = guard.check_durations(artefacts, baseline, changed_test_files=[])
+
+    assert not report.ok
+    assert not report.complete
+    assert report.status == "incomplete"
+    assert report.lanes["physics"].status == "ok"
+    assert report.lanes["api"].status == "unavailable"
+
+    msg = report.message()
+    assert "[OK] normalised lane totals within threshold" not in msg
+    assert "[INCOMPLETE] comparison incomplete; could not compare: api (unavailable: incomplete shard set: missing shard(s) 4 of 4 (found 3/4))." in msg
+
+    md = report.markdown()
+    assert "Status: **INCOMPLETE**" in md
+    assert "missing shard(s) 4 of 4" in md
+
+    annotations = report.annotations()
+    assert len(annotations) == 1
+    assert "::warning title=Test duration guard incomplete::api lane comparison incomplete (unavailable:" in annotations[0]
+    assert "missing shard(s) 4 of 4" in annotations[0]
+
+    payload = report.to_dict()
+    assert payload["ok"] is False
+    assert payload["complete"] is False
+    assert payload["status"] == "incomplete"
+    assert payload["incomplete_lanes"] == ["api"]
 
 
 @pytest.mark.smoke

@@ -75,6 +75,7 @@ DEFAULT_MAX_REFERENCES_PER_LANE = 200
 DEFAULT_MIN_REFERENCE_MATCHES = 5
 DEFAULT_MIN_COVERAGE_RATIO = 0.90
 UNDERMARKED_KINDS = frozenset({"unmarked-over-medium", "medium-over-slow"})
+INCOMPLETE_LANE_STATUSES = frozenset({"missing", "unavailable"})
 TOP_CONTRIBUTORS_LIMIT = 10
 _TOKEN_SPLIT_RE = re.compile(r"[^a-z0-9]+")
 _SHARD_NAME_RE = re.compile(
@@ -227,14 +228,40 @@ class DurationReport:
         return [result for result in self.lanes.values() if result.regressed]
 
     @property
+    def incomplete_lanes(self) -> list[LaneResult]:
+        """Return lanes that could not be compared (missing or unavailable)."""
+        return [
+            result
+            for result in self.lanes.values()
+            if result.status in INCOMPLETE_LANE_STATUSES
+        ]
+
+    @property
+    def complete(self) -> bool:
+        """Return True when every baseline lane was evaluated."""
+        return not self.incomplete_lanes
+
+    @property
+    def status(self) -> str:
+        """Return the overall report status: ``ok``, ``warning``, or ``incomplete``."""
+        if self.regressed_lanes or self.marker_warnings:
+            return "warning"
+        if self.incomplete_lanes:
+            return "incomplete"
+        return "ok"
+
+    @property
     def ok(self) -> bool:
-        """Return True when no lane regressed and no changed test is under-marked."""
-        return not self.regressed_lanes and not self.marker_warnings
+        """Return True only when comparison completed cleanly with no warnings."""
+        return self.complete and not self.regressed_lanes and not self.marker_warnings
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise the report to plain JSON-compatible data."""
         return {
             "ok": self.ok,
+            "complete": self.complete,
+            "status": self.status,
+            "incomplete_lanes": [res.lane for res in self.incomplete_lanes],
             "max_regression": self.max_regression,
             "phase": self.phase,
             "medium_seconds": self.medium_seconds,
@@ -368,6 +395,14 @@ class DurationReport:
                 "Fix the marker or reduce test cost; thresholds and their reasoning "
                 "are in .claude/rules/tests/patterns.md."
             )
+        if self.incomplete_lanes:
+            summary = "; ".join(
+                f"{res.lane} ({res.status}: {res.reason or res.status})"
+                for res in self.incomplete_lanes
+            )
+            lines.append(
+                f"[INCOMPLETE] comparison incomplete; could not compare: {summary}."
+            )
         elif self.ok:
             lines.append(
                 "[OK] normalised lane totals within threshold and no under-marked "
@@ -375,11 +410,39 @@ class DurationReport:
             )
         return "\n".join(lines)
 
+    def _markdown_headline(self) -> str:
+        """Build the one-line status headline for the Markdown summary."""
+        if self.status == "ok":
+            return (
+                "Status: **OK** -- comparison completed; normalised lane totals "
+                "within threshold and no under-marked changed tests."
+            )
+        missing_summary = "; ".join(
+            f"`{res.lane}` ({res.status}: {res.reason or res.status})"
+            for res in self.incomplete_lanes
+        )
+        if self.status == "incomplete":
+            return (
+                "Status: **INCOMPLETE** -- comparison incomplete; could not "
+                f"compare: {missing_summary}."
+            )
+        if self.incomplete_lanes:
+            return (
+                "Status: **WARNING (comparison incomplete)** -- regression or "
+                f"under-marked test detected; could not compare: {missing_summary}."
+            )
+        return (
+            "Status: **WARNING** -- duration regression or under-marked "
+            "changed test detected."
+        )
+
     def markdown(self) -> str:
         """Render a GitHub Actions step summary in ASCII Markdown."""
         threshold_pct = self.max_regression * 100.0
         lines = [
             "## Test duration guard (report-only)",
+            "",
+            self._markdown_headline(),
             "",
             f"Runner-normalised `{self.phase}`-phase CPU seconds on Linux cp312 "
             f"(lane threshold `+{threshold_pct:g}%`; cost markers "
@@ -405,15 +468,12 @@ class DurationReport:
                     f"{res.raw_total_seconds:.1f} | n/a | {res.measured_count} |"
                 )
 
-        incomplete = [
-            res
-            for res in self.lanes.values()
-            if res.status in ("unavailable", "missing") and res.reason
-        ]
-        if incomplete:
+        if self.incomplete_lanes:
             lines.append("")
-            for res in incomplete:
-                lines.append(f"- `{res.lane}` ({res.status}): {res.reason}")
+            for res in self.incomplete_lanes:
+                lines.append(
+                    f"- `{res.lane}` ({res.status}): {res.reason or res.status}"
+                )
 
         if self.marker_warnings:
             lines.extend([
@@ -497,6 +557,14 @@ class DurationReport:
                 f"{current} -> {warning.wanted}). See .claude/rules/tests/patterns.md."
             )
             commands.append(_format_warning_annotation("Test cost marker", msg))
+        for res in self.incomplete_lanes:
+            msg = (
+                f"{res.lane} lane comparison incomplete ({res.status}: "
+                f"{res.reason or res.status}); report-only, see job summary."
+            )
+            commands.append(
+                _format_warning_annotation("Test duration guard incomplete", msg)
+            )
         return commands
 
 

@@ -277,35 +277,42 @@ function formatSignedPercent(deltaPercent) {
   return `${clamped >= 0 ? '+' : ''}${clamped.toFixed(1)}%`;
 }
 
+const INCOMPLETE_LANE_STATUSES = new Set(['missing', 'unavailable']);
+
 // The duration-guard section for a report written by
-// `scripts/lint/check_test_duration.py --json`. Empty when no lane was
-// evaluated or unavailable and no marker warnings were emitted; one line when
-// clean; a concise advisory list otherwise.
+// `scripts/lint/check_test_duration.py --json`. Empty only when there is no
+// report or no lanes; one line when comparison completed cleanly; otherwise an
+// advisory list that explicitly distinguishes incomplete comparisons from
+// completed clean runs.
 function durationGuardSection(report) {
   if (!report || !report.lanes) return '';
   const laneEntries = Object.values(report.lanes);
+  if (laneEntries.length === 0) return '';
   const evaluated = laneEntries.filter(l => l.scaled_total_seconds !== null && l.delta_percent !== null);
-  const unavailable = laneEntries.filter(l => l.status === 'unavailable');
+  const incomplete = laneEntries.filter(l => INCOMPLETE_LANE_STATUSES.has(l.status));
   const regressed = evaluated.filter(l => l.regressed);
+  const cleanEvaluated = evaluated.filter(l => !l.regressed);
   const warnings = [...(report.marker_warnings || [])].sort(
     (a, b) => b.scaled_cpu_seconds - a.scaled_cpu_seconds
   );
-  if (evaluated.length === 0 && unavailable.length === 0 && warnings.length === 0) return '';
 
   const thresholdPct = Math.round(Number(report.max_regression || 0.1) * 100);
   const laneParts = evaluated.map(
     l => `${l.lane} ${formatSignedPercent(l.delta_percent)}`
   );
 
-  if (regressed.length === 0 && warnings.length === 0 && unavailable.length === 0) {
+  if (regressed.length === 0 && warnings.length === 0 && incomplete.length === 0 && evaluated.length > 0) {
     return (
       `**Test duration guard** (Linux cp312, \`standard\` tier): within +${thresholdPct}% of baseline ` +
       `(${laneParts.join(', ')}; runner-normalised).`
     );
   }
 
+  const qualifier = incomplete.length > 0
+    ? 'comparison incomplete; information only, not a gate'
+    : 'information only, not a gate';
   const lines = [
-    `**Test duration guard** (information only, not a gate; Linux cp312, \`standard\` tier):`,
+    `**Test duration guard** (${qualifier}; Linux cp312, \`standard\` tier):`,
     '',
   ];
   for (const lane of regressed) {
@@ -317,9 +324,15 @@ function durationGuardSection(report) {
         `threshold +${thresholdPct}%; runner ${lane.factor_summary})`
     );
   }
-  for (const lane of unavailable) {
+  for (const lane of incomplete) {
     const reason = lane.reason ? ` (${lane.reason})` : '';
-    lines.push(`- **${lane.lane}** lane: unavailable${reason}`);
+    lines.push(`- **${lane.lane}** lane: ${lane.status}${reason}`);
+  }
+  if (incomplete.length > 0 && cleanEvaluated.length > 0) {
+    const cleanParts = cleanEvaluated.map(
+      l => `${l.lane} ${formatSignedPercent(l.delta_percent)}`
+    );
+    lines.push(`- Completed lane(s) within +${thresholdPct}%: ${cleanParts.join(', ')}`);
   }
   for (const w of warnings.slice(0, COST_LIST_LIMIT)) {
     const scaled = Number(w.scaled_cpu_seconds).toFixed(1);

@@ -22,7 +22,7 @@ from supy._run_period import (
     slice_forcing_to_period,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-CLOCK", "C-SEQUENCE")]
 
 STEP = pd.Timedelta(minutes=5)
 STEPS_PER_DAY = 288

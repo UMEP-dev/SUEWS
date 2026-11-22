@@ -11,7 +11,7 @@ import pytest
 
 import supy as sp
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE", "C-SAVE")]
 
 
 @pytest.fixture(scope="module")

@@ -19,7 +19,7 @@ from supy.data_model import SUEWSConfig
 
 bridge = import_module("supy._run_rust")
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
 
 
 def _source(tmp_path, destination):

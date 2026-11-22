@@ -23,7 +23,7 @@ from supy._save import (
 )
 from supy.data_model import SUEWSConfig
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT", "C-SAVE")]
 
 
 def test_text_layout_prefix_sentinel_and_filenames(tmp_path: Path):

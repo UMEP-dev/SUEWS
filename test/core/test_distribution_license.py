@@ -9,7 +9,7 @@ import tomllib
 
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.smoke]
+pytestmark = [pytest.mark.physics, pytest.mark.smoke, pytest.mark.contract("C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_EXPRESSION = "MPL-2.0 AND Apache-2.0"

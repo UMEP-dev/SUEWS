@@ -5,7 +5,7 @@ import yaml
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.model import KdownSplitMethod, ModelPhysics
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ROUNDTRIP", "C-MIGRATE")]
 
 
 def _method_code(value):

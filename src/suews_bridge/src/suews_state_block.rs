@@ -218,6 +218,7 @@ pub fn suews_state_block_from_nested_payload(
     suews_state_block_from_values_payload(&values_payload)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

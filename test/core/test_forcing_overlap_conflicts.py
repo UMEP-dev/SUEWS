@@ -24,7 +24,7 @@ from supy.suews_forcing import SUEWSForcing
 from supy.suews_sim import SUEWSSimulation
 from supy.util._io import read_forcing
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
 
 SAMPLE = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
 

@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE")]
 
 SPARTACUS_SOURCE = (
     Path(__file__).resolve().parents[2]

@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 from supy.data_model import SUEWSConfig
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
 
 
 def test_json_based_yaml_annotation():

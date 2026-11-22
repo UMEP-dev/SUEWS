@@ -38,7 +38,7 @@ import pytest
 import yaml
 from supy._env import trv_supy_module
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-MIGRATE")]
 
 try:
     from importlib.resources import as_file

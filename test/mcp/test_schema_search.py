@@ -9,7 +9,7 @@ import pytest
 
 from supy.data_model.core.hydro import WaterDistribution
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 def _schema_envelope(schema: dict[str, Any]) -> dict[str, Any]:

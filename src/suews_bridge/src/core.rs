@@ -762,6 +762,7 @@ pub fn sunposition_calc(
     Ok((azimuth, zenith))
 }
 
+// contract: C-CODEC, C-RESPONSE
 #[cfg(test)]
 mod tests {
     use super::*;

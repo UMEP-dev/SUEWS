@@ -13,7 +13,11 @@ import tempfile
 from pathlib import Path
 from unittest import TestCase
 
+import pytest
+
 from supy._env import trv_supy_module
+
+pytestmark = pytest.mark.contract("C-API", "C-VALID")
 
 
 class TestDatabaseManagerAPI(TestCase):

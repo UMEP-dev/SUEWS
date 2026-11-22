@@ -4,7 +4,11 @@ from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-BALANCE", "C-RESPONSE"),
+]
 
 
 def _run_split(method, kdown):

@@ -38,7 +38,7 @@ from supy import SUEWSSimulation
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.model import SnowUse
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
 
 # Scenario definition -------------------------------------------------------
 

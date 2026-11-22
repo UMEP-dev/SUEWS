@@ -16,7 +16,7 @@ if str(TEST_DIR) not in sys.path:
 
 import conftest as root_conftest  # noqa: E402
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.mark.parametrize(

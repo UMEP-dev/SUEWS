@@ -20,7 +20,7 @@ from supy.data_model.core import SUEWSConfig
 from supy.suews_sim import SUEWSSimulation
 from supy.util.converter.yaml_upgrade import upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-MIGRATE")]
 
 SHORT_SAMPLE = (
     Path(__file__).parents[1] / "fixtures" / "sample_short" / "sample_config_short.yml"

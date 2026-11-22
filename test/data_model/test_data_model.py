@@ -33,7 +33,7 @@ from supy.data_model.core.model import (
     StebbsParameterSource,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ROUNDTRIP", "C-VALID")]
 
 
 class TestSUEWSConfig(unittest.TestCase):

@@ -60,7 +60,7 @@ from supy.data_model.core.model import (
     StorageHeatMethod,
 )
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE", "C-BALANCE")]
 
 WATER_CLOSURE_TOLERANCE_MM = 1e-4
 ENERGY_CLOSURE_TOLERANCE_W_M2 = 1e-6

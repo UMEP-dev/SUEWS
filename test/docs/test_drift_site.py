@@ -7,7 +7,7 @@ import pytest
 PAGE = Path(__file__).resolve().parents[2] / "site/benchmark/drift/index.html"
 
 # gh#1300: every test file must carry a nature marker (api | physics).
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 def test_page_exists():

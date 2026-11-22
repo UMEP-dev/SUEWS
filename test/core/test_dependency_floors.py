@@ -18,7 +18,7 @@ from packaging.requirements import Requirement
 import pytest
 import yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "scripts/security/check_lowest_direct_resolution.py"

@@ -18,7 +18,7 @@ import yaml
 from scripts.suews import analyse_ci_run
 from scripts.suews.analyse_ci_run import TargetNotCompletedError, analyse_run
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.mark.core
@@ -519,7 +519,12 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
     protocol_test = (root / "test/mcp/test_protocol_handshake.py").read_text(
         encoding="utf-8"
     )
-    assert "pytestmark = [pytest.mark.api, pytest.mark.smoke]" in protocol_test
+    # The lane markers must lead the list; later markers (contract tags) may follow.
+    assert re.search(
+        r"^pytestmark = \[pytest\.mark\.api, pytest\.mark\.smoke[,\]]",
+        protocol_test,
+        re.MULTILINE,
+    )
     assert '_ACTIVE_BIN_DIR = Path(sysconfig.get_path("scripts"))' in protocol_test
 
 

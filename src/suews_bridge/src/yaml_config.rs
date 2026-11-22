@@ -3410,6 +3410,7 @@ pub(crate) fn stebbs_fixture_yaml() -> &'static str {
     include_str!("../../../test/fixtures/bridge/stebbs_resolved.yml")
 }
 
+// contract: C-STRICT, C-BIND
 #[cfg(test)]
 mod tests {
     use super::*;

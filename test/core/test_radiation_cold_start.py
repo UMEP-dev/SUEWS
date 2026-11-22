@@ -19,7 +19,12 @@ from supy.data_model.core.state import InitialStates
 from supy.suews_checkpoint import SUEWSCheckpoint
 from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.contract(
+        "C-VALID", "C-MIGRATE", "C-WARMSTART", "C-RESTART", "C-SAVE", "C-SCHEMA"
+    ),
+]
 
 
 @pytest.mark.parametrize("name", ["qn_surfs", "dqndt_surf"])

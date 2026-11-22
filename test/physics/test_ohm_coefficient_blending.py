@@ -10,7 +10,7 @@ import pytest
 
 import supy as sp
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE")]
 
 SUMMER_WET = 0
 SUMMER_DRY = 1

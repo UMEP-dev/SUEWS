@@ -16,6 +16,7 @@ pytestmark = [
         os.name == "nt",
         reason="These Linux workflow regressions require POSIX shell executable fixtures",
     ),
+    pytest.mark.contract("C-TOOLING"),
 ]
 
 ROOT = Path(__file__).resolve().parents[2]

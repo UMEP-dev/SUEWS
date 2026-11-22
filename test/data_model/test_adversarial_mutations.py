@@ -83,7 +83,11 @@ write_anchor_yaml = _physics_anchors.write_anchor_yaml
 _run_rust_mod = import_module("supy._run_rust")
 config_to_engine_yaml = _run_rust_mod.config_to_engine_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-EMIT", "C-ERROR", "C-PARITY", "C-TOOLING"),
+]
 
 LEDGER_PATH = _DATA_MODEL_DIR / "known_mutation_gaps.json"
 EXPECTED_DEFAULTS_PATH = _DATA_MODEL_DIR / "expected_emitted_defaults.json"

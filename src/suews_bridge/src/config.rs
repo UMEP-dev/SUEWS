@@ -301,6 +301,7 @@ pub fn suews_config_default_from_fortran() -> Result<SuewsConfig, BridgeError> {
     SuewsConfig::from_flat(&flat)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

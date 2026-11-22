@@ -27,7 +27,7 @@ from supy.units import (
     parse_unit,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
 
 
 @pytest.mark.parametrize(

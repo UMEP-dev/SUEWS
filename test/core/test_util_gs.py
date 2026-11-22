@@ -6,7 +6,7 @@ import pytest
 
 from supy.util._gs import cal_rs_FG, cal_rs_iPM, cal_rs_obs
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESPONSE")]
 
 
 class TestSurfaceConductance:

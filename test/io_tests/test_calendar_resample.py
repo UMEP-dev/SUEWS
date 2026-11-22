@@ -12,7 +12,7 @@ import pytest
 from supy import SUEWSSimulation
 from supy._post import _resample_output
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE", "C-CLOCK")]
 
 
 @pytest.fixture(scope="module")

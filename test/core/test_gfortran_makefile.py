@@ -14,6 +14,7 @@ pytestmark = [
         os.name == "nt",
         reason="These Linux workflow regressions require POSIX shell executable fixtures",
     ),
+    pytest.mark.contract("C-TOOLING"),
 ]
 
 

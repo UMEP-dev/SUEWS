@@ -12,7 +12,7 @@ import test_dyohm_building as dyohm
 import test_option_sweep as sweep
 import test_rslprof as wind
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
 
 
 @pytest.fixture

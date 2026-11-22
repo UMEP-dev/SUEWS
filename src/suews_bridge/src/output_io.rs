@@ -190,6 +190,7 @@ pub fn write_output_arrow(
     Ok(out_path)
 }
 
+// contract: C-OUTPUT, C-SAVE
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -504,6 +504,7 @@ pub fn suews_site_from_nested_payload(payload: &Value) -> Result<SuewsSite, Brid
     SuewsSite::from_nested_payload(payload)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

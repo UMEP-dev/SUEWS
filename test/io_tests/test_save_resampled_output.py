@@ -9,7 +9,7 @@ from supy import SUEWSSimulation
 from supy._save import save_df_output, save_df_output_parquet
 from supy.suews_output import SUEWSOutput
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE", "C-RESAMPLE")]
 
 
 @pytest.fixture(scope="module")

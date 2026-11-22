@@ -738,6 +738,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     })
 }
 
+// contract: C-FORCING
 #[cfg(test)]
 mod tests {
     use super::*;

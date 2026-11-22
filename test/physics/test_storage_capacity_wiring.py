@@ -30,7 +30,7 @@ from supy.data_model.core.hydro import StorageDrainParams
 
 from conftest import TIMESTEPS_PER_DAY
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BIND")]
 
 # Sample-config paved capacity [mm]; the threshold the base run drains above.
 STORE_LOW_MM = 0.48

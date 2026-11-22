@@ -6,7 +6,7 @@ import click
 from conftest import run_cli_command
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.mark.parametrize("check", [False, True])

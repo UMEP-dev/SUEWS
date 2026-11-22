@@ -42,7 +42,7 @@ import pytest
 
 from supy.data_model.core.model import ModelPhysics
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
 
 # Same bound as test_core_physics.test_water_balance_consistency: the closure
 # is exact by construction, so this is a numerical-noise margin, not a

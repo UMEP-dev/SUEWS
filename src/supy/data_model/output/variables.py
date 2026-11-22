@@ -12,6 +12,11 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+def _agg_last(ser: pd.Series):
+    """Return the last value in a resampled bin, or NaN when empty."""
+    return ser.iloc[-1] if len(ser) > 0 else np.nan
+
+
 CellMethods = Literal[
     "", "time: mean", "time: sum", "time: point", "time: minimum", "time: maximum"
 ]
@@ -264,8 +269,8 @@ class OutputVariableRegistry(BaseModel):
         mapping = {
             AggregationMethod.AVERAGE: "mean",
             AggregationMethod.SUM: "sum",
-            AggregationMethod.LAST: lambda x: x.iloc[-1] if len(x) > 0 else np.nan,
-            AggregationMethod.TIME: lambda x: x.iloc[-1] if len(x) > 0 else np.nan,
+            AggregationMethod.LAST: _agg_last,
+            AggregationMethod.TIME: _agg_last,
         }
         return mapping[method]
 

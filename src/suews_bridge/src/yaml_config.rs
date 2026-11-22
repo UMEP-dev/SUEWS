@@ -914,7 +914,21 @@ fn apply_waterdist_overrides(
     Ok(())
 }
 
-fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) -> Result<(), String> {
+/// Read LAI parameters for one vegetated land cover (`evetr`, `dectr`, `grass`).
+///
+/// Active vegetated surfaces (`sfr > 0.0`) divide by `lai_max` in biogenic
+/// photosynthesis (`suews_phys_biogenco2.f95`) and canopy conductance
+/// (`suews_phys_resist.f95`), so `lai.lai_max` must be supplied as a finite
+/// positive number (`> 0.0`) naming the canonical YAML path on failure
+/// (#2149, #2083). Inactive vegetated surfaces (`sfr == 0.0`) keep `0.0` when
+/// omitted or null and permit explicit `lai_max == 0.0`, while malformed
+/// non-null values still fail cleanly.
+fn apply_lai_overrides(
+    lai: &mut crate::lai::LaiPrm,
+    lc_root: &Value,
+    at: &str,
+    sfr: f64,
+) -> Result<(), String> {
     if let Some(v) = read_numeric(lc_root, &["lai", "baset"]) {
         lai.base_temperature = v;
     }
@@ -930,8 +944,23 @@ fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) -> Result<
     if let Some(v) = read_numeric(lc_root, &["lai", "laimin"]) {
         lai.lai_min = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["lai", "laimax"]) {
+    let active = sfr.is_finite() && sfr > 0.0;
+    if active {
+        let v = require_numeric(lc_root, &["lai", "laimax"], at)?;
+        if v <= 0.0 {
+            return Err(format!(
+                "`{}` must be positive (> 0) when surface fraction is positive (sfr={sfr}), \
+                 got {v}; supply a positive lai_max (in m2 m-2) or set sfr to 0 if this \
+                 vegetation type is absent",
+                yaml_path_display(at, &["lai", "laimax"]),
+            ));
+        }
         lai.lai_max = v;
+    } else if get_path(lc_root, &["lai", "laimax"])
+        .and_then(given_value)
+        .is_some_and(|v| !v.is_null())
+    {
+        lai.lai_max = require_numeric(lc_root, &["lai", "laimax"], at)?;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "growth_lai"]) {
         lai.lai_power[0] = v;
@@ -1732,7 +1761,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_evetr.sfr > 0.0,
         )?;
         apply_bioco2_overrides(&mut site.lc_evetr.bioco2, lc_root)?;
-        apply_lai_overrides(&mut site.lc_evetr.lai, lc_root)?;
+        apply_lai_overrides(
+            &mut site.lc_evetr.lai,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.evetr"),
+            site.lc_evetr.sfr,
+        )?;
         apply_waterdist_overrides(&mut site.lc_evetr.waterdist, lc_root)?;
     }
 
@@ -1787,7 +1821,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_dectr.sfr > 0.0,
         )?;
         apply_bioco2_overrides(&mut site.lc_dectr.bioco2, lc_root)?;
-        apply_lai_overrides(&mut site.lc_dectr.lai, lc_root)?;
+        apply_lai_overrides(
+            &mut site.lc_dectr.lai,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.dectr"),
+            site.lc_dectr.sfr,
+        )?;
         apply_waterdist_overrides(&mut site.lc_dectr.waterdist, lc_root)?;
     }
 
@@ -1824,7 +1863,12 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             site.lc_grass.sfr > 0.0,
         )?;
         apply_bioco2_overrides(&mut site.lc_grass.bioco2, lc_root)?;
-        apply_lai_overrides(&mut site.lc_grass.lai, lc_root)?;
+        apply_lai_overrides(
+            &mut site.lc_grass.lai,
+            lc_root,
+            &format!("{site_at}.properties.land_cover.grass"),
+            site.lc_grass.sfr,
+        )?;
         apply_waterdist_overrides(&mut site.lc_grass.waterdist, lc_root)?;
     }
 
@@ -5937,5 +5981,147 @@ mod tests {
                 "malformed emissions={malformed} must be rejected"
             );
         }
+    }
+
+    #[test]
+    fn active_vegetated_surface_rejects_non_positive_or_invalid_lai_max() {
+        for surface in ["evetr", "dectr", "grass"] {
+            for literal in [
+                "0",
+                "0.0",
+                "-0.0",
+                "-1.0",
+                "-999.0",
+                "{value: 0.0}",
+                "{value: -2.5}",
+            ] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+                let site = first_site_mut(&mut root).expect("fixture has site");
+                let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                    .expect("surface block exists");
+                *get_path_mut(lc, &["sfr"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.1}").unwrap();
+                *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
+                    serde_yaml::from_str(literal).unwrap();
+                let err = load_run_config_from_value(&mut root).expect_err(
+                    "non-positive lai_max on active vegetated surface must be rejected",
+                );
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.{surface}.lai.lai_max`"
+                    )),
+                    "{surface} ({literal}): {err}"
+                );
+                assert!(
+                    err.contains("must be positive (> 0)"),
+                    "{surface} ({literal}): {err}"
+                );
+                assert!(err.contains("set sfr to 0"), "{surface} ({literal}): {err}");
+            }
+
+            // Missing, null, non-finite, and non-numeric lai_max on active vegetation fail cleanly.
+            for malformed in ["null", "{value: null}", ".nan", ".inf", "-.inf", "\"bad\""] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+                let site = first_site_mut(&mut root).expect("fixture has site");
+                let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                    .expect("surface block exists");
+                *get_path_mut(lc, &["sfr"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.1}").unwrap();
+                *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
+                    serde_yaml::from_str(malformed).unwrap();
+                let err = load_run_config_from_value(&mut root)
+                    .expect_err("malformed lai_max on active vegetated surface must be rejected");
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.{surface}.lai.lai_max`"
+                    )),
+                    "{surface} ({malformed}): {err}"
+                );
+            }
+
+            // Omitting lai_max when active must also be rejected (BR-02).
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                .expect("surface block exists");
+            *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.1}").unwrap();
+            let lai = get_path_mut(lc, &["lai"]).expect("lai block exists");
+            remove_key(lai, "lai_max");
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("omitted lai_max on active vegetated surface must be rejected");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.{surface}.lai.lai_max`"
+                )),
+                "{surface} (omitted): {err}"
+            );
+        }
+
+        // Legacy fused key `laimax: 0.0` must also fail and report the canonical `lai_max` path.
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+        let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
+        *get_path_mut(grass, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.2}").unwrap();
+        let lai = get_path_mut(grass, &["lai"]).unwrap();
+        remove_key(lai, "lai_max");
+        if let Value::Mapping(map) = lai {
+            map.insert(
+                Value::String("laimax".to_string()),
+                serde_yaml::from_str("{value: 0.0}").unwrap(),
+            );
+        }
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("legacy zero laimax on active grass must fail");
+        assert!(
+            err.contains("`sites[gridiv=1].properties.land_cover.grass.lai.lai_max`"),
+            "{err}"
+        );
+        assert!(!err.contains("`laimax`"), "{err}");
+    }
+
+    #[test]
+    fn inactive_or_positive_lai_max_accepted_for_vegetated_surfaces() {
+        // Inactive vegetated surfaces (sfr == 0) may carry lai_max == 0 or omit lai_max (#2149).
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture has site");
+        for surface in ["evetr", "dectr"] {
+            let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
+            *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+            *get_path_mut(lc, &["lai", "lai_min"]).unwrap() =
+                serde_yaml::from_str("{value: 0.0}").unwrap();
+            *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
+                serde_yaml::from_str("{value: 0.0}").unwrap();
+        }
+        // Omitted lai_max on inactive grass keeps 0.0 cleanly.
+        let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
+        *get_path_mut(grass, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+        remove_key(get_path_mut(grass, &["lai"]).unwrap(), "lai_max");
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("inactive vegetated surfaces with zero or omitted lai_max must parse");
+        assert_eq!(run_cfg.site.lc_evetr.lai.lai_max, 0.0);
+        assert_eq!(run_cfg.site.lc_dectr.lai.lai_max, 0.0);
+        assert_eq!(run_cfg.site.lc_grass.lai.lai_max, 0.0);
+
+        // Active vegetated surfaces with small positive lai_max (> 0) remain accepted.
+        let mut root_pos: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+        let site_pos = first_site_mut(&mut root_pos).expect("fixture has site");
+        for (surface, val) in [("evetr", 1.0e-6), ("dectr", 0.05), ("grass", 0.25)] {
+            let lc = get_path_mut(site_pos, &["properties", "land_cover", surface]).unwrap();
+            *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.1}").unwrap();
+            *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {val}}}")).unwrap();
+        }
+        let run_cfg_pos = load_run_config_from_value(&mut root_pos)
+            .expect("active vegetated surfaces with small positive lai_max must parse");
+        assert!((run_cfg_pos.site.lc_evetr.lai.lai_max - 1.0e-6).abs() < 1.0e-12);
+        assert!((run_cfg_pos.site.lc_dectr.lai.lai_max - 0.05).abs() < 1.0e-12);
+        assert!((run_cfg_pos.site.lc_grass.lai.lai_max - 0.25).abs() < 1.0e-12);
     }
 }

@@ -76,9 +76,10 @@
   "Fortran uninitialized lint / *": [
     "Detect code changes"
   ],
-  "Lowest-direct dependency smoke tests (Linux cp312)": [
+  "Build and test (manylinux x86_64) / Lowest-direct dependency smoke tests (Linux cp312)": [
     "Build and test (manylinux x86_64) / wheel | *",
-    "Detect code changes"
+    "Build MCP package",
+    "Determine build matrix"
   ],
   "Physics-change label": [
     "Determine build matrix"
@@ -98,7 +99,6 @@
     "Determine build matrix",
     "Encoding audit / *",
     "Fortran uninitialized lint / *",
-    "Lowest-direct dependency smoke tests (Linux cp312)",
     "Physics-change label",
     "Rust C-API field observer / *",
     "Rust clippy / *",

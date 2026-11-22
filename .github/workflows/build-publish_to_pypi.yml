@@ -612,6 +612,14 @@ jobs:
       # inputs.python_coverage inside the reusable workflow would be the
       # workflow_call input, not the dispatch input. It needs the MCP
       # distribution as the api lane does.
+      # The dependency-floor smoke tests run on the Linux cp312 wheel inside
+      # this call, as soon as it exists (gh#2104 F-17a).
+      run_lowest_direct_deps: >-
+        ${{ matrix.buildplat[1] == 'manylinux' && matrix.buildplat[2] == 'x86_64' &&
+        (github.event_name == 'schedule' ||
+         (github.event_name == 'workflow_dispatch' && inputs.lowest_direct_deps == true) ||
+         ((github.event_name == 'pull_request' || github.event_name == 'merge_group') &&
+          needs.detect-changes.outputs.dependency-audit-changed == 'true')) }}
       run_python_coverage: >-
         ${{ matrix.buildplat[1] == 'manylinux' && matrix.buildplat[2] == 'x86_64' &&
         needs.build_mcp.result == 'success' &&
@@ -714,113 +722,6 @@ jobs:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.bookend_python }}
       build_profile: ${{ inputs.build_profile || 'release' }}
-
-  # Verify the built Linux cp312 wheel installs and passes core/smoke tests
-  # against the lowest declared runtime dependency floors via uv
-  # --resolution=lowest-direct (gh#2104 F-17a). Runs on PRs and merge_group
-  # when dependency-audit paths change (when build_wheels built the wheel),
-  # nightly on schedule, and on manual dispatch with lowest_direct_deps=true.
-  # Wired into pr-gate (fail-closed when executed, skipped otherwise) and
-  # report_scheduled_run so PR and nightly floor regressions are both visible.
-  lowest_direct_deps:
-    name: Lowest-direct dependency smoke tests (Linux cp312)
-    needs: [detect-changes, build_wheels]
-    if: |
-      always() &&
-      needs.build_wheels.result == 'success' &&
-      (
-        github.event_name == 'schedule' ||
-        (github.event_name == 'workflow_dispatch' && inputs.lowest_direct_deps == true) ||
-        ((github.event_name == 'pull_request' || github.event_name == 'merge_group') &&
-         needs.detect-changes.outputs.dependency-audit-changed == 'true')
-      )
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: '3.12'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-        with:
-          enable-cache: false
-
-      - name: Download the Linux cp312 wheel
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: cp312-manylinux-x86_64
-          path: wheelhouse/
-
-      - name: Install built wheel with --resolution=lowest-direct and run core/smoke tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/security/export_pyproject_requirements.py > requirements-core.txt
-          uv pip compile --resolution=lowest-direct --only-binary :all: --python-version 3.12 \
-            requirements-core.txt -o lowest-constraints.txt
-          uv venv --python 3.12 .lowest-venv
-          uv pip install --python .lowest-venv/bin/python --only-binary :all: -r lowest-constraints.txt
-          uv pip install --python .lowest-venv/bin/python --no-deps wheelhouse/*.whl
-          uv pip install --python .lowest-venv/bin/python -c lowest-constraints.txt \
-            pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
-          uv pip check --python .lowest-venv/bin/python
-          .lowest-venv/bin/python - <<'PY'
-          import importlib.metadata as md
-          from pathlib import Path
-
-          from packaging.utils import canonicalize_name
-
-          pinned = {}
-          for line in Path("lowest-constraints.txt").read_text(encoding="utf-8").splitlines():
-              stripped = line.strip()
-              if not stripped or stripped.startswith("#") or "==" not in stripped:
-                  continue
-              name, ver = stripped.split("==", maxsplit=1)
-              pinned[canonicalize_name(name)] = ver.strip()
-
-          for name, expected in sorted(pinned.items()):
-              actual = md.version(name)
-              if actual != expected:
-                  raise SystemExit(
-                      f"Lowest-direct constraint drifted for {name}: expected {expected}, got {actual}"
-                  )
-
-          for pkg in (
-              "supy",
-              "pandas",
-              "scipy",
-              "numpy",
-              "pydantic",
-              "pyarrow",
-              "pyyaml",
-              "matplotlib",
-              "seaborn",
-              "scikit-learn",
-              "lmfit",
-              "atmosp",
-              "cdsapi",
-              "pytz",
-              "click",
-              "rich",
-              "jsonschema",
-              "packaging",
-          ):
-              print(f"  {pkg:14s} == {md.version(pkg)}")
-          PY
-          export PATH="$PWD/.lowest-venv/bin:$PATH"
-          SUEWS_VALIDATE_BIN="$(command -v suews-validate || true)"
-          if [[ "$SUEWS_VALIDATE_BIN" != "$PWD/.lowest-venv/bin/suews-validate" ]]; then
-            echo "Expected suews-validate in $PWD/.lowest-venv/bin, got: ${SUEWS_VALIDATE_BIN:-<missing>}" >&2
-            exit 1
-          fi
-          .lowest-venv/bin/python -m pytest -n 4 --dist worksteal -q --tb=short \
-            -m "(smoke or core) and not slow and not qgis" \
-            test/core test/data_model test/io_tests test/cmd
 
   # Nightly and on demand: check the `medium` and `slow` cost markers against
   # the CPU seconds the metrics plugin records per test on the Linux reference
@@ -1399,7 +1300,6 @@ jobs:
       - core_guard
       - check_test_markers
       - check_physics_label
-      - lowest_direct_deps
       - detect-changes
       - determine_matrix
       - rust_test
@@ -1434,7 +1334,10 @@ jobs:
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           PHYSICS_LABEL_RESULT: ${{ needs.check_physics_label.result }}
-          LOWEST_DIRECT_DEPS_RESULT: ${{ needs.lowest_direct_deps.result }}
+          # The floor job runs inside the Linux build_wheels call (it starts
+          # when the wheel exists), so when it was required its result is
+          # build_wheels' result; otherwise it did not run.
+          LOWEST_DIRECT_DEPS_RESULT: ${{ needs.detect-changes.outputs.dependency-audit-changed == 'true' && needs.build_wheels.result || 'skipped' }}
           LOWEST_DIRECT_DEPS_REQUIRED: ${{ needs.build_wheels.result == 'success' && needs.detect-changes.outputs.dependency-audit-changed == 'true' }}
           RUST_TEST_RESULT: ${{ needs.rust_test.result }}
           RUST_TEST_CHANGED: ${{ needs.detect-changes.outputs.rust-test-changed }}
@@ -1552,7 +1455,7 @@ jobs:
   report_scheduled_run:
     name: Report scheduled run outcome
     runs-on: ubuntu-latest
-    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, check_test_markers, lowest_direct_deps, deploy_testpypi, cost_markers]
+    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, check_test_markers, deploy_testpypi, cost_markers]
     if: always() && github.event_name == 'schedule'
     permissions: {}
     steps:

@@ -61,6 +61,11 @@ on:
         required: false
         type: boolean
         default: false
+      run_lowest_direct_deps:
+        description: 'Run the lowest-direct dependency smoke tests on the Linux cp312 wheel this call built, as soon as it exists (the caller passes true only for the manylinux x86_64 call, when dependency-audit paths changed, on the schedule, or on a dispatch with lowest_direct_deps)'
+        required: false
+        type: boolean
+        default: false
       split_tests:
         description: 'Upload the wheel without testing it inside cibuildwheel, then run the physics tier in physics_shards separate jobs in the same manylinux image, in parallel with the api lane (Linux only; the Fortran probe libraries are built once by the fortran_probes job)'
         required: false
@@ -333,6 +338,106 @@ jobs:
       cells_json: ${{ needs.layout.outputs.api_cells }}
       test_tier: ${{ inputs.test_tier }}
       serial_platforms: ${{ inputs.serial_platforms }}
+
+  # Verify the built Linux cp312 wheel installs and passes core/smoke tests
+  # against the lowest declared runtime dependency floors via uv
+  # --resolution=lowest-direct (gh#2104 F-17a). It is chained here, behind
+  # this call's wheel only, so it starts when the Linux wheel exists instead
+  # of after every test lane. The caller decides when it runs (dependency-
+  # audit paths changed on a PR or in the queue, the schedule, or a dispatch
+  # with lowest_direct_deps); its result rolls into build_wheels, which
+  # pr-gate and report_scheduled_run read.
+  lowest_direct_deps:
+    name: Lowest-direct dependency smoke tests (Linux cp312)
+    needs: build
+    if: inputs.run_lowest_direct_deps
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: false
+
+      - name: Download the Linux cp312 wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-manylinux-x86_64
+          path: wheelhouse/
+
+      - name: Install built wheel with --resolution=lowest-direct and run core/smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/security/export_pyproject_requirements.py > requirements-core.txt
+          uv pip compile --resolution=lowest-direct --only-binary :all: --python-version 3.12 \
+            requirements-core.txt -o lowest-constraints.txt
+          uv venv --python 3.12 .lowest-venv
+          uv pip install --python .lowest-venv/bin/python --only-binary :all: -r lowest-constraints.txt
+          uv pip install --python .lowest-venv/bin/python --no-deps wheelhouse/*.whl
+          uv pip install --python .lowest-venv/bin/python -c lowest-constraints.txt \
+            pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
+          uv pip check --python .lowest-venv/bin/python
+          .lowest-venv/bin/python - <<'PY'
+          import importlib.metadata as md
+          from pathlib import Path
+
+          from packaging.utils import canonicalize_name
+
+          pinned = {}
+          for line in Path("lowest-constraints.txt").read_text(encoding="utf-8").splitlines():
+              stripped = line.strip()
+              if not stripped or stripped.startswith("#") or "==" not in stripped:
+                  continue
+              name, ver = stripped.split("==", maxsplit=1)
+              pinned[canonicalize_name(name)] = ver.strip()
+
+          for name, expected in sorted(pinned.items()):
+              actual = md.version(name)
+              if actual != expected:
+                  raise SystemExit(
+                      f"Lowest-direct constraint drifted for {name}: expected {expected}, got {actual}"
+                  )
+
+          for pkg in (
+              "supy",
+              "pandas",
+              "scipy",
+              "numpy",
+              "pydantic",
+              "pyarrow",
+              "pyyaml",
+              "matplotlib",
+              "seaborn",
+              "scikit-learn",
+              "lmfit",
+              "atmosp",
+              "cdsapi",
+              "pytz",
+              "click",
+              "rich",
+              "jsonschema",
+              "packaging",
+          ):
+              print(f"  {pkg:14s} == {md.version(pkg)}")
+          PY
+          export PATH="$PWD/.lowest-venv/bin:$PATH"
+          SUEWS_VALIDATE_BIN="$(command -v suews-validate || true)"
+          if [[ "$SUEWS_VALIDATE_BIN" != "$PWD/.lowest-venv/bin/suews-validate" ]]; then
+            echo "Expected suews-validate in $PWD/.lowest-venv/bin, got: ${SUEWS_VALIDATE_BIN:-<missing>}" >&2
+            exit 1
+          fi
+          .lowest-venv/bin/python -m pytest -n 4 --dist worksteal -q --tb=short \
+            -m "(smoke or core) and not slow and not qgis" \
+            test/core test/data_model test/io_tests test/cmd
 
   # Nightly and on demand: Python line and branch coverage of supy and
   # suews_mcp over the whole suite except the qgis tests, on the Linux cp312

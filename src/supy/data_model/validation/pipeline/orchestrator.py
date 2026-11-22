@@ -2557,6 +2557,17 @@ Modes:
             print("For help: suews-validate --help")
             return 1
 
+    except ABCPublicationInterrupted as e:
+        # Name the recovery locations before the interrupt propagates.
+        print(f"[X] {e}")
+        for item in e.unrestored:
+            recovery = (
+                f"previous copy kept at {item.backup}" if item.backup
+                else "no previous copy existed; delete it"
+            )
+            print(f"  {item.path}: {item.error} ({recovery})")
+        print("Phase evidence:", e.evidence_dir)
+        raise
     except ABCOutputError as e:
         print(f"[X] Output error: {e}")
         print("Phase evidence:", e.evidence_dir)

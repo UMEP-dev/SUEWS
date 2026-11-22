@@ -528,3 +528,36 @@ def test_module_abc_cleanup_failure_keeps_published_success(
     assert orchestrator.main() == 0
     assert list(tmp_path.glob(".suews-validate-*")) == [evidence]
     assert all((tmp_path / name).read_bytes() == content for name, content in published.items())
+
+
+def test_module_abc_interrupt_with_failed_rollback_names_recovery_paths(
+    tmp_path, sample_config, monkeypatch, capsys
+):
+    """The module CLI prints unrestored outputs and backups before re-raising."""
+    from pathlib import Path
+    from supy.data_model.validation.pipeline import orchestrator
+
+    monkeypatch.setattr(sys, "argv", ["orchestrator", str(sample_config), "--mode", "dev"])
+    assert orchestrator.main() == 0
+    report_txt = tmp_path / "report_sample_config.txt"
+    previous = report_txt.read_bytes()
+    capsys.readouterr()
+    original_replace = orchestrator.os.replace
+
+    def interrupt_and_fail_restore(source, destination):
+        if Path(source).name == "publish_2":
+            raise KeyboardInterrupt("injected interrupt during JSON publication")
+        if Path(source).name == "previous_1":
+            raise OSError("injected rollback failure on the text report")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(orchestrator.os, "replace", interrupt_and_fail_restore)
+    with pytest.raises(orchestrator.ABCPublicationInterrupted):
+        orchestrator.main()
+    stdout = capsys.readouterr().out
+    evidence = _evidence(tmp_path)
+    backup = evidence / "previous_1"
+    assert f"{report_txt}: injected rollback failure on the text report" in stdout
+    assert f"previous copy kept at {backup}" in stdout
+    assert f"Phase evidence: {evidence}" in stdout
+    assert backup.read_bytes() == previous

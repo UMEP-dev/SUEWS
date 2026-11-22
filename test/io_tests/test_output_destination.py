@@ -179,7 +179,9 @@ def test_direct_source_dump_library_calls_write_no_files(
     assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
 
 
-@pytest.mark.parametrize("destination", [None, ".", "specified", "absolute"])
+@pytest.mark.parametrize(
+    "destination", [None, pytest.param("", id="empty-string"), ".", "specified", "absolute"]
+)
 @pytest.mark.parametrize("route", ["public", "engine", "save"])
 def test_actual_output_destinations(tmp_path, monkeypatch, destination, route):
     """Observe files in the intended destination from a distinct caller cwd."""
@@ -207,6 +209,8 @@ def test_actual_output_destinations(tmp_path, monkeypatch, destination, route):
         )
         assert result.returncode == 0, result.stdout + result.stderr
     elif route == "public":
+        if destination == "":
+            expected = caller
         before = set(tmp_path.rglob("*"))
         result = CliRunner().invoke(cli, ["run", str(source)])
         assert result.exit_code == 0, result.output
@@ -228,6 +232,30 @@ def test_actual_output_destinations(tmp_path, monkeypatch, destination, route):
         assert any(p.name.endswith(".units.json") for p in written)
         assert any(p.name.endswith("_checkpoint.json") for p in written)
         assert any(p.name == "provenance.json" for p in written)
+
+
+@pytest.mark.parametrize("destination", [None, "modern_results"])
+def test_source_output_block_takes_precedence_over_legacy_path(
+    tmp_path, monkeypatch, destination
+):
+    """An output block selects the launch directory or its own configured path."""
+    source, _ = _source(tmp_path, destination)
+    data = yaml.safe_load(source.read_text(encoding="utf-8"))
+    data["model"]["control"]["output_file"] = {"path": "legacy_results"}
+    source.write_text(yaml.safe_dump(data), encoding="utf-8")
+    caller = tmp_path / "caller"
+    caller.mkdir()
+    monkeypatch.chdir(caller)
+    before = set(tmp_path.rglob("*"))
+
+    result = CliRunner().invoke(cli, ["run", str(source)])
+
+    assert result.exit_code == 0, result.output
+    expected = caller if destination is None else source.parent / destination
+    written = [p for p in set(tmp_path.rglob("*")) - before if p.is_file()]
+    assert {p.parent for p in written} == {expected}
+    assert any(p.name.endswith(".txt") and p.stat().st_size for p in written)
+    assert not (source.parent / "legacy_results").exists()
 
 
 @pytest.mark.parametrize(

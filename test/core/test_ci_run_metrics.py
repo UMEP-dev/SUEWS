@@ -303,7 +303,12 @@ def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
     job = api["jobs"]["api_cross_python"]
     matrix = job["strategy"]["matrix"]
     assert matrix["shard"] == [""]
-    assert "inputs.shard_python &&" in matrix["exclude"]
+    guard = (
+        "inputs.shard_python && contains(inputs.api_python_json, "
+        "format('\"{0}\"', inputs.shard_python)) &&"
+    )
+    assert guard in matrix["exclude"]
+    assert guard in matrix["include"]
     assert '"shard":"1-of-2"' in matrix["include"]
     assert '"shard":"2-of-2"' in matrix["include"]
     assert "toJSON(fromJson(inputs.buildplat_json)[0])" in matrix["include"]

@@ -11,8 +11,9 @@ together cover every collected test.
 The split is by node id rather than by file because one file dominates the
 Windows api lane: ``test/core/test_stream_chunk.py`` was 37% of its test wall
 time in run 44997671456, so a file-level split left one shard at 1.35 times
-an even half, against 1.07 for the node-id split. The cost is that a
-module-scoped fixture used by tests in both shards is built once in each.
+an even half, against 1.02 to 1.03 for the node-id split across three
+pull-request runs. The cost is that a module-scoped fixture used by tests
+in both shards is built once in each.
 
 Without the option the plugin does nothing, so loading it is harmless.
 """

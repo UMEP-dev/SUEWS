@@ -19,6 +19,9 @@ _HOURLY_PROFILE_PATHS: tuple[tuple[str, ...], ...] = (
     ("anthropogenic_emissions", "co2", "profile_human_activity_24hr"),
     ("anthropogenic_emissions", "co2", "humactivity_24hr"),
 )
+HOURLY_PROFILE_FIELD_NAMES: frozenset[str] = frozenset(
+    path[-1] for path in _HOURLY_PROFILE_PATHS
+)
 
 
 def normalise_hourly_profile_key(key: object) -> str:

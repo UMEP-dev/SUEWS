@@ -323,6 +323,53 @@ def test_post_construction_mutation_validated_before_engine_export() -> None:
         config_to_engine_yaml(cfg, for_file_output=False)
 
 
+def test_post_construction_mutation_validated_before_to_yaml(tmp_path: Path) -> None:
+    """Post-construction mutations are normalised or rejected before ``to_yaml()``."""
+    cfg = SUEWSConfig.from_dict(_load_sample_dict())
+
+    # Valid zero-padded mutation is normalised to canonical "1".."24" on YAML export
+    cfg.sites[0].properties.snow.snow_profile_24hr.working_day = _make_zero_padded_hours(
+        base=4.0
+    )
+    valid_out = tmp_path / "valid_mutated.yml"
+    cfg.to_yaml(str(valid_out))
+    dumped = yaml.safe_load(valid_out.read_text(encoding="utf-8"))
+    snow_wd = dumped["sites"][0]["properties"]["snow"]["snow_profile_24hr"][
+        "working_day"
+    ]
+    assert tuple(snow_wd.keys()) == CANONICAL_HOUR_KEYS
+    assert snow_wd["1"] == pytest.approx(4.01)
+    assert snow_wd["24"] == pytest.approx(4.24)
+
+    # Malformed mutation is rejected and no output file is written
+    for idx, bad_key in enumerate(("+1", " 1", "0", "25")):
+        cfg.sites[0].properties.snow.snow_profile_24hr.working_day = {
+            bad_key if h == 1 else str(h): 0.04 for h in range(1, 25)
+        }
+        bad_out = tmp_path / f"bad_mutated_{idx}.yml"
+        with pytest.raises(ValueError, match="Invalid 24-hour profile key"):
+            cfg.to_yaml(str(bad_out))
+        assert not bad_out.exists()
+
+    # Collision mutation is rejected and no output file is written
+    colliding = {str(h): 0.04 for h in range(1, 25)}
+    colliding["01"] = 0.09
+    cfg.sites[0].properties.snow.snow_profile_24hr.working_day = colliding
+    dup_out = tmp_path / "dup_mutated.yml"
+    with pytest.raises(ValueError, match="Duplicate 24-hour profile key"):
+        cfg.to_yaml(str(dup_out))
+    assert not dup_out.exists()
+
+    # Incomplete mutation (missing hour 24) is rejected and no output file is written
+    cfg.sites[0].properties.snow.snow_profile_24hr.working_day = {
+        str(h): 0.04 for h in range(1, 24)
+    }
+    incomplete_out = tmp_path / "incomplete_mutated.yml"
+    with pytest.raises(ValueError, match=r"missing hours:\s*\[24\]"):
+        cfg.to_yaml(str(incomplete_out))
+    assert not incomplete_out.exists()
+
+
 def _prepare_zero_padded_sample_dir(tmp_path: Path) -> Path:
     """Copy packaged sample data and inject zero-padded 24-hour profile keys."""
     sample_dir = tmp_path / "sample_run"
@@ -439,3 +486,80 @@ def test_cli_validate_rejects_malformed_and_colliding_hour_keys(
         [str(bad_cfg), "--pipeline", "C", "--dry-run", "--format", "json"],
     )
     assert result.exit_code != 0, f"CLI must fail on {label} hour keys"
+
+
+def test_phase_a_to_c_rejects_missing_hour_without_null_padding(
+    tmp_path: Path,
+) -> None:
+    """Phase A must not pad a missing 24-hour slot with null across Phase A -> C."""
+    raw = _load_sample_dict()
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["heat"]["ahprof_24hr"][
+        "working_day"
+    ].pop("24")
+    in_yaml = tmp_path / "missing_hour.yml"
+    in_yaml.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+
+    out_a_yaml = tmp_path / "updatedA_missing_hour.yml"
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as std_path:
+        run_phase_a(
+            str(in_yaml),
+            str(std_path),
+            str(out_a_yaml),
+            str(tmp_path / "reportA_missing_hour.txt"),
+            mode="public",
+            silent=True,
+            forcing="off",
+        )
+    data_a = yaml.safe_load(out_a_yaml.read_text(encoding="utf-8"))
+    ahprof_wd = data_a["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "ahprof_24hr"
+    ]["working_day"]
+    assert "24" not in ahprof_wd
+
+    report_c = run_phase_c(
+        str(out_a_yaml),
+        str(tmp_path / "updatedC_missing_hour.yml"),
+        str(tmp_path / "reportC_missing_hour.txt"),
+        mode="public",
+        silent=True,
+    )
+    assert report_c.has_errors
+    assert any("missing hours: [24]" in issue.message for issue in report_c.issues)
+
+
+def test_phase_a_to_c_rejects_missing_day_type_without_null_padding(
+    tmp_path: Path,
+) -> None:
+    """Phase A must not pad a missing day-type block with 24 null slots across A -> C."""
+    raw = _load_sample_dict()
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["heat"]["ahprof_24hr"].pop(
+        "holiday"
+    )
+    in_yaml = tmp_path / "missing_day.yml"
+    in_yaml.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+
+    out_a_yaml = tmp_path / "updatedA_missing_day.yml"
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as std_path:
+        run_phase_a(
+            str(in_yaml),
+            str(std_path),
+            str(out_a_yaml),
+            str(tmp_path / "reportA_missing_day.txt"),
+            mode="public",
+            silent=True,
+            forcing="off",
+        )
+    data_a = yaml.safe_load(out_a_yaml.read_text(encoding="utf-8"))
+    ahprof = data_a["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "ahprof_24hr"
+    ]
+    assert "holiday" not in ahprof
+
+    report_c = run_phase_c(
+        str(out_a_yaml),
+        str(tmp_path / "updatedC_missing_day.yml"),
+        str(tmp_path / "reportC_missing_day.txt"),
+        mode="public",
+        silent=True,
+    )
+    assert report_c.has_errors

@@ -5961,6 +5961,14 @@ class SUEWSConfig(DataModelBase):
             If True, preserve internal-only fields for lossless round-tripping.
             Set to False to produce a clean user-facing YAML export.
         """
+        # Enforce 24-hour profile key normalisation and rejection before
+        # dumping so post-construction mutations cannot bypass validation on
+        # ordinary YAML export (mirroring config_to_engine_yaml()).
+        if isinstance(self.sites, list) and all(
+            isinstance(site, Site) for site in self.sites
+        ):
+            self.validate_hourly_profile_hours()
+
         # Use mode='json' to serialize enums as their values. round_trip
         # leaves out computed fields (stebbs.deep_soil_temperature): they are
         # derived, so a stale copy in the YAML would fail the next load once

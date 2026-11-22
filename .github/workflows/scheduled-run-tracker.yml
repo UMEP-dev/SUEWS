@@ -1,0 +1,64 @@
+name: Scheduled run tracker
+
+# Reports every finished scheduled run of the workflows below to one tracking
+# issue per workflow (label 2-infra:ci), assigned to a maintainer: a run that
+# ends failed, cancelled or timed out opens the issue or comments on it, and
+# the next green scheduled run closes it. It runs after the whole run has
+# finished, so a job cancelled late (a recording job at its timeout included)
+# is judged with everything else. Runs triggered by pull requests, the merge
+# queue, pushes or manual dispatch are ignored by the script.
+#
+# Logic and tests: .github/scripts/nightly-tracker.js(.test.js).
+# Keep this list in step with the workflows that carry `on: schedule`; names
+# must match each workflow's `name:` exactly.
+on:
+  workflow_run:
+    workflows:
+      - Build and Publish Python wheels to PyPI and TestPyPI
+      - Benchmark regression
+      - Dependency and startup audit
+      - Fortran sNaN nightly pilot
+      - Optional extras and standalone tests
+      - Enforce Interaction Limits
+      - Workflow security
+      - Recorded test debt
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  track:
+    name: Track scheduled run outcome
+    if: github.event.workflow_run.event == 'schedule'
+    runs-on: ubuntu-latest
+    # On the job, after the schedule filter, so a pull-request or merge-queue
+    # completion never enters the group and cannot replace a pending
+    # scheduled report. Reports of one workflow are serialised.
+    concurrency:
+      group: scheduled-run-tracker-${{ github.event.workflow_run.workflow_id }}
+      cancel-in-progress: false
+    timeout-minutes: 10
+    permissions:
+      issues: write     # open, comment on, assign and close the tracking issue
+      actions: read     # read the run, its job leaves and the last green run
+      contents: read    # sparse checkout and the commit comparison
+    steps:
+      # workflow_run always runs the default branch's copy of this file, and
+      # the checkout below takes the default branch, never the triggering
+      # run's head.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Open, update or close the tracking issue
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          NIGHTLY_ASSIGNEE: sunt05
+        with:
+          script: |
+            const tracker = require('./.github/scripts/nightly-tracker.js');
+            await tracker({ github, context, core });

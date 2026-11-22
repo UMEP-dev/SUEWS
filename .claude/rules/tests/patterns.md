@@ -276,8 +276,7 @@ than being skipped, so a schema bump cannot read as no drift. The nightly
 Linux cp312 lanes (also on `workflow_dispatch` with the `cost_markers` input)
 with `continue-on-error`, so drift is reported in the step summary and never
 reddens the run; `report_scheduled_run` prints the drift count in its own
-summary and, on a night that fails for another reason, in the tracking-issue
-comment, but never counts drift as a failure. On a pull request that changes
+summary, and drift never counts as a failure. On a pull request that changes
 test files, the `cost_markers_pr` job runs the same check restricted to those
 files (`--test-file`) on the PR's own Linux cp312 metrics and adds the result to
 the CI summary comment; it never gates, and it cannot judge tests the PR tier

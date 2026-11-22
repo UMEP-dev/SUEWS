@@ -76,9 +76,8 @@ def summarise_run(
         "url": run.get("html_url"),
         "gating_failures": sorted(set(gating_failures)),
         "recording_failures": sorted(set(recording_failures)),
-        # The alert (report_scheduled_run) opens or keeps open the tracking
-        # issue whenever one of the jobs it needs is not a success. A gating
-        # failure anywhere in the run is the observable form of that.
+        # The alert (scheduled-run-tracker.yml) opens or keeps open the
+        # tracking issue whenever the run does not conclude success.
         "alert_expected": conclusion != "success" or bool(gating_failures),
     }
 
@@ -169,7 +168,7 @@ def render(summary: dict[str, Any], workflow: str) -> str:
         "",
         f"Green streak from the newest run: {summary['green_streak']}",
         "A run is green when it concluded success and no gating job failed;",
-        "that is when the report_scheduled_run alert stays silent (a needed job",
+        "that is when the scheduled-run-tracker alert stays silent (a needed job",
         "that was skipped counts as green here, but its upstream failure reddens the",
         "run conclusion, so the two views agree in practice).",
     ]

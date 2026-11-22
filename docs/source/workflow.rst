@@ -285,28 +285,29 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
 Validate Your Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Before running simulations, validate your configuration to catch and fix common issues:
+Before running simulations, validate your configuration and review any issues:
 
 .. code-block:: bash
 
-   # Validate and automatically fix your configuration
+   # Validate your configuration and report suggested updates
    suews validate config.yml
 
-   # This creates:
-   # - updated_config.yml (corrected configuration)
+   # Output files:
+   # - updated_config.yml (from the last successful validation phase)
    # - report_config.txt (detailed validation report)
+   # - report_config.json (machine-readable validation report)
 
-The validator automatically:
+By default, the validator writes recognised parameter-name updates and may add
+null placeholders for missing parameters. It reports missing values and physics
+option conflicts for your attention; the output is not necessarily ready to run.
 
-- Adds missing parameters with sensible defaults
-- Normalises surface fractions to sum to 1.0
-- Sets initial temperatures based on location and season
-- Ensures physics options are compatible
-- Updates deprecated parameter names to current standards
+Scientific changes, such as initial temperatures and small surface-fraction
+corrections, are only suggested in the report, not written to the YAML.
+Use ``--science-fixes apply`` to write these changes, or ``--science-fixes off``
+to suppress scientific suggestions while retaining validation checks.
 
-The validation report consolidates all changes made across multiple validation phases, providing a clear summary of what was automatically fixed and what requires your attention.
-
-For more details, see :doc:`/inputs/yaml/validation`.
+Review the report before running simulations. For the scientific fix policy,
+see :doc:`/inputs/yaml/validation`.
 
 Setup Your Site Tutorial
 ^^^^^^^^^^^^^^^^^^^^^^^^^

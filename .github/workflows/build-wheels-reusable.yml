@@ -279,12 +279,16 @@ jobs:
           TIER: ${{ inputs.test_tier }}
           SHARD: ${{ matrix.shard }}
           PYTAG: ${{ matrix.python }}
+          # As the wheel job's test step: the reference lane is the cp312
+          # x86_64 release build only, and the tests read the build profile.
+          SUEWS_BUILD_PROFILE: ${{ inputs.build_profile }}
+          SUEWS_REFERENCE_LANE: ${{ (matrix.python == 'cp312' && matrix.buildplat[2] == 'x86_64' && inputs.build_profile != 'checked') && '1' || '0' }}
         run: |
           mkdir -p .uv-cache ci-metrics
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
             -e UV_CACHE_DIR=/project/.uv-cache -e UV_LINK_MODE=copy \
             -e TIER -e SHARD -e PYTAG -e METRICS_NAME \
-            -e SUEWS_REFERENCE_LANE=1 -e SUEWS_FORTRAN_PROBES_PREBUILT=1 \
+            -e SUEWS_BUILD_PROFILE -e SUEWS_REFERENCE_LANE -e SUEWS_FORTRAN_PROBES_PREBUILT=1 \
             -e SUEWS_CI_METRICS_DIR=/project/ci-metrics -e SUEWS_CI_METRICS_NAME="$METRICS_NAME" \
             -e F90=gfortran -e FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none" \
             -v "$PWD":/project -w /project "$MANYLINUX_IMAGE" bash -euo pipefail -c '

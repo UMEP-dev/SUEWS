@@ -319,7 +319,12 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
     )
     assert physics["name"].startswith("physics | ")
     run = next(s for s in physics["steps"] if s.get("name", "").startswith("Run the physics shard"))
-    assert "SUEWS_REFERENCE_LANE=1" in run["run"]
+    assert "-e SUEWS_REFERENCE_LANE " in run["run"]
+    assert "inputs.build_profile != 'checked'" in run["env"]["SUEWS_REFERENCE_LANE"]
+    assert run["env"]["SUEWS_BUILD_PROFILE"] == "${{ inputs.build_profile }}"
+    # The Windows-or-Linux condition is parenthesised before && python || '':
+    # without it, && binds first and a Windows PR passes a boolean.
+    assert chain_with["api_shard_python"].startswith("${{ (((github.event_name")
     assert "SUEWS_FORTRAN_PROBES_PREBUILT=1" in run["run"]
     assert '"$MANYLINUX_IMAGE"' in run["run"]
     assert wheels["env"]["MANYLINUX_IMAGE"].startswith("quay.io/pypa/manylinux2014_x86_64:")

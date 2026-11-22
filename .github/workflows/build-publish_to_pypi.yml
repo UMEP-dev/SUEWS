@@ -589,8 +589,8 @@ jobs:
       # Linux build-Python cell runs as four shards on pull requests and in
       # the merge queue. The nightly runs every cell whole.
       api_shard_python: >-
-        ${{ ((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win') ||
-        (matrix.buildplat[1] == 'manylinux' && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane))
+        ${{ (((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win') ||
+        (matrix.buildplat[1] == 'manylinux' && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane)))
         && fromJson(needs.determine_matrix.outputs.python)[0] || '' }}
       api_shard_count: ${{ matrix.buildplat[1] == 'manylinux' && 4 || 2 }}
       # A ready PR already validates both supported Python bookends. The merge

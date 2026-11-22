@@ -7528,7 +7528,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed roughness length from site parameters; 2 (VARIABLE) = Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999); 3 (MACDONALD) = MacDonald et al. (1998) morphometric method based on building geometry; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction \u03bbp (Grimmond & Oke 1999); 5 (ALTERNATIVE) = Alternative variable method",
+          "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed roughness length from site parameters; 2 (VARIABLE) = Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999); 3 (MACDONALD) = MacDonald et al. (1998) morphometric method based on building geometry; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction \u03bbp (Grimmond & Oke 1999); 5 (ALTERNATIVE) = Reserved / unimplemented; not available (rejected at validation)",
           "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
           "provides_to": [
             "roughness_length_heat",
@@ -7742,7 +7742,7 @@
       "type": "object"
     },
     "MomentumRoughnessMethod": {
-      "description": "Method for calculating momentum roughness length (z0m).\n\n1: FIXED - Fixed roughness length from site parameters\n2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)\n3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry\n4: LAMBDAP_DEPENDENT - Varies with plan area fraction \u03bbp (Grimmond & Oke 1999)\n5: ALTERNATIVE - Alternative variable method",
+      "description": "Method for calculating momentum roughness length (z0m).\n\n1: FIXED - Fixed roughness length from site parameters\n2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)\n3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry\n4: LAMBDAP_DEPENDENT - Varies with plan area fraction \u03bbp (Grimmond & Oke 1999)\n5: ALTERNATIVE - Reserved / unimplemented; not available (rejected at validation)",
       "enum": [
         1,
         2,

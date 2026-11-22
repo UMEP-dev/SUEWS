@@ -456,13 +456,13 @@ trusted, which is what the alert job below is for.
 | `build_wheels_checked` | `schedule` only | `checked-cp*` wheels, built `-O0 -fcheck=all`, running the full physics tier | whoever investigates a Fortran runtime error; the release-profile run in the same night is the comparison |
 | `python_coverage` | `schedule`, or `workflow_dispatch` with the `python_coverage` input | the `python-coverage` artefact (`coverage.json`, `coverage.xml`, 30-day retention) and a job-summary table of line and branch coverage per package, for `supy` and `suews_mcp` over the whole suite except `qgis` on the Linux cp312 wheel | whoever asks which code no test reaches; `pytest --cov` reproduces it locally from the `[tool.coverage.*]` tables in `pyproject.toml` |
 | `tolerance_spread` | `schedule`, or `workflow_dispatch` with the `tolerance_spread` input | one `tolerance-spread-<platform>-<arch>-<cpXY>` JSON per matrix cell, 30-day retention | the tolerance derivation for `test/core/test_sample_output.py`, via `tolerance_spread.py summarise` (see `.claude/rules/tests/patterns.md`) |
-| `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds, and a drift status and count that `report_scheduled_run` prints (its job summary, and the tracking-issue comment on a night that fails for another reason) | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md`. Pull requests get the same check on the test files they change from `cost_markers_pr`, in the CI summary comment |
-| `report_scheduled_run` | `schedule` only | the `2-infra:ci` tracking issue "Nightly scheduled run is failing", assigned to the maintainer named in `NIGHTLY_ASSIGNEE`, listing the failed job leaves and the PRs merged since the last green night (`.github/scripts/nightly-tracker.js`) | the assignee, notified by GitHub; everyone else through the issue. The first green night closes it |
+| `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds, and a drift status and count that `report_scheduled_run` prints in its job summary | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md`. Pull requests get the same check on the test files they change from `cost_markers_pr`, in the CI summary comment |
+| `report_scheduled_run` | `schedule` only | the cost-marker drift line in its job summary; it no longer writes issues | whoever reads the run |
+| `scheduled-run-tracker.yml` (separate workflow, `workflow_run` completed) | every finished scheduled run of every scheduled workflow | one `2-infra:ci` tracking issue per workflow ("Nightly scheduled run is failing" for this one), assigned to the maintainer named in `NIGHTLY_ASSIGNEE`, listing the failed job leaves and the PRs merged since the last green scheduled run (`.github/scripts/nightly-tracker.js`) | the assignee, notified by GitHub; everyone else through the issue. The first green scheduled run closes it |
 
 `create_nightly_tag` and the TestPyPI publish are schedule-side infrastructure
-rather than science, but they gate the same way the test tiers do: they are in
-`report_scheduled_run`'s needs, so a broken nightly tag is an alert, not a
-silent skip.
+rather than science, but they gate the same way the test tiers do: a failure
+there fails the run, so a broken nightly tag is an alert, not a silent skip.
 
 Two further nightly-only behaviours are documented in their own sections above:
 the api-test platform trim (`api_buildplat` drops `macos-15-intel` on the
@@ -471,37 +471,29 @@ which the nightly restores nothing from but still saves, under "Build Caches".
 
 ### What may redden the nightly
 
-Only the genuine test tiers and the infrastructure they need. The alert
-watches exactly `report_scheduled_run`'s needs other than `cost_markers`, which
-it reads only for its drift count: `create_nightly_tag`,
-`build_wheels` (which chains both the wheel build and the per-platform
-`api cross-CPython` lane inside `build-wheels-reusable.yml`),
-`build_wheels_checked`, `build_mcp`, `check_test_markers`, and
-`deploy_testpypi`. The matrix and tag jobs they depend on
-(`determine_matrix`, `detect-changes`, `verify-release-tag`) are not in that
-list, but a failure there skips the needed jobs, which reaches the alert as a
-non-success result. [fact: git grep -n "needs: \\[create_nightly_tag, build_wheels" .github/workflows/build-publish_to_pypi.yml]
+The alert is `scheduled-run-tracker.yml`, which runs after a scheduled run has
+finished and judges it by the run's own conclusion: `success` is green;
+`failure`, `cancelled`, `timed_out` and `startup_failure` are red. Judging the
+whole run rather than a list of needed jobs means a job cancelled late -- a
+recording job reaching its timeout, as on 17 and 21 November 2026 -- is a red
+night too, where the earlier in-run alert finished before it and stayed silent.
+The same tracker covers every scheduled workflow, each with its own issue.
+[fact: git grep -n "workflow_run" .github/workflows/scheduled-run-tracker.yml]
 
-The recording jobs -- `tolerance_spread` and `cost_markers` -- carry
-`continue-on-error: true` and never count as a failure: neither feeds `pr-gate`,
-`tolerance_spread` does not feed `report_scheduled_run`, and
-`report_scheduled_run` reads `cost_markers` only to print its drift count,
-excluding it by name from the jobs it counts.
-A wide spread or a drifted marker is information to act on, not a red night. A
-new recording job must be wired the same way, or the nightly stops being
-trusted and the fast PR tier stops being defensible.
+The recording jobs -- `tolerance_spread`, `cost_markers` and `python_coverage`
+-- carry `continue-on-error: true`, so a failing recording job still leaves the
+run `success` and never opens the issue: a wide spread, a drifted marker or
+lower coverage is information to act on, not a red night. A recording job that
+is cancelled or times out does turn the run red, and the report lists it marked
+"recording job", so the cure is to fix its runtime or timeout, not to ignore
+the alert. Neither feeds `pr-gate`. A new recording job must be wired the same
+way, or the nightly stops being trusted and the fast PR tier stops being
+defensible. `scripts/suews/nightly_streak.py` lists recording-job failures
+separately from gating ones.
 
-`report_scheduled_run` counts any needed job whose result is not `success` as a
-failure, `skipped` included. On a schedule every one of its needs is expected to
-run, so a skip means an upstream job failed and the night built nothing;
-counting only `failure` and `cancelled` would report that night as green and
-close the tracking issue.
-
-`python_coverage` is a recording job in the same way: `continue-on-error: true`,
-a timeout, and in neither `report_scheduled_run`'s needs nor `pr-gate`'s. A
-failing test lowers its figures and is reported by the test lanes, not by it;
-`scripts/suews/nightly_streak.py` lists its failures with the other recording
-jobs.
+A gating job that is skipped because an upstream job (`determine_matrix`,
+`create_nightly_tag`) failed reaches the alert through that upstream failure,
+which fails the run.
 
 ### Where a new expensive check goes
 

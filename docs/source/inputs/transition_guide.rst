@@ -1041,3 +1041,42 @@ rain and water-use rates) and output contract 2.0.0 (water fluxes written as
 interval-mean rates in kg |m^-2| |s^-1|, units sidecars and DailyState water
 totals) change forcing files and saved output instead; see
 :ref:`units_migration_guide`.
+
+
+.. _schema_dev13_radiation_memory:
+
+Radiation memory in the 2026.6.dev13 development schema
+-------------------------------------------------------
+
+``initial_states.qn_surfs`` and ``initial_states.dqndt_surf`` are no longer
+fresh-run inputs, including when their values are zero. Radiation memory is
+formed internally using the existing numerical initialisation and recurrence.
+No preceding meteorological data are required, and all requested output
+intervals are retained. Early results may depend on cold-start initialisation;
+there is no fixed time at which the model declares them fully warmed.
+
+Older signed configurations containing seven numeric zeros in either array
+are accepted with an explicit removal message. Other values, including nulls
+and malformed arrays, are rejected rather than silently discarded. Remove
+these fields if a cold start is intended; use a complete checkpoint if
+continuation is intended. A configuration or a legacy DFState alone cannot
+restore the complete state and elapsed clock. Zero DFState placeholders remain
+supported for legacy fresh-run adapters; nonzero memory entries are rejected.
+
+To write an upgraded configuration explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev13
+
+Unsigned YAML is treated as current input by the Python loader. For an older
+unsigned file, use ``suews convert --from <known-source-version> -i old.yml
+-o new.yml`` to migrate it; do not merely relabel its schema version.
+The native engine expects resolved current input and rejects either field
+regardless of a version label, so migrate legacy YAML through Python or the
+CLI before passing it directly to the native engine.
+
+The checkpoint representation is unchanged. Its seven-surface order remains
+paved, bldg, evetr, dectr, grass, bsoil, water; mean radiation memory uses
+:math:`\mathrm{W\,m^{-2}}` and its rate uses
+:math:`\mathrm{W\,m^{-2}\,h^{-1}}`.

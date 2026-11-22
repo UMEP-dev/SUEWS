@@ -1,5 +1,5 @@
 name: test
-schema_version: 2026.6.dev12
+schema_version: 2026.6.dev13
 description: grid 21_25_00_00
 strict_initial_state_bounds: true
 model:
@@ -3881,22 +3881,6 @@ sites:
     ra_h: 0.0
     rb: 0.0
     rs: 0.0
-    qn_surfs:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    dqndt_surf:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
 _auto_generate_annotated: false
 _yaml_raw:
   name: test
@@ -7707,22 +7691,6 @@ _yaml_raw:
           value: 17.540002822875977
         tin:
           value: 17.540002822875977
-      dqndt_surf:
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      qn_surfs:
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
       hdd_id:
       - 13.5
       - 13.5

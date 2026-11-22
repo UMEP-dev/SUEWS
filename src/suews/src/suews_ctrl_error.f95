@@ -17,6 +17,7 @@
 !   109: SPARTACUS - Invalid effective direct ground or roof albedo (GH#1857)
 !   110: Stability - Non-finite input to the (z-d)/L solve in cal_Stab (GH#1962)
 !   111: SPARTACUS - Fatal solver/configuration error
+!   112: Stability - Non-finite or out-of-domain z/L in stability correction functions (GH#2171)
 !   113: Roughness - RoughLenMomMethod value with no scheme behind it, e.g. 5 / ALTERNATIVE (GH#2105)
 !   114: RSL - Non-finite stability or canopy length-scale input in RSL_cal_prms (GH#2171)
 !

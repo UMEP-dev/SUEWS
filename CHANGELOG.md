@@ -61,6 +61,7 @@ EXAMPLES:
 
 ### 21 Nov 2026
 
+- [bugfix] Guard all 22 atmospheric stability correction functions (`J12`, `G00`, `CB05`, `K75`, `B71`, `W16`) in `suews_phys_atmmoiststab.f95` against non-finite `z/L` (`NaN`, `+Inf`, `-Inf`) and wrong-half-domain finite calls (`G00` stable, `CB05` unstable) by raising registered fatal error code `112` and returning quiet `NaN`, stop immediately after `stability_scales` when a fatal error is set, and remove all 22 resolved diagnostics from `scripts/lint/fortran_uninit_baseline.json` (#2171, #2083)
 - [bugfix] Exclude zero-area surfaces (`sfr_surf == 0`) and absent building facets (`sfr_surf(BldgSurf) == 0`) from the `suews_update_tsurf` surface-temperature and EHC sensible-heat convergence stop criteria so absent surfaces cannot prolong fixed-point iterations or leak into grid-scale fluxes (#2173)
 
 ### 20 Nov 2026

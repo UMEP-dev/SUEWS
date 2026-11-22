@@ -30,6 +30,7 @@ from typing import Any
 import warnings
 
 from click.testing import CliRunner
+import numpy as np
 import pytest
 import yaml
 
@@ -322,6 +323,74 @@ def test_post_construction_mutation_rejected_at_all_engine_handoffs(
     with pytest.raises(ValueError) as exc_state:
         sim_from_state.run()
     _assert_active_lai_max_error(str(exc_state.value), surface)
+
+
+@pytest.mark.parametrize(
+    "bad_live_value",
+    [
+        False,
+        True,
+        RefValue(False),
+        RefValue(True),
+        np.bool_(False),
+        np.bool_(True),
+        "bad",
+        RefValue("bad"),
+    ],
+    ids=[
+        "bool-false",
+        "bool-true",
+        "ref-bool-false",
+        "ref-bool-true",
+        "np-bool-false",
+        "np-bool-true",
+        "str-bad",
+        "ref-str-bad",
+    ],
+)
+def test_boolean_and_malformed_live_lai_max_rejected_at_handoffs(
+    sample_dict: dict[str, Any],
+    bad_live_value: Any,
+) -> None:
+    """Live boolean or malformed ``lai_max`` assignments fail at every engine handoff."""
+    cfg = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+    cfg.sites[0].properties.land_cover.grass.lai.lai_max = bad_live_value
+
+    with pytest.raises(ValueError) as exc_handoff:
+        cfg.validate_for_engine()
+    _assert_active_lai_max_error(str(exc_handoff.value), "grass")
+
+    sim_upd = SUEWSSimulation()
+    with pytest.raises(ValueError) as exc_update:
+        sim_upd.update_config(cfg, auto_load_forcing=False)
+    _assert_active_lai_max_error(str(exc_update.value), "grass")
+
+    sim_run = SUEWSSimulation.from_sample_data()
+    sim_run.config.sites[0].properties.land_cover.grass.lai.lai_max = bad_live_value
+    with pytest.raises(ValueError) as exc_run:
+        sim_run.run()
+    _assert_active_lai_max_error(str(exc_run.value), "grass")
+
+
+def test_boolean_legacy_laimax_rejected_on_load_and_dict_lai(
+    sample_dict: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """Boolean values on legacy ``laimax`` fail on load and on dict-backed live ``lai``."""
+    data = _with_veg_lai_max(
+        sample_dict, "grass", {"value": False}, active=True, legacy_key=True
+    )
+    yaml_path = _write_yaml(data, tmp_path / "bool_legacy_laimax.yml")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", (DeprecationWarning, FutureWarning))
+        with pytest.raises(ValueError):
+            SUEWSConfig.from_yaml(str(yaml_path))
+
+    cfg = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+    cfg.sites[0].properties.land_cover.grass.lai = {"laimax": False}
+    with pytest.raises(ValueError) as exc_dict_lai:
+        cfg.validate_for_engine()
+    _assert_active_lai_max_error(str(exc_dict_lai.value), "grass")
 
 
 def test_cli_validate_and_phase_c_reject_active_zero_lai_max_and_accept_inactive(

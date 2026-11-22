@@ -4148,6 +4148,25 @@ class SUEWSConfig(DataModelBase):
         if issues:
             raise ValueError("\n".join(issues))
 
+    @classmethod
+    def _extract_aliased_unwrapped(cls, obj: Any, *names: str) -> Any:
+        """Return the first present non-None unwrapped value across *names*, or None."""
+        for name in names:
+            if isinstance(obj, Mapping):
+                if name not in obj:
+                    continue
+                raw = obj[name]
+            else:
+                if not hasattr(obj, name):
+                    continue
+                raw = getattr(obj, name)
+            val = _unwrap_value(raw)
+            if isinstance(val, Mapping) and "value" in val:
+                val = _unwrap_value(val["value"])
+            if val is not None:
+                return val
+        return None
+
     def _iter_active_veg_lai_max_issues(self) -> list[dict[str, str]]:
         """Return issues for non-positive or non-finite ``lai_max`` on active vegetation.
 
@@ -4197,13 +4216,25 @@ class SUEWSConfig(DataModelBase):
                 if lai is None:
                     continue
 
-                lai_max_value = self._extract_aliased_numeric(
+                unwrapped_lai_max = self._extract_aliased_unwrapped(
                     lai, "lai_max", "laimax"
                 )
-                if lai_max_value is None:
+                if unwrapped_lai_max is None:
                     continue
-                if math.isfinite(lai_max_value) and lai_max_value > 0.0:
+
+                lai_max_value = self._extract_numeric_scalar(unwrapped_lai_max)
+                if (
+                    lai_max_value is not None
+                    and math.isfinite(lai_max_value)
+                    and lai_max_value > 0.0
+                ):
                     continue
+
+                got_display = (
+                    f"{lai_max_value:g}"
+                    if lai_max_value is not None
+                    else repr(unwrapped_lai_max)
+                )
 
                 issues.append(
                     {
@@ -4211,7 +4242,7 @@ class SUEWSConfig(DataModelBase):
                             f"{site_label}, "
                             f"properties.land_cover.{surface_name}.lai.lai_max "
                             f"must be positive (> 0) when {surface_name}.sfr={sfr_value:g} > 0 "
-                            f"(got {lai_max_value:g}); supply a positive lai_max "
+                            f"(got {got_display}); supply a positive lai_max "
                             f"(in m2 m-2) or set {surface_name}.sfr to 0 if this "
                             "vegetation type is absent"
                         ),
@@ -4219,7 +4250,7 @@ class SUEWSConfig(DataModelBase):
                         "param": "lai_max",
                         "message": (
                             f"Maximum LAI must be positive (> 0) on active {surface_name} "
-                            f"surface (sfr={sfr_value:g}, got lai_max={lai_max_value:g})"
+                            f"surface (sfr={sfr_value:g}, got lai_max={got_display})"
                         ),
                         "fix": (
                             "Supply a positive lai_max (in m2 m-2), or set "

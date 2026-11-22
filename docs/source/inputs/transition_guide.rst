@@ -519,13 +519,15 @@ Use the schema converter to update an older YAML before loading it:
 
    suews convert -i old.yml -o current.yml
 
-The migration rewrites the retired text selector in both bare and
-``value``-wrapped forms under ``model.physics.kdown_split_method``. It
-preserves reference metadata and all other settings. Numeric option ``3``
-and its calculations remain unchanged; numeric selections and omitted
-selectors require no content changes. The output is stamped
-``schema_version: '2026.6.dev5'``. Merely changing the version stamp does
-not rename the old selector.
+The ``2026.6.dev4`` -> ``2026.6.dev5`` migration step rewrites the retired
+text selector in both bare and ``value``-wrapped forms under
+``model.physics.kdown_split_method``. It preserves reference metadata and
+all other settings. Numeric option ``3`` and its calculations remain
+unchanged; numeric selections and omitted selectors require no content
+changes in this step. ``suews convert`` then
+continues through the migration chain and stamps the output with the current
+schema version. Merely changing the version stamp does not rename the old
+selector.
 
 The new ``reindl`` option (numeric ``4``) is opt-in and needs no additional
 inputs. See :ref:`shortwave_partition` for both splitting methods.
@@ -744,7 +746,7 @@ Run the migrator to bring an existing YAML onto the new shape:
 
 For a combined legacy-table-plus-schema upgrade, use ``suews convert``,
 which runs the table conversion first and then walks the schema chain
-to the same shape.
+to the current schema, stamping the output with the current schema version.
 
 The handler logs every field rename and drop via
 ``[yaml-upgrade]   renamed 'old' -> 'new'`` (and a human-readable

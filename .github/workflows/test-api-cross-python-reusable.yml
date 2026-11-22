@@ -69,12 +69,13 @@ jobs:
         # Unsharded by default. With shard_python set, that cell is removed
         # and re-added as two shards (1-of-2, 2-of-2) on the same platform;
         # the shard value has no slash because it is part of the artefact
-        # name. The include entries carry buildplat because a combination
+        # name. A shard_python that is not in api_python_json is ignored, so
+        # it never adds a cell nobody asked for. The include entries carry buildplat because a combination
         # that cannot merge into an existing one is added as a new job with
         # only the keys it names.
         shard: ['']
-        exclude: ${{ fromJson(inputs.shard_python && format('[{{"python_version":"{0}"}}]', inputs.shard_python) || '[]') }}
-        include: ${{ fromJson(inputs.shard_python && format('[{{"buildplat":{0},"python_version":"{1}","shard":"1-of-2"}},{{"buildplat":{0},"python_version":"{1}","shard":"2-of-2"}}]', toJSON(fromJson(inputs.buildplat_json)[0]), inputs.shard_python) || '[]') }}
+        exclude: ${{ fromJson(inputs.shard_python && contains(inputs.api_python_json, format('"{0}"', inputs.shard_python)) && format('[{{"python_version":"{0}"}}]', inputs.shard_python) || '[]') }}
+        include: ${{ fromJson(inputs.shard_python && contains(inputs.api_python_json, format('"{0}"', inputs.shard_python)) && format('[{{"buildplat":{0},"python_version":"{1}","shard":"1-of-2"}},{{"buildplat":{0},"python_version":"{1}","shard":"2-of-2"}}]', toJSON(fromJson(inputs.buildplat_json)[0]), inputs.shard_python) || '[]') }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:

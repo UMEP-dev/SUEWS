@@ -72,7 +72,7 @@ Read the unscoped rules below before making changes. Read scoped rules before wo
 - [.claude/rules/fortran/error-reporting.md](.claude/rules/fortran/error-reporting.md) - `src/suews/**/*.f9*`, `src/suews/**/*.F90`, `src/suews_bridge/c_api/**/*.f9*`.
 - [.claude/rules/labels.md](.claude/rules/labels.md) - all work.
 - [.claude/rules/naming-convention.md](.claude/rules/naming-convention.md) - `src/supy/**/*.py`, `src/supy/**/*.yml`, `src/supy/**/*.yaml`, `docs/**/*`.
-- [.claude/rules/physics-change-evidence.md](.claude/rules/physics-change-evidence.md) - `src/suews/src/suews_phys_*.f95`, `src/suews/ext_lib/**/*`, `test/fixtures/data_test/sample_output_2012-*.csv`, `test/fixtures/data_test/provenance.json`, `test/fixtures/data_test/stebbs_test/**`, `test/fixtures/benchmark1/**`, `test/fixtures/w16_most.csv`; Principle 1, 2.
+- [.claude/rules/physics-change-evidence.md](.claude/rules/physics-change-evidence.md) - `src/suews/src/suews_phys_*.f95`, `src/suews/ext_lib/**/*`, `test/fixtures/data_test/sample_output_2012-*.csv`, `test/fixtures/data_test/provenance.json`, `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv`, `test/fixtures/w16_most.csv`; Principle 1, 2.
 - [.claude/rules/pr-description.md](.claude/rules/pr-description.md) - all work; Principle 1, 2, 3.
 - [.claude/rules/python/api-approach.md](.claude/rules/python/api-approach.md) - `src/supy/**/*.py`, `docs/source/tutorials/**/*.py`.
 - [.claude/rules/python/config-patterns.md](.claude/rules/python/config-patterns.md) - `src/supy/**/*.py`.

@@ -140,3 +140,51 @@ def test_absent_evergreen_local_coefficients_do_not_affect_grass(method, co2_run
         co2_run("paved", 0.3, method=method, zero_evergreen_coefficients=True)
     )
     pd.testing.assert_frame_equal(dormant, reference, check_exact=True)
+
+
+@pytest.fixture(scope="module")
+def two_type_run(sample_config_loaded, sample_data_loaded):
+    """Public path: 70 % paved, 30 % of one vegetation type, one summer day."""
+    base = sample_config_loaded.model_dump(mode="json")
+    forcing = (
+        sample_data_loaded[1].loc["2012-06-15 00:05:00":"2012-06-16 00:00:00"].copy()
+    )
+
+    def run(present, absent, zero_absent_lai):
+        config = deepcopy(base)
+        config["model"]["control"]["start_time"] = "2012-06-15"
+        config["model"]["control"]["end_time"] = "2012-06-15"
+        land = config["sites"][0]["properties"]["land_cover"]
+        for surface in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"):
+            land[surface]["sfr"] = {"value": 0.0}
+        land["paved"]["sfr"] = {"value": 0.7}
+        land[present]["sfr"] = {"value": 0.3}
+        if zero_absent_lai:
+            for name in ("lai_min", "lai_max"):
+                land[absent]["lai"][name] = {"value": 0.0}
+        simulation = SUEWSSimulation()
+        simulation.update_config(config, auto_load_forcing=False)
+        simulation.update_forcing(forcing)
+        return simulation.run(n_jobs=1).df["SUEWS"]
+
+    return run
+
+
+# An absent deciduous type is not covered here: with lai_min = lai_max = 0 the
+# daily phenology update divides by LAImax - LAIMin and drives the deciduous
+# storage capacity to -Inf, a separate defect from the conductance term.
+@pytest.mark.core
+@pytest.mark.parametrize("present,absent", [("grass", "evetr"), ("dectr", "grass")])
+def test_absent_vegetation_lai_does_not_change_surface_conductance(
+    present, absent, two_type_run
+):
+    """An absent vegetation type with lai_max = 0 leaves every output unchanged (#2234).
+
+    The leaf-area term of the surface conductance evaluated 0*LAI/0 for the
+    absent type: release builds hid the NaN behind MAX(gsc_min, NaN) and pinned
+    the conductance to its minimum, while checked builds stopped in cal_Stab.
+    """
+    reference = two_type_run(present, absent, zero_absent_lai=False)
+    dormant = two_type_run(present, absent, zero_absent_lai=True)
+    assert reference["QE"].notna().all() and reference["QE"].gt(0).any()
+    pd.testing.assert_frame_equal(dormant, reference, check_exact=True)

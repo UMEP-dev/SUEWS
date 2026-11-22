@@ -144,6 +144,24 @@ This manual same-job result is the acceptance evidence. Ordinary PR runs and
 unrelated historical runs cannot establish the overhead bound because GitHub
 host load is uncontrolled.
 
+## Api-lane shards
+
+**Plugin**: `pytest_shard.py`
+
+On pull requests the Windows cp312 api cell runs as two jobs. Each loads this
+plugin and keeps only the tests whose node id hashes (SHA-256) to its shard;
+the shards are disjoint and together cover every selected test, on every
+platform and xdist worker. Without `--suews-shard` the plugin does nothing.
+
+```bash
+python -m pytest -p scripts.suews.pytest_shard --suews-shard 1/2 test -m "api and (core or not slow) and not qgis"
+```
+
+The split is by node id rather than by file because `test/core/test_stream_chunk.py`
+alone was 37% of the Windows api lane's test wall time (run 44997671456); a
+file-level split left one shard at 1.35 times an even half, the node-id split
+at 1.02 to 1.03 across three pull-request runs.
+
 ## Tolerance spread of the sample comparison
 
 **Script**: `tolerance_spread.py`
@@ -197,7 +215,7 @@ reader of that table.
 
 **Script**: `coverage_summary.py`
 
-The nightly `python_coverage` job in `build-publish_to_pypi.yml` runs the
+The nightly `python_coverage` job in `build-wheels-reusable.yml` runs the
 whole suite except `qgis` under coverage on the Linux cp312 wheel and writes
 `coverage.json`; this script turns that report into the job summary: total line
 and branch percentages, then one row per package (each top-level `supy`
@@ -419,3 +437,15 @@ come from `gh api`; `--runs-json` and `--jobs-json` read saved payloads instead.
 The verification criterion for the nightly-as-scientific-tier arrangement is
 thirty consecutive green runs; see `.claude/rules/ci/conventions.md` ("The
 Nightly as the Scientific Tier").
+
+## CHANGELOG fragments
+
+**Script**: `fold_changelog.py`
+
+Pull requests add their CHANGELOG entry as a fragment `changes/<number>.<category>.md`
+instead of editing `CHANGELOG.md` (format: `changes/README.md` and
+`.claude/rules/changelog/format.md`). This script validates the fragments
+(`--check`) and, before a release, folds them into `CHANGELOG.md` under the
+date each fragment was committed, then deletes them (`--dry-run` shows the
+diff; `--date YYYY-MM-DD` overrides the git date; `--keep` leaves the files).
+It only inserts lines. Tests: `test/core/test_fold_changelog.py`.

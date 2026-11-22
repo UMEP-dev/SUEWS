@@ -340,6 +340,9 @@ CONTAINS
          ! DO iv=ivConif,ivGrass
          DO iv = 1, 3
             ! gl=gl+(sfr_surf(iv+2)*(1-SnowFrac(iv+2)))*LAI(id-1,iv)/LAIMax(iv)*MaxConductance(iv)
+            ! An absent type contributes zero, even when its maximum LAI is zero
+            ! (0*LAI/0 would otherwise make g_lai NaN; GH#2234).
+            IF (sfr_surf(iv + 2) == 0.0D0) CYCLE
             g_lai = g_lai + (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*LAI_id(iv)/LAIMax(iv)*MaxConductance(iv)
          END DO
 
@@ -414,6 +417,9 @@ CONTAINS
          ! DO iv=ivConif,ivGrass   !For vegetated surfaces
          DO iv = 1, 3 !For vegetated surfaces
             !  gl=gl+(sfr_surf(iv+2)*(1-SnowFrac(iv+2)))*LAI(id-1,iv)/LAIMax(iv)*MaxConductance(iv)
+            ! An absent type contributes zero, even when its maximum LAI is zero
+            ! (0*LAI/0 would otherwise make g_lai NaN; GH#2234).
+            IF (sfr_surf(iv + 2) == 0.0D0) CYCLE
             g_lai = g_lai + (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*LAI_id(iv)/LAIMax(iv)*MaxConductance(iv)
          END DO
 

@@ -1,6 +1,6 @@
 {
   "description": "Pinned -Wuninitialized / -Wmaybe-uninitialized baseline across all compiled SUEWS Fortran units; see scripts/lint/check_fortran_uninit.py. Entries may only be removed.",
-  "container_image": "public.ecr.aws/docker/library/gcc@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82",
+  "container_image": "docker.io/library/gcc@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82",
   "compiler": "GNU Fortran (GCC) 14.2.0",
   "flags": [
     "-O2",

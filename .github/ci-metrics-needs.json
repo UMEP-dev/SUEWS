@@ -19,6 +19,11 @@
     "Build MCP package",
     "Determine build matrix"
   ],
+  "Build and test (manylinux x86_64) / Python coverage *": [
+    "Build and test (manylinux x86_64) / cp*",
+    "Build MCP package",
+    "Determine build matrix"
+  ],
   "Build and test (*) / cp*": [
     "Build MCP package",
     "Create nightly tag for scheduled builds",

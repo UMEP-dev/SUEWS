@@ -60,7 +60,7 @@ BASELINE_PATH = Path("scripts") / "lint" / "fortran_uninit_baseline.json"
 WORKFLOW_PATH = Path(".github") / "workflows" / "fortran-uninit.yml"
 
 PINNED_CONTAINER_IMAGE = (
-    "public.ecr.aws/docker/library/gcc"
+    "docker.io/library/gcc"
     "@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82"
 )
 PINNED_COMPILER = "GNU Fortran (GCC) 14.2.0"

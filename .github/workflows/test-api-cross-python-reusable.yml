@@ -38,13 +38,23 @@ on:
         required: false
         type: string
         default: ''
+      shard_python:
+        description: >-
+          Test-time CPython tag (e.g. cp312) whose cell is split into two
+          jobs, each running half of the selected tests (by SHA-256 of the
+          node id, scripts/suews/pytest_shard.py); empty runs every cell
+          whole. Needs a single-platform buildplat_json, which is what
+          build-wheels-reusable.yml passes.
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   api_cross_python:
-    name: ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    name: ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}${{ matrix.shard && format(' shard {0}', matrix.shard) || '' }}
     runs-on: ${{ matrix.buildplat[0] }}
     # Guardrail: a healthy api-test cell finishes well within this (the `all`
     # tier is ~15-30 min). The cap exists so a hung test fails fast instead of
@@ -56,6 +66,16 @@ jobs:
       matrix:
         buildplat: ${{ fromJson(inputs.buildplat_json) }}
         python_version: ${{ fromJson(inputs.api_python_json) }}
+        # Unsharded by default. With shard_python set, that cell is removed
+        # and re-added as two shards (1-of-2, 2-of-2) on the same platform;
+        # the shard value has no slash because it is part of the artefact
+        # name. A shard_python that is not in api_python_json is ignored, so
+        # it never adds a cell nobody asked for. The include entries carry buildplat because a combination
+        # that cannot merge into an existing one is added as a new job with
+        # only the keys it names.
+        shard: ['']
+        exclude: ${{ fromJson(inputs.shard_python && contains(inputs.api_python_json, format('"{0}"', inputs.shard_python)) && format('[{{"python_version":"{0}"}}]', inputs.shard_python) || '[]') }}
+        include: ${{ fromJson(inputs.shard_python && contains(inputs.api_python_json, format('"{0}"', inputs.shard_python)) && format('[{{"buildplat":{0},"python_version":"{1}","shard":"1-of-2"}},{{"buildplat":{0},"python_version":"{1}","shard":"2-of-2"}}]', toJSON(fromJson(inputs.buildplat_json)[0]), inputs.shard_python) || '[]') }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -142,7 +162,8 @@ jobs:
         env:
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
           XDIST_ARGS: ${{ steps.workers.outputs.xdist_args }}
-          SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
+          SHARD: ${{ matrix.shard }}
+          SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}.json
         run: |
           python -m pip install --upgrade pip
           python -m pip install pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
@@ -176,16 +197,23 @@ jobs:
           # count is per platform and measured, never taken from the CPU count
           # (see the step above); XDIST_ARGS is empty for a serialised
           # platform. The metrics plugin records worker timings and each
-          # worker's peak RSS beside them (#1786).
+          # worker's peak RSS beside them (#1786). A sharded cell (SHARD is
+          # K-of-N) keeps only its share of the selected tests; the
+          # collection pass above stays unsharded because the protocol test
+          # lands in one shard only.
+          SHARD_ARGS=""
+          if [[ -n "$SHARD" ]]; then
+            SHARD_ARGS="-p scripts.suews.pytest_shard --suews-shard ${SHARD/-of-//}"
+          fi
           # shellcheck disable=SC2086
           python -m pytest -p scripts.suews.pytest_ci_metrics test \
-            -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS
+            -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS $SHARD_ARGS
 
       - name: Upload API test metrics
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: ci-metrics-api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          name: ci-metrics-api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}
           path: ci-metrics/*.json
           if-no-files-found: error
           retention-days: 14

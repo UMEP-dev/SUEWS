@@ -205,7 +205,7 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
     assert "python -m pip install pytest==9.1.1 pytest-xdist==3.8.0" in workflow
     main_invocation = re.search(
         r"^[ \t]*python -m pytest -p scripts\.suews\.pytest_ci_metrics test \\\n"
-        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25 \$XDIST_ARGS[ \t]*$",
+        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25 \$XDIST_ARGS \$SHARD_ARGS[ \t]*$",
         workflow,
         flags=re.MULTILINE,
     )
@@ -256,6 +256,84 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
         wheels_workflow["jobs"]["api_cross_python"]["with"]["serial_platforms"]
         == "${{ inputs.serial_platforms }}"
     )
+
+
+@pytest.mark.core
+def test_pull_request_api_layout_drops_macos_and_shards_windows_cp312() -> None:
+    """Pull requests run no macOS api cell and split the Windows cp312 cell.
+
+    The merge queue and the nightly keep every cell whole and keep the macOS
+    api coverage, so both conditions name the pull_request event (or the
+    pr_api_lane dispatch input that measures the layout) explicitly. The
+    sharded cell gets its own job name and artefact name per shard, while an
+    unsharded cell keeps the names the cost-marker and coverage jobs read.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    layout = "(github.event_name == 'pull_request' || inputs.pr_api_lane)"
+    chain_with = caller["jobs"]["build_wheels"]["with"]
+    assert chain_with["run_api_tests"].endswith(
+        f"&& !({layout} && matrix.buildplat[1] == 'macosx') }}}}"
+    )
+    assert chain_with["api_shard_python"] == (
+        f"${{{{ {layout} && matrix.buildplat[1] == 'win' && 'cp312' || '' }}}}"
+    )
+    dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
+    assert dispatch_inputs["pr_api_lane"]["default"] is False
+
+    wheels = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert not wheels[True]["workflow_call"]["inputs"]["api_shard_python"]["default"]
+    assert wheels["jobs"]["api_cross_python"]["with"]["shard_python"] == (
+        "${{ inputs.api_shard_python }}"
+    )
+
+    api_text = (
+        root / ".github/workflows/test-api-cross-python-reusable.yml"
+    ).read_text(encoding="utf-8")
+    api = yaml.safe_load(api_text)
+    assert not api[True]["workflow_call"]["inputs"]["shard_python"]["default"]
+    job = api["jobs"]["api_cross_python"]
+    matrix = job["strategy"]["matrix"]
+    assert matrix["shard"] == [""]
+    guard = (
+        "inputs.shard_python && contains(inputs.api_python_json, "
+        "format('\"{0}\"', inputs.shard_python)) &&"
+    )
+    assert guard in matrix["exclude"]
+    assert guard in matrix["include"]
+    assert '"shard":"1-of-2"' in matrix["include"]
+    assert '"shard":"2-of-2"' in matrix["include"]
+    assert "toJSON(fromJson(inputs.buildplat_json)[0])" in matrix["include"]
+    suffix = "${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}"
+    run_step = next(
+        s for s in job["steps"] if s.get("name") == "Install wheel and run api tests"
+    )
+    assert run_step["env"]["SHARD"] == "${{ matrix.shard }}"
+    assert run_step["env"]["SUEWS_CI_METRICS"].endswith(f"{suffix}.json")
+    upload = next(s for s in job["steps"] if s.get("name") == "Upload API test metrics")
+    assert upload["with"]["name"] == (
+        "ci-metrics-api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-"
+        "${{ matrix.buildplat[2] }}" + suffix
+    )
+    assert "matrix.shard && format(' shard {0}', matrix.shard)" in job["name"]
+    # The protocol collection pass stays unsharded: it would collect nothing
+    # in the shard that does not own the protocol test.
+    assert (
+        'SHARD_ARGS="-p scripts.suews.pytest_shard --suews-shard ${SHARD/-of-//}"'
+        in run_step["run"]
+    )
+    collect_line = next(
+        line for line in run_step["run"].splitlines() if "--collect-only" in line
+    )
+    assert "SHARD" not in collect_line
 
 
 @pytest.mark.smoke
@@ -870,13 +948,27 @@ def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
     caller = yaml.safe_load(
         (root / ".github/workflows/build-publish_to_pypi.yml").read_text(encoding="utf-8")
     )
-    job = caller["jobs"]["python_coverage"]
+    wheels = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(encoding="utf-8")
+    )
+    # The job is chained behind the Linux wheel build inside the per-platform
+    # reusable call, so it no longer waits for every platform's api lane.
+    assert "python_coverage" not in caller["jobs"]
+    job = wheels["jobs"]["python_coverage"]
+    trigger = caller["jobs"]["build_wheels"]["with"]["run_python_coverage"]
 
     assert job["name"] == "Python coverage (Linux cp312)"
+    assert job["needs"] == "build"
+    assert job["if"] == "inputs.run_python_coverage"
     assert job["continue-on-error"] is True
     assert 0 < job["timeout-minutes"] <= 120
-    assert "github.event_name == 'schedule'" in job["if"]
-    assert "inputs.python_coverage == true" in job["if"]
+    run_step = next(s for s in job["steps"] if "--cov" in str(s.get("run", "")))
+    # The step times out before the job does, so the summary and upload run.
+    assert 0 < run_step["timeout-minutes"] < job["timeout-minutes"]
+    assert "matrix.buildplat[1] == 'manylinux'" in trigger
+    assert "needs.build_mcp.result == 'success'" in trigger
+    assert "github.event_name == 'schedule'" in trigger
+    assert "inputs.python_coverage == true" in trigger
     assert "python_coverage" not in caller["jobs"]["report_scheduled_run"]["needs"]
     assert "python_coverage" not in caller["jobs"]["pr-gate"]["needs"]
 

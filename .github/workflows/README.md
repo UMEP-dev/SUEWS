@@ -42,12 +42,20 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   selected Python versions. Each platform's api lane is chained behind that
   platform's wheel build (one `build-wheels-reusable.yml` call per platform),
   so it starts as soon as its own wheel exists.
+- On pull requests the api lane runs no macOS cell, and the Windows cp312
+  cell runs as two shards (`cp312-win AMD64 shard 1-of-2` and `2-of-2`),
+  each taking half of the selected tests by SHA-256 of the node id
+  (`scripts/suews/pytest_shard.py`). The merge queue (cp312 on all three OS
+  families) and the nightly (every bookend) keep the macOS api cells and run
+  every cell whole. The `pr_api_lane` dispatch input applies the
+  pull-request layout to a dispatch, so it can be measured on a branch.
 - The nightly `Tolerance spread` group (`tolerance-spread-reusable.yml`, also on
   dispatch with the `tolerance_spread` input) installs the built wheel on the
   two CPython bookends per platform and records the zero-tolerance spread of
   the sample comparison; it records and never gates.
 - The nightly `Python coverage (Linux cp312)` job (also on dispatch with the
-  `python_coverage` input) installs the Linux cp312 wheel, runs the whole suite
+  `python_coverage` input), chained inside the Linux `build-wheels-reusable.yml`
+  call behind that wheel only, installs the Linux cp312 wheel, runs the whole suite
   except `qgis` on four workers under coverage, and uploads `coverage.json` and
   `coverage.xml` as the `python-coverage` artefact with a per-package summary;
   the configuration is in `pyproject.toml`, so `pytest --cov` gives the same

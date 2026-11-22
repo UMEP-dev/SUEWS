@@ -13,8 +13,8 @@
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "37ba917",
-    "supy_version": "2026.11.21.dev19"
+    "git_commit": "cdf8fdfef",
+    "supy_version": "2026.11.21.dev21"
   },
   "cases": {
     "ehc_facets": {
@@ -68,7 +68,7 @@
   },
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-11-22T07:08:10.444138+00:00",
+  "generated_utc": "2026-11-22T08:05:52.120427+00:00",
   "platform": {
     "libc": "glibc 2.17",
     "machine": "x86_64",

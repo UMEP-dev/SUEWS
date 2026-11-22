@@ -154,6 +154,8 @@ def test_queue_ready_prs_orders_fast_lanes_first_and_skips_live_queued(
         _sample_pr(12, "Python test tweak", "2026-11-20T02:00:00Z"),
         _sample_pr(13, "Docs typo fix", "2026-11-20T03:00:00Z"),
         _sample_pr(14, "Already queued PR", "2026-11-20T04:00:00Z"),
+        _sample_pr(15, "CI gate speed-up", "2026-11-20T05:00:00Z"),
+        _sample_pr(16, "Fortran plus workflow tweak", "2026-11-20T06:00:00Z"),
     ]
     files_by_pr = {
         "10": ["src/suews/src/suews_phys_ohm.f95"],
@@ -161,6 +163,11 @@ def test_queue_ready_prs_orders_fast_lanes_first_and_skips_live_queued(
         "12": ["test/core/test_load.py"],
         "13": ["docs/source/index.rst"],
         "14": ["README.md"],
+        "15": [".github/workflows/build-publish_to_pypi.yml"],
+        "16": [
+            "src/suews/src/suews_util_meteo.f95",
+            ".github/scripts/determine-matrix.sh",
+        ],
     }
     queue_json = {
         "data": {
@@ -240,9 +247,17 @@ def test_queue_ready_prs_orders_fast_lanes_first_and_skips_live_queued(
     order_lines = [
         line
         for line in res_all.stdout.splitlines()
-        if line.startswith(("1. #", "2. #", "3. #", "4. #"))
+        if line.startswith(("1. #", "2. #", "3. #", "4. #", "5. #", "6. #"))
     ]
-    assert [line.split()[1] for line in order_lines] == ["#13", "#12", "#11", "#10"]
+    assert [line.split()[1] for line in order_lines] == [
+        "#15",
+        "#13",
+        "#12",
+        "#11",
+        "#16",
+        "#10",
+    ]
+    assert "lane=ci-infra" in res_all.stdout
     assert "lane=no-build" in res_all.stdout
     assert "lane=fast-linux" in res_all.stdout
     assert "lane=native-build" in res_all.stdout
@@ -250,7 +265,8 @@ def test_queue_ready_prs_orders_fast_lanes_first_and_skips_live_queued(
     assert "- #14 Already queued PR - already in merge queue" in res_all.stdout
 
     assert res_fast.returncode == 0, res_fast.stdout + res_fast.stderr
-    assert "- enqueue #13 (no-build): requested" in res_fast.stdout
+    assert "- enqueue #15 (ci-infra): requested" in res_fast.stdout
+    assert "- enqueue #13: deferred (max_batch=1 reached)" in res_fast.stdout
     assert "- enqueue #12: deferred (max_batch=1 reached)" in res_fast.stdout
     assert "outside fast lane (native-build" in res_fast.stdout
     assert "outside fast lane (physics-full" in res_fast.stdout

@@ -112,14 +112,24 @@ make test-smoke
      mergeability, or failing checks unless a future operator deliberately
      opts into a broader policy.
    - Read the generated order before acting. It skips PRs already in the live
-     merge queue and sorts fastest, lowest-risk PRs first: CI lane (`no-build`
-     -> `fast-linux` -> `native-build` -> `physics-full`), then fewer
-     high-risk SUEWS files, fewer shared files with other PRs, smaller file
-     count, and older creation time.
+     merge queue and orders by leverage first, then speed, then risk:
+     1. `ci-infra` (CI workflows, scripts, actions, path filters without
+        Fortran/Rust or physics labels) -- lands first because it speeds up or
+        unblocks every PR queued behind it.
+     2. `no-build` (docs, site, `.claude/`, rules, Markdown-only) -- zero
+        compilation, clears quickly.
+     3. `fast-linux` (Python, tests, scripts, MCP) -- fast single-Linux build.
+     4. `native-build` (Fortran, Rust, meson/build) -- heavier compilation.
+     5. `physics-full` (`0-physics:change` / `0-numerics:change`) -- heaviest
+        tier; runs last by default unless explicitly promoted with
+        `manage-merge-queue.sh jump <PR>`.
+     Within each lane, PRs sort by fewer high-risk SUEWS files, fewer shared
+     files with other PRs, smaller file count, and older creation time.
    - Prefer batching clean, conflict-free fast-lane PRs (`--lane fast
-     --max-batch 5`) ahead of slow native or `physics-full` PRs so fast merges
-     do not stall behind a slow position-1 build under GitHub's `ALLGREEN`
-     merge queue.
+     --max-batch 5`, covering `ci-infra`, `no-build`, and `fast-linux`) ahead
+     of heavy `native-build` or `physics-full` PRs so lightweight merges do not
+     stall behind a slow position-1 build under GitHub's `ALLGREEN` merge
+     queue.
    - Use `manage-merge-queue.sh status` to inspect live queue entries before
      enqueueing. Use `dequeue <PR>` (human-gated) to pull a failing or stalled
      position-1 PR early, and reserve `jump <PR>` (human-gated) for urgent

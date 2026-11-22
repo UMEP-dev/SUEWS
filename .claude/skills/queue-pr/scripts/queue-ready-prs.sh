@@ -8,15 +8,16 @@ Usage:
   queue-ready-prs.sh [--base master] [--limit 100] [--lane all|fast] [--max-batch N] [--comment] [--allow-third-party-comment] [--enqueue]
 
 Scans open ready-for-review pull requests for a base branch, orders queueable
-PRs by CI-lane speed and merge-queue risk (no-build -> fast-linux ->
-native-build -> physics-full, then high-risk/shared/file count), skips PRs
-already in the live merge queue, and optionally writes coordination comments or
-enqueues them in that order.
+PRs by merge-queue leverage, CI-lane speed, and risk (ci-infra -> no-build ->
+fast-linux -> native-build -> physics-full, then high-risk/shared/file count),
+skips PRs already in the live merge queue, and optionally writes coordination
+comments or enqueues them in that order.
 
 Options:
-  --lane all|fast   Default 'all'. With 'fast', keep only conflict-free
-                    no-build and fast-linux PRs so a fast ready batch lands
-                    ahead of slower native/physics lanes.
+  --lane all|fast   Default 'all'. With 'fast', keep only conflict-free,
+                    non-blocked ci-infra, no-build, and fast-linux PRs so CI
+                    improvements and lightweight ready PRs land ahead of heavy
+                    native/physics lanes.
   --max-batch N     Cap how many PRs --enqueue requests in one pass (0 = all;
                     e.g. 5 to match GitHub's maximumEntriesToBuild).
 
@@ -281,7 +282,7 @@ classify_ci_lane() {
     labels_csv="$2"
     case ",$labels_csv," in
         *",0-physics:change,"*|*",0-numerics:change,"*)
-            printf '3\tphysics-full\n'
+            printf '4\tphysics-full\n'
             return
             ;;
     esac
@@ -296,6 +297,13 @@ classify_ci_lane() {
                 p == "get_ver_git.py" ||
                 p == "pyproject.toml") {
                 native = 1
+            }
+            if (p ~ /^\.github\/workflows\// ||
+                p ~ /^\.github\/scripts\// ||
+                p ~ /^\.github\/actions\// ||
+                p == ".github/path-filters.yml" ||
+                p == ".github/ci-metrics-needs.json") {
+                ci_infra = 1
             }
             if (!(p ~ /^docs\// ||
                   p ~ /^site\// ||
@@ -312,11 +320,13 @@ classify_ci_lane() {
         }
         END {
             if (native) {
-                print "2\tnative-build"
+                print "3\tnative-build"
+            } else if (ci_infra) {
+                print "0\tci-infra"
             } else if (needs_build) {
-                print "1\tfast-linux"
+                print "2\tfast-linux"
             } else {
-                print "0\tno-build"
+                print "1\tno-build"
             }
         }
     ' "$files_path"
@@ -333,7 +343,7 @@ while IFS="$tab" read -r number review state mergeable head oid created url labe
     lane_info="$(classify_ci_lane "$tmp_root/pr-$number.files" "$labels")"
     ci_tier="${lane_info%%"$tab"*}"
     ci_lane="${lane_info#*"$tab"}"
-    if [ "$lane_filter" = "fast" ] && { [ "$ci_tier" -gt 1 ] || [ "$overlap_count" -gt 0 ] || [ "$state" = "BLOCKED" ]; }; then
+    if [ "$lane_filter" = "fast" ] && { [ "$ci_tier" -gt 2 ] || [ "$overlap_count" -gt 0 ] || [ "$state" = "BLOCKED" ]; }; then
         printf '%s\t%s\t%s\t%s\n' "$number" "outside fast lane ($ci_lane, state=$state, shared=$overlap_count)" "$title" "ready" >> "$skipped_tsv"
         continue
     fi

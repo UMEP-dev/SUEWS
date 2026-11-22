@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for conductance parameters" name="description" />
 <meta content="SUEWS, YAML, conductance, parameters, configuration" name="keywords" />
 
-    <title>4.6.8. Conductance &#8212; SUEWS 2026.11.22.dev17 documentation</title>
+    <title>4.6.8. Conductance &#8212; SUEWS 2026.11.22.dev23 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=5cc75cc6"></script>
+    <script src="../../../_static/documentation_options.js?v=7a60ee9c"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.7. CO2 Emissions" href="co2params.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.22.dev17" />
+  <meta name="docsearch:version" content="2026.11.22.dev23" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.22.dev17, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d0264095d1d58db01357c8162244017ae8368155" style="color: #31708f;">d026409</a>).
+        (2026.11.22.dev23, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c03425d14261b5a03556711bf4427e3469d2dad5" style="color: #31708f;">c03425d</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.22.dev17 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.22.dev17 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.22.dev23 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.22.dev23 documentation - Home"/>
   
   
 </a></div>
@@ -667,10 +667,16 @@ which is critical for calculating evapotranspiration rates.</p>
 <dl class="input option" id="index-3">
 <dt class="sig sig-object input" id="input-option-g_q_base">
 <span class="sig-name descname"><span class="pre">g_q_base</span></span><a class="headerlink" href="#input-option-g_q_base" title="Link to this definition">#</a></dt>
-<dd><p>Base conductance response parameter for vapour pressure deficit; its interpretation and units depend on the surface-conductance model</p>
-<dl class="field-list simple">
+<dd><p>Base conductance response parameter for specific humidity deficit; its interpretation and units depend on model.physics.surface_conductance</p>
+<dl class="field-list">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>model-dependent</p>
+<dd class="field-odd"><p>Depends on <code class="docutils literal notranslate"><span class="pre">model.physics.surface_conductance</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (J11 (Jarvi et al. 2011)): kg g<sup>-1</sup>. Equation: <code class="docutils literal notranslate"><span class="pre">g_dq</span> <span class="pre">=</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">g_q_base</span> <span class="pre">*</span> <span class="pre">min(dq,</span> <span class="pre">g_q_shape),</span> <span class="pre">with</span> <span class="pre">dq</span> <span class="pre">in</span> <span class="pre">g</span> <span class="pre">kg-1</span></code>. Reciprocal of specific humidity deficit in g kg-1 (1 / (g kg-1) = kg g-1).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (W16 (Ward et al. 2016)): <code class="docutils literal notranslate"><span class="pre">1</span></code> (dimensionless). Equation: <code class="docutils literal notranslate"><span class="pre">g_dq</span> <span class="pre">=</span> <span class="pre">g_q_base</span> <span class="pre">+</span> <span class="pre">(1</span> <span class="pre">-</span> <span class="pre">g_q_base)</span> <span class="pre">*</span> <span class="pre">(g_q_shape**dq),</span> <span class="pre">with</span> <span class="pre">dq</span> <span class="pre">in</span> <span class="pre">g</span> <span class="pre">kg-1</span></code>. Dimensionless asymptotic lower bound of the specific-humidity-deficit conductance modifier.</p></li>
+</ul>
+<p><em>Active:</em> Applied when any vegetated surface (evetr, dectr, grass) has positive surface fraction (sfr &gt; 0).</p>
+<p><em>Inactive / other values:</em> Public YAML accepts only surface_conductance in {1 (J11), 2 (W16)}; retired legacy Fortran codes 3 and 4 mapped to the J11 and W16 humidity forms respectively, and other codes raise ErrorHint(71).</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>Required when a vegetated surface using these parameters is present (<code class="docutils literal notranslate"><span class="pre">sfr</span></code> above zero for <code class="docutils literal notranslate"><span class="pre">grass</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code> or <code class="docutils literal notranslate"><span class="pre">evetr</span></code>)</p>
@@ -690,15 +696,15 @@ which is critical for calculating evapotranspiration rates.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.2163</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.2163</span></code> kg g<sup>-1</sup></p></td>
 <td><p>Unspecified; vegetation; Jarvi et al. (2011) default; gs_model=1</p></td>
 <td><p><span class="bibtex-citation" id="id8">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.13</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.13</span></code> (dimensionless)</p></td>
 <td><p>Unspecified; vegetation; Ward et al. (2016) sample run; gs_model=2</p></td>
 <td><p><span class="bibtex-citation" id="id9">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.0812</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.0812</span></code> kg g<sup>-1</sup></p></td>
 <td><p>Unspecified; vegetation; pine forest; gs_model=1</p></td>
 <td><p><span class="bibtex-citation" id="id10">Stewart [<a class="reference internal" href="../../../references.html#id111" title="Stewart, J. B. Modelling surface conductance of pine forest. Agricultural and Forest Meteorology, 43(1):19–35, June 1988. doi:10.1016/0168-1923(88)90003-2.">1988</a>]</span></p></td>
 </tr>
@@ -710,10 +716,16 @@ which is critical for calculating evapotranspiration rates.</p>
 <dl class="input option" id="index-4">
 <dt class="sig sig-object input" id="input-option-g_q_shape">
 <span class="sig-name descname"><span class="pre">g_q_shape</span></span><a class="headerlink" href="#input-option-g_q_shape" title="Link to this definition">#</a></dt>
-<dd><p>Shape conductance response parameter for vapour pressure deficit; its interpretation and units depend on the surface-conductance model</p>
-<dl class="field-list simple">
+<dd><p>Shape conductance response parameter for specific humidity deficit; its interpretation and units depend on model.physics.surface_conductance</p>
+<dl class="field-list">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>model-dependent</p>
+<dd class="field-odd"><p>Depends on <code class="docutils literal notranslate"><span class="pre">model.physics.surface_conductance</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (J11 (Jarvi et al. 2011)): g kg<sup>-1</sup>. Equation: <code class="docutils literal notranslate"><span class="pre">g_dq</span> <span class="pre">=</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">g_q_base</span> <span class="pre">*</span> <span class="pre">min(dq,</span> <span class="pre">g_q_shape),</span> <span class="pre">with</span> <span class="pre">dq</span> <span class="pre">in</span> <span class="pre">g</span> <span class="pre">kg-1</span></code>. Specific humidity deficit threshold above which g_dq stays constant.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (W16 (Ward et al. 2016)): <code class="docutils literal notranslate"><span class="pre">empirical</span> <span class="pre">power</span> <span class="pre">base</span> <span class="pre">for</span> <span class="pre">g_q_shape**dq</span> <span class="pre">with</span> <span class="pre">dq</span> <span class="pre">in</span> <span class="pre">g</span> <span class="pre">kg-1;</span> <span class="pre">ln(g_q_shape)</span> <span class="pre">has</span> <span class="pre">unit</span> <span class="pre">kg</span> <span class="pre">g-1</span></code> (empirical power base for exponent in g kg<sup>-1</sup>; log unit: kg g<sup>-1</sup>). Equation: <code class="docutils literal notranslate"><span class="pre">g_dq</span> <span class="pre">=</span> <span class="pre">g_q_base</span> <span class="pre">+</span> <span class="pre">(1</span> <span class="pre">-</span> <span class="pre">g_q_base)</span> <span class="pre">*</span> <span class="pre">(g_q_shape**dq),</span> <span class="pre">with</span> <span class="pre">dq</span> <span class="pre">in</span> <span class="pre">g</span> <span class="pre">kg-1</span></code>. Not dimensionless: changing dq from g kg-1 to kg kg-1 transforms g_q_shape nonlinearly (g_q_shape -&gt; g_q_shape**1000) because g_q_shape**dq = exp((ln(g_q_shape) / (1 g kg-1)) * dq).</p></li>
+</ul>
+<p><em>Active:</em> Applied when any vegetated surface (evetr, dectr, grass) has positive surface fraction (sfr &gt; 0).</p>
+<p><em>Inactive / other values:</em> Public YAML accepts only surface_conductance in {1 (J11), 2 (W16)}; retired legacy Fortran codes 3 and 4 mapped to the J11 and W16 humidity forms respectively, and other codes raise ErrorHint(71).</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>Required when a vegetated surface using these parameters is present (<code class="docutils literal notranslate"><span class="pre">sfr</span></code> above zero for <code class="docutils literal notranslate"><span class="pre">grass</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code> or <code class="docutils literal notranslate"><span class="pre">evetr</span></code>)</p>
@@ -733,7 +745,7 @@ which is critical for calculating evapotranspiration rates.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3.3649</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3.3649</span></code> g kg<sup>-1</sup></p></td>
 <td><p>Unspecified; vegetation; Jarvi et al. (2011) default; gs_model=1</p></td>
 <td><p><span class="bibtex-citation" id="id11">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
@@ -741,7 +753,7 @@ which is critical for calculating evapotranspiration rates.</p>
 <td><p>Unspecified; vegetation; Ward et al. (2016) sample run; gs_model=2</p></td>
 <td><p><span class="bibtex-citation" id="id12">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">9.44</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">9.44</span></code> g kg<sup>-1</sup></p></td>
 <td><p>Unspecified; vegetation; pine forest; gs_model=1</p></td>
 <td><p><span class="bibtex-citation" id="id13">Stewart [<a class="reference internal" href="../../../references.html#id111" title="Stewart, J. B. Modelling surface conductance of pine forest. Agricultural and Forest Meteorology, 43(1):19–35, June 1988. doi:10.1016/0168-1923(88)90003-2.">1988</a>]</span></p></td>
 </tr>
@@ -1128,8 +1140,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.22.dev17 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d0264095d1d58db01357c8162244017ae8368155">d026409</a> |
+  <p>Version: 2026.11.22.dev23 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c03425d14261b5a03556711bf4427e3469d2dad5">c03425d</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

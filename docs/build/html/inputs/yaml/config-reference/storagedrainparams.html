@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for drainage parameters parameters" name="description" />
 <meta content="SUEWS, YAML, storagedrainparams, parameters, configuration" name="keywords" />
 
-    <title>4.6.49. Drainage Parameters &#8212; SUEWS 2026.11.22.dev17 documentation</title>
+    <title>4.6.49. Drainage Parameters &#8212; SUEWS 2026.11.22.dev23 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=5cc75cc6"></script>
+    <script src="../../../_static/documentation_options.js?v=7a60ee9c"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.48. STEBBS" href="stebbsproperties.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.22.dev17" />
+  <meta name="docsearch:version" content="2026.11.22.dev23" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.22.dev17, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d0264095d1d58db01357c8162244017ae8368155" style="color: #31708f;">d026409</a>).
+        (2026.11.22.dev23, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c03425d14261b5a03556711bf4427e3469d2dad5" style="color: #31708f;">c03425d</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.22.dev17 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.22.dev17 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.22.dev23 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.22.dev23 documentation - Home"/>
   
   
 </a></div>
@@ -830,9 +830,16 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dt class="sig sig-object input" id="input-option-drain_coef_1">
 <span class="sig-name descname"><span class="pre">drain_coef_1</span></span><a class="headerlink" href="#input-option-drain_coef_1" title="Link to this definition">#</a></dt>
 <dd><p>Drainage coefficient 1; interpretation and units depend on drain_eq</p>
-<dl class="field-list simple">
+<dl class="field-list">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>equation-dependent</p>
+<dd class="field-odd"><p>Depends on <code class="docutils literal notranslate"><span class="pre">drain_eq</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (Threshold power law): <code class="docutils literal notranslate"><span class="pre">(kg</span> <span class="pre">m-2)^(1</span> <span class="pre">-</span> <span class="pre">drain_coef_2)</span> <span class="pre">h-1</span></code> (formula; depends on <code class="docutils literal notranslate"><span class="pre">drain_coef_2</span></code>; base units: kg m<sup>-2</sup>, h). Equation: <code class="docutils literal notranslate"><span class="pre">drain</span> <span class="pre">=</span> <span class="pre">drain_coef_1</span> <span class="pre">*</span> <span class="pre">(state</span> <span class="pre">-</span> <span class="pre">store_cap)**drain_coef_2</span> <span class="pre">/</span> <span class="pre">nsh_real</span> <span class="pre">for</span> <span class="pre">state</span> <span class="pre">&gt;=</span> <span class="pre">store_cap,</span> <span class="pre">else</span> <span class="pre">0</span></code>. No fixed CF unit: the storage-unit exponent depends on the fitted dimensionless exponent drain_coef_2 (1 kg m-2 = 1 mm liquid water; nsh_real = 3600 / tstep is timesteps per hour).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (Modified Rutter exponential): kg m<sup>-2</sup> h<sup>-1</sup>. Equation: <code class="docutils literal notranslate"><span class="pre">drain</span> <span class="pre">=</span> <span class="pre">drain_coef_1</span> <span class="pre">*</span> <span class="pre">(exp(drain_coef_2</span> <span class="pre">*</span> <span class="pre">state)</span> <span class="pre">-</span> <span class="pre">1)</span> <span class="pre">/</span> <span class="pre">nsh_real</span></code>. Hourly drainage flux scale (numerically equal to mm h-1 for liquid water; nsh_real = 3600 / tstep is timesteps per hour).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (Power law without threshold): <code class="docutils literal notranslate"><span class="pre">(kg</span> <span class="pre">m-2)^(1</span> <span class="pre">-</span> <span class="pre">drain_coef_2)</span> <span class="pre">h-1</span></code> (formula; depends on <code class="docutils literal notranslate"><span class="pre">drain_coef_2</span></code>; base units: kg m<sup>-2</sup>, h). Equation: <code class="docutils literal notranslate"><span class="pre">drain</span> <span class="pre">=</span> <span class="pre">drain_coef_1</span> <span class="pre">*</span> <span class="pre">state**drain_coef_2</span> <span class="pre">/</span> <span class="pre">nsh_real</span></code>. No fixed CF unit: the storage-unit exponent depends on the fitted dimensionless exponent drain_coef_2 (1 kg m-2 = 1 mm liquid water; nsh_real = 3600 / tstep is timesteps per hour).</p></li>
+</ul>
+<p><em>Active:</em> Applied to non-water surfaces with positive surface fraction (sfr &gt; 0); ignored for water and inactive surfaces.</p>
+<p><em>Inactive / other values:</em> drain_eq = 0 is an unset placeholder and any code outside {1, 2, 3} (including retired equation 4) selects no drainage branch in Fortran.</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>No default; not checked by the validator - supply a value</p>
@@ -860,11 +867,11 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <td><p>Swindon; paved; Paved; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id37">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id110" title="Ward, H. C., Evans, J. G., and Grimmond, C. S. B. Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in swindon, UK. Atmospheric Chemistry and Physics, 13(9):4645–4666, May 2013. doi:10.5194/acp-13-4645-2013.">2013</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>London; evergreen tree; EvergreenTree [sample run]; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id38">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>London; deciduous tree; Deciduous Tree [sample run]; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id39">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
@@ -872,11 +879,11 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <td><p>Helsinki; grass; Grass, irrigated; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id40">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>Helsinki; grass; Grass, unirrigated; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id41">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>London; grass; Grass [sample run]; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id42">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
@@ -908,15 +915,15 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <td><p>SE England; bare soil; Bare Soil; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id49">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id50">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id51">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>SE England; grass; Grass; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id52">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
@@ -929,9 +936,16 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dt class="sig sig-object input" id="input-option-drain_coef_2">
 <span class="sig-name descname"><span class="pre">drain_coef_2</span></span><a class="headerlink" href="#input-option-drain_coef_2" title="Link to this definition">#</a></dt>
 <dd><p>Drainage coefficient 2; interpretation and units depend on drain_eq</p>
-<dl class="field-list simple">
+<dl class="field-list">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>equation-dependent</p>
+<dd class="field-odd"><p>Depends on <code class="docutils literal notranslate"><span class="pre">drain_eq</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (Threshold power law): <code class="docutils literal notranslate"><span class="pre">1</span></code> (dimensionless). Equation: <code class="docutils literal notranslate"><span class="pre">drain</span> <span class="pre">=</span> <span class="pre">drain_coef_1</span> <span class="pre">*</span> <span class="pre">(state</span> <span class="pre">-</span> <span class="pre">store_cap)**drain_coef_2</span> <span class="pre">/</span> <span class="pre">nsh_real</span> <span class="pre">for</span> <span class="pre">state</span> <span class="pre">&gt;=</span> <span class="pre">store_cap,</span> <span class="pre">else</span> <span class="pre">0</span></code>. Dimensionless power-law exponent.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (Modified Rutter exponential): m<sup>2</sup> kg<sup>-1</sup>. Equation: <code class="docutils literal notranslate"><span class="pre">drain</span> <span class="pre">=</span> <span class="pre">drain_coef_1</span> <span class="pre">*</span> <span class="pre">(exp(drain_coef_2</span> <span class="pre">*</span> <span class="pre">state)</span> <span class="pre">-</span> <span class="pre">1)</span> <span class="pre">/</span> <span class="pre">nsh_real</span></code>. Inverse surface-water storage scale multiplying state in kg m-2 (numerically equal to mm-1 for liquid water).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (Power law without threshold): <code class="docutils literal notranslate"><span class="pre">1</span></code> (dimensionless). Equation: <code class="docutils literal notranslate"><span class="pre">drain</span> <span class="pre">=</span> <span class="pre">drain_coef_1</span> <span class="pre">*</span> <span class="pre">state**drain_coef_2</span> <span class="pre">/</span> <span class="pre">nsh_real</span></code>. Dimensionless power-law exponent.</p></li>
+</ul>
+<p><em>Active:</em> Applied to non-water surfaces with positive surface fraction (sfr &gt; 0); ignored for water and inactive surfaces.</p>
+<p><em>Inactive / other values:</em> drain_eq = 0 is an unset placeholder and any code outside {1, 2, 3} (including retired equation 4) selects no drainage branch in Fortran.</p>
 </dd>
 <dt class="field-even">Status<span class="colon">:</span></dt>
 <dd class="field-even"><p>No default; not checked by the validator - supply a value</p>
@@ -951,71 +965,71 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>London; paved; Paved [sample run]; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id53">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
 <td><p>Swindon; paved; Paved; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id54">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id110" title="Ward, H. C., Evans, J. G., and Grimmond, C. S. B. Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in swindon, UK. Atmospheric Chemistry and Physics, 13(9):4645–4666, May 2013. doi:10.5194/acp-13-4645-2013.">2013</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>London; evergreen tree; EvergreenTree [sample run]; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id55">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>London; deciduous tree; Deciduous Tree [sample run]; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id56">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>Helsinki; grass; Grass, irrigated; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id57">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>Helsinki; grass; Grass, unirrigated; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id58">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.17</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.17</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>London; grass; Grass [sample run]; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id59">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>Helsinki; buildings; Building; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id60">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
 <td><p>London; evergreen tree; EvergreenTree - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id61">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
 <td><p>London; deciduous tree; Deciduous Tree - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id62">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
 <td><p>London; grass; Grass - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id63">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>SE England; paved; Paved; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id64">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>SE England; buildings; Buildings; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id65">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>SE England; bare soil; Bare Soil; drain_eq=3</p></td>
 <td><p><span class="bibtex-citation" id="id66">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id67">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id68">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>SE England; grass; Grass; drain_eq=2</p></td>
 <td><p><span class="bibtex-citation" id="id69">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
 </tr>
@@ -1101,8 +1115,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.22.dev17 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d0264095d1d58db01357c8162244017ae8368155">d026409</a> |
+  <p>Version: 2026.11.22.dev23 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c03425d14261b5a03556711bf4427e3469d2dad5">c03425d</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

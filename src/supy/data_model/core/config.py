@@ -839,6 +839,9 @@ class SUEWSConfig(DataModelBase):
         # 4c) Check for explicit zero soil_depth on active positive-capacity surfaces
         zero_soil_depth_issues = self._check_zero_soil_depth_params()
 
+        # 4d) Check for non-positive or non-finite lai_max on active vegetated surfaces
+        active_veg_lai_max_issues = self._check_active_veg_lai_max_params()
+
         ### 5) If we have either conditional issues or critical nulls, raise validation error
         all_critical_issues = []
         if cond_issues:
@@ -849,6 +852,8 @@ class SUEWSConfig(DataModelBase):
             all_critical_issues.extend(critical_site_nulls)
         if zero_soil_depth_issues:
             all_critical_issues.extend(zero_soil_depth_issues)
+        if active_veg_lai_max_issues:
+            all_critical_issues.extend(active_veg_lai_max_issues)
 
         if all_critical_issues:
             # Preserve the annotated-YAML UX on the failure path: if the caller
@@ -4017,6 +4022,26 @@ class SUEWSConfig(DataModelBase):
                 return val
         return None
 
+    @classmethod
+    def _format_site_label(cls, site: Any, site_index: int) -> str:
+        """Format a human-readable site label including name and gridiv when present."""
+        raw_name = _unwrap_value(cls._field_or_key(site, "name"))
+        if isinstance(raw_name, Mapping) and "value" in raw_name:
+            raw_name = _unwrap_value(raw_name["value"])
+        raw_gridiv = _unwrap_value(cls._field_or_key(site, "gridiv"))
+        if isinstance(raw_gridiv, Mapping) and "value" in raw_gridiv:
+            raw_gridiv = _unwrap_value(raw_gridiv["value"])
+        label_parts: list[str] = []
+        if raw_name is not None and str(raw_name).strip():
+            label_parts.append(str(raw_name).strip())
+        if raw_gridiv is not None and not isinstance(raw_gridiv, (bool, np.bool_)):
+            label_parts.append(f"gridiv={raw_gridiv}")
+        return (
+            f"sites[{site_index}] ({', '.join(label_parts)})"
+            if label_parts
+            else f"sites[{site_index}]"
+        )
+
     def _iter_zero_soil_depth_issues(self) -> list[dict[str, str]]:
         """Return issues for zero ``soil_depth`` on active positive-capacity surfaces.
 
@@ -4044,22 +4069,7 @@ class SUEWSConfig(DataModelBase):
             if land_cover is None:
                 continue
 
-            raw_name = _unwrap_value(self._field_or_key(site, "name"))
-            if isinstance(raw_name, Mapping) and "value" in raw_name:
-                raw_name = _unwrap_value(raw_name["value"])
-            raw_gridiv = _unwrap_value(self._field_or_key(site, "gridiv"))
-            if isinstance(raw_gridiv, Mapping) and "value" in raw_gridiv:
-                raw_gridiv = _unwrap_value(raw_gridiv["value"])
-            label_parts: list[str] = []
-            if raw_name is not None and str(raw_name).strip():
-                label_parts.append(str(raw_name).strip())
-            if raw_gridiv is not None and not isinstance(raw_gridiv, (bool, np.bool_)):
-                label_parts.append(f"gridiv={raw_gridiv}")
-            site_label = (
-                f"sites[{i}] ({', '.join(label_parts)})"
-                if label_parts
-                else f"sites[{i}]"
-            )
+            site_label = self._format_site_label(site, i)
 
             for surface_name in NON_WATER_SURFACES:
                 surface = self._field_or_key(land_cover, surface_name)
@@ -4138,6 +4148,146 @@ class SUEWSConfig(DataModelBase):
         if issues:
             raise ValueError("\n".join(issues))
 
+    @classmethod
+    def _extract_aliased_unwrapped(cls, obj: Any, *names: str) -> Any:
+        """Return the first present non-None unwrapped value across *names*, or None."""
+        for name in names:
+            if isinstance(obj, Mapping):
+                if name not in obj:
+                    continue
+                raw = obj[name]
+            else:
+                if not hasattr(obj, name):
+                    continue
+                raw = getattr(obj, name)
+            val = _unwrap_value(raw)
+            if isinstance(val, Mapping) and "value" in val:
+                val = _unwrap_value(val["value"])
+            if val is not None:
+                return val
+        return None
+
+    def _iter_active_veg_lai_max_issues(self) -> list[dict[str, str]]:
+        """Return issues for invalid explicit ``lai_max`` on active vegetation.
+
+        Applies unconditionally (without gating on ``_yaml_raw``) across the
+        three vegetated surfaces (``evetr``, ``dectr``, ``grass``) whenever
+        ``sfr > 0`` and an explicit ``lai_max`` (or legacy ``laimax``) is
+        non-positive (``<= 0``), non-finite, an explicit boolean (``bool`` or
+        ``np.bool_``), or another malformed non-null value. Omitted/``None``
+        values (including ``{value: null}`` wrapped nulls) are left to
+        :meth:`_iter_critical_null_site_param_issues`; inactive vegetated
+        surfaces (``sfr == 0``) remain permitted to carry ``lai_max == 0``
+        (gh#2149).
+
+        Returns
+        -------
+        list of dict of str to str
+            Structured issue records matching
+            :meth:`_iter_critical_null_site_param_issues`.
+        """
+        if not getattr(self, "sites", None):
+            return []
+
+        issues: list[dict[str, str]] = []
+        for i, site in enumerate(self.sites):
+            props = self._field_or_key(site, "properties")
+            land_cover = (
+                self._field_or_key(props, "land_cover") if props is not None else None
+            )
+            if land_cover is None:
+                continue
+
+            site_label = self._format_site_label(site, i)
+
+            for surface_name in ("evetr", "dectr", "grass"):
+                surface = self._field_or_key(land_cover, surface_name)
+                if surface is None:
+                    continue
+                if isinstance(surface, Mapping):
+                    sfr_raw = surface.get("sfr", 1.0 / 7.0)
+                else:
+                    sfr_raw = getattr(surface, "sfr", None)
+                sfr_value = self._extract_numeric_scalar(sfr_raw)
+                if sfr_value is None or not (
+                    math.isfinite(sfr_value) and sfr_value > 0.0
+                ):
+                    continue
+
+                lai = self._field_or_key(surface, "lai")
+                if lai is None:
+                    continue
+
+                unwrapped_lai_max = self._extract_aliased_unwrapped(
+                    lai, "lai_max", "laimax"
+                )
+                if unwrapped_lai_max is None:
+                    continue
+
+                lai_max_value = self._extract_numeric_scalar(unwrapped_lai_max)
+                if (
+                    lai_max_value is not None
+                    and math.isfinite(lai_max_value)
+                    and lai_max_value > 0.0
+                ):
+                    continue
+
+                got_display = (
+                    f"{lai_max_value:g}"
+                    if lai_max_value is not None
+                    else repr(unwrapped_lai_max)
+                )
+
+                issues.append(
+                    {
+                        "error_text": (
+                            f"{site_label}, "
+                            f"properties.land_cover.{surface_name}.lai.lai_max "
+                            f"must be positive (> 0) when {surface_name}.sfr={sfr_value:g} > 0 "
+                            f"(got {got_display}); supply a positive lai_max "
+                            f"(in m2 m-2) or set {surface_name}.sfr to 0 if this "
+                            "vegetation type is absent"
+                        ),
+                        "path": f"sites[{i}]/properties/land_cover/{surface_name}/lai",
+                        "param": "lai_max",
+                        "message": (
+                            f"Maximum LAI must be positive (> 0) on active {surface_name} "
+                            f"surface (sfr={sfr_value:g}, got lai_max={got_display})"
+                        ),
+                        "fix": (
+                            "Supply a positive lai_max (in m2 m-2), or set "
+                            f"{surface_name}.sfr to 0 if this vegetation type is absent"
+                        ),
+                    }
+                )
+        return issues
+
+    def _check_active_veg_lai_max_params(self) -> list[str]:
+        """Return error texts for non-positive or non-finite ``lai_max`` on active vegetation."""
+        return [
+            issue["error_text"]
+            for issue in self._iter_active_veg_lai_max_issues()
+            if issue["error_text"]
+        ]
+
+    def validate_active_veg_lai_max(self) -> None:
+        """Validate ``lai_max > 0`` across all active vegetated surfaces.
+
+        Re-checks every site so post-construction live mutations cannot carry
+        non-positive or non-finite ``lai_max`` on an active (``sfr > 0``)
+        vegetated surface (``evetr``, ``dectr``, ``grass``) into
+        ``to_df_state()``, ``SUEWSSimulation.update_config()``,
+        ``SUEWSSimulation.run()``, or the Rust engine.
+
+        Raises
+        ------
+        ValueError
+            If any active vegetated surface has ``lai_max <= 0`` or non-finite.
+        """
+        issues = self._check_active_veg_lai_max_params()
+        if issues:
+            raise ValueError("\n".join(issues))
+
     def validate_for_engine(self) -> None:
         """Run pre-handoff invariant checks before exporting or running the engine.
 
@@ -4152,11 +4302,13 @@ class SUEWSConfig(DataModelBase):
             If a non-optional ``RefValue`` (or active biogenic CO2
             ``min_res_bioco2``) was mutated to ``None``, if any active
             non-water surface with positive ``soil_store_capacity`` has
-            ``soil_depth == 0``, or if any site violates per-surface
-            ``WaterDistribution`` invariants.
+            ``soil_depth == 0``, if any active vegetated surface has
+            non-positive or non-finite ``lai_max``, or if any site violates
+            per-surface ``WaterDistribution`` invariants.
         """
         self.validate_non_null_ref_values()
         self.validate_soil_depths()
+        self.validate_active_veg_lai_max()
         self.validate_water_distributions()
 
     def generate_annotated_yaml(
@@ -4221,6 +4373,7 @@ class SUEWSConfig(DataModelBase):
         for issue in (
             *self._iter_critical_null_site_param_issues(),
             *self._iter_zero_soil_depth_issues(),
+            *self._iter_active_veg_lai_max_issues(),
         ):
             if issue["path"] == site_prefix or issue["path"].startswith(
                 f"{site_prefix}/"

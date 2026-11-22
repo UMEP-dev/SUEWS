@@ -413,6 +413,7 @@ rst_prolog = rf"""
 .. |m^3| replace:: m\ :sup:`3`
 .. |s^-1| replace:: s\ :sup:`-1`
 .. |kg^-1| replace:: kg\ :sup:`-1`
+.. |g^-1| replace:: g\ :sup:`-1`
 .. |K^-1| replace:: K\ :sup:`-1`
 .. |J^-1| replace:: J\ :sup:`-1`
 .. |W^-1| replace:: W\ :sup:`-1`
@@ -422,7 +423,7 @@ rst_prolog = rf"""
 .. |ha^-1| replace:: ha\ :sup:`-1`
 .. |QF| replace:: Q\\ :sub:`F`
 .. |Qstar| replace:: Q\\ :sup:`*`
-.. |d^-1| replace:: d\\ :sup:`-1`
+.. |d^-1| replace:: d\ :sup:`-1`
 .. |d^-2| replace:: d\\ :sup:`-2`
 .. |)^-1| replace:: )\\ :sup:`-1`
 .. |Recmd| replace:: **Recommended in this version.**

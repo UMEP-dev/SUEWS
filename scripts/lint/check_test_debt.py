@@ -405,7 +405,6 @@ def _observer_records(root):
 def _python_ledger_records(root):
     records = []
     for ledger, path, name in (
-        ("Q", "test/data_model/test_unit_metadata.py", "CONDITIONAL_UNIT_EXCEPTIONS"),
         (
             "T1",
             "test/data_model/test_legacy_table_roundtrip.py",

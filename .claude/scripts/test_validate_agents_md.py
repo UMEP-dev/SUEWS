@@ -8,6 +8,22 @@ import sys
 import tempfile
 import unittest
 
+try:
+    import pytest
+except ImportError:
+
+    class _StdlibMark:
+        @staticmethod
+        def contract(*_ids: str) -> None:
+            return None
+
+    class _StdlibPytest:
+        mark = _StdlibMark()
+
+    pytest = _StdlibPytest()
+
+pytestmark = pytest.mark.contract("C-TOOLING")
+
 SCRIPT = Path(__file__).with_name("validate-claude-md.py")
 ROOT = SCRIPT.parents[2]
 SPEC = importlib.util.spec_from_file_location("instruction_validator", SCRIPT)

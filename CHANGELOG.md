@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 22 Nov 2026
+
+- [bugfix] `get_variable` without `group=` on `SUEWSSimulation` and `SUEWSOutput`, and `output.<name>` attribute access, no longer report single-group variables such as `QH` as ambiguous (#2222)
+
 ### 21 Nov 2026
 
 - [bugfix] Exclude zero-area surfaces (`sfr_surf == 0`) and absent building facets (`sfr_surf(BldgSurf) == 0`) from the `suews_update_tsurf` surface-temperature and EHC sensible-heat convergence stop criteria so absent surfaces cannot prolong fixed-point iterations or leak into grid-scale fluxes (#2173)

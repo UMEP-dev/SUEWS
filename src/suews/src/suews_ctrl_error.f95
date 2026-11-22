@@ -17,6 +17,7 @@
 !   109: SPARTACUS - Invalid effective direct ground or roof albedo (GH#1857)
 !   110: Stability - Non-finite input to the (z-d)/L solve in cal_Stab (GH#1962)
 !   111: SPARTACUS - Fatal solver/configuration error
+!   114: RSL - Non-finite stability or canopy length-scale input in RSL_cal_prms (GH#2171)
 !
 ! Thread Safety:
 !   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c

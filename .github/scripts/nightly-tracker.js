@@ -247,39 +247,36 @@ module.exports = async ({ github, context, core }) => {
     return { action: 'ignored' };
   }
   // A late report of an older run or attempt must not close or reopen the
-  // tracker over a newer scheduled run's verdict. The newer verdict is the
-  // newest scheduled run's last completed attempt: the run itself when it has
-  // completed, the attempt before the current one while it is being re-run,
-  // or, while a first attempt is still running (no verdict yet), the newest
-  // completed scheduled run. The tracker then reconciles with that verdict
-  // instead of returning, because its own report may have been replaced in
-  // the concurrency queue by this one.
+  // tracker over a newer scheduled verdict. The newest verdict is found by
+  // walking the scheduled runs newest first: a completed run gives its own
+  // attempt, a run being re-run gives the attempt before the current one, and
+  // a first attempt still running has no verdict yet and is skipped. The
+  // tracker then reconciles with that verdict instead of returning, because
+  // its own report may have been replaced in the concurrency queue by this one.
   const attemptOf = r => (r && r.run_attempt) || 1;
   const newer = r => r && ((r.id !== run.id && r.created_at > run.created_at)
     || (r.id === run.id && attemptOf(r) > attemptOf(run)));
   let target = null;
-  const { data: anyRuns } = await github.rest.actions.listWorkflowRuns({
-    owner, repo, workflow_id: run.workflow_id, event: 'schedule', per_page: 1,
+  const { data: recent } = await github.rest.actions.listWorkflowRuns({
+    owner, repo, workflow_id: run.workflow_id, event: 'schedule', per_page: 30,
   });
-  const newestAny = (anyRuns.workflow_runs || [])[0];
-  if (newestAny && newestAny.status === 'completed') {
-    target = { id: newestAny.id, attempt: attemptOf(newestAny), created_at: newestAny.created_at };
-  } else if (newestAny && attemptOf(newestAny) > 1) {
-    target = { id: newestAny.id, attempt: attemptOf(newestAny) - 1, created_at: newestAny.created_at };
-  } else {
-    const { data: done } = await github.rest.actions.listWorkflowRuns({
-      owner, repo, workflow_id: run.workflow_id, event: 'schedule', status: 'completed', per_page: 1,
-    });
-    const c = (done.workflow_runs || [])[0];
-    if (c) target = { id: c.id, attempt: attemptOf(c), created_at: c.created_at };
+  for (const r of recent.workflow_runs || []) {
+    if (r.status === 'completed') {
+      target = { id: r.id, run_attempt: attemptOf(r), created_at: r.created_at };
+    } else if (attemptOf(r) > 1) {
+      target = { id: r.id, run_attempt: attemptOf(r) - 1, created_at: r.created_at };
+    } else {
+      continue;
+    }
+    break;
   }
   let reconcile = false;
-  if (target && newer({ id: target.id, run_attempt: target.attempt, created_at: target.created_at })) {
-    core.info(`Run ${runId} attempt ${attemptOf(run)} is superseded by run ${target.id} attempt ${target.attempt}.`);
+  if (newer(target)) {
+    core.info(`Run ${runId} attempt ${attemptOf(run)} is superseded by run ${target.id} attempt ${target.run_attempt}.`);
     // A dry run carries on with the given run, so a past run can be replayed.
     if (!dryRun) {
       ({ data: run } = await github.rest.actions.getWorkflowRunAttempt({
-        owner, repo, run_id: target.id, attempt_number: target.attempt,
+        owner, repo, run_id: target.id, attempt_number: target.run_attempt,
       }));
       reconcile = true;
     }

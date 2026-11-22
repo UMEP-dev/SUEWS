@@ -115,7 +115,7 @@ test('buildReport says so when nothing changed, nothing was read, or the list is
 });
 
 // A fake client recording every write.
-function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null, comments = [], attempts = {}, newestAny = null } = {}) {
+function fakeGithub({ run = {}, openIssues = [], createFails = false, createError = null, pages = null, newest = null, comments = [], attempts = {}, newestAny = null, recent = null } = {}) {
   const calls = [];
   const theRun = {
     id: 1, event: 'schedule', conclusion: 'failure', path: NIGHTLY, name: 'Nightly',
@@ -149,8 +149,7 @@ function fakeGithub({ run = {}, openIssues = [], createFails = false, createErro
           { id: 1, created_at: '2026-11-22T02:00:00Z', head_sha: 'HEAD', html_url: 'SELF' },
           { id: 0, created_at: '2026-11-20T02:00:00Z', head_sha: 'BASE', html_url: 'GREEN' },
         ] } };
-        if (p.status === 'completed') return { data: { workflow_runs: [done] } };
-        return { data: { workflow_runs: [newestAny || done] } };
+        return { data: { workflow_runs: recent || (newestAny ? [newestAny, done] : [done]) } };
       },
     },
     repos: {
@@ -429,6 +428,42 @@ test('an older run\'s late red report does not reopen after a newer green attemp
       run: { id: 1, conclusion: 'failure', created_at: '2026-11-21T02:00:00Z' },
       newest: { id: 1, created_at: '2026-11-21T02:00:00Z' },
       newestAny: { id: 2, created_at: '2026-11-22T02:00:00Z', status: 'in_progress', run_attempt: 3 },
+      attempts: { '2:2': { id: 2, conclusion: 'success', created_at: '2026-11-22T02:00:00Z' } },
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'none');
+    assert.deepEqual(calls.filter(c => c[0] !== 'attempt'), []);
+  }));
+
+test('a re-running run hidden behind a newer first attempt still holds the verdict', () =>
+  withEnv({ RUN_ATTEMPT: '1' }, async () => {
+    // A (id 1) green and late; B (id 2) red, reported, re-running; C (id 3) first attempt running.
+    const recent = [
+      { id: 3, created_at: '2026-11-23T02:00:00Z', status: 'in_progress', run_attempt: 1 },
+      { id: 2, created_at: '2026-11-22T02:00:00Z', status: 'in_progress', run_attempt: 2 },
+      { id: 1, created_at: '2026-11-21T02:00:00Z', status: 'completed', run_attempt: 1 },
+    ];
+    const { github, calls } = fakeGithub({
+      run: { id: 1, conclusion: 'success', created_at: '2026-11-21T02:00:00Z' },
+      openIssues: [TRACKER], recent,
+      attempts: { '2:1': { id: 2, conclusion: 'failure', created_at: '2026-11-22T02:00:00Z' } },
+      comments: [{ user: { login: 'github-actions[bot]' }, body: `${tracker.runTag(2, 1)}\nreported` }],
+    });
+    const out = await tracker({ github, context, core: fakeCore() });
+    assert.equal(out.action, 'none');
+    assert.ok(calls.some(c => c[0] === 'attempt' && c[1] === 1));
+    assert.deepEqual(calls.filter(c => c[0] !== 'attempt'), []);
+  }));
+
+test('and an old red report does not reopen after that run\'s green attempt', () =>
+  withEnv({ RUN_ATTEMPT: '1' }, async () => {
+    const recent = [
+      { id: 3, created_at: '2026-11-23T02:00:00Z', status: 'in_progress', run_attempt: 1 },
+      { id: 2, created_at: '2026-11-22T02:00:00Z', status: 'in_progress', run_attempt: 3 },
+      { id: 1, created_at: '2026-11-21T02:00:00Z', status: 'completed', run_attempt: 1 },
+    ];
+    const { github, calls } = fakeGithub({
+      run: { id: 1, conclusion: 'failure', created_at: '2026-11-21T02:00:00Z' }, recent,
       attempts: { '2:2': { id: 2, conclusion: 'success', created_at: '2026-11-22T02:00:00Z' } },
     });
     const out = await tracker({ github, context, core: fakeCore() });

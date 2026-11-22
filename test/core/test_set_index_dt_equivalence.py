@@ -79,7 +79,11 @@ def _frame_from_rows(rows: list[tuple]) -> pd.DataFrame:
 
 def _capture_error(func, df_raw: pd.DataFrame) -> BaseException:
     """Call *func(df_raw)* and return the raised exception, failing if none raised."""
-    with pytest.raises((ValueError, RuntimeError, IndexError)) as exc_info:
+    # ZeroDivisionError: all-duplicate rows give a zero frequency, which
+    # pandas rejects in ``asfreq`` on both the reference and the fast path.
+    with pytest.raises(
+        (ValueError, RuntimeError, IndexError, ZeroDivisionError)
+    ) as exc_info:
         func(df_raw)
     return exc_info.value
 

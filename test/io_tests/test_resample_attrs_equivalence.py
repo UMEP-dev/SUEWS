@@ -412,6 +412,8 @@ def test_strip_attrs_avoids_deepcopy_and_leaves_source_untouched():
     pd.testing.assert_frame_equal(bare, df, check_exact=True)
 
     # Confirm the tracker is live: boundary operations copy the payload once.
+    # The frame comparison above copies attrs through pandas itself, so reset.
+    log.clear()
     prep = prepare_output(df, units={"Rain": "mm h-1"}, interval_s=TSTEP_S)
     assert len(log) == 1
     assert prep.attrs["tracker"] == tracker

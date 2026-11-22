@@ -1467,7 +1467,9 @@ jobs:
   # reported it: ci_observability runs only on pull_request and merge_group,
   # and a cancelled run never reaches deploy_testpypi. This job runs on every
   # scheduled run, opens or updates one tracking issue while the nightly is
-  # red, and closes it on the next green run.
+  # red, and closes it on the next green run. The issue is assigned to a
+  # maintainer (NIGHTLY_ASSIGNEE) and names the failed job leaves and the PRs
+  # merged since the last green night.
   #
   # Its needs are the jobs that must run and pass on a schedule, plus
   # cost_markers, which it reads for its outputs alone: the drift status goes
@@ -1487,76 +1489,29 @@ jobs:
     if: always() && github.event_name == 'schedule'
     permissions:
       issues: write
+      actions: read     # list the run's job leaves and the last green run
+      contents: read    # sparse checkout and the commit comparison
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      # The issue is assigned to NIGHTLY_ASSIGNEE so a red night reaches a
+      # maintainer by GitHub's assignee notification, not only repo watchers.
+      # Logic and tests: .github/scripts/nightly-tracker.js(.test.js).
       - name: Open, update or close the nightly tracking issue
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_ID: ${{ github.run_id }}
+          NIGHTLY_ASSIGNEE: sunt05
         with:
           script: |
-            const needs = JSON.parse(process.env.NEEDS_JSON);
-            // Recording jobs are read for their outputs and never counted.
-            const recording = new Set(['cost_markers']);
-            const bad = Object.entries(needs)
-              .filter(([k, v]) => !recording.has(k) && v.result !== 'success')
-              .map(([k, v]) => `${k}: ${v.result || 'no result'}`);
-            const cost = (needs.cost_markers && needs.cost_markers.outputs) || {};
-            const costNote = {
-              drift: `${cost.flagged} test(s) carry a cost marker that disagrees with their measured CPU seconds; see the "Cost-marker drift" job summary of ${process.env.RUN_URL}`,
-              clean: 'none; every medium and slow marker agrees with its measured CPU seconds',
-              unavailable: 'not checked; the job could not read its metrics artefacts',
-            }[cost.status] || 'not checked; the job did not run';
-            const costLine = `Cost-marker drift (information, not a failure): ${costNote}.`;
-            // The summary is information; never let it stop the tracker logic.
-            try {
-              await core.summary.addHeading('Cost-marker drift', 3).addRaw(costLine, true).write();
-            } catch (err) {
-              core.warning(`Could not write the cost-marker summary: ${err.message}`);
-            }
-            const title = 'Nightly scheduled run is failing';
-            const marker = '<!-- nightly-run-tracker -->';
-            const { data: open } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner, repo: context.repo.repo,
-              state: 'open', labels: '2-infra:ci', per_page: 100,
-            });
-            const tracker = open.find(i => i.title === title && (i.body || '').includes(marker));
-            const today = new Date().toISOString().slice(0, 10);
-            if (bad.length === 0) {
-              if (tracker) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner, repo: context.repo.repo, issue_number: tracker.number,
-                  body: `Green again on ${today}: ${process.env.RUN_URL}. Closing.`,
-                });
-                await github.rest.issues.update({
-                  owner: context.repo.owner, repo: context.repo.repo, issue_number: tracker.number, state: 'closed',
-                });
-              }
-              return;
-            }
-            const line = `${today}: ${process.env.RUN_URL} (${bad.join(', ')})`;
-            if (tracker) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo, issue_number: tracker.number,
-                body: `Still failing. ${line}\n\n${costLine}`,
-              });
-              return;
-            }
-            await github.rest.issues.create({
-              owner: context.repo.owner, repo: context.repo.repo,
-              title,
-              labels: ['2-infra:ci'],
-              body: [
-                marker,
-                'Opened automatically by the `report_scheduled_run` job in `build-publish_to_pypi.yml`.',
-                'The scheduled full-tier run did not complete successfully. Each further failing night adds a comment; the first green night closes this issue.',
-                '',
-                `First failure: ${line}`,
-                '',
-                costLine,
-              ].join('\n'),
-            });
+            const tracker = require('./.github/scripts/nightly-tracker.js');
+            await tracker({ github, context, core });
 
   deploy_testpypi:
     name: Publish to TestPyPI

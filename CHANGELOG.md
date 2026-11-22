@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 22 Nov 2026
+
+- [maintenance] On pull requests, skip the macOS api cross-CPython cells (the macOS wheel and its physics tier still run; the merge queue and nightly keep macOS api coverage) and split the Windows cp312 api cell into two deterministic shards with the new `scripts/suews/pytest_shard.py` plugin, to shorten pull-request CI wall time; a `pr_api_lane` dispatch input applies the same layout to a dispatch
+
 ### 21 Nov 2026
 
 - [bugfix] Exclude zero-area surfaces (`sfr_surf == 0`) and absent building facets (`sfr_surf(BldgSurf) == 0`) from the `suews_update_tsurf` surface-temperature and EHC sensible-heat convergence stop criteria so absent surfaces cannot prolong fixed-point iterations or leak into grid-scale fluxes (#2173)

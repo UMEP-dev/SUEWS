@@ -614,7 +614,17 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
             [0.31, 0.32, 0.33, 0.34],
         );
         strip_veg_shadow_defaults(lc, "evetr");
+        // Grass is active in this fixture, and active vegetation must keep a positive
+        // lai_max (#2149), so restore the sample's value after stripping; the omitted-LAI
+        // receiver path is still exercised on inactive evetr.
+        let grass_lai_max = lc["grass"]["lai"]["lai_max"].clone();
         strip_veg_shadow_defaults(lc, "grass");
+        mapping_at_mut(
+            lc.get_mut(Value::String("grass".to_string()))
+                .expect("grass"),
+            &["lai"],
+        )
+        .insert(Value::String("lai_max".to_string()), grass_lai_max);
     }
 
     let cfg = load_run_config_from_value(&mut root)

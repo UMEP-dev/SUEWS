@@ -9,7 +9,13 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from conftest import run_cli_command
+import pandas as pd
 import pytest
+import yaml
+
+import supy as sp
+from supy.cmd.SUEWS import SUEWS
 
 pytestmark = [
     pytest.mark.physics,
@@ -490,3 +496,83 @@ def test_bridge_forced_rsl_zero_pai_raises_code_114_and_recovers(
 
     recovered = rust.run_suews_multi([json.dumps(valid_cfg)], forcing_flat, n_steps, 1)
     assert recovered == baseline
+
+
+def _forced_rsl_zero_pai(config):
+    """Force RSL on a 100 % paved grid, so PAI = 0 and Lc is non-finite."""
+    config.model.physics.roughness_sublayer = 1
+    land_cover = config.sites[0].properties.land_cover
+    for key in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"):
+        getattr(land_cover, key).sfr = 1.0 if key == "paved" else 0.0
+    return config
+
+
+@pytest.mark.parametrize("n_jobs", [1, -1], ids=["serial", "default-jobs"])
+def test_simulation_run_forced_rsl_zero_pai_raises_code_114_and_recovers(
+    sample_config_loaded, sample_data_loaded, n_jobs
+):
+    """``SUEWSSimulation.run()`` surfaces code 114 and a following valid run succeeds."""
+    _, forcing = sample_data_loaded
+    forcing_short = forcing.iloc[:2].copy()
+    run_options = {
+        "start_date": forcing_short.index[0],
+        "end_date": forcing_short.index[-1],
+        "n_jobs": n_jobs,
+    }
+
+    def make_sim(config):
+        sim = sp.SUEWSSimulation()
+        sim.update_config(config, auto_load_forcing=False)
+        sim.update_forcing(forcing_short)
+        return sim
+
+    baseline = (
+        make_sim(sample_config_loaded.model_copy(deep=True)).run(**run_options).df
+    )
+
+    zero_pai = make_sim(
+        _forced_rsl_zero_pai(sample_config_loaded.model_copy(deep=True))
+    )
+    with pytest.raises(
+        RuntimeError,
+        match=r"code 114.*RSL_cal_prms: non-finite canopy drag length scale Lc_min",
+    ):
+        zero_pai.run(**run_options)
+
+    recovered = (
+        make_sim(sample_config_loaded.model_copy(deep=True)).run(**run_options).df
+    )
+    pd.testing.assert_frame_equal(recovered, baseline)
+
+
+def test_suews_run_cli_forced_rsl_zero_pai_fails_with_code_114(
+    cli_runner, tmp_path, monkeypatch
+):
+    """``suews-run`` exits non-zero with code 114 and writes no output files."""
+    benchmark_dir = Path(__file__).resolve().parents[1] / "fixtures" / "benchmark1"
+    forcing_name = "Kc1_2011_data_5_short.txt"
+    (tmp_path / "forcing").mkdir()
+    shutil.copyfile(
+        benchmark_dir / "forcing" / forcing_name, tmp_path / "forcing" / forcing_name
+    )
+    config = yaml.safe_load(
+        (benchmark_dir / "benchmark1_short.yml").read_text(encoding="utf-8")
+    )
+    config["model"]["physics"]["roughness_sublayer"] = {"value": 1}
+    land_cover = config["sites"][0]["properties"]["land_cover"]
+    for key in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"):
+        land_cover[key]["sfr"] = {"value": 1.0 if key == "paved" else 0.0}
+    path_config = tmp_path / "forced_rsl_zero_pai.yml"
+    path_config.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = run_cli_command(cli_runner, SUEWS, [str(path_config)], check=False)
+
+    combined = result.stdout + result.stderr
+    assert result.returncode != 0, combined
+    assert "code 114" in combined, combined
+    assert "RSL_cal_prms: non-finite canopy drag length scale Lc_min" in combined, (
+        combined
+    )
+    assert "successfully done" not in combined
+    assert not list(tmp_path.glob("*_SUEWS_output.*"))

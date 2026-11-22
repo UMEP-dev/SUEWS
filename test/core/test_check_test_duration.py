@@ -718,6 +718,114 @@ def test_unsupported_metrics_schema_exits_2(
 
 
 @pytest.mark.smoke
+@pytest.mark.core
+def test_cli_empty_and_absent_metrics_dirs_write_incomplete_json_markdown_and_annotations(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Complete metrics loss (empty or absent dir) still emits an incomplete report."""
+    baseline_path = tmp_path / "baseline.json"
+    guard.write_baseline(_synthetic_baseline(), baseline_path)
+
+    empty_dir = tmp_path / "empty-metrics"
+    empty_dir.mkdir()
+    absent_dir = tmp_path / "absent-metrics"
+
+    for label, target in (("empty", empty_dir), ("absent", absent_dir)):
+        out_json = tmp_path / f"{label}.json"
+        out_md = tmp_path / f"{label}.md"
+        rc = guard.main([
+            str(target),
+            "--baseline",
+            str(baseline_path),
+            "--no-changed-test-files",
+            "--json",
+            str(out_json),
+            "--markdown",
+            str(out_md),
+            "--annotations",
+        ])
+        out = capsys.readouterr().out
+        assert rc == 1, label
+        assert out_json.is_file(), label
+        payload = json.loads(out_json.read_text(encoding="utf-8"))
+        assert payload["ok"] is False, label
+        assert payload["complete"] is False, label
+        assert payload["status"] == "incomplete", label
+        assert sorted(payload["incomplete_lanes"]) == ["api", "physics"], label
+        assert payload["lanes"]["api"]["status"] == "missing", label
+        assert payload["lanes"]["physics"]["status"] == "missing", label
+        assert "Status: **INCOMPLETE**" in out_md.read_text(encoding="utf-8"), label
+        assert "::warning title=Test duration guard incomplete::api lane" in out, label
+        assert "::warning title=Test duration guard incomplete::physics lane" in out, label
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_newline_bearing_node_id_cannot_forge_workflow_commands(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Control chars in untrusted node IDs are sanitised and guarded by stop-commands."""
+    baseline = _api_only_baseline()
+    baseline_path = tmp_path / "baseline.json"
+    guard.write_baseline(baseline, baseline_path)
+
+    forged_node = "test/core/test_evil.py::test_x[\n::error title=forged::pwned\r\n]"
+    records = [
+        _record(nid, call=cpu, markers=("api",))
+        for nid, cpu in baseline.lanes["api"].reference_tests.items()
+    ]
+    records.append(_record(forged_node, call=25.0, markers=("api",)))
+    artefact_path = _write_artefact(
+        tmp_path / "api" / "api-cp312-manylinux-x86_64.json", records
+    )
+
+    # Without --annotations: no output line may start with `::`.
+    rc_plain = guard.main([
+        str(artefact_path),
+        "--baseline",
+        str(baseline_path),
+        "--test-file",
+        "test/core/test_evil.py",
+        "--max-regression",
+        "5.0",
+    ])
+    plain_lines = capsys.readouterr().out.splitlines()
+    assert rc_plain == 1
+    assert not any(line.lstrip().startswith("::") for line in plain_lines), plain_lines
+
+    # With --annotations: plain text is wrapped in ::stop-commands::<tok> ... ::<tok>::,
+    # and the only other `::` lines are the intended ::warning annotations.
+    rc_ann = guard.main([
+        str(artefact_path),
+        "--baseline",
+        str(baseline_path),
+        "--test-file",
+        "test/core/test_evil.py",
+        "--max-regression",
+        "5.0",
+        "--annotations",
+    ])
+    ann_lines = capsys.readouterr().out.splitlines()
+    assert rc_ann == 1
+    stop_lines = [line for line in ann_lines if line.startswith("::stop-commands::")]
+    assert len(stop_lines) == 1
+    token = stop_lines[0].removeprefix("::stop-commands::")
+    assert token
+    resume_line = f"::{token}::"
+    assert resume_line in ann_lines
+    assert ann_lines.index(stop_lines[0]) < ann_lines.index(resume_line)
+
+    command_lines = [line for line in ann_lines if line.lstrip().startswith("::")]
+    for line in command_lines:
+        assert (
+            line == stop_lines[0]
+            or line == resume_line
+            or line.startswith("::warning title=Test cost marker::")
+        ), f"unexpected workflow command line: {line!r}"
+    assert not any(line.lstrip().startswith("::error") for line in ann_lines)
+
+
+@pytest.mark.smoke
 def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> None:
     """Committed baseline is valid; CI job is report-only, standard-PR-only, and path-filtered."""
     baseline_path = REPO_ROOT / "scripts/lint/test_duration_baseline.json"

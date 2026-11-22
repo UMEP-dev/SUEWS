@@ -988,10 +988,7 @@ jobs:
             echo "check_test_duration.py or its baseline is not yet on the base branch; skipping."
             exit 0
           fi
-          if [ ! -d ci-metrics ]; then
-            echo "No ci-metrics artefacts downloaded; skipping."
-            exit 0
-          fi
+          mkdir -p ci-metrics
           # File names are PR data: read them into an array through jq, never
           # into the text of a command.
           mapfile -t files < <(printf '%s' "$TESTS_FILES" | jq -r '.[] | select(test("^test/.+\\.py$"))')

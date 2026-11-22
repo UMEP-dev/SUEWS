@@ -54,6 +54,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import secrets
 import statistics
 import sys
 from typing import Any
@@ -199,11 +200,14 @@ class MarkerWarning:
 
     def line(self) -> str:
         """Render a single plain-text bullet describing this finding."""
-        current = self.current or "no cost marker"
+        current = _sanitise_identifier(self.current or "no cost marker")
+        node_id = _sanitise_identifier(self.node_id)
+        wanted = _sanitise_identifier(self.wanted)
+        source = _sanitise_identifier(self.source)
         return (
-            f"  - {self.node_id}: {self.scaled_cpu_seconds:.1f} normalised CPU-s "
+            f"  - {node_id}: {self.scaled_cpu_seconds:.1f} normalised CPU-s "
             f"(raw {self.raw_cpu_seconds:.1f} s, runner {self.runner_factor:.2f}x; "
-            f"{current} -> {self.wanted}; {self.source})"
+            f"{current} -> {wanted}; {source})"
         )
 
 
@@ -381,9 +385,8 @@ class DurationReport:
                     f"runner {res.factor_summary()}, {res.measured_count} measured tests)"
                 )
             else:
-                lines.append(
-                    f"  [skip] {lane}: {res.status} ({res.reason or 'unavailable'})"
-                )
+                reason = _sanitise_identifier(res.reason or "unavailable")
+                lines.append(f"  [skip] {lane}: {res.status} ({reason})")
 
         if self.marker_warnings:
             lines.append(
@@ -397,7 +400,7 @@ class DurationReport:
             )
         if self.incomplete_lanes:
             summary = "; ".join(
-                f"{res.lane} ({res.status}: {res.reason or res.status})"
+                f"{res.lane} ({res.status}: {_sanitise_identifier(res.reason or res.status)})"
                 for res in self.incomplete_lanes
             )
             lines.append(
@@ -418,7 +421,7 @@ class DurationReport:
                 "within threshold and no under-marked changed tests."
             )
         missing_summary = "; ".join(
-            f"`{res.lane}` ({res.status}: {res.reason or res.status})"
+            f"`{res.lane}` ({res.status}: {_sanitise_identifier(res.reason or res.status)})"
             for res in self.incomplete_lanes
         )
         if self.status == "incomplete":
@@ -471,9 +474,8 @@ class DurationReport:
         if self.incomplete_lanes:
             lines.append("")
             for res in self.incomplete_lanes:
-                lines.append(
-                    f"- `{res.lane}` ({res.status}): {res.reason or res.status}"
-                )
+                reason = _sanitise_identifier(res.reason or res.status)
+                lines.append(f"- `{res.lane}` ({res.status}): {reason}")
 
         if self.marker_warnings:
             lines.extend([
@@ -484,8 +486,9 @@ class DurationReport:
                 "|---|---|---:|---:|---:|---|---|",
             ])
             for warning in self.marker_warnings:
+                node_md = _sanitise_markdown_code(warning.node_id)
                 lines.append(
-                    f"| `{warning.node_id}` | `{warning.lane}` | "
+                    f"| `{node_md}` | `{warning.lane}` | "
                     f"{warning.scaled_cpu_seconds:.1f} | {warning.raw_cpu_seconds:.1f} | "
                     f"{warning.runner_factor:.2f}x | {warning.current or '-'} | "
                     f"{warning.wanted} |"
@@ -513,8 +516,9 @@ class DurationReport:
                         if item.delta_seconds is None
                         else f"{item.delta_seconds:+.2f}"
                     )
+                    node_md = _sanitise_markdown_code(item.node_id)
                     lines.append(
-                        f"| `{item.node_id}` | {item.scaled_cpu_seconds:.2f} | "
+                        f"| `{node_md}` | {item.scaled_cpu_seconds:.2f} | "
                         f"{base_str} | {delta_str} |"
                     )
             if res.top_reference_increases:
@@ -526,8 +530,9 @@ class DurationReport:
                     "|---|---:|---:|---:|",
                 ])
                 for item in res.top_reference_increases:
+                    node_md = _sanitise_markdown_code(item.node_id)
                     lines.append(
-                        f"| `{item.node_id}` | {item.scaled_cpu_seconds:.2f} | "
+                        f"| `{node_md}` | {item.scaled_cpu_seconds:.2f} | "
                         f"{item.baseline_cpu_seconds:.2f} | {item.delta_seconds:+.2f} |"
                     )
 
@@ -549,23 +554,41 @@ class DurationReport:
             )
             commands.append(_format_warning_annotation("Test duration regression", msg))
         for warning in self.marker_warnings:
-            current = warning.current or "no cost marker"
+            current = _sanitise_identifier(warning.current or "no cost marker")
+            node_id = _sanitise_identifier(warning.node_id)
+            wanted = _sanitise_identifier(warning.wanted)
             msg = (
-                f"{warning.node_id} ({warning.lane}): "
+                f"{node_id} ({warning.lane}): "
                 f"{warning.scaled_cpu_seconds:.1f} normalised CPU-s "
                 f"(raw {warning.raw_cpu_seconds:.1f} s, runner {warning.runner_factor:.2f}x; "
-                f"{current} -> {warning.wanted}). See .claude/rules/tests/patterns.md."
+                f"{current} -> {wanted}). See .claude/rules/tests/patterns.md."
             )
             commands.append(_format_warning_annotation("Test cost marker", msg))
         for res in self.incomplete_lanes:
+            reason = _sanitise_identifier(res.reason or res.status)
             msg = (
                 f"{res.lane} lane comparison incomplete ({res.status}: "
-                f"{res.reason or res.status}); report-only, see job summary."
+                f"{reason}); report-only, see job summary."
             )
             commands.append(
                 _format_warning_annotation("Test duration guard incomplete", msg)
             )
         return commands
+
+
+def _sanitise_identifier(text: str) -> str:
+    """Replace control/non-ASCII characters and neutralise leading ``::``."""
+    cleaned = "".join(ch if 0x20 <= ord(ch) <= 0x7E else " " for ch in str(text))
+    stripped = cleaned.lstrip()
+    if stripped.startswith("::"):
+        prefix_len = len(cleaned) - len(stripped)
+        cleaned = cleaned[:prefix_len] + ": :" + stripped[2:]
+    return cleaned
+
+
+def _sanitise_markdown_code(text: str) -> str:
+    """Sanitise untrusted text for safe placement inside a Markdown table code span."""
+    return _sanitise_identifier(text).replace("`", "'").replace("|", "/")
 
 
 def _format_signed_pct(ratio: float) -> str:
@@ -685,7 +708,8 @@ def load_artefacts(
     schema version.
     """
     artefacts: list[ArtefactTests] = []
-    for path in cost_markers.iter_artefact_paths(paths):
+    existing_paths = [path for path in paths if path.exists()]
+    for path in cost_markers.iter_artefact_paths(existing_paths):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -1570,6 +1594,29 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _emit_cli_output(
+    report: DurationReport,
+    skipped: Sequence[str],
+    *,
+    emit_annotations: bool,
+) -> None:
+    """Print sanitised plain-text output, guarded by ``::stop-commands::`` when emitting annotations."""
+    stop_token = (
+        f"end-duration-guard-{secrets.token_hex(12)}" if emit_annotations else None
+    )
+    if stop_token is not None:
+        print(f"::stop-commands::{stop_token}")
+    for path_str in skipped:
+        print(
+            f"[skip] {_sanitise_identifier(path_str)}: not a lane pytest metrics artefact"
+        )
+    print(report.message())
+    if stop_token is not None:
+        print(f"::{stop_token}::")
+        for command in report.annotations():
+            print(command)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI to check or regenerate test-duration baselines."""
     args = _parse_args(argv)
@@ -1608,14 +1655,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[X] {exc}")
         return 2
 
-    for path_str in skipped:
-        print(f"[skip] {path_str}: not a lane pytest metrics artefact")
-    if not artefacts:
-        print(
-            "[X] no lane metrics artefacts found; pass ci-metrics-*-cp312-manylinux-x86_64 artefacts"
-        )
-        return 2
-
     changed_test_files: list[str] | None
     if args.test_files:
         changed_test_files = list(args.test_files)
@@ -1635,10 +1674,7 @@ def main(argv: list[str] | None = None) -> int:
         min_reference_matches=args.min_reference_matches,
         min_coverage_ratio=args.min_coverage_ratio,
     )
-    print(report.message())
-    if args.annotations:
-        for command in report.annotations():
-            print(command)
+    _emit_cli_output(report, skipped, emit_annotations=args.annotations)
     if args.markdown:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
         with args.markdown.open("a", encoding="utf-8") as handle:

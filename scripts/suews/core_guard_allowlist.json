@@ -1,0 +1,24 @@
+{
+  "_comment": "Core tests that may skip in a Linux lane before merge, by exact node id. Read by scripts/suews/check_core_guard.py; an entry that no longer skips, or names a test that is not a core test of its lane, fails the guard. Adding an entry needs a reason a reviewer can check.",
+  "schema_version": 1,
+  "allowed": [
+    {
+      "node_id": "test/physics/test_standalone_spartacus_errors.py::test_standalone_reports_first_fatal[both_workers]",
+      "lane": "physics",
+      "outcome": "skipped",
+      "reason": "Needs the standalone SPARTACUS executable built with NetCDF and OpenMP (src/suews/ext_lib/spartacus-surface/bin/spartacus_surface), which no CI wheel lane builds; the fixture skips without it."
+    },
+    {
+      "node_id": "test/physics/test_standalone_spartacus_errors.py::test_standalone_reports_first_fatal[serial_config]",
+      "lane": "physics",
+      "outcome": "skipped",
+      "reason": "Needs the standalone SPARTACUS executable built with NetCDF and OpenMP (src/suews/ext_lib/spartacus-surface/bin/spartacus_surface), which no CI wheel lane builds; the fixture skips without it."
+    },
+    {
+      "node_id": "test/physics/test_standalone_spartacus_errors.py::test_standalone_reports_first_fatal[worker_only]",
+      "lane": "physics",
+      "outcome": "skipped",
+      "reason": "Needs the standalone SPARTACUS executable built with NetCDF and OpenMP (src/suews/ext_lib/spartacus-surface/bin/spartacus_surface), which no CI wheel lane builds; the fixture skips without it."
+    }
+  ]
+}

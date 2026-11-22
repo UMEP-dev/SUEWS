@@ -211,6 +211,22 @@ jobs:
           python -m pytest -p scripts.suews.pytest_ci_metrics test \
             -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS $SHARD_ARGS
 
+      # The core-test guard (scripts/suews/check_core_guard.py) compares what
+      # every Linux lane ran against the whole suite, so one Linux cp312 cell
+      # (the unsharded one, or shard 1) records every collected node id and its
+      # markers with no -m and no shard split. It runs after the tests so a
+      # test failure is reported first; it uploads with the metrics below.
+      - name: Record the test inventory for the core-test guard
+        if: >-
+          (success() || failure()) && matrix.buildplat[1] == 'manylinux' &&
+          matrix.python_version == 'cp312' && (matrix.shard == '' || startsWith(matrix.shard, '1-of-'))
+        shell: bash
+        run: |
+          python -m pytest -p scripts.suews.pytest_inventory --collect-only -q \
+            -p no:cacheprovider test \
+            --suews-inventory "ci-metrics/inventory-cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json" \
+            > /dev/null
+
       - name: Upload API test metrics
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7

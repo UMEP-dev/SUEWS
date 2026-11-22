@@ -1294,6 +1294,64 @@ jobs:
       head_sha: ${{ github.event.merge_group.head_sha || github.sha }}
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
+  # Every core test must pass on Linux before a merge (22 Nov 2026). The
+  # Linux lanes' metrics record each test's node id, markers and outcome, and
+  # the Linux cp312 api cell records the whole suite's inventory with no -m;
+  # scripts/suews/check_core_guard.py checks that every lane ran exactly what
+  # its tier selects (shards present, disjoint and complete), that every core
+  # test passed (a skip passes only by exact node id in
+  # scripts/suews/core_guard_allowlist.json), and names the exact sample-output
+  # reproduction test. It runs on ready tiers only; draft tiers run a subset
+  # by design. A run whose paths need no build (needs-build false and no
+  # physics or numerics label, in practice documentation-only changes)
+  # builds nothing and runs no tests: that is the single exemption, and this
+  # job is skipped there. pr-gate requires it whenever the ready tier ran.
+  # The pr_api_lane dispatch runs it too, so the pull-request layout can be
+  # checked on a branch.
+  core_guard:
+    name: Core-test guard (Linux)
+    needs: [determine_matrix, build_wheels]
+    if: >-
+      always() &&
+      (needs.build_wheels.result == 'success' || needs.build_wheels.result == 'failure') &&
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group' ||
+       (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane)) &&
+      (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
+      contains(needs.determine_matrix.outputs.buildplat, '"manylinux"')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: scripts/suews
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      # Only the Linux lanes' artefacts: the guard needs their per-test
+      # outcomes and the inventory, nothing else.
+      - name: Download the Linux test metrics
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ci-metrics-*-manylinux-x86_64*
+          path: ci-metrics/
+
+      # pytest supplies the -m expression evaluator; the version is the lanes' pin.
+      - name: Check every core test passed on Linux
+        shell: bash
+        env:
+          TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
+          # The api lane's Python list, exactly as build_wheels passes it.
+          API_PYTHON: ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
+          PHYSICS_PYTHON: ${{ fromJson(needs.determine_matrix.outputs.python)[0] }}
+        run: |
+          python -m pip install --quiet pytest==9.1.1
+          python scripts/suews/check_core_guard.py ci-metrics \
+            --tier "$TEST_TIER" --api-python "$API_PYTHON" \
+            --physics-python "$PHYSICS_PYTHON" --summary "$GITHUB_STEP_SUMMARY"
+
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
@@ -1301,6 +1359,7 @@ jobs:
     needs:
       - build_wheels
       - build_mcp
+      - core_guard
       - check_test_markers
       - check_physics_label
       - lowest_direct_deps
@@ -1334,6 +1393,8 @@ jobs:
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
           BUILD_MCP_RESULT: ${{ needs.build_mcp.result }}
           TEST_BRIDGE_RESULT: ${{ needs.build_wheels.result }}
+          CORE_GUARD_RESULT: ${{ needs.core_guard.result }}
+          TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           PHYSICS_LABEL_RESULT: ${{ needs.check_physics_label.result }}
           LOWEST_DIRECT_DEPS_RESULT: ${{ needs.lowest_direct_deps.result }}

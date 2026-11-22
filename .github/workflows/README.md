@@ -51,6 +51,26 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   (`report_scheduled_run`) names the PRs merged since the last green night (#2241). Tag releases build
   and test the full matrix, and every publish job needs `build_wheels` to
   succeed, so the full matrix is the release gate.
+- **Core tests always pass on Linux before a merge.** The `Core-test guard
+  (Linux)` job (`scripts/suews/check_core_guard.py`) runs on every ready-tier
+  run (standard or physics-full: ready pull requests and the merge queue) and
+  `PR build validation` requires it. It reads the Linux lanes' per-test
+  metrics and the suite inventory the Linux cp312 api cell records with no
+  `-m` (`scripts/suews/pytest_inventory.py`), and fails unless:
+  - each Linux lane ran exactly what its tier selects, with every shard
+    present, disjoint and in its own hash bucket;
+  - every `core` test of the lane's axis has the outcome `passed`; a skip is
+    accepted only by exact node id with a reason in
+    `scripts/suews/core_guard_allowlist.json`, and an entry that no longer
+    applies fails;
+  - `test_sample_run_reproduces_reference_exactly` passed in the physics lane.
+
+  Core tests marked `qgis` are listed, not required: no tier before merge runs
+  `qgis`. **The single exemption** is a run whose paths need no build
+  (`needs-build` false and no physics or numerics label), in practice a
+  documentation-only change: it builds no wheel and runs no tests, so neither
+  the lanes nor the guard run. Draft tiers run a subset by design and are not
+  guarded; the ready run and the merge queue are.
 - The `0-ci:full-matrix` label opts a pull request into every PR platform
   (Linux, macOS arm64, Windows); use it for build-system, Fortran I/O and
   path-handling changes. It is read live when the run starts, so add it and

@@ -1,30 +1,30 @@
 {
   "Build and test (manylinux x86_64) / API cross-CPython tests / *": [
-    "Build and test (manylinux x86_64) / cp*",
+    "Build and test (manylinux x86_64) / wheel | *",
     "Build MCP package",
     "Determine build matrix"
   ],
   "Build and test (macosx arm64) / API cross-CPython tests / *": [
-    "Build and test (macosx arm64) / cp*",
+    "Build and test (macosx arm64) / wheel | *",
     "Build MCP package",
     "Determine build matrix"
   ],
   "Build and test (macosx x86_64) / API cross-CPython tests / *": [
-    "Build and test (macosx x86_64) / cp*",
+    "Build and test (macosx x86_64) / wheel | *",
     "Build MCP package",
     "Determine build matrix"
   ],
   "Build and test (win AMD64) / API cross-CPython tests / *": [
-    "Build and test (win AMD64) / cp*",
+    "Build and test (win AMD64) / wheel | *",
     "Build MCP package",
     "Determine build matrix"
   ],
   "Build and test (manylinux x86_64) / Python coverage *": [
-    "Build and test (manylinux x86_64) / cp*",
+    "Build and test (manylinux x86_64) / wheel | *",
     "Build MCP package",
     "Determine build matrix"
   ],
-  "Build and test (*) / cp*": [
+  "Build and test (*) / wheel | *": [
     "Build MCP package",
     "Create nightly tag for scheduled builds",
     "Detect code changes",
@@ -50,7 +50,7 @@
     "Detect code changes"
   ],
   "Lowest-direct dependency smoke tests (Linux cp312)": [
-    "Build and test (manylinux x86_64) / cp*",
+    "Build and test (manylinux x86_64) / wheel | *",
     "Detect code changes"
   ],
   "Physics-change label": [
@@ -90,7 +90,7 @@
   "Schema version audit / *": [],
   "Tolerance spread / *": [
     "Determine build matrix",
-    "Build and test (*) / cp*"
+    "Build and test (*) / wheel | *"
   ],
   "Workflow security / *": [
     "Detect code changes"

@@ -233,7 +233,7 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
     )
     assert wheel_job["name"] in declared_needs
     assert (
-        "Build and test (manylinux x86_64) / cp*" in declared_needs[wheel_job["name"]]
+        "Build and test (manylinux x86_64) / wheel | *" in declared_needs[wheel_job["name"]]
     )
     assert wheel_job["name"] in declared_needs["PR build validation"]
 
@@ -592,7 +592,7 @@ def test_path_classification_and_gate_triggers_for_normal_docs_and_gate_only_cha
         assert gate_only["decide"]["needs-build"] == "true"
         buildplat = json.loads(gate_only["matrix"]["buildplat"])
         assert ["ubuntu-latest", "manylinux", "x86_64"] in buildplat
-        assert len(buildplat) == (1 if event_name == "pull_request" else 3)
+        assert len(buildplat) == (1 if event_name == "pull_request" else 2)
         assert json.loads(gate_only["matrix"]["python"]) == ["cp312"]
         assert gate_only["matrix"]["test_tier"] == "standard"
         assert gate_only["lowest_direct_triggered"] is True

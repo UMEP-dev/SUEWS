@@ -404,11 +404,38 @@ jobs:
           echo "found=$found" >> "$GITHUB_OUTPUT"
           echo "physics/numerics-change label present: $found (${matched:-none})"
 
+      # A pull request builds and tests on Linux only unless it carries the
+      # 0-ci:full-matrix label, which opts it into every PR platform (use it for
+      # build-system, Fortran I/O and path-handling changes). Read live from
+      # the API like the physics label, so after adding the label a re-run
+      # (or the next push) picks it up; label events do not trigger a run.
+      - name: Detect 0-ci:full-matrix label
+        id: full-matrix-label
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          found=false
+          if [[ "${PR_NUMBER:-}" =~ ^[0-9]+$ ]]; then
+            # A standalone assignment, so a failed API call stops the job
+            # instead of reading as "label absent".
+            labels="$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/labels?per_page=100" --jq '.[].name')"
+            if printf '%s\n' "$labels" | grep -qxF '0-ci:full-matrix'; then
+              found=true
+            fi
+          fi
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+          echo "0-ci:full-matrix label present: $found"
+
       - name: Set matrix based on trigger type
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
           PHYSICS_CHANGE: ${{ steps.physics-label.outputs.found || 'false' }}
+          FULL_MATRIX: ${{ steps.full-matrix-label.outputs.found || 'false' }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           FORTRAN_CHANGED: ${{ needs.detect-changes.outputs.fortran-changed || 'false' }}
           RUST_CHANGED: ${{ needs.detect-changes.outputs.rust-changed || 'false' }}
@@ -508,7 +535,10 @@ jobs:
     with:
       buildplat_json: ${{ format('[["{0}", "{1}", "{2}"]]', matrix.buildplat[0], matrix.buildplat[1], matrix.buildplat[2]) }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
-      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+      # The merge queue runs the Windows wheel at the smoke tier only (Linux
+      # carries the queue's full tier); every other event and platform runs
+      # the tier determine_matrix chose.
+      test_tier: ${{ github.event_name == 'merge_group' && matrix.buildplat[1] == 'win' && 'smoke' || needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
       build_profile: ${{ inputs.build_profile || 'release' }}
       # The api lane runs on this platform when it is in api_buildplat (the
@@ -525,18 +555,21 @@ jobs:
       # Pull requests skip the macOS api cells: macOS runners are the scarce
       # class, and those two cells queued for up to ~90 min under burst pushes
       # on 22 Nov 2026, while the macOS wheel is still built and runs its
-      # physics tier on every 3-platform PR. The merge queue (cp312 on all three OS families)
-      # and the nightly (every bookend) keep the macOS api coverage. The
-      # pr_api_lane dispatch input applies the same layout to a dispatch.
-      run_api_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) && !((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'macosx') }}
+      # physics tier on every PR labelled 0-ci:full-matrix. The merge queue runs
+      # the api lane on Linux only (determine-matrix.sh sets api_buildplat;
+      # the merge_group term repeats it here because determine_matrix runs the
+      # base branch's script). The nightly (every bookend) keeps the macOS and
+      # Windows api coverage. The pr_api_lane dispatch input applies the
+      # pull-request layout to a dispatch.
+      run_api_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) && !((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'macosx') && !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}
       # Pull requests split the Windows cp312 api cell, the usual critical
       # path, into two shards (scripts/suews/pytest_shard.py); Windows
       # runners queue at about zero, so the extra runner costs no wait. The
       # merge queue and the nightly run every cell whole.
       api_shard_python: ${{ (github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win' && 'cp312' || '' }}
       # A ready PR already validates both supported Python bookends. The merge
-      # queue revalidates the combined tree on the abi3 floor only, across all
-      # three supported OS families, instead of repeating the full suite twice.
+      # queue revalidates the combined tree on the abi3 floor only, on Linux,
+      # instead of repeating the full suite twice.
       # Use the build-Python output here as a compatibility bridge while the
       # trusted determine-matrix script is still read from the base branch.
       api_python_json: >-

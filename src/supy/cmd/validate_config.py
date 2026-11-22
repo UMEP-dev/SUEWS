@@ -101,9 +101,11 @@ console = Console()
 
 
 def _console_text(value: str, style: str = "") -> Text:
-    """Keep user text literal and escape only characters the output stream cannot encode."""
-    encoding = console.encoding
-    return Text(value.encode(encoding, errors="backslashreplace").decode(encoding), style=style)
+    """Keep user text literal, escaping every non-ASCII character as ``\\uXXXX``.
+
+    Validator output is ASCII-only (0x00..0x7F) whatever the stream encoding.
+    """
+    return Text(value.encode("ascii", errors="backslashreplace").decode("ascii"), style=style)
 
 
 def _status_text(message: str, ok: bool) -> Text:

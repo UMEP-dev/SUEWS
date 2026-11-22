@@ -266,3 +266,70 @@ def test_publication_rollback_restores_destination_interrupted_on_replace_or_unl
 
     for destination, content in initial.items():
         assert destination.read_bytes() == content
+
+
+def _publication_failure_with_rollback_note(*_args, **_kwargs):
+    error = OSError(errno.EIO, "injected publication failure")
+    error.add_note("Rollback failed for /outputs/report_sample.txt: simulated restore failure")
+    raise error
+
+
+@pytest.mark.parametrize("out_format", ["table", "json"])
+def test_output_error_names_unrestored_outputs_in_both_cli_renderers(
+    tmp_path, monkeypatch, out_format
+):
+    """A rollback failure note reaches the user, naming the output left unrestored."""
+    import importlib.resources
+    import json
+
+    from click.testing import CliRunner
+
+    import supy
+    from supy.cmd.suews_cli import cli
+    from supy.data_model.validation.pipeline import orchestrator
+
+    source = tmp_path / "sample.yml"
+    source.write_text(
+        (importlib.resources.files(supy) / "sample_data" / "sample_config.yml")
+        .read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        orchestrator, "_run_abc_staged", _publication_failure_with_rollback_note
+    )
+
+    result = CliRunner().invoke(
+        cli, ["validate", str(source), "--format", out_format]
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "Traceback" not in result.output
+    if out_format == "json":
+        envelope = json.loads(result.stdout)
+        assert envelope["errors"][0]["code"] == "output_write_failed"
+        message = envelope["errors"][0]["message"]
+    else:
+        message = result.stdout
+
+    def squash(text):
+        # Rich may wrap long table-mode lines; compare without whitespace.
+        return "".join(text.split())
+
+    assert squash("injected publication failure") in squash(message)
+    assert squash(
+        "Rollback failed for /outputs/report_sample.txt: simulated restore failure"
+    ) in squash(message), message
+
+
+def test_output_error_message_carries_rollback_notes():
+    """ABCOutputError keeps the publication error's notes in its message."""
+    from supy.data_model.validation.pipeline.orchestrator import ABCOutputError
+
+    error = OSError("injected publication failure")
+    error.add_note("Rollback failed for /outputs/updated_sample.yml: denied")
+    wrapped = ABCOutputError(error, Path("/evidence"))
+    assert str(wrapped) == (
+        "injected publication failure; "
+        "Rollback failed for /outputs/updated_sample.yml: denied"
+    )
+    assert str(ABCOutputError(OSError("plain"), Path("/evidence"))) == "plain"

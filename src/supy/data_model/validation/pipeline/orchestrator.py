@@ -748,7 +748,11 @@ class ABCOutputError(OSError):
     """Required output failed; phase evidence remains at the stated directory."""
 
     def __init__(self, error: OSError, evidence_dir: Path):
-        super().__init__(str(error))
+        # Rollback failures are attached to the publication error as notes;
+        # carry them into the message so every renderer names the outputs
+        # that were left unrestored.
+        notes = [str(note) for note in getattr(error, "__notes__", ())]
+        super().__init__("; ".join([str(error), *notes]))
         self.evidence_dir = evidence_dir
 
 

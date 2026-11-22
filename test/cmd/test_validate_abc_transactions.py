@@ -424,8 +424,9 @@ def test_installed_validator_text_keeps_literal_product_paths(source, encoding):
     ):
         actual = (path.parent / basename).resolve()
         assert actual.is_file()
-        display = str(actual).encode(encoding, "backslashreplace").decode(encoding)
+        display = str(actual).encode("ascii", "backslashreplace").decode("ascii")
         assert f"{label}: {display}" in result.stdout
+    assert result.stdout.isascii(), result.stdout
     structured = _encoded_validate(path, [path, "--format", "json"], encoding)
     assert structured.returncode == 0, structured.stdout + structured.stderr
     assert (
@@ -446,8 +447,8 @@ def test_installed_validator_dry_run_literal_issue_and_filename(source, pipeline
     result = _encoded_validate(source, [*inputs, "-p", pipeline, "--dry-run"], encoding)
     assert result.returncode == 1, result.stdout + result.stderr
     assert "Traceback" not in result.stdout + result.stderr
-    display = key if encoding == "utf-8" else r"bad[red]\u7ad9"
-    assert not any("\u2500" <= ch <= "\u257f" for ch in result.stdout)
+    display = r"bad[red]\u7ad9"
+    assert result.stdout.isascii(), result.stdout
     border_lines = [
         line.strip()
         for line in result.stdout.splitlines()

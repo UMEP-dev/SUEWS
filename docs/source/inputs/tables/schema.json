@@ -13420,7 +13420,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Upper limit to the surface water state",
+          "description": "Maximum depth of water the water body can store in this grid cell (1 kg m-2 of water equals 1 mm of depth). Water above this limit contributes to runoff.",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "kg m-2"

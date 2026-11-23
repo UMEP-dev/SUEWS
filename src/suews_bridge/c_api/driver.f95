@@ -45,7 +45,7 @@ use module_c_api_ohm, only: SUEWS_CAPI_OHM_STATE_LEN, ohm_state_pack, ohm_state_
 use module_c_api_solar, only: solar_state_unpack
 use module_c_api_atm, only: atm_state_unpack
 use module_c_api_phenology, only: phenology_state_unpack
-use module_c_api_snow, only: snow_state_unpack
+use module_c_api_snow, only: SUEWS_CAPI_SNOW_STATE_LEN, snow_state_unpack
 use module_c_api_hydro_state, only: hydro_state_unpack
 use module_c_api_heat_state, only: heat_state_unpack
 use module_c_api_roughness, only: roughness_state_unpack
@@ -109,7 +109,6 @@ integer(c_int), parameter :: SUEWS_CAPI_ANTHROEMIS_STATE_LEN = 22_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SOLAR_STATE_LEN = 3_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ATM_STATE_LEN = 39_c_int
 integer(c_int), parameter :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 76_c_int
-integer(c_int), parameter :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HYDRO_STATE_BASE_LEN = 10_c_int * int(nsurf, c_int) + 34_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HEAT_STATE_BASE_LEN = 7_c_int * int(nsurf, c_int) + 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ROUGHNESS_STATE_LEN = 11_c_int
@@ -1656,7 +1655,6 @@ subroutine pack_snow_state(s, flat, n_flat, err)
    flat(idx) = s%swe; idx = idx + 1_c_int
    flat(idx) = s%z0v_snow; idx = idx + 1_c_int
    flat(idx) = s%ra_snow; idx = idx + 1_c_int
-   flat(idx) = s%s_ice_hpa; idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
       flat(idx) = s%snow_removal(i)

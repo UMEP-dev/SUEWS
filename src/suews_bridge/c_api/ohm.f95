@@ -40,7 +40,7 @@ integer(c_int), parameter, public :: SUEWS_CAPI_NSURF = nsurf
 ! + 7 (dqndt_surf)
 ! + 2 (qn_s_av,dqnsdt)
 ! + 3 (a1,a2,a3)
-! + 3 (t2_prev,ws_rav,tair_prev)
+! + 2 (t2_prev,ws_rav)
 ! + 7 (qn_rav)
 ! + 7 (dyn_a1, surface order: paved,bldg,evetr,dectr,grass,bsoil,water)
 ! + 7 (dyn_a2, same order)
@@ -51,11 +51,11 @@ integer(c_int), parameter, public :: SUEWS_CAPI_NSURF = nsurf
 ! + 3 (AnOHM coefficient day/count/ready)
 ! + 7*48 (AnOHM coefficient forcing arrays)
 ! + 3*7 (AnOHM surface coefficients)
-integer(c_int), parameter :: SUEWS_CAPI_OHM_STATE_V1_LEN = 53_c_int
+integer(c_int), parameter :: SUEWS_CAPI_OHM_STATE_BASE_LEN = 52_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_LEN = &
-   SUEWS_CAPI_OHM_STATE_V1_LEN + 5_c_int + &
+   SUEWS_CAPI_OHM_STATE_BASE_LEN + 5_c_int + &
    14_c_int * int(ANOHM_MAX_SAMPLES, c_int) + 3_c_int * int(nsurf, c_int)
-integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION = 2_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION = 3_c_int
 
 public :: suews_ohm_qs_calc
 public :: suews_ohm_dqndt_step
@@ -272,7 +272,6 @@ subroutine ohm_state_pack(state, flat, n_flat, err)
    flat(idx) = state%a3; idx = idx + 1
    flat(idx) = state%t2_prev; idx = idx + 1
    flat(idx) = state%ws_rav; idx = idx + 1
-   flat(idx) = state%tair_prev; idx = idx + 1
 
    do i = 1, nsurf
       flat(idx) = state%qn_rav(i); idx = idx + 1
@@ -402,7 +401,6 @@ subroutine ohm_state_unpack(flat, n_flat, state, err)
    state%a3 = flat(idx); idx = idx + 1
    state%t2_prev = flat(idx); idx = idx + 1
    state%ws_rav = flat(idx); idx = idx + 1
-   state%tair_prev = flat(idx); idx = idx + 1
 
    do i = 1, nsurf
       state%qn_rav(i) = flat(idx); idx = idx + 1

@@ -5264,7 +5264,6 @@ CONTAINS
       ! Used in OHM calcs - need to be reset between supy calls - TODO: Should allow passing initial values
       REAL(KIND(1D0)) :: t2_prev ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav ! running average of wind speed [m s-1]
-      REAL(KIND(1D0)) :: tair_prev
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_rav ! running average of net radiation of each surface [W m-2]
       REAL(KIND(1D0)) :: a1_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg ! Dynamic OHM coefficients of buildings
@@ -6153,7 +6152,6 @@ CONTAINS
 
       ohmState%t2_prev = 0.0 ! previous day midnight air temperature [degC]
       ohmState%ws_rav = 2.0 ! running average of wind speed [m s-1]
-      ohmState%tair_prev = 0.0
       ohmState%qn_rav = 0.0 ! running average of net radiation [W m-2]
       ohmState%a1_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a2_bldg = 0.0 ! Dynamic OHM coefficients of buildings

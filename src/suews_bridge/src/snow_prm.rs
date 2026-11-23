@@ -1,10 +1,11 @@
 use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
+use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::NSURF;
 
-pub const SNOW_PRM_FLAT_LEN: usize = 71;
-pub const SNOW_PRM_SCHEMA_VERSION: u32 = 1;
+pub const SNOW_PRM_FLAT_LEN: usize = 88;
+pub const SNOW_PRM_SCHEMA_VERSION: u32 = 2;
 
 const HOURS_PER_DAY: usize = 24;
 
@@ -33,6 +34,7 @@ pub struct SnowPrm {
     pub tau_refreezing_snow: f64,
     pub temp_melt_factor: f64,
     pub rad_melt_factor: f64,
+    pub ohm: OhmPrm,
 }
 
 impl Default for SnowPrm {
@@ -57,6 +59,7 @@ impl Default for SnowPrm {
             tau_refreezing_snow: 0.0,
             temp_melt_factor: 0.0,
             rad_melt_factor: 0.0,
+            ohm: OhmPrm::default(),
         }
     }
 }
@@ -95,6 +98,7 @@ impl SnowPrm {
             tau_refreezing_snow: flat[68],
             temp_melt_factor: flat[69],
             rad_melt_factor: flat[70],
+            ohm: OhmPrm::from_flat(&flat[71..88])?,
         })
     }
 
@@ -120,6 +124,7 @@ impl SnowPrm {
         out.push(self.tau_refreezing_snow);
         out.push(self.temp_melt_factor);
         out.push(self.rad_melt_factor);
+        out.extend(self.ohm.to_flat());
 
         out
     }
@@ -177,6 +182,10 @@ pub fn snow_prm_field_names() -> Vec<String> {
     names.push("tempmeltfact".to_string());
     names.push("radmeltfact".to_string());
 
+    for field in ohm_prm_field_names() {
+        names.push(format!("ohm.{field}"));
+    }
+
     names
 }
 
@@ -218,11 +227,21 @@ mod tests {
         mapped.insert("snowalbmax".to_string(), 0.91);
         mapped.insert("snowpacklimit.water".to_string(), 12.5);
         mapped.insert("snowprof_24hr_working_07".to_string(), 0.3);
+        mapped.insert("ohm.ohm_threshsw".to_string(), 10.5);
+        mapped.insert("ohm.ohm_threshwd".to_string(), 0.85);
+        mapped.insert("ohm.ohm_coef_lc_1.winter_wet".to_string(), 0.42);
+        mapped.insert("ohm.ohm_coef_lc_2.winter_wet".to_string(), 0.75);
+        mapped.insert("ohm.ohm_coef_lc_3.winter_wet".to_string(), -22.0);
 
         let updated = snow_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.snow_albedo_max - 0.91).abs() < 1.0e-12);
         assert!((updated.snowpack_limit[6] - 12.5).abs() < 1.0e-12);
         assert!((updated.snowprof_24hr_working[7] - 0.3).abs() < 1.0e-12);
+        assert!((updated.ohm.ohm_threshold_summer_winter - 10.5).abs() < 1.0e-12);
+        assert!((updated.ohm.ohm_threshold_wet_dry - 0.85).abs() < 1.0e-12);
+        assert!((updated.ohm.ohm_coef_lc[0].winter_wet - 0.42).abs() < 1.0e-12);
+        assert!((updated.ohm.ohm_coef_lc[1].winter_wet - 0.75).abs() < 1.0e-12);
+        assert!((updated.ohm.ohm_coef_lc[2].winter_wet - (-22.0)).abs() < 1.0e-12);
     }
 
     #[test]

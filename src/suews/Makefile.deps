@@ -52,7 +52,7 @@ src/suews_type_ehc.o: src/suews_ctrl_const.o
 src/suews_type_heat.o: src/suews_ctrl_const.o
 src/suews_type_hydro.o: src/suews_ctrl_const.o
 src/suews_type_landcover.o: src/suews_type_soil.o src/suews_type_surface.o src/suews_type_vegetation.o src/suews_type_waterdist.o
-src/suews_type_snow.o: src/suews_ctrl_const.o
+src/suews_type_snow.o: src/suews_ctrl_const.o src/suews_type_surface.o
 src/suews_type_spartacus.o: src/suews_ctrl_const.o
 src/suews_type_surface.o: src/suews_ctrl_const.o
 src/suews_type_vegetation.o: src/suews_ctrl_const.o

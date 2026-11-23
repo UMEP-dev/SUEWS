@@ -2203,6 +2203,7 @@ CONTAINS
             grassPrm => siteInfo%lc_grass, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
+            snowPrm => siteInfo%snow, &
             sfr_roof => siteInfo%sfr_roof, &
             sfr_wall => siteInfo%sfr_wall, &
             sfr_surf => siteInfo%sfr_surf, &
@@ -2391,20 +2392,24 @@ CONTAINS
                   OHM_coef(7, 3, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_wet
                   OHM_coef(7, 4, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_dry
                END IF
-               OHM_coef(8, 1, 1) = 0.0
-               OHM_coef(8, 2, 1) = 0.0
-               OHM_coef(8, 3, 1) = 0.0
-               OHM_coef(8, 4, 1) = 0.0
+               ! Snow OHM coefficients (surface index nsurf + 1 = 8).
+               ! Keep outside the DyOHM guard above so snow storage heat flux
+               ! deltaQi uses snowPrm%ohm across all OHM-calling methods.
+               ! OHM evaluates deltaQi from the winter_wet regime (8, 3, 1:3).
+               OHM_coef(8, 1, 1) = snowPrm%ohm%ohm_coef_lc(1)%summer_wet
+               OHM_coef(8, 2, 1) = snowPrm%ohm%ohm_coef_lc(1)%summer_dry
+               OHM_coef(8, 3, 1) = snowPrm%ohm%ohm_coef_lc(1)%winter_wet
+               OHM_coef(8, 4, 1) = snowPrm%ohm%ohm_coef_lc(1)%winter_dry
 
-               OHM_coef(8, 1, 2) = 0.0
-               OHM_coef(8, 2, 2) = 0.0
-               OHM_coef(8, 3, 2) = 0.0
-               OHM_coef(8, 4, 2) = 0.0
+               OHM_coef(8, 1, 2) = snowPrm%ohm%ohm_coef_lc(2)%summer_wet
+               OHM_coef(8, 2, 2) = snowPrm%ohm%ohm_coef_lc(2)%summer_dry
+               OHM_coef(8, 3, 2) = snowPrm%ohm%ohm_coef_lc(2)%winter_wet
+               OHM_coef(8, 4, 2) = snowPrm%ohm%ohm_coef_lc(2)%winter_dry
 
-               OHM_coef(8, 1, 3) = 0.0
-               OHM_coef(8, 2, 3) = 0.0
-               OHM_coef(8, 3, 3) = 0.0
-               OHM_coef(8, 4, 3) = 0.0
+               OHM_coef(8, 1, 3) = snowPrm%ohm%ohm_coef_lc(3)%summer_wet
+               OHM_coef(8, 2, 3) = snowPrm%ohm%ohm_coef_lc(3)%summer_dry
+               OHM_coef(8, 3, 3) = snowPrm%ohm%ohm_coef_lc(3)%winter_wet
+               OHM_coef(8, 4, 3) = snowPrm%ohm%ohm_coef_lc(3)%winter_dry
 
                OHM_threshSW(1) = pavedPrm%ohm%ohm_threshsw
                OHM_threshSW(2) = bldgPrm%ohm%ohm_threshsw
@@ -2413,6 +2418,7 @@ CONTAINS
                OHM_threshSW(5) = grassPrm%ohm%ohm_threshsw
                OHM_threshSW(6) = bsoilPrm%ohm%ohm_threshsw
                OHM_threshSW(7) = waterPrm%ohm%ohm_threshsw
+               OHM_threshSW(8) = snowPrm%ohm%ohm_threshsw
 
                OHM_threshWD(1) = pavedPrm%ohm%ohm_threshwd
                OHM_threshWD(2) = bldgPrm%ohm%ohm_threshwd
@@ -2421,6 +2427,7 @@ CONTAINS
                OHM_threshWD(5) = grassPrm%ohm%ohm_threshwd
                OHM_threshWD(6) = bsoilPrm%ohm%ohm_threshwd
                OHM_threshWD(7) = waterPrm%ohm%ohm_threshwd
+               OHM_threshWD(8) = snowPrm%ohm%ohm_threshwd
 
                SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
                SoilStoreCap(2) = bldgPrm%soil%soil_store_capacity

@@ -1615,6 +1615,7 @@ fn build_snow_prm(exp: &mut ExpectedStruct, prefix: &str) -> SnowPrm {
         tau_refreezing_snow: exp.real(&p("tau_r")),
         temp_melt_factor: exp.real(&p("temperature_melt_factor")),
         rad_melt_factor: exp.real(&p("radiation_melt_factor")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
     }
 }
 

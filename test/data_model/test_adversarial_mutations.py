@@ -1440,10 +1440,10 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "snow_cold": (
         # Conforming active snow control (#2011: snowalb -> 0.5)
         ("sites[0].initial_states.snowalb", ("omit",)),
-        # Active snow gaps (#1982/#2101), unwired snow OHM (#2109), output.groups, inactive CO2
+        # Active snow gaps (#1982/#2101), active snow winter_wet OHM (#2101), output.groups, inactive CO2
         ("sites[0].properties.snow.snow_density_min", ("omit",)),
         ("sites[0].properties.land_cover.paved.snowpack_limit", ("wrapped_null",)),
-        ("sites[0].properties.snow.ohm_coef.summer_dry.a1", ("omit",)),
+        ("sites[0].properties.snow.ohm_coef.winter_wet.a1", ("omit",)),
         ("sites[0].properties.snow.ohm_threshold_summer_winter", ("bare_null",)),
         ("model.control.output.groups[0]", ("omit",)),
         (

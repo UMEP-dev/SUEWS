@@ -347,7 +347,9 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     Migrate configuration files between schema versions.
 
     The input files are left unchanged; migrated copies are written next to
-    them as <name>.migrated.yml, or into --output-dir.
+    them as <name>.migrated.yml, or into --output-dir. For schema 2026.6.dev16,
+    replace invalid vegetation sdd_id values with finite site or restart data.
+    An omitted field initialises that vegetation type at zero.
 
     Examples:
         suews schema migrate old_config.yml
@@ -378,6 +380,11 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
             config, current_version = read_yaml_file(path)
             current_version = migrator.auto_detect_version(config)
 
+            # Check the current contract even for an already-stamped file.
+            # The migrator preserves the rules of explicitly requested old targets.
+            migrated = migrator.migrate(
+                config, from_version=current_version, to_version=target
+            )
             if current_version == target:
                 results.append((
                     path.name,
@@ -385,12 +392,6 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                     "[yellow]Skipped[/yellow]",
                 ))
                 continue
-
-            # Perform migration in memory first so --dry-run validates the
-            # migration path and transforms without touching disk.
-            migrated = migrator.migrate(
-                config, from_version=current_version, to_version=target
-            )
 
             if not dry_run:
                 # Determine output path

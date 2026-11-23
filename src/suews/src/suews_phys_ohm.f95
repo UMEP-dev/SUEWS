@@ -706,29 +706,24 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: dqndt_prev ! dQ* per dt for 60 min [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(out) :: qn1_av_next ! weighted average of qn1 [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! dQ* per dt for 60 min [W m-2 h-1]
-      REAL(KIND(1D0)), PARAMETER :: window_hr = 2 ! window size for Difference calculation [hr]
+      REAL(KIND(1D0)), PARAMETER :: window_hr = 2.0D0 ! memory timescale for dQ*/dt [h]
+      REAL(KIND(1D0)), PARAMETER :: tau1_max_s = REAL(sec_per_hour, KIND(1D0)) ! 1 h low-pass timescale [s]
+      REAL(KIND(1D0)) :: dt_s, dt_hr, tau1_s, w1, w2
 
-      INTEGER :: dt0 ! period of dqndt0 [s]
-
-      REAL(KIND(1D0)) :: qn1_av_0 !, qn1_av_start,qn1_av_end
-
-      ! if previous period shorter than sec_per_hour, expand the storage/memory period
-      IF (dt_since_start < sec_per_hour) THEN ! spinup period
-         dt0 = dt_since_start + dt
-
-      ELSE ! effective period
-         dt0 = sec_per_hour
+      dt_s = REAL(dt, KIND(1D0))
+      dt_hr = dt_s/tau1_max_s
+      IF (dt_since_start <= dt) THEN
+         ! Cold start (step 1): initialise filter from current Q* with zero derivative
+         qn1_av_next = qn1
+         dqndt_next = 0.0D0
+      ELSE
+         ! Exact zero-order-hold exponential weights preserve 1 h + 2 h filtering across dt
+         tau1_s = MIN(tau1_max_s, REAL(dt_since_start, KIND(1D0)))
+         w1 = EXP(-dt_s/tau1_s)
+         qn1_av_next = w1*qn1_av_prev + (1.0D0 - w1)*qn1
+         w2 = EXP(-dt_s/(window_hr*tau1_max_s))
+         dqndt_next = w2*dqndt_prev + (1.0D0 - w2)*((qn1_av_next - qn1_av_prev)/dt_hr)
       END IF
-
-      ! get weighted average at a previous time specified by `window_hr`
-      qn1_av_0 = qn1_av_prev - dqndt_prev*(window_hr - dt/sec_per_hour)
-
-      ! averaged qn1 for previous period = sec_per_hour
-      qn1_av_next = (qn1_av_prev*(dt0 - dt) + qn1*dt)/(dt0)
-
-      ! do weighted average to calculate the difference by using the memory value and new forcing value
-      ! NB: keep the output dqndt in [W m-2 h-1]
-      dqndt_next = (qn1_av_next - qn1_av_0)/window_hr
 
    END SUBROUTINE OHM_dqndt_cal_X
 
@@ -757,11 +752,9 @@ CONTAINS
          qn_av = qn
       END IF
       ! Store hourly average values (calculated every timestep) for previous 2 hours
-      IF (nsh > 1) THEN
+      IF (nsh >= 1) THEN
          qn_av_store_grid = CSHIFT(qn_av_store_grid, 1)
          qn_av_store_grid(2*nsh + 1) = qn_av
-      ELSEIF (nsh == 1) THEN
-         qn_av_store_grid(:) = qn_av
       END IF
       ! Calculate dQ* per dt for 60 min (using running mean Q* at t hours and (t-2) hours)
       IF (ANY(qn_av_store_grid == -999)) THEN

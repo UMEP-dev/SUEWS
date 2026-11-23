@@ -1179,10 +1179,14 @@ def test_dev5_soil_converter_drops_legacy_zero_radiation_fields_once(tmp_path, c
     states = upgraded["sites"][0]["initial_states"]
     assert "qn_surfs" not in states
     assert "dqndt_surf" not in states
+    for veg in ("evetr", "dectr", "grass"):
+        assert "wu" not in states[veg]
     SUEWSConfig.model_validate(upgraded)
     notice = capsys.readouterr().err
     assert notice.count("dropped sites[0].initial_states.qn_surfs") == 1
     assert notice.count("dropped sites[0].initial_states.dqndt_surf") == 1
+    for veg in ("evetr", "dectr", "grass"):
+        assert notice.count(f"dropped sites[0].initial_states.{veg}.wu") == 1
 
     nonzero_src = tmp_path / "nonzero.yml"
     raw = yaml.safe_load(legacy_yml.read_text(encoding="utf-8"))
@@ -1195,6 +1199,18 @@ def test_dev5_soil_converter_drops_legacy_zero_radiation_fields_once(tmp_path, c
             layer_top=0, layer_depth=0.2,
         )
     assert all(not path.exists() for path in bad_outputs)
+
+    nonzero_wu_src = tmp_path / "nonzero_wu.yml"
+    raw_wu = yaml.safe_load(legacy_yml.read_text(encoding="utf-8"))
+    raw_wu["sites"][0]["initial_states"]["evetr"]["wu"]["wu_total"] = {"value": 2.0}
+    nonzero_wu_src.write_text(yaml.safe_dump(raw_wu), encoding="utf-8")
+    bad_wu_outputs = [tmp_path / name for name in ("bad_wu.yml", "bad_wu.txt", "bad_wu.json")]
+    with pytest.raises(YamlUpgradeError, match="complete checkpoint"):
+        upgrade_soil_observation(
+            nonzero_wu_src, legacy_txt, *bad_wu_outputs,
+            layer_top=0, layer_depth=0.2,
+        )
+    assert all(not path.exists() for path in bad_wu_outputs)
 
 
 @pytest.mark.parametrize("destination", ["2026.6.dev9", CURRENT_SCHEMA_VERSION])

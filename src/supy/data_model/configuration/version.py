@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev13"
+CURRENT_SCHEMA_VERSION = "2026.6.dev14"
 
 # Schema version history and descriptions.
 #
@@ -216,6 +216,15 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "placeholders are removed with an explicit migration message. "
         "Nonzero legacy values require an explicit choice of cold start "
         "or complete checkpoint continuation. Numerical seeds are unchanged."
+    ),
+    "2026.6.dev14": (
+        "Remaining continuation-only initial_states fields are internal to "
+        "cold starts (#2003). Fresh-run evetr/dectr/grass.wu, dt_since_start, "
+        "tair_av, tstep_prev, l_mod, ustar, ra_h, rb, and rs inputs are "
+        "rejected; legacy cold-start placeholders are removed with an "
+        "explicit migration message. Non-placeholder values require an "
+        "explicit choice of cold start or complete checkpoint continuation. "
+        "Numerical seeds and checkpoint payloads are unchanged."
     ),
 }
 

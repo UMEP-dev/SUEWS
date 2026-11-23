@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: 2026.6.dev13
+schema_version: 2026.6.dev14
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
   configuration
 strict_initial_state_bounds: true
@@ -3655,13 +3655,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     dectr:
       state:
         value: 0.0
@@ -3696,13 +3689,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
       porosity_id:
         value: 0.6
       decidcap_id:
@@ -3741,13 +3727,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     bsoil:
       state:
         value: 0.0
@@ -3894,14 +3873,11 @@ sites:
         value: 5.0
     dqndt: 0.0
     dqnsdt: 0.0
-    dt_since_start: 0.0
     lenday_id: 0
     qn_av: 0.0
     qn_s_av: 0.0
-    tair_av: 0.0
     tmax_id: 0.0
     tmin_id: 0.0
-    tstep_prev: 0.0
     snowfallcum: 0.0
     hdd_id:
       hdd_accum: 13.5
@@ -3916,15 +3892,10 @@ sites:
       temp_5day_mean: 13.5
       precip_daily_total: 13.5
       days_since_rain: 13.5
-    l_mod: 0.0
-    ustar: 0.0
-    ra_h: 0.0
-    rb: 0.0
-    rs: 0.0
 _auto_generate_annotated: false
 _yaml_raw:
   name: sample_config
-  schema_version: 2026.6.dev13
+  schema_version: 2026.6.dev14
   description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
     configuration
   model:
@@ -7552,13 +7523,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
       dectr:
         state:
           value: 0.0
@@ -7593,13 +7557,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
         porosity_id:
           value: 0.6
         decidcap_id:
@@ -7638,13 +7595,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
       bsoil:
         state:
           value: 0.0

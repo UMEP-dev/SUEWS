@@ -2878,6 +2878,41 @@ fn apply_state_overrides(
             ));
         }
     }
+    for name in [
+        "dt_since_start",
+        "tair_av",
+        "tstep_prev",
+        "l_mod",
+        "ustar",
+        "ra_h",
+        "rb",
+        "rs",
+    ] {
+        if get_path(initial_states_root, &[name]).is_some() {
+            return Err(format!(
+                "{initial_at}.{name} is internal continuation state and cannot be supplied \
+                 for a fresh run. Remove the field; use a complete checkpoint for continuation."
+            ));
+        }
+    }
+    for veg in ["evetr", "dectr", "grass"] {
+        if get_path(initial_states_root, &[veg, "wu"]).is_some() {
+            return Err(format!(
+                "{initial_at}.{veg}.wu is internal irrigation memory and cannot be supplied \
+                 for a fresh run. Remove the field; use a complete checkpoint for continuation."
+            ));
+        }
+    }
+    // Internal cold-start defaults retained from `suews_state_default_from_fortran()`
+    // on fresh runs (complete checkpoints bypass this path and restore every member):
+    // - Running step-1 diagnostics (fluxes, resistances, roughness, solar, snow/hydro
+    //   per-step diagnostics, and atmospheric properties) are overwritten before use.
+    // - AnOHM buffers start at -999 / 0 / false ("no completed day").
+    // - `Tmin_id` / `Tmax_id` default to 0 assuming a midnight cold start.
+    // - DyOHM (storage_heat 6-8) dynamic coefficients start at 0 until the first
+    //   midnight, with `t2_prev` and `temp_surf_dyohm` / `tsfc_surf_dyohm` at 0 degC.
+    // - STEBBS under NetRadiationMethod < 1000 sees 0 W m-2 BEERS roof/wall radiation
+    //   on step 1 before `BEERS_cal_main` runs at the end of the step.
 
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         if let Some(v) = read_numeric(initial_states_root, &[surface_name, "soilstore"]) {

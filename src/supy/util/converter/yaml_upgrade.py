@@ -1631,10 +1631,12 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         logs.append(f"{key} -> soil_moisture; original method {method}")
     if active:
         # Validate all sites against the current schema using a throwaway copy
-        # stripped of legacy seven-zero radiation placeholders; the returned
-        # dev9 mapping stays intact for later deltas and single-pass logging.
+        # stripped of legacy radiation and continuation-state placeholders; the
+        # returned dev9 mapping stays intact for later deltas and single-pass
+        # logging.
         from ...data_model.core.config import SUEWSConfig
         candidate, _ = _drop_legacy_radiation_memory_zeros(result)
+        candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -2169,6 +2171,180 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, "2026.6.dev12")] = _handler
         _HANDLERS[(_source, _target)] = _with_radiation_memory_delta(_handler)
 _HANDLERS[("2026.6.dev12", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev12_to_2026_6_dev13
+
+
+def _is_bool_like(value: object) -> bool:
+    """Return True for Python ``bool`` and NumPy ``bool_`` scalars."""
+    return isinstance(value, bool) or type(value).__name__ == "bool_"
+
+
+def _is_real_zero(value: object) -> bool:
+    """Return True when ``value`` is a non-boolean real zero."""
+    return isinstance(value, numbers.Real) and not _is_bool_like(value) and value == 0
+
+
+def _is_real_equal(value: object, expected: float) -> bool:
+    """Return True when ``value`` is a finite non-boolean real equal to ``expected``."""
+    if not isinstance(value, numbers.Real) or _is_bool_like(value):
+        return False
+    try:
+        numeric = float(value)
+    except OverflowError:
+        return False
+    return math.isfinite(numeric) and numeric == expected
+
+
+def _extract_control_tstep(cfg: dict) -> float | None:
+    """Extract numeric ``model.control.tstep`` when present and finite."""
+    model = cfg.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    raw = control.get("tstep") if isinstance(control, dict) else None
+    if isinstance(raw, dict):
+        raw = raw.get("value")
+    if isinstance(raw, numbers.Real) and not _is_bool_like(raw):
+        try:
+            numeric = float(raw)
+        except OverflowError:
+            return None
+        if math.isfinite(numeric):
+            return numeric
+    return None
+
+
+def _is_legacy_zero_wu(wu: object) -> bool:
+    """Return True when ``wu`` is a legacy all-zero WaterUse placeholder mapping."""
+    if not isinstance(wu, dict):
+        return False
+    allowed_keys = {"wu_total", "wu_auto", "wu_manual", "ref"}
+    if not set(wu.keys()).issubset(allowed_keys):
+        return False
+    if wu.get("ref") is not None:
+        return False
+    for field in ("wu_total", "wu_auto", "wu_manual"):
+        if field not in wu:
+            continue
+        entry = wu[field]
+        if _is_real_zero(entry):
+            continue
+        if (
+            isinstance(entry, dict)
+            and set(entry.keys()).issubset({"value", "ref"})
+            and "value" in entry
+            and entry.get("ref") is None
+            and _is_real_zero(entry["value"])
+        ):
+            continue
+        return False
+    return True
+
+
+def _drop_legacy_continuation_state_placeholders(cfg: dict) -> tuple[dict, list[str]]:
+    """Drop legacy continuation-state placeholders without mutating ``cfg``.
+
+    Returns the copied mapping and pending log messages; refuses non-placeholder
+    values with ``YamlUpgradeError`` so restart state is never silently dropped.
+    """
+    cfg = deepcopy(cfg)
+    pending_logs: list[str] = []
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg, pending_logs
+    control_tstep = _extract_control_tstep(cfg)
+    zero_only_fields = ("dt_since_start", "l_mod", "ustar", "ra_h", "rb", "rs")
+    for index, site in enumerate(sites):
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for name in zero_only_fields:
+            if name not in states:
+                continue
+            path = f"sites[{index}].initial_states.{name}"
+            if not _is_real_zero(states[name]):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states[name]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "continuation state is formed internally during cold start"
+            )
+        if "tair_av" in states:
+            path = f"sites[{index}].initial_states.tair_av"
+            val = states["tair_av"]
+            if not (_is_real_zero(val) or _is_real_equal(val, 273.15)):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy cold-start placeholders (0 or 273.15) can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states["tair_av"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy cold-start placeholder; "
+                "tair_av is formed internally during cold start"
+            )
+        if "tstep_prev" in states:
+            path = f"sites[{index}].initial_states.tstep_prev"
+            val = states["tstep_prev"]
+            allowed_tstep = control_tstep is not None and _is_real_equal(val, control_tstep)
+            if not (_is_real_zero(val) or allowed_tstep):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy cold-start placeholders (0 or model.control.tstep) "
+                    "can be migrated. Remove the field to cold-start, or use a "
+                    "complete checkpoint for continuation."
+                )
+            del states["tstep_prev"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy cold-start placeholder; "
+                "tstep_prev is seeded from model.control.tstep during cold start"
+            )
+        for veg in ("evetr", "dectr", "grass"):
+            veg_state = states.get(veg)
+            if not isinstance(veg_state, dict) or "wu" not in veg_state:
+                continue
+            path = f"sites[{index}].initial_states.{veg}.wu"
+            if not _is_legacy_zero_wu(veg_state["wu"]):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise irrigation memory for a fresh run. "
+                    "Only legacy zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del veg_state["wu"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "irrigation memory is formed internally during cold start"
+            )
+    return cfg, pending_logs
+
+
+def _migrate_2026_6_dev13_to_2026_6_dev14(cfg: dict) -> dict:
+    """Remove legacy continuation-state placeholders without discarding restart values."""
+    cfg, pending_logs = _drop_legacy_continuation_state_placeholders(cfg)
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_continuation_state_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev13_to_2026_6_dev14(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev13")] = _handler
+        _HANDLERS[(_source, _target)] = _with_continuation_state_delta(_handler)
+_HANDLERS[("2026.6.dev13", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev13_to_2026_6_dev14
 
 
 # ---------------------------------------------------------------------------

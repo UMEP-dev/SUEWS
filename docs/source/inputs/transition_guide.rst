@@ -1079,3 +1079,41 @@ The checkpoint representation is unchanged. Its seven-surface order remains
 paved, bldg, evetr, dectr, grass, bsoil, water; mean radiation memory uses
 :math:`\mathrm{W\,m^{-2}}` and its rate uses
 :math:`\mathrm{W\,m^{-2}\,h^{-1}}`.
+
+
+.. _schema_dev14_continuation_state:
+
+Continuation-only initial state in the 2026.6.dev14 development schema
+----------------------------------------------------------------------
+
+The remaining 17 continuation-only ``initial_states`` inputs are no longer
+fresh-run inputs, including when set to zero or legacy default placeholders:
+
+- vegetation daily irrigation memories: ``initial_states.evetr.wu``,
+  ``initial_states.dectr.wu`` and ``initial_states.grass.wu``
+  (``wu_total``, ``wu_auto``, ``wu_manual``);
+- timer and atmospheric running diagnostics: ``dt_since_start``, ``tair_av``,
+  ``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb`` and ``rs``.
+
+Older signed configurations containing legacy cold-start placeholders (numeric
+zeros for all fields, ``tair_av: 273.15``, or ``tstep_prev`` matching
+``model.control.tstep``) are migrated with an explicit removal message. Other
+supplied values, including nulls and malformed mappings, are rejected rather
+than silently discarded. Remove these fields if a cold start is intended; use
+a complete checkpoint if continuation is intended. Legacy ``DFState`` adapters
+retain zero/cold-start placeholders and reject non-placeholder continuation
+values.
+
+To write an upgraded configuration explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev14
+
+Unsigned YAML is treated as current input by the Python loader. For an older
+unsigned file, run ``suews convert --from <known-source-version> -i old.yml
+-o new.yml`` rather than relabelling ``schema_version``. The native engine
+expects resolved current input and rejects these fields regardless of any
+version label.
+
+Numerical initialisation and the checkpoint payload format are unchanged.

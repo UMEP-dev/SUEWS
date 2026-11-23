@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.6.dev13'
+schema_version: '2026.6.dev14'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -3632,13 +3632,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     dectr:
       state:
         value: 0.0
@@ -3673,13 +3666,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
       porosity_id:
         value: 0.6
       decidcap_id:
@@ -3718,13 +3704,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     bsoil:
       state:
         value: 0.0

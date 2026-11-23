@@ -565,6 +565,30 @@ class SUEWSConfig(DataModelBase):
                 InitialStates.reject_radiation_memory_input(site.get("initial_states"))
         return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def _prepare_continuation_state_input(cls, values):
+        """Migrate legacy continuation-state placeholders; reject fresh-run inputs."""
+        if not isinstance(values, dict):
+            return values
+        from packaging.version import InvalidVersion, Version
+
+        try:
+            legacy = Version(str(values.get("schema_version"))) < Version("2026.6.dev14")
+        except InvalidVersion:
+            legacy = False
+        if legacy:
+            from ...util.converter.yaml_upgrade import _migrate_2026_6_dev13_to_2026_6_dev14
+
+            return _migrate_2026_6_dev13_to_2026_6_dev14(values)
+        sites = values.get("sites")
+        if not isinstance(sites, list):
+            return values
+        for site in sites:
+            if isinstance(site, dict):
+                InitialStates.reject_continuation_state_input(site.get("initial_states"))
+        return values
+
     name: str = Field(
         default="sample config",
         description="Name of the SUEWS configuration",
@@ -5320,6 +5344,7 @@ class SUEWSConfig(DataModelBase):
     def _validate_raw_mapping(cls, config_data: dict) -> "SUEWSConfig":
         """Validate user-controlled config subtrees with strict extra keys."""
         config_data = cls._prepare_radiation_memory_input(config_data)
+        config_data = cls._prepare_continuation_state_input(config_data)
         prepared = cls.convert_legacy_hdd_formats(config_data)
         prepared = cls._migrate_legacy_spartacus_kdown_direct_fraction(prepared)
         line_errors = []
@@ -5618,6 +5643,7 @@ class SUEWSConfig(DataModelBase):
         # Work on a copy so the caller's dict is never mutated (validators
         # such as the legacy output_file coercion pop keys in place).
         config_data = cls._prepare_radiation_memory_input(deepcopy(config_data))
+        config_data = cls._prepare_continuation_state_input(config_data)
 
         # Snapshot the raw user input so site-level completeness checks can
         # distinguish user-declared surfaces from pydantic-factory defaults

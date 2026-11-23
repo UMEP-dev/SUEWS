@@ -136,28 +136,6 @@ const KNOWN_DEAD_KEYS: &[&str] = &[
     "sites[0].properties.snow.ohm_coef.winter_wet.a1",
     "sites[0].properties.snow.ohm_coef.winter_wet.a2",
     "sites[0].properties.snow.ohm_coef.winter_wet.a3",
-    // #2003 / #2110: 17 `initial_states` numeric leaves ignored by
-    // `apply_state_overrides` (9 vegetation water-use scalars, 8 timer and
-    // atmosphere scalars with `tstep_prev` retaining `model.control.tstep`);
-    // warm-start scope is tracked under #2003/#2110. Radiation memories are
-    // absent from fresh input and rejected, not dead/unwired inputs.
-    "sites[0].initial_states.evetr.wu.wu_total",
-    "sites[0].initial_states.evetr.wu.wu_auto",
-    "sites[0].initial_states.evetr.wu.wu_manual",
-    "sites[0].initial_states.dectr.wu.wu_total",
-    "sites[0].initial_states.dectr.wu.wu_auto",
-    "sites[0].initial_states.dectr.wu.wu_manual",
-    "sites[0].initial_states.grass.wu.wu_total",
-    "sites[0].initial_states.grass.wu.wu_auto",
-    "sites[0].initial_states.grass.wu.wu_manual",
-    "sites[0].initial_states.dt_since_start",
-    "sites[0].initial_states.tair_av",
-    "sites[0].initial_states.tstep_prev",
-    "sites[0].initial_states.l_mod",
-    "sites[0].initial_states.ustar",
-    "sites[0].initial_states.ra_h",
-    "sites[0].initial_states.rb",
-    "sites[0].initial_states.rs",
 ];
 
 /// Reviewed slots permitted to be perturbed by more than one distinct YAML key
@@ -2558,12 +2536,13 @@ fn validate_sweep_report(
 ) -> Result<ValidationSummary, Vec<String>> {
     let mut violations = Vec::new();
 
-    // The six resolved anchors retain at least 2840 leaves after removing the
-    // fourteen forbidden radiation-memory inputs (formerly 2854). Keep every
-    // remaining leaf in the sweep; no dead-key or profile allowance is relaxed.
-    if report.leaves_tested < 2840 {
+    // The six resolved anchors retain at least 2823 leaves after removing the
+    // 14 forbidden radiation-memory inputs (formerly 2854) and the remaining 17
+    // forbidden continuation-state leaves (formerly 2840). Keep every remaining
+    // leaf in the sweep; no dead-key or profile allowance is relaxed.
+    if report.leaves_tested < 2823 {
         violations.push(format!(
-            "{fixture_label}: expected >= 2840 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
+            "{fixture_label}: expected >= 2823 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
             report.leaves_tested
         ));
     }
@@ -3014,6 +2993,53 @@ fn radiation_memory_is_absent_and_refused_in_every_anchor() {
 }
 
 #[test]
+fn retired_continuation_state_is_absent_and_refused_in_every_anchor() {
+    let top_level = [
+        "dt_since_start",
+        "tair_av",
+        "tstep_prev",
+        "l_mod",
+        "ustar",
+        "ra_h",
+        "rb",
+        "rs",
+    ];
+    let veg_surfaces = ["evetr", "dectr", "grass"];
+    for (label, root, _) in build_option_anchors() {
+        for name in top_level {
+            assert!(
+                root["sites"][0]["initial_states"].get(name).is_none(),
+                "{label}: {name}"
+            );
+            for value in [Value::Null, serde_yaml::from_str("0.0").unwrap()] {
+                let mut supplied = root.clone();
+                supplied["sites"][0]["initial_states"][name] = value;
+                let error = load_run_config_from_value(&mut supplied).expect_err(name);
+                assert!(error.to_string().contains(name), "{label}: {error}");
+            }
+        }
+        for veg in veg_surfaces {
+            assert!(
+                root["sites"][0]["initial_states"][veg].get("wu").is_none(),
+                "{label}: {veg}.wu"
+            );
+            for value in [
+                Value::Null,
+                serde_yaml::from_str("{wu_total: 0.0, wu_auto: 0.0, wu_manual: 0.0}").unwrap(),
+            ] {
+                let mut supplied = root.clone();
+                supplied["sites"][0]["initial_states"][veg]["wu"] = value;
+                let error = load_run_config_from_value(&mut supplied).expect_err(veg);
+                assert!(
+                    error.to_string().contains(&format!("{veg}.wu")),
+                    "{label}: {error}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn jacobian_sample_ohm_anchor() {
     let anchors = build_option_anchors();
     let (label, ref root, opts) = anchors[0];
@@ -3040,15 +3066,17 @@ fn jacobian_sample_dyohm_anchor() {
     let (label, ref root, opts) = anchors[3];
     let report = assert_anchor_jacobian(label, root, opts);
 
-    // Explicitly confirm the remaining 17 #2003/#2110 initial_states leaves are dead
-    // under DyOHM (storage_heat = 6) while neighbouring state controls route
-    // cleanly to their exact receivers.
-    assert!(report
-        .dead_keys
-        .contains("sites[0].initial_states.tstep_prev"));
-    assert!(report
-        .dead_keys
-        .contains("sites[0].initial_states.evetr.wu.wu_total"));
+    // All 31 retired #2003/#2110 initial_states leaves are now absent and refused
+    // at the bridge boundary; confirm neighbouring state controls still route
+    // cleanly to their exact receivers under DyOHM (storage_heat = 6).
+    assert!(
+        !report
+            .dead_keys
+            .iter()
+            .any(|k| k.starts_with("sites[0].initial_states.")),
+        "unexpected dead initial_states keys under DyOHM: {:?}",
+        report.dead_keys
+    );
     for (active_key, expected_slot) in [
         ("sites[0].initial_states.qn_av", "state.ohm_state.qn_av"),
         ("sites[0].initial_states.qn_s_av", "state.ohm_state.qn_s_av"),
@@ -4150,7 +4178,7 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     // 2. Negative control: fixing a known dead key without removing its
     //    allowlist entry fails the bidirectional stale-allowlist ratchet.
     let mut stale_dead = clean.clone();
-    let fixed_key = "sites[0].initial_states.tair_av".to_string();
+    let fixed_key = "sites[0].properties.stebbs.temperature_air_annual_mean".to_string();
     assert!(stale_dead.dead_keys.remove(&fixed_key));
     let err = validate_sweep_report("neg_stale_dead", &stale_dead, &MASTER_ALLOWLIST)
         .expect_err("stale KNOWN_DEAD_KEYS entry must fail immediately");
@@ -4587,8 +4615,8 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     //     exact live leaf while keeping truly dead leaves empty.
     let dead_leaf = all_leaves
         .iter()
-        .find(|l| l.display == "sites[0].initial_states.tair_av")
-        .expect("tair_av leaf present");
+        .find(|l| l.display == "sites[0].properties.stebbs.temperature_air_annual_mean")
+        .expect("temperature_air_annual_mean leaf present");
     let live_leaf = all_leaves
         .iter()
         .find(|l| l.display == "sites[0].properties.lumps.raincover")

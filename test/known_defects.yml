@@ -431,12 +431,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "J1"
-      id_prefix: "sites[0].initial_states."
-    contract: "C-WARMSTART"
-    issue: 2003
-    classification: "defect"
-  - selector:
-      ledger: "J1"
       id: "sites[0].properties.spartacus.sw_dn_direct_frac"
     contract: "C-BIND"
     issue: 2083

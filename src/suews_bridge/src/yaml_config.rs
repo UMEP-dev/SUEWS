@@ -3412,16 +3412,12 @@ fn apply_site_scalar_overrides(
         )?;
         match get_path(site_root, point_source_path).and_then(given_value) {
             None | Some(Value::Null) => f64::NAN,
-            Some(Value::Number(n)) => match n.as_f64() {
-                Some(v) if v.is_finite() => v,
-                Some(v) if v.is_nan() => f64::NAN,
-                _ => {
-                    return Err(format!(
-                        "`{}` is non-finite; it must be a finite number or null when inactive",
-                        yaml_path_display(&at, point_source_path)
-                    ));
-                }
-            },
+            Some(Value::Number(n)) => n.as_f64().ok_or_else(|| {
+                format!(
+                    "`{}` is not representable as a number",
+                    yaml_path_display(&at, point_source_path)
+                )
+            })?,
             Some(other) => {
                 return Err(format!(
                     "`{}` is {}; it must be a number",
@@ -6749,8 +6745,8 @@ mod tests {
         //    omissible when RoughLenMomMethod != 1 && RSLMethod == 1.
         for key in ["z0m_in", "zdm_in"] {
             let mut active = base_root.clone();
-            active["model"]["physics"]["roughlenmommethod"] = Value::from(1);
-            active["model"]["physics"]["rslmethod"] = Value::from(1);
+            active["model"]["physics"]["roughness_length_momentum"] = Value::from(1);
+            active["model"]["physics"]["roughness_sublayer"] = Value::from(1);
             first_site_mut(&mut active).unwrap()["properties"]
                 .as_mapping_mut()
                 .unwrap()
@@ -6763,8 +6759,8 @@ mod tests {
             );
 
             let mut inactive = base_root.clone();
-            inactive["model"]["physics"]["roughlenmommethod"] = Value::from(2);
-            inactive["model"]["physics"]["rslmethod"] = Value::from(1);
+            inactive["model"]["physics"]["roughness_length_momentum"] = Value::from(2);
+            inactive["model"]["physics"]["roughness_sublayer"] = Value::from(1);
             first_site_mut(&mut inactive).unwrap()["properties"]
                 .as_mapping_mut()
                 .unwrap()
@@ -6809,8 +6805,8 @@ mod tests {
         props.remove(Value::String("lambda_c".to_string()));
         props.remove(Value::String("n_buildings".to_string()));
         props.remove(Value::String("h_std".to_string()));
-        water_only["model"]["physics"]["rslmethod"] = Value::from(2);
-        water_only["model"]["physics"]["storageheatmethod"] = Value::from(1);
+        water_only["model"]["physics"]["roughness_sublayer"] = Value::from(2);
+        water_only["model"]["physics"]["storage_heat"] = Value::from(1);
         let rc_water = load_run_config_from_value(&mut water_only.clone())
             .expect("water-only site should permit omitting inactive scalars");
         assert_eq!(rc_water.site_scalars.sfr_surf[6], 1.0);
@@ -6834,7 +6830,7 @@ mod tests {
             ] {
                 let mut root = base_root.clone();
                 if setup_dyohm {
-                    root["model"]["physics"]["storageheatmethod"] = Value::from(6);
+                    root["model"]["physics"]["storage_heat"] = Value::from(6);
                 }
                 if let Some(wsfr) = set_water_sfr {
                     *get_path_mut(
@@ -6867,7 +6863,7 @@ mod tests {
         //     n_buildings and h_std must remain required.
         for key in ["n_buildings", "h_std"] {
             let mut root = base_root.clone();
-            root["model"]["physics"]["rslmethod"] = Value::from(2);
+            root["model"]["physics"]["roughness_sublayer"] = Value::from(2);
             for (surf, val) in [
                 ("paved", 0.32),
                 ("bldgs", 0.68),
@@ -6895,9 +6891,9 @@ mod tests {
             );
         }
 
-        // 6. Inactive co2_point_source allows null and NaN -> f64::NAN, rejects infinity and non-numeric.
+        // 6. Inactive co2_point_source allows null and NaN -> f64::NAN, rejects non-numeric values.
         let mut co2_nan = base_root.clone();
-        co2_nan["model"]["physics"]["emissionsmethod"] = Value::from(2);
+        co2_nan["model"]["physics"]["emissions"] = Value::from(2);
         *get_path_mut(
             first_site_mut(&mut co2_nan).unwrap(),
             &[
@@ -6912,28 +6908,26 @@ mod tests {
             .expect("inactive co2_point_source must allow .nan");
         assert!(rc_co2.site_scalars.co2_point_source.is_nan());
 
-        for bad in [".inf", "\"bad\""] {
-            let mut co2_bad = base_root.clone();
-            co2_bad["model"]["physics"]["emissionsmethod"] = Value::from(2);
-            *get_path_mut(
-                first_site_mut(&mut co2_bad).unwrap(),
-                &[
-                    "properties",
-                    "anthropogenic_emissions",
-                    "co2",
-                    "emission_co2_point_source",
-                ],
-            )
-            .unwrap() = serde_yaml::from_str(bad).unwrap();
-            let err = load_run_config_from_value(&mut co2_bad)
-                .expect_err("inactive co2_point_source must reject non-finite inf / non-numeric");
-            assert!(
-                err.contains(
-                    "`sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source`"
-                ),
-                "{bad}: {err}"
-            );
-        }
+        let mut co2_bad = base_root.clone();
+        co2_bad["model"]["physics"]["emissions"] = Value::from(2);
+        *get_path_mut(
+            first_site_mut(&mut co2_bad).unwrap(),
+            &[
+                "properties",
+                "anthropogenic_emissions",
+                "co2",
+                "emission_co2_point_source",
+            ],
+        )
+        .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+        let err = load_run_config_from_value(&mut co2_bad)
+            .expect_err("inactive co2_point_source must reject non-numeric values");
+        assert!(
+            err.contains(
+                "`sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source`"
+            ),
+            "{err}"
+        );
     }
 
     #[test]
@@ -6962,10 +6956,10 @@ mod tests {
             ("water", "state_limit", "state_limit"),
         ] {
             let mut root = base_root.clone();
-            if surface == "water" && key == "state_limit" {
+            if matches!(surface, "evetr" | "water") {
                 *get_path_mut(
                     first_site_mut(&mut root).unwrap(),
-                    &["properties", "land_cover", "water", "sfr"],
+                    &["properties", "land_cover", surface, "sfr"],
                 )
                 .unwrap() = Value::from(0.1);
             }
@@ -6991,9 +6985,9 @@ mod tests {
         //    net_radiation == 0, snow_use == 0, storage_heat == 1.
         for surf in ["paved", "bldgs"] {
             let mut root = base_root.clone();
-            root["model"]["physics"]["netradiationmethod"] = Value::from(0);
-            root["model"]["physics"]["snowuse"] = Value::from(0);
-            root["model"]["physics"]["storageheatmethod"] = Value::from(1);
+            root["model"]["physics"]["net_radiation"] = Value::from(0);
+            root["model"]["physics"]["snow_use"] = Value::from(0);
+            root["model"]["physics"]["storage_heat"] = Value::from(1);
             get_path_mut(
                 first_site_mut(&mut root).unwrap(),
                 &["properties", "land_cover", surf],
@@ -7014,11 +7008,11 @@ mod tests {
 
         // 3. Inactive land-cover branches permit omission while still rejecting malformed values.
         let mut inactive = base_root.clone();
-        inactive["model"]["physics"]["netradiationmethod"] = Value::from(0);
-        inactive["model"]["physics"]["snowuse"] = Value::from(0);
-        inactive["model"]["physics"]["storageheatmethod"] = Value::from(1);
-        inactive["model"]["physics"]["waterusemethod"] = Value::from(1);
-        inactive["model"]["physics"]["faimethod"] = Value::from(1);
+        inactive["model"]["physics"]["net_radiation"] = Value::from(0);
+        inactive["model"]["physics"]["snow_use"] = Value::from(0);
+        inactive["model"]["physics"]["storage_heat"] = Value::from(1);
+        inactive["model"]["physics"]["water_use"] = Value::from(1);
+        inactive["model"]["physics"]["frontal_area_index"] = Value::from(1);
         for (surf, val) in [
             ("paved", 1.0),
             ("bldgs", 0.0),

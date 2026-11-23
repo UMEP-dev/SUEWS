@@ -276,7 +276,7 @@ _REJECTION_CASES = [
         id="missing_n_buildings",
     ),
     pytest.param(
-        {"rsl": 2},
+        {"roughness_sublayer": 2},
         {
             "paved": 0.32,
             "bldgs": 0.68,
@@ -292,7 +292,7 @@ _REJECTION_CASES = [
         id="missing_n_buildings_rsl2_pai_068_f32_boundary",
     ),
     pytest.param(
-        {"rsl": 2},
+        {"roughness_sublayer": 2},
         {
             "paved": 0.32,
             "bldgs": 0.68,
@@ -348,7 +348,7 @@ _REJECTION_CASES = [
         id="missing_bldgh",
     ),
     pytest.param(
-        {"fai": 0},
+        {"frontal_area_index": 0},
         {},
         ("properties", "land_cover", "bldgs", "faibldg"),
         None,
@@ -357,15 +357,15 @@ _REJECTION_CASES = [
     ),
     pytest.param(
         {},
-        {},
+        {"evetr": 0.05},
         ("properties", "land_cover", "evetr", "height_evergreen_tree"),
         None,
         "sites[gridiv=1].properties.land_cover.evetr.height_evergreen_tree",
         id="missing_evetreeh",
     ),
     pytest.param(
-        {"fai": 0},
-        {},
+        {"frontal_area_index": 0},
+        {"evetr": 0.05},
         ("properties", "land_cover", "evetr", "fai_evergreen_tree"),
         None,
         "sites[gridiv=1].properties.land_cover.evetr.fai_evergreen_tree",
@@ -373,15 +373,15 @@ _REJECTION_CASES = [
     ),
     pytest.param(
         {},
-        {},
+        {"dectr": 0.05},
         ("properties", "land_cover", "dectr", "height_deciduous_tree"),
         None,
         "sites[gridiv=1].properties.land_cover.dectr.height_deciduous_tree",
         id="missing_dectreeh",
     ),
     pytest.param(
-        {"fai": 0},
-        {},
+        {"frontal_area_index": 0},
+        {"dectr": 0.05},
         ("properties", "land_cover", "dectr", "fai_deciduous_tree"),
         None,
         "sites[gridiv=1].properties.land_cover.dectr.fai_deciduous_tree",
@@ -507,8 +507,8 @@ def test_inactive_paved_only_omission_is_bit_identical(sample_bridge_inputs):
     phys["snow_use"] = {"value": 0}
     phys["storage_heat"] = {"value": 1}
     phys["water_use"] = {"value": 1}
-    phys["fai"] = {"value": 1}
-    phys["rsl"] = {"value": 2}
+    phys["frontal_area_index"] = {"value": 1}
+    phys["roughness_sublayer"] = {"value": 2}
     _set_sfrs(
         cfg_kept,
         {
@@ -568,9 +568,9 @@ def test_inactive_roughness_in_and_tree_fields_are_bit_identical(sample_bridge_i
     base_cfg, forcing_flat, count = sample_bridge_inputs
     cfg_kept = deepcopy(base_cfg)
     phys = cfg_kept["model"]["physics"]
-    phys["roughness_momentum"] = {"value": 2}
-    phys["rsl"] = {"value": 1}
-    phys["fai"] = {"value": 0}
+    phys["roughness_length_momentum"] = {"value": 2}
+    phys["roughness_sublayer"] = {"value": 1}
+    phys["frontal_area_index"] = {"value": 0}
     _set_sfrs(
         cfg_kept,
         {
@@ -617,7 +617,7 @@ def test_inactive_water_only_snow_omission_is_bit_identical(sample_bridge_inputs
     cfg_kept = deepcopy(base_cfg)
     phys = cfg_kept["model"]["physics"]
     phys["snow_use"] = {"value": 1}
-    phys["rsl"] = {"value": 0}
+    phys["roughness_sublayer"] = {"value": 0}
     _set_sfrs(
         cfg_kept,
         {

@@ -1066,8 +1066,6 @@ CONTAINS
           .NOT. ALLOCATED(st%heatState%temp_wall) .OR. &
           .NOT. ALLOCATED(st%heatState%temp_surf) .OR. &
           .NOT. ALLOCATED(st%heatState%temp_surf_dyohm) .OR. &
-          .NOT. ALLOCATED(st%heatState%temp_surf_ehc_fast) .OR. &
-          .NOT. ALLOCATED(st%heatState%temp_surf_ehc_slow) .OR. &
           .NOT. ALLOCATED(st%heatState%tsfc_roof) .OR. &
           .NOT. ALLOCATED(st%heatState%tsfc_wall) .OR. &
           .NOT. ALLOCATED(st%heatState%tsfc_surf) .OR. &
@@ -1103,10 +1101,6 @@ CONTAINS
           INT(SIZE(st%heatState%temp_surf, 2), c_int) /= nd .OR. &
           INT(SIZE(st%heatState%temp_surf_dyohm, 1), c_int) /= INT(nsurf, c_int) .OR. &
           INT(SIZE(st%heatState%temp_surf_dyohm, 2), c_int) /= nd .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_fast, 1), c_int) /= INT(nsurf, c_int) .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_fast, 2), c_int) /= nd .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_slow, 1), c_int) /= INT(nsurf, c_int) .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_slow, 2), c_int) /= nd .OR. &
           INT(SIZE(st%heatState%tsfc_roof, 1), c_int) /= nl .OR. &
           INT(SIZE(st%heatState%tsfc_wall, 1), c_int) /= nl .OR. &
           INT(SIZE(st%heatState%tsfc_surf, 1), c_int) /= INT(nsurf, c_int) .OR. &
@@ -1548,8 +1542,6 @@ CONTAINS
       IF (.NOT. alloc_mat_equal(st%heatState%temp_roof, heat_anchor%heatState%temp_roof) .OR. &
           .NOT. alloc_mat_equal(st%heatState%temp_wall, heat_anchor%heatState%temp_wall) .OR. &
           .NOT. alloc_mat_equal(st%heatState%temp_surf, heat_anchor%heatState%temp_surf) .OR. &
-          .NOT. alloc_mat_equal(st%heatState%temp_surf_ehc_fast, heat_anchor%heatState%temp_surf_ehc_fast) .OR. &
-          .NOT. alloc_mat_equal(st%heatState%temp_surf_ehc_slow, heat_anchor%heatState%temp_surf_ehc_slow) .OR. &
           .NOT. alloc_vec_equal(st%hydroState%state_roof, hydro_anchor%hydroState%state_roof) .OR. &
           .NOT. alloc_vec_equal(st%hydroState%soil_store_roof, hydro_anchor%hydroState%soil_store_roof) .OR. &
           .NOT. alloc_vec_equal(st%hydroState%state_wall, hydro_anchor%hydroState%state_wall) .OR. &
@@ -2012,9 +2004,7 @@ CONTAINS
       IF (.NOT. alloc_mat_equal(a%temp_roof, b%temp_roof) .OR. &
           .NOT. alloc_mat_equal(a%temp_wall, b%temp_wall) .OR. &
           .NOT. alloc_mat_equal(a%temp_surf, b%temp_surf) .OR. &
-          .NOT. alloc_mat_equal(a%temp_surf_dyohm, b%temp_surf_dyohm) .OR. &
-          .NOT. alloc_mat_equal(a%temp_surf_ehc_fast, b%temp_surf_ehc_fast) .OR. &
-          .NOT. alloc_mat_equal(a%temp_surf_ehc_slow, b%temp_surf_ehc_slow)) RETURN
+          .NOT. alloc_mat_equal(a%temp_surf_dyohm, b%temp_surf_dyohm)) RETURN
       IF (.NOT. alloc_vec_equal(a%tsfc_roof, b%tsfc_roof) .OR. &
           .NOT. alloc_vec_equal(a%tsfc_wall, b%tsfc_wall) .OR. &
           .NOT. alloc_vec_equal(a%tsfc_surf, b%tsfc_surf) .OR. &
@@ -2051,9 +2041,6 @@ CONTAINS
           .NOT. reals_eq(a%qh, b%qh) .OR. &
           .NOT. reals_eq(a%qh_residual, b%qh_residual) .OR. &
           .NOT. reals_eq(a%qh_resist, b%qh_resist) .OR. &
-          .NOT. reals_eq(a%ehc_iter_dif_tsfc, b%ehc_iter_dif_tsfc) .OR. &
-          .NOT. reals_eq(a%ehc_iter_dif_qh, b%ehc_iter_dif_qh) .OR. &
-          .NOT. reals_eq(a%ehc_iter_score, b%ehc_iter_score) .OR. &
           .NOT. reals_eq(a%qn, b%qn) .OR. &
           .NOT. reals_eq(a%qn_snowfree, b%qn_snowfree) .OR. &
           .NOT. reals_eq(a%qs, b%qs) .OR. &

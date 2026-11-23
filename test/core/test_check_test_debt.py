@@ -87,7 +87,7 @@ def test_valid_inventory_counts_weights_and_generated_copies(tree, capsys):
         counters["totals"].values()
     )
     observer_ids = [r["id"] for r in records if r["ledger"] == "O"]
-    assert observer_ids.count("heat_state.temp_surf_ehc_fast") == 1
+    assert observer_ids.count("suews_timer.iy_st") == 1
     assert not any("heatState%" in key for key in observer_ids)
     assert (
         "| Contract | Defects | Coverage gaps | Accepted exceptions |"
@@ -308,8 +308,8 @@ def test_generated_observer_drift_fails(tree):
     path = tree / checker.MANIFEST
     path.write_text(
         path.read_text(encoding="utf-8").replace(
-            'path: "heatState%temp_surf_ehc_fast"',
-            'path: "heatState%unknown"',
+            'path: "iy_st"',
+            'path: "iy_st_unknown"',
         ),
         encoding="utf-8",
     )

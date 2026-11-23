@@ -583,28 +583,7 @@ NON_UNPACKED_SPECS: dict[str, str] = {
 
 # Reviewed unbridged kernel components inside DIRECT_UNPACK_SPECS types.
 # Any unlisted component missing from *_unpack fails generation loudly.
-REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {
-    (
-        "heat_state",
-        "temp_surf_ehc_fast",
-    ): "Internal EHC fast thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "temp_surf_ehc_slow",
-    ): "Internal EHC slow thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "ehc_iter_dif_tsfc",
-    ): "Intra-timestep EHC convergence diagnostic written per iteration in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "ehc_iter_dif_qh",
-    ): "Intra-timestep EHC residual-vs-resistance QH diagnostic written in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "ehc_iter_score",
-    ): "Intra-timestep EHC iteration quality score written in kernel (gh#1574, gh#1989).",
-}
+REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {}
 
 # Reviewed unused legacy CHARACTER components inside bridged derived-type arrays.
 # The flat f64 C-API carries numeric, integer, and logical state only; any

@@ -184,11 +184,13 @@ def test_default_emission_parity_via_suews_config_and_engine(tmp_path):
     proc = _run_engine(cfg_path)
     assert proc.returncode == 0, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
 
-    suews_files = list(out_dir.glob("*SUEWS*.arrow"))
-    assert suews_files, f"no SUEWS output written to {out_dir}"
-    df_out = _read_ipc_table(suews_files[0])
+    arrow_path = out_dir / "suews_output.arrow"
+    assert arrow_path.is_file(), f"no suews_output.arrow written to {out_dir}"
+    df_out = _read_ipc_table(arrow_path)
     assert len(df_out) > 0
-    assert np.isfinite(df_out["QN"].to_numpy()).all()
+    qn_col = "QN" if "QN" in df_out.columns else "qn"
+    assert qn_col in df_out.columns
+    assert np.isfinite(df_out[qn_col].to_numpy()).all()
 
 
 _REJECTION_CASES = [

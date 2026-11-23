@@ -36,6 +36,10 @@
     "Detect code changes",
     "Verify tag is on master"
   ],
+  "Core-test guard (Linux)": [
+    "Build and test (*) / *",
+    "Determine build matrix"
+  ],
   "Data-interface version audit / *": [],
   "Dependency and startup audit / *": [
     "Detect code changes"
@@ -64,6 +68,7 @@
     "Build and test (*) / *",
     "Build MCP package",
     "Check pytest marker axis",
+    "Core-test guard (Linux)",
     "Data-interface version audit / *",
     "Dependency and startup audit / *",
     "Detect code changes",

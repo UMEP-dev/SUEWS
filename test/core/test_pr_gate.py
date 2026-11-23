@@ -33,6 +33,8 @@ _PATH_FILTERED_PRODUCERS = (
 
 _ALL_CONSOLIDATED_ENV_VARS = (
     "EVENT_NAME",
+    "CORE_GUARD_RESULT",
+    "TEST_TIER",
     "LOWEST_DIRECT_DEPS_RESULT",
     "LOWEST_DIRECT_DEPS_REQUIRED",
     *_UNCONDITIONAL_RESULT_VARS,
@@ -249,3 +251,46 @@ class GateTests(unittest.TestCase):
                     self.assertEqual(
                         result.returncode, expected_rc, result.stdout + result.stderr
                     )
+
+    def test_core_guard_required_at_ready_tiers_when_the_wheel_built(self):
+        cases = (
+            # tier, build_wheels, core_guard, expected rc
+            ("standard", "success", "success", 0),
+            ("physics-full", "success", "success", 0),
+            ("standard", "success", "skipped", 1),
+            ("standard", "success", "failure", 1),
+            ("physics-full", "success", "cancelled", 1),
+            ("standard", "success", "unset", 1),
+            # Draft tiers run a subset; the guard is skipped there.
+            ("smoke", "success", "skipped", 0),
+            ("core", "success", "skipped", 0),
+            ("smoke", "success", "failure", 1),
+        )
+        for event_name in ("pull_request", "merge_group"):
+            for tier, wheels, guard, expected_rc in cases:
+                with self.subTest(event=event_name, tier=tier, guard=guard):
+                    env = {
+                        **_stage2_green_env(event_name),
+                        "TEST_TIER": tier,
+                        "BUILD_WHEELS_RESULT": wheels,
+                        "TEST_BRIDGE_RESULT": wheels,
+                    }
+                    if guard != "unset":
+                        env["CORE_GUARD_RESULT"] = guard
+                    result = _run_pr_gate(env)
+                    self.assertEqual(
+                        result.returncode, expected_rc, result.stdout + result.stderr
+                    )
+
+    def test_docs_only_run_needs_no_core_guard(self):
+        """needs-build false skips every test lane: the one documented exemption."""
+        result = _run_pr_gate({
+            **_stage2_green_env(),
+            "NEEDS_BUILD": "false",
+            "TEST_TIER": "standard",
+            "BUILD_WHEELS_RESULT": "skipped",
+            "BUILD_MCP_RESULT": "skipped",
+            "TEST_BRIDGE_RESULT": "skipped",
+            "CORE_GUARD_RESULT": "skipped",
+        })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

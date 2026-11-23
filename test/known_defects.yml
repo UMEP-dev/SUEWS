@@ -260,12 +260,6 @@ mappings:
     classification: "accepted_exception"
   - selector:
       ledger: "J1"
-      id_prefix: "sites[0].properties.vertical_layers.roofs["
-    contract: "C-BIND"
-    issue: 2085
-    classification: "defect"
-  - selector:
-      ledger: "J1"
       id: "sites[0].properties.spartacus.sw_dn_direct_frac"
     contract: "C-BIND"
     issue: 2083
@@ -276,11 +270,6 @@ mappings:
     contract: "C-BIND"
     issue: 2083
     classification: "accepted_exception"
-  - selector:
-      ledger: "J2"
-    contract: "C-BIND"
-    issue: 2085
-    classification: "defect"
   - selector:
       ledger: "O"
       id_prefix: "heat_state.temp_surf_ehc_"

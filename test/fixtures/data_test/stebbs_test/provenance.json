@@ -1,7 +1,7 @@
 {
-  "source_ref": "27b9ad1be46bb5944e00696a80c0f1a4e3e67a57",
-  "source_commit": "27b9ad1be46bb5944e00696a80c0f1a4e3e67a57",
-  "source_tree": "a80738a89483d86e688312112603d3ce323f1ce2",
+  "source_ref": "60ddb65c5557cb752ba25bc8e96ca1a1207fa6f6",
+  "source_commit": "60ddb65c5557cb752ba25bc8e96ca1a1207fa6f6",
+  "source_tree": "c101e6bff75c8408fbc06060548e227fede5b2fc",
   "generator": "scripts/suews/gen_stebbs_output.py",
   "generated_date": "2026-11-23",
   "platform": "Linux x86_64",
@@ -16,6 +16,6 @@
   "files": {
     "sample_config.yml": "33b4ce63ce6dfe6cec1ecd5919e8128938ea086fc89d6d49a7e681f8b3a79fd6",
     "test_2017_data_15_mp.txt": "c3632f3329acc0391ebb8e605a106dd457540bd15a93a3524ae1156506257106",
-    "sample_output_stebbs.csv": "897f50366913f53bf7931f0514c2bdc99392df657354f1cb82cae562a6201a76"
+    "sample_output_stebbs.csv": "f3ba528e56269b01a3d952e0c1ddcb9b3c3471f4e5e697e3650649873b973bc5"
   }
 }

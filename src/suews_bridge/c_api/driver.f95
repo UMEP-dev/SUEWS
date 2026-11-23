@@ -19,7 +19,8 @@ use module_ctrl_const_allocate, only: ncolumnsDataOutSUEWS, nspec, nsurf, nvegsu
 use module_ctrl_type, only: SUEWS_TIMER, SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, &
                             flag_STATE, anthroEmis_STATE, OHM_STATE, solar_State, atm_state, PHENOLOGY_STATE, &
                             SNOW_STATE, HYDRO_STATE, HEAT_STATE, ROUGHNESS_STATE, STEBBS_STATE, NHOOD_STATE
-use module_ctrl_error_state, only: reset_supy_error
+use module_ctrl_error_state, only: reset_supy_error, set_supy_error, &
+   supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN
 use module_c_api_spartacus_prm, only: SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN, &
                                       spartacus_prm_unpack
 use module_c_api_lumps, only: lumps_prm_unpack
@@ -249,6 +250,8 @@ subroutine suews_cal_multitsteps_c( &
    integer, parameter :: n_output_groups = 11
    integer, parameter :: n_datetime_cols = 5
    integer(c_int) :: local_err
+   integer :: tls_err_code
+   character(len=SUPY_ERROR_MESSAGE_LEN) :: tls_err_msg
 
    sim_err_code = 0_c_int
    call copy_to_c_buffer('', sim_err_message, sim_err_message_len)
@@ -359,6 +362,11 @@ subroutine suews_cal_multitsteps_c( &
       site_flat, site_flat_len, site_toc, site_toc_len, site_member_count, &
       local_err)
    if (local_err/=SUEWS_CAPI_OK) then
+      if (supy_error_flag()) then
+         call get_supy_error(tls_err_code, tls_err_msg)
+         sim_err_code = int(tls_err_code, c_int)
+         call copy_to_c_buffer(trim(tls_err_msg), sim_err_message, sim_err_message_len)
+      end if
       err = local_err
       return
    end if
@@ -641,6 +649,7 @@ subroutine unpack_site_members( &
    integer(c_int) :: local_err
    integer(c_int) :: required_len
    integer(c_int) :: n_surf_ehc
+   character(len=SUPY_ERROR_MESSAGE_LEN) :: err_msg
 
    call member_span_from_toc(site_flat_len, site_toc, site_toc_len, site_member_count, &
                              SUEWS_CAPI_SITE_MEMBER_SPARTACUS, member_offset, member_len, local_err)
@@ -694,7 +703,16 @@ subroutine unpack_site_members( &
       return
    end if
    required_len = 9_c_int * int(nlayer, c_int) + 2_c_int * int(nspec, c_int) * int(nlayer, c_int)
-   if (member_len>=required_len) then
+   if (member_len>0_c_int) then
+      if (member_len/=required_len) then
+         write (err_msg, '(A,I0,A,I0,A,I0,A,I0,A)') &
+            'unpack_site_members: spartacus_layer buffer length mismatch: received ', &
+            int(member_len), ', expected ', int(required_len), &
+            ' (nlayer=', nlayer, ', nspec=', nspec, ')'
+         call set_supy_error(115, trim(err_msg))
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
       call spartacus_layer_prm_unpack(site_flat(int(member_offset) + 1), member_len, int(nlayer, c_int), &
                                       int(nspec, c_int), site%spartacus_layer, local_err)
       if (local_err/=SUEWS_CAPI_OK) then

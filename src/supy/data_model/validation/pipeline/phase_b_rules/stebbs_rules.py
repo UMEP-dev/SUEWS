@@ -44,11 +44,21 @@ def check_archetype_radiation_properties(archetype_data, facet):
 
     # Extract values from RefValue dicts if needed
     if isinstance(archetype_facet_reflectivity, Mapping):
-        archetype_facet_reflectivity = archetype_facet_reflectivity.get("value", archetype_facet_reflectivity)
+        archetype_facet_reflectivity = archetype_facet_reflectivity.get("value")
     if isinstance(archetype_facet_absorptivity, Mapping):
-        archetype_facet_absorptivity = archetype_facet_absorptivity.get("value", archetype_facet_absorptivity)
+        archetype_facet_absorptivity = archetype_facet_absorptivity.get("value")
     if isinstance(archetype_facet_transmissivity, Mapping):
-        archetype_facet_transmissivity = archetype_facet_transmissivity.get("value", archetype_facet_transmissivity)
+        archetype_facet_transmissivity = archetype_facet_transmissivity.get("value")
+
+    if any(
+        v is None
+        for v in (
+            archetype_facet_reflectivity,
+            archetype_facet_absorptivity,
+            archetype_facet_transmissivity,
+        )
+    ):
+        return None
 
     result = ValidationResult(
         status="PASS",

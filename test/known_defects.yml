@@ -7,12 +7,6 @@ version: 1
 mappings:
   - selector:
       ledger: "R"
-      function: "apply_anthro_emis_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_bioco2_overrides"
     contract: "C-STRICT"
     issue: 1991
@@ -44,12 +38,6 @@ mappings:
   - selector:
       ledger: "R"
       function: "apply_ohm_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
-      function: "apply_snow_overrides"
     contract: "C-STRICT"
     issue: 1991
     classification: "defect"

@@ -8,7 +8,7 @@
     "-Wmaybe-uninitialized"
   ],
   "unit_count": 113,
-  "entry_count": 4,
+  "entry_count": 3,
   "entries": [
     {
       "file": "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90",
@@ -20,12 +20,6 @@
       "file": "src/suews/src/suews_ctrl_driver.f95",
       "proc": "suews_update_tsurf",
       "var": "dif_tsfc_iter",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_phys_narp.f95",
-      "proc": "narp",
-      "var": "tsurf_0_k",
       "kind": "maybe-uninitialized"
     },
     {

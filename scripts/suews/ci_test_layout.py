@@ -6,11 +6,12 @@ with that call's inputs, and writes two JSON outputs:
 
 ``api_cells``
     One entry per api job: ``{"python_version", "shard", "tier"}``. The
-    Python named by ``--shard-python`` is split into ``--shard-count`` shards
-    (``K-of-N``, scripts/suews/pytest_shard.py); with ``--bookend-core`` every
-    other Python runs the ``core-bookend`` api tier (every core api test plus
-    smoke) in one job instead of the full tier. Everything else runs the
-    call's tier whole.
+    Python named by ``--shard-python`` (or every non-``bookend_core`` Python
+    when ``--shard-python`` is ``"all"``) is split into ``--shard-count``
+    shards (``K-of-N``, scripts/suews/pytest_shard.py); with
+    ``--bookend-core`` every other Python runs the ``core-bookend`` api tier
+    (every core api test plus smoke) in one job instead of the full tier.
+    Everything else runs the call's tier whole.
 ``physics_shards``
     The physics shard labels (``K-of-N``) the separate physics jobs run, or a
     single empty label when the physics tier stays inside the wheel job.
@@ -51,7 +52,11 @@ def api_cells(
         if bookend_core and python != full_python:
             cells.append({"python_version": python, "shard": "", "tier": "core-bookend"})
             continue
-        count = shard_count if python == shard_python and tier not in UNSHARDED_TIERS else 1
+        count = (
+            shard_count
+            if shard_python in {"all", python} and tier not in UNSHARDED_TIERS
+            else 1
+        )
         cells.extend(
             {"python_version": python, "shard": label, "tier": tier}
             for label in shard_labels(count)

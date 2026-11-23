@@ -39,8 +39,9 @@ def test_merge_queue_and_nightly_layouts() -> None:
 @pytest.mark.parametrize("tier", ["smoke", "core", "cfg"])
 def test_draft_tiers_are_never_sharded(tier: str) -> None:
     """An empty shard would exit pytest with code 5 and must stay inside the wheel job (#2284)."""
-    cells = api_cells(["cp312", "cp315"], tier, "cp312", 4, False, "cp312")
-    assert all(c["shard"] == "" for c in cells)
+    for shard_python in ("cp312", "all"):
+        cells = api_cells(["cp312", "cp315"], tier, shard_python, 4, False, "cp312")
+        assert all(not c["shard"] for c in cells)
     assert physics_shards(True, tier, 2) == [""]
     assert effective_split_tests(True, tier) is False
 
@@ -76,10 +77,20 @@ def test_split_layout_has_at_least_two_physics_shards() -> None:
     assert physics_shards(True, "standard", 1) == ["1-of-2", "2-of-2"]
 
 
-def test_windows_full_matrix_layout_keeps_two_cp312_shards() -> None:
-    cells = api_cells(["cp312", "cp315"], "standard", "cp312", 2, False, "cp312")
+def test_windows_full_matrix_layout_shards_all_cells() -> None:
+    """Windows pull-request full-matrix layout splits both cp312 and cp315 into two shards (#2240)."""
+    cells = api_cells(["cp312", "cp315"], "standard", "all", 2, False, "cp312")
     assert [(c["python_version"], c["shard"]) for c in cells] == [
-        ("cp312", "1-of-2"), ("cp312", "2-of-2"), ("cp315", ""),
+        ("cp312", "1-of-2"),
+        ("cp312", "2-of-2"),
+        ("cp315", "1-of-2"),
+        ("cp315", "2-of-2"),
+    ]
+    single = api_cells(["cp312", "cp315"], "standard", "cp312", 2, False, "cp312")
+    assert [(c["python_version"], c["shard"]) for c in single] == [
+        ("cp312", "1-of-2"),
+        ("cp312", "2-of-2"),
+        ("cp315", ""),
     ]
 
 

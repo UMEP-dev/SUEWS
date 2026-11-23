@@ -37,6 +37,10 @@ inputs:
     description: 'Build and upload the wheel without running the physics tier inside cibuildwheel (the caller runs it in separate shard jobs on the uploaded wheel)'
     required: false
     default: 'false'
+  manylinux_x86_64_image:
+    description: 'Pinned manylinux2014 x86_64 image used by cibuildwheel for cp312 builds (kept identical to build-wheels-reusable.yml MANYLINUX_IMAGE)'
+    required: false
+    default: 'quay.io/pypa/manylinux2014_x86_64:2025.10.10-1'
 
 runs:
   using: 'composite'
@@ -192,8 +196,8 @@ runs:
           --volume ${{ inputs.metrics_host_dir }}:/ci-metrics
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS RUNNER_ARCH GITHUB_JOB SUEWS_RUST_TOOLCHAIN
-        # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.12 (older Linux compatibility)
-        CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
+        # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), and the pinned manylinux2014 image for 3.12 so wheel builds, physics shards, and Fortran probes run on the exact same container image (#2284).
+        CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || inputs.manylinux_x86_64_image }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         # Configure pip and Rust cache — defaults for platforms without
         # a CIBW_ENVIRONMENT_{PLATFORM} override (currently macOS only).

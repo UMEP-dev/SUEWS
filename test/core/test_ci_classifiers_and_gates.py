@@ -1110,7 +1110,9 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
     }
 
     pr_gate = caller["jobs"]["pr-gate"]
-    pr_gate_step = next(s for s in pr_gate["steps"] if "run" in s)
+    pr_gate_step = next(
+        s for s in pr_gate["steps"] if s.get("name") == "Check build results"
+    )
     assert pr_gate_step["env"]["EVENT_NAME"] == "${{ github.event_name }}"
     report_needs = set(caller["jobs"]["report_scheduled_run"]["needs"])
 

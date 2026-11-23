@@ -3954,6 +3954,17 @@ fn nan_poison_completeness_across_all_six_anchors() {
             anchor_idx,
             "sites[0].initial_states.hdd_id.days_since_rain".into(),
         ));
+        strict_jobs.push((
+            anchor_idx,
+            "sites[0].initial_states.paved.soilstore".into(),
+        ));
+        strict_jobs.push((anchor_idx, "sites[0].initial_states.paved.state".into()));
+        strict_jobs.push((anchor_idx, "sites[0].initial_states.snowalb".into()));
+        strict_jobs.push((anchor_idx, "sites[0].initial_states.evetr.lai_id".into()));
+        strict_jobs.push((
+            anchor_idx,
+            "sites[0].initial_states.dectr.porosity_id".into(),
+        ));
         for surf in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"] {
             for field in [
                 "soil_depth",
@@ -4114,6 +4125,10 @@ fn nan_poison_completeness_across_all_six_anchors() {
     }
     strict_jobs.push((3, "sites[0].properties.lambda_c".to_string()));
 
+    // 3i. Snow active (index 4, snow_use = 1): snow state keys reject `.nan`.
+    strict_jobs.push((4, "sites[0].initial_states.paved.snowpack".to_string()));
+    strict_jobs.push((4, "sites[0].initial_states.snowfallcum".to_string()));
+
     // Execute all strict NaN rejection checks in parallel.
     strict_jobs.par_iter().for_each(|(anchor_idx, key)| {
         let (label, ref root, ref idx) = stripped_anchors[*anchor_idx];
@@ -4148,14 +4163,21 @@ fn nan_poison_completeness_across_all_six_anchors() {
 
     // 4. Option-inactive absence & anti-tautology propagation self-checks:
     //    verify that injecting `.nan` into non-strict wired leaves (site,
-    //    state, site_scalars, unread wrapped-array depth, and long profiles)
-    //    surfaces verbatim as `f64::NAN` in `non_finite_slots`.
+    //    site_scalars, unread wrapped-array depth, and long profiles)
+    //    surfaces verbatim as `f64::NAN` in `non_finite_slots`, and that
+    //    post-parse corruption of a strict `state` slot is still observed.
+    let mut damaged_state =
+        load_run_config_from_value(&mut stripped_anchors[0].1.clone()).expect("sample_ohm");
+    damaged_state.state.hydro_state.soilstore_surf[0] = f64::NAN;
+    let damaged_slots = non_finite_slots(&damaged_state);
+    assert!(
+        damaged_slots
+            .iter()
+            .any(|(slot, val)| slot == "state.hydro_state.soilstore_surf.paved" && val.is_nan()),
+        "sample_ohm: non_finite_slots must observe post-parse state NaN, got {damaged_slots:#?}"
+    );
+
     let propagation_cases: &[(usize, &str, &str)] = &[
-        (
-            0,
-            "sites[0].initial_states.paved.soilstore",
-            "state.hydro_state.soilstore_surf.paved",
-        ),
         (
             0,
             "sites[0].properties.anthropogenic_emissions.co2.emission_co2_point_source",

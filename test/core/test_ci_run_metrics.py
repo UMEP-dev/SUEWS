@@ -310,9 +310,19 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
         "${{ needs.layout.outputs.api_cells }}"
     )
     build_step = next(s for s in jobs["build"]["steps"] if s.get("name") == "Build SUEWS wheels")
-    assert build_step["with"]["skip_tests"] == "${{ inputs.split_tests }}"
+    from scripts.suews.ci_test_layout import UNSHARDED_TIERS
+
+    assert (
+        jobs["layout"]["outputs"]["effective_split_tests"]
+        == "${{ steps.layout.outputs.effective_split_tests }}"
+    )
+    for unsharded_tier in UNSHARDED_TIERS:
+        assert f"inputs.test_tier != '{unsharded_tier}'" in build_step["with"]["skip_tests"]
+        assert f"inputs.test_tier != '{unsharded_tier}'" in jobs["fortran_probes"]["if"]
+    assert build_step["with"]["skip_tests"].startswith("${{ inputs.split_tests &&")
+    assert jobs["fortran_probes"]["if"].startswith("inputs.split_tests &&")
     physics = jobs["physics"]
-    assert physics["if"] == "inputs.split_tests"
+    assert physics["if"] == "needs.layout.outputs.effective_split_tests == 'true'"
     assert set(physics["needs"]) == {"layout", "build", "fortran_probes"}
     assert physics["strategy"]["matrix"]["shard"] == (
         "${{ fromJson(needs.layout.outputs.physics_shards) }}"
@@ -335,8 +345,14 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
         "${{ inputs.artifact_prefix }}reference-regenerated-${{ matrix.python }}-"
         "${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}"
     )
-    assert wheels["env"]["MANYLINUX_IMAGE"].startswith("quay.io/pypa/manylinux2014_x86_64:")
+    pinned_manylinux = wheels["env"]["MANYLINUX_IMAGE"]
+    assert pinned_manylinux.startswith("quay.io/pypa/manylinux2014_x86_64:")
     action = (root / ".github/actions/build-suews/action.yml").read_text(encoding="utf-8")
+    action_yaml = yaml.safe_load(action)
+    assert action_yaml["inputs"]["manylinux_x86_64_image"]["default"] == pinned_manylinux
+    assert build_step["with"]["manylinux_x86_64_image"] == "${{ env.MANYLINUX_IMAGE }}"
+    cibw_step = next(s for s in action_yaml["runs"]["steps"] if s.get("name") == "Build wheels")
+    assert "inputs.manylinux_x86_64_image" in cibw_step["env"]["CIBW_MANYLINUX_X86_64_IMAGE"]
     assert "CIBW_TEST_SKIP: ${{ inputs.skip_tests == 'true' && '*' || '' }}" in action
 
     api_text = (
@@ -1639,7 +1655,9 @@ def test_determine_matrix_and_pr_gate_enforce_physics_or_numerics_override(
     )
     pr_gate_job = workflow["jobs"]["pr-gate"]
     assert "determine_matrix" in pr_gate_job["needs"]
-    gate_step = next(s for s in pr_gate_job["steps"] if "run" in s)
+    gate_step = next(
+        s for s in pr_gate_job["steps"] if s.get("name") == "Check build results"
+    )
     assert gate_step["env"]["PHYSICS_CHANGE"] == (
         "${{ needs.determine_matrix.outputs.physics_change || 'false' }}"
     )

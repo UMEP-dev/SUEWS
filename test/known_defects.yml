@@ -25,12 +25,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
-      function: "apply_config_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_drainage_overrides"
     contract: "C-STRICT"
     issue: 1991
@@ -79,12 +73,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
-      function: "apply_state_overrides"
-    contract: "C-STRICT"
-    issue: 2003
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_vertical_layers_overrides"
     contract: "C-STRICT"
     issue: 1991
@@ -92,12 +80,6 @@ mappings:
   - selector:
       ledger: "R"
       function: "apply_waterdist_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
-      function: "load_run_config_from_value"
     contract: "C-STRICT"
     issue: 1991
     classification: "defect"

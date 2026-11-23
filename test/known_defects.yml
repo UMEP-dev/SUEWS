@@ -133,12 +133,6 @@ mappings:
     classification: "coverage_gap"
   - selector:
       ledger: "U"
-      file: "src/suews/src/suews_phys_atmmoiststab.f95"
-    contract: "C-RESPONSE"
-    issue: 2171
-    classification: "defect"
-  - selector:
-      ledger: "U"
       file: "src/suews/src/suews_phys_narp.f95"
     contract: "C-RESPONSE"
     issue: 2106

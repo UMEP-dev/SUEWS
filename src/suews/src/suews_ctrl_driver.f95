@@ -4019,6 +4019,7 @@ CONTAINS
                   zL = relax_zl(zL_prev_pass, zL, modState%flagState%i_iter)
                   CALL stability_scales(StabilityMethod, zzd, z0m, avU1, QH_init/(avdens*avcp), &
                                         zL, L_mod, UStar, TStar)
+                  IF (supy_error_flag()) RETURN
                END IF
 
                ! Free-convection velocity for the resistance, from this pass's heat

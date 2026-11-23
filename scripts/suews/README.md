@@ -50,6 +50,28 @@ to the controller as `TestReport` attributes. `cpu_seconds` and `wall_seconds`
 are keyed by phase. The `medium` and `slow` cost markers are checked against
 these records by `scripts/lint/check_cost_markers.py`.
 
+On standard-tier pull requests, `scripts/lint/check_test_duration.py` (wired in
+`build-publish_to_pypi.yml` as the report-only `test_duration_guard` job) reads
+the Linux cp312 API and physics metrics artefacts (unsharded or N-sharded),
+scales each artefact independently relative to unchanged reference tests in
+`scripts/lint/test_duration_baseline.json` (median per-test ratio, cancelling
+bimodal hosted-runner speed differences while measuring cost relative to that
+reference cohort — a uniform slowdown affecting every reference test equally is
+absorbed into the cohort factor), and warns when:
+
+- any new or changed test's cohort-normalised `call`-phase CPU seconds exceed
+  the `medium` (10 CPU-s) or `slow` (30 CPU-s) threshold beyond the hysteresis
+  band (2x, reused from `check_cost_markers.py`) without the matching marker; or
+- a lane's cohort-normalised `call`-phase CPU total exceeds the committed
+  baseline by more than 10%.
+
+Regenerate `scripts/lint/test_duration_baseline.json` after deliberate suite
+growth (such as a new test module) or after test-hotspot speed-ups land on
+`master`: download both the Linux cp312 API (`ci-metrics-api-cp312-manylinux-x86_64*`)
+and physics (`ci-metrics-physics-cp312-manylinux-x86_64*`) artefacts from 6 or
+more recent green `standard` runs into `.context/runs/<run-id>/{api,physics}`
+and run `python scripts/lint/check_test_duration.py --write-baseline .context/runs/*`.
+
 For xdist, each `execution.workers` record contains the assigned node IDs,
 their count/hash, `busy_duration_seconds`, `finished_at_seconds` and
 `peak_rss_bytes`, the worker process's own peak resident size reported through

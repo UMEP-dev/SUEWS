@@ -178,14 +178,43 @@ function buildBody(env, { isDraft, owner, repo }) {
 }
 
 const MARKER = '<!-- ci-build-plan -->';
+const SUMMARY_BOT_LOGIN = 'github-actions[bot]';
 const COST_START = '<!-- cost-markers:start -->';
 const COST_END = '<!-- cost-markers:end -->';
 const COST_BLOCK = new RegExp(`\\n*${COST_START}[\\s\\S]*?${COST_END}\\n*`);
+const DURATION_START = '<!-- duration-guard:start -->';
+const DURATION_END = '<!-- duration-guard:end -->';
+const DURATION_BLOCK = new RegExp(`\\n*${DURATION_START}[\\s\\S]*?${DURATION_END}\\n*`);
 const COST_LIST_LIMIT = 15;
 
-// Node ids come from the PR's own test run, so keep them inside one code span.
+// Neutralise HTML comment delimiters so untrusted data can never forge or
+// terminate the sticky comment's marker blocks.
+function neutraliseHtmlComments(text) {
+  let out = String(text);
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/<!--/g, '&lt;!--').replace(/-->/g, '--&gt;');
+  } while (out !== prev);
+  return out;
+}
+
+// Node ids come from the PR's own test run, so keep them inside one code span
+// and strip HTML comment markers that could split the sticky comment block.
 function codeSpan(text) {
-  return '`' + String(text).replace(/[`\r\n]/g, "'") + '`';
+  return '`' + neutraliseHtmlComments(String(text).replace(/[`\r\n]/g, "'")) + '`';
+}
+
+// Sanitise untrusted inline text before placing it in Markdown prose.
+function sanitiseInlineText(text) {
+  const printable = String(text)
+    .replace(/[^\x20-\x7e]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return neutraliseHtmlComments(printable)
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/([\\`*_[\]~|])/g, '\\$1');
 }
 
 function plural(n, word) {
@@ -232,21 +261,45 @@ function costMarkerSection(report, { testTier } = {}) {
 function withCostMarkerSection(body, section) {
   const base = body.replace(COST_BLOCK, '\n\n');
   if (!section) return base;
-  const block = `${COST_START}\n${section}\n${COST_END}`;
+  const safeSection = neutraliseHtmlComments(section);
+  const block = `${COST_START}\n${safeSection}\n${COST_END}`;
   const footer = base.lastIndexOf('\n---\n');
   if (footer === -1) return `${base.trimEnd()}\n\n${block}\n`;
   return `${base.slice(0, footer).trimEnd()}\n\n${block}\n${base.slice(footer)}`;
 }
 
+function isSummaryBotComment(comment) {
+  return Boolean(
+    comment &&
+    comment.user &&
+    comment.user.type === 'Bot' &&
+    comment.user.login === SUMMARY_BOT_LOGIN &&
+    typeof comment.body === 'string' &&
+    comment.body.includes(MARKER)
+  );
+}
+
 async function findSummaryComment(github, context) {
-  const { data: comments } = await github.rest.issues.listComments({
+  const params = {
     owner: context.repo.owner,
     repo: context.repo.repo,
-    issue_number: context.issue.number
-  });
-  return comments.find(c =>
-    c.user.type === 'Bot' && c.body.includes(MARKER)
-  );
+    issue_number: context.issue.number,
+    per_page: 100,
+  };
+  if (typeof github.paginate === 'function') {
+    const comments = await github.paginate(github.rest.issues.listComments, params);
+    return comments.find(isSummaryBotComment);
+  }
+  for (let page = 1; page <= 100; page += 1) {
+    const { data: comments } = await github.rest.issues.listComments({
+      ...params,
+      page,
+    });
+    const match = comments.find(isSummaryBotComment);
+    if (match) return match;
+    if (comments.length < params.per_page) return undefined;
+  }
+  return undefined;
 }
 
 async function postCostMarkers({ github, context, core, report, testTier }) {
@@ -258,6 +311,234 @@ async function postCostMarkers({ github, context, core, report, testTier }) {
   const body = withCostMarkerSection(existing.body, costMarkerSection(report, { testTier }));
   if (body === existing.body) {
     core.info('Cost-marker section unchanged.');
+    return;
+  }
+  await github.rest.issues.updateComment({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    comment_id: existing.id,
+    body: body
+  });
+}
+
+function formatSignedPercent(deltaPercent) {
+  const n = Number(deltaPercent);
+  const clamped = Math.abs(n) < 0.05 ? 0 : n;
+  return `${clamped >= 0 ? '+' : ''}${clamped.toFixed(1)}%`;
+}
+
+const INCOMPLETE_LANE_STATUSES = new Set(['missing', 'unavailable']);
+
+function finiteInt(value) {
+  return Number.isInteger(value) ? value : null;
+}
+
+function finiteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+// Render an incomplete-lane reason from trusted reason_code + numeric fields
+// so PR-controlled filenames never enter the sticky PR comment unsanitised.
+function formatIncompleteLaneReason(lane) {
+  const d = lane && typeof lane.reason_details === 'object' && lane.reason_details !== null
+    ? lane.reason_details
+    : {};
+  switch (lane && lane.reason_code) {
+    case 'no_artefacts':
+      return 'no metrics artefacts found for lane';
+    case 'incomplete_session_exit_code': {
+      const code = finiteInt(d.exit_code);
+      return code === null
+        ? 'incomplete pytest session'
+        : `incomplete session (pytest exit_code=${code})`;
+    }
+    case 'incomplete_session_outcomes': {
+      const rec = finiteInt(d.recorded_outcome_count);
+      const col = finiteInt(d.collected_count);
+      return rec === null || col === null
+        ? 'incomplete pytest session'
+        : `incomplete session (${rec}/${col} collected tests recorded)`;
+    }
+    case 'mixed_sharded_and_unsharded':
+      return 'mixed sharded and unsharded artefacts in lane';
+    case 'invalid_shard_id': {
+      const n = finiteInt(d.invalid_count);
+      return n === null
+        ? 'invalid shard identifier'
+        : `invalid shard identifier in ${plural(n, 'artefact')}`;
+    }
+    case 'duplicate_shard_id': {
+      const arts = finiteInt(d.artefact_count);
+      const distinct = finiteInt(d.distinct_count);
+      const total = finiteInt(d.expected_total);
+      if (arts !== null && distinct !== null && total !== null) {
+        return `duplicate shard identifier(s) (found ${arts} artefacts for ${distinct} distinct of ${total})`;
+      }
+      return 'duplicate shard identifier(s)';
+    }
+    case 'inconsistent_shard_totals': {
+      const totals = Array.isArray(d.totals)
+        ? d.totals.filter(Number.isInteger)
+        : [];
+      return totals.length > 0
+        ? `inconsistent shard totals (${totals.join(', ')})`
+        : 'inconsistent shard totals';
+    }
+    case 'missing_shards': {
+      const total = finiteInt(d.expected_total);
+      const present = finiteInt(d.present_count);
+      const missingCount = finiteInt(d.missing_count);
+      const sample = Array.isArray(d.missing_shards)
+        ? d.missing_shards.filter(Number.isInteger)
+        : [];
+      if (total !== null && present !== null && sample.length > 0) {
+        const extra = missingCount !== null && missingCount > sample.length
+          ? `, ... (+${missingCount - sample.length} more)`
+          : '';
+        return `incomplete shard set: missing shard(s) ${sample.join(', ')}${extra} of ${total} (found ${present}/${total})`;
+      }
+      if (total !== null && present !== null) {
+        return `incomplete shard set (found ${present}/${total})`;
+      }
+      return 'incomplete shard set';
+    }
+    case 'invalid_measurements': {
+      const n = finiteInt(d.artefact_count);
+      return n === null
+        ? 'invalid or non-finite CPU measurements'
+        : `invalid or non-finite CPU measurements in ${plural(n, 'artefact')}`;
+    }
+    case 'low_coverage': {
+      const measured = finiteInt(d.measured_count);
+      const baselineCount = finiteInt(d.baseline_measured_count);
+      const pct = finiteNumber(d.min_coverage_percent);
+      if (measured !== null && baselineCount !== null && pct !== null) {
+        return `incomplete lane coverage: ${measured} measured tests is below ${pct}% of baseline (${baselineCount})`;
+      }
+      return 'incomplete lane coverage';
+    }
+    case 'insufficient_references': {
+      const n = finiteInt(d.artefact_count);
+      const req = finiteInt(d.min_reference_matches);
+      if (n !== null && req !== null) {
+        return `too few unchanged reference matches in ${plural(n, 'artefact')} (need at least ${req})`;
+      }
+      return 'too few unchanged reference matches';
+    }
+    case 'invalid_session_metadata':
+      return 'malformed pytest session metadata';
+    case 'invalid_baseline':
+      return 'invalid or non-finite baseline values';
+    default:
+      return lane && lane.reason ? sanitiseInlineText(lane.reason) : '';
+  }
+}
+
+// The duration-guard section for a report written by
+// `scripts/lint/check_test_duration.py --json`. Empty only when there is no
+// report or no lanes; one line when comparison completed cleanly; otherwise an
+// advisory list that explicitly distinguishes incomplete comparisons from
+// completed clean runs.
+function durationGuardSection(report) {
+  if (!report || !report.lanes) return '';
+  const laneEntries = Object.values(report.lanes);
+  if (laneEntries.length === 0) return '';
+  const evaluated = laneEntries.filter(
+    l => finiteNumber(l.scaled_total_seconds) !== null && finiteNumber(l.delta_percent) !== null
+  );
+  const incomplete = laneEntries.filter(l => INCOMPLETE_LANE_STATUSES.has(l.status));
+  const regressed = evaluated.filter(l => l.regressed);
+  const cleanEvaluated = evaluated.filter(l => !l.regressed);
+  const warnings = [...(report.marker_warnings || [])].sort(
+    (a, b) => b.scaled_cpu_seconds - a.scaled_cpu_seconds
+  );
+
+  const rawThreshold = finiteNumber(report.max_regression) ?? 0.1;
+  const thresholdPct = Math.round(rawThreshold * 100);
+  const laneParts = evaluated.map(
+    l => `${sanitiseInlineText(l.lane)} ${formatSignedPercent(l.delta_percent)}`
+  );
+
+  if (regressed.length === 0 && warnings.length === 0 && incomplete.length === 0 && evaluated.length > 0) {
+    return (
+      `**Test duration guard** (Linux cp312, \`standard\` tier): within +${thresholdPct}% of baseline ` +
+      `(${laneParts.join(', ')}; runner-normalised).`
+    );
+  }
+
+  const qualifier = incomplete.length > 0
+    ? 'comparison incomplete; information only, not a gate'
+    : 'information only, not a gate';
+  const lines = [
+    `**Test duration guard** (${qualifier}; Linux cp312, \`standard\` tier):`,
+    '',
+  ];
+  for (const lane of regressed) {
+    const pct = formatSignedPercent(lane.delta_percent);
+    const scaled = Number(lane.scaled_total_seconds).toFixed(1);
+    const base = Number(lane.baseline_total_seconds).toFixed(1);
+    const laneName = sanitiseInlineText(lane.lane);
+    const factorSummary = sanitiseInlineText(lane.factor_summary || 'n/a');
+    lines.push(
+      `- **${laneName}** lane: ${pct} normalised call CPU-s (${scaled} s vs ${base} s baseline, ` +
+        `threshold +${thresholdPct}%; runner ${factorSummary})`
+    );
+  }
+  for (const lane of incomplete) {
+    const laneName = sanitiseInlineText(lane.lane);
+    const status = sanitiseInlineText(lane.status);
+    const reasonText = formatIncompleteLaneReason(lane);
+    const reason = reasonText ? ` (${reasonText})` : '';
+    lines.push(`- **${laneName}** lane: ${status}${reason}`);
+  }
+  if (incomplete.length > 0 && cleanEvaluated.length > 0) {
+    const cleanParts = cleanEvaluated.map(
+      l => `${sanitiseInlineText(l.lane)} ${formatSignedPercent(l.delta_percent)}`
+    );
+    lines.push(`- Completed lane(s) within +${thresholdPct}%: ${cleanParts.join(', ')}`);
+  }
+  for (const w of warnings.slice(0, COST_LIST_LIMIT)) {
+    const scaled = Number(w.scaled_cpu_seconds).toFixed(1);
+    const raw = Number(w.raw_cpu_seconds).toFixed(1);
+    const factor = Number(w.runner_factor).toFixed(2);
+    const current = w.current ? sanitiseInlineText(w.current) : 'no cost marker';
+    const wanted = sanitiseInlineText(w.wanted);
+    lines.push(
+      `- ${codeSpan(w.node_id)}: ${scaled} normalised CPU-s (raw ${raw} s, runner ${factor}x), ` +
+        `${current} -> ${wanted}`
+    );
+  }
+  if (warnings.length > COST_LIST_LIMIT) {
+    lines.push(`- _...and ${warnings.length - COST_LIST_LIMIT} more_`);
+  }
+  lines.push(
+    '',
+    'See the "Test duration guard (Linux cp312)" job summary for details and `.claude/rules/tests/patterns.md` for cost-marker thresholds.',
+  );
+  return lines.join('\n');
+}
+
+// Replace (or drop, for an empty section) the duration-guard block in a
+// summary comment body, placing it just above the footer rule. Idempotent.
+function withDurationGuardSection(body, section) {
+  const base = body.replace(DURATION_BLOCK, '\n\n');
+  if (!section) return base;
+  const safeSection = neutraliseHtmlComments(section);
+  const block = `${DURATION_START}\n${safeSection}\n${DURATION_END}`;
+  const footer = base.lastIndexOf('\n---\n');
+  if (footer === -1) return `${base.trimEnd()}\n\n${block}\n`;
+  return `${base.slice(0, footer).trimEnd()}\n\n${block}\n${base.slice(footer)}`;
+}
+
+async function postDurationGuard({ github, context, core, report }) {
+  const existing = await findSummaryComment(github, context);
+  if (!existing) {
+    core.info('No CI summary comment on this PR; nothing to add the duration guard to.');
+    return;
+  }
+  const body = withDurationGuardSection(existing.body, durationGuardSection(report));
+  if (body === existing.body) {
+    core.info('Duration-guard section unchanged.');
     return;
   }
   await github.rest.issues.updateComment({
@@ -306,3 +587,6 @@ module.exports.TIER_DESC = TIER_DESC;
 module.exports.costMarkerSection = costMarkerSection;
 module.exports.withCostMarkerSection = withCostMarkerSection;
 module.exports.postCostMarkers = postCostMarkers;
+module.exports.durationGuardSection = durationGuardSection;
+module.exports.withDurationGuardSection = withDurationGuardSection;
+module.exports.postDurationGuard = postDurationGuard;

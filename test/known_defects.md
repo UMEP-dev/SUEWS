@@ -49,11 +49,27 @@ Legacy docstring ignores in `.ruff.toml` are outside this test-defect inventory.
 Environment-dependent skips are not exhaustively inventoried.
 The Rust reader supports literal string/pair arrays and fails on unsupported
 syntax; it is not a full Rust parser.
-The Python reader rejects mutations of registered constants and their constant
-dependencies rather than reporting only their initial values.
+The Python reader rejects direct, aliased and local-helper mutations of
+registered constants and their constant dependencies, as well as unsupported
+escapes (passing mutable constants to unresolved or external callables,
+returning or yielding them, storing them on attributes or class bodies, or
+dynamic namespace execution such as `globals()`, `locals()`, `vars()`, `exec()`
+and `eval()`), while permitting read-only operations and read-only local
+helpers.
+Because it is static and single-file, it does not detect mutations performed
+by another module after import or through dynamic introspection such as
+`sys.modules` or `.__dict__`.
 The suppression scan detects calls named `xfail`, bare `pytest.mark.xfail`
-markers and Rust ignore attributes;
-it does not resolve arbitrary Python aliases or Rust macros.
+markers, `unittest.expectedFailure` decorator and call registrations (including
+scoped `unittest`, `unittest.case`, and `expectedFailure` import forms and
+simple assignment aliases) and Rust ignore attributes.
+Within a single lexical scope, `unittest.expectedFailure` alias tracking is
+conservative and flow-insensitive (once a name in a scope is bound to
+`unittest`, `unittest.case`, or `expectedFailure`, later reassignment or
+deletion in that same scope does not suppress detection, while parameter,
+comprehension-target, and inner-scope local bindings shadow outer aliases); it
+does not resolve arbitrary dynamic Python aliases (such as `getattr`, container
+indirection, or cross-module re-exports) or Rust macros.
 
 The closing rule is detection only, as decided by Ting Sun on 21 November 2026.
 The separate `Recorded test debt` workflow checks on pull requests and daily on

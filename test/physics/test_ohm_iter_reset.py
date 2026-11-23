@@ -27,7 +27,10 @@ import supy as sp
 from supy.data_model import SUEWSConfig
 from supy.data_model.core.model import StorageHeatMethod
 
-pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE", "C-BALANCE")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.contract("C-RESPONSE", "C-BALANCE", "C-RESTART"),
+]
 
 ENERGY_CLOSURE_TOLERANCE_W_M2 = 1.0e-6
 STEBBS_CONFIG_PATH = (
@@ -48,8 +51,8 @@ def _ohm_dqndt_single_pass_series(
     """Evaluate ``OHM_dqndt_cal_X`` once per timestep on a converged ``QN`` series."""
     dt0_thresh = 3600
     window_hr = 2.0
-    # Match Fortran `dt/sec_per_hour_sp` single-precision quotient in OHM_dqndt_cal_X.
-    dt_hr = float(np.float32(tstep) / np.float32(3600.0))
+    # Match Fortran `dt/sec_per_hour` double-precision quotient in OHM_dqndt_cal_X (#1970).
+    dt_hr = float(tstep) / 3600.0
 
     n_steps = len(qn_series)
     qn_av_out = np.empty(n_steps, dtype=float)

@@ -967,7 +967,7 @@ class TestSUEWSSimulationRefValue:
 
 
 def test_storage_drain_wrapped_null_maps_to_nan_and_bare_none_maps_to_zero():
-    """Wrapped {value: null} in StorageDrainParams yields NaN; bare None yields 0.0."""
+    """Active null drainage coefficients are rejected; missing coefficients map to NaN."""
     import copy
     from importlib.resources import files
 
@@ -982,20 +982,38 @@ def test_storage_drain_wrapped_null_maps_to_nan_and_bare_none_maps_to_zero():
     sd["drain_coef_1"] = {"value": None}
     sd["drain_coef_2"] = None
 
-    cfg = SUEWSConfig.from_dict(raw_wrapped)
+    # Active non-water surface with drain_eq in {1, 2, 3} rejects null/None coefficients (#2145).
+    with pytest.raises(ValueError, match="drain_coef_1"):
+        SUEWSConfig.from_dict(raw_wrapped)
+    with pytest.raises(ValueError, match="drain_coef_1"):
+        SUEWSSimulation().update_config(raw_wrapped)
+
+    # On an inactive surface (sfr == 0), both wrapped {value: null} and bare
+    # None drainage coefficients map to NaN (never becoming executable 0.0).
+    raw_inactive = copy.deepcopy(raw)
+    lc = raw_inactive["sites"][0]["properties"]["land_cover"]
+    paved_sfr = lc["paved"]["sfr"]["value"]
+    lc["paved"]["sfr"] = {"value": 0.0}
+    lc["bldgs"]["sfr"] = {"value": lc["bldgs"]["sfr"]["value"] + paved_sfr}
+    sd_inact = lc["paved"]["storage_drain_params"]
+    sd_inact["drain_coef_1"] = {"value": None}
+    sd_inact["drain_coef_2"] = None
+
+    cfg = SUEWSConfig.from_dict(raw_inactive)
     df_sd = cfg.sites[0].properties.land_cover.paved.storage_drain_params.to_df_state(
         1, 0
     )
     assert np.isnan(df_sd.loc[1, ("storedrainprm", "(2, 0)")])
-    assert df_sd.loc[1, ("storedrainprm", "(3, 0)")] == 0.0
+    assert np.isnan(df_sd.loc[1, ("storedrainprm", "(3, 0)")])
 
     df_state = cfg.to_df_state()
     assert np.isnan(df_state.loc[1, ("storedrainprm", "(2, 0)")])
-    assert df_state.loc[1, ("storedrainprm", "(3, 0)")] == 0.0
+    assert np.isnan(df_state.loc[1, ("storedrainprm", "(3, 0)")])
 
     sim = SUEWSSimulation()
-    sim.update_config(raw_wrapped)
+    sim.update_config(raw_inactive, auto_load_forcing=False)
     assert np.isnan(sim.state_init.loc[1, ("storedrainprm", "(2, 0)")])
+    assert np.isnan(sim.state_init.loc[1, ("storedrainprm", "(3, 0)")])
 
 
 def test_submodel_to_df_state_and_multisite_column_contracts():

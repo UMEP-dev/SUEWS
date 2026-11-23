@@ -1405,7 +1405,7 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         # Active site-scalar, drainage, hdd_id array, and LAI TypeError gaps
         ("sites[0].properties.lng", ("omit",)),
         (
-            "sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_1",
+            "sites[0].properties.land_cover.paved.storage_drain_params.store_max",
             ("omit",),
         ),
         ("sites[0].initial_states.hdd_id[0]", ("omit",)),
@@ -1590,6 +1590,9 @@ def test_expected_emitted_defaults_match_pydantic_schema() -> None:
     expected_defaults = load_expected_defaults()
     default_site = Site()
     default_site.properties.soil_observation = SoilObservationConfig(layer_depth=0.5)
+    # An all-default StorageDrainParams is a placeholder that suppresses factory
+    # defaults on dump; populate one field so drain_eq/store_min defaults emit.
+    default_site.properties.land_cover.paved.storage_drain_params.store_max = 1.0
     default_doc = SUEWSConfig(sites=[default_site]).model_dump(mode="json")
 
     # ACT / ASSERT: expand wildcard patterns across concrete surfaces and verify exact match

@@ -2866,6 +2866,117 @@ fn apply_site_overrides(
     Ok(())
 }
 
+// Drainage coefficients are required only for contributing land surfaces using
+// existing equations 1-3. Preserve ignored inputs and explicit zero; selector
+// policy and the kernel's wet zero-area behaviour are separate contracts.
+fn apply_drainage_overrides(
+    state: &mut SuewsState,
+    site_root: &Value,
+    fractions: &[f64],
+) -> Result<(), String> {
+    for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
+        let surface_at = format!(
+            "{}.properties.land_cover.{}",
+            site_yaml_at(site_root),
+            surface_name
+        );
+        // Resolved input must give the fraction: an omitted fraction cannot
+        // establish that a configured land surface is inactive.
+        if surface_name != "water" {
+            if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", surface_name])
+            {
+                require_numeric(lc_root, &["sfr"], &surface_at)?;
+            }
+        }
+        let active = surface_name != "water" && fractions[surface_idx] > 0.0;
+        let sdp_path = ["properties", "land_cover", surface_name, "storedrainprm"];
+        let drainage = get_path(site_root, &sdp_path);
+        if active
+            && !drainage.is_some_and(|block| {
+                [
+                    "store_min",
+                    "drain_eq",
+                    "drain_coef_1",
+                    "drain_coef_2",
+                    "store_max",
+                    "store_cap",
+                ]
+                .iter()
+                .any(|key| {
+                    get_path(block, &[*key])
+                        .and_then(given_value)
+                        .is_some_and(|value| !value.is_null())
+                })
+            })
+        {
+            return Err(format!(
+                "`{surface_at}.storage_drain_params` must be a mapping with drainage inputs for an active non-water surface; no drainage equation is inferred"
+            ));
+        }
+        // Read storedrainprm from land_cover for this surface.
+        // Index i fills Fortran row i+1 of StoreDrainPrm(6, nsurf), in the
+        // same order supy uses (StorageDrainParams.to_df_state):
+        //   [0] store_min, [1] drain_eq, [2] drain_coef_1,
+        //   [3] drain_coef_2, [4] store_max, [5] store_cap
+        // The kernel reads row 6 (store_cap) as the current storage
+        // capacity: the drainage threshold for drain_eq 1, the Rutter
+        // evaporation capacity, the AnOHM moisture term and the building
+        // soil-store scaling. Row 6 is reassigned daily only for deciduous
+        // trees.
+        if let Some(sdp_root) = drainage {
+            if let Some(v) = read_numeric(sdp_root, &["store_min"]) {
+                state.phenology_state.store_drain_prm[surface_idx][0] = v;
+            }
+            if active && get_path(sdp_root, &["drain_eq"]).is_some() {
+                // Python declares an integer selector. Do not let native-only
+                // fractional input evade the coefficient check and then be
+                // truncated by Fortran INT(DrainEq). Whole floats remain valid.
+                state.phenology_state.store_drain_prm[surface_idx][1] = require_i32(
+                    sdp_root,
+                    &["drain_eq"],
+                    &format!("{surface_at}.storage_drain_params"),
+                )? as f64;
+            } else if let Some(v) = read_numeric(sdp_root, &["drain_eq"]) {
+                state.phenology_state.store_drain_prm[surface_idx][1] = v;
+            }
+            let required = active
+                && matches!(
+                    state.phenology_state.store_drain_prm[surface_idx][1],
+                    1.0 | 2.0 | 3.0
+                );
+            let at = format!(
+                "{}.properties.land_cover.{}.storage_drain_params",
+                site_yaml_at(site_root),
+                surface_name
+            );
+            for (key, slot) in [("drain_coef_1", 2), ("drain_coef_2", 3)] {
+                if required {
+                    state.phenology_state.store_drain_prm[surface_idx][slot] =
+                        require_numeric(sdp_root, &[key], &at)?;
+                } else if let Some(v) = read_numeric(sdp_root, &[key]) {
+                    state.phenology_state.store_drain_prm[surface_idx][slot] = v;
+                }
+            }
+            if let Some(v) = read_numeric(sdp_root, &["store_max"]) {
+                state.phenology_state.store_drain_prm[surface_idx][4] = v;
+            }
+            if let Some(v) = read_numeric(sdp_root, &["store_cap"]) {
+                state.phenology_state.store_drain_prm[surface_idx][5] = v;
+            }
+        }
+        // Fallback: use statelimit for store_min if not yet populated
+        if state.phenology_state.store_drain_prm[surface_idx][0] == 0.0 {
+            if let Some(v) = read_numeric(
+                site_root,
+                &["properties", "land_cover", surface_name, "statelimit"],
+            ) {
+                state.phenology_state.store_drain_prm[surface_idx][0] = v;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn apply_state_overrides(
     state: &mut SuewsState,
     site_root: &Value,
@@ -3012,49 +3123,6 @@ fn apply_state_overrides(
             })
         {
             state.phenology_state.alb[surface_idx] = v;
-        }
-
-        // Read storedrainprm from land_cover for this surface.
-        // Index i fills Fortran row i+1 of StoreDrainPrm(6, nsurf), in the
-        // same order supy uses (StorageDrainParams.to_df_state):
-        //   [0] store_min, [1] drain_eq, [2] drain_coef_1,
-        //   [3] drain_coef_2, [4] store_max, [5] store_cap
-        // The kernel reads row 6 (store_cap) as the current storage
-        // capacity: the drainage threshold for drain_eq 1, the Rutter
-        // evaporation capacity, the AnOHM moisture term and the building
-        // soil-store scaling. Row 6 is reassigned daily only for deciduous
-        // trees.
-        if let Some(sdp_root) = get_path(
-            site_root,
-            &["properties", "land_cover", surface_name, "storedrainprm"],
-        ) {
-            if let Some(v) = read_numeric(sdp_root, &["store_min"]) {
-                state.phenology_state.store_drain_prm[surface_idx][0] = v;
-            }
-            if let Some(v) = read_numeric(sdp_root, &["drain_eq"]) {
-                state.phenology_state.store_drain_prm[surface_idx][1] = v;
-            }
-            if let Some(v) = read_numeric(sdp_root, &["drain_coef_1"]) {
-                state.phenology_state.store_drain_prm[surface_idx][2] = v;
-            }
-            if let Some(v) = read_numeric(sdp_root, &["drain_coef_2"]) {
-                state.phenology_state.store_drain_prm[surface_idx][3] = v;
-            }
-            if let Some(v) = read_numeric(sdp_root, &["store_max"]) {
-                state.phenology_state.store_drain_prm[surface_idx][4] = v;
-            }
-            if let Some(v) = read_numeric(sdp_root, &["store_cap"]) {
-                state.phenology_state.store_drain_prm[surface_idx][5] = v;
-            }
-        }
-        // Fallback: use statelimit for store_min if not yet populated
-        if state.phenology_state.store_drain_prm[surface_idx][0] == 0.0 {
-            if let Some(v) = read_numeric(
-                site_root,
-                &["properties", "land_cover", surface_name, "statelimit"],
-            ) {
-                state.phenology_state.store_drain_prm[surface_idx][0] = v;
-            }
         }
 
         let ndepth = state.heat_state.ndepth;
@@ -3558,6 +3626,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // vectors like tsfc_surf have the correct length when values are assigned.
     resize_state_variable_arrays(&mut state, nlayer as usize, ndepth as usize);
 
+    apply_drainage_overrides(&mut state, site_root, &site_scalars.sfr_surf)?;
     apply_state_overrides(&mut state, site_root, config.storage_heat_method)?;
 
     let forcing_timestamp_reference = read_forcing_timestamp_reference(root)?;
@@ -4699,6 +4768,296 @@ mod tests {
             "lc_water.flowchange = {}",
             run_cfg.site.lc_water.flowchange
         );
+    }
+
+    #[test]
+    fn fractional_drainage_selector_cannot_bypass_required_coefficients() {
+        for selector in ["1.5", "2.5", "3.5", "1.0000000001"] {
+            for missing in [false, true] {
+                let mut root = stebbs_fixture_root();
+                let site = first_site_mut(&mut root).unwrap();
+                let sdp = get_path_mut(
+                    site,
+                    &["properties", "land_cover", "paved", "storage_drain_params"],
+                )
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+                sdp.insert(
+                    Value::String("drain_eq".into()),
+                    serde_yaml::from_str(selector).unwrap(),
+                );
+                if missing {
+                    sdp.remove(Value::String("drain_coef_1".into()));
+                }
+                let err = load_run_config_from_value(&mut root).unwrap_err();
+                assert!(
+                    err.contains(
+                        "sites[gridiv=1].properties.land_cover.paved.storage_drain_params.drain_eq"
+                    ),
+                    "{err}"
+                );
+                assert!(err.contains("integer"), "{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn missing_active_drainage_block_is_not_an_inactive_configuration() {
+        for block in ["storage_drain_params", "storedrainprm"] {
+            for value in [
+                None,
+                Some(Value::Null),
+                Some(serde_yaml::from_str("{}").unwrap()),
+                Some(serde_yaml::from_str("{ref: {desc: survey}}").unwrap()),
+                Some(serde_yaml::from_str("{store_cap: null}").unwrap()),
+                Some(
+                    serde_yaml::from_str("{store_cap: {value: null, ref: {desc: survey}}}")
+                        .unwrap(),
+                ),
+                Some(
+                    serde_yaml::from_str("{drain_coef_1: {value: null, ref: {desc: survey}}}")
+                        .unwrap(),
+                ),
+            ] {
+                let mut root = stebbs_fixture_root();
+                let site = first_site_mut(&mut root).unwrap();
+                let paved = get_path_mut(site, &["properties", "land_cover", "paved"])
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                paved.remove(Value::String("storage_drain_params".into()));
+                if let Some(value) = value {
+                    paved.insert(Value::String(block.into()), value);
+                }
+                let err = load_run_config_from_value(&mut root).unwrap_err();
+                assert!(
+                    err.contains(
+                        "sites[gridiv=1].properties.land_cover.paved.storage_drain_params"
+                    ),
+                    "{err}"
+                );
+                assert!(err.contains("mapping"), "{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn omitted_fraction_cannot_silently_disable_drainage_validation() {
+        for value in [None, Some(Value::Null)] {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let paved = get_path_mut(site, &["properties", "land_cover", "paved"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            if let Some(value) = value {
+                paved.insert(Value::String("sfr".into()), value);
+            } else {
+                paved.remove(Value::String("sfr".into()));
+            }
+            let err = load_run_config_from_value(&mut root).unwrap_err();
+            assert!(
+                err.contains("sites[gridiv=1].properties.land_cover.paved.sfr"),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn zero_area_and_water_may_omit_the_whole_drainage_block() {
+        let mut root = stebbs_fixture_root();
+        let site = first_site_mut(&mut root).unwrap();
+        for surface in ["evetr", "water"] {
+            let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            if surface == "evetr" {
+                lc.insert(
+                    Value::String("sfr".into()),
+                    serde_yaml::from_str("0.0").unwrap(),
+                );
+            }
+            lc.remove(Value::String("storage_drain_params".into()));
+        }
+        load_run_config_from_value(&mut root).unwrap();
+    }
+
+    #[test]
+    fn whole_float_drainage_selectors_and_explicit_zero_are_preserved() {
+        for selector in [1, 2, 3] {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(
+                Value::String("drain_eq".into()),
+                serde_yaml::from_str(&format!("{selector}.0")).unwrap(),
+            );
+            sdp.insert(
+                Value::String("drain_coef_1".into()),
+                serde_yaml::from_str("1.25").unwrap(),
+            );
+            sdp.insert(
+                Value::String("drain_coef_2".into()),
+                serde_yaml::from_str("0.0").unwrap(),
+            );
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            assert_eq!(
+                cfg.state.phenology_state.store_drain_prm[0][1],
+                selector as f64
+            );
+            assert_eq!(cfg.state.phenology_state.store_drain_prm[0][2], 1.25);
+            assert_eq!(cfg.state.phenology_state.store_drain_prm[0][3], 0.0);
+        }
+    }
+
+    #[test]
+    fn unknown_integer_drainage_selectors_keep_existing_transport() {
+        for selector in [0, -999, 4] {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(
+                Value::String("drain_eq".into()),
+                Value::Number(selector.into()),
+            );
+            sdp.remove(Value::String("drain_coef_1".into()));
+            sdp.remove(Value::String("drain_coef_2".into()));
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            // Transport acceptance is not scientific approval for a wet run.
+            assert_eq!(
+                cfg.state.phenology_state.store_drain_prm[0][1],
+                selector as f64
+            );
+        }
+    }
+
+    #[test]
+    fn active_drainage_coefficients_are_required() {
+        for equation in [1, 2, 3] {
+            for field in ["drain_coef_1", "drain_coef_2"] {
+                for value in [
+                    None,
+                    Some("null"),
+                    Some("{value: null}"),
+                    Some("bad"),
+                    Some(".inf"),
+                ] {
+                    let mut root = stebbs_fixture_root();
+                    let site = first_site_mut(&mut root).unwrap();
+                    let sdp = get_path_mut(
+                        site,
+                        &["properties", "land_cover", "paved", "storage_drain_params"],
+                    )
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                    sdp.insert(
+                        Value::String("drain_eq".into()),
+                        Value::Number(equation.into()),
+                    );
+                    let key = Value::String(field.into());
+                    if let Some(text) = value {
+                        sdp.insert(key, serde_yaml::from_str(text).unwrap());
+                    } else {
+                        sdp.remove(&key);
+                    }
+                    let err = load_run_config_from_value(&mut root).unwrap_err();
+                    assert!(
+                        err.contains(&format!(
+                        "sites[gridiv=1].properties.land_cover.paved.storage_drain_params.{field}"
+                    )),
+                        "{err}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn drainage_checks_do_not_depend_on_initial_states() {
+        let mut root = stebbs_fixture_root();
+        let site = first_site_mut(&mut root).unwrap();
+        site.as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("initial_states".into()));
+        get_path_mut(
+            site,
+            &["properties", "land_cover", "paved", "storage_drain_params"],
+        )
+        .unwrap()
+        .as_mapping_mut()
+        .unwrap()
+        .remove(Value::String("drain_coef_1".into()));
+        let err = load_run_config_from_value(&mut root).unwrap_err();
+        assert!(
+            err.contains("land_cover.paved.storage_drain_params.drain_coef_1"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn drainage_preserves_explicit_values_and_ignored_absence() {
+        for equation in [1, 2, 3] {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(
+                Value::String("drain_eq".into()),
+                Value::Number(equation.into()),
+            );
+            sdp.insert(
+                Value::String("drain_coef_1".into()),
+                serde_yaml::from_str("{value: 0.0}").unwrap(),
+            );
+            sdp.insert(
+                Value::String("drain_coef_2".into()),
+                serde_yaml::from_str("2.75").unwrap(),
+            );
+            for surface in ["evetr", "water"] {
+                // Zero area is explicit for the land negative control; water is
+                // excluded independently of its fraction and selector sentinel.
+                let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                if surface == "evetr" {
+                    lc.insert(
+                        Value::String("sfr".into()),
+                        serde_yaml::from_str("0.0").unwrap(),
+                    );
+                }
+                let sdp = lc
+                    .get_mut(Value::String("storage_drain_params".into()))
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                sdp.remove(Value::String("drain_coef_1".into()));
+                sdp.insert(Value::String("drain_coef_2".into()), Value::Null);
+            }
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            assert_eq!(cfg.state.phenology_state.store_drain_prm[0][2], 0.0);
+            assert_eq!(cfg.state.phenology_state.store_drain_prm[0][3], 2.75);
+        }
     }
 
     #[test]

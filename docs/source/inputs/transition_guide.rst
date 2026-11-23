@@ -21,7 +21,7 @@ The same command also accepts a df_state snapshot (``*.csv``/``*.pkl``) or an ol
 Prerequisites
 -------------
 
-Ensure that ``supy`` is installed in your Python environment. The transition tool is part of the ``supy`` package.
+Ensure that ``supy`` is installed in your Python environment (see :ref:`installation`). The transition tool is part of the ``supy`` package.
 
 Using the Transition Tool
 -------------------------

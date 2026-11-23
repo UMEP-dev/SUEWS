@@ -360,6 +360,8 @@ def _run_standalone_and_supy_pair(
             "model": {
                 "physics": {"net_radiation": 3, "snow_use": 1, "storage_heat": 1},
                 "control": {
+                    "start_time": None,
+                    "end_time": None,
                     "forcing": {"file": str(forcing_file)},
                     "output": {"dir": str(out_dir), "freq": 300},
                 },

@@ -45,8 +45,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_max !Max LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(4, nvegsurf), INTENT(IN) :: lai_power !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
 
-      INTEGER, DIMENSION(nvegsurf), INTENT(IN) :: lai_type !LAI equation to use: original (0) or new (1)
-
       REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
       REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_id_prev ! LAI of previous day [m2 m-2]

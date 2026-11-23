@@ -653,6 +653,176 @@ fn apply_day_profile_overrides(
     Ok(())
 }
 
+fn format_yaml_key(key: &Value) -> String {
+    match key {
+        Value::String(s) => format!("`{s}`"),
+        Value::Number(n) => format!("`{n}`"),
+        Value::Bool(b) => format!("`{b}`"),
+        other => yaml_kind(other).to_string(),
+    }
+}
+
+/// Parse a single 24-hour profile key into a 1-based hour in `1..=24`.
+///
+/// Accepts canonical `"1"`..`"24"`, unsigned integers `1..=24` (excluding
+/// floats, negative integers, and booleans), and zero-padded ASCII digit
+/// strings (`"01"`..`"09"`, `"001"`, `"024"`). Rejects signed strings
+/// (`"+1"`, `"-1"`), whitespace (`" 1"`, `"1 "`), decimals (`"1.0"`, `1.0`),
+/// underscores (`"0_1"`), non-ASCII digits, booleans, and out-of-range hours
+/// (`"0"`, `"00"`, `"25"`).
+fn parse_hourly_profile_key(key: &Value, path_display: &str) -> Result<usize, String> {
+    match key {
+        Value::String(raw) => {
+            if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(format!(
+                    "`{path_display}` has invalid hour key `{raw}`; expected ASCII digits `1`-`24` \
+                     (optional leading zeros allowed; no signs, whitespace, decimals, underscores, \
+                     or non-ASCII digits)."
+                ));
+            }
+            let stripped = raw.trim_start_matches('0');
+            if stripped.is_empty() {
+                return Err(format!(
+                    "`{path_display}` has invalid hour key `{raw}`; hour must be between 1 and 24."
+                ));
+            }
+            match stripped
+                .parse::<usize>()
+                .ok()
+                .filter(|&hour| (1..=24).contains(&hour))
+            {
+                Some(hour) => Ok(hour),
+                None => Err(format!(
+                    "`{path_display}` has invalid hour key `{raw}`; hour must be between 1 and 24."
+                )),
+            }
+        }
+        Value::Number(num) => {
+            // `as_u64()` accepts only non-negative integer YAML scalars,
+            // rejecting floats such as `1.0` and negative integers such as `-1`.
+            let Some(hour_u64) = num.as_u64() else {
+                return Err(format!(
+                    "`{path_display}` has invalid hour key `{num}`; expected integer `1`-`24` \
+                     (no floats or negative numbers)."
+                ));
+            };
+            if !(1..=24).contains(&hour_u64) {
+                return Err(format!(
+                    "`{path_display}` has invalid hour key `{hour_u64}`; hour must be between 1 and 24."
+                ));
+            }
+            Ok(hour_u64 as usize)
+        }
+        other => Err(format!(
+            "`{path_display}` has invalid hour key ({}); expected ASCII digits `1`-`24` or integer `1`-`24`.",
+            yaml_kind(other)
+        )),
+    }
+}
+
+fn apply_hourly_day_profile(
+    target: &mut [f64; 24],
+    day_value: &Value,
+    path_display: &str,
+) -> Result<(), String> {
+    if matches!(day_value, Value::Null) {
+        return Ok(());
+    }
+    let Value::Mapping(day_map) = day_value else {
+        return Err(format!(
+            "`{path_display}` is {}; it must be a mapping of hour `1`-`24` to value.",
+            yaml_kind(day_value)
+        ));
+    };
+
+    let mut seen: [Option<String>; 24] = std::array::from_fn(|_| None);
+    let mut parsed_values: [Option<f64>; 24] = [None; 24];
+
+    for (raw_key, raw_val) in day_map {
+        let hour = parse_hourly_profile_key(raw_key, path_display)?;
+        let idx = hour - 1;
+        let raw_label = format_yaml_key(raw_key);
+        if let Some(prev_label) = &seen[idx] {
+            return Err(format!(
+                "`{path_display}` has duplicate hour key `{hour}` (colliding keys {prev_label} and {raw_label})."
+            ));
+        }
+        seen[idx] = Some(raw_label);
+
+        match given_value(raw_val) {
+            Some(Value::Number(n)) => match n.as_f64() {
+                Some(v) if v.is_finite() => {
+                    parsed_values[idx] = Some(v);
+                }
+                _ => {
+                    return Err(format!(
+                        "`{path_display}.{hour}` is non-finite; it must be a finite number."
+                    ));
+                }
+            },
+            Some(Value::Null) | None => {
+                // Preserve existing null-slot pass-through (hourly-profile-slot-bare-null, #2001).
+            }
+            Some(other) => {
+                return Err(format!(
+                    "`{path_display}.{hour}` is {}; it must be a number.",
+                    yaml_kind(other)
+                ));
+            }
+        }
+    }
+
+    let missing: Vec<String> = seen
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, label)| label.is_none().then_some((idx + 1).to_string()))
+        .collect();
+    if !missing.is_empty() {
+        return Err(format!(
+            "`{path_display}` is missing {} hour(s): {}. Must define all 24 hours `1`-`24`.",
+            missing.len(),
+            missing.join(", ")
+        ));
+    }
+
+    for (idx, maybe_val) in parsed_values.into_iter().enumerate() {
+        if let Some(v) = maybe_val {
+            target[idx] = v;
+        }
+    }
+    Ok(())
+}
+
+fn apply_hourly_profile_overrides(
+    site_root: &Value,
+    profile_path: &[&str],
+    site_at: &str,
+    working: &mut [f64; 24],
+    holiday: &mut [f64; 24],
+) -> Result<(), String> {
+    let Some(profile_root) = get_path(site_root, profile_path) else {
+        return Ok(());
+    };
+    if matches!(profile_root, Value::Null) {
+        return Ok(());
+    }
+    let profile = get_path(profile_root, &["value"]).unwrap_or(profile_root);
+    let profile_display = yaml_path_display(site_at, profile_path);
+    if !matches!(profile, Value::Mapping(_)) {
+        return Err(format!(
+            "`{profile_display}` is {}; it must be a mapping with `working_day` and `holiday`.",
+            yaml_kind(profile)
+        ));
+    }
+    if let Some(wd) = get_path(profile, &["working_day"]) {
+        apply_hourly_day_profile(working, wd, &format!("{profile_display}.working_day"))?;
+    }
+    if let Some(hol) = get_path(profile, &["holiday"]) {
+        apply_hourly_day_profile(holiday, hol, &format!("{profile_display}.holiday"))?;
+    }
+    Ok(())
+}
+
 /// Write `value` into `mapped` under the existing key that matches
 /// `field_name`, exactly or after removing every `_`.
 ///
@@ -1492,33 +1662,14 @@ fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), S
         site.snow.rad_melt_factor = v;
     }
 
-    for hour in 1..=24 {
-        let key = hour.to_string();
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                "properties",
-                "snow",
-                "snowprof_24hr",
-                "working_day",
-                key.as_str(),
-            ],
-        ) {
-            site.snow.snowprof_24hr_working[hour - 1] = v;
-        }
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                "properties",
-                "snow",
-                "snowprof_24hr",
-                "holiday",
-                key.as_str(),
-            ],
-        ) {
-            site.snow.snowprof_24hr_holiday[hour - 1] = v;
-        }
-    }
+    let site_at = site_yaml_at(site_root);
+    apply_hourly_profile_overrides(
+        site_root,
+        &["properties", "snow", "snowprof_24hr"],
+        &site_at,
+        &mut site.snow.snowprof_24hr_working,
+        &mut site.snow.snowprof_24hr_holiday,
+    )?;
 
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         if let Some(v) = read_numeric(
@@ -1619,6 +1770,7 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
     }
 
     // 24-hour weekday/holiday automatic and manual water-use profiles.
+    let site_at = site_yaml_at(site_root);
     for (profile_name, working, holiday) in [
         (
             "wuprofa_24hr",
@@ -1631,33 +1783,13 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             &mut site.irrigation.wuprofm_24hr_holiday,
         ),
     ] {
-        for hour in 1..=24_usize {
-            let key = hour.to_string();
-            if let Some(v) = read_numeric(
-                site_root,
-                &[
-                    "properties",
-                    "irrigation",
-                    profile_name,
-                    "working_day",
-                    key.as_str(),
-                ],
-            ) {
-                working[hour - 1] = v;
-            }
-            if let Some(v) = read_numeric(
-                site_root,
-                &[
-                    "properties",
-                    "irrigation",
-                    profile_name,
-                    "holiday",
-                    key.as_str(),
-                ],
-            ) {
-                holiday[hour - 1] = v;
-            }
-        }
+        apply_hourly_profile_overrides(
+            site_root,
+            &["properties", "irrigation", profile_name],
+            &site_at,
+            working,
+            holiday,
+        )?;
     }
     Ok(())
 }
@@ -2038,61 +2170,21 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) -> Resul
     }
 
     // 24-hour profiles under heat
-    for hour in 1..=24_usize {
-        let key = hour.to_string();
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "heat",
-                "ahprof_24hr",
-                "working_day",
-                key.as_str(),
-            ],
-        ) {
-            h.ahprof_24hr_working[hour - 1] = v;
-        }
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "heat",
-                "ahprof_24hr",
-                "holiday",
-                key.as_str(),
-            ],
-        ) {
-            h.ahprof_24hr_holiday[hour - 1] = v;
-        }
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "heat",
-                "popprof_24hr",
-                "working_day",
-                key.as_str(),
-            ],
-        ) {
-            h.popprof_24hr_working[hour - 1] = v;
-        }
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "heat",
-                "popprof_24hr",
-                "holiday",
-                key.as_str(),
-            ],
-        ) {
-            h.popprof_24hr_holiday[hour - 1] = v;
-        }
-    }
+    let site_at = site_yaml_at(site_root);
+    apply_hourly_profile_overrides(
+        site_root,
+        &[base[0], base[1], "heat", "ahprof_24hr"],
+        &site_at,
+        &mut h.ahprof_24hr_working,
+        &mut h.ahprof_24hr_holiday,
+    )?;
+    apply_hourly_profile_overrides(
+        site_root,
+        &[base[0], base[1], "heat", "popprof_24hr"],
+        &site_at,
+        &mut h.popprof_24hr_working,
+        &mut h.popprof_24hr_holiday,
+    )?;
 
     // --- co2 sub-section ---
     let e = &mut site.anthroemis;
@@ -2151,61 +2243,20 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) -> Resul
         e.trafficunits = v;
     }
 
-    for hour in 1..=24_usize {
-        let key = hour.to_string();
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "co2",
-                "traffprof_24hr",
-                "working_day",
-                key.as_str(),
-            ],
-        ) {
-            e.traffprof_24hr_working[hour - 1] = v;
-        }
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "co2",
-                "traffprof_24hr",
-                "holiday",
-                key.as_str(),
-            ],
-        ) {
-            e.traffprof_24hr_holiday[hour - 1] = v;
-        }
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "co2",
-                "humactivity_24hr",
-                "working_day",
-                key.as_str(),
-            ],
-        ) {
-            e.humactivity_24hr_working[hour - 1] = v;
-        }
-        if let Some(v) = read_numeric(
-            site_root,
-            &[
-                base[0],
-                base[1],
-                "co2",
-                "humactivity_24hr",
-                "holiday",
-                key.as_str(),
-            ],
-        ) {
-            e.humactivity_24hr_holiday[hour - 1] = v;
-        }
-    }
+    apply_hourly_profile_overrides(
+        site_root,
+        &[base[0], base[1], "co2", "traffprof_24hr"],
+        &site_at,
+        &mut e.traffprof_24hr_working,
+        &mut e.traffprof_24hr_holiday,
+    )?;
+    apply_hourly_profile_overrides(
+        site_root,
+        &[base[0], base[1], "co2", "humactivity_24hr"],
+        &site_at,
+        &mut e.humactivity_24hr_working,
+        &mut e.humactivity_24hr_holiday,
+    )?;
     Ok(())
 }
 
@@ -6123,5 +6174,294 @@ mod tests {
         assert!((run_cfg_pos.site.lc_evetr.lai.lai_max - 1.0e-6).abs() < 1.0e-12);
         assert!((run_cfg_pos.site.lc_dectr.lai.lai_max - 0.05).abs() < 1.0e-12);
         assert!((run_cfg_pos.site.lc_grass.lai.lai_max - 0.25).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn hourly_profiles_accept_zero_padded_and_integer_keys_across_all_seven_fields() {
+        let mut root: Value =
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain first site");
+
+        let make_zero_padded_map = |base: f64| -> Value {
+            let mut m = serde_yaml::Mapping::new();
+            for hour in 1..=24_usize {
+                let key = match hour {
+                    1 => Value::String("001".to_string()),
+                    2..=9 => Value::String(format!("{hour:02}")),
+                    10..=15 => Value::Number(serde_yaml::Number::from(hour as u64)),
+                    24 => Value::String("024".to_string()),
+                    _ => Value::String(hour.to_string()),
+                };
+                m.insert(key, Value::from(base + hour as f64 * 0.01));
+            }
+            Value::Mapping(m)
+        };
+
+        let profiles: &[(&[&str], f64)] = &[
+            (&["properties", "snow", "snow_profile_24hr"], 1.0),
+            (&["properties", "irrigation", "wuprofa_24hr"], 2.0),
+            (&["properties", "irrigation", "wuprofm_24hr"], 3.0),
+            (
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "heat",
+                    "ahprof_24hr",
+                ],
+                4.0,
+            ),
+            (
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "heat",
+                    "popprof_24hr",
+                ],
+                5.0,
+            ),
+            (
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "co2",
+                    "profile_traffic_24hr",
+                ],
+                6.0,
+            ),
+            (
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "co2",
+                    "profile_human_activity_24hr",
+                ],
+                7.0,
+            ),
+        ];
+
+        for &(path, base) in profiles {
+            let prof = get_path_mut(site, path)
+                .unwrap_or_else(|| panic!("fixture should contain {}", path.join(".")));
+            let Value::Mapping(prof_map) = prof else {
+                panic!("profile should be a mapping");
+            };
+            prof_map.insert(
+                Value::String("working_day".to_string()),
+                make_zero_padded_map(base),
+            );
+            prof_map.insert(
+                Value::String("holiday".to_string()),
+                make_zero_padded_map(base + 0.5),
+            );
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("zero-padded and integer 24-hour keys should parse cleanly");
+
+        let arrays: &[(&[f64; 24], &[f64; 24], f64)] = &[
+            (
+                &run_cfg.site.snow.snowprof_24hr_working,
+                &run_cfg.site.snow.snowprof_24hr_holiday,
+                1.0,
+            ),
+            (
+                &run_cfg.site.irrigation.wuprofa_24hr_working,
+                &run_cfg.site.irrigation.wuprofa_24hr_holiday,
+                2.0,
+            ),
+            (
+                &run_cfg.site.irrigation.wuprofm_24hr_working,
+                &run_cfg.site.irrigation.wuprofm_24hr_holiday,
+                3.0,
+            ),
+            (
+                &run_cfg.site.anthroemis.anthroheat.ahprof_24hr_working,
+                &run_cfg.site.anthroemis.anthroheat.ahprof_24hr_holiday,
+                4.0,
+            ),
+            (
+                &run_cfg.site.anthroemis.anthroheat.popprof_24hr_working,
+                &run_cfg.site.anthroemis.anthroheat.popprof_24hr_holiday,
+                5.0,
+            ),
+            (
+                &run_cfg.site.anthroemis.traffprof_24hr_working,
+                &run_cfg.site.anthroemis.traffprof_24hr_holiday,
+                6.0,
+            ),
+            (
+                &run_cfg.site.anthroemis.humactivity_24hr_working,
+                &run_cfg.site.anthroemis.humactivity_24hr_holiday,
+                7.0,
+            ),
+        ];
+
+        for &(wd, hol, base) in arrays {
+            for hour in 1..=24_usize {
+                assert!(
+                    (wd[hour - 1] - (base + hour as f64 * 0.01)).abs() < 1.0e-12,
+                    "working_day mismatch at base={base}, hour={hour}: {}",
+                    wd[hour - 1]
+                );
+                assert!(
+                    (hol[hour - 1] - (base + 0.5 + hour as f64 * 0.01)).abs() < 1.0e-12,
+                    "holiday mismatch at base={base}, hour={hour}: {}",
+                    hol[hour - 1]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn hourly_profiles_reject_canonical_key_collisions() {
+        let collision_pairs: &[(Value, Value)] = &[
+            (
+                Value::String("1".to_string()),
+                Value::String("01".to_string()),
+            ),
+            (
+                Value::Number(serde_yaml::Number::from(1_u64)),
+                Value::String("1".to_string()),
+            ),
+            (
+                Value::String("01".to_string()),
+                Value::String("001".to_string()),
+            ),
+        ];
+
+        for (k1, k2) in collision_pairs {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture should contain first site");
+            let wd = get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "heat",
+                    "ahprof_24hr",
+                    "working_day",
+                ],
+            )
+            .expect("ahprof_24hr.working_day should exist");
+            let Value::Mapping(map) = wd else {
+                panic!("working_day should be a mapping");
+            };
+            map.remove(Value::String("1".to_string()));
+            map.insert(k1.clone(), Value::from(0.1));
+            map.insert(k2.clone(), Value::from(0.2));
+
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("colliding canonical hour keys must be rejected");
+            assert!(
+                err.contains("duplicate hour key `1`") && err.contains("ahprof_24hr.working_day"),
+                "collision error should name path and duplicate hour: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn hourly_profiles_reject_malformed_and_out_of_range_keys() {
+        let bad_keys: Vec<Value> = vec![
+            Value::String("+1".to_string()),
+            Value::String("-1".to_string()),
+            Value::String(" 1".to_string()),
+            Value::String("1 ".to_string()),
+            Value::String("1.0".to_string()),
+            Value::String("0_1".to_string()),
+            Value::String("\u{0661}".to_string()),
+            Value::String("\u{ff10}".to_string()),
+            Value::String("\u{ff11}".to_string()),
+            Value::String("0".to_string()),
+            Value::String("00".to_string()),
+            Value::String("25".to_string()),
+            Value::String("025".to_string()),
+            Value::String(String::new()),
+            Value::String("abc".to_string()),
+            Value::Number(serde_yaml::Number::from(1.0_f64)),
+            Value::Number(serde_yaml::Number::from(-1_i64)),
+            Value::Number(serde_yaml::Number::from(0_u64)),
+            Value::Number(serde_yaml::Number::from(25_u64)),
+            Value::Bool(true),
+            Value::Bool(false),
+        ];
+
+        for bad_key in bad_keys {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture should contain first site");
+            let wd = get_path_mut(
+                site,
+                &["properties", "snow", "snow_profile_24hr", "working_day"],
+            )
+            .expect("snow_profile_24hr.working_day should exist");
+            let Value::Mapping(map) = wd else {
+                panic!("working_day should be a mapping");
+            };
+            map.remove(Value::String("1".to_string()));
+            map.insert(bad_key.clone(), Value::from(0.5));
+
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("malformed hour key {bad_key:?} must be rejected"));
+            assert!(
+                err.contains("snow_profile_24hr.working_day") && err.contains("invalid hour key"),
+                "malformed hour key {bad_key:?} error should name path and reason: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn hourly_profiles_reject_incomplete_mappings_and_invalid_values() {
+        // Missing hour 24 on holiday profile
+        let mut root: Value =
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain first site");
+        let hol = get_path_mut(
+            site,
+            &["properties", "irrigation", "wuprofa_24hr", "holiday"],
+        )
+        .expect("wuprofa_24hr.holiday should exist");
+        let Value::Mapping(map) = hol else {
+            panic!("holiday should be a mapping");
+        };
+        map.remove(Value::String("24".to_string()));
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("incomplete 24-hour profile must be rejected");
+        assert!(
+            err.contains("wuprofa_24hr.holiday") && err.contains("missing 1 hour(s): 24"),
+            "incomplete profile error should name path and missing hour: {err}"
+        );
+
+        // Non-finite or non-numeric slot value
+        for bad_val in [".nan", ".inf", "\"not-a-number\""] {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture should contain first site");
+            let wd = get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "co2",
+                    "profile_traffic_24hr",
+                    "working_day",
+                ],
+            )
+            .expect("profile_traffic_24hr.working_day should exist");
+            let Value::Mapping(map) = wd else {
+                panic!("working_day should be a mapping");
+            };
+            map.insert(
+                Value::String("05".to_string()),
+                serde_yaml::from_str(bad_val).unwrap(),
+            );
+            map.remove(Value::String("5".to_string()));
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("invalid slot value {bad_val} must be rejected"));
+            assert!(
+                err.contains("profile_traffic_24hr.working_day.5"),
+                "invalid slot value {bad_val} error should name canonical slot path: {err}"
+            );
+        }
     }
 }

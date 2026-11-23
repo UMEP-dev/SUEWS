@@ -42,6 +42,11 @@ SUEWS_ABSENT_OBSERVED_LDOWN: tuple[str, ...] = ("Fcld",)
 # when StorageHeatMethod == EHC (src/suews/src/suews_ctrl_driver.f95:2459-2461).
 DAILYSTATE_ABSENT_UNDER_EHC: tuple[str, ...] = ("a1", "a2", "a3")
 
+# RSL canopy-parameter diagnostics legitimately set to -999 -> NaN when
+# RSLProfile selects the MOST branch (flag_RSL == 0.0,
+# src/suews/src/suews_phys_rslprof.f95:521-525).
+RSL_ABSENT_UNDER_MOST: tuple[str, ...] = ("Lc", "beta", "elm", "Scc", "f")
+
 # Explicit core SUEWS flux/state columns guaranteed to remain required.
 REQUIRED_SUEWS_CORE_COLUMNS: tuple[str, ...] = (
     "Kdown",
@@ -237,6 +242,49 @@ def _extract_required_group(grid_df: pd.DataFrame, group: str) -> pd.DataFrame:
     return grid_df[group]
 
 
+def _assert_beers_finiteness(grid_df: pd.DataFrame, *, has_buildings: bool) -> None:
+    """Verify BEERS finiteness when buildings exist, or all-NaN when absent."""
+    beers_cols = expected_group_columns("BEERS")
+    beers = _extract_required_group(grid_df, "BEERS")
+    if has_buildings:
+        _assert_group_finiteness(beers, group="BEERS", expected_columns=beers_cols)
+        return
+    # BEERS_cal_main (src/suews/src/suews_phys_beers.f95:184,391-394)
+    # emits -999 -> NaN across all columns when sfr_surf(BldgSurf) <= 0.
+    missing_beers = sorted(set(beers_cols) - set(beers.columns))
+    assert not missing_beers, f"BEERS: missing required output columns: {missing_beers}"
+    unexpectedly_populated = [col for col in beers_cols if not beers[col].isna().all()]
+    assert not unexpectedly_populated, (
+        "BEERS: expected all-NaN output when bldgs.sfr == 0, "
+        f"but populated columns found: {unexpectedly_populated}"
+    )
+
+
+def _assert_rsl_finiteness(grid_df: pd.DataFrame) -> None:
+    """Verify RSL finiteness, accounting for MOST-only absent canopy diagnostics."""
+    rsl = _extract_required_group(grid_df, "RSL")
+    rsl_cols = expected_group_columns("RSL")
+    flag_rsl = strict_finite_array(rsl["flag_RSL"], label="RSL.flag_RSL")
+    rsl_mask = np.equal(flag_rsl, 1.0)
+    most_mask = np.equal(flag_rsl, 0.0)
+    assert bool((rsl_mask | most_mask).all()), (
+        "RSL: flag_RSL must be 0.0 (MOST) or 1.0 (RSL)"
+    )
+    if bool(rsl_mask.any()):
+        _assert_group_finiteness(
+            rsl.loc[rsl_mask],
+            group="RSL[flag_RSL=1]",
+            expected_columns=rsl_cols,
+        )
+    if bool(most_mask.any()):
+        _assert_group_finiteness(
+            rsl.loc[most_mask],
+            group="RSL[flag_RSL=0]",
+            expected_columns=rsl_cols,
+            expected_all_nan=RSL_ABSENT_UNDER_MOST,
+        )
+
+
 def assert_active_output_finiteness(
     grid_df: pd.DataFrame,
     *,
@@ -246,6 +294,7 @@ def assert_active_output_finiteness(
     net_radiation: int = 3,
     snow_use: int = 0,
     nlayer: int = 3,
+    has_buildings: bool = True,
     suews_absent: tuple[str, ...] = SUEWS_ABSENT_OBSERVED_LDOWN,
 ) -> None:
     """Assert exact timestamp alignment, required columns, and finiteness for one grid."""
@@ -270,12 +319,13 @@ def assert_active_output_finiteness(
         expected_columns=expected_group_columns("SUEWS"),
         expected_all_nan=suews_absent,
     )
-    for always_active in ("BEERS", "RSL", "debug"):
-        _assert_group_finiteness(
-            _extract_required_group(grid_df, always_active),
-            group=always_active,
-            expected_columns=expected_group_columns(always_active),
-        )
+    _assert_beers_finiteness(grid_df, has_buildings=has_buildings)
+    _assert_rsl_finiteness(grid_df)
+    _assert_group_finiteness(
+        _extract_required_group(grid_df, "debug"),
+        group="debug",
+        expected_columns=expected_group_columns("debug"),
+    )
 
     ds = _extract_required_group(grid_df, "DailyState")
     eod_mask = expected_dailystate_mask(expected_idx, tstep)
@@ -334,6 +384,7 @@ def assert_simulation_output_finiteness(
     net_radiation: int = 3,
     snow_use: int = 0,
     nlayer: int = 3,
+    has_buildings: bool = True,
     suews_absent: tuple[str, ...] = SUEWS_ABSENT_OBSERVED_LDOWN,
 ) -> None:
     """Assert exact ``(grid, datetime)`` MultiIndex integrity and per-grid finiteness."""
@@ -371,6 +422,7 @@ def assert_simulation_output_finiteness(
             net_radiation=net_radiation,
             snow_use=snow_use,
             nlayer=nlayer,
+            has_buildings=has_buildings,
             suews_absent=suews_absent,
         )
 

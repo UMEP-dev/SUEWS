@@ -607,6 +607,8 @@ def _run_suews_engine(run_dir: Path, mutate_config=None, mutate_resolved=None):
     )
     control = cfg["model"]["control"]
     control["output"]["dir"] = str(run_dir)
+    control["start_time"] = None
+    control["end_time"] = None
     forcing_entry = control["forcing"]["file"]
     forcing_name = (
         forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry

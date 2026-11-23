@@ -69,6 +69,9 @@ def _write_wet_day_cli_inputs(
     lines = [line for line in forcing_raw.splitlines() if line.strip()]
     prefix = "\n".join(lines[: forcing_hours + 1]) + "\n"
     (run_dir / forcing_name).write_text(prefix, encoding="utf-8")
+    doc = deepcopy(doc)
+    doc["model"]["control"].pop("start_time", None)
+    doc["model"]["control"].pop("end_time", None)
     config_path = run_dir / "resolved_config.yml"
     config_path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
     return config_path

@@ -23,7 +23,11 @@ from supy.data_model import SUEWSConfig
 
 _run_rust = import_module("supy._run_rust")
 
-pytestmark = [pytest.mark.physics, pytest.mark.api]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.api,
+    pytest.mark.contract("C-CLOCK", "C-FORCING", "C-STRICT", "C-PARITY"),
+]
 
 CHECK_VARS = ("QH", "QE", "QS", "QN", "QF", "Tsurf")
 

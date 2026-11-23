@@ -692,6 +692,7 @@ pub fn slice_forcing_to_period(
     })
 }
 
+// contract: C-CLOCK, C-FORCING, C-STRICT
 #[cfg(test)]
 mod tests {
     use super::*;

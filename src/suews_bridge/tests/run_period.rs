@@ -1,5 +1,6 @@
 //! Resolved file-run period enforcement and direct-buffer preservation tests.
 #![cfg(feature = "physics")]
+// contract: C-CLOCK, C-FORCING, C-STRICT, C-PARITY
 
 use serde_yaml::Value;
 use std::fs;

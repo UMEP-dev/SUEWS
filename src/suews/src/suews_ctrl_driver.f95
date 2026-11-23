@@ -3802,8 +3802,12 @@ CONTAINS
                   ! == calculate QE ==
                   ! --- general suews surfaces ---
                   ! net available energy for evaporation
-                  CALL configure_ehc_qf_surface_allocation( &
-                     storageheatmethod, config%NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+                  IF (storageheatmethod == 5 .AND. config%EHCSurfaceCoupling == 1) THEN
+                     qf_surf_ehc = qf
+                  ELSE
+                     CALL configure_ehc_qf_surface_allocation( &
+                        storageheatmethod, config%NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+                  END IF
                   qn_e_surf = qn_surf + qf_surf_ehc - qs_surf ! qn1 changed to qn1_snowfree, lj in May 2013
 
                ! soil store capacity

@@ -94,6 +94,7 @@ def _run_short_ehc_fluxes_with_surface_cp(rho_cp):
                 "physics": {
                     "net_radiation": {"value": 3},
                     "storage_heat": {"value": 5},
+                    "ehc_surface_coupling": "explicit",
                 }
             },
             "sites": {

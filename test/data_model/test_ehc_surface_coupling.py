@@ -170,3 +170,42 @@ def test_nonfinite_thermal_properties_rejected_in_yaml_and_mapping(
     path.write_text(yaml.safe_dump(mapping), encoding="utf-8")
     with pytest.raises(ValueError, match="thermal layer properties must be finite"):
         SUEWSConfig.from_yaml(str(path))
+
+
+def test_historical_dev17_schema_omits_dev18_ehc_controls():
+    from supy.data_model.configuration.publisher import generate_json_schema
+
+    dev17 = generate_json_schema("2026.6.dev17")
+    dev18 = generate_json_schema("2026.6.dev18")
+    physics17 = dev17["$defs"]["ModelPhysics"]["properties"]
+    physics18 = dev18["$defs"]["ModelPhysics"]["properties"]
+    for field_name in (
+        "ehc_surface_coupling",
+        "control_ehc_stability",
+        "control_ehc_initial_profile",
+        "resistance_ehc_indoor_roof",
+        "resistance_ehc_indoor_wall",
+    ):
+        assert field_name not in physics17
+        assert field_name in physics18
+    for def_name in (
+        "EHCSurfaceCoupling",
+        "EHCStabilityControl",
+        "RefValue_EHCSurfaceCoupling_",
+        "RefValue_EHCStabilityControl_",
+    ):
+        assert def_name not in dev17["$defs"]
+
+
+def test_dev17_to_dev18_migration_logs_default_coupling_change(sample_yaml_path, capsys):
+    from supy.data_model.configuration.migration import SchemaMigrator
+
+    mapping = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+    mapping["schema_version"] = "2026.6.dev17"
+    mapping["model"]["physics"]["storage_heat"] = 5
+    mapping["model"]["physics"].pop("ehc_surface_coupling", None)
+    migrated = SchemaMigrator().migrate(mapping, to_version="2026.6.dev18")
+    err = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev18"
+    assert "ehc_surface_coupling" not in migrated["model"]["physics"]
+    assert "ehc_surface_coupling omitted with storage_heat=5" in err

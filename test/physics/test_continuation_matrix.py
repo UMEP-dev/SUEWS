@@ -161,6 +161,7 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode, monkeypatch):
         ].properties.building_archetype.model_copy(deep=True)
     elif mode == "dual_ehc":
         physics.storage_heat = 5
+        physics.ehc_surface_coupling = 0
         monkeypatch.setenv("SUEWS_EHC_EXPERIMENTAL_CONTROLS", "1")
         monkeypatch.setenv("SUEWS_EHC_DUAL_TIMESCALE", "1")
     elif mode == "irrigation":

@@ -219,12 +219,12 @@ CONTAINS
       q_bottom = -999.0D0
       dudt = -999.0D0
       IF (n <= 0 .OR. m <= 0 .OR. .NOT. IEEE_IS_FINITE(dt) .OR. dt <= 0.0D0) THEN
-         CALL set_supy_error(115, 'heatcond1d_seb_implicit: column sizes and timestep must be positive and finite')
+         CALL set_supy_error(116, 'heatcond1d_seb_implicit: column sizes and timestep must be positive and finite')
          RETURN
       END IF
       IF (SIZE(heat_cap) /= n .OR. SIZE(g_face) /= n + 1 .OR. SIZE(a_top) /= m .OR. SIZE(b_top) /= m &
           .OR. SIZE(ts) /= m .OR. SIZE(q_top_each) /= m) THEN
-         CALL set_supy_error(115, 'heatcond1d_seb_implicit: inconsistent column or surface array sizes')
+         CALL set_supy_error(116, 'heatcond1d_seb_implicit: inconsistent column or surface array sizes')
          RETURN
       END IF
       IF (ANY(.NOT. IEEE_IS_FINITE(heat_cap)) .OR. ANY(heat_cap <= 0.0D0) &
@@ -233,7 +233,7 @@ CONTAINS
           .OR. ANY(.NOT. IEEE_IS_FINITE(b_top)) .OR. ANY(b_top < 0.0D0) &
           .OR. ANY(.NOT. IEEE_IS_FINITE(a_top)) .OR. ANY(.NOT. IEEE_IS_FINITE(T)) &
           .OR. .NOT. IEEE_IS_FINITE(t_bottom)) THEN
-         CALL set_supy_error(115, 'heatcond1d_seb_implicit: invalid heat capacity, conductance or temperature')
+         CALL set_supy_error(116, 'heatcond1d_seb_implicit: invalid heat capacity, conductance or temperature')
          RETURN
       END IF
 
@@ -601,11 +601,11 @@ CONTAINS
       INTEGER :: i
 
       IF (SIZE(temp) /= SIZE(dz) .OR. SIZE(k) /= SIZE(dz)) THEN
-         CALL set_supy_error(115, 'ehc_init_profile: inconsistent column sizes')
+         CALL set_supy_error(116, 'ehc_init_profile: inconsistent column sizes')
          RETURN
       END IF
       IF (.NOT. IEEE_IS_FINITE(r_inner) .OR. r_inner < 0.0D0) THEN
-         CALL set_supy_error(115, 'ehc_init_profile: indoor resistance must be finite and non-negative')
+         CALL set_supy_error(116, 'ehc_init_profile: indoor resistance must be finite and non-negative')
          RETURN
       END IF
       IF (SIZE(dz) == 0) RETURN
@@ -796,20 +796,20 @@ CONTAINS
          IF (.NOT. IEEE_IS_FINITE(implicit_seb%r_indoor_roof) .OR. &
              .NOT. IEEE_IS_FINITE(implicit_seb%r_indoor_wall) .OR. &
              implicit_seb%r_indoor_roof < 0.0D0 .OR. implicit_seb%r_indoor_wall < 0.0D0) THEN
-            CALL set_supy_error(115, 'EHC: indoor resistance must be finite and non-negative')
+            CALL set_supy_error(116, 'EHC: indoor resistance must be finite and non-negative')
             CALL ehc_fail_outputs()
             RETURN
          END IF
          IF (.NOT. (ALLOCATED(implicit_seb%a_roof) .AND. ALLOCATED(implicit_seb%b_roof) &
                     .AND. ALLOCATED(implicit_seb%a_wall) .AND. ALLOCATED(implicit_seb%b_wall) &
                     .AND. ALLOCATED(implicit_seb%tsfc_roof) .AND. ALLOCATED(implicit_seb%tsfc_wall))) THEN
-            CALL set_supy_error(115, 'EHC: implicit coupling arrays for roofs and walls are not allocated')
+            CALL set_supy_error(116, 'EHC: implicit coupling arrays for roofs and walls are not allocated')
             CALL ehc_fail_outputs()
             RETURN
          END IF
          IF (MIN(SIZE(implicit_seb%a_roof), SIZE(implicit_seb%b_roof), SIZE(implicit_seb%a_wall), &
                  SIZE(implicit_seb%b_wall), SIZE(implicit_seb%tsfc_roof), SIZE(implicit_seb%tsfc_wall)) < nlayer) THEN
-            CALL set_supy_error(115, 'EHC: implicit coupling arrays are shorter than nlayer')
+            CALL set_supy_error(116, 'EHC: implicit coupling arrays are shorter than nlayer')
             CALL ehc_fail_outputs()
             RETURN
          END IF
@@ -1643,12 +1643,12 @@ CONTAINS
          REAL(KIND(1D0)), INTENT(IN) :: dz(:), k(:), cp(:)
          IF (ANY(.NOT. IEEE_IS_FINITE(dz)) .OR. ANY(.NOT. IEEE_IS_FINITE(k)) &
              .OR. ANY(.NOT. IEEE_IS_FINITE(cp))) THEN
-            CALL set_supy_error(115, 'EHC: thermal layer properties must be finite')
+            CALL set_supy_error(116, 'EHC: thermal layer properties must be finite')
             RETURN
          END IF
          IF (column_absent(dz, cp)) RETURN
          IF (ANY(dz <= 0.0D0) .OR. ANY(k <= 0.0D0) .OR. ANY(cp <= 0.0D0)) &
-            CALL set_supy_error(115, 'EHC: active thermal layers must have positive thickness, conductivity and heat capacity')
+            CALL set_supy_error(116, 'EHC: active thermal layers must have positive thickness, conductivity and heat capacity')
       END SUBROUTINE check_active_column
 
       SUBROUTINE ehc_fail_outputs()

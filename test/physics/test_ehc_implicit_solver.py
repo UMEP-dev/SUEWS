@@ -159,6 +159,6 @@ def test_indoor_robin_flux_matches_hand_calculated_steady_column(probe, mode, ro
 @pytest.mark.parametrize("mode", range(1, 9))
 def test_invalid_solver_inputs_report_error_and_preserve_temperatures(probe, mode):
     out = probe("invalid", mode)
-    assert out["code"] == 115
+    assert out["code"] == 116
     assert out["temperature_change"] == 0.0
     assert out["unsafe_outputs"] == 0.0

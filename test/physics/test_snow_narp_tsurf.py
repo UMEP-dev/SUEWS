@@ -341,6 +341,9 @@ def test_iterative_snow_longwave_responds_with_physical_sign_to_emissivity(
     lup_lo = _implied_lup_snow(suews_lo, snow_lo, "Paved")
 
     # On broken master (Tsnow = 0 K), lowering emissivity increased LUP_SNOW
-    # because only reflected (1 - emis) * Ldown remained. With physical emission
-    # (sigma*Tsnow^4 > Ldown at -5 degC), higher emissivity emits more LUP_SNOW.
-    assert float((lup_hi - lup_lo).min()) > 4.0
+    # because only reflected (1 - emis) * Ldown remained (~ -21.6 W m-2).
+    # With physical emission (sigma*Tsnow^4 > Ldown at -5 degC), higher
+    # emissivity emits more LUP_SNOW; under coupled implicit EHC radiative
+    # cooling lowers Tsfc slightly more at emis=0.99 than 0.90, reducing the
+    # minimum excess from ~4.4 W m-2 (fixed Tsfc) to ~3.75 W m-2.
+    assert float((lup_hi - lup_lo).min()) > 3.0

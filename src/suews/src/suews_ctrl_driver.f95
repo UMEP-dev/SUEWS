@@ -70,8 +70,8 @@ MODULE SUEWS_Driver
    USE module_ctrl_error_state, ONLY: supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN, &
                                        reset_supy_error, set_supy_error
    USE module_ctrl_error, ONLY: ErrorHint
-   USE module_ctrl_const_mathconst, ONLY: pi_d0
-   USE module_ctrl_const_physconst, ONLY: C2K, C2K_d0, SBConst_d0, sec_per_day
+   USE module_ctrl_const_mathconst, ONLY: pi
+   USE module_ctrl_const_physconst, ONLY: C2K, SBConst, sec_per_day
    IMPLICIT NONE
 
    ! Make error state accessors public for the C-ABI driver
@@ -271,7 +271,7 @@ CONTAINS
       relax_ehc_stability = .FALSE.
       IF (config%StorageHeatMethod == 5 .AND. &
           (config%control_ehc_stability < 0 .OR. config%control_ehc_stability > 2)) THEN
-         CALL set_supy_error(115, 'SUEWS_cal_Main: control_ehc_stability must be 0, 1 or 2')
+         CALL set_supy_error(116, 'SUEWS_cal_Main: control_ehc_stability must be 0, 1 or 2')
          CALL sync_error_to_state(modState, timer)
          RETURN
       END IF
@@ -6980,12 +6980,12 @@ CONTAINS
          r1_roof = 0.0D0
          r1_wall = 0.0D0
          IF (lup_from_tsfc) THEN
-            r1_surf = 4.0D0*emis_surf*SBConst_d0*(heatState%tsfc_surf + C2K_d0)**3
+            r1_surf = 4.0D0*emis_surf*SBConst*(heatState%tsfc_surf + C2K)**3
             IF (config%NetRadiationMethod > 1000) THEN
-               r1_roof = 4.0D0*siteInfo%spartacus_layer%emis_roof(1:siteInfo%nlayer)*SBConst_d0 &
-                         *(heatState%tsfc_roof + C2K_d0)**3
-               r1_wall = 4.0D0*siteInfo%spartacus_layer%emis_wall(1:siteInfo%nlayer)*SBConst_d0 &
-                         *(heatState%tsfc_wall + C2K_d0)**3
+               r1_roof = 4.0D0*siteInfo%spartacus_layer%emis_roof(1:siteInfo%nlayer)*SBConst &
+                         *(heatState%tsfc_roof + C2K)**3
+               r1_wall = 4.0D0*siteInfo%spartacus_layer%emis_wall(1:siteInfo%nlayer)*SBConst &
+                         *(heatState%tsfc_wall + C2K)**3
             END IF
          END IF
 
@@ -7067,7 +7067,7 @@ CONTAINS
       ASSOCIATE (stebbsState => modState%stebbsState, ehcPrm => siteInfo%ehc)
          t_mean = stebbsState%deep_soil_temperature
          t_amp = 0.5D0*stebbsState%MonthMeanAirTemperature_diffmax
-         w_day = 2.0D0*pi_d0/days_per_year
+         w_day = 2.0D0*pi/days_per_year
          w_sec = w_day/REAL(sec_per_day, KIND(1D0))
          t0 = coldest_day_north
          IF (siteInfo%lat < 0.0D0) t0 = t0 + 0.5D0*days_per_year
@@ -7097,7 +7097,7 @@ CONTAINS
             seb%t_indoor = stebbsState%indoor_air_start_temperature
          IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
             IF (ALLOCATED(stebbsState%buildings) .AND. modState%flagState%stebbs_bldg_init == 1) THEN
-               IF (SIZE(stebbsState%buildings) >= 1) seb%t_indoor = stebbsState%buildings(1)%Tair_ind - C2K_d0
+               IF (SIZE(stebbsState%buildings) >= 1) seb%t_indoor = stebbsState%buildings(1)%Tair_ind - C2K
             END IF
          END IF
       END ASSOCIATE

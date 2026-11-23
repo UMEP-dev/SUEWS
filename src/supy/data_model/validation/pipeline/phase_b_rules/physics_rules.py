@@ -285,7 +285,8 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         # `capacitance: {}` (get_value_safe returns the bare mapping when there
         # is no `value` key). A *non-empty* mapping is the gh#972 nested-family
         # form (e.g. `{spartacus: {value: 1}}`) and is NOT empty.
-        return value in ("", None) or (isinstance(value, dict) and not value)
+        # ValidationContext freezes dicts into read-only mappings.
+        return value in ("", None) or (isinstance(value, Mapping) and not value)
 
     empty_params = [
         (path, key)
@@ -957,7 +958,8 @@ def validate_model_option_same_albedo_facet(site_data, facet):
         if alb_val is not None:
             found_albedos.append(alb_val)
     building_archetype = site_data.get("properties", {}).get("building_archetype", {})
-    facetrefl_key = f"{facet.lower()}_reflectivity"
+    # Canonical archetype name (normalise_yaml_renames runs before Phase B rules).
+    facetrefl_key = f"reflectivity_{facet.lower()}_external"
     facetrefl_val = get_value_safe(building_archetype, facetrefl_key)
     msg = (
         f"same_albedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facetrefl_key} (found value: {facetrefl_val})."
@@ -1054,7 +1056,7 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
             walls = vlay.get("walls", [])
-            if isinstance(walls, dict):  # rare but possible
+            if isinstance(walls, Mapping):  # rare but possible
                 walls = [walls]
             found_emissivities = []
             for wall in walls:
@@ -1083,7 +1085,7 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
             roofs = vlay.get("roofs", [])
-            if isinstance(roofs, dict):  # rare but possible
+            if isinstance(roofs, Mapping):  # rare but possible
                 roofs = [roofs]
             found_emissivities = []
             for roof in roofs:

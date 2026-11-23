@@ -2,7 +2,12 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-from ...core.yaml_helpers import get_ref_or_bare, get_value_safe, read_physics_key
+from ...core.yaml_helpers import (
+    get_ref_or_bare,
+    get_value_safe,
+    is_ref_only,
+    read_physics_key,
+)
 from collections.abc import Mapping
 import calendar
 from typing import Dict, List, Optional, Union, Any
@@ -115,14 +120,16 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
                 if "value" in value:
                     param_value = value["value"]
                     if param_value in (None, "") or (
-                        isinstance(param_value, list)
+                        isinstance(param_value, (list, tuple))
                         and any(v in (None, "") for v in param_value)
                     ):
                         missing_params.append(current_path)
                 else:
                     _check_recursively(value, current_path)
             elif value in (None, "") or (
-                isinstance(value, list) and any(v in (None, "") for v in value)
+                # ValidationContext freezes lists into tuples.
+                isinstance(value, (list, tuple))
+                and any(v in (None, "") for v in value)
             ):
                 missing_params.append(current_path)
 
@@ -360,16 +367,17 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                     site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
                 )
 
-                def collect_param_names(d: dict, prefix: str = ""):
+                def collect_param_names(d: Mapping, prefix: str = ""):
                     for k, v in d.items():
                         if k == "sfr":
                             continue
                         current_path = f"{prefix}.{k}" if prefix else k
-                        if isinstance(v, Mapping):
-                            if "value" in v:
-                                param_list.append(current_path)
-                            else:
-                                collect_param_names(v, current_path)
+                        if isinstance(v, Mapping) and "value" not in v and not is_ref_only(v):
+                            collect_param_names(v, current_path)
+                        else:
+                            # RefValue mapping, ref-only placeholder or bare
+                            # scalar/list: all are parameters (gh#2297).
+                            param_list.append(current_path)
 
                 collect_param_names(surf_props)
 

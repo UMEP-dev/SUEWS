@@ -103,20 +103,20 @@ The tool will:
 Example 4: Table-to-Table Conversion (Python only)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Converting between legacy table versions without creating YAML is not a command-line feature. Use the Python function instead:
+Converting between legacy table versions without creating YAML is not a command-line feature. Use :func:`~supy.util.converter.convert_table` from Python instead, passing run directories rather than the ``Input/`` tables folder itself:
 
 .. code-block:: python
 
    from supy.util.converter import convert_table
 
    convert_table(
-       "/path/to/suews_run/Input_v2020a",
-       "/path/to/suews_run/Input_v2024a",
-       "2020a",
-       "2024a",
+       fromDir="/path/to/suews_run_v2020a",
+       toDir="/path/to/suews_run_v2024a",
+       fromVer="2020a",
+       toVer="2024a",
    )
 
-This converts the tables from ``2020a`` to ``2024a`` format in the output directory. See :doc:`/api/converter` for the full signature.
+``fromDir`` must contain ``RunControl.nml``; the converter reads ``FileInputPath`` from it (resolved relative to ``fromDir``, or used directly if absolute) to locate the source table and namelist files. In ``toDir``, the converter writes the converted ``RunControl.nml`` at the root, creates the ``FileInputPath`` and ``FileOutputPath`` directories resolved from ``toDir`` (for example, ``Input/`` and ``Output/`` when those paths are relative), and places the converted table files and other ``*.nml`` files (including ``SUEWS_SPARTACUS.nml`` and ``GridLayout*.nml`` for ``2024a`` and later) inside that ``FileInputPath`` directory. See :doc:`/api/converter` for the full signature.
 
 Example 5: Debugging Conversion Issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

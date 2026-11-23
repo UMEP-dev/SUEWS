@@ -89,6 +89,14 @@ field path. The source configuration still defaults to ``local_standard_time``
 through the data model. The values ``follow`` and ``daylight`` apply only to
 ``model.control.output.timestamp_reference``, which labels saved output.
 
+The resolved ``model.physics.storage_heat`` must also be present as a valid
+storage-heat selector (integer code, accepted scheme name, family form or
+supported legacy alias, bare or in a ``value`` wrapper). Missing, null,
+non-finite, fractional, out-of-range-integer or wrong-type values are rejected
+with the field path ``model.physics.storage_heat`` instead of silently falling
+back to ``0`` (observed storage heat). Source configurations still default to
+``1`` (``ohm`` / ``OHM_WITHOUT_QF``) through the data model.
+
 If you kept a resolved file from an earlier release, run the original source
 configuration with ``suews run source.yml``. To save a new resolved file for
 ``suews-engine``, use the current SuPy installation and keep the new file

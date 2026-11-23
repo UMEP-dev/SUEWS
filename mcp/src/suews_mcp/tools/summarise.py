@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from ..backend import (
     ProjectRoot,
@@ -15,10 +15,12 @@ from .validate import _error_envelope
 
 def summarise_run(
     run_dir: str,
-    project_root: Optional[str] = None,
-    variables: Optional[str] = None,
+    project_root: str | None = None,
+    variables: str | None = None,
 ) -> dict[str, Any]:
-    """**Use this after `suews run` completes** when the user wants a
+    """Summarise per-variable statistics for a completed SUEWS run.
+
+    **Use this after `suews run` completes** when the user wants a
     high-level overview of the simulation — per-variable statistics
     (mean, min, max, n_missing) at a glance. Cheaper than reading the
     raw output and the right starting point before calling
@@ -33,8 +35,10 @@ def summarise_run(
         Override the per-session project root for this call. Defaults to
         the value resolved from ``SUEWS_MCP_PROJECT_ROOT``.
     variables
-        Comma-separated variable names to restrict the summary. ``None`` or
-        an empty string means every numeric column is summarised.
+        Comma-separated variable names (for example ``QH,QE,QN``) or
+        group-qualified names (for example ``SUEWS.QS,ESTM.QS``) to restrict
+        the summary. ``None`` or an empty string means every numeric column
+        across all output groups is summarised.
     """
     try:
         root = ProjectRoot(project_root)

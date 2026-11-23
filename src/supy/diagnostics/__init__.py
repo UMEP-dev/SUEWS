@@ -9,8 +9,9 @@ Phase-1 checks (intentionally minimal):
 
 - :func:`check_provenance_present` -- ``provenance.json`` sidecar exists.
 - :func:`check_output_files_present` -- at least one ``df_output*.csv``,
-  ``*.parquet`` or legacy ``*_SUEWS_*.txt`` produced by ``suews run`` is
-  present.
+  ``*.parquet`` (monolithic file or streamed ``*SUEWS_output*.parquet``
+  dataset directory with committed parts), or legacy ``*_SUEWS_*.txt``
+  produced by ``suews run`` is present.
 - :func:`check_nan_proportion` -- missing fraction in QH/QE/QN below 5%
   in every output partition.
 - :func:`check_energy_balance_closure` -- mean

@@ -9,8 +9,9 @@ Phase-1 checks (intentionally minimal):
 
 - ``check_provenance_present`` -- ``provenance.json`` sidecar exists.
 - ``check_output_files_present`` -- at least one ``df_output*.csv``,
-  ``*.parquet`` or legacy ``*_SUEWS_*.txt`` produced by ``suews run`` is
-  present.
+  ``*.parquet`` (monolithic file or streamed ``*SUEWS_output*.parquet``
+  dataset directory with committed parts), or legacy ``*_SUEWS_*.txt``
+  produced by ``suews run`` is present.
 - ``check_nan_proportion`` -- missing fraction in QH/QE/QN below 5% in
   every output partition.
 - ``check_energy_balance_closure`` -- mean
@@ -36,7 +37,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .._run_output import _list_run_output_files, _load_run_output_partitions
+from .._run_output import (
+    _is_canonical_parquet_dataset_dir,
+    _list_run_output_files,
+    _load_run_output_partitions,
+)
 
 __all__ = [
     "CheckResult",
@@ -99,12 +104,13 @@ class CheckResult:
 
 
 def _list_output_files(path_run_dir: Path) -> list[Path]:
-    """Return all candidate output files under ``path_run_dir``.
+    """Return all candidate outputs under ``path_run_dir`` (or ``path_run_dir`` itself).
 
-    Recognises CSV, parquet and legacy text output produced by
-    ``suews run`` / ``SUEWSSimulation.save``. The current ``save``
-    implementation may write files at the run-dir root or under a
-    subdirectory keyed by site name; we accept both.
+    Recognises CSV, monolithic Parquet files, streamed canonical Parquet
+    dataset directories, and legacy text output produced by ``suews run`` /
+    ``SUEWSSimulation.save``. The current ``save`` implementation may write
+    outputs at the run-dir root or under a subdirectory keyed by site name;
+    both layouts and direct paths to a canonical output are accepted.
     """
     return _list_run_output_files(path_run_dir)
 
@@ -234,10 +240,32 @@ def _no_output(name: str, path_run_dir: Path) -> CheckResult:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_provenance_dir(path_target: Path) -> Path:
+    """Return the directory expected to hold ``provenance.json`` for ``path_target``.
+
+    For a run directory, ``provenance.json`` sits directly inside
+    ``path_target``. For a direct canonical streamed Parquet dataset directory
+    or standalone output file, ``SUEWSSimulation.save()`` writes
+    ``provenance.json`` beside the output in ``path_target.parent`` so the
+    Parquet dataset folder itself never holds non-Parquet sidecars.
+    """
+    if path_target.is_file() or _is_canonical_parquet_dataset_dir(path_target):
+        return path_target.parent
+    return path_target
+
+
 def check_provenance_present(path_run_dir: Path) -> CheckResult:
-    """Verify ``provenance.json`` is present in the run directory."""
-    path_provenance = path_run_dir / "provenance.json"
-    if path_provenance.exists():
+    """Verify ``provenance.json`` is present for ``path_run_dir``.
+
+    Checks ``<path_run_dir>/provenance.json`` for a run directory, or
+    ``<path_run_dir.parent>/provenance.json`` when ``path_run_dir`` points
+    directly at a canonical streamed Parquet dataset directory or standalone
+    output file. Read-only: never writes or modifies files.
+    """
+    path_target = Path(path_run_dir)
+    path_base = _resolve_provenance_dir(path_target)
+    path_provenance = path_base / "provenance.json"
+    if path_base.is_dir() and path_provenance.is_file():
         return CheckResult(
             name="provenance_present",
             severity="pass",
@@ -257,7 +285,7 @@ def check_provenance_present(path_run_dir: Path) -> CheckResult:
 
 
 def check_output_files_present(path_run_dir: Path) -> CheckResult:
-    """Verify at least one recognisable output file is present."""
+    """Verify at least one recognisable output file or streamed dataset is present."""
     list_paths = _list_output_files(path_run_dir)
     if list_paths:
         return CheckResult(
@@ -271,7 +299,10 @@ def check_output_files_present(path_run_dir: Path) -> CheckResult:
         name="output_files_present",
         severity="fail",
         passed=False,
-        message="No df_output*.csv / *.parquet / *_SUEWS_*.txt files found.",
+        message=(
+            "No df_output*.csv / *.parquet (or streamed *SUEWS_output*.parquet "
+            "datasets) / *_SUEWS_*.txt files found."
+        ),
         details={"run_dir": str(path_run_dir)},
     )
 

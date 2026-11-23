@@ -28,6 +28,10 @@ from ._output_metadata import (
     write_text_metadata,
 )
 from ._post import _resample_output, df_var as df_var_out
+from ._run_output import (
+    _OUTPUT_TIMESTAMP_SUFFIXES,
+    _STREAMED_PARQUET_PART_RE as _PART_NAME,
+)
 from .data_model.output import PROVISIONAL_OUTPUT_GROUPS
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -68,12 +72,7 @@ def _normalise_forcing_timestamp_reference(timestamp_reference: object) -> str:
 def _timestamp_reference_filename_suffix(timestamp_reference: object) -> str:
     """Return the filename suffix for an explicit output reference."""
     label = _normalise_output_timestamp_reference(timestamp_reference)
-    return {
-        "follow": "",
-        "utc": "_UTC",
-        "local_standard_time": "_STANDARD",
-        "daylight": "_DAYLIGHT",
-    }[label]
+    return _OUTPUT_TIMESTAMP_SUFFIXES[label]
 
 
 def _state_scalar(
@@ -551,7 +550,6 @@ class StreamedTextFiles:
         return False
 
 
-_PART_NAME = re.compile(r"^part-(?P<year>\d{4})-(?P<chunk>\d{3})\.parquet$")
 _PART_TMP_NAME = re.compile(r"^\.part-\d{4}-\d{3}\.parquet\.tmp$")
 
 

@@ -415,12 +415,11 @@ def _run_comparison(
     name="compare",
     short_help="Compare two SUEWS runs or run vs observations.",
     help=(
-        "Compare two SUEWS run directories (or a run and an observations CSV) "
-        "by computing per-variable RMSE / bias / Pearson r over the timestamps "
-        "they share. The second argument is treated as a directory if it is "
-        "one and as an observations file otherwise. Time-axis overlap and the "
-        "grid used on each side are reported alongside; n counts finite paired "
-        "samples."
+        "Compare two SUEWS run directories, canonical Parquet outputs "
+        "(monolithic files or streamed dataset directories), or a run and an "
+        "observations CSV by computing per-variable RMSE / bias / Pearson r "
+        "over the timestamps they share. Time-axis overlap and the grid used "
+        "on each side are reported alongside; n counts finite paired samples."
     ),
 )
 @click.argument(

@@ -645,6 +645,52 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
 
 
 @pytest.mark.parametrize(
+    "source, expected_ids",
+    [
+        (
+            "if True:\n"
+            "    from unittest import expectedFailure as ef\n"
+            "    def make():\n"
+            "        @ef\n"
+            "        def test_case():\n"
+            "            pass\n"
+            "        return test_case\n"
+            "    test_case = make()\n",
+            ["test/test_branch.py::make.test_case::1"],
+        ),
+        (
+            "def make():\n"
+            "    @ef\n"
+            "    def test_case():\n"
+            "        pass\n"
+            "    return test_case\n\n"
+            "from unittest import expectedFailure as ef\n",
+            ["test/test_branch.py::make.test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "if False:\n"
+            "    marker = unittest\n"
+            "else:\n"
+            "    marker = unittest.expectedFailure\n"
+            "@marker\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+    ],
+)
+def test_unittest_expected_failure_branch_merge_and_deferred_lookup(
+    tree, source, expected_ids
+):
+    name = "test/test_branch.py"
+    (tree / name).write_text(source, encoding="utf-8")
+    records, errors = checker.extract_records(tree)
+    assert not errors
+    assert [r["id"] for r in records if r["source"] == name] == expected_ids
+
+
+@pytest.mark.parametrize(
     "import_line, decorator",
     [
         ("import unittest", "@unittest.expectedFailure"),
@@ -915,6 +961,7 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
         "def shadow_outer_alias():\n"
         "    ALIAS = {}\n"
         '    ALIAS[("local.f95", "l")] = "#0"\n'
+        "    unused: LEDGER.clear()\n"
         "    return len(ALIAS) + len(sorted(LEDGER, key=len))\n"
         "OTHER = {}\n"
         'OTHER[("b.f95", "y")] = "#999"\n'
@@ -992,6 +1039,27 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             '        alias["k"] = "v"\n',
             "unsupported mutation of constant LEDGER",
         ),
+        (
+            "LEDGER = {}\n"
+            "def outer():\n"
+            "    def len(table):\n"
+            '        table["k"] = "v"\n'
+            "    def inner():\n"
+            "        len(LEDGER)\n"
+            "    inner()\n"
+            "outer()\n",
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def outer():\n"
+            "    len = lambda d: d.setdefault('k', 'v')\n"
+            "    def inner():\n"
+            "        sorted([LEDGER], key=len)\n"
+            "    inner()\n"
+            "outer()\n",
+            "unsupported escape of constant LEDGER",
+        ),
     ],
 )
 def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
@@ -1000,6 +1068,20 @@ def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
     (tmp_path / "ledger.py").write_text(source, encoding="utf-8")
     with pytest.raises(ValueError, match=match):
         checker._python_values(tmp_path, "ledger.py", ("LEDGER",))
+
+
+def test_python_ledger_postponed_annotations_are_not_treated_as_mutations(tmp_path):
+    (tmp_path / "ledger.py").write_text(
+        "from __future__ import annotations\n"
+        'LEDGER = {("a.f95", "x"): "#123"}\n'
+        "witness: LEDGER.clear()\n"
+        "def helper(x: LEDGER.clear()) -> LEDGER.clear():\n"
+        "    return len(LEDGER)\n",
+        encoding="utf-8",
+    )
+    assert checker._python_values(tmp_path, "ledger.py", ("LEDGER",)) == {
+        "LEDGER": {("a.f95", "x"): "#123"}
+    }
 
 
 def test_saved_local_mixed_type_malformed_key_reports_value_error_not_type_error(tree):

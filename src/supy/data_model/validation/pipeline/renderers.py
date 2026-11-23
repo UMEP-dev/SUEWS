@@ -76,13 +76,22 @@ def _render_action_needed(issues: list[Issue]) -> list[str]:
     phase_c = [i for i in issues if i.phase == "C"]
 
     if phase_a:
-        lines.append(
-            f"- Found ({len(phase_a)}) configuration structure error(s):"
-        )
-        for issue in phase_a:
-            lines.append(f"-- {issue.message}")
-            if issue.yaml_path and issue.yaml_path not in issue.message:
-                lines.append(f"   Location: {issue.yaml_path}")
+        phase_a_forcing = [i for i in phase_a if i.code == "A.FORCING"]
+        phase_a_other = [i for i in phase_a if i.code != "A.FORCING"]
+        if phase_a_forcing:
+            lines.append(
+                f"- Found ({len(phase_a_forcing)}) forcing data validation error(s):"
+            )
+            for issue in phase_a_forcing:
+                lines.append(f"-- {issue.message}")
+        if phase_a_other:
+            lines.append(
+                f"- Found ({len(phase_a_other)}) configuration structure error(s):"
+            )
+            for issue in phase_a_other:
+                lines.append(f"-- {issue.message}")
+                if issue.yaml_path and issue.yaml_path not in issue.message:
+                    lines.append(f"   Location: {issue.yaml_path}")
 
     if phase_b:
         lines.append(

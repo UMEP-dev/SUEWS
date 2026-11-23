@@ -2,114 +2,39 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-from ...core.yaml_helpers import (
-    get_ref_or_bare,
-    get_value_safe,
-    is_ref_only,
-    read_physics_key,
+from ..document import is_ref_only, is_ref_wrapper, unwrap_entry
+from ...core.yaml_helpers import get_value_safe
+from ...rules.advisory import (
+    check_irrigation_season_advisory,
+    check_spartacus_lowest_layer_advisories,
+)
+from ...rules.hard_invariants import (
+    SPARTACUS_METHODS,
+    check_dls_doy_pair,
+    check_irrigation_doy_pair,
+)
+from ...rules.typed_view import (
+    TypedConfigView,
+    as_float as _as_float,
+    is_absent_doy_mapping as _is_absent_doy_mapping,
 )
 from collections.abc import Mapping
-import calendar
-from typing import Dict, List, Optional, Union, Any
+from typing import List, Optional, Union
 
 
-# Constants 
+# Constants
 SFR_FRACTION_TOL = 1e-4
-SPARTACUS_METHODS = {1001, 1002, 1003}
-
-
-def _as_float(value: Any) -> Optional[float]:
-    if isinstance(value, Mapping) and "value" in value:
-        value = value["value"]
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _is_absent_doy_mapping(value: Any) -> bool:
-    """Return True for empty or ref-only mappings (disabled DOY window)."""
-    return (
-        isinstance(value, Mapping)
-        and "value" not in value
-        and all(key == "ref" for key in value)
-    )
 
 
 def _is_spartacus_enabled(yaml_data: Mapping) -> bool:
-    physics = yaml_data.get("model", {}).get("physics", {})
-    net_radiation = read_physics_key(physics, "net_radiation", 0)
-    if isinstance(net_radiation, Mapping):
-        if "value" in net_radiation:
-            net_radiation = net_radiation["value"]
-        elif "spartacus" in net_radiation:
-            return True
-        elif net_radiation.get("scheme") == "spartacus":
-            return True
-    if isinstance(net_radiation, str):
-        return "spartacus" in net_radiation.strip().lower()
-    try:
-        return int(net_radiation) in SPARTACUS_METHODS
-    except (TypeError, ValueError):
-        return False
-
-
-def _surface_sfr(land_cover: Mapping, surface_name: str) -> Optional[float]:
-    surface = land_cover.get(surface_name)
-    if not isinstance(surface, Mapping):
-        return None
-    sfr = surface.get("sfr")
-    return _as_float(sfr)
-
-
-def _first_veg_frac(props: Mapping) -> Optional[float]:
-    vertical_layers = props.get("vertical_layers")
-    if not isinstance(vertical_layers, Mapping):
-        return None
-    veg_frac = vertical_layers.get("veg_frac")
-    if isinstance(veg_frac, Mapping) and "value" in veg_frac:
-        veg_frac = veg_frac["value"]
-    if not isinstance(veg_frac, (list, tuple)) or not veg_frac:
-        return None
-    return _as_float(veg_frac[0])
-
-
-def _first_building_frac(props: Mapping) -> Optional[float]:
-    vertical_layers = props.get("vertical_layers")
-    if not isinstance(vertical_layers, Mapping):
-        return None
-    building_frac = vertical_layers.get("building_frac")
-    if isinstance(building_frac, Mapping) and "value" in building_frac:
-        building_frac = building_frac["value"]
-    if not isinstance(building_frac, (list, tuple)) or not building_frac:
-        return None
-    return _as_float(building_frac[0])
+    return TypedConfigView.from_mapping(yaml_data).physics.is_spartacus_enabled
 
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
-    """
-    Check for missing or empty parameters in a surface configuration dictionary.
-
-    This function recursively traverses the given surface properties dictionary and identifies
-    any parameters (with a "value" key) that are missing (None) or empty (""). It skips any
-    key named "sfr". The function returns a list of parameter paths (dot-separated) that are
-    missing or empty.
-
-    Parameters
-    ----------
-    surface_props : dict
-        The dictionary containing surface properties to be checked.
-    surface_type : str
-        The type of surface being checked (not used in the function logic, but may be used for context).
-
-    Returns
-    -------
-    List[str]
-        A list of dot-separated parameter paths that are missing or empty in the surface configuration.
-    """
+    """Check for missing or empty parameters in a surface configuration mapping."""
     missing_params = []
 
-    def _check_recursively(props: dict, path: str = ""):
+    def _check_recursively(props: Mapping, path: str = ""):
         for key, value in props.items():
             if key == "sfr":
                 continue
@@ -117,8 +42,8 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
             current_path = f"{path}.{key}" if path else key
 
             if isinstance(value, Mapping):
-                if "value" in value:
-                    param_value = value["value"]
+                if is_ref_wrapper(value):
+                    param_value = unwrap_entry(value)
                     if param_value in (None, "") or (
                         isinstance(param_value, (list, tuple))
                         and any(v in (None, "") for v in param_value)
@@ -166,15 +91,15 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
     - Biogenic CO2 parameters are only required if the emissions method enables CO2 for the relevant surfaces.
     - Parameters under surfaces with `sfr == 0` are not validated, but a warning is issued if such parameters exist.
     """
-    yaml_data = context.yaml_data
-
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    sites = yaml_data.get("sites", [])
+    emissionsmethod = get_value_safe(view.physics.raw, "emissions")
+    spartacus_enabled = view.physics.is_spartacus_enabled
 
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        land_cover = props.get("land_cover")
-        site_gridid = site.get("gridiv")
+    for site in view.sites:
+        site_idx = site.index
+        land_cover = site.land_cover
+        site_gridid = site.raw_gridiv
 
         if not land_cover:
             results.append(
@@ -190,16 +115,8 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
             )
             continue
 
-        # Calculate sum of all surface fractions
-        sfr_sum = 0.0
-        surface_types = []
-
-        for surface_type, surface_props in land_cover.items():
-            if isinstance(surface_props, Mapping):
-                sfr_value = get_ref_or_bare(surface_props, "sfr")
-                if sfr_value is not None:
-                    sfr_sum += sfr_value
-                    surface_types.append((surface_type, sfr_value))
+        surface_types = site.surface_fractions()
+        sfr_sum = sum(sfr_value for _, sfr_value in surface_types)
 
         if abs(sfr_sum - 1.0) > SFR_FRACTION_TOL:
             if sfr_sum == 0.0:
@@ -210,15 +127,14 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                         parameter="land_cover.surface_fractions",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"All surface fractions are zero or missing",
+                        message="All surface fractions are zero or missing",
                         suggested_value="Set surface fractions (paved.sfr, bldgs.sfr, evetr.sfr, dectr.sfr, grass.sfr, bsoil.sfr, water.sfr) that sum to 1.0",
                     )
                 )
             else:
-                surface_list = ", ".join([
+                surface_list = ", ".join(
                     f"{surf}={val:.4f}" for surf, val in surface_types
-                ])
-                # Identify the surface with the largest fraction (same as auto-correction logic)
+                )
                 surface_dict = dict(surface_types)
                 max_surface = (
                     max(surface_dict.keys(), key=lambda k: surface_dict[k])
@@ -237,72 +153,14 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                     )
                 )
 
-        if _is_spartacus_enabled(yaml_data):
-            first_building_frac = _first_building_frac(props)
-            bldgs_sfr = _surface_sfr(land_cover, "bldgs")
-            if (
-                first_building_frac is not None
-                and bldgs_sfr is not None
-                and abs(first_building_frac - bldgs_sfr) > SFR_FRACTION_TOL
-            ):
-                results.append(
-                    ValidationResult(
-                        status="WARNING",
-                        category="LAND_COVER",
-                        parameter="land_cover.bldgs.sfr",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message=(
-                            "Building land-cover fraction "
-                            f"(land_cover.bldgs.sfr = {bldgs_sfr:.4f}) differs "
-                            "from SPARTACUS lowest-layer building fraction "
-                            f"(vertical_layers.building_frac[0] = {first_building_frac:.4f}). "
-                            "This can be valid when the land-cover and vertical "
-                            "morphology data come from different sources. Review "
-                            "which source should be trusted before changing either "
-                            "land_cover.bldgs.sfr or vertical_layers.building_frac."
-                        ),
-                        suggested_value=(
-                            "If land_cover.bldgs.sfr is the trusted source, review "
-                            "whether the vertical_layers.building_frac profile should "
-                            "be rescaled. If vertical_layers.building_frac is the "
-                            "trusted source, review land_cover.bldgs.sfr and manually "
-                            "rebalance the affected land-cover fractions so the total "
-                            "surface fraction remains 1.0."
-                        ),
-                    )
+        if spartacus_enabled:
+            results.extend(
+                ValidationResult.from_advisory(f)
+                for f in check_spartacus_lowest_layer_advisories(
+                    site, sfr_tol=SFR_FRACTION_TOL
                 )
+            )
 
-            lowest_layer_veg_frac = _first_veg_frac(props)
-            if lowest_layer_veg_frac is not None:
-                dectr_sfr = _surface_sfr(land_cover, "dectr") or 0.0
-                evetr_sfr = _surface_sfr(land_cover, "evetr") or 0.0
-                current_tree_cover = dectr_sfr + evetr_sfr
-                if abs(current_tree_cover - lowest_layer_veg_frac) > SFR_FRACTION_TOL:
-                    results.append(
-                        ValidationResult(
-                            status="WARNING",
-                            category="LAND_COVER",
-                            parameter="land_cover.tree_sfr",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            message=(
-                                "Tree land-cover fraction "
-                                f"(dectr.sfr + evetr.sfr = {current_tree_cover:.4f}) "
-                                "differs from SPARTACUS lowest-layer tree fraction "
-                                f"(vertical_layers.veg_frac[0] = {lowest_layer_veg_frac:.4f}). "
-                                "This can be valid when the land-cover and vertical "
-                                "morphology data come from different sources or the "
-                                "lowest layer is supposed to represent a trunk fraction. "
-                                "Review which source should be trusted before changing "
-                                "either land cover fractions or vertical_layers.veg_frac."
-                            ),
-                        )
-                    )
-
-        # Determine if biogenic CO2 parameters should be required
-        physics = yaml_data.get("model", {}).get("physics", {})
-        emissionsmethod = get_value_safe(physics, "emissions")
         biogenic_params = {
             "alpha_bioco2",
             "alpha_bio_co2",
@@ -323,7 +181,6 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                 surface_props = land_cover[surface_type]
                 missing_params = _check_surface_parameters(surface_props, surface_type)
 
-                # If emissionsmethod disables CO2, skip biogenic params for relevant surfaces
                 if (
                     emissionsmethod is not None
                     and emissionsmethod in [0, 1, 2, 3, 4, 5, 6]
@@ -363,23 +220,20 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
         if zero_sfr_surfaces:
             for surf_type in zero_sfr_surfaces:
                 param_list = []
-                surf_props = (
-                    site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
-                )
+                surf_props = land_cover.get(surf_type, {})
 
                 def collect_param_names(d: Mapping, prefix: str = ""):
                     for k, v in d.items():
                         if k == "sfr":
                             continue
                         current_path = f"{prefix}.{k}" if prefix else k
-                        if isinstance(v, Mapping) and "value" not in v and not is_ref_only(v):
+                        if isinstance(v, Mapping) and not is_ref_wrapper(v) and not is_ref_only(v):
                             collect_param_names(v, current_path)
                         else:
-                            # RefValue mapping, ref-only placeholder or bare
-                            # scalar/list: all are parameters (gh#2297).
                             param_list.append(current_path)
 
-                collect_param_names(surf_props)
+                if isinstance(surf_props, Mapping):
+                    collect_param_names(surf_props)
 
                 if param_list:
                     message = f"Parameters under sites.properties.land_cover.{surf_type} are not checked because '{surf_type}' surface fraction is 0."
@@ -440,16 +294,23 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
     - Longitude must be a numeric value between -180 and 180.
     - Timezone and daylight saving parameters are optional; warnings are issued if missing.
     """
-    yaml_data = context.yaml_data
-    
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    sites = yaml_data.get("sites", [])
 
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        site_gridid = site.get("gridiv")
+    dls_year = None
+    start_time = view.start_time
+    if start_time is not None:
+        try:
+            dls_year = int(str(start_time)[:4])
+        except (TypeError, ValueError):
+            dls_year = None
 
-        lat = get_value_safe(props, "lat")
+    for site in view.sites:
+        site_idx = site.index
+        props = site.properties
+        site_gridid = site.raw_gridiv
+
+        lat = site.scalar(props, "lat")
 
         if lat is None:
             results.append(
@@ -488,7 +349,7 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
                 )
             )
 
-        lng = get_value_safe(props, "lng")
+        lng = site.scalar(props, "lng")
 
         if lng is None:
             results.append(
@@ -527,7 +388,7 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
                 )
             )
 
-        timezone = get_value_safe(props, "timezone")
+        timezone = site.scalar(props, "timezone")
 
         if timezone is None:
             results.append(
@@ -542,78 +403,25 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
                 )
             )
 
-        anthro_emissions = props.get("anthropogenic_emissions", {})
+        anthro_emissions = site.anthropogenic_emissions
         if anthro_emissions:
-            from ....core.human_activity import coerce_integer_doy_scalar
-
-            startdls = get_value_safe(anthro_emissions, "startdls")
-            enddls = get_value_safe(anthro_emissions, "enddls")
+            startdls = site.scalar(anthro_emissions, "startdls")
+            enddls = site.scalar(anthro_emissions, "enddls")
             if _is_absent_doy_mapping(startdls):
                 startdls = None
             if _is_absent_doy_mapping(enddls):
                 enddls = None
 
-            max_dls_doy = 366
-            yaml_data = getattr(context, "yaml_data", None)
-            model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
-            control_cfg = (
-                model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
+            dls_violations, half_configured, _, _ = check_dls_doy_pair(
+                startdls,
+                enddls,
+                model_year=dls_year,
+                site_index=site_idx,
+                site_gridid=site_gridid,
             )
-            start_time = (
-                get_value_safe(control_cfg, "start_time")
-                if isinstance(control_cfg, Mapping)
-                else None
-            )
-            if start_time is not None:
-                try:
-                    year = int(str(start_time)[:4])
-                    if not calendar.isleap(year):
-                        max_dls_doy = 365
-                except (TypeError, ValueError):
-                    pass
+            results.extend(ValidationResult.from_violation(v) for v in dls_violations)
 
-            for dls_name, dls_val in (("startdls", startdls), ("enddls", enddls)):
-                if dls_val is None:
-                    continue
-                try:
-                    dls_int = coerce_integer_doy_scalar(dls_val, dls_name)
-                except ValueError as exc:
-                    results.append(
-                        ValidationResult(
-                            status="ERROR",
-                            category="GEOGRAPHY",
-                            parameter=f"anthropogenic_emissions.{dls_name}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            message=str(exc),
-                            suggested_value=(
-                                "Replace decimal or non-integer values with an "
-                                f"integer day of year between 1 and {max_dls_doy}"
-                            ),
-                        )
-                    )
-                    continue
-                if not (1 <= dls_int <= max_dls_doy):
-                    results.append(
-                        ValidationResult(
-                            status="ERROR",
-                            category="GEOGRAPHY",
-                            parameter=f"anthropogenic_emissions.{dls_name}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            message=(
-                                f"{dls_name}={dls_int} is invalid. Must be an "
-                                f"integer day of year between 1 and {max_dls_doy}."
-                            ),
-                            suggested_value=(
-                                f"Set an integer day of year between 1 and {max_dls_doy}, "
-                                "or omit both startdls and enddls to disable "
-                                "daylight saving"
-                            ),
-                        )
-                    )
-
-            if (startdls is None) != (enddls is None):
+            if half_configured:
                 results.append(
                     ValidationResult(
                         status="WARNING",
@@ -655,285 +463,54 @@ def validate_irrigation_doy(
     model_year: int,
     site_name: str,
 ) -> List[ValidationResult]:
-    """
-    Validates irrigation Day-Of-Year (DOY) parameters with consideration for leap years, hemisphere, and tropical regions.
+    """Validate irrigation DOY parameters using the shared kernel and seasonal advisories."""
+    norm_start = None if _is_absent_doy_mapping(ie_start) else ie_start
+    norm_end = None if _is_absent_doy_mapping(ie_end) else ie_end
 
-    Parameters
-    ----------
-    ie_start : int or None
-        Irrigation start integer day of year (1-366, or null/None to disable;
-        0 is only used as the internal df_state sentinel).
-    ie_end : int or None
-        Irrigation end integer day of year (1-366, or null/None to disable;
-        0 is only used as the internal df_state sentinel).
-    lat : float
-        Site latitude (used for hemisphere and tropical detection).
-    model_year : int
-        Simulation year (used for leap year detection).
-    site_name : str
-        Site identifier for error messages.
+    violations, ie_start_int, ie_end_int = check_irrigation_doy_pair(
+        norm_start,
+        norm_end,
+        model_year=model_year,
+        site_name=site_name,
+    )
+    if violations:
+        return [ValidationResult.from_violation(v) for v in violations]
 
-    Returns
-    -------
-    List[ValidationResult]
-        List of ValidationResult objects (errors, warnings, or empty).
+    if ie_start_int is None or ie_end_int is None:
+        return []
 
-    Notes
-    -----
-    - Checks that DOY values are whole integers within valid range (1-365 or 1-366 for leap years).
-    - Ensures both parameters are set together or both disabled.
-    - Checks warm season appropriateness based on hemisphere and latitude:
-        * Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round.
-        * Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273).
-        * Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90).
-    """
-    from ....core.human_activity import coerce_integer_doy_scalar
-
-    results = []
-    is_leap = calendar.isleap(model_year)
-    max_doy = 366 if is_leap else 365
-
-    parsed: Dict[str, Optional[int]] = {}
-    has_type_error = False
-    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
-        if param_value is None or _is_absent_doy_mapping(param_value):
-            parsed[param_name] = None
-            continue
-        try:
-            parsed[param_name] = coerce_integer_doy_scalar(param_value, param_name)
-        except ValueError as exc:
-            has_type_error = True
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="IRRIGATION",
-                    parameter=f"{param_name} in site {site_name}",
-                    message=str(exc),
-                    suggested_value=(
-                        f"Replace decimal or non-integer values with an integer "
-                        f"day of year (1-{max_doy}), or null/None to disable"
-                    ),
-                )
-            )
-    if has_type_error:
-        return results
-
-    ie_start_int = parsed["ie_start"]
-    ie_end_int = parsed["ie_end"]
-
-    # Range check first: reject explicit 0 and out-of-range integers (1..max_doy)
-    has_range_error = False
-    for param_name, param_value in [
-        ("ie_start", ie_start_int),
-        ("ie_end", ie_end_int),
-    ]:
-        if param_value is not None and (param_value < 1 or param_value > max_doy):
-            has_range_error = True
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="IRRIGATION",
-                    parameter=f"{param_name} in site {site_name}",
-                    message=f"{param_name}={param_value} is invalid. "
-                    f"Must be an integer day of year between 1 and {max_doy} for "
-                    f"{'leap' if is_leap else 'non-leap'} year {model_year}, "
-                    "or null/None to disable irrigation",
-                    suggested_value=f"Valid range: 1-{max_doy}, or null/None to disable",
-                )
-            )
-    if has_range_error:
-        return results
-
-    start_disabled = ie_start_int is None
-    end_disabled = ie_end_int is None
-
-    # Case 1: Both disabled (None/absent) = valid (irrigation not configured)
-    if start_disabled and end_disabled:
-        return results
-
-    # Case 2: One disabled, one enabled = ERROR (inconsistent)
-    if start_disabled != end_disabled:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message="Both ie_start and ie_end must be specified together (both set to valid integer DOY), "
-                "or both left as null/None (irrigation disabled). "
-                f"Currently: ie_start={ie_start}, ie_end={ie_end}",
-                suggested_value="Set both to valid integer DOY (1-365/366) or both to null/None",
-            )
-        )
-        return results
-
-    # Case 3: Both enabled = validate hemisphere logic
-    assert ie_start_int is not None and ie_end_int is not None
-    ie_start = ie_start_int
-    ie_end = ie_end_int
-
-    # Seasonal validation based on hemisphere and latitude
-    abs_lat = abs(lat)
-
-    # Tropical regions (within Tropic of Cancer/Capricorn): irrigation allowed all year
-    if abs_lat < 23.5:
-        return results
-
-    # Helper function to check if DOY is in warm season
-    def is_in_warm_season(doy: float, latitude: float) -> bool:
-        """
-        Determine if a given Day-Of-Year (DOY) falls within the warm season for the specified hemisphere.
-
-        Parameters
-        ----------
-        doy : float
-            Day of year to check.
-        latitude : float
-            Site latitude (positive for Northern Hemisphere, negative for Southern Hemisphere).
-
-        Returns
-        -------
-        bool
-            True if DOY is within the warm season for the given hemisphere, False otherwise.
-
-        Notes
-        -----
-        Warm season definitions:
-        - Northern Hemisphere (lat >= 23.5): May-September (DOY 121-273)
-        - Southern Hemisphere (lat <= -23.5): November-March (DOY 305-90, wraps year boundary)
-        """
-        if latitude >= 0:  # Northern Hemisphere
-            # May to September (DOY 121-273)
-            return 121 <= doy <= 273
-        else:  # Southern Hemisphere
-            # November to March (DOY 305-365/366 or 1-90)
-            return doy >= 305 or doy <= 90
-
-    # Check if ie_start and ie_end are within warm season
-    start_in_warm_season = is_in_warm_season(ie_start, lat)
-    end_in_warm_season = is_in_warm_season(ie_end, lat)
-
-    if not start_in_warm_season or not end_in_warm_season:
-        hemisphere = "Northern" if lat >= 0 else "Southern"
-        season_range = (
-            "May-September (DOY 121-273)" if lat >= 0 else "November-March (DOY 305-90)"
-        )
-
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message=f"Irrigation period (DOY {int(ie_start)} to {int(ie_end)}) falls outside "
-                f"the typical warm season for {hemisphere} Hemisphere sites (lat={lat:.2f}). "
-                f"Irrigation typically occurs during warm season: {season_range}. "
-                f"Verify this configuration is intentional.",
-                suggested_value=f"Consider adjusting to warm season: {season_range}",
-            )
-        )
-
-    # Check for unusual year-wrapping irrigation patterns
-    # This helps catch likely user errors where start/end are swapped
-    if lat >= 23.5 and ie_start > ie_end:  # NH with year-wrapping
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message=f"Irrigation period wraps year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
-                f"This means irrigation spans {365 - int(ie_start) + int(ie_end)} days including cold season. "
-                f"Verify this is intentional for Northern Hemisphere.",
-                suggested_value="Check if ie_start should be less than ie_end",
-            )
-        )
-    elif lat <= -23.5 and ie_start < ie_end:  # SH without year-wrapping
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message=f"Irrigation period does not wrap year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
-                f"In Southern Hemisphere, warm season typically spans November-March (year-wrapping).",
-                suggested_value="Check if ie_start should be greater than ie_end",
-            )
-        )
-
-    return results
-
+    findings = check_irrigation_season_advisory(
+        ie_start_int, ie_end_int, lat, site_name
+    )
+    return [ValidationResult.from_advisory(f) for f in findings]
 
 
 @RulesRegistry.add_rule("irrigation")
 def validate_irrigation_parameters(context) -> List[ValidationResult]:
-    """
-    Validate irrigation DOY parameters for all sites.
-
-    Extracts irrigation parameters from each site configuration and validates
-    them using context-aware checks (leap year, hemisphere).
-
-    Parameters
-    ----------
-    context : object
-        An object containing the YAML data (`yaml_data`) and simulation year (`model_year`).
-
-    Returns
-    -------
-    List[ValidationResult]
-        List of ValidationResult objects for all sites.
-    """
-    yaml_data = context.yaml_data
+    """Validate irrigation DOY parameters for all sites."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     model_year = context.model_year
 
     results = []
-    sites = yaml_data.get("sites", [])
-
-    # Handle both list and dict formats for sites
-    if isinstance(sites, Mapping):
-        # Dict format: {site_name: {lat: ..., ...}, ...}
-        sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, (list, tuple)):
-        # List/frozen-tuple format: [{name: site_name, lat: ..., ...}, ...]
-        sites_list = [
-            (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
-        ]
-    else:
-        return results  # No valid sites structure
-
-    for site_name, site_data in sites_list:
-        # Extract latitude from properties
-        properties = site_data.get("properties", {})
-        lat = get_value_safe(properties, "lat", 0.0)
-
-        # Extract irrigation parameters from properties
-        irrigation = properties.get("irrigation", {})
-        ie_start = get_value_safe(irrigation, "ie_start")
-        ie_end = get_value_safe(irrigation, "ie_end")
-
-        # Run validation
+    for site in view.sites:
+        site_name = site.name if site.raw.get("name") is not None or isinstance(
+            context.yaml_data.get("sites"), Mapping
+        ) else f"site_{site.index}"
+        lat = site.scalar(site.properties, "lat", 0.0)
+        ie_start = site.scalar(site.irrigation, "ie_start")
+        ie_end = site.scalar(site.irrigation, "ie_end")
         results.extend(
             validate_irrigation_doy(ie_start, ie_end, lat, model_year, site_name)
         )
 
     return results
 
+
 @RulesRegistry.add_rule("veg_albedo")
 def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
-    """
-    Report when vegetated surfaces have null alb_id.
-
-    This is informational only: SUEWSConfig will auto-calculate alb_id from
-    LAI state before the model run.
-
-    Trees use a direct LAI-albedo relationship (higher LAI -> higher albedo).
-    Grass uses a reversed relationship (higher LAI -> lower albedo).
-
-    Returns
-    -------
-    List[ValidationResult]
-        Informational results for each vegetated surface with null alb_id.
-    """
-    yaml_data = context.yaml_data
-
+    """Report when vegetated surfaces have null alb_id."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    sites = yaml_data.get("sites", [])
 
     surface_labels = {
         "evetr": "evergreen trees",
@@ -941,31 +518,24 @@ def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
         "grass": "grass",
     }
 
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        initial_states = site.get("initial_states", {})
-        land_cover = props.get("land_cover", {})
-        site_gridid = site.get("gridiv")
+    for site in view.sites:
+        land_cover = site.land_cover
+        initial_states = site.initial_states
+        site_gridid = site.raw_gridiv
 
         for surf_key, surf_label in surface_labels.items():
             surf_props = land_cover.get(surf_key, {})
             surf_state = initial_states.get(surf_key, {})
-            if not surf_props or not surf_state:
+            if not isinstance(surf_props, Mapping) or not surf_props:
+                continue
+            if not isinstance(surf_state, Mapping) or not surf_state:
                 continue
 
-            # Check if surface has non-zero fraction
-            sfr_entry = surf_props.get("sfr", {})
-            sfr_val = (
-                sfr_entry.get("value") if isinstance(sfr_entry, Mapping) else sfr_entry
-            )
+            sfr_val = site.exact_scalar(surf_props, "sfr")
             if not sfr_val or sfr_val <= 0:
                 continue
 
-            # Check if alb_id is null
-            alb_entry = surf_state.get("alb_id", {})
-            alb_val = (
-                alb_entry.get("value") if isinstance(alb_entry, Mapping) else alb_entry
-            )
+            alb_val = site.exact_scalar(surf_state, "alb_id")
             if alb_val is not None:
                 continue
 
@@ -974,7 +544,7 @@ def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
                     status="INFO",
                     category="SEASONAL",
                     parameter=f"{surf_key}.alb_id",
-                    site_index=site_idx,
+                    site_index=site.index,
                     site_gridid=site_gridid,
                     message=(
                         f"alb_id is null for {surf_label} (sfr={sfr_val}). "

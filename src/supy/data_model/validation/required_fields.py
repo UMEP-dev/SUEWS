@@ -33,9 +33,10 @@ This module contains:
   documentation generator. Most entries are derived from the constants above;
   the ``AnthropogenicEmissions`` entry mirrors the DLS checks in
   ``SUEWSConfig.validate_model_output_timestamp_reference`` and
-  ``SUEWSConfig.validate_dls_parameters`` instead, and the ``IrrigationParams``
-  entry mirrors the irrigation-window check in the Phase B validation pipeline
-  (``phase_b_rules.other_rules``).
+  ``SUEWSConfig.validate_dls_parameters``, and the ``IrrigationParams``
+  entry mirrors the paired irrigation-window check enforced by both
+  ``IrrigationParams._validate_irrigation_window_pair`` and Phase B
+  (``phase_b_rules.other_rules``) via ``validation.rules.hard_invariants``.
 - ``STEBBS_SHADING_REQUIRED_MODES`` and ``stebbs_shading_requirements``,
   which share shading requirements across parameter models, full
   configurations and raw YAML diagnostics.

@@ -2,158 +2,56 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
+from ..document import read_scalar, unwrap_entry
 from ...core.yaml_helpers import get_value_safe
-from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
-from ...core.yaml_helpers import get_stebbs_block, get_stebbsmethod_value
-from ...core.yaml_helpers import read_physics_key
-from ...required_fields import (
-    BUILDING_PRESENT_SFR_TOL,
-    SPARTACUS_BUILDING_STORAGE_METHODS,
-    SPARTACUS_OBSERVED_STORAGE_METHOD,
+from ...required_fields import BUILDING_PRESENT_SFR_TOL
+from ...rules.advisory import check_same_surface_unchecked_advisory
+from ...rules.hard_invariants import (
+    SPARTACUS_METHODS,
+    check_spartacus_storage_heat,
 )
-from ....core.physics_families import resolve_scalar_name
+from ...rules.typed_view import (
+    TypedConfigView,
+    as_float as _as_float,
+    method_code as _method_code,
+)
 
 from collections.abc import Mapping
-from numbers import Integral, Real
-from typing import Dict, List, Optional, Union, Any, Tuple
-
-
-SPARTACUS_METHODS = {1001, 1002, 1003}
-
-
-def _as_float(x: Any) -> Optional[float]:
-    if x is None:
-        return None
-    try:
-        return float(x)
-    except (TypeError, ValueError):
-        return None
+from typing import List, Optional
 
 
 def _are_buildings_present(
     yaml_data: Mapping, sfr_fraction_tol: float = BUILDING_PRESENT_SFR_TOL
 ) -> bool:
-    """
-    Determine whether buildings are present at any site in the YAML configuration.
-
-    Parameters
-    ----------
-    yaml_data : Mapping
-        Parsed YAML configuration containing site definitions and their
-        properties. Building surface fraction is read from
-        ``properties.land_cover.bldgs.sfr`` for each site.
-    sfr_fraction_tol : float, optional
-        Building surface fraction above which buildings are considered
-        present. Defaults to ``BUILDING_PRESENT_SFR_TOL``.
-
-    Returns
-    -------
-    bool
-        ``True`` if the building surface fraction exceeds ``sfr_fraction_tol``
-        at any site; otherwise ``False``.
-
-    Notes
-    -----
-    Sites whose building surface fraction is missing or not numeric are
-    ignored; other validation checks report them.
-    """
-    sites = yaml_data.get("sites", []) if isinstance(yaml_data, Mapping) else []
-    # ValidationContext freezes the YAML, so ``sites`` may be a tuple.
-    for site in sites if isinstance(sites, (list, tuple)) else []:
-        props = site.get("properties", {}) if isinstance(site, Mapping) else {}
-        if not isinstance(props, Mapping):
-            continue
-        land_cover = _unwrap_nested_value(props.get("land_cover") or {})
-        bldgs = (
-            _unwrap_nested_value(land_cover.get("bldgs", {}))
-            if isinstance(land_cover, Mapping)
-            else None
-        )
-        sfr = (
-            _as_float(_unwrap_nested_value(bldgs.get("sfr")))
-            if isinstance(bldgs, Mapping)
-            else None
-        )
-        if sfr is not None and sfr > sfr_fraction_tol:
-            return True
-    return False
+    """Return True if any site has ``land_cover.bldgs.sfr > sfr_fraction_tol``."""
+    return TypedConfigView.from_mapping(yaml_data).any_buildings_present(
+        tol=sfr_fraction_tol
+    )
 
 
 def validate_spartacus_dependencies(
     bldgs_present: bool, netradiationmethod, storageheatmethod
 ) -> list[ValidationResult]:
+    """Validate the storage heat method chosen alongside SPARTACUS (gh#1834).
+
+    Delegates the decision to
+    ``validation.rules.hard_invariants.check_spartacus_storage_heat`` so
+    ``SUEWSConfig`` and Phase B share one authoritative rule.
     """
-    Validate the storage heat method chosen alongside SPARTACUS (gh#1834).
+    net_code = _method_code(netradiationmethod, "net_radiation")
+    storage_code = _method_code(storageheatmethod, "storage_heat")
 
-    Parameters
-    ----------
-    bldgs_present : bool
-        Whether buildings are present at any site in the configuration, based
-        on the building surface fraction.
-    netradiationmethod : int, str or Mapping
-        Net radiation method in any accepted input form.
-    storageheatmethod : int, str or Mapping
-        Storage heat method in any accepted input form.
-
-    Returns
-    -------
-    List[ValidationResult]
-        Validation results for the SPARTACUS storage heat dependency; empty
-        when SPARTACUS is not selected.
-
-    Notes
-    -----
-    - Storage heat method 0 (observed storage heat fluxes supplied in the
-      forcing) is not supported with SPARTACUS.
-    - With buildings present, the storage heat method must resolve roof and
-      wall facets: one of ``SPARTACUS_BUILDING_STORAGE_METHODS`` (EHC or
-      STEBBS). The STEBBS requirement of method 7 is reported by
-      ``validate_storageheatmethod_dependencies``.
-    - ``SUEWSConfig._validate_spartacus_storage_heat_method_dependency``
-      enforces the same contract on every configuration load; this rule
-      reports it, with a suggested fix, through ``suews validate``.
-    """
-    netradiationmethod = _method_code(netradiationmethod, "net_radiation")
-    storageheatmethod = _method_code(storageheatmethod, "storage_heat")
-
-    if netradiationmethod not in SPARTACUS_METHODS or storageheatmethod is None:
+    if net_code not in SPARTACUS_METHODS or storage_code is None:
         return []
 
-    if storageheatmethod == SPARTACUS_OBSERVED_STORAGE_METHOD:
-        return [
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="netradiationmethod-storageheatmethod",
-                message=(
-                    "Observed storage heat fluxes (StorageHeatMethod=0) are "
-                    "not supported with SPARTACUS."
-                ),
-                suggested_value=(
-                    "Set model.physics.storage_heat=7 (STEBBS, with "
-                    "model.physics.stebbs.enabled=true) or 5 (EHC)."
-                ),
-            )
-        ]
-
-    if bldgs_present and storageheatmethod not in SPARTACUS_BUILDING_STORAGE_METHODS:
-        return [
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="netradiationmethod-storageheatmethod-bldgs",
-                message=(
-                    f"StorageHeatMethod={storageheatmethod} is not supported "
-                    "with SPARTACUS when buildings are present "
-                    "(land_cover.bldgs.sfr > 0 at a site): SPARTACUS needs a "
-                    "storage heat method that resolves roof and wall facets."
-                ),
-                suggested_value=(
-                    "Set model.physics.storage_heat=7 (STEBBS, with "
-                    "model.physics.stebbs.enabled=true) or 5 (EHC)."
-                ),
-            )
-        ]
+    violations = check_spartacus_storage_heat(
+        net_code,
+        storage_code,
+        bldgs_present=bldgs_present,
+        check_stebbs_for_method_7=False,
+    )
+    if violations:
+        return [ValidationResult.from_violation(v) for v in violations]
 
     return [
         ValidationResult(
@@ -194,12 +92,11 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
     - If all required parameters are present and non-empty, a pass result is returned.
     - For parameter descriptions and typical values, consult the SUEWS documentation: https://docs.suews.io/latest/
     """
-    yaml_data = context.yaml_data
+    view = TypedConfigView.from_mapping(context.yaml_data)
+    physics = view.physics.raw
 
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    if not physics:
+    if view.physics.is_empty:
         results.append(
             ValidationResult(
                 status="WARNING",
@@ -239,7 +136,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "same_emissivity_wall",
         "same_emissivity_roof",
     ]
-    stebbs_block = get_stebbs_block(physics)
+    stebbs_block = view.physics.stebbs_block
 
     # (display path, container, key) for every required physics switch.
     # The family switches are read from the flat model.physics dict; the
@@ -363,30 +260,6 @@ def validate_rslmethod_dependency(rslmethod, stabilitymethod):
         parameter="rslmethod-stabilitymethod",
         message="rslmethod-stabilitymethod constraints satisfied",
     )
-
-
-def _method_code(value, field_name: Optional[str] = None):
-    """Return an integer method code from raw, RefValue, enum, or readable input."""
-    if value is None:
-        return None
-    if isinstance(value, Mapping) and "value" in value:
-        value = value["value"]
-    if hasattr(value, "value"):
-        value = value.value
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, Integral):
-        return int(value)
-    if isinstance(value, Real) and float(value).is_integer():
-        return int(value)
-    if isinstance(value, str):
-        stripped = value.strip()
-        if not stripped:
-            return None
-        if field_name is not None:
-            return resolve_scalar_name(field_name, stripped)
-        return int(stripped)
-    return value
 
 
 def validate_storageheatmethod_dependency(storageheatmethod, ohmincqf):
@@ -687,21 +560,18 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
         depending on the validation result.
     """
 
-    yaml_data = context.yaml_data
+    view = TypedConfigView.from_mapping(context.yaml_data)
+    physics = view.physics
 
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    if not isinstance(physics, Mapping):
-        physics = {}
-
-    rslmethod = read_physics_key(physics, "roughness_sublayer")
-    stabilitymethod = read_physics_key(physics, "stability")
-    storageheatmethod = read_physics_key(physics, "storage_heat")
-    ohmincqf = read_physics_key(physics, "ohm_inc_qf")
-    smdmethod = read_physics_key(physics, "soil_moisture")
-    netradiationmethod = read_physics_key(physics, "net_radiation")
-    stebbsmethod = get_stebbsmethod_value(physics)
-    rcmethod = get_value_safe(get_stebbs_block(physics), "capacitance")
+    rslmethod = physics.read("roughness_sublayer")
+    stabilitymethod = physics.read("stability")
+    storageheatmethod = physics.read("storage_heat")
+    ohmincqf = physics.read("ohm_inc_qf")
+    smdmethod = physics.read("soil_moisture")
+    netradiationmethod = physics.read("net_radiation")
+    stebbsmethod = physics.stebbs_method
+    rcmethod = physics.stebbs_value("capacitance")
 
     # RSL method and stability method dependencies
     result = validate_rslmethod_dependency(rslmethod=rslmethod, stabilitymethod=stabilitymethod)
@@ -727,12 +597,14 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     )
 
     # SMDMethod and soil_observation dependency
-    results.extend(validate_smdmethod_dependency(smdmethod=smdmethod, yaml_data=yaml_data))
+    results.extend(
+        validate_smdmethod_dependency(smdmethod=smdmethod, yaml_data=context.yaml_data)
+    )
 
     # SPARTACUS and storage heat method dependency (gh#1834)
     results.extend(
         validate_spartacus_dependencies(
-            bldgs_present=_are_buildings_present(yaml_data),
+            bldgs_present=view.any_buildings_present(),
             netradiationmethod=netradiationmethod,
             storageheatmethod=storageheatmethod,
         )
@@ -742,42 +614,11 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
 
 
 def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gridid, facet):
-    """
-    Validate that required facet material parameters are provided when rcmethod is set to 2, and generate warnings for used parameter values.
-
-    Parameters
-    ----------
-    required_params : list of str
-        List of parameter names that must be present in the building archetype for the specified facet.
-    building_archetype : dict
-        Dictionary containing building archetype properties and their values.
-    site_idx : int
-        Index of the site being validated.
-    site_gridid : str
-        Grid identifier for the site being validated.
-    facet : str
-        Name of the building facet (e.g., 'Wall', 'Roof') for which parameters are being validated.
-
-    Returns
-    -------
-    list of ValidationResult
-        A list of validation results. Returns an error for each missing or null required parameter, and a warning listing the provided parameter values for the facet.
-
-    Notes
-    -----
-    - When rcmethod is set to 2, all required facet material parameters must be provided and non-null.
-    - A warning is issued listing the parameter values that will be used for parameterisation, prompting the user to verify their correctness.
-    """
-    # Collect provided wall params
+    """Validate required facet material parameters when ``capacitance == 2``."""
     provided_facet = []
     results = []
     for param in required_params:
-        entry_or_value = get_value_safe(building_archetype, param)
-        value = (
-            entry_or_value.get("value")
-            if isinstance(entry_or_value, Mapping)
-            else entry_or_value
-        )
+        value = unwrap_entry(get_value_safe(building_archetype, param))
         if value in (None, ""):
             results.append(
                 ValidationResult(
@@ -809,31 +650,9 @@ def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gr
 
 
 def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
-    """
-    Validate that the heat-capacity outer-fraction parameter for a given building facet is explicitly provided and within the valid range when rcmethod is set to 1.
-    Parameters
-    ----------
-    building_archetype : dict
-        Dictionary containing building archetype properties and their values.
-    facet : str
-        Name of the building facet (e.g., 'wall', 'roof') for which the
-        outer heat-capacity fraction is being validated.
-    site_idx : int
-        Index of the site being validated.
-    site_gridid : str
-        Grid identifier for the site being validated.
-    Returns
-    -------
-    ValidationResult
-        A validation result indicating an error if the fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
-    Notes
-    -----
-    - When rcmethod is set to 1, the fraction_heat_capacity_{facet}_external parameter must be explicitly set and strictly between 0 and 1.
-    - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
-    """
+    """Validate outer heat-capacity fraction for a facet when ``capacitance == 1``."""
     key = f"fraction_heat_capacity_{facet}_external"
-    facet_frac_entry = building_archetype.get(key, {})
-    facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
+    facet_frac = read_scalar(building_archetype, key)
 
     result = ValidationResult(
         status="ERROR",
@@ -844,55 +663,35 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
     )
 
     if facet_frac is None:
-        result.message=f"{key} must be explicitly provided when rcmethod == 1."
-        result.suggested_value=f"Set {key} to a value between 0 and 1 (exclusive)."
+        result.message = f"{key} must be explicitly provided when rcmethod == 1."
+        result.suggested_value = f"Set {key} to a value between 0 and 1 (exclusive)."
         return result
     elif not (0 < facet_frac < 1):
-        result.message=f"{key} value {facet_frac} is out of valid range (0, 1) when rcmethod == 1."
-        result.suggested_value=f"Set {key} to a value strictly between 0 and 1."
+        result.message = f"{key} value {facet_frac} is out of valid range (0, 1) when rcmethod == 1."
+        result.suggested_value = f"Set {key} to a value strictly between 0 and 1."
         return result
+
 
 @RulesRegistry.add_rule("rcmethod")
 def validate_model_option_rcmethod(context) -> List[ValidationResult]:
-    """
-    Validate dependencies and consistency for the rcmethod model physics option.
-
-    This function checks for consistency and required dependencies among various roof and wall
-    parameter options defined in the YAML configuration file. It performs the following validations:
-        - If rcmethod == 1, ensures that RoofOuterCapFrac and WallOuterCapFrac are provided and within valid range.
-        - If rcmethod == 2, checks that required roof and wall external parameters are present and non-null.
-        - Emits warnings with the provided values for user review if applicable.
-
-    Parameters
-    ----------
-    context : ValidationContext
-        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
-
-    Returns
-    -------
-    List[ValidationResult]
-        A list of `ValidationResult` objects, each representing the outcome of the validation for
-        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
-        depending on the validation result.
-    """
-    yaml_data = context.yaml_data
-
+    """Validate dependencies and consistency for the capacitance (rcmethod) option."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
-    rcmethod_value = get_value_safe(get_stebbs_block(physics), "capacitance")
+    rcmethod_value = view.physics.stebbs_value("capacitance")
 
-    sites = yaml_data.get("sites", [])
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        building_archetype = props.get("building_archetype", {})
-        site_gridid = get_value_safe(site, "gridiv")
-
+    for site in view.sites:
+        building_archetype = site.building_archetype
+        site_gridid = site.gridid
         facets = ["roof", "wall"]
 
         if rcmethod_value == 1:
             for facet in facets:
-                result = check_outercapfrac_facet(building_archetype=building_archetype, facet=facet, site_idx=site_idx, site_gridid=site_gridid)
+                result = check_outercapfrac_facet(
+                    building_archetype=building_archetype,
+                    facet=facet,
+                    site_idx=site.index,
+                    site_gridid=site_gridid,
+                )
                 if result is not None:
                     results.append(result)
 
@@ -909,307 +708,129 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
                 "density_roof_outer",
                 "specific_heat_capacity_roof_outer",
             ]
-            # Collect provided wall params
             for facet, facet_params in zip(
                 facets,
-                [required_roof_params, required_wall_params]
+                [required_roof_params, required_wall_params],
             ):
-                results_walls = check_rcmethod2_facet(
-                    required_params=facet_params,
-                    building_archetype=building_archetype,
-                    site_idx=site_idx,
-                    site_gridid=site_gridid,
-                    facet=facet
+                results.extend(
+                    check_rcmethod2_facet(
+                        required_params=facet_params,
+                        building_archetype=building_archetype,
+                        site_idx=site.index,
+                        site_gridid=site_gridid,
+                        facet=facet,
+                    )
                 )
-                results.extend(results_walls)
 
     return results
 
+
 def validate_model_option_same_albedo_facet(site_data, facet):
-    """
-    Validate and generate a warning when the model option for using the same albedo for all layers of a given facet is enabled, without checking consistency between individual layer albedos and the overall facet reflectivity.
-
-    Parameters
-    ----------
-    site_data : dict
-        Dictionary containing site-specific data, including properties and vertical layer information.
-    facet : str
-        Name of the building facet (e.g., 'Wall', 'Roof') for which the albedo consistency is being considered.
-
-    Returns
-    -------
-    ValidationResult
-        A validation result with a warning status, indicating that no consistency check was performed between the albedo values of individual layers and the overall facet reflectivity.
-
-    Notes
-    -----
-    - This function is used when the model option to use the same albedo for all layers of a facet is enabled (same_albedo_{facet.lower()} == 0).
-    - The function collects all albedo values found for the specified facet's layers and the overall facet reflectivity, and includes them in the warning message for user reference.
-    - No error is raised; only a warning is generated to inform the user of the unchecked consistency.
-    """
-    site_name = site_data.get("name", "Unknown")
-    vlay = site_data.get("properties", {}).get("vertical_layers", {})
-    facet_layers = vlay.get(f"{facet.lower()}s", [])
-    if isinstance(facet_layers, Mapping):  # rare but possible
-        facet_layers = [facet_layers]
-    found_albedos = []
-    for layer in facet_layers:
-        alb_val = get_value_safe(layer, "alb")
-        if alb_val is not None:
-            found_albedos.append(alb_val)
-    building_archetype = site_data.get("properties", {}).get("building_archetype", {})
-    # Canonical archetype name (normalise_yaml_renames runs before Phase B rules).
-    facetrefl_key = f"reflectivity_{facet.lower()}_external"
-    facetrefl_val = get_value_safe(building_archetype, facetrefl_key)
-    msg = (
-        f"same_albedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facetrefl_key} (found value: {facetrefl_val})."
+    """Generate the advisory warning when ``same_albedo_<facet> == 0``."""
+    site_view = TypedConfigView.from_mapping({"sites": [site_data]}).sites[0]
+    facet_lower = facet.lower()
+    layers_label = f"{facet_lower}s"
+    facetrefl_key = f"reflectivity_{facet_lower}_external"
+    finding = check_same_surface_unchecked_advisory(
+        site_view.name,
+        param_name=f"same_albedo_{facet_lower}",
+        layers_label=layers_label,
+        property_name="albedo",
+        archetype_label=facetrefl_key,
+        layer_values=site_view.facet_layer_values(layers_label, "alb"),
+        archetype_value=site_view.scalar(site_view.building_archetype, facetrefl_key),
     )
-    return ValidationResult(
-        status="WARNING",
-        category="MODEL_OPTIONS",
-        parameter=f"same_albedo_{facet.lower()}",
-        site_gridid=site_name,
-        site_index=None,
-        message=f"{msg}",
-        suggested_value=None,
-    )
+    return ValidationResult.from_advisory(finding)
+
 
 @RulesRegistry.add_rule("same_albedo")
 def validate_model_option_same_albedo(context) -> List[ValidationResult]:
-    """
-    Validate dependencies and consistency for the same_albedo model physics options.
-
-    This function checks for consistency and required dependencies among various wall and roof
-    albedo options defined in the YAML configuration file. It performs the following validations:
-        - If same_albedo_wall == 0, validates wall albedo values for each site and reports site names.
-        - If same_albedo_roof == 0, validates roof albedo values for each site and reports site names.
-
-    Parameters
-    ----------
-    context : ValidationContext
-        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
-
-    Returns
-    -------
-    List[ValidationResult]
-        A list of `ValidationResult` objects, each representing the outcome of the validation for
-        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
-        depending on the validation result.
-    """
-    yaml_data = context.yaml_data
-
+    """Emit advisory warnings when ``same_albedo_wall`` or ``same_albedo_roof`` is 0."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    # gh#1456: the same_albedo switches moved under model.physics.stebbs.*.
-    stebbs_block = get_stebbs_block(physics)
-    same_albedo_roof = get_value_safe(stebbs_block, "same_albedo_roof")
-    same_albedo_wall = get_value_safe(stebbs_block, "same_albedo_wall")
+    same_albedo_roof = view.physics.stebbs_value("same_albedo_roof")
+    same_albedo_wall = view.physics.stebbs_value("same_albedo_wall")
 
     if same_albedo_wall == 0:
-        for site in yaml_data.get("sites", []):
-            results.append(
-                validate_model_option_same_albedo_facet(site, "Wall")
-            )
+        for site in view.sites:
+            results.append(validate_model_option_same_albedo_facet(site.raw, "Wall"))
     if same_albedo_roof == 0:
-        for site in yaml_data.get("sites", []):
-            results.append(
-                validate_model_option_same_albedo_facet(site, "Roof")
-            )
+        for site in view.sites:
+            results.append(validate_model_option_same_albedo_facet(site.raw, "Roof"))
 
     return results
 
 
 @RulesRegistry.add_rule("same_emissivity")
 def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
-    """
-    Validate dependencies and consistency for the same_emissivity model physics options.
-
-    This function checks for consistency and required dependencies among various wall and roof
-    emissivity options defined in the YAML configuration file. It performs the following validations:
-        - If same_emissivity_wall == 0, emits a warning with the found wall emissivity values and WallExternalEmissivity for user review.
-        - If same_emissivity_roof == 0, emits a warning with the found roof emissivity values and RoofExternalEmissivity for user review.
-
-    Parameters
-    ----------
-    context : ValidationContext
-        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
-
-    Returns
-    -------
-    List[ValidationResult]
-        A list of `ValidationResult` objects, each representing the outcome of the validation for
-        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
-        depending on the validation result.
-    """
+    """Emit advisory warnings when ``same_emissivity_wall`` or ``same_emissivity_roof`` is 0."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    yaml_data = context.yaml_data
-    physics = yaml_data.get("model", {}).get("physics", {})
+    same_emissivity_roof = view.physics.stebbs_value("same_emissivity_roof")
+    same_emissivity_wall = view.physics.stebbs_value("same_emissivity_wall")
 
-    # gh#1456: the same_emissivity switches moved under model.physics.stebbs.*.
-    stebbs_block = get_stebbs_block(physics)
-    same_emissivity_roof = get_value_safe(stebbs_block, "same_emissivity_roof")
-    same_emissivity_wall = get_value_safe(stebbs_block, "same_emissivity_wall")
-
-    if same_emissivity_wall == 0:
-        for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            walls = vlay.get("walls", [])
-            if isinstance(walls, Mapping):  # rare but possible
-                walls = [walls]
-            found_emissivities = []
-            for wall in walls:
-                emis_val = get_value_safe(wall, "emis")
-                if emis_val is not None:
-                    found_emissivities.append(emis_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            wallemis_val = get_value_safe(building_archetype, "emissivity_wall_external")
-            msg = (
-                f"same_emissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and wall_external_emissivity (found value: {wallemis_val})."
+    for switch_val, param_name, layers_label, arch_key, arch_label in (
+        (
+            same_emissivity_wall,
+            "same_emissivity_wall",
+            "walls",
+            "emissivity_wall_external",
+            "wall_external_emissivity",
+        ),
+        (
+            same_emissivity_roof,
+            "same_emissivity_roof",
+            "roofs",
+            "emissivity_roof_external",
+            "roof_external_emissivity",
+        ),
+    ):
+        if switch_val != 0:
+            continue
+        for site in view.sites:
+            finding = check_same_surface_unchecked_advisory(
+                site.name,
+                param_name=param_name,
+                layers_label=layers_label,
+                property_name="emissivity",
+                archetype_label=arch_label,
+                layer_values=site.facet_layer_values(layers_label, "emis"),
+                archetype_value=site.scalar(site.building_archetype, arch_key),
             )
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="same_emissivity_wall",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=msg,
-                    suggested_value=None,
-                )
-            )
-
-    if same_emissivity_roof == 0:
-        for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            roofs = vlay.get("roofs", [])
-            if isinstance(roofs, Mapping):  # rare but possible
-                roofs = [roofs]
-            found_emissivities = []
-            for roof in roofs:
-                emis_val = get_value_safe(roof, "emis")
-                if emis_val is not None:
-                    found_emissivities.append(emis_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            roofemis_val = get_value_safe(building_archetype, "emissivity_roof_external")
-            msg = (
-                f"same_emissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and roof_external_emissivity (found value: {roofemis_val})."
-            )
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="same_emissivity_roof",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=msg,
-                    suggested_value=None,
-                )
-            )
+            results.append(ValidationResult.from_advisory(finding))
 
     return results
 
+
 @RulesRegistry.add_rule("forcing_height")
 def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
-    """
-    Validate that the forcing height (z) lies within an acceptable range
-    relative to urban morphology.
-
-    Parameters
-    ----------
-    context : object
-        Validation context containing the parsed YAML data.
-
-    Returns
-    -------
-    List[ValidationResult]
-        List of validation results indicating errors or warnings if the forcing height is out of the allowed range.
-
-    Notes
-    -----
-    - The minimum allowed factor depends on building plan area fraction (equal to bldgs.sfr):
-        - If bldgs.sfr >= 0.35:
-            - z must be between 1.5* and 5* building mean height
-        - If bldgs.sfr < 0.35:
-            - z must be between 2* and 5* building mean height
-    For forcing height ranges reference, see Grimmond, C. S. B., and T. R. Oke, 1999: Aerodynamic 
-    Properties of Urban Areas Derived from Analysis of Surface Form. J. Appl. Meteor. 
-    Climatol., 38, 1262-1292, Fig. 1.
-
-    - Two reference heights are used:
-        - Mean building height (land_cover.bldgs.bldgh) - ERROR if violated
-        - Maximum building height - WARNING if violated
-
-    - The maximum building height is defined as the largest of:
-        - land_cover.bldgs.bldgh
-        - building_archetype.archetype_height (if stebbsmethod == 1)
-        - The last non-zero value in vertical_layers.height
-          (SPARTACUS top height, if enabled)
-    """
-
-    def _last_nonzero_from_height(height_arr: Any) -> Optional[float]:
-        """Given unwrapped height array/list, return last non-zero float, else None."""
-        if not isinstance(height_arr, (list, tuple)) or not height_arr:
-            return None
-        last_nz = None
-        for h in height_arr:
-            hf = _as_float(_unwrap_nested_value(h))
-            if hf is not None and hf != 0.0:
-                last_nz = hf
-        return last_nz
-
-    yaml_data = context.yaml_data
+    """Validate that forcing height (z) lies within an acceptable range relative to urban morphology."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results: List[ValidationResult] = []
 
-    physics = yaml_data.get("model", {}).get("physics", {})
+    stebbsmethod_val = view.physics.stebbs_method_int
+    netradiationmethod_val = view.physics.code("net_radiation", 0)
 
-    # gh#1456: compose the legacy stebbsmethod integer from the nested
-    # model.physics.stebbs block (enabled + parameters).
-    stebbsmethod_val = get_stebbsmethod_value(physics)
-    try:
-        stebbsmethod_val = int(stebbsmethod_val)
-    except (TypeError, ValueError):
-        stebbsmethod_val = None
+    for site in view.sites:
+        site_idx = site.index
+        site_gridid = site.gridid
+        site_name = site.name
 
-    netradiationmethod_val = read_physics_key(physics, "net_radiation", 0)
-    try:
-        netradiationmethod_val = int(netradiationmethod_val)
-    except (TypeError, ValueError):
-        netradiationmethod_val = None
-
-    for site_idx, site in enumerate(yaml_data.get("sites", [])):
-        props = site.get("properties", {})
-        site_gridid = get_value_safe(site, "gridiv")
-        site_name = site.get("name", "Unknown")
-
-        # forcing height
-        z = _as_float(_unwrap_nested_value(props.get("z")))
+        z = _as_float(site.properties.get("z"))
         if z is None:
             continue
 
-        # mean building height (SUEWS land cover buildings)
-        land_cover_raw = _unwrap_nested_value(props.get("land_cover") or {})
-        bldgs = _unwrap_nested_value(land_cover_raw.get("bldgs", {})) if isinstance(land_cover_raw, Mapping) else None
-        bldgh = _as_float(_unwrap_nested_value(bldgs.get("bldgh"))) if isinstance(bldgs, Mapping) else None
-        sfr = _as_float(_unwrap_nested_value(bldgs.get("sfr"))) if isinstance(bldgs, Mapping) else None
+        bldgs = unwrap_entry(site.land_cover.get("bldgs"))
+        bldgh = _as_float(bldgs.get("bldgh")) if isinstance(bldgs, Mapping) else None
+        sfr = site.surface_sfr("bldgs")
 
-        # optional STEBBS archetype height (only when STEBBS is enabled)
         stebbs_height = None
         if stebbsmethod_val == 1:
-            archetype = _unwrap_nested_value(props.get("building_archetype"))
-            if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("archetype_height")))
+            stebbs_height = _as_float(site.building_archetype.get("archetype_height"))
 
-        # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None
-        if netradiationmethod_val in (1001, 1002, 1003):
-            vertical_layers = _unwrap_nested_value(props.get("vertical_layers"))
-            height_arr = None
-            if isinstance(vertical_layers, Mapping):
-                height_arr = _unwrap_nested_value(vertical_layers.get("height"))
-                spartacus_top = _last_nonzero_from_height(height_arr)
+        if netradiationmethod_val in SPARTACUS_METHODS:
+            spartacus_top = site.last_nonzero_height()
 
         # --- Check for missing bldgh or sfr ---
         if bldgh is None or sfr is None:

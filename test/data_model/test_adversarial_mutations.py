@@ -17,8 +17,9 @@ Each mutated leaf must satisfy one of two strict contracts:
    (or engine export) matching the full structured path of the mutated leaf via
    the underlying Pydantic ``ValidationError`` ``loc`` tuples (or, for
    model-level / non-Pydantic diagnostics, strict canonical path matching and
-   the two explicitly documented group-level validators: DLS pair
-   ``startdls``/``enddls`` and ``vertical_layers`` array-length coupling);
+   the three explicitly documented group-level validators: DLS pair
+   ``startdls``/``enddls``, irrigation window pair ``ie_start``/``ie_end``,
+   and ``vertical_layers`` array-length coupling);
    unrelated errors, wrong-path/wrong-index errors, or raw ``TypeError``
    schema-drift wrappers fail as ``unattributed_rejection``, or
 2. emit a finite value of the exact expected type and value from either:
@@ -796,6 +797,15 @@ def _match_documented_group_or_surface_prose(
     ):
         return True
 
+    # Documented group validator #3: Irrigation window pair (`irrigation.{ie_start, ie_end}`)
+    if (
+        parent == "irrigation"
+        and leaf in {"ie_start", "ie_end"}
+        and _word_match("ie_start", core_msg)
+        and _word_match("ie_end", core_msg)
+    ):
+        return True
+
     # Documented group validator #2: VerticalLayers coupled array lengths / heights
     if parent == "vertical_layers":
         lower_msg = core_msg.lower()
@@ -1484,12 +1494,13 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("sites[0].properties.land_cover.dectr.lai.sdd_full", ("omit",)),
     ),
     "irrigation_and_dls": (
-        # Conforming active DLS control and wrapped veg_scale null rejection
+        # Conforming active DLS & irrigation-pair controls and wrapped veg_scale null rejection
         ("sites[0].properties.anthropogenic_emissions.startdls", ("wrapped_null",)),
+        ("sites[0].properties.irrigation.ie_start", ("omit",)),
         ("sites[0].properties.vertical_layers.veg_scale[0]", ("wrapped_null",)),
         # Active irrigation (including h_maintain ponding), DayProfile, LAI-power gaps (#2101) and #2156 output.dir control
         ("sites[0].properties.irrigation.h_maintain", ("omit",)),
-        ("sites[0].properties.irrigation.ie_start", ("omit",)),
+        ("sites[0].properties.irrigation.internalwateruse_h", ("omit",)),
         ("sites[0].properties.land_cover.grass.irrigation_fraction", ("bare_null",)),
         (
             "sites[0].properties.anthropogenic_emissions.heat.qf_a.working_day",

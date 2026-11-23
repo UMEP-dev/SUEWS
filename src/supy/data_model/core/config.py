@@ -2825,106 +2825,44 @@ class SUEWSConfig(DataModelBase):
     ) -> List[str]:
         """Validate that a surface property is uniform across layers and matches the archetype.
 
-        Used by same_albedo and same_emissivity validators. Checks that:
-        - All values of ``layer_field`` in vertical_layers.<layers_attr> are identical
-        - That common value equals properties.building_archetype.<archetype_attr>
-
-        Parameters
-        ----------
-        layer_field : str
-            Attribute name on each layer object (e.g. "alb", "emis").
-        archetype_attr : str
-            Attribute name on building_archetype (e.g. "reflectivity_wall_external").
-        property_name : str
-            Human-readable name for messages (e.g. "albedo", "emissivity").
+        Delegates the actual invariant checks to
+        ``validation.rules.hard_invariants.check_same_surface_property``.
         """
-        issues: List[str] = []
-        site_name = getattr(site, "name", f"Site {site_index}")
+        from ..validation.rules.hard_invariants import check_same_surface_property
 
-        # --- Get layers ---
+        site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
         vl = getattr(props, "vertical_layers", None) if props is not None else None
         layers = getattr(vl, layers_attr, None) if vl is not None else None
 
-        if not layers:
-            issues.append(
-                f"{site_name}: {param_name}=1, so vertical_layers.{layers_attr} must be defined and non-empty"
-            )
-            return issues
-
-        vals: List[float] = []
-
-        for i, layer in enumerate(layers):
-            field = getattr(layer, layer_field, None)
-            if field is None:
-                issues.append(
-                    f"{site_name}: {param_name}=1, so {layers_attr}[{i}].{layer_field} must be set"
-                )
-                continue
-
-            raw = getattr(field, "value", field)
-            try:
-                val_float = float(raw)
-                vals.append(val_float)
-            except (TypeError, ValueError):
-                issues.append(
-                    f"{site_name}: {param_name}=1 but {layers_attr}[{i}].{layer_field} ({raw!r}) is not numeric"
+        layer_values = None
+        if layers:
+            layer_values = []
+            for layer in layers:
+                field = getattr(layer, layer_field, None)
+                layer_values.append(
+                    getattr(field, "value", field) if field is not None else None
                 )
 
-        if len(vals) == 0:
-            issues.append(
-                f"{site_name}: {param_name}=1 but no valid {layers_attr} {property_name} values found"
-            )
-            return issues
+        ba = getattr(props, "building_archetype", None) if props is not None else None
+        arch_field = getattr(ba, archetype_attr, None) if ba is not None else None
+        arch_raw = (
+            getattr(arch_field, "value", arch_field) if arch_field is not None else None
+        )
 
-        # --- Check that all values are identical ---
-        first_val = vals[0]
-        tol = SAME_SURFACE_TOL
-        mismatching = [
-            (i, v) for i, v in enumerate(vals) if abs(v - first_val) > tol
-        ]
-
-        if mismatching:
-            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
-            issues.append(
-                f"{site_name}: {param_name}=1, so all {layers_attr} {property_name} values must be identical; "
-                f"found values: {all_str}"
-            )
-
-        # --- Get building_archetype.<archetype_attr> ---
-        ba = getattr(props, "building_archetype", None)
-        if ba is None:
-            issues.append(
-                f"{site_name}: {param_name}=1, so properties.building_archetype must be defined"
-            )
-            return issues
-
-        arch_field = getattr(ba, archetype_attr, None)
-        if arch_field is None:
-            issues.append(
-                f"{site_name}: {param_name}=1, so properties.building_archetype.{archetype_attr} must be set"
-            )
-            return issues
-
-        arch_raw = getattr(arch_field, "value", arch_field)
-        try:
-            arch_val = float(arch_raw)
-        except (TypeError, ValueError):
-            issues.append(
-                f"{site_name}: {param_name}=1 but properties.building_archetype.{archetype_attr} "
-                f"({arch_raw!r}) is not numeric"
-            )
-            return issues
-
-        # --- Check equality between common layer value and archetype value ---
-        if abs(first_val - arch_val) > tol:
-            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
-            issues.append(
-                f"{site_name}: {param_name}=1, so common {layers_attr} {property_name} (found {all_str}) must equal "
-                f"properties.building_archetype.{archetype_attr} ({arch_val})"
-            )
-
-        return issues
+        violations = check_same_surface_property(
+            layer_values,
+            arch_raw,
+            site_name=site_name,
+            layers_attr=layers_attr,
+            layer_field=layer_field,
+            archetype_attr=archetype_attr,
+            param_name=param_name,
+            property_name=property_name,
+            archetype_present=ba is not None,
+            tol=SAME_SURFACE_TOL,
+        )
+        return [v.message for v in violations]
 
     def _validate_same_albedo_wall(self, site: Site, site_index: int) -> List[str]:
         """
@@ -3247,56 +3185,27 @@ class SUEWSConfig(DataModelBase):
     def _validate_spartacus_storage_heat_method_dependency(
         self, site: Site, site_index: int
     ) -> list[str]:
+        """Validate storage heat method dependencies when SPARTACUS is employed.
+
+        Delegates to ``validation.rules.hard_invariants.check_spartacus_storage_heat``
+        so ``SUEWSConfig`` and Phase B enforce the exact same contract (gh#1834).
         """
-        Validate storage heat method dependencies when SPARTACUS is employed.
+        from ..validation.rules.hard_invariants import check_spartacus_storage_heat
 
-        Observed storage heat fluxes are not supported with SPARTACUS. Where a
-        site prescribes a non-zero building surface fraction, the storage heat
-        method must resolve roof and wall facets: EHC, or STEBBS with STEBBS
-        enabled (gh#1834).
-
-        Parameters
-        ----------
-        site : Site
-            The site object to validate.
-        site_index : int
-            Index of the site in the configuration.
-
-        Returns
-        -------
-        issues : list of str
-            List of issue messages if validation fails; empty if valid.
-
-        Notes
-        -----
-        - Storage heat method 0 (observed storage heat fluxes) is rejected
-          whenever SPARTACUS is employed.
-        - Where ``land_cover.bldgs.sfr`` exceeds ``BUILDING_PRESENT_SFR_TOL``,
-          the storage heat method must be in
-          ``SPARTACUS_BUILDING_STORAGE_METHODS``; method 7 additionally needs
-          STEBBS enabled (composed ``stebbsmethod`` 1 or 2).
-        - Missing or non-numeric storage heat and building surface fraction
-          values are not reported here; other checks handle them.
-        - The Phase B rule ``validate_spartacus_dependencies`` reports the same
-          contract for ``suews validate``; this check is the one every
-          ``SUEWSConfig`` load passes through.
-        """
-        issues: list[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
 
         physics = getattr(self.model, "physics", None)
+        net_rad_method = _unwrap_value(getattr(physics, "net_radiation", None))
+        try:
+            net_rad_method = int(net_rad_method)
+        except (TypeError, ValueError):
+            net_rad_method = None
+
         storage_heat_method = _unwrap_value(getattr(physics, "storage_heat", None))
         try:
             storage_heat_method = int(storage_heat_method)
         except (TypeError, ValueError):
             storage_heat_method = None
-
-        if storage_heat_method == SPARTACUS_OBSERVED_STORAGE_METHOD:
-            issues.append(
-                f"{site_name}: observed storage heat fluxes (storage_heat 0) "
-                "are not supported with SPARTACUS; use storage_heat 5 (EHC) "
-                "or 7 (STEBBS)"
-            )
 
         props = getattr(site, "properties", None)
         land_cover = getattr(props, "land_cover", None)
@@ -3306,30 +3215,17 @@ class SUEWSConfig(DataModelBase):
             sfr_value = float(sfr_value)
         except (TypeError, ValueError):
             sfr_value = None
-        if (
-            storage_heat_method is None
-            or sfr_value is None
-            or sfr_value <= BUILDING_PRESENT_SFR_TOL
-        ):
-            return issues
 
-        if storage_heat_method not in SPARTACUS_BUILDING_STORAGE_METHODS:
-            if storage_heat_method != SPARTACUS_OBSERVED_STORAGE_METHOD:
-                issues.append(
-                    f"{site_name}: SPARTACUS with buildings "
-                    f"(land_cover.bldgs.sfr={sfr_value}) requires a facet-resolved "
-                    "storage heat method: storage_heat 7 (STEBBS, with "
-                    "model.physics.stebbs.enabled=true) or 5 (EHC); got "
-                    f"storage_heat {storage_heat_method}"
-                )
-        elif storage_heat_method == 7 and self._composed_stebbsmethod() not in {1, 2}:
-            issues.append(
-                f"{site_name}: SPARTACUS with buildings and storage_heat 7 "
-                "requires STEBBS to be enabled "
-                "(model.physics.stebbs.enabled=true)"
-            )
-
-        return issues
+        violations = check_spartacus_storage_heat(
+            net_rad_method,
+            storage_heat_method,
+            bldgs_present=sfr_value is not None and sfr_value > BUILDING_PRESENT_SFR_TOL,
+            bldgs_sfr=sfr_value,
+            stebbs_method=self._composed_stebbsmethod(),
+            site_name=site_name,
+            check_stebbs_for_method_7=True,
+        )
+        return [v.message for v in violations]
 
     def _validate_conditional_parameters(self) -> List[str]:
         """
@@ -4657,9 +4553,10 @@ class SUEWSConfig(DataModelBase):
         """Validate integer day-of-year (1..366) invariants across all sites.
 
         Defence in depth at public engine/export boundaries in case a live
-        model was mutated post-construction (for example ``ie_start.value = 0``
-        or ``ie_start = 20.5``).
+        model was mutated post-construction (for example ``ie_start.value = 0``,
+        ``ie_start = 20.5``, or clearing only one end of the irrigation pair).
         """
+        from ..validation.rules.hard_invariants import check_irrigation_doy_pair
         from .human_activity import coerce_integer_doy_scalar
 
         errors = []
@@ -4685,6 +4582,7 @@ class SUEWSConfig(DataModelBase):
                         props.anthropogenic_emissions.enddls,
                     ),
                 ])
+            site_had_scalar_err = False
             for path, raw in doy_fields:
                 inner = raw.value if isinstance(raw, RefValue) else raw
                 if inner is None:
@@ -4693,6 +4591,7 @@ class SUEWSConfig(DataModelBase):
                     val = coerce_integer_doy_scalar(inner, f"{site_name}: {path}")
                 except ValueError as exc:
                     errors.append(str(exc))
+                    site_had_scalar_err = True
                     continue
                 if not (1 <= val <= 366):
                     errors.append(
@@ -4700,6 +4599,26 @@ class SUEWSConfig(DataModelBase):
                         f"between 1 and 366 (greater than or equal to 1 and "
                         f"less than or equal to 366), got {val}."
                     )
+                    site_had_scalar_err = True
+
+            if props.irrigation is not None and not site_had_scalar_err:
+                ie_start_raw = (
+                    props.irrigation.ie_start.value
+                    if isinstance(props.irrigation.ie_start, RefValue)
+                    else props.irrigation.ie_start
+                )
+                ie_end_raw = (
+                    props.irrigation.ie_end.value
+                    if isinstance(props.irrigation.ie_end, RefValue)
+                    else props.irrigation.ie_end
+                )
+                pair_violations, _, _ = check_irrigation_doy_pair(
+                    ie_start_raw,
+                    ie_end_raw,
+                    site_name=site_name,
+                    coerce_doy=coerce_integer_doy_scalar,
+                )
+                errors.extend(v.message for v in pair_violations)
         if errors:
             raise ValueError("\n".join(errors))
 
@@ -5622,8 +5541,18 @@ class SUEWSConfig(DataModelBase):
                 else anthro.enddls
             )
 
-            # 1. Consistency check: both set or both None
-            if (startdls_val is None) != (enddls_val is None):
+            # 1. Consistency check + 2. Leap year refinement via shared kernel
+            from ..validation.rules.hard_invariants import check_dls_doy_pair
+            from .human_activity import coerce_integer_doy_scalar
+
+            dls_violations, half_configured, _, _ = check_dls_doy_pair(
+                startdls_val,
+                enddls_val,
+                model_year=year,
+                site_name=site_name,
+                coerce_doy=coerce_integer_doy_scalar,
+            )
+            if half_configured:
                 errors.append(
                     f"{site_name}: startdls and enddls must both be set or both be None. "
                     "Cannot have only one parameter set."
@@ -5634,21 +5563,8 @@ class SUEWSConfig(DataModelBase):
             if startdls_val is None and enddls_val is None:
                 continue
 
-            # 2. Leap year refinement
             if year:
-                if startdls_val > max_doy:
-                    errors.append(
-                        f"{site_name}: startdls DOY {int(startdls_val)} invalid for "
-                        f"{'leap' if is_leap else 'non-leap'} year {year}. "
-                        f"Must be in range [1, {max_doy}]"
-                    )
-
-                if enddls_val > max_doy:
-                    errors.append(
-                        f"{site_name}: enddls DOY {int(enddls_val)} invalid for "
-                        f"{'leap' if is_leap else 'non-leap'} year {year}. "
-                        f"Must be in range [1, {max_doy}]"
-                    )
+                errors.extend(v.message for v in dls_violations)
 
             # 3. Compare user values with calculated DLS values (informational only)
             # Get latitude and longitude for DLS calculation

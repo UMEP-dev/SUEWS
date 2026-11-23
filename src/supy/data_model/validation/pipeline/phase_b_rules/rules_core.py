@@ -84,6 +84,32 @@ class ValidationResult:
         """Return a stable serialisable representation for reports and JSON."""
         return asdict(self)
 
+    @classmethod
+    def from_violation(cls, violation) -> "ValidationResult":
+        """Build a Phase B ERROR ``ValidationResult`` from a shared ``InvariantViolation``."""
+        return cls(
+            status="ERROR",
+            category=violation.category,
+            parameter=violation.parameter,
+            site_index=violation.site_index,
+            site_gridid=violation.site_gridid,
+            message=violation.message,
+            suggested_value=violation.suggested_value,
+        )
+
+    @classmethod
+    def from_advisory(cls, finding) -> "ValidationResult":
+        """Build a Phase B WARNING/INFO ``ValidationResult`` from an ``AdvisoryFinding``."""
+        return cls(
+            status=finding.status,
+            category=finding.category,
+            parameter=finding.parameter,
+            site_index=finding.site_index,
+            site_gridid=finding.site_gridid,
+            message=finding.message,
+            suggested_value=finding.suggested_value,
+        )
+
     def to_issue(self):
         """Adapt this Phase B result to the canonical ``Issue`` schema.
 

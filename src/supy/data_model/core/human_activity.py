@@ -216,6 +216,28 @@ class IrrigationParams(
     def _bind_irrigation_doy_ref(cls, v: Any, info: ValidationInfo) -> Any:
         return _bind_doy_ref_validator(v, info.field_name or "ie_start/ie_end")
 
+    @model_validator(mode="after")
+    def _validate_irrigation_window_pair(self) -> "IrrigationParams":
+        """Require ie_start and ie_end to be configured together or both omitted."""
+        from ..validation.rules.hard_invariants import check_irrigation_doy_pair
+
+        start_val = (
+            self.ie_start.value
+            if isinstance(self.ie_start, RefValue)
+            else self.ie_start
+        )
+        end_val = (
+            self.ie_end.value if isinstance(self.ie_end, RefValue) else self.ie_end
+        )
+        violations, _, _ = check_irrigation_doy_pair(
+            start_val,
+            end_val,
+            coerce_doy=coerce_integer_doy_scalar,
+        )
+        if violations:
+            raise ValueError(violations[0].message)
+        return self
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name in {"ie_start", "ie_end"}:
             value = _validate_and_bind_doy_assignment(value, name)

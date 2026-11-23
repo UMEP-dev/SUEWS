@@ -361,17 +361,21 @@ a zero exponent in equation 3 gives a constant rate before the existing water
 availability cap. No new default or sign restriction is introduced. The storage
 capacity fallback from ``store_max`` when ``store_cap`` is omitted is unchanged.
 
-With schema dev15 installed, upgrade a versioned dev11, dev12, dev13 or dev14 file
-beside its original. For a file named ``site.yml``, confirm that the first
-command wrote ``site.migrated.yml``, then check the saved configuration:
+With schema dev15 or later installed, upgrade an older versioned file (dev11,
+dev12, dev13 or dev14, or dev15 on a newer installation) to the installed
+schema beside its original. For a file named ``site.yml``, confirm that the
+first command wrote ``site.migrated.yml``, then check the saved configuration:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev15
+   suews schema migrate site.yml
    suews validate -p C --dry-run site.migrated.yml --format json
 
-The second command checks current water-routing, radiation-memory,
-continuation-state and drainage requirements. Explicitly selecting an older
+On a dev15 installation, a file already at ``2026.6.dev15`` needs no
+migration (``suews schema migrate`` creates no copy); validate ``site.yml``
+directly. The validation command checks current water-routing,
+radiation-memory, continuation-state and drainage requirements (along with
+any later-schema checks on newer installations). Explicitly selecting an older
 ``--schema-version`` on the validation command checks the saved JSON Schema
 structure. A missing active runoff fraction, for example, can pass that
 historical structure check and fail model validation after migration.
@@ -429,9 +433,8 @@ and ``to_grass: 0.02``. A paved surface with a genuine zero runoff fraction
 also keeps that zero. See :ref:`waterdist_yaml_rules` for the applicable
 destinations and the rules for zero-area surfaces.
 
-The following commands apply to an installation using schema dev12. With
-dev15 installed, follow :ref:`schema_dev15_drainage_coefficients` to check
-water routing, radiation memory, continuation state and drainage coefficients.
+The following commands apply to an installation using schema dev12 or later;
+each migration brings the file up to the installed schema before validation.
 Choose the command from the version recorded at the top of your YAML file.
 Keep the converted copy beside the original so relative forcing paths still
 point to the same files. Use a fresh output filename when you repeat a
@@ -466,20 +469,31 @@ source version if it differs from this example.
    suews convert -i site.yml -o site.migrated.yml --from 2026.6.dev11
    suews validate -p C --dry-run site.migrated.yml --format json
 
-**The file already says** ``schema_version: 2026.6.dev12``. With software
-newer than dev12 installed, validating the original directly fails with a
-schema-version mismatch. Migrate a file at dev12 (or any schema older than
-the installed one) first, confirm that ``site.migrated.yml`` was written,
-and validate the migrated copy:
+**The file already says** ``schema_version: 2026.6.dev12``. On a dev12
+installation, ``suews schema migrate`` creates no copy because the file is
+already at the installed schema; validate the original directly:
+
+.. code-block:: bash
+
+   suews validate -p C --dry-run site.yml --format json
+
+On a newer installation, validating the original directly fails with a
+schema-version mismatch. Migrate ``site.yml`` to the installed schema first,
+confirm that ``site.migrated.yml`` was written, and validate the migrated
+copy:
 
 .. code-block:: bash
 
    suews schema migrate site.yml
    suews validate -p C --dry-run site.migrated.yml --format json
 
-Validate the original directly (``suews validate -p C --dry-run site.yml
---format json``) only when the file is already at the installed schema,
-where ``suews schema migrate`` creates no copy.
+On installations newer than dev12, migration to the installed schema can
+also stop on later-schema checks for
+:ref:`radiation memory (dev13) <schema_dev13_radiation_memory>`,
+:ref:`continuation state (dev14) <schema_dev14_continuation_state>`,
+:ref:`drainage coefficients (dev15) <schema_dev15_drainage_coefficients>`,
+:ref:`vegetation senescence (dev16) <schema_dev16_vegetation_senescence>`
+and :ref:`integer day-of-year windows (dev17) <schema_dev17_integer_doy>`.
 
 Check each site and surface named in a validation error. An inapplicable
 non-zero fraction needs a decision about where that water should go. Within

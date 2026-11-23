@@ -437,14 +437,16 @@ Keep the converted copy beside the original so relative forcing paths still
 point to the same files. Use a fresh output filename when you repeat a
 conversion, so a file left by an earlier run cannot be mistaken for its result.
 
-**The file says** ``schema_version: 2026.6.dev11``. The first command writes
-``site.migrated.yml``. Confirm that this new file exists. The migration
-summary can say ``Needs review`` even after writing it. Read the diagnostics
-and run the second command to check the saved configuration:
+**The file says** ``schema_version: 2026.6.dev11``. The first command
+upgrades ``site.yml`` to the installed schema (including the dev12
+water-routing step) and writes ``site.migrated.yml``. Confirm that this new
+file exists. The migration summary can say ``Needs review`` even after
+writing it. Read the diagnostics and run the second command to check the
+saved configuration:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev12
+   suews schema migrate site.yml
    suews validate -p C --dry-run site.migrated.yml --format json
 
 **The file has no schema version.** Some older YAMLs are treated as current
@@ -464,12 +466,20 @@ source version if it differs from this example.
    suews convert -i site.yml -o site.migrated.yml --from 2026.6.dev11
    suews validate -p C --dry-run site.migrated.yml --format json
 
-**The file already says** ``schema_version: 2026.6.dev12``. A migration to
-the same version creates no copy. Validate the original directly:
+**The file already says** ``schema_version: 2026.6.dev12``. With software
+newer than dev12 installed, validating the original directly fails with a
+schema-version mismatch. Migrate a file at dev12 (or any schema older than
+the installed one) first, confirm that ``site.migrated.yml`` was written,
+and validate the migrated copy:
 
 .. code-block:: bash
 
-   suews validate -p C --dry-run site.yml --format json
+   suews schema migrate site.yml
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+Validate the original directly (``suews validate -p C --dry-run site.yml
+--format json``) only when the file is already at the installed schema,
+where ``suews schema migrate`` creates no copy.
 
 Check each site and surface named in a validation error. An inapplicable
 non-zero fraction needs a decision about where that water should go. Within

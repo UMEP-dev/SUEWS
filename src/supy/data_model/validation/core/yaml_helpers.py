@@ -27,7 +27,7 @@ import yaml
 import csv
 import os
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
@@ -631,13 +631,16 @@ class DLSCheck(BaseModel):
             except Exception:
                 return None
 
-        # Standard (non-DST) UTC offset. Mid-January is summer time in the
-        # southern hemisphere, so subtract the DST shift rather than relying on
-        # the date being in winter, and keep fractional offsets (India +5.5,
-        # Nepal +5.75) instead of truncating them to whole hours.
+        # Standard (non-DST) UTC offset: the smaller of the mid-January and
+        # mid-July offsets, so southern-hemisphere summer time (Sydney in
+        # January) is not taken as standard. Comparing offsets avoids
+        # ``dst()``, which pytz reports as negative in Irish winter. Fractional
+        # offsets (India +5.5, Nepal +5.75) are kept, not truncated.
         try:
-            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
-            std_offset = std_dt.utcoffset() - (std_dt.dst() or timedelta(0))
+            std_offset = min(
+                tz.localize(datetime(self.year, month, 15), is_dst=False).utcoffset()
+                for month in (1, 7)
+            )
             utc_offset_hours = std_offset.total_seconds() / 3600
             if utc_offset_hours.is_integer():
                 utc_offset_hours = int(utc_offset_hours)

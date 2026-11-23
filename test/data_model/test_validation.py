@@ -816,6 +816,8 @@ def test_phase_b_forcing_height_skips_site_without_buildings(registry):
         (-33.87, 151.21, 10),  # Sydney: January is summer time (UTC+11)
         (28.61, 77.21, 5.5),  # Delhi: half-hour offset
         (51.51, -0.13, 0),  # London: northern winter, whole hours
+        (53.35, -6.26, 0),  # Dublin: pytz models Irish winter as negative DST
+        (-31.55, 159.08, 10.5),  # Lord Howe: half-hour DST shift
     ],
 )
 def test_dls_check_standard_offset(lat, lng, expected):

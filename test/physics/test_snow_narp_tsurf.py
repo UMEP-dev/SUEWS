@@ -40,6 +40,7 @@ def _run_snow_narp_day(
     ldown_wm2: float = 240.0,
     fcld_obs: float = 0.4,
     qn_obs_offset: float = -25.0,
+    ehc_surface_coupling: int | None = None,
 ):
     """Run one synthetic dry day with explicit snow state and radiation scheme."""
     sim = make_sim()
@@ -75,15 +76,19 @@ def _run_snow_narp_day(
     for key in ("veg_frac", "veg_scale"):
         layers[key]["value"][2] = 0.0
 
+    physics = {
+        "net_radiation": net_radiation,
+        "snow_use": snow_use,
+        "storage_heat": storage_heat,
+    }
+    if ehc_surface_coupling is not None:
+        physics["ehc_surface_coupling"] = ehc_surface_coupling
+
     sim.update_config(
         {
             "sites": sites,
             "model": {
-                "physics": {
-                    "net_radiation": net_radiation,
-                    "snow_use": snow_use,
-                    "storage_heat": storage_heat,
-                },
+                "physics": physics,
                 "control": {"output": {"freq": 300}},
             },
         },
@@ -312,8 +317,15 @@ def test_iterative_snow_longwave_caps_warm_emission_at_melting_point(
 
 @pytest.mark.core
 @pytest.mark.parametrize("method", (13, 1003), ids=lambda m: f"netrad_{m}")
+@pytest.mark.parametrize(
+    ("ehc_surface_coupling", "min_excess_wm2"),
+    [
+        pytest.param(0, 4.0, id="explicit"),
+        pytest.param(None, 3.0, id="default_implicit"),
+    ],
+)
 def test_iterative_snow_longwave_responds_with_physical_sign_to_emissivity(
-    short_sample_sim, method
+    short_sample_sim, method, ehc_surface_coupling, min_excess_wm2
 ):
     """Lowering snow emissivity below 1 must reduce net outgoing LW when sigma*T^4 > Ldown."""
     tair_c = -5.0
@@ -326,6 +338,7 @@ def test_iterative_snow_longwave_responds_with_physical_sign_to_emissivity(
         snowfrac=1.0,
         storage_heat=5,
         snow_emissivity=0.99,
+        ehc_surface_coupling=ehc_surface_coupling,
     )
     _, suews_lo, snow_lo, _ = _run_snow_narp_day(
         short_sample_sim,
@@ -335,6 +348,7 @@ def test_iterative_snow_longwave_responds_with_physical_sign_to_emissivity(
         snowfrac=1.0,
         storage_heat=5,
         snow_emissivity=0.90,
+        ehc_surface_coupling=ehc_surface_coupling,
     )
 
     lup_hi = _implied_lup_snow(suews_hi, snow_hi, "Paved")
@@ -343,7 +357,7 @@ def test_iterative_snow_longwave_responds_with_physical_sign_to_emissivity(
     # On broken master (Tsnow = 0 K), lowering emissivity increased LUP_SNOW
     # because only reflected (1 - emis) * Ldown remained (~ -21.6 W m-2).
     # With physical emission (sigma*Tsnow^4 > Ldown at -5 degC), higher
-    # emissivity emits more LUP_SNOW; under coupled implicit EHC radiative
-    # cooling lowers Tsfc slightly more at emis=0.99 than 0.90, reducing the
-    # minimum excess from ~4.4 W m-2 (fixed Tsfc) to ~3.75 W m-2.
-    assert float((lup_hi - lup_lo).min()) > 3.0
+    # emissivity emits more LUP_SNOW: explicit coupling keeps the original
+    # > 4.0 W m-2 margin, while coupled implicit EHC radiative cooling lowers
+    # Tsfc slightly more at emis=0.99 than 0.90 (minimum excess ~3.75 W m-2).
+    assert float((lup_hi - lup_lo).min()) > min_excess_wm2

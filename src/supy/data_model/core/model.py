@@ -29,7 +29,15 @@ from .physics_orthogonal import (
     fold_kdown_split_constant_direct_fraction,
     fold_storage_heat_ohm_inc_qf,
 )
-from .type import DataModelBase, FlexibleRefValue, Reference, RefValue, df_from_cols
+from .type import (
+    DataModelBase,
+    FlexibleRefValue,
+    Reference,
+    RefValue,
+    df_from_col_items,
+    df_from_cols,
+    merge_df_state_col_items,
+)
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -1207,8 +1215,7 @@ class ModelPhysics(DataModelBase):
         ("same_emissivity_roof", "same_emissivity_roof"),
     ]
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert model physics properties to DataFrame state format."""
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {("gridiv", "0"): grid_id}
         for field_name, col_name in self._FIELD_COL_PAIRS:
             value = getattr(self, field_name)
@@ -1223,9 +1230,6 @@ class ModelPhysics(DataModelBase):
         )
         cols[("sw_dn_direct_frac", "0")] = float(direct_fraction)
 
-        # gh#1456: compose the legacy `stebbsmethod` integer column from the
-        # nested (enabled, parameters) pair, and write the remaining STEBBS
-        # switches from their nested members.
         stebbs = self.stebbs
         enabled = stebbs.enabled
         enabled = enabled.value if isinstance(enabled, RefValue) else enabled
@@ -1240,7 +1244,13 @@ class ModelPhysics(DataModelBase):
             val = value.value if isinstance(value, RefValue) else value
             cols[(col_name, "0")] = int(val)
 
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return cols
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert model physics properties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelPhysics":
@@ -1887,16 +1897,19 @@ class ModelControl(DataModelBase):
             return int(v)
         return v
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert model control properties to DataFrame state format."""
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {("gridiv", "0"): grid_id}
-        list_attr = ["tstep", "diagnose"]
-        for attr in list_attr:
+        for attr in ("tstep", "diagnose"):
             value = getattr(self, attr)
-            # Extract value from RefValue if needed
             val = value.value if isinstance(value, RefValue) else value
             cols[(attr, "0")] = val
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return cols
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert model control properties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelControl":
@@ -1924,15 +1937,20 @@ class Model(DataModelBase):
         description="Model physics parameters including surface properties, coefficients, etc.",
     )
 
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items: list[tuple[tuple[str, str], object]] = [(("gridiv", "0"), grid_id)]
+        items.extend(self.control._to_df_state_cols(grid_id).items())
+        items.extend(self.physics._to_df_state_cols(grid_id).items())
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
-        df_state = df_from_cols(
-            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
-        df_control = self.control.to_df_state(grid_id)
-        df_physics = self.physics.to_df_state(grid_id)
-        df_state = pd.concat([df_state, df_control, df_physics], axis=1)
-        return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "Model":

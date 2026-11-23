@@ -964,3 +964,121 @@ class TestSUEWSSimulationRefValue:
         # Verify that forcing data was loaded
         assert simulation._df_forcing is not None
         assert len(simulation._df_forcing) > 0
+
+
+def test_storage_drain_wrapped_null_maps_to_nan_and_bare_none_maps_to_zero():
+    """Wrapped {value: null} in StorageDrainParams yields NaN; bare None yields 0.0."""
+    import copy
+    from importlib.resources import files
+
+    import numpy as np
+
+    sample_yml = files("supy").joinpath("sample_data", "sample_config.yml")
+    raw = yaml.safe_load(sample_yml.read_text(encoding="utf-8"))
+    raw_wrapped = copy.deepcopy(raw)
+    sd = raw_wrapped["sites"][0]["properties"]["land_cover"]["paved"][
+        "storage_drain_params"
+    ]
+    sd["drain_coef_1"] = {"value": None}
+    sd["drain_coef_2"] = None
+
+    cfg = SUEWSConfig.from_dict(raw_wrapped)
+    df_sd = cfg.sites[0].properties.land_cover.paved.storage_drain_params.to_df_state(
+        1, 0
+    )
+    assert np.isnan(df_sd.loc[1, ("storedrainprm", "(2, 0)")])
+    assert df_sd.loc[1, ("storedrainprm", "(3, 0)")] == 0.0
+
+    df_state = cfg.to_df_state()
+    assert np.isnan(df_state.loc[1, ("storedrainprm", "(2, 0)")])
+    assert df_state.loc[1, ("storedrainprm", "(3, 0)")] == 0.0
+
+    sim = SUEWSSimulation()
+    sim.update_config(raw_wrapped)
+    assert np.isnan(sim.state_init.loc[1, ("storedrainprm", "(2, 0)")])
+
+
+def test_submodel_to_df_state_and_multisite_column_contracts():
+    """Submodel to_df_state preserves column multiplicity and mixed multi-site ordering."""
+    import copy
+    from importlib.resources import files
+
+    import numpy as np
+
+    sample_yml = files("supy").joinpath("sample_data", "sample_config.yml")
+    raw = yaml.safe_load(sample_yml.read_text(encoding="utf-8"))
+    cfg = SUEWSConfig.from_dict(raw)
+    site = cfg.sites[0]
+
+    df_roof0 = site.properties.vertical_layers.roofs[0].to_df_state(1, 0, "roof")
+    assert list(df_roof0.columns).count(("gridiv", "0")) == 2
+    assert df_roof0.shape == (1, 23)
+    assert df_roof0.index.name == "grid"
+    assert list(df_roof0.columns.names) == ["var", "ind_dim"]
+
+    df_model = cfg.model.to_df_state(1)
+    assert list(df_model.columns).count(("gridiv", "0")) == 3
+    assert df_model.shape == (1, 29)
+    assert df_model.index.name == "grid"
+    assert list(df_model.columns.names) == ["var", "ind_dim"]
+
+    for df_named in (
+        site.properties.land_cover.paved.to_df_state(1),
+        site.properties.land_cover.bldgs.to_df_state(1),
+        site.properties.land_cover.water.to_df_state(1),
+        site.initial_states.to_df_state(1),
+        cfg.to_df_state(),
+    ):
+        assert df_named.index.name == "grid"
+        assert list(df_named.columns.names) == ["var", "ind_dim"]
+
+    for df_veg in (
+        site.properties.land_cover.evetr.to_df_state(1),
+        site.properties.land_cover.dectr.to_df_state(1),
+        site.properties.land_cover.grass.to_df_state(1),
+    ):
+        assert df_veg.index.name is None
+        assert list(df_veg.columns.names) == [None, None]
+
+    df_lc = site.properties.land_cover.to_df_state(1)
+    assert df_lc.shape == (1, 562)
+    assert df_lc.index.name is None
+    assert list(df_lc.columns.names) == [None, None]
+
+    df_props = site.properties.to_df_state(1)
+    assert df_props.shape == (1, 2748)
+    assert df_props.index.name is None
+    assert list(df_props.columns.names) == [None, None]
+
+    df_site = site.to_df_state(1)
+    assert df_site.shape == (1, 2852)
+    assert df_site.index.name is None
+    assert list(df_site.columns.names) == [None, None]
+
+    # Mixed multi-site: site 1 has nlayer=3, site 2 has nlayer=2 and soil_observation=None
+    raw_multi = copy.deepcopy(raw)
+    site2 = copy.deepcopy(raw["sites"][0])
+    site2["gridiv"] = 2
+    site2["name"] = "Site2"
+    site2["properties"]["soil_observation"] = None
+    vl2 = site2["properties"]["vertical_layers"]
+    vl2["nlayer"] = {"value": 2}
+    vl2["height"] = {"value": [0.0, 10.0, 20.0]}
+    for key in ("veg_frac", "veg_scale", "veg_ext", "building_frac", "building_scale"):
+        val = vl2[key]
+        vl2[key] = {"value": val["value"][:2]} if isinstance(val, dict) else val[:2]
+    vl2["roofs"] = vl2["roofs"][:2]
+    vl2["walls"] = vl2["walls"][:2]
+    site2["initial_states"]["roofs"] = site2["initial_states"]["roofs"][:2]
+    site2["initial_states"]["walls"] = site2["initial_states"]["walls"][:2]
+    raw_multi["sites"].append(site2)
+
+    df_multi = SUEWSConfig.from_dict(raw_multi).to_df_state()
+    assert list(df_multi.index) == [1, 2]
+    assert df_multi.index.name == "grid"
+    assert list(df_multi.columns.names) == ["var", "ind_dim"]
+    assert not df_multi.columns.duplicated().any()
+    assert df_multi.loc[1, ("nlayer", "0")] == 3
+    assert df_multi.loc[2, ("nlayer", "0")] == 2
+    assert pd.notna(df_multi.loc[1, ("height", "(3,)")])
+    assert np.isnan(df_multi.loc[2, ("height", "(3,)")])

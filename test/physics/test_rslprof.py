@@ -129,15 +129,15 @@ class TestWindProfiles:
     @pytest.mark.parametrize(
         "zh,z0m_in,zdm_in",
         [
-            (2.0, 0.1, 0.1),  # Very low buildings
-            (5.0, 0.5, 3.5),  # zdm > building height scenario
+            (2.0, 0.1, 1.4),  # Very low buildings (z0m < zdm)
+            (5.0, 0.5, 3.5),  # Low-rise scenario (catches #572 profile cap)
             (10.0, 1.0, 7.0),  # Standard case
-            (1.0, 0.01, 0.01),  # Extremely low values
-            (2.0, 0.01, 0.01),  # Original test case from issue
+            (1.0, 0.01, 0.7),  # Extremely low roughness
+            (2.0, 0.01, 1.4),  # Low roughness with 2 m canopy
         ],
     )
     def test_wind_speeds_positive(self, sample_data, zh, z0m_in, zdm_in):
-        """Test that wind speeds are always positive for various building configs."""
+        """Test that U10 and full RSL/MOST profiles stay finite, non-negative, and monotone."""
         df_state_init, df_forcing = sample_data
         df_forcing_short = df_forcing.iloc[:48]
 
@@ -153,6 +153,53 @@ class TestWindProfiles:
             df_output, df_state_init, df_forcing_short, "SUEWS", ["U10"]
         )
         assert (u10 >= 0).all(), f"U10 negative for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
+
+        # Verify the full 30-level diagnostic profile across all 48 timesteps
+        # (catches #572 where U10 stayed positive while profile winds went negative/NaN).
+        z_profile = _required_output(
+            df_output,
+            df_state_init,
+            df_forcing_short,
+            "RSL",
+            [f"z_{level}" for level in PROFILE_LEVELS],
+        )
+        u_profile = _required_output(
+            df_output,
+            df_state_init,
+            df_forcing_short,
+            "RSL",
+            [f"U_{level}" for level in PROFILE_LEVELS],
+        )
+        assert (np.diff(z_profile, axis=1) > 0).all(), (
+            f"Profile heights not strictly monotone for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
+        )
+        assert (u_profile >= 0).all(), (
+            f"Profile winds negative for zh={zh}, z0m={z0m_in}, zdm={zdm_in}"
+        )
+
+    @pytest.mark.parametrize(
+        "zh,z0m_in,zdm_in",
+        [
+            (2.0, 0.1, 0.1),
+            (1.0, 0.01, 0.01),
+            (2.0, 0.01, 0.01),
+        ],
+    )
+    def test_equal_roughness_and_displacement_refused(
+        self, sample_data, zh, z0m_in, zdm_in
+    ):
+        """Equal roughness and displacement heights are rejected before execution."""
+        df_state_init, df_forcing = sample_data
+        df_forcing_short = df_forcing.iloc[:2]
+
+        df_state_init.loc[:, "zh"] = zh
+        df_state_init.loc[:, "z0m_in"] = z0m_in
+        df_state_init.loc[:, "zdm_in"] = zdm_in
+        df_state_init.loc[:, "rslmethod"] = 0
+        df_state_init.loc[:, "stabilitymethod"] = 2
+
+        with pytest.raises(ValueError, match=r"z0m_in .* must be less than zdm_in"):
+            run_simulation(df_forcing_short, df_state_init)
 
     def test_tall_building_no_negative_winds(self, sample_data):
         """Test that tall buildings don't cause negative wind speeds."""

@@ -6,7 +6,8 @@
 module module_test_capi_field_observer
    use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double
    use module_c_api_common, only: SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER
-   use module_ctrl_type, only: SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, SUEWS_TIMER, flag_STATE
+   use module_ctrl_const_allocate, only: nsurf
+   use module_ctrl_type, only: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_STATE, SUEWS_TIMER, flag_STATE
    use module_type_anthro, only: anthroEMIS_PRM, anthroEmis_STATE
    use module_type_atmosphere, only: atm_state, solar_State
    use module_type_ehc, only: EHC_PRM
@@ -38,18 +39,18 @@ module module_test_capi_field_observer
    use module_c_api_lc_water_prm, only: lc_water_prm_unpack
    use module_c_api_lumps, only: lumps_prm_unpack
    use module_c_api_nhood, only: nhood_state_unpack
-   use module_c_api_ohm, only: ohm_state_unpack
+   use module_c_api_ohm, only: ohm_state_unpack, ohm_state_pack
    use module_c_api_phenology, only: phenology_state_unpack
    use module_c_api_roughness, only: roughness_state_unpack
-   use module_c_api_snow_prm, only: snow_prm_unpack
    use module_c_api_snow, only: snow_state_unpack
+   use module_c_api_snow_prm, only: snow_prm_unpack
    use module_c_api_solar, only: solar_state_unpack
    use module_c_api_spartacus_layer_prm, only: spartacus_layer_prm_unpack
    use module_c_api_spartacus_prm, only: spartacus_prm_unpack
    use module_c_api_stebbs_prm, only: stebbs_prm_unpack
    use module_c_api_stebbs_state, only: stebbs_state_unpack
    use module_c_api_surf_store, only: surf_store_prm_unpack
-   use module_c_api_driver, only: unpack_config, unpack_timer, unpack_site_scalars, unpack_site_members, unpack_state_members
+   use module_c_api_driver, only: unpack_config, unpack_timer, unpack_site_scalars, unpack_site_members, unpack_state_members, pack_state_to_output, pack_anthroemis_state, pack_atm_state, pack_flag_state, pack_heat_state, pack_hydro_state, pack_nhood_state, pack_phenology_state, pack_roughness_state, pack_snow_state, pack_solar_state, pack_stebbs_state, pack_timer
 
    implicit none
    private
@@ -92,6 +93,20 @@ module module_test_capi_field_observer
    public :: suews_obs_unpack_suews_site
    public :: suews_obs_unpack_suews_state
    public :: suews_obs_unpack_suews_timer
+   public :: suews_obs_rev_pack_anthroemis_state
+   public :: suews_obs_rev_pack_atm_state
+   public :: suews_obs_rev_pack_flag_state
+   public :: suews_obs_rev_pack_heat_state
+   public :: suews_obs_rev_pack_hydro_state
+   public :: suews_obs_rev_pack_nhood_state
+   public :: suews_obs_rev_pack_ohm_state
+   public :: suews_obs_rev_pack_phenology_state
+   public :: suews_obs_rev_pack_roughness_state
+   public :: suews_obs_rev_pack_snow_state
+   public :: suews_obs_rev_pack_solar_state
+   public :: suews_obs_rev_pack_stebbs_state
+   public :: suews_obs_rev_pack_suews_timer
+   public :: suews_obs_rev_pack_suews_state
 
 contains
 
@@ -4053,4 +4068,2962 @@ contains
       n_out = pos
    end subroutine suews_obs_unpack_suews_state
 
+   subroutine obs_seed_anthroemis_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(anthroEmis_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%HDD_id, 1), c_int) .or. &
+             i1 > int(ubound(actual%HDD_id, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%HDD_id(i1) = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_anthro = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_biogen = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_build = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_metab = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_photo = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_point = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_respi = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Fc_traff = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_anthroemis_state
+
+   subroutine suews_obs_rev_pack_anthroemis_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_anthroemis_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(anthroEmis_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_anthroemis_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_anthroemis_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_anthroemis_state
+
+   subroutine obs_seed_atm_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(atm_state), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%f_cloud = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%av_cp = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dens_dry = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%av_density = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dq = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Ea_hPa = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Es_hPa = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%lv_J_kg = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%lv_s_j_kg = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tlv = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%psyc_hPa = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%psyc_ice_h_pa = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%s_Pa = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%s_hpa = real(val_f64, kind(1d0))
+      case (15_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%s_ice_hpa = real(val_f64, kind(1d0))
+      case (16_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%vpd_hPa = real(val_f64, kind(1d0))
+      case (17_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%vpd_pa = real(val_f64, kind(1d0))
+      case (18_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%U10_ms = real(val_f64, kind(1d0))
+      case (19_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%U_hbh = real(val_f64, kind(1d0))
+      case (20_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%T2_C = real(val_f64, kind(1d0))
+      case (21_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%T_half_bldg_C = real(val_f64, kind(1d0))
+      case (22_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%q2_gkg = real(val_f64, kind(1d0))
+      case (23_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%RH2 = real(val_f64, kind(1d0))
+      case (24_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%L_mod = real(val_f64, kind(1d0))
+      case (25_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%z_l = real(val_f64, kind(1d0))
+      case (26_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%RA_h = real(val_f64, kind(1d0))
+      case (27_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%RS = real(val_f64, kind(1d0))
+      case (28_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%u_star = real(val_f64, kind(1d0))
+      case (29_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%t_star = real(val_f64, kind(1d0))
+      case (30_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%RB = real(val_f64, kind(1d0))
+      case (31_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Tair_av = real(val_f64, kind(1d0))
+      case (32_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%rss_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%rss_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%rss_surf(i1) = real(val_f64, kind(1d0))
+      case (33_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_atm_state
+
+   subroutine suews_obs_rev_pack_atm_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_atm_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(atm_state) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_atm_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_atm_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_atm_state
+
+   subroutine obs_seed_flag_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(flag_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%flag_converge = (val_i64 /= 0_c_int64_t)
+      case (2_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%i_iter = int(val_i64)
+      case (3_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%stebbs_bldg_init = int(val_i64)
+      case (4_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snow_warning_shown = (val_i64 /= 0_c_int64_t)
+      case (5_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_flag_state
+
+   subroutine suews_obs_rev_pack_flag_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_flag_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(flag_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_flag_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_flag_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_flag_state
+
+   subroutine obs_seed_heat_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(HEAT_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (.not. allocated(actual%temp_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%temp_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%temp_roof, 1), c_int) .or. &
+             i2 < int(lbound(actual%temp_roof, 2), c_int) .or. &
+             i2 > int(ubound(actual%temp_roof, 2), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%temp_roof(i1, i2) = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (.not. allocated(actual%temp_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%temp_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%temp_wall, 1), c_int) .or. &
+             i2 < int(lbound(actual%temp_wall, 2), c_int) .or. &
+             i2 > int(ubound(actual%temp_wall, 2), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%temp_wall(i1, i2) = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (.not. allocated(actual%temp_surf)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%temp_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%temp_surf, 1), c_int) .or. &
+             i2 < int(lbound(actual%temp_surf, 2), c_int) .or. &
+             i2 > int(ubound(actual%temp_surf, 2), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%temp_surf(i1, i2) = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (.not. allocated(actual%temp_surf_dyohm)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%temp_surf_dyohm, 1), c_int) .or. &
+             i1 > int(ubound(actual%temp_surf_dyohm, 1), c_int) .or. &
+             i2 < int(lbound(actual%temp_surf_dyohm, 2), c_int) .or. &
+             i2 > int(ubound(actual%temp_surf_dyohm, 2), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%temp_surf_dyohm(i1, i2) = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (.not. allocated(actual%tsfc_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsfc_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsfc_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsfc_roof(i1) = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (.not. allocated(actual%tsfc_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsfc_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsfc_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsfc_wall(i1) = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (.not. allocated(actual%tsfc_surf)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsfc_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsfc_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsfc_surf(i1) = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (.not. allocated(actual%tsfc_surf_dyohm)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsfc_surf_dyohm, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsfc_surf_dyohm, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsfc_surf_dyohm(i1) = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (.not. allocated(actual%tsfc_roof_stepstart)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsfc_roof_stepstart, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsfc_roof_stepstart, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsfc_roof_stepstart(i1) = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (.not. allocated(actual%tsfc_wall_stepstart)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsfc_wall_stepstart, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsfc_wall_stepstart, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsfc_wall_stepstart(i1) = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (.not. allocated(actual%tsfc_surf_stepstart)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsfc_surf_stepstart, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsfc_surf_stepstart, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsfc_surf_stepstart(i1) = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (.not. allocated(actual%QS_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%QS_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%QS_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QS_roof(i1) = real(val_f64, kind(1d0))
+      case (15_c_int)
+         if (.not. allocated(actual%QN_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%QN_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%QN_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QN_roof(i1) = real(val_f64, kind(1d0))
+      case (16_c_int)
+         if (.not. allocated(actual%qe_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qe_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%qe_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qe_roof(i1) = real(val_f64, kind(1d0))
+      case (17_c_int)
+         if (.not. allocated(actual%qh_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qh_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%qh_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_roof(i1) = real(val_f64, kind(1d0))
+      case (18_c_int)
+         if (.not. allocated(actual%qh_resist_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qh_resist_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%qh_resist_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_resist_roof(i1) = real(val_f64, kind(1d0))
+      case (19_c_int)
+         if (.not. allocated(actual%QS_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%QS_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%QS_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QS_wall(i1) = real(val_f64, kind(1d0))
+      case (20_c_int)
+         if (.not. allocated(actual%QN_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%QN_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%QN_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QN_wall(i1) = real(val_f64, kind(1d0))
+      case (21_c_int)
+         if (.not. allocated(actual%qe_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qe_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%qe_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qe_wall(i1) = real(val_f64, kind(1d0))
+      case (22_c_int)
+         if (.not. allocated(actual%qh_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qh_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%qh_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_wall(i1) = real(val_f64, kind(1d0))
+      case (23_c_int)
+         if (.not. allocated(actual%qh_resist_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qh_resist_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%qh_resist_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_resist_wall(i1) = real(val_f64, kind(1d0))
+      case (24_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qs_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%qs_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qs_surf(i1) = real(val_f64, kind(1d0))
+      case (25_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%QN_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%QN_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QN_surf(i1) = real(val_f64, kind(1d0))
+      case (26_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qe0_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%qe0_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qe0_surf(i1) = real(val_f64, kind(1d0))
+      case (27_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qe_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%qe_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qe_surf(i1) = real(val_f64, kind(1d0))
+      case (28_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qh_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%qh_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_surf(i1) = real(val_f64, kind(1d0))
+      case (29_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qh_resist_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%qh_resist_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_resist_surf(i1) = real(val_f64, kind(1d0))
+      case (30_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%tsurf_ind, 1), c_int) .or. &
+             i1 > int(ubound(actual%tsurf_ind, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsurf_ind(i1) = real(val_f64, kind(1d0))
+      case (31_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QH_LUMPS = real(val_f64, kind(1d0))
+      case (32_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QE_LUMPS = real(val_f64, kind(1d0))
+      case (33_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%k_clear = real(val_f64, kind(1d0))
+      case (34_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%k_up = real(val_f64, kind(1d0))
+      case (35_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%l_down = real(val_f64, kind(1d0))
+      case (36_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%l_up = real(val_f64, kind(1d0))
+      case (37_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qe = real(val_f64, kind(1d0))
+      case (38_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qf = real(val_f64, kind(1d0))
+      case (39_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QF_SAHP = real(val_f64, kind(1d0))
+      case (40_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh = real(val_f64, kind(1d0))
+      case (41_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_residual = real(val_f64, kind(1d0))
+      case (42_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qh_resist = real(val_f64, kind(1d0))
+      case (46_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn = real(val_f64, kind(1d0))
+      case (47_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn_snowfree = real(val_f64, kind(1d0))
+      case (48_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qs = real(val_f64, kind(1d0))
+      case (49_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%TSfc_C = real(val_f64, kind(1d0))
+      case (50_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tsurf = real(val_f64, kind(1d0))
+      case (51_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QH_Init = real(val_f64, kind(1d0))
+      case (52_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%roof_in_sw_spc, 1), c_int) .or. &
+             i1 > int(ubound(actual%roof_in_sw_spc, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%roof_in_sw_spc(i1) = real(val_f64, kind(1d0))
+      case (53_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%roof_in_lw_spc, 1), c_int) .or. &
+             i1 > int(ubound(actual%roof_in_lw_spc, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%roof_in_lw_spc(i1) = real(val_f64, kind(1d0))
+      case (54_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%wall_in_sw_spc, 1), c_int) .or. &
+             i1 > int(ubound(actual%wall_in_sw_spc, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%wall_in_sw_spc(i1) = real(val_f64, kind(1d0))
+      case (55_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%wall_in_lw_spc, 1), c_int) .or. &
+             i1 > int(ubound(actual%wall_in_lw_spc, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%wall_in_lw_spc(i1) = real(val_f64, kind(1d0))
+      case (56_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_heat_state
+
+   subroutine suews_obs_rev_pack_heat_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, nlayer, ndepth, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_heat_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      integer(c_int), value, intent(in) :: nlayer
+      integer(c_int), value, intent(in) :: ndepth
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(HEAT_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (nlayer < 0_c_int .or. ndepth < 0_c_int .or. (nlayer > 0_c_int .and. ndepth == 0_c_int)) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (nlayer > 0_c_int) call actual%allocate(nsurf, int(nlayer), int(ndepth))
+      do k = 1_c_int, n_in
+         call obs_seed_heat_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_heat_state(actual, nlayer, ndepth, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_heat_state
+
+   subroutine obs_seed_hydro_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(HYDRO_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%soil_store_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%soil_store_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%soil_store_surf(i1) = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%state_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%state_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%state_surf(i1) = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%WUDay_id, 1), c_int) .or. &
+             i1 > int(ubound(actual%WUDay_id, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%WUDay_id(i1) = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (.not. allocated(actual%soil_store_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%soil_store_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%soil_store_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%soil_store_roof(i1) = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (.not. allocated(actual%state_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%state_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%state_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%state_roof(i1) = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (.not. allocated(actual%soil_store_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%soil_store_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%soil_store_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%soil_store_wall(i1) = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (.not. allocated(actual%state_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%state_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%state_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%state_wall(i1) = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (.not. allocated(actual%ev_roof)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%ev_roof, 1), c_int) .or. &
+             i1 > int(ubound(actual%ev_roof, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ev_roof(i1) = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (.not. allocated(actual%ev_wall)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%ev_wall, 1), c_int) .or. &
+             i1 > int(ubound(actual%ev_wall, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ev_wall(i1) = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%ev0_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%ev0_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ev0_surf(i1) = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%ev_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%ev_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ev_surf(i1) = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%wu_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%wu_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%wu_surf(i1) = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%runoff_soil, 1), c_int) .or. &
+             i1 > int(ubound(actual%runoff_soil, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_soil(i1) = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%smd_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%smd_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%smd_surf(i1) = real(val_f64, kind(1d0))
+      case (15_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%drain_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%drain_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%drain_surf(i1) = real(val_f64, kind(1d0))
+      case (16_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%drain_per_tstep = real(val_f64, kind(1d0))
+      case (17_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ev_per_tstep = real(val_f64, kind(1d0))
+      case (18_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%wu_ext = real(val_f64, kind(1d0))
+      case (19_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%wu_int = real(val_f64, kind(1d0))
+      case (20_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_ag_veg = real(val_f64, kind(1d0))
+      case (21_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_ag_impervious = real(val_f64, kind(1d0))
+      case (22_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_per_tstep = real(val_f64, kind(1d0))
+      case (23_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_pipes = real(val_f64, kind(1d0))
+      case (24_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_soil_per_tstep = real(val_f64, kind(1d0))
+      case (25_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_waterbody = real(val_f64, kind(1d0))
+      case (26_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%smd = real(val_f64, kind(1d0))
+      case (27_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%soil_state = real(val_f64, kind(1d0))
+      case (28_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%state_per_tstep = real(val_f64, kind(1d0))
+      case (29_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%surf_chang_per_tstep = real(val_f64, kind(1d0))
+      case (30_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tot_chang_per_tstep = real(val_f64, kind(1d0))
+      case (31_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%runoff_per_interval = real(val_f64, kind(1d0))
+      case (32_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%nw_state_per_tstep = real(val_f64, kind(1d0))
+      case (33_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%soil_moist_cap = real(val_f64, kind(1d0))
+      case (34_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%vsmd = real(val_f64, kind(1d0))
+      case (35_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%additional_water = real(val_f64, kind(1d0))
+      case (36_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%add_impervious = real(val_f64, kind(1d0))
+      case (37_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%add_pipes = real(val_f64, kind(1d0))
+      case (38_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%add_veg = real(val_f64, kind(1d0))
+      case (39_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%add_water_body = real(val_f64, kind(1d0))
+      case (40_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%add_water, 1), c_int) .or. &
+             i1 > int(ubound(actual%add_water, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%add_water(i1) = real(val_f64, kind(1d0))
+      case (41_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%frac_water2runoff, 1), c_int) .or. &
+             i1 > int(ubound(actual%frac_water2runoff, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%frac_water2runoff(i1) = real(val_f64, kind(1d0))
+      case (42_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_hydro_state
+
+   subroutine suews_obs_rev_pack_hydro_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, nlayer, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_hydro_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      integer(c_int), value, intent(in) :: nlayer
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(HYDRO_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (nlayer < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (nlayer > 0_c_int) call actual%allocate(int(nlayer))
+      do k = 1_c_int, n_in
+         call obs_seed_hydro_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_hydro_state(actual, nlayer, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_hydro_state
+
+   subroutine obs_seed_nhood_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(NHOOD_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%U_hbh_1dravg = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QN_1dravg = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Tair_mn_prev = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_count = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_nhood_state
+
+   subroutine suews_obs_rev_pack_nhood_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_nhood_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(NHOOD_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_nhood_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_nhood_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_nhood_state
+
+   subroutine obs_seed_ohm_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(OHM_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn_av = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dqndt = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qn_surfs, 1), c_int) .or. &
+             i1 > int(ubound(actual%qn_surfs, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn_surfs(i1) = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%dqndt_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%dqndt_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dqndt_surf(i1) = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn_s_av = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dqnsdt = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1 = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2 = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3 = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%t2_prev = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ws_rav = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qn_rav, 1), c_int) .or. &
+             i1 > int(ubound(actual%qn_rav, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn_rav(i1) = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1_bldg = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2_bldg = real(val_f64, kind(1d0))
+      case (15_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3_bldg = real(val_f64, kind(1d0))
+      case (16_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1_paved = real(val_f64, kind(1d0))
+      case (17_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2_paved = real(val_f64, kind(1d0))
+      case (18_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3_paved = real(val_f64, kind(1d0))
+      case (19_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1_evetr = real(val_f64, kind(1d0))
+      case (20_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2_evetr = real(val_f64, kind(1d0))
+      case (21_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3_evetr = real(val_f64, kind(1d0))
+      case (22_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1_dectr = real(val_f64, kind(1d0))
+      case (23_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2_dectr = real(val_f64, kind(1d0))
+      case (24_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3_dectr = real(val_f64, kind(1d0))
+      case (25_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1_grass = real(val_f64, kind(1d0))
+      case (26_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2_grass = real(val_f64, kind(1d0))
+      case (27_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3_grass = real(val_f64, kind(1d0))
+      case (28_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1_bsoil = real(val_f64, kind(1d0))
+      case (29_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2_bsoil = real(val_f64, kind(1d0))
+      case (30_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3_bsoil = real(val_f64, kind(1d0))
+      case (31_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a1_water = real(val_f64, kind(1d0))
+      case (32_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a2_water = real(val_f64, kind(1d0))
+      case (33_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%a3_water = real(val_f64, kind(1d0))
+      case (34_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_day = int(val_i64)
+      case (35_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_count = int(val_i64)
+      case (36_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_working_tHr, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_working_tHr, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_tHr(i1) = real(val_f64, kind(1d0))
+      case (37_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_working_sd, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_working_sd, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_sd(i1) = real(val_f64, kind(1d0))
+      case (38_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_working_ta, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_working_ta, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_ta(i1) = real(val_f64, kind(1d0))
+      case (39_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_working_rh, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_working_rh, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_rh(i1) = real(val_f64, kind(1d0))
+      case (40_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_working_pres, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_working_pres, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_pres(i1) = real(val_f64, kind(1d0))
+      case (41_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_working_ws, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_working_ws, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_ws(i1) = real(val_f64, kind(1d0))
+      case (42_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_working_ah, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_working_ah, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_working_ah(i1) = real(val_f64, kind(1d0))
+      case (43_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_day = int(val_i64)
+      case (44_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_count = int(val_i64)
+      case (45_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_ready = (val_i64 /= 0_c_int64_t)
+      case (46_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_coeff_tHr, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_coeff_tHr, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_tHr(i1) = real(val_f64, kind(1d0))
+      case (47_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_coeff_sd, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_coeff_sd, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_sd(i1) = real(val_f64, kind(1d0))
+      case (48_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_coeff_ta, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_coeff_ta, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_ta(i1) = real(val_f64, kind(1d0))
+      case (49_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_coeff_rh, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_coeff_rh, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_rh(i1) = real(val_f64, kind(1d0))
+      case (50_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_coeff_pres, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_coeff_pres, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_pres(i1) = real(val_f64, kind(1d0))
+      case (51_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_coeff_ws, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_coeff_ws, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_ws(i1) = real(val_f64, kind(1d0))
+      case (52_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_coeff_ah, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_coeff_ah, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_coeff_ah(i1) = real(val_f64, kind(1d0))
+      case (53_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_a1_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_a1_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_a1_surf(i1) = real(val_f64, kind(1d0))
+      case (54_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_a2_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_a2_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_a2_surf(i1) = real(val_f64, kind(1d0))
+      case (55_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%anohm_a3_surf, 1), c_int) .or. &
+             i1 > int(ubound(actual%anohm_a3_surf, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%anohm_a3_surf(i1) = real(val_f64, kind(1d0))
+      case (56_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_ohm_state
+
+   subroutine suews_obs_rev_pack_ohm_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_ohm_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(OHM_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_ohm_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call ohm_state_pack(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_ohm_state
+
+   subroutine obs_seed_phenology_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(PHENOLOGY_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%alb, 1), c_int) .or. &
+             i1 > int(ubound(actual%alb, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%alb(i1) = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%lai_id, 1), c_int) .or. &
+             i1 > int(ubound(actual%lai_id, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%lai_id(i1) = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%GDD_id, 1), c_int) .or. &
+             i1 > int(ubound(actual%GDD_id, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%GDD_id(i1) = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%SDD_id, 1), c_int) .or. &
+             i1 > int(ubound(actual%SDD_id, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%SDD_id(i1) = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%veg_phen_lumps = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%porosity_id = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%decidcap_id = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%albDecTr_id = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%albEveTr_id = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%albGrass_id = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Tmin_id = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Tmax_id = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%lenDay_id = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%temp_veg = real(val_f64, kind(1d0))
+      case (15_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%storage_drain_params, 1), c_int) .or. &
+             i1 > int(ubound(actual%storage_drain_params, 1), c_int) .or. &
+             i2 < int(lbound(actual%storage_drain_params, 2), c_int) .or. &
+             i2 > int(ubound(actual%storage_drain_params, 2), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%storage_drain_params(i1, i2) = real(val_f64, kind(1d0))
+      case (16_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%g_func = real(val_f64, kind(1d0))
+      case (17_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%gsc = real(val_f64, kind(1d0))
+      case (18_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%g_kdown = real(val_f64, kind(1d0))
+      case (19_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%g_dq = real(val_f64, kind(1d0))
+      case (20_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%g_ta = real(val_f64, kind(1d0))
+      case (21_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%g_smd = real(val_f64, kind(1d0))
+      case (22_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%g_lai = real(val_f64, kind(1d0))
+      case (23_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_phenology_state
+
+   subroutine suews_obs_rev_pack_phenology_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_phenology_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(PHENOLOGY_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_phenology_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_phenology_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_phenology_state
+
+   subroutine obs_seed_roughness_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(ROUGHNESS_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%fai_bldg_use = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%fai_evetree_use = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%fai_dectree_use = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%FAI = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%PAI = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Zh = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%z0m = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%z0v = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%zdm = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ZZD = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_roughness_state
+
+   subroutine suews_obs_rev_pack_roughness_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_roughness_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(ROUGHNESS_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_roughness_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_roughness_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_roughness_state
+
+   subroutine obs_seed_snow_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(SNOW_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snowfall_cum = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snow_albedo = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%chSnow_per_interval = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%mwh = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%melt_water_store = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn_snow = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qm = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qm_freeze = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qm_rain = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%swe = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%z0v_snow = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ra_snow = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%snow_removal, 1), c_int) .or. &
+             i1 > int(ubound(actual%snow_removal, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snow_removal(i1) = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%ice_frac, 1), c_int) .or. &
+             i1 > int(ubound(actual%ice_frac, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ice_frac(i1) = real(val_f64, kind(1d0))
+      case (15_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%snow_density, 1), c_int) .or. &
+             i1 > int(ubound(actual%snow_density, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snow_density(i1) = real(val_f64, kind(1d0))
+      case (16_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%snow_fraction, 1), c_int) .or. &
+             i1 > int(ubound(actual%snow_fraction, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snow_fraction(i1) = real(val_f64, kind(1d0))
+      case (17_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%snow_pack, 1), c_int) .or. &
+             i1 > int(ubound(actual%snow_pack, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snow_pack(i1) = real(val_f64, kind(1d0))
+      case (18_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%snow_water, 1), c_int) .or. &
+             i1 > int(ubound(actual%snow_water, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%snow_water(i1) = real(val_f64, kind(1d0))
+      case (19_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%kup_ind_snow, 1), c_int) .or. &
+             i1 > int(ubound(actual%kup_ind_snow, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%kup_ind_snow(i1) = real(val_f64, kind(1d0))
+      case (20_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%qn_ind_snow, 1), c_int) .or. &
+             i1 > int(ubound(actual%qn_ind_snow, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%qn_ind_snow(i1) = real(val_f64, kind(1d0))
+      case (21_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%delta_qi, 1), c_int) .or. &
+             i1 > int(ubound(actual%delta_qi, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%delta_qi(i1) = real(val_f64, kind(1d0))
+      case (22_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%Tsurf_ind_snow, 1), c_int) .or. &
+             i1 > int(ubound(actual%Tsurf_ind_snow, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%Tsurf_ind_snow(i1) = real(val_f64, kind(1d0))
+      case (23_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_snow_state
+
+   subroutine suews_obs_rev_pack_snow_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_snow_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(SNOW_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_snow_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_snow_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_snow_state
+
+   subroutine obs_seed_solar_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(solar_State), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%azimuth_deg = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%zenith_deg = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_solar_state
+
+   subroutine suews_obs_rev_pack_solar_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_solar_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(solar_State) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_solar_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_solar_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_solar_state
+
+   subroutine obs_seed_stebbs_state(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(STEBBS_STATE), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%kdown_2d = real(val_f64, kind(1d0))
+      case (2_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%kup_2d = real(val_f64, kind(1d0))
+      case (3_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%k_west = real(val_f64, kind(1d0))
+      case (4_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%k_south = real(val_f64, kind(1d0))
+      case (5_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%k_north = real(val_f64, kind(1d0))
+      case (6_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%k_east = real(val_f64, kind(1d0))
+      case (7_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ldown_2d = real(val_f64, kind(1d0))
+      case (8_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%lup_2d = real(val_f64, kind(1d0))
+      case (9_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%l_west = real(val_f64, kind(1d0))
+      case (10_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%l_south = real(val_f64, kind(1d0))
+      case (11_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%l_north = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%l_east = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%z_array, 1), c_int) .or. &
+             i1 > int(ubound(actual%z_array, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%z_array(i1) = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%dataout_line_u_rsl, 1), c_int) .or. &
+             i1 > int(ubound(actual%dataout_line_u_rsl, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dataout_line_u_rsl(i1) = real(val_f64, kind(1d0))
+      case (15_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%dataout_line_t_rsl, 1), c_int) .or. &
+             i1 > int(ubound(actual%dataout_line_t_rsl, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dataout_line_t_rsl(i1) = real(val_f64, kind(1d0))
+      case (16_c_int)
+         if (fkind /= OBS_KIND_REAL .or. &
+             i1 < int(lbound(actual%dataout_line_q_rsl, 1), c_int) .or. &
+             i1 > int(ubound(actual%dataout_line_q_rsl, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dataout_line_q_rsl(i1) = real(val_f64, kind(1d0))
+      case (17_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%deep_soil_temperature = real(val_f64, kind(1d0))
+      case (18_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%MonthMeanAirTemperature_diffmax = real(val_f64, kind(1d0))
+      case (19_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%outdoor_air_start_temperature = real(val_f64, kind(1d0))
+      case (20_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%indoor_air_start_temperature = real(val_f64, kind(1d0))
+      case (21_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%indoor_mass_start_temperature = real(val_f64, kind(1d0))
+      case (22_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%wall_indoor_surface_temperature = real(val_f64, kind(1d0))
+      case (23_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%wall_outdoor_surface_temperature = real(val_f64, kind(1d0))
+      case (24_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%roof_indoor_surface_temperature = real(val_f64, kind(1d0))
+      case (25_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%roof_outdoor_surface_temperature = real(val_f64, kind(1d0))
+      case (26_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%window_indoor_surface_temperature = real(val_f64, kind(1d0))
+      case (27_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%window_outdoor_surface_temperature = real(val_f64, kind(1d0))
+      case (28_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ground_floor_indoor_surface_temperature = real(val_f64, kind(1d0))
+      case (29_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%ground_floor_outdoor_surface_temperature = real(val_f64, kind(1d0))
+      case (30_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%water_tank_temperature_state = real(val_f64, kind(1d0))
+      case (31_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%internal_wall_water_tank_temperature = real(val_f64, kind(1d0))
+      case (32_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%external_wall_water_tank_temperature = real(val_f64, kind(1d0))
+      case (33_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%mains_water_temperature = real(val_f64, kind(1d0))
+      case (34_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%domestic_hot_water_temperature_in_use_in_building = real(val_f64, kind(1d0))
+      case (35_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%internal_wall_dhw_vessel_temperature = real(val_f64, kind(1d0))
+      case (36_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%external_wall_dhw_vessel_temperature = real(val_f64, kind(1d0))
+      case (37_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%QS_stebbs = real(val_f64, kind(1d0))
+      case (39_c_int)
+         if (fkind /= OBS_KIND_LOGICAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iter_safe = (val_i64 /= 0_c_int64_t)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_stebbs_state
+
+   subroutine suews_obs_rev_pack_stebbs_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, bldg_count, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_stebbs_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      integer(c_int), value, intent(in) :: bldg_count
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(STEBBS_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (bldg_count < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (bldg_count > 0_c_int) allocate(actual%buildings(int(bldg_count)))
+      do k = 1_c_int, n_in
+         call obs_seed_stebbs_state(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_stebbs_state(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_stebbs_state
+
+   subroutine obs_seed_suews_timer(actual, fid, fkind, i1, i2, val_f64, val_i64, err)
+      implicit none
+      type(SUEWS_TIMER), intent(inout) :: actual
+      integer(c_int), intent(in) :: fid
+      integer(c_int), intent(in) :: fkind
+      integer(c_int), intent(in) :: i1
+      integer(c_int), intent(in) :: i2
+      real(c_double), intent(in) :: val_f64
+      integer(c_int64_t), intent(in) :: val_i64
+      integer(c_int), intent(inout) :: err
+      select case (fid)
+      case (1_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%id = int(val_i64)
+      case (2_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%imin = int(val_i64)
+      case (3_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%isec = int(val_i64)
+      case (4_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%it = int(val_i64)
+      case (5_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%iy = int(val_i64)
+      case (6_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tstep = int(val_i64)
+      case (7_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tstep_prev = int(val_i64)
+      case (8_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dt_since_start = int(val_i64)
+      case (9_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dt_since_start_prev = int(val_i64)
+      case (10_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%nsh = int(val_i64)
+      case (11_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%nsh_real = real(val_f64, kind(1d0))
+      case (12_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%tstep_real = real(val_f64, kind(1d0))
+      case (13_c_int)
+         if (fkind /= OBS_KIND_REAL) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dectime = real(val_f64, kind(1d0))
+      case (14_c_int)
+         if (fkind /= OBS_KIND_INT .or. &
+             i1 < int(lbound(actual%dayofWeek_id, 1), c_int) .or. &
+             i1 > int(ubound(actual%dayofWeek_id, 1), c_int)) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dayofWeek_id(i1) = int(val_i64)
+      case (15_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%DLS = int(val_i64)
+      case (16_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%new_day = int(val_i64)
+      case default
+         err = SUEWS_CAPI_BAD_BUFFER
+      end select
+   end subroutine obs_seed_suews_timer
+
+   subroutine suews_obs_rev_pack_suews_timer( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, flat_out, n_flat_out, err) bind(C, name='suews_obs_rev_pack_suews_timer')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      real(c_double), intent(out) :: flat_out(*)
+      integer(c_int), value, intent(in) :: n_flat_out
+      integer(c_int), intent(out) :: err
+      type(SUEWS_TIMER) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      do k = 1_c_int, n_in
+         call obs_seed_suews_timer(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_timer(actual, flat_out, n_flat_out, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_suews_timer
+
+   subroutine suews_obs_rev_pack_suews_state( &
+      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, &
+      nlayer, ndepth, bldg_count, state_out_flat, state_out_len, &
+      state_toc, state_toc_len, state_member_count, err) bind(C, name='suews_obs_rev_pack_suews_state')
+      implicit none
+      integer(c_int), intent(in) :: in_fid(*)
+      integer(c_int), intent(in) :: in_kind(*)
+      integer(c_int), intent(in) :: in_i1(*)
+      integer(c_int), intent(in) :: in_i2(*)
+      real(c_double), intent(in) :: in_f64(*)
+      integer(c_int64_t), intent(in) :: in_i64(*)
+      integer(c_int), value, intent(in) :: n_in
+      integer(c_int), value, intent(in) :: nlayer
+      integer(c_int), value, intent(in) :: ndepth
+      integer(c_int), value, intent(in) :: bldg_count
+      real(c_double), intent(out) :: state_out_flat(*)
+      integer(c_int), value, intent(in) :: state_out_len
+      integer(c_int), intent(in) :: state_toc(*)
+      integer(c_int), value, intent(in) :: state_toc_len
+      integer(c_int), value, intent(in) :: state_member_count
+      integer(c_int), intent(out) :: err
+      type(SUEWS_STATE) :: actual
+      integer(c_int) :: k
+      integer(c_int) :: fid
+      integer(c_int) :: pack_err
+
+      err = SUEWS_CAPI_OK
+      pack_err = SUEWS_CAPI_OK
+      if (n_in < 0_c_int .or. nlayer < 0_c_int .or. ndepth < 0_c_int .or. bldg_count < 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (nlayer > 0_c_int .and. ndepth == 0_c_int) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (nlayer > 0_c_int) call actual%allocate(int(nlayer), int(ndepth))
+      if (bldg_count > 0_c_int) allocate(actual%stebbsState%buildings(int(bldg_count)))
+      do k = 1_c_int, n_in
+         fid = in_fid(k)
+         if (fid >= 2_c_int .and. fid <= 6_c_int) then
+            call obs_seed_flag_state(actual%flagState, fid - 1_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 7_c_int .and. fid <= 17_c_int) then
+            call obs_seed_anthroemis_state(actual%anthroemisState, fid - 6_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 18_c_int .and. fid <= 73_c_int) then
+            call obs_seed_ohm_state(actual%ohmState, fid - 17_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 74_c_int .and. fid <= 76_c_int) then
+            call obs_seed_solar_state(actual%solarState, fid - 73_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 77_c_int .and. fid <= 109_c_int) then
+            call obs_seed_atm_state(actual%atmState, fid - 76_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 110_c_int .and. fid <= 132_c_int) then
+            call obs_seed_phenology_state(actual%phenState, fid - 109_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 133_c_int .and. fid <= 155_c_int) then
+            call obs_seed_snow_state(actual%snowState, fid - 132_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 156_c_int .and. fid <= 197_c_int) then
+            call obs_seed_hydro_state(actual%hydroState, fid - 155_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 198_c_int .and. fid <= 253_c_int) then
+            call obs_seed_heat_state(actual%heatState, fid - 197_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 254_c_int .and. fid <= 264_c_int) then
+            call obs_seed_roughness_state(actual%roughnessState, fid - 253_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 265_c_int .and. fid <= 303_c_int) then
+            call obs_seed_stebbs_state(actual%stebbsState, fid - 264_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 304_c_int .and. fid <= 308_c_int) then
+            call obs_seed_nhood_state(actual%nhoodState, fid - 303_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else
+            err = SUEWS_CAPI_BAD_BUFFER
+         end if
+         if (err /= SUEWS_CAPI_OK) return
+      end do
+      call pack_state_to_output( &
+         actual, int(nlayer), int(ndepth), &
+         state_out_flat, state_out_len, state_toc, state_toc_len, state_member_count, pack_err)
+      err = pack_err
+   end subroutine suews_obs_rev_pack_suews_state
+
 end module module_test_capi_field_observer
+
+submodule (SUEWS_Driver) test_forcing_rows
+   use, intrinsic :: iso_c_binding, only: c_double
+   implicit none
+contains
+   subroutine suews_obs_forcing_rows(block, observed, ts5) bind(C)
+      real(c_double), intent(in) :: block(2, 32)
+      integer :: row
+      real(c_double), intent(out) :: observed(26, 2), ts5(2, 2)
+      type(SUEWS_FORCING) :: actual
+
+      actual%Tair_av_5d = -7.25d0
+      actual%Ts5mindata_ir = [-3.5d0, 4.75d0]
+      do row = 1, 2
+         call SUEWS_load_forcing_row(actual, block, row)
+         observed(1, row) = actual%kdown
+         observed(2, row) = actual%kdiff
+         observed(3, row) = actual%kdir
+         observed(4, row) = actual%l_down
+         observed(5, row) = actual%RH
+         observed(6, row) = actual%pres
+         observed(7, row) = actual%Tair_av_5d
+         observed(8, row) = actual%U
+         observed(9, row) = actual%rain
+         observed(10, row) = actual%Wu_mm_paved
+         observed(11, row) = actual%Wu_mm_bldgs
+         observed(12, row) = actual%Wu_mm_evetr
+         observed(13, row) = actual%Wu_mm_dectr
+         observed(14, row) = actual%Wu_mm_grass
+         observed(15, row) = actual%Wu_mm_bsoil
+         observed(16, row) = actual%Wu_mm_water
+         observed(17, row) = actual%f_cloud
+         observed(18, row) = actual%LAI_dectr
+         observed(19, row) = actual%LAI_evetr
+         observed(20, row) = actual%LAI_grass
+         observed(21, row) = actual%snow_fraction
+         observed(22, row) = actual%xsmd
+         observed(23, row) = actual%qf_obs
+         observed(24, row) = actual%qn1_obs
+         observed(25, row) = actual%qs_obs
+         observed(26, row) = actual%temp_c
+         ts5(:, row) = 0.0d0
+         if (allocated(actual%Ts5mindata_ir)) then
+            if (lbound(actual%Ts5mindata_ir, 1) == 1 .and. ubound(actual%Ts5mindata_ir, 1) == 2) then
+               ts5(:, row) = actual%Ts5mindata_ir
+            end if
+         end if
+      end do
+   end subroutine suews_obs_forcing_rows
+
+end submodule test_forcing_rows

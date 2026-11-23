@@ -2,6 +2,7 @@ MODULE module_phys_lai
     USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_nan
     USE module_ctrl_const_allocate, ONLY: nvegsurf
     USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+    USE module_ctrl_type, ONLY:
 
     IMPLICIT NONE
 
@@ -11,6 +12,8 @@ CONTAINS
       id, lai_calc_yes, & !input
       lat, lai_obs, &
       t_min_id_prev, t_max_id_prev, &
+      summer_reset_day, &
+      winter_reset_day, &
       base_t_gdd, base_t_sdd, &
       gdd_base, sdd_base, &
       lai_min, lai_max, lai_power, &
@@ -65,8 +68,8 @@ CONTAINS
       LOGICAL :: valid_observed_lai
 
       ! Hemisphere specific parameters for LAI calculations
-      INTEGER :: summer_day
-      INTEGER :: winter_day
+      INTEGER :: summer_reset_day ! day upon which growth season ends and GDD is reset
+      INTEGER :: winter_reset_day ! day upon which senescence period ends and SDD is reset
 
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -83,16 +86,16 @@ CONTAINS
       END IF
 
       
-      ! Determine N/S hemisphere parameters
-      ! TODO: Move outside timestep loop as timestep independent (and delay reset days slightly further?)
-      ! FA note how location on equator uses N.hem resets. should we even be senescing in equatorial locations? 
-      IF (lat >= 0) THEN
-         summer_day = 182
-         winter_day = 1
-      ELSE !! N.B. not identical to N hemisphere - return to later
-         summer_day = 1
-         winter_day = 182
-      END IF
+      ! ! Determine N/S hemisphere parameters
+      ! ! TODO: Move outside timestep loop as timestep independent (and delay reset days slightly further?)
+      ! ! FA note how location on equator uses N.hem resets. should we even be senescing in equatorial locations? 
+      ! IF (lat >= 0) THEN
+      !    summer_day = 182
+      !    winter_day = 1
+      ! ELSE !! N.B. not identical to N hemisphere - return to later
+      !    summer_day = 1
+      !    winter_day = 182
+      ! END IF
 
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
@@ -101,8 +104,8 @@ CONTAINS
          CALL update_growth_state( &
          id=id, &
          lat=lat, &
-         summer_day=summer_day, &
-         winter_day=winter_day, &
+         summer_reset_day=summer_reset_day, &
+         winter_reset_day=winter_reset_day, &
          growth_state=growth_state(iv), &
          senescence_state=senescence_state(iv) &
          )
@@ -127,8 +130,8 @@ CONTAINS
          ! check and apply reset conditions to SDD/GDD 
          CALL reset_degree_days( &
             id=id, &
-            summer_reset_day=summer_day, &
-            winter_reset_day=winter_day, &
+            summer_reset_day=summer_reset_day, &
+            winter_reset_day=winter_reset_day, &
             sdd=sdd_id(iv), &
             gdd=gdd_id(iv) &
          )
@@ -206,14 +209,14 @@ CONTAINS
 
 
    SUBROUTINE update_growth_state(&
-      id, lat, summer_day, winter_day, & ! input
+      id, lat, summer_reset_day, winter_reset_day, & ! input
       growth_state, senescence_state) ! output
    
       IMPLICIT NONE
 
       INTEGER, INTENT(IN) :: id
-      INTEGER, INTENT(IN) :: summer_day
-      INTEGER, INTENT(IN) :: winter_day
+      INTEGER, INTENT(IN) :: summer_reset_day
+      INTEGER, INTENT(IN) :: winter_reset_day
       REAL(KIND(1D0)), INTENT(IN) :: lat
       
       INTEGER, INTENT(INOUT) :: growth_state
@@ -222,7 +225,7 @@ CONTAINS
       ! northern and southern hemisphere need different logic owing to reversed growth/senescence periods
       ! and year wraparound
       IF (lat >= 0) THEN
-         IF ((id >= summer_day) .OR. (id < winter_day)) THEN
+         IF ((id >= summer_reset_day) .OR. (id < winter_reset_day)) THEN
             senescence_state = 1
             growth_state = 0
          ELSE
@@ -230,7 +233,7 @@ CONTAINS
             senescence_state = 0
          END IF
       ELSE
-         IF ((id >= summer_day) .AND. (id < winter_day)) THEN
+         IF ((id >= summer_reset_day) .AND. (id < winter_reset_day)) THEN
             senescence_state = 1
             growth_state = 0
          ELSE

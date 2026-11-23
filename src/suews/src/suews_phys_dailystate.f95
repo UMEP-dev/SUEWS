@@ -142,6 +142,9 @@ CONTAINS
             evetrPrm => siteInfo%lc_evetr, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
+            !FA get the reset days to pass into LAI subroutine
+            GDD_summer_reset_day => siteInfo%GDD_summer_reset_day, &
+            SDD_winter_reset_day => siteInfo%SDD_winter_reset_day, &
             i_iter => flagState%i_iter &
             )
 
@@ -347,6 +350,8 @@ CONTAINS
                         id=id, lai_calc_yes=LAICalcYes, & !input
                         lat=lat, lai_obs=[lai_evetr, lai_dectr, lai_grass], &
                         t_min_id_prev=Tmin_id, t_max_id_prev=Tmax_id, &
+                        summer_reset_day=GDD_summer_reset_day, &
+                        winter_reset_day=SDD_winter_reset_day, &
                         base_t_gdd=BaseT, base_t_sdd=BaseTe, &
                         gdd_base=GDDBase, sdd_base=SDDBase, &
                         lai_min=LAIMin, lai_max=LAIMax, &

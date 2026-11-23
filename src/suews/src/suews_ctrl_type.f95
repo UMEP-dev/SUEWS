@@ -109,6 +109,10 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: sfr_roof !fraction of roof facets [-]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: sfr_wall !fraction of wall facets [-]
 
+      !FA compute the LAI reset day on a per site basis (in case one happens to be in southern or northern hemipshere)
+      INTEGER :: GDD_summer_reset_day = 0
+      INTEGER :: SDD_winter_reset_day = 0
+
       INTEGER :: nlayer ! number of vertical layers in urban canyon [-]
       TYPE(SPARTACUS_PRM) :: spartacus
       TYPE(LUMPS_PRM) :: lumps
@@ -685,8 +689,13 @@ CONTAINS
          height => self%spartacus%height, &
          ! spartacusLayerPrm => siteInfo%spartacusLayerPrm, &
          building_frac => self%spartacus_layer%building_frac, &
-         building_scale => self%spartacus_layer%building_scale &
-         &)
+         building_scale => self%spartacus_layer%building_scale, &
+         !FA reset day is a derived property
+         lat => self%lat, &
+         GDD_summer_reset_day => self%GDD_summer_reset_day, &
+         SDD_winter_reset_day => self%SDD_winter_reset_day &
+
+         )
          ! StorageHeatMethod = config%StorageHeatMethod
          ! NetRadiationMethod = config%NetRadiationMethod
          ! ALLOCATE (sfr_roof(nlayer))
@@ -729,6 +738,16 @@ CONTAINS
             ! https://github.com/ecmwf/spartacus-surface/blob/master/doc/spartacus_surface_documentation.pdf
             sfr_wall(1:nlayer) = perimeter_ind(1:nlayer)*dz_ind(1:nlayer)
          END IF
+         
+         ! compute GDD/SDD reset days (for LAI) as function of latitude (seasons flipped between hemipsheres)
+         IF (lat >= 0) THEN
+            GDD_summer_reset_day = 182
+            SDD_winter_reset_day = 1
+         ELSE
+            GDD_summer_reset_day = 1
+            SDD_winter_reset_day = 182
+         END IF
+
 
       END ASSOCIATE
 

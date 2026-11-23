@@ -698,6 +698,24 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "    marker = unittest.expectedFailure\n",
             ["test/test_branch.py::<module>::1"],
         ),
+        (
+            "try:\n"
+            "    from unittest import expectedFailure as ef\n"
+            "    raise RuntimeError\n"
+            "except RuntimeError:\n"
+            "    @ef\n"
+            "    def test_case():\n"
+            "        pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "wrap = lambda fn: ef(fn)\n"
+            "from unittest import expectedFailure as ef\n"
+            "def test_case():\n"
+            "    pass\n"
+            "wrap(test_case)\n",
+            ["test/test_branch.py::<module>::1"],
+        ),
     ],
 )
 def test_unittest_expected_failure_branch_merge_and_deferred_lookup(
@@ -1095,6 +1113,19 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             "    inner()\n"
             "outer()\n",
             "unsupported escape of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def mutate(table):\n"
+            '    table["k"] = "v"\n'
+            "[len(LEDGER) for len in [mutate]]\n",
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "[(alias := LEDGER) for _ in [0]]\n"
+            'alias["k"] = "v"\n',
+            "unsupported mutation of constant LEDGER",
         ),
     ],
 )

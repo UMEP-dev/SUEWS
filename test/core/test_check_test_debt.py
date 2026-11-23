@@ -607,6 +607,7 @@ def test_unittest_expected_failure_forms_are_counted_once_and_fail_unmapped(
         "import unittest\n\ndef test_ok():\n    unused: unittest.expectedFailure(1)\n    assert True\n",
         "def mark(fn): return fn\n\ndef outer():\n    from unittest import expectedFailure as mark\n    def inner():\n        global mark\n        return mark(lambda: None)\n    return inner\n",
         "from unittest import expectedFailure as ef\nwrappers = [lambda fn: ef(fn) for ef in [lambda fn: fn]]\n",
+        "ef = lambda fn: fn\nclass C:\n    from unittest import expectedFailure as ef\n    cases = [ef(fn) for fn in [lambda: None]]\n",
     ],
 )
 def test_unrelated_unittest_and_expected_failure_names_are_not_flagged(tree, source):
@@ -802,6 +803,32 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "def test_case():\n"
             "    pass\n",
             ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "identity = lambda fn: fn\n"
+            "test_case = lambda: None\n"
+            "try:\n"
+            "    marker = unittest.expectedFailure\n"
+            "    risky()\n"
+            "    marker = identity\n"
+            "finally:\n"
+            "    marker(test_case)\n",
+            ["test/test_branch.py::<module>::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "candidate = lambda: None\n"
+            "class C:\n"
+            "    ef = lambda fn: fn\n"
+            "    test_case = [ef(fn) for fn in [candidate]][0]\n",
+            ["test/test_branch.py::C::1"],
+        ),
+        (
+            "import unittest\n"
+            "test_case = lambda: None\n"
+            "ef: ef(test_case) = unittest.expectedFailure\n",
+            ["test/test_branch.py::<module>::1"],
         ),
     ],
 )
@@ -1089,6 +1116,7 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
         "    unused: LEDGER.clear()\n"
         "    return len(ALIAS) + len(sorted(LEDGER, key=len)) + int(type(LEDGER) is dict)\n"
         'LEDGER[("a.f95", "x")]: str\n'
+        "ordered = sorted([LEDGER], key=None)\n"
         "OTHER = {}\n"
         'OTHER[("b.f95", "y")] = "#999"\n'
         "def mutate_unrelated(table, key, issue):\n"
@@ -1237,6 +1265,10 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             "f = lambda: ((len := mutate), len(LEDGER))\n"
             "f()\n",
             "unsupported escape of constant LEDGER",
+        ),
+        (
+            'LEDGER = {}\nalias: alias.update({"k": "v"}) = LEDGER\n',
+            "unsupported mutation of constant LEDGER",
         ),
     ],
 )

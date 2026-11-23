@@ -555,13 +555,6 @@ class _ConstantMutationChecker:
     def _check_ann_assign(
         self, stmt: ast.AnnAssign, env, ctx: _ScopeCtx, in_class: bool
     ) -> None:
-        if ctx.scope_kind in {"module", "class"} and not self.postponed_annotations:
-            ann_taint = self._eval_expr(stmt.annotation, env, ctx)
-            if ann_taint is not None:
-                self._fail(
-                    stmt.annotation,
-                    f"unsupported escape of constant {ann_taint[0]}",
-                )
         if stmt.value is not None:
             rhs_taint = self._eval_expr(stmt.value, env, ctx)
             self._check_target(stmt.target, rhs_taint, env, ctx, in_class)
@@ -570,6 +563,13 @@ class _ConstantMutationChecker:
             self._eval_expr(stmt.target.slice, env, ctx)
         elif isinstance(stmt.target, ast.Attribute):
             self._eval_expr(stmt.target.value, env, ctx)
+        if ctx.scope_kind in {"module", "class"} and not self.postponed_annotations:
+            ann_taint = self._eval_expr(stmt.annotation, env, ctx)
+            if ann_taint is not None:
+                self._fail(
+                    stmt.annotation,
+                    f"unsupported escape of constant {ann_taint[0]}",
+                )
 
     def _check_stmt(
         self, stmt: ast.stmt, env: dict[str, _Taint], ctx: _ScopeCtx
@@ -1077,8 +1077,8 @@ class _ConstantMutationChecker:
         return result
 
     def _eval_comprehension(self, node, env, ctx: _ScopeCtx) -> _Taint | None:
-        comp_env = dict(env)
         outer_env, outer_bound, outer_funcs = self._child_enclosing_scope(env, ctx)
+        comp_env = dict(outer_env if ctx.scope_kind == "class" else env)
         walrus_target = ctx.walrus_env if ctx.walrus_env is not None else env
         comp_targets: set[str] = set()
         comp_ctx = ctx
@@ -1152,6 +1152,8 @@ class _ConstantMutationChecker:
         return None
 
     def _is_safe_key_callable(self, expr: ast.AST, local_bound: set[str]) -> bool:
+        if isinstance(expr, ast.Constant) and expr.value is None:
+            return True
         return (
             isinstance(expr, ast.Name)
             and expr.id in _SAFE_SCALAR_BUILTINS
@@ -1870,10 +1872,14 @@ class _UnittestExpectedFailureFinder:
         *,
         skip_first_iter: bool = False,
     ) -> None:
-        comp_env = _copy_unittest_env(env)
+        body_base = (
+            self._active_non_class_env if self._active_scope_kind == "class" else env
+        )
+        comp_env = _copy_unittest_env(body_base)
         target_walrus = walrus_env if walrus_env is not None else env
         comp_walrus = _copy_unittest_env(target_walrus)
         prev_comp_bound = self._active_comp_bound
+        prev_scope_kind = self._active_scope_kind
         local_comp_bound = set(prev_comp_bound)
         try:
             for index, gen in enumerate(expr.generators):
@@ -1883,6 +1889,8 @@ class _UnittestExpectedFailureFinder:
                         env if index == 0 else comp_env,
                         target_walrus if index == 0 else comp_walrus,
                     )
+                if index == 0 and prev_scope_kind == "class":
+                    self._active_scope_kind = "function"
                 bound: set[str] = set()
                 _collect_target_names(gen.target, bound)
                 local_comp_bound |= bound
@@ -1898,6 +1906,7 @@ class _UnittestExpectedFailureFinder:
                 self._scan_expr(expr.elt, comp_env, comp_walrus)
         finally:
             self._active_comp_bound = prev_comp_bound
+            self._active_scope_kind = prev_scope_kind
         _update_unittest_env(target_walrus, comp_walrus)
         self._propagate_to_deferred(
             target_walrus, self._active_scope_kind, self._active_deferred
@@ -2164,51 +2173,62 @@ class _UnittestExpectedFailureFinder:
     ) -> None:
         in_class = scope_kind == "class"
         body_env = _copy_unittest_env(env)
+        finally_seen = _copy_unittest_env(env)
         try_seen = _copy_unittest_env(env)
-        self._seen_sinks.append(try_seen)
+        self._seen_sinks.append(finally_seen)
         try:
+            self._seen_sinks.append(try_seen)
+            try:
+                self._walk_block(
+                    stmt.body,
+                    body_env,
+                    scope_kind,
+                    non_class_env if in_class else body_env,
+                    deferred,
+                )
+            finally:
+                self._seen_sinks.pop()
+            orelse_env = _copy_unittest_env(body_env)
             self._walk_block(
-                stmt.body,
-                body_env,
+                stmt.orelse,
+                orelse_env,
                 scope_kind,
-                non_class_env if in_class else body_env,
+                non_class_env if in_class else orelse_env,
                 deferred,
             )
+            branch_envs = [orelse_env]
+            for handler in stmt.handlers:
+                if handler.type is not None:
+                    self._scan_expr(handler.type, try_seen)
+                h_env = _copy_unittest_env(try_seen)
+                if handler.name:
+                    h_env.pop(handler.name, None)
+                self._walk_block(
+                    handler.body,
+                    h_env,
+                    scope_kind,
+                    non_class_env if in_class else h_env,
+                    deferred,
+                )
+                branch_envs.append(h_env)
         finally:
             self._seen_sinks.pop()
-        orelse_env = _copy_unittest_env(body_env)
-        self._walk_block(
-            stmt.orelse,
-            orelse_env,
-            scope_kind,
-            non_class_env if in_class else orelse_env,
-            deferred,
-        )
-        branch_envs = [orelse_env]
-        for handler in stmt.handlers:
-            if handler.type is not None:
-                self._scan_expr(handler.type, try_seen)
-            h_env = _copy_unittest_env(try_seen)
-            if handler.name:
-                h_env.pop(handler.name, None)
+        normal_env = _merge_unittest_envs(branch_envs)
+        if stmt.finalbody:
+            finally_env = _merge_unittest_envs([normal_env, finally_seen])
             self._walk_block(
-                handler.body,
-                h_env,
+                stmt.finalbody,
+                finally_env,
                 scope_kind,
-                non_class_env if in_class else h_env,
+                non_class_env if in_class else finally_env,
                 deferred,
             )
-            branch_envs.append(h_env)
-        env.clear()
-        env.update(_merge_unittest_envs(branch_envs))
+            env.clear()
+            env.update(finally_env)
+        else:
+            env.clear()
+            env.update(normal_env)
         self._propagate_to_deferred(env, scope_kind, deferred)
-        self._walk_block(
-            stmt.finalbody,
-            env,
-            scope_kind,
-            non_class_env if in_class else env,
-            deferred,
-        )
 
     def _walk_match_stmt(
         self,
@@ -2364,8 +2384,6 @@ class _UnittestExpectedFailureFinder:
             self._handle_assign(stmt, env)
             self._propagate_to_deferred(env, scope_kind, deferred)
         elif isinstance(stmt, ast.AnnAssign):
-            if scope_kind in {"module", "class"} and not self.postponed_annotations:
-                self._scan_expr(stmt.annotation, env)
             if stmt.value is not None:
                 self._scan_expr(stmt.value, env)
                 self._bind_target(
@@ -2374,6 +2392,8 @@ class _UnittestExpectedFailureFinder:
                 self._propagate_to_deferred(env, scope_kind, deferred)
             elif not isinstance(stmt.target, ast.Name):
                 self._scan_expr(stmt.target, env)
+            if scope_kind in {"module", "class"} and not self.postponed_annotations:
+                self._scan_expr(stmt.annotation, env)
         elif isinstance(stmt, ast.AugAssign):
             self._scan_expr(stmt.value, env)
             self._bind_target(stmt.target, set(), env)

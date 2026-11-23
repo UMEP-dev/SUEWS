@@ -262,7 +262,7 @@ CONTAINS
       REAL(KIND(1D0)) :: tr(1, ndepth), tw(1, ndepth), kr(1, ndepth), cr(1, ndepth), dzr(1, ndepth)
       REAL(KIND(1D0)) :: tor(1, ndepth), tow(1, ndepth), qsr(1), qsw(1)
       REAL(KIND(1D0)) :: ts(nsurf, ndepth), ks(nsurf, ndepth), cs(nsurf, ndepth), dzs(nsurf, ndepth)
-      REAL(KIND(1D0)) :: tos(nsurf, ndepth), tfs(nsurf, ndepth), tss(nsurf, ndepth), qss(nsurf), sfr(nsurf)
+      REAL(KIND(1D0)) :: tos(nsurf, ndepth), qss(nsurf), sfr(nsurf)
       REAL(KIND(1D0)) :: qs, dudt, qb, qi, rr, rw, qr, qw, area_r, area_w
       INTEGER :: i, mode
       TYPE(dts_ehc_implicit) :: seb
@@ -301,13 +301,11 @@ CONTAINS
       seb%t_deep_surf = 20.0D0
       seb%r_indoor_roof = rr
       seb%r_indoor_wall = rw
-      tfs = ts
-      tss = ts
       CALL EHC(300, 1, mode == 1, &
                [qr/10.0D0], [20.0D0], tr, kr, cr, dzr, [area_r], &
                [qw/10.0D0], [20.0D0], tw, kr, cr, dzr, [area_w], &
                SPREAD(qr/10.0D0, 1, nsurf), SPREAD(20.0D0, 1, nsurf), ts, ks, cs, dzs, sfr, &
-               tor, qsr, tow, qsw, tos, tfs, tss, qss, qs, dudt, qb, qi, err, seb)
+               tor, qsr, tow, qsw, tos, qss, qs, dudt, qb, qi, err, seb)
       PRINT '(A,ES24.16)', 'q_indoor ', qi
       PRINT '(A,ES24.16)', 'q_bottom ', qb
       PRINT '(A,ES24.16)', 'dudt ', dudt
@@ -332,7 +330,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer, ndepth) :: temp_r, k_r, cp_r, dz_r, tout_r, tout_w
       REAL(KIND(1D0)), DIMENSION(nsurf) :: tsfc_s, tin_s, sfr_s, qs_s_exp, qs_s_imp
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth) :: temp_s, k_s, cp_s, dz_s, tout_s_exp, tout_s_imp
-      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth) :: tfast_s, tslow_s
       REAL(KIND(1D0)), DIMENSION(ndepth) :: t_cn
       REAL(KIND(1D0)) :: qs, dudt, qbot, qin, qs_cn, qbot_cn
       TYPE(error_state) :: err
@@ -361,13 +358,11 @@ CONTAINS
       tin_w = 20.0D0
       sfr_w = 0.0D0
 
-      tfast_s = temp_s
-      tslow_s = temp_s
       CALL EHC(300, nlayer, .FALSE., &
                tsfc_r, tin_r, temp_r, k_r, cp_r, dz_r, sfr_r, &
                tsfc_w, tin_w, temp_r, k_r, cp_r, dz_r, sfr_w, &
                tsfc_s, tin_s, temp_s, k_s, cp_s, dz_s, sfr_s, &
-               tout_r, qs_r, tout_w, qs_w, tout_s_exp, tfast_s, tslow_s, qs_s_exp, qs, &
+               tout_r, qs_r, tout_w, qs_w, tout_s_exp, qs_s_exp, qs, &
                dudt, qbot, qin, err)
 
       ALLOCATE (seb%a_roof(nlayer), seb%b_roof(nlayer), seb%a_wall(nlayer), seb%b_wall(nlayer), &
@@ -380,13 +375,11 @@ CONTAINS
       seb%b_wall = 20.0D0
       seb%t_deep_surf = tin_s
       seb%t_indoor = 20.0D0
-      tfast_s = temp_s
-      tslow_s = temp_s
       CALL EHC(300, nlayer, .FALSE., &
                tsfc_r, tin_r, temp_r, k_r, cp_r, dz_r, sfr_r, &
                tsfc_w, tin_w, temp_r, k_r, cp_r, dz_r, sfr_w, &
                tsfc_s, tin_s, temp_s, k_s, cp_s, dz_s, sfr_s, &
-               tout_r, qs_r, tout_w, qs_w, tout_s_imp, tfast_s, tslow_s, qs_s_imp, qs, &
+               tout_r, qs_r, tout_w, qs_w, tout_s_imp, qs_s_imp, qs, &
                dudt, qbot, qin, err, seb)
 
       t_cn = temp_s(WaterSurf, :)

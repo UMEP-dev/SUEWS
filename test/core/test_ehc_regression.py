@@ -28,22 +28,20 @@ def _run_short_ehc_with_surface_cp(rho_cp, surface_rho_cp=None):
         }
         for name in SURFACE_NAMES
     }
-    sim.update_config(
-        {
-            "model": {
-                "physics": {
-                    "net_radiation": {"value": 3},
-                    "storage_heat": {"value": 5},
-                    "ehc_surface_coupling": "explicit",
-                }
-            },
-            "sites": {
-                "properties": {
-                    "land_cover": surface_updates,
-                }
-            },
-        }
-    )
+    sim.update_config({
+        "model": {
+            "physics": {
+                "net_radiation": {"value": 3},
+                "storage_heat": {"value": 5},
+                "ehc_surface_coupling": "explicit",
+            }
+        },
+        "sites": {
+            "properties": {
+                "land_cover": surface_updates,
+            }
+        },
+    })
 
     output = sim.run(end_date=sim._df_forcing.index[11])
     return output.df["SUEWS", "QS"].to_numpy()

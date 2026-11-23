@@ -740,12 +740,13 @@ CONTAINS
          END IF
          
          ! compute GDD/SDD reset days (for LAI) as function of latitude (seasons flipped between hemipsheres)
+         ! these correspond to middle of january and july (depth of summer/winter) respectively
          IF (lat >= 0) THEN
-            GDD_summer_reset_day = 182
-            SDD_winter_reset_day = 1
+            GDD_summer_reset_day = 196
+            SDD_winter_reset_day = 15
          ELSE
-            GDD_summer_reset_day = 1
-            SDD_winter_reset_day = 182
+            GDD_summer_reset_day = 15
+            SDD_winter_reset_day = 196
          END IF
 
 

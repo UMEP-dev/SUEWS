@@ -471,14 +471,16 @@ def test_warm_rain_on_snow_free_surfaces_is_conserved(wet_run: SnowRun):
     )
 
     rain_day = wet_run.on_days(DAY_WARM_RAIN)
-    assert wet_run.area_weighted_pack(exclude_water=True)[rain_day].max() == 0.0
+    assert int(rain_day.sum()) == TIMESTEPS_PER_DAY
+    assert not wet_run.area_weighted_pack(exclude_water=True)[rain_day].any()
     assert s["Rain"][rain_day].sum() == pytest.approx(WARM_RAIN_MM_H * 24.0)
     # the land surfaces get wet and the soil takes up water
     non_water = [surf for surf in SURFACES if surf != "Water"]
     assert max(s[f"St{surf}"][rain_day].max() for surf in non_water) > 0.0
     assert soil_change[rain_day].sum() > 0.0
     # One step, where the rain starts and the water body's pack takes it up,
-    # leaves about 9e-4 mm; every other step closes to below 1e-4 mm.
+    # leaves about 7e-4 mm; every other step closes to below 1e-4 mm.
+    assert np.isfinite(residual[rain_day].to_numpy()).all()
     assert residual[rain_day].abs().max() < 5e-3
     assert abs(residual[rain_day].sum()) < 0.01
 

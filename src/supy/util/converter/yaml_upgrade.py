@@ -2720,7 +2720,12 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
     if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
         _HANDLERS[(_source, "2026.6.dev17")] = _handler
         _HANDLERS[(_source, _target)] = _with_ehc_implicit_default_delta(_handler)
-_HANDLERS[("2026.6.dev17", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev17_to_2026_6_dev18
+_HANDLERS[("2026.6.dev17", "2026.6.dev17")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev17", CURRENT_SCHEMA_VERSION)] = _with_ehc_implicit_default_delta(
+    _with_integer_doy_delta(_with_senescence_check(_identity))
+)
 _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
     _with_senescence_check(_identity)
 )

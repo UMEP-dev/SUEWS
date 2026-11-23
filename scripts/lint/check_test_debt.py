@@ -1680,6 +1680,8 @@ def _update_unittest_env(target: _UnitEnv, source: _UnitEnv) -> None:
 def _classify_unittest_expr(expr: ast.AST, env: _UnitEnv) -> set[str]:
     if isinstance(expr, ast.Name) and isinstance(expr.ctx, ast.Load):
         return set(env.get(expr.id, ()))
+    if isinstance(expr, ast.NamedExpr):
+        return _classify_unittest_expr(expr.value, env)
     if isinstance(expr, ast.Attribute):
         bases = _classify_unittest_expr(expr.value, env)
         out: set[str] = set()
@@ -1711,10 +1713,13 @@ class _UnittestExpectedFailureFinder:
         self.module_env: _UnitEnv = {}
         self.module_seen_env: _UnitEnv = {}
         self._seen_sinks: list[_UnitEnv] = []
+        self._loop_sinks: list[tuple[_UnitEnv, _UnitEnv]] = []
         self._active_deferred: _DeferredMap = {}
         self._active_scope_kind: str = "module"
         self._active_non_class_env: _UnitEnv = self.module_env
         self._active_comp_bound: set[str] = set()
+        self._active_gen_walrus: _UnitEnv = {}
+        self._gen_walrus_targets: dict[int, _UnitEnv] = {}
 
     def _record_site(self, node: ast.AST) -> None:
         if id(node) not in self._seen_sites:
@@ -1756,12 +1761,28 @@ class _UnittestExpectedFailureFinder:
         if scope_kind == "module":
             _update_unittest_env(self.module_seen_env, env)
 
+    def _run_scope_fixed_point(
+        self, stmts: list[ast.stmt], base_env: _UnitEnv, scope_kind: str
+    ) -> None:
+        gen_walrus: _UnitEnv = {}
+        prev_gen_walrus = self._active_gen_walrus
+        self._active_gen_walrus = gen_walrus
+        try:
+            while True:
+                before_gen = _copy_unittest_env(gen_walrus)
+                scope_env = _merge_unittest_envs([base_env, gen_walrus])
+                if scope_kind == "module":
+                    self.module_env = scope_env
+                deferred: _DeferredMap = {}
+                self._walk_block(stmts, scope_env, scope_kind, scope_env, deferred)
+                self._flush_deferred(deferred)
+                if gen_walrus == before_gen:
+                    break
+        finally:
+            self._active_gen_walrus = prev_gen_walrus
+
     def collect(self) -> list[ast.AST]:
-        deferred: _DeferredMap = {}
-        self._walk_block(
-            self.tree.body, self.module_env, "module", self.module_env, deferred
-        )
-        self._flush_deferred(deferred)
+        self._run_scope_fixed_point(self.tree.body, {}, "module")
         return self.sites
 
     def _flush_expr_deferred(
@@ -1777,7 +1798,9 @@ class _UnittestExpectedFailureFinder:
             self._active_scope_kind,
             self._active_non_class_env,
             self._active_comp_bound,
+            self._loop_sinks,
         )
+        self._loop_sinks = []
         if isinstance(node, ast.Lambda):
             param_names = _function_param_names(node.args)
             body_env: _UnitEnv = {
@@ -1798,16 +1821,18 @@ class _UnittestExpectedFailureFinder:
                     self._active_scope_kind,
                     self._active_non_class_env,
                     self._active_comp_bound,
+                    self._loop_sinks,
                 ) = prev
         else:
             body_env = {k: set(v) for k, v in live_env.items() if k not in shadowed}
+            target_gen_walrus = self._gen_walrus_targets.get(id(node))
             self._active_deferred = expr_deferred
             self._active_scope_kind = "function"
             self._active_non_class_env = body_env
             self._active_comp_bound = set()
             try:
                 self._scan_comprehension_body(
-                    node, body_env, None, skip_first_iter=True
+                    node, body_env, target_gen_walrus, skip_first_iter=True
                 )
             finally:
                 (
@@ -1815,6 +1840,7 @@ class _UnittestExpectedFailureFinder:
                     self._active_scope_kind,
                     self._active_non_class_env,
                     self._active_comp_bound,
+                    self._loop_sinks,
                 ) = prev
         self._flush_deferred(expr_deferred)
 
@@ -1837,16 +1863,15 @@ class _UnittestExpectedFailureFinder:
                 if name in self.module_seen_env:
                     child_env.setdefault(name, set()).update(self.module_seen_env[name])
             _update_unittest_env(child_env, default_envs)
-            child_deferred: _DeferredMap = {}
             prev_sinks = self._seen_sinks
+            prev_loops = self._loop_sinks
             self._seen_sinks = []
+            self._loop_sinks = []
             try:
-                self._walk_block(
-                    node.body, child_env, "function", child_env, child_deferred
-                )
+                self._run_scope_fixed_point(node.body, child_env, "function")
             finally:
                 self._seen_sinks = prev_sinks
-            self._flush_deferred(child_deferred)
+                self._loop_sinks = prev_loops
 
     def _scan_comprehension_pass(
         self,
@@ -1931,6 +1956,7 @@ class _UnittestExpectedFailureFinder:
                 if self._active_scope_kind == "class"
                 else env
             )
+            self._gen_walrus_targets[id(expr)] = self._active_gen_walrus
             self._queue_deferred(
                 expr,
                 def_env,
@@ -2111,12 +2137,14 @@ class _UnittestExpectedFailureFinder:
                     env.pop(alias.asname or alias.name, None)
 
     def _handle_assign(self, stmt: ast.Assign, env: _UnitEnv) -> None:
-        self._scan_expr(stmt.value, env)
         parallel = isinstance(stmt.value, (ast.Tuple, ast.List)) and not any(
             isinstance(elt, ast.Starred) for elt in stmt.value.elts
         )
         if parallel:
-            kinds_list = [_classify_unittest_expr(elt, env) for elt in stmt.value.elts]
+            kinds_list: list[set[str]] = []
+            for elt in stmt.value.elts:
+                self._scan_expr(elt, env)
+                kinds_list.append(_classify_unittest_expr(elt, env))
             for target in stmt.targets:
                 if (
                     isinstance(target, (ast.Tuple, ast.List))
@@ -2130,6 +2158,7 @@ class _UnittestExpectedFailureFinder:
                 else:
                     self._bind_target(target, set(), env)
             return
+        self._scan_expr(stmt.value, env)
         kinds = _classify_unittest_expr(stmt.value, env)
         for target in stmt.targets:
             self._bind_target(target, kinds, env)
@@ -2176,11 +2205,14 @@ class _UnittestExpectedFailureFinder:
         outer_non_class = non_class_env if scope_kind == "class" else env
         class_env = _copy_unittest_env(outer_non_class)
         prev_sinks = self._seen_sinks
+        prev_loops = self._loop_sinks
         self._seen_sinks = []
+        self._loop_sinks = []
         try:
             self._walk_block(stmt.body, class_env, "class", outer_non_class, deferred)
         finally:
             self._seen_sinks = prev_sinks
+            self._loop_sinks = prev_loops
 
     def _walk_try_stmt(
         self,
@@ -2295,24 +2327,30 @@ class _UnittestExpectedFailureFinder:
             self._scan_expr(stmt.test, env)
         entry_env = _copy_unittest_env(env)
         iter_env = _copy_unittest_env(env)
-        while True:
-            before = _copy_unittest_env(iter_env)
-            body_env = _copy_unittest_env(iter_env)
-            if isinstance(stmt, (ast.For, ast.AsyncFor)):
-                self._bind_target(stmt.target, set(), body_env)
-            else:
-                self._scan_expr(stmt.test, body_env)
-            self._walk_block(
-                stmt.body,
-                body_env,
-                scope_kind,
-                non_class_env if in_class else body_env,
-                deferred,
-            )
-            merged_iter = _merge_unittest_envs([before, body_env])
-            if merged_iter == before:
-                break
-            iter_env = merged_iter
+        break_env: _UnitEnv = {}
+        continue_env: _UnitEnv = {}
+        self._loop_sinks.append((break_env, continue_env))
+        try:
+            while True:
+                before = _copy_unittest_env(iter_env)
+                body_env = _copy_unittest_env(iter_env)
+                if isinstance(stmt, (ast.For, ast.AsyncFor)):
+                    self._bind_target(stmt.target, set(), body_env)
+                else:
+                    self._scan_expr(stmt.test, body_env)
+                self._walk_block(
+                    stmt.body,
+                    body_env,
+                    scope_kind,
+                    non_class_env if in_class else body_env,
+                    deferred,
+                )
+                merged_iter = _merge_unittest_envs([before, body_env, continue_env])
+                if merged_iter == before:
+                    break
+                iter_env = merged_iter
+        finally:
+            self._loop_sinks.pop()
         else_env = _merge_unittest_envs([entry_env, iter_env])
         self._walk_block(
             stmt.orelse,
@@ -2322,7 +2360,7 @@ class _UnittestExpectedFailureFinder:
             deferred,
         )
         env.clear()
-        env.update(_merge_unittest_envs([entry_env, iter_env, else_env]))
+        env.update(_merge_unittest_envs([entry_env, iter_env, else_env, break_env]))
         self._propagate_to_deferred(env, scope_kind, deferred)
 
     def _walk_compound_stmt(
@@ -2376,6 +2414,12 @@ class _UnittestExpectedFailureFinder:
             self._scan_expr(stmt.test, env)
             if stmt.msg is not None:
                 self._scan_short_circuit_tail([stmt.msg], env, None)
+        elif isinstance(stmt, ast.Break):
+            if self._loop_sinks:
+                _update_unittest_env(self._loop_sinks[-1][0], env)
+        elif isinstance(stmt, ast.Continue):
+            if self._loop_sinks:
+                _update_unittest_env(self._loop_sinks[-1][1], env)
         else:
             for child in ast.iter_child_nodes(stmt):
                 self._scan_expr(child, env)

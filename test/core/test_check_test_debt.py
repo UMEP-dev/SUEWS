@@ -873,6 +873,36 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "[(marker(test_case), (marker := unittest.expectedFailure)) for _ in range(2)]\n",
             ["test/test_branch.py::<module>::1"],
         ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "mark, unused = ef, (ef := None)\n"
+            "@mark\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "marker = lambda fn: fn\n"
+            "for stop in [True]:\n"
+            "    marker = unittest.expectedFailure\n"
+            "    if stop:\n"
+            "        break\n"
+            "    marker = lambda fn: fn\n"
+            "@marker\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "gen = ((ef := marker) for _ in [0])\n"
+            "from unittest import expectedFailure as marker\n"
+            "list(gen)\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
     ],
 )
 def test_unittest_expected_failure_branch_merge_and_deferred_lookup(

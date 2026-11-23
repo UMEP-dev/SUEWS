@@ -33,6 +33,10 @@ inputs:
   metrics_host_dir:
     description: 'Host directory persisted across cibuildwheel containers for CI metrics'
     required: true
+  skip_tests:
+    description: 'Build and upload the wheel without running the physics tier inside cibuildwheel (the caller runs it in separate shard jobs on the uploaded wheel)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -310,6 +314,10 @@ runs:
         # installed in this lane and in test-api-cross-python-reusable.yml
         # because collection imports every test module regardless of the
         # marker filter.
+        # The pull-request and merge-queue layout runs the Linux physics tier in
+        # separate shard jobs on the uploaded wheel (build-wheels-reusable.yml,
+        # `physics`), so the wheel uploads as soon as it is repaired.
+        CIBW_TEST_SKIP: ${{ inputs.skip_tests == 'true' && '*' || '' }}
         CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
         # Test tiers: choose subset based on path detection and trigger.
         # gh#1300: physics tests are binary-determined, so one run per
@@ -363,6 +371,7 @@ runs:
         python scripts/suews/ci_phase_metrics.py
         --state "$SUEWS_CI_PHASES" finalise
         --pytest "$PYTEST_METRICS"
+        ${{ inputs.skip_tests == 'true' && '--tests-elsewhere' || '' }}
         --output "$WHEEL_METRICS"
         --job-name "$PHYSICS_JOB_NAME"
 

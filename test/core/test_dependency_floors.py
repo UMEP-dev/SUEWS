@@ -181,17 +181,29 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
             encoding="utf-8"
         )
     )
-    wheel_job = build_wf["jobs"]["lowest_direct_deps"]
+    # The floor job is chained inside the Linux build_wheels call, behind that
+    # wheel only, so it starts when the wheel exists; its result rolls into
+    # build_wheels, which report_scheduled_run and pr-gate read.
+    wheels_wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheel_job = wheels_wf["jobs"]["lowest_direct_deps"]
     assert wheel_job["name"] == "Lowest-direct dependency smoke tests (Linux cp312)"
-    assert {"detect-changes", "build_wheels"} <= set(wheel_job["needs"])
-    assert "dependency-audit-changed == 'true'" in wheel_job["if"]
-    assert "github.event_name == 'schedule'" in wheel_job["if"]
-    assert "inputs.lowest_direct_deps == true" in wheel_job["if"]
+    assert wheel_job["needs"] == "build"
+    assert wheel_job["if"] == "inputs.run_lowest_direct_deps"
     assert "continue-on-error" not in wheel_job
-    assert "lowest_direct_deps" in build_wf["jobs"]["report_scheduled_run"]["needs"]
+    trigger = build_wf["jobs"]["build_wheels"]["with"]["run_lowest_direct_deps"]
+    assert "matrix.buildplat[1] == 'manylinux'" in trigger
+    assert "dependency-audit-changed == 'true'" in trigger
+    assert "github.event_name == 'schedule'" in trigger
+    assert "inputs.lowest_direct_deps == true" in trigger
+    assert "lowest_direct_deps" not in build_wf["jobs"]
+    assert "build_wheels" in build_wf["jobs"]["report_scheduled_run"]["needs"]
 
     pr_gate = build_wf["jobs"]["pr-gate"]
-    assert "lowest_direct_deps" in pr_gate["needs"]
+    assert "build_wheels" in pr_gate["needs"]
     pr_gate_checkout = next(
         step
         for step in pr_gate["steps"]
@@ -204,7 +216,7 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
     pr_gate_step = next(step for step in pr_gate["steps"] if "run" in step)
     assert (
         pr_gate_step["env"]["LOWEST_DIRECT_DEPS_RESULT"]
-        == "${{ needs.lowest_direct_deps.result }}"
+        == "${{ needs.detect-changes.outputs.dependency-audit-changed == 'true' && needs.build_wheels.result || 'skipped' }}"
     )
     assert (
         pr_gate_step["env"]["LOWEST_DIRECT_DEPS_REQUIRED"]
@@ -231,11 +243,11 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
     declared_needs = json.loads(
         (REPO_ROOT / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
-    assert wheel_job["name"] in declared_needs
-    assert (
-        "Build and test (manylinux x86_64) / wheel | *" in declared_needs[wheel_job["name"]]
-    )
-    assert wheel_job["name"] in declared_needs["PR build validation"]
+    leaf = f"Build and test (manylinux x86_64) / {wheel_job['name']}"
+    assert leaf in declared_needs
+    assert "Build and test (manylinux x86_64) / wheel | *" in declared_needs[leaf]
+    # The gate reaches it through the build_wheels group.
+    assert "Build and test (*) / *" in declared_needs["PR build validation"]
 
 
 @pytest.mark.core
@@ -513,8 +525,7 @@ def test_path_classification_and_gate_triggers_for_normal_docs_and_gate_only_cha
     assert (
         "needs.detect-changes.outputs.dependency-audit-changed == 'true'" in dep_job_if
     )
-    wheel_job_if = build_wf["jobs"]["lowest_direct_deps"]["if"]
-    assert "needs.build_wheels.result == 'success'" in wheel_job_if
+    wheel_job_if = build_wf["jobs"]["build_wheels"]["with"]["run_lowest_direct_deps"]
     assert "pull_request" in wheel_job_if and "merge_group" in wheel_job_if
     assert (
         "needs.detect-changes.outputs.dependency-audit-changed == 'true'"

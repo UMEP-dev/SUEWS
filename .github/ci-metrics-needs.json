@@ -2,22 +2,26 @@
   "Build and test (manylinux x86_64) / API cross-CPython tests / *": [
     "Build and test (manylinux x86_64) / wheel | *",
     "Build MCP package",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Build and test (manylinux x86_64) / test layout"
   ],
   "Build and test (macosx arm64) / API cross-CPython tests / *": [
     "Build and test (macosx arm64) / wheel | *",
     "Build MCP package",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Build and test (macosx arm64) / test layout"
   ],
   "Build and test (macosx x86_64) / API cross-CPython tests / *": [
     "Build and test (macosx x86_64) / wheel | *",
     "Build MCP package",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Build and test (macosx x86_64) / test layout"
   ],
   "Build and test (win AMD64) / API cross-CPython tests / *": [
     "Build and test (win AMD64) / wheel | *",
     "Build MCP package",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Build and test (win AMD64) / test layout"
   ],
   "Build and test (manylinux x86_64) / Python coverage *": [
     "Build and test (manylinux x86_64) / wheel | *",
@@ -30,6 +34,25 @@
     "Detect code changes",
     "Determine build matrix",
     "Verify tag is on master"
+  ],
+  "Build and test (*) / test layout": [
+    "Build MCP package",
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Determine build matrix",
+    "Verify tag is on master"
+  ],
+  "Build and test (*) / fortran probes | *": [
+    "Build MCP package",
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Determine build matrix",
+    "Verify tag is on master"
+  ],
+  "Build and test (manylinux x86_64) / physics | *": [
+    "Build and test (manylinux x86_64) / fortran probes | *",
+    "Build and test (manylinux x86_64) / test layout",
+    "Build and test (manylinux x86_64) / wheel | *"
   ],
   "Build MCP package": [
     "Create nightly tag for scheduled builds",
@@ -53,9 +76,10 @@
   "Fortran uninitialized lint / *": [
     "Detect code changes"
   ],
-  "Lowest-direct dependency smoke tests (Linux cp312)": [
+  "Build and test (manylinux x86_64) / Lowest-direct dependency smoke tests (Linux cp312)": [
     "Build and test (manylinux x86_64) / wheel | *",
-    "Detect code changes"
+    "Build MCP package",
+    "Determine build matrix"
   ],
   "Physics-change label": [
     "Determine build matrix"
@@ -75,7 +99,6 @@
     "Determine build matrix",
     "Encoding audit / *",
     "Fortran uninitialized lint / *",
-    "Lowest-direct dependency smoke tests (Linux cp312)",
     "Physics-change label",
     "Rust C-API field observer / *",
     "Rust clippy / *",

@@ -215,9 +215,12 @@ def test_wheel_checkout_filters_blobs_but_keeps_provenance_safeguards() -> None:
     workflow = (PROJECT_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
         encoding="utf-8"
     )
+    # The wheel build job's checkout (the layout job before it checks out
+    # only scripts/suews).
+    build_job = workflow[workflow.index("\n  build:\n") :]
     checkout = re.search(
         r"uses: actions/checkout@[^\n]+\n(?P<inputs>(?:[ \t]+[^\n]+\n){1,8})",
-        workflow,
+        build_job,
     )
 
     assert checkout is not None

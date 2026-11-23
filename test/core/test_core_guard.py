@@ -332,3 +332,17 @@ def test_inventory_is_not_read_as_pytest_metrics(tmp_path: Path) -> None:
     skipped: list[str] = []
     load_tests([inventory], skipped=skipped)
     assert skipped == [inventory.as_posix()]
+
+
+def test_bookend_core_lane_is_judged_by_its_own_tier(tmp_path: Path) -> None:
+    """A ready PR runs cp315 at core-bookend: all core api tests, not the full tier."""
+    metrics = _layout(tmp_path)
+    _write(
+        metrics / "ci-metrics-api-cp315-manylinux-x86_64" / "api-cp315-manylinux-x86_64.json",
+        _selected("api", "core-bookend"),
+    )
+    allow = tmp_path / "allow.json"
+    ok = run_guard(metrics, "standard", ["cp312", "cp315"], allowlist_path=allow, bookend_core=True)
+    assert ok.errors == []
+    full = run_guard(metrics, "standard", ["cp312", "cp315"], allowlist_path=allow)
+    assert any("api | cp315" in e and "did not run" in e for e in full.errors), full.errors

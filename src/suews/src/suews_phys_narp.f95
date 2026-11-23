@@ -250,7 +250,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: Tsurf_ind_nosnow
       REAL(KIND(1D0)), DIMENSION(nsurf) :: lup_ind_snow
 
-      REAL(KIND(1D0)) :: tsurf_0_K
       REAL(KIND(1D0)) :: Temp_K, TD, ZENITH, QSTAR, QSTAR_SNOW, KUP_SNOW, LUP_SNOW
       REAL(KIND(1D0)) :: TSURF_SNOW_K, TSURF_SNOW_C, KUP, LUP, TSURF_K, TSURF_C
       REAL(KIND(1D0)) :: EMIS0, EMIS_A, TRANS !,RH,DTIME,KDOWN
@@ -273,7 +272,6 @@ CONTAINS
       ! KDOWN=avkdn
       KDOWN_HR = 0.
       tsfc_surf_K = tsfc_surf + C2K
-      ! tsurf_0_K = tsurf_0 + 273.15
       Temp_K = Temp_C + C2K
       SIGMATK4 = SIGMA_SB*Temp_K**4
       TD = dewpoint_narp(Temp_C, RH)
@@ -392,18 +390,13 @@ CONTAINS
             LUPCORR = 0.
          END IF
          !calculate Lup
-         IF (NetRadiationMethod_use < 10) THEN
-            ! NARP method
+         IF (NetRadiationMethod_use < 10 .OR. NetRadiationMethod_use == 3000) THEN
+            ! NARP method (including NetRadiationMethod=0 + SnowUse=1 sentinel 3000)
             TSURF_K = ((EMIS0*SIGMATK4 + LUPCORR)/(EMIS0*SIGMA_SB))**0.25 !Eqs. (14) and (15),
             LUP = EMIS0*SIGMATK4 + LUPCORR + (1 - EMIS0)*LDOWN !Eq (16) in Offerle et al. (2002)
          ELSE
             ! use iteration-based approach to calculate LUP and also TSURF; TS 20 Sep 2019
-            ! IF (storageheatmethod == 5) THEN
             TSURF_K = tsfc_surf_K(is)
-            ! ELSE
-            !    TSURF_K = tsurf_0_K
-            ! END IF
-            ! TSURF = tsfc_surf_K(is)
             LUP = EMIS0*SIGMA_SB*TSURF_K**4 + (1 - EMIS0)*LDOWN
          END IF
 
@@ -432,8 +425,8 @@ CONTAINS
 
             KUP_SNOW = (albedo_snow*(SnowFrac(is) - SnowFrac(is)*IceFrac(is)) + albedo_snowfree*SnowFrac(is)*IceFrac(is))*KDOWN
 
-            IF (NetRadiationMethod_use < 10) THEN
-               ! NARP method
+            IF (NetRadiationMethod_use < 10 .OR. NetRadiationMethod_use == 3000) THEN
+               ! NARP method (including NetRadiationMethod=0 + SnowUse=1 sentinel 3000)
                TSURF_SNOW_K = ((NARP_EMIS_SNOW*SIGMATK4)/(NARP_EMIS_SNOW*SIGMA_SB))**0.25 !Snow surface temperature
                !IF (TSURF_SNOW>273.15) TSURF_SNOW=min(273.15,Temp_K)!Set this to 2 degrees (melted water on top)
                !open(34,file='TestingSnowFrac.txt',position='append')
@@ -441,8 +434,8 @@ CONTAINS
                !close(34)
                LUP_SNOW = NARP_EMIS_SNOW*SIGMA_SB*TSURF_SNOW_K**4 + (1 - NARP_EMIS_SNOW)*LDOWN
             ELSE
-               ! use iteration-based approach to calculate LUP and also TSURF; TS 20 Sep 2019
-               TSURF_SNOW_K = tsurf_0_K
+               ! use iteration-based approach to calculate LUP and also TSURF; cap snow emission at melting point
+               TSURF_SNOW_K = MIN(tsfc_surf_K(is), C2K)
                LUP_SNOW = NARP_EMIS_SNOW*SIGMA_SB*TSURF_SNOW_K**4 + (1 - NARP_EMIS_SNOW)*LDOWN
             END IF
 

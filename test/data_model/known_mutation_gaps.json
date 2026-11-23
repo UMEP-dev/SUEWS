@@ -135,23 +135,11 @@
         "irrigation_and_dls"
       ],
       "path_patterns": [
-        "sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_1",
-        "sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_2",
         "sites[0].properties.land_cover.paved.storage_drain_params.store_max",
-        "sites[0].properties.land_cover.bldgs.storage_drain_params.drain_coef_1",
-        "sites[0].properties.land_cover.bldgs.storage_drain_params.drain_coef_2",
         "sites[0].properties.land_cover.bldgs.storage_drain_params.store_max",
-        "sites[0].properties.land_cover.evetr.storage_drain_params.drain_coef_1",
-        "sites[0].properties.land_cover.evetr.storage_drain_params.drain_coef_2",
         "sites[0].properties.land_cover.evetr.storage_drain_params.store_max",
-        "sites[0].properties.land_cover.dectr.storage_drain_params.drain_coef_1",
-        "sites[0].properties.land_cover.dectr.storage_drain_params.drain_coef_2",
         "sites[0].properties.land_cover.dectr.storage_drain_params.store_max",
-        "sites[0].properties.land_cover.grass.storage_drain_params.drain_coef_1",
-        "sites[0].properties.land_cover.grass.storage_drain_params.drain_coef_2",
         "sites[0].properties.land_cover.grass.storage_drain_params.store_max",
-        "sites[0].properties.land_cover.bsoil.storage_drain_params.drain_coef_1",
-        "sites[0].properties.land_cover.bsoil.storage_drain_params.drain_coef_2",
         "sites[0].properties.land_cover.bsoil.storage_drain_params.store_max"
       ],
       "mutations": {
@@ -160,14 +148,14 @@
         "wrapped_null": "null_or_empty"
       },
       "category": "active_gap",
-      "active_condition": "Active for all six non-water surfaces with sfr > 0; omitting drain_coef_1/2 or store_max silently alters runoff and QE.",
+      "active_condition": "Active for all six non-water surfaces with sfr > 0; omitting store_max silently alters runoff and QE.",
       "owner_issue": "#2101",
       "related_issues": [
         "#1991",
         "#2001",
         "#2002"
       ],
-      "rationale": "StorageDrainParams.drain_coef_1, drain_coef_2, and store_max default to None and are silently dropped on omit or nulled in engine YAML."
+      "rationale": "StorageDrainParams.store_max defaults to None and is silently dropped on omit or nulled in engine YAML (drain_coef_1 and drain_coef_2 are enforced in schema 2026.6.dev15)."
     },
     {
       "id": "drainage-params-water-inactive",

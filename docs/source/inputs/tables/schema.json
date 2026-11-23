@@ -12224,7 +12224,7 @@
             "selector_scope": "sibling"
           },
           "default": null,
-          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 1",
           "title": "Drain Coef 1"
         },
@@ -12272,7 +12272,7 @@
             "selector_scope": "sibling"
           },
           "default": null,
-          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 2",
           "title": "Drain Coef 2"
         },
@@ -13735,7 +13735,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev14. Remaining continuation-only initial_states fields are internal to cold starts (#2003). Fresh-run evetr/dectr/grass.wu, dt_since_start, tair_av, tstep_prev, l_mod, ustar, ra_h, rb, and rs inputs are rejected; legacy cold-start placeholders are removed with an explicit migration message. Non-placeholder values require an explicit choice of cold start or complete checkpoint continuation. Numerical seeds and checkpoint payloads are unchanged.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev15. Require finite drain_coef_1 and drain_coef_2 for active non-water surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains accepted. Diagnose missing active drainage blocks and fractional native/mutable selectors without assigning new equation semantics. Migration preserves supplied values and refuses to invent missing blocks or coefficients; inactive surfaces and water are unchanged.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13788,20 +13788,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev14",
+  "title": "SUEWS Configuration Schema v2026.6.dev15",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev14.json",
-  "version": "2026.6.dev14",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev15.json",
+  "version": "2026.6.dev15",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev14"
+    "schema_version": "2026.6.dev15"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev14",
+      "schema_version": "2026.6.dev15",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

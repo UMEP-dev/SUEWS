@@ -1854,6 +1854,66 @@ def _unwrap_ref(value):
     return value
 
 
+def _control_tstep(control: dict) -> int:
+    """Return ``model.control.tstep`` as an int, defaulting to 300 s."""
+    try:
+        return int(_unwrap_ref(control.get("tstep", 300)))
+    except (TypeError, ValueError):
+        return 300
+
+
+def _load_forcing_index(forcing_file_path, yaml_dir: Path, tstep: int):
+    """Load the forcing as ``SUEWSSimulation`` does and return its time index.
+
+    ``forcing_file_path`` is one path or a list of paths, already unwrapped
+    from any RefValue; relative paths resolve against ``yaml_dir``.
+    """
+    from supy.suews_sim import SUEWSSimulation
+
+    def _resolve(item) -> Path:
+        path = Path(item).expanduser()
+        return path if path.is_absolute() else yaml_dir / path
+
+    if isinstance(forcing_file_path, list):
+        df_forcing = SUEWSSimulation._load_forcing_from_list(
+            [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
+        )
+    else:
+        df_forcing = SUEWSSimulation._load_forcing_file(
+            _resolve(forcing_file_path), tstep_mod=tstep
+        )
+    return df_forcing.index
+
+
+def forcing_date_bounds(
+    config_data: object, yaml_dir: Path
+) -> tuple[str | None, str | None]:
+    """Return the first and last forcing days as ``YYYY-MM-DD`` strings.
+
+    A run with no ``start_time``/``end_time`` covers the forcing it is given,
+    so the validators take the missing bound from the forcing file named in
+    ``model.control``. Returns ``(None, None)`` when the forcing is supplied
+    at runtime, is not named, or cannot be read.
+    """
+    if not isinstance(config_data, dict):
+        return None, None
+    model = config_data.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    present, forcing_file_path = _resolve_forcing_file_entry(control)
+    forcing_file_path = _unwrap_ref(forcing_file_path)
+    if not present or forcing_file_path in (None, "", []):
+        return None, None
+    try:
+        index = _load_forcing_index(
+            forcing_file_path, yaml_dir, _control_tstep(control)
+        )
+    except Exception:  # any read failure means the bounds are unknown
+        return None, None
+    if len(index) == 0:
+        return None, None
+    return index[0].strftime("%Y-%m-%d"), index[-1].strftime("%Y-%m-%d")
+
+
 def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> list:
     """
     Check that the forcing covers ``model.control.start_time`` / ``end_time``.
@@ -1883,28 +1943,12 @@ def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> li
     if start_time is None and end_time is None:
         return []
 
-    try:
-        tstep = int(_unwrap_ref(control.get("tstep", 300)))
-    except (TypeError, ValueError):
-        tstep = 300
+    tstep = _control_tstep(control)
 
     try:
         from supy._run_period import coverage_problem, resolve_run_period
-        from supy.suews_sim import SUEWSSimulation
 
-        def _resolve(item) -> Path:
-            path = Path(item).expanduser()
-            return path if path.is_absolute() else yaml_dir / path
-
-        if isinstance(forcing_file_path, list):
-            df_forcing = SUEWSSimulation._load_forcing_from_list(
-                [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
-            )
-        else:
-            df_forcing = SUEWSSimulation._load_forcing_file(
-                _resolve(forcing_file_path), tstep_mod=tstep
-            )
-        index = df_forcing.index
+        index = _load_forcing_index(forcing_file_path, yaml_dir, tstep)
         period = resolve_run_period(start_time, end_time, index)
         problem = coverage_problem(period, index, tstep)
     except Exception as e:

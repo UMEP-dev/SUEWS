@@ -25,6 +25,7 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from copy import deepcopy
+from pathlib import Path
 import pandas as pd
 import numpy as np
 
@@ -51,6 +52,7 @@ from ..core.yaml_helpers import (
 )
 from ...core.field_renames import normalise_yaml_renames
 from ...core.profile import normalise_hourly_profile_keys_in_raw_config
+from .phase_a import forcing_date_bounds
 
 from .phase_b_rules.rules_core import rule_crash_result
 from .phase_b_rules import (
@@ -376,6 +378,73 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     if errors:
         raise ValueError("; ".join(errors))
     return model_year, start_date, end_date
+
+
+def resolve_simulation_parameters(
+    yaml_data: dict, yaml_dir: Path | None = None
+) -> tuple[int | None, str | None, str | None, list[ValidationResult]]:
+    """Return the run's year and calendar bounds, filling gaps from the forcing.
+
+    ``model.control.start_time`` and ``end_time`` are optional: a run without
+    them covers the forcing it is given. A missing bound is therefore taken
+    from the forcing file named in ``model.control`` (relative paths resolve
+    against ``yaml_dir``). When the start still cannot be established (forcing
+    supplied at runtime or unreadable), the start is returned as None and a
+    WARNING says which season-dependent checks are skipped.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Raw YAML configuration.
+    yaml_dir : Path, optional
+        Directory of the user YAML, used to resolve a relative forcing path.
+
+    Returns
+    -------
+    tuple
+        ``(model_year, start_date, end_date, notes)``; ``notes`` holds the
+        WARNING described above, if any.
+
+    Raises
+    ------
+    ValueError
+        If a bound is set but is neither a date nor a timestamp.
+    """
+    errors, model_year, start_date, end_date = parse_simulation_bounds(
+        yaml_data, allow_missing=True
+    )
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    if start_date is None or end_date is None:
+        forcing_start, forcing_end = forcing_date_bounds(
+            yaml_data, yaml_dir if yaml_dir is not None else Path.cwd()
+        )
+        start_date = start_date or forcing_start
+        end_date = end_date or forcing_end
+        if start_date is not None:
+            model_year = int(start_date[:4])
+
+    notes: list[ValidationResult] = []
+    if start_date is None:
+        notes.append(
+            ValidationResult(
+                status="WARNING",
+                category="SEASONAL",
+                parameter="model.control.start_time",
+                message=(
+                    "model.control.start_time is not set and the forcing could "
+                    "not be read, so the season-dependent checks and suggestions "
+                    "(initial temperatures, LAI, albedo, daylight saving, "
+                    "irrigation days) were skipped."
+                ),
+                suggested_value=(
+                    "Set model.control.start_time, or name a readable forcing "
+                    "file, to enable these checks."
+                ),
+            )
+        )
+    return model_year, start_date, end_date, notes
 
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
@@ -2495,17 +2564,23 @@ def run_scientific_adjustment_pipeline(
     updated_data = deepcopy(yaml_data)
     adjustments = []
 
-    for adjust_func, args in [
-        (adjust_surface_temperatures, (updated_data, start_date)),
-        (adjust_land_cover_fractions, (updated_data,)),
-        (adjust_model_dependent_nullification, (updated_data,)),
-        (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
-        (adjust_model_option_rcmethod, (updated_data,)),
-        (adjust_model_option_setpointmethod, (updated_data,)),
-        (adjust_model_option_stebbsmethod, (updated_data,))
+    # Without a start date (no start_time and no readable forcing) the
+    # season-dependent steps have nothing to work from; the caller reports
+    # that they were skipped.
+    has_start = start_date is not None
+    for adjust_func, args, needs_start in [
+        (adjust_surface_temperatures, (updated_data, start_date), True),
+        (adjust_land_cover_fractions, (updated_data,), False),
+        (adjust_model_dependent_nullification, (updated_data,), False),
+        (adjust_seasonal_parameters, (updated_data, start_date, model_year), True),
+        (adjust_model_option_rcmethod, (updated_data,), False),
+        (adjust_model_option_setpointmethod, (updated_data,), False),
+        (adjust_model_option_stebbsmethod, (updated_data,), False),
     ]:
+        if needs_start and not has_start:
+            continue
         if errors is None:
-            updated_data, adj = adjust_func(*args)
+            updated_data, adj = adjust_func(updated_data, *args[1:])
             adjustments.extend(adj)
             continue
         snapshot = deepcopy(updated_data)
@@ -3018,7 +3093,11 @@ def run_science_check(
             uptodate_yaml_file, user_yaml_file, standard_yaml_file
         )
 
-        model_year, start_date, end_date = extract_simulation_parameters(uptodate_data)
+        model_year, start_date, end_date, bound_notes = (
+            resolve_simulation_parameters(
+                uptodate_data, Path(user_yaml_file).parent
+            )
+        )
 
         validation_context = ValidationContext(
             yaml_data=uptodate_data,
@@ -3026,7 +3105,7 @@ def run_science_check(
             model_year=model_year,
         )
 
-        validation_results = RulesRegistry(
+        validation_results = bound_notes + RulesRegistry(
             context=validation_context
         ).run_validation()
 

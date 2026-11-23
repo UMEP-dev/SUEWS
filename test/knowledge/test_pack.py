@@ -445,3 +445,87 @@ def test_re_cutting_drops_a_whitespace_only_group(tmp_path: Path) -> None:
         if not chunk["text"].strip()
     ]
     assert not empty, f"whitespace-only chunks emitted at {empty}"
+
+
+def test_main_writes_depfile_of_pack_inputs(tmp_path: Path) -> None:
+    """The Meson target relies on this depfile instead of rebuilding always."""
+    from supy.knowledge.pack import _main
+
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    path_pack = tmp_path / "pack"
+    path_depfile = tmp_path / "pack.d"
+
+    assert (
+        _main(
+            [
+                str(path_repo),
+                str(path_pack),
+                "--git-sha",
+                "abc123",
+                "--depfile",
+                str(path_depfile),
+                "--depfile-target",
+                "src/supy/manifest.json",
+            ]
+        )
+        == 0
+    )
+
+    text = path_depfile.read_text(encoding="utf-8")
+    assert text.startswith("src/supy/manifest.json: ")
+    deps = {token.rstrip("\\").strip() for token in text.split(": ", 1)[1].split()}
+    deps.discard("")
+    repo = path_repo.resolve()
+    assert (repo / "src/suews/src/suews_phys_evap.f95").as_posix() in deps
+    assert (repo / "src/supy/cmd/example.py").as_posix() in deps
+    assert (repo / "src/supy/_version_scm.py").as_posix() in deps
+    assert (repo / "docs/source/index.rst").as_posix() not in deps
+
+
+def test_pack_inputs_track_git_index_and_head(tmp_path: Path) -> None:
+    """A commit or a newly tracked file must make the pack stale."""
+    import shutil
+    import subprocess
+
+    from supy.knowledge.pack import pack_input_paths
+
+    if shutil.which("git") is None:
+        pytest.skip("git is not available")
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+
+    def git(*args: str) -> None:
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+                *args,
+            ],
+            cwd=path_repo,
+            check=True,
+            capture_output=True,
+        )
+
+    # ``git init -b`` needs Git 2.28; naming the unborn branch works everywhere.
+    git("init", "-q")
+    git("symbolic-ref", "HEAD", "refs/heads/main")
+    git("add", "-A")
+    git("commit", "-q", "-m", "init")
+
+    inputs = {path.resolve() for path in pack_input_paths(path_repo)}
+    git_dir = (path_repo / ".git").resolve()
+    assert git_dir / "index" in inputs
+    assert git_dir / "HEAD" in inputs
+    assert git_dir / "logs/HEAD" in inputs
+    assert git_dir / "refs/heads/main" in inputs
+    assert (path_repo / "src/supy/cmd/example.py").resolve() in inputs
+    # Untracked files are not packed, so they are not inputs either.
+    _write(path_repo / "src/supy/cmd/untracked.py", "X = 1\n")
+    inputs = {path.resolve() for path in pack_input_paths(path_repo)}
+    assert (path_repo / "src/supy/cmd/untracked.py").resolve() not in inputs

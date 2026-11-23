@@ -1122,8 +1122,6 @@ CONTAINS
             use_implicit = StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1
             IF (use_implicit) THEN
                CALL ehc_implicit_qf_surface(sfr_surf, ehcDiag%ehc_q_indoor, qf_surf_ehc)
-            ELSE
-               qf_surf_ehc = qf
             END IF
 
             ! Implicit EHC coupling: Tsfc was solved with the conduction columns
@@ -3851,8 +3849,8 @@ CONTAINS
       TYPE(dts_ehc_diagnostics), INTENT(inout) :: ehcDiag
 
       INTEGER :: is
-      LOGICAL :: use_building_facets_for_ehc
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qf_surf_ehc
+      LOGICAL :: use_building_facets_for_ehc
 
       ASSOCIATE ( &
          snowState => modState%snowState, &

@@ -83,7 +83,7 @@ def _active(frame, mode):
     elif mode == "co2":
         series = frame["SUEWS", "FcPhoto"]
         assert (series != 0).any(), "Biogenic CO2 is inactive"
-    elif mode == "ehc":
+    elif mode in {"ehc", "ehc_explicit"}:
         series = frame["SUEWS", "QS"]
     elif mode == "stebbs":
         series = frame["STEBBS", "Tair_ind"]
@@ -128,6 +128,9 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
         ].properties.building_archetype.model_copy(deep=True)
     elif mode == "ehc":
         physics.storage_heat = 5
+    elif mode == "ehc_explicit":
+        physics.storage_heat = 5
+        physics.ehc_surface_coupling = 0
     elif mode == "irrigation":
         props = cfg.sites[0].properties
         irr = props.irrigation
@@ -167,6 +170,7 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
         "spartacus",
         "stebbs",
         "ehc",
+        "ehc_explicit",
         "irrigation",
         "co2",
     ],

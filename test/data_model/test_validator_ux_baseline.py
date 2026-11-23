@@ -19,6 +19,7 @@ import pytest
 import yaml
 
 from supy.cmd.suews_cli import cli as suews_cli
+from supy.data_model.validation.pipeline import phase_b
 
 pytestmark = [
     pytest.mark.api,
@@ -207,3 +208,78 @@ def test_abc_failure_stopping_phase_and_exit_code(
     expected_phases = {"A": ["A"], "B": ["A", "B"], "C": ["A", "B", "C"]}[failed_phase]
     assert [phase["phase"] for phase in sidecar["phases"]] == expected_phases
     assert sidecar["phases"][-1]["status"] == "FAILED"
+
+
+def test_continue_on_error_runs_downstream_phases_without_applying_fixes(
+    tmp_path: Path,
+) -> None:
+    """--continue-on-error runs downstream phases read-only while preserving exit code 1."""
+    config_path = _copy_sample_case(tmp_path)
+    payload = _load_yaml(config_path)
+    # Fail Phase A (missing critical physics) AND have a Phase B warning/error and C error.
+    payload["model"]["physics"].pop("net_radiation")
+    payload["sites"][0]["properties"]["unexpected_phase_c_key"] = 999
+    _write_yaml(config_path, payload)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        suews_cli,
+        [
+            "validate",
+            "-p",
+            "ABC",
+            "--forcing",
+            "off",
+            "--science-fixes",
+            "apply",
+            "--continue-on-error",
+            "--format",
+            "json",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 1, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "error"
+    assert envelope["data"]["phases_run"] == ["A", "B", "C"]
+    phases = envelope["data"]["validation_report"]["phases"]
+    assert [phase["phase"] for phase in phases] == ["A", "B", "C"]
+    assert phases[0]["status"] == "FAILED"
+    assert phases[2]["status"] == "FAILED"
+    # Downstream Phase B must not apply mutating fixes after an upstream failure.
+    assert not any(
+        issue["severity"] == "APPLIED_FIX" for issue in phases[1]["issues"]
+    )
+
+
+def test_phase_b_apply_runs_adjustment_pipeline_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Phase B ``--science-fixes apply`` invokes the adjustment pipeline once, not twice."""
+    config_path = _copy_sample_case(tmp_path)
+    calls = 0
+    original = phase_b.run_scientific_adjustment_pipeline
+
+    def _counting_pipeline(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(phase_b, "run_scientific_adjustment_pipeline", _counting_pipeline)
+
+    science_yaml = tmp_path / "science.yml"
+    science_report = tmp_path / "science_report.txt"
+    _, report = phase_b.run_science_check(
+        uptodate_yaml_file=str(config_path),
+        user_yaml_file=str(config_path),
+        standard_yaml_file=str(config_path),
+        science_yaml_file=str(science_yaml),
+        science_report_file=str(science_report),
+        phase_a_performed=False,
+        science_fixes="apply",
+    )
+
+    assert not report.has_errors
+    assert calls == 1
+

@@ -14,7 +14,6 @@ import io
 import logging
 from copy import deepcopy
 from pathlib import Path
-import importlib.resources
 from typing import Optional, List
 import jsonschema
 from rich import box
@@ -23,7 +22,6 @@ from rich.table import Table
 from rich.text import Text
 
 from ..data_model.validation.pipeline.report_writer import (
-    REPORT_WRITER,
     sync_text_report_stopping_phase,
 )
 
@@ -467,6 +465,12 @@ def _emit_validation_envelope(
     show_default=True,
     help="Handle Phase B scientific transformations: suggest, apply, or off",
 )
+@click.option(
+    "--continue-on-error",
+    is_flag=True,
+    default=False,
+    help="Continue running downstream read-only phases after an earlier phase reports errors",
+)
 @click.pass_context
 def cli(
     ctx,
@@ -478,6 +482,7 @@ def cli(
     schema_version,
     forcing,
     science_fixes,
+    continue_on_error,
 ):
     """SUEWS Configuration Validator.
 
@@ -617,6 +622,7 @@ def cli(
         forcing=forcing,
         science_fixes=science_fixes,
         out_format=out_format,
+        continue_on_error=continue_on_error,
     )
     ctx.exit(code)
 
@@ -989,6 +995,7 @@ def _execute_pipeline(
     forcing="on",
     science_fixes="suggest",
     out_format: str = "table",
+    continue_on_error: bool = False,
 ):
     """Run YAML validation pipeline to validate and generate reports/YAML.
 
@@ -1085,581 +1092,104 @@ def _execute_pipeline(
         else {}
     )
 
-    if pipeline == "ABC":
-        from ..data_model.validation.pipeline.orchestrator import (
-            ABCOutputError, ABCPublicationInterrupted, run_abc_pipeline,
-        )
+    from ..data_model.validation.pipeline.orchestrator import (
+        ABCOutputError,
+        ABCPublicationInterrupted,
+        run_abc_pipeline,
+        run_pipeline,
+    )
 
-        logger = logging.getLogger("SuPy")
-        was_disabled = logger.disabled
-        try:
-            if out_format == "json":
-                # The configured handler may hold the original stdout stream,
-                # beyond redirect_stdout. Typed reports carry these diagnostics.
-                logger.disabled = True
-            # Reports carry the diagnostics. Legacy phase progress must never
-            # contaminate the one public JSON envelope on stdout.
-            with redirect_stdout(io.StringIO()), silent_supy_logger():
+    final_yaml_name = (
+        f"updated{pipeline}_{Path(user_yaml_file).name}"
+        if pipeline in ("A", "B")
+        else None
+    )
+    logger = logging.getLogger("SuPy")
+    was_disabled = logger.disabled
+    try:
+        if out_format == "json":
+            # The configured handler may hold the original stdout stream,
+            # beyond redirect_stdout. Typed reports carry these diagnostics.
+            logger.disabled = True
+        # Reports carry the diagnostics. Legacy phase progress must never
+        # contaminate the one public JSON envelope on stdout.
+        with redirect_stdout(io.StringIO()), silent_supy_logger():
+            if pipeline == "ABC" and not continue_on_error:
                 result = run_abc_pipeline(
-                    user_yaml_file, mode=mode, forcing=forcing,
+                    user_yaml_file,
+                    mode=mode,
+                    forcing=forcing,
                     science_fixes=science_fixes,
                     **phase_a_preload_kwargs,
                 )
-        except ABCPublicationInterrupted as exc:
-            # Name the outputs left inconsistent before the interrupt
-            # propagates; Click would otherwise print only "Aborted!".
-            logger.disabled = was_disabled
-            _emit_pipeline_startup_error(
-                _interrupted_publication_message(exc), out_format=out_format,
-                command=command_str, started_at=started_at,
-                code="output_publication_interrupted",
-                data={
-                    "file": user_yaml_file,
-                    "evidence_dir": str(exc.evidence_dir),
-                    "unrestored_outputs": [
-                        {
-                            "path": str(item.path),
-                            "error": item.error,
-                            "backup": str(item.backup) if item.backup else None,
-                        }
-                        for item in exc.unrestored
-                    ],
-                },
-            )
-            raise
-        except ABCOutputError as exc:
-            return _emit_pipeline_startup_error(
-                str(exc), out_format=out_format, command=command_str,
-                started_at=started_at, code="output_write_failed",
-                data={"file": user_yaml_file, "evidence_dir": str(exc.evidence_dir)},
-            )
-        except Exception as exc:
-            # Keep rollback-failure notes a non-OSError publication failure carries.
-            notes = [str(note) for note in getattr(exc, "__notes__", ())]
-            return _emit_pipeline_startup_error(
-                "; ".join([str(exc), *notes]), out_format=out_format,
-                command=command_str, started_at=started_at,
-                code="pipeline_execution_failed",
-                data={"file": user_yaml_file},
-            )
-        finally:
-            logger.disabled = was_disabled
-        return _render_pipeline_result(
-            result.phases, result.report_path, result.yaml_path,
-            out_format=out_format, command=command_str, started_at=started_at,
-            evidence_dir=result.evidence_dir, cleanup_warning=result.cleanup_warning,
-        )
-
-    # Use importlib.resources for robust package resource access
-    # Use string "supy" instead of module reference to avoid NameError
-    # Read the standard config content directly to avoid temp file cleanup issues
-    # when package is installed from a wheel (as_file() creates temp files that
-    # are deleted when context manager exits)
-    import tempfile
-
-    sample_data_files = importlib.resources.files("supy") / "sample_data"
-    standard_config_content = (sample_data_files / "sample_config.yml").read_text(encoding="utf-8")
-
-    # Write to a persistent temp file that won't be deleted during pipeline execution
-    with tempfile.NamedTemporaryFile(
-        encoding="utf-8", mode="w", suffix=".yml", delete=False
-    ) as tmp_standard:
-        tmp_standard.write(standard_config_content)
-        standard_yaml_file = tmp_standard.name
-
-    (
-        uptodate_file,
-        report_file,
-        science_yaml_file,
-        science_report_file,
-        pydantic_yaml_file,
-        pydantic_report_file,
-        _dirname,
-    ) = _processor_setup_output_paths(user_yaml_file, pipeline)
-
-    # Execute selected phases (logic mirrors orchestrator.main for consistency)
-    if pipeline == "A":
-        phase_a_report = _processor_run_phase_a(
-            user_yaml_file,
-            standard_yaml_file,
-            uptodate_file,
-            report_file,
-            mode=mode,
-            phase="A",
-            silent=True,
-            forcing=forcing,
-            **phase_a_preload_kwargs,
-        )
-        return _emit_pipeline_result(
-            phases=[phase_a_report],
-            report_path=report_file,
-            yaml_path=uptodate_file,
-            out_format=out_format,
-            command=command_str,
-            started_at=started_at,
-        )
-
-    if pipeline == "B":
-        phase_b_report = _processor_run_phase_b(
-            user_yaml_file,
-            user_yaml_file,
-            standard_yaml_file,
-            science_yaml_file,
-            science_report_file,
-            None,
-            phase_a_performed=False,
-            mode=mode,
-            phase="B",
-            silent=True,
-            science_fixes=science_fixes,
-        )
-        return _emit_pipeline_result(
-            phases=[phase_b_report],
-            report_path=science_report_file,
-            yaml_path=science_yaml_file,
-            out_format=out_format,
-            command=command_str,
-            started_at=started_at,
-        )
-
-    if pipeline == "C":
-        phase_c_report = _processor_run_phase_c(
-            user_yaml_file,
-            pydantic_yaml_file,
-            pydantic_report_file,
-            mode=mode,
-            phases_run=["C"],
-            silent=True,
-        )
-        return _emit_pipeline_result(
-            phases=[phase_c_report],
-            report_path=pydantic_report_file,
-            yaml_path=pydantic_yaml_file,
-            out_format=out_format,
-            command=command_str,
-            started_at=started_at,
-        )
-
-    if pipeline == "AB":
-        a_ok_report = _processor_run_phase_a(
-            user_yaml_file,
-            standard_yaml_file,
-            uptodate_file,
-            report_file,
-            mode=mode,
-            phase="AB",
-            silent=True,
-            forcing=forcing,
-            **phase_a_preload_kwargs,
-        )
-        a_ok = not a_ok_report.has_errors
-        if not a_ok:
-            # Phase A failed in AB workflow - create final user files from Phase A outputs
-            final_yaml, final_report = _processor_create_final_user_files(
-                user_yaml_file, uptodate_file, report_file
-            )
-            return _emit_pipeline_result(
-                phases=[a_ok_report],
-                report_path=final_report,
-                yaml_path=final_yaml,
-                out_format=out_format,
-                command=command_str,
-                started_at=started_at,
-            )
-
-        b_ok_report = _processor_run_phase_b(
-            user_yaml_file,
-            uptodate_file,
-            standard_yaml_file,
-            science_yaml_file,
-            science_report_file,
-            report_file,
-            phase_a_performed=True,
-            mode=mode,
-            phase="AB",
-            silent=True,
-            science_fixes=science_fixes,
-        )
-        b_ok = not b_ok_report.has_errors
-
-        if not b_ok:
-            # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
-            import shutil
-
-            # Determine final file paths
-            dirname = Path(user_yaml_file).parent
-            basename = Path(user_yaml_file).name
-            name_without_ext = Path(user_yaml_file).stem
-            final_yaml = dirname / f"updated_{basename}"
-            final_report = dirname / f"report_{name_without_ext}.txt"
-
-            try:
-                # Use Phase A YAML as final (last successful phase)
-                if Path(uptodate_file).exists():
-                    shutil.move(str(uptodate_file), str(final_yaml))
-                else:
-                    console.print(
-                        _console_text(f"Warning: Updated YAML not found: {uptodate_file}", "yellow")
-                    )
-
-                # Use Phase B report as final (contains the errors)
-                if Path(science_report_file).exists():
-                    _processor_move_report_with_json(
-                        science_report_file, final_report, final_yaml
-                    )
-
-                # Clean up intermediate Phase A report
-                _processor_unlink_report_with_json(report_file)
-
-                # Remove failed Phase B YAML if it exists (only if different from final_yaml)
-                if Path(science_yaml_file).exists() and str(science_yaml_file) != str(
-                    final_yaml
-                ):
-                    Path(science_yaml_file).unlink()
-            except Exception as e:
-                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
-
-            return _emit_pipeline_result(
-                phases=[a_ok_report, b_ok_report],
-                report_path=final_report,
-                yaml_path=final_yaml,
-                out_format=out_format,
-                command=command_str,
-                started_at=started_at,
-            )
-
-        # Both A and B succeeded - consolidate reports and clean up intermediate files
-        from ..data_model.validation.pipeline.orchestrator import (
-            extract_no_action_messages_from_report,
-            create_consolidated_report,
-        )
-
-        try:
-            # Extract NO ACTION NEEDED messages from both phases
-            all_messages = []
-            if Path(report_file).exists():
-                all_messages.extend(extract_no_action_messages_from_report(report_file))
-            if Path(science_report_file).exists():
-                all_messages.extend(
-                    extract_no_action_messages_from_report(science_report_file)
+            else:
+                result = run_pipeline(
+                    user_yaml_file,
+                    pipeline=pipeline,
+                    mode=mode,
+                    forcing=forcing,
+                    science_fixes=science_fixes,
+                    final_yaml_name=final_yaml_name,
+                    continue_on_error=continue_on_error,
+                    **phase_a_preload_kwargs,
                 )
-
-            # Create consolidated final report
-            create_consolidated_report(
-                phases_run=["A", "B"],
-                no_action_messages=all_messages,
-                final_report_file=science_report_file,
-                mode=mode,
-            )
-
-            # Clean up intermediate files
-            _processor_unlink_report_with_json(report_file)  # Remove Phase A report
-            if Path(uptodate_file).exists():
-                Path(uptodate_file).unlink()  # Remove Phase A YAML
-        except Exception:
-            pass
-
-        return _emit_pipeline_result(
-            phases=[a_ok_report, b_ok_report],
-            report_path=science_report_file,
-            yaml_path=science_yaml_file,
+    except ABCPublicationInterrupted as exc:
+        # Name the outputs left inconsistent before the interrupt
+        # propagates; Click would otherwise print only "Aborted!".
+        logger.disabled = was_disabled
+        _emit_pipeline_startup_error(
+            _interrupted_publication_message(exc),
             out_format=out_format,
             command=command_str,
             started_at=started_at,
+            code="output_publication_interrupted",
+            data={
+                "file": user_yaml_file,
+                "evidence_dir": str(exc.evidence_dir),
+                "unrestored_outputs": [
+                    {
+                        "path": str(item.path),
+                        "error": item.error,
+                        "backup": str(item.backup) if item.backup else None,
+                    }
+                    for item in exc.unrestored
+                ],
+            },
         )
-
-    if pipeline == "AC":
-        a_ok_report = _processor_run_phase_a(
-            user_yaml_file,
-            standard_yaml_file,
-            uptodate_file,
-            report_file,
-            mode=mode,
-            phase="AC",
-            silent=True,
-            forcing=forcing,
-            **phase_a_preload_kwargs,
-        )
-        a_ok = not a_ok_report.has_errors
-        if not a_ok:
-            # Phase A failed in AC workflow - create final user files from Phase A outputs
-            final_yaml, final_report = _processor_create_final_user_files(
-                user_yaml_file, uptodate_file, report_file
-            )
-            return _emit_pipeline_result(
-                phases=[a_ok_report],
-                report_path=final_report,
-                yaml_path=final_yaml,
-                out_format=out_format,
-                command=command_str,
-                started_at=started_at,
-            )
-
-        c_ok_report = _processor_run_phase_c(
-            uptodate_file,
-            pydantic_yaml_file,
-            pydantic_report_file,
-            mode=mode,
-            phase_a_report_file=report_file,
-            phases_run=["A", "C"],
-            silent=True,
-        )
-        c_ok = not c_ok_report.has_errors
-
-        if not c_ok:
-            # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
-            import shutil
-
-            # Determine final file paths
-            dirname = Path(user_yaml_file).parent
-            basename = Path(user_yaml_file).name
-            name_without_ext = Path(user_yaml_file).stem
-            final_yaml = dirname / f"updated_{basename}"
-            final_report = dirname / f"report_{name_without_ext}.txt"
-
-            try:
-                # Use Phase A YAML as final (last successful phase)
-                if Path(uptodate_file).exists():
-                    shutil.move(str(uptodate_file), str(final_yaml))
-
-                # Phase C report should already be at pydantic_report_file (final name)
-                # Clean up intermediate Phase A report
-                _processor_unlink_report_with_json(report_file)
-
-                # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
-                    final_yaml
-                ):
-                    Path(pydantic_yaml_file).unlink()
-            except Exception as e:
-                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
-
-            return _emit_pipeline_result(
-                phases=[a_ok_report, c_ok_report],
-                report_path=final_report,
-                yaml_path=final_yaml,
-                out_format=out_format,
-                command=command_str,
-                started_at=started_at,
-            )
-
-        # Both A and C succeeded - consolidate reports and clean up intermediate files
-        from ..data_model.validation.pipeline.orchestrator import (
-            extract_no_action_messages_from_report,
-            create_consolidated_report,
-        )
-
-        try:
-            # Extract NO ACTION NEEDED messages from both phases
-            all_messages = []
-            if Path(report_file).exists():
-                all_messages.extend(extract_no_action_messages_from_report(report_file))
-            if Path(pydantic_report_file).exists():
-                all_messages.extend(
-                    extract_no_action_messages_from_report(pydantic_report_file)
-                )
-
-            # Create consolidated final report
-            create_consolidated_report(
-                phases_run=["A", "C"],
-                no_action_messages=all_messages,
-                final_report_file=pydantic_report_file,
-                mode=mode,
-            )
-
-            # Clean up intermediate files
-            _processor_unlink_report_with_json(report_file)  # Remove Phase A report
-            if Path(uptodate_file).exists():
-                Path(uptodate_file).unlink()  # Remove Phase A YAML
-        except Exception:
-            pass
-
-        return _emit_pipeline_result(
-            phases=[a_ok_report, c_ok_report],
-            report_path=pydantic_report_file,
-            yaml_path=pydantic_yaml_file,
+        raise
+    except ABCOutputError as exc:
+        return _emit_pipeline_startup_error(
+            str(exc),
             out_format=out_format,
             command=command_str,
             started_at=started_at,
+            code="output_write_failed",
+            data={"file": user_yaml_file, "evidence_dir": str(exc.evidence_dir)},
         )
-
-    if pipeline == "BC":
-        b_ok_report = _processor_run_phase_b(
-            user_yaml_file,
-            user_yaml_file,
-            standard_yaml_file,
-            science_yaml_file,
-            science_report_file,
-            None,
-            phase_a_performed=False,
-            mode=mode,
-            phase="BC",
-            silent=True,
-            science_fixes=science_fixes,
-        )
-        b_ok = not b_ok_report.has_errors
-        if not b_ok:
-            # Phase B failed in BC workflow - create final user files from Phase B outputs
-            import shutil
-
-            # Determine final file paths
-            dirname = Path(user_yaml_file).parent
-            basename = Path(user_yaml_file).name
-            name_without_ext = Path(user_yaml_file).stem
-            final_yaml = dirname / f"updated_{basename}"
-            final_report = dirname / f"report_{name_without_ext}.txt"
-
-            try:
-                # Use Phase B YAML as final (if exists)
-                if Path(science_yaml_file).exists():
-                    shutil.move(str(science_yaml_file), str(final_yaml))
-
-                # Use Phase B report as final
-                if Path(science_report_file).exists():
-                    _processor_move_report_with_json(
-                        science_report_file, final_report, final_yaml
-                    )
-            except Exception as e:
-                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
-
-            return _emit_pipeline_result(
-                phases=[b_ok_report],
-                report_path=final_report,
-                yaml_path=final_yaml,
-                out_format=out_format,
-                command=command_str,
-                started_at=started_at,
-            )
-
-        c_ok_report = _processor_run_phase_c(
-            science_yaml_file,
-            pydantic_yaml_file,
-            pydantic_report_file,
-            mode=mode,
-            phases_run=["B", "C"],
-            silent=True,
-        )
-        c_ok = not c_ok_report.has_errors
-
-        if not c_ok:
-            # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
-            from ..data_model.validation.pipeline.orchestrator import (
-                extract_no_action_messages_from_report,
-            )
-            import shutil
-
-            # Determine final file paths
-            dirname = Path(user_yaml_file).parent
-            basename = Path(user_yaml_file).name
-            name_without_ext = Path(user_yaml_file).stem
-            final_yaml = dirname / f"updated_{basename}"
-            final_report = dirname / f"report_{name_without_ext}.txt"
-
-            try:
-                # Extract NO ACTION NEEDED messages from Phase B
-                phase_b_messages = []
-                if Path(science_report_file).exists():
-                    phase_b_messages = extract_no_action_messages_from_report(
-                        science_report_file
-                    )
-
-                # Read Phase C error report and append Phase B messages
-                if Path(pydantic_report_file).exists():
-                    phase_c_content = REPORT_WRITER.read(pydantic_report_file)
-
-                    # Append Phase B NO ACTION NEEDED messages to Phase C report
-                    if phase_b_messages:
-                        # Remove the closing separator and any trailing separators from Phase C report
-                        lines = phase_c_content.rstrip().split("\n")
-                        while lines and lines[-1].strip() == f"# {'=' * 50}":
-                            lines.pop()
-                        phase_c_content = "\n".join(lines)
-
-                        # Ensure proper spacing before INFO section
-                        if not phase_c_content.endswith("\n\n"):
-                            phase_c_content += "\n"
-
-                        # Add INFO section
-                        phase_c_content += "\n## INFO"
-
-                        # Add Phase B messages
-                        for msg in phase_b_messages:
-                            phase_c_content += f"\n{msg}"
-
-                        # Add closing separator
-                        phase_c_content += f"\n\n# {'=' * 50}\n"
-
-                        # Write consolidated report
-                        REPORT_WRITER.write(pydantic_report_file, phase_c_content)
-
-                # Use Phase B YAML as final (last successful phase)
-                if Path(science_yaml_file).exists():
-                    shutil.move(str(science_yaml_file), str(final_yaml))
-
-                # Clean up intermediate Phase B report (now that we've extracted messages)
-                _processor_unlink_report_with_json(science_report_file)
-
-                # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
-                    final_yaml
-                ):
-                    Path(pydantic_yaml_file).unlink()
-            except Exception as e:
-                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
-
-            return _emit_pipeline_result(
-                phases=[b_ok_report, c_ok_report],
-                report_path=final_report,
-                yaml_path=final_yaml,
-                out_format=out_format,
-                command=command_str,
-                started_at=started_at,
-            )
-
-        # Both B and C succeeded - consolidate reports and clean up intermediate files
-        from ..data_model.validation.pipeline.orchestrator import (
-            extract_no_action_messages_from_report,
-            create_consolidated_report,
-        )
-
-        try:
-            # Extract NO ACTION NEEDED messages from both phases
-            all_messages = []
-            if Path(science_report_file).exists():
-                all_messages.extend(
-                    extract_no_action_messages_from_report(science_report_file)
-                )
-            if Path(pydantic_report_file).exists():
-                all_messages.extend(
-                    extract_no_action_messages_from_report(pydantic_report_file)
-                )
-
-            # Create consolidated final report
-            create_consolidated_report(
-                phases_run=["B", "C"],
-                no_action_messages=all_messages,
-                final_report_file=pydantic_report_file,
-                mode=mode,
-            )
-
-            # Clean up intermediate files
-            _processor_unlink_report_with_json(
-                science_report_file
-            )  # Remove Phase B report
-            if Path(science_yaml_file).exists():
-                Path(science_yaml_file).unlink()  # Remove Phase B YAML
-        except Exception:
-            pass
-
-        return _emit_pipeline_result(
-            phases=[b_ok_report, c_ok_report],
-            report_path=pydantic_report_file,
-            yaml_path=pydantic_yaml_file,
+    except Exception as exc:
+        # Keep rollback-failure notes a non-OSError publication failure carries.
+        notes = [str(note) for note in getattr(exc, "__notes__", ())]
+        return _emit_pipeline_startup_error(
+            "; ".join([str(exc), *notes]),
             out_format=out_format,
             command=command_str,
             started_at=started_at,
+            code="pipeline_execution_failed",
+            data={"file": user_yaml_file},
         )
+    finally:
+        logger.disabled = was_disabled
 
+    return _render_pipeline_result(
+        result.phases,
+        result.report_path,
+        result.yaml_path,
+        out_format=out_format,
+        command=command_str,
+        started_at=started_at,
+        evidence_dir=result.evidence_dir,
+        cleanup_warning=result.cleanup_warning,
+    )
 
 
 def main():

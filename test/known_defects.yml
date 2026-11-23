@@ -18,12 +18,6 @@ mappings:
     issue: 1991
     classification: "defect"
   - selector:
-      ledger: "R"
-      function: "apply_waterdist_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
       ledger: "U"
       file: "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90"
     contract: "C-RESPONSE"

@@ -1266,6 +1266,104 @@ enum ProbeJob<'a> {
     Single(&'a NumericLeaf),
     Batch(Vec<&'a NumericLeaf>),
     DeadBatch(Vec<&'a NumericLeaf>),
+    WaterdistSimplex(Vec<&'a NumericLeaf>),
+}
+
+/// Probe every leaf in one surface's `waterdist` block via balanced simplex
+/// steps (`+delta` on leaf `k`, `-delta` on a partner leaf `p != k`) so the
+/// row stays within `[0, 1]` and sums to `1.0` under the #2086/#2002 contract.
+///
+/// Only when exactly two `RunConfig` slots move -- one by `signed_delta` and
+/// the other by `-signed_delta` -- is the `+signed_delta` slot attributed to
+/// `leaf`; any extra move (clobber), swap, or missing move surfaces all diffs
+/// verbatim so `validate_sweep_report` fails loudly.
+fn probe_waterdist_simplex_group(
+    sweep_root: &Value,
+    layout: &RunConfigLayout,
+    base_map: &BTreeMap<String, f64>,
+    group: &[&NumericLeaf],
+) -> Vec<LeafOutcome> {
+    group
+        .iter()
+        .enumerate()
+        .map(|(k, leaf)| {
+            let (partner, signed_delta) = if leaf.value <= 0.5 {
+                let p = group
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, _)| *j != k)
+                    .max_by(|(_, a), (_, b)| a.value.total_cmp(&b.value))
+                    .map(|(_, l)| *l);
+                (p, FLOAT_DELTA)
+            } else {
+                let p = group
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, _)| *j != k)
+                    .min_by(|(_, a), (_, b)| a.value.total_cmp(&b.value))
+                    .map(|(_, l)| *l);
+                (p, -FLOAT_DELTA)
+            };
+            let Some(partner) = partner else {
+                return probe_single_leaf(sweep_root, layout, base_map, leaf);
+            };
+
+            let mut pert_root = sweep_root.clone();
+            assert!(
+                mutate_at(
+                    &mut pert_root,
+                    &leaf.path,
+                    yaml_perturbed_value(false, leaf.value, signed_delta),
+                ),
+                "failed to mutate {}",
+                leaf.display
+            );
+            assert!(
+                mutate_at(
+                    &mut pert_root,
+                    &partner.path,
+                    yaml_perturbed_value(false, partner.value, -signed_delta),
+                ),
+                "failed to mutate simplex partner {}",
+                partner.display
+            );
+
+            match load_run_config_from_value(&mut pert_root) {
+                Err(err) => (leaf.display.clone(), Err(err)),
+                Ok(rc) => {
+                    let (pert_vals, pert_shape) = flatten_run_config_values(&rc);
+                    assert_eq!(pert_shape, layout.shape);
+                    let flat_diff = diff_flat_values(layout, &pert_vals);
+                    let named_diffs: Vec<(String, f64, f64)> = flat_diff
+                        .diffs
+                        .into_iter()
+                        .map(|(idx, bv, pv)| (layout.names[idx].clone(), bv, pv))
+                        .collect();
+                    let isolated = if named_diffs.len() == 2 {
+                        let d0 = named_diffs[0].2 - named_diffs[0].1;
+                        let d1 = named_diffs[1].2 - named_diffs[1].1;
+                        if (d0 - signed_delta).abs() <= DELTA_TOL
+                            && (d1 + signed_delta).abs() <= DELTA_TOL
+                        {
+                            vec![named_diffs[0].clone()]
+                        } else if (d1 - signed_delta).abs() <= DELTA_TOL
+                            && (d0 + signed_delta).abs() <= DELTA_TOL
+                        {
+                            vec![named_diffs[1].clone()]
+                        } else {
+                            named_diffs
+                        }
+                    } else {
+                        named_diffs
+                    };
+                    (
+                        leaf.display.clone(),
+                        Ok((signed_delta, isolated, flat_diff.non_finite)),
+                    )
+                }
+            }
+        })
+        .collect()
 }
 
 fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
@@ -1275,9 +1373,14 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
     let mut jobs = Vec::new();
     let mut dead_floats: Vec<&NumericLeaf> = Vec::new();
     let mut profile_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
+    let mut waterdist_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
     let mut scalar_floats: Vec<&NumericLeaf> = Vec::new();
 
     for leaf in leaves {
+        if let Some((surf_prefix, _)) = leaf.display.rsplit_once(".waterdist.") {
+            waterdist_groups.entry(surf_prefix).or_default().push(leaf);
+            continue;
+        }
         let is_known_dead = known_dead.contains(leaf.display.as_str());
         if is_known_dead && !leaf.is_int {
             dead_floats.push(leaf);
@@ -1297,6 +1400,10 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
         } else {
             scalar_floats.push(leaf);
         }
+    }
+
+    for (_, group_leaves) in waterdist_groups {
+        jobs.push(ProbeJob::WaterdistSimplex(group_leaves));
     }
 
     for chunk in dead_floats.chunks(MAX_BATCH_SIZE) {
@@ -1374,6 +1481,10 @@ fn run_jacobian_sweep(orig_root: &Value, expected_opts: Option<ExpectedOptions>)
                     probe_dead_batch(&sweep_root, &layout, &base_map, batch);
                 (outcomes, usize::from(fell_back))
             }
+            ProbeJob::WaterdistSimplex(group) => (
+                probe_waterdist_simplex_group(&sweep_root, &layout, &base_map, group),
+                0,
+            ),
         })
         .collect();
 
@@ -3967,7 +4078,80 @@ fn nan_poison_completeness_across_all_six_anchors() {
             anchor_idx,
             "sites[0].initial_states.dectr.porosity_id".into(),
         ));
-        for surf in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"] {
+        for (surf, wd_fields) in [
+            (
+                "paved",
+                [
+                    "to_bldgs",
+                    "to_dectr",
+                    "to_evetr",
+                    "to_grass",
+                    "to_bsoil",
+                    "to_water",
+                    "to_runoff",
+                ],
+            ),
+            (
+                "bldgs",
+                [
+                    "to_paved",
+                    "to_dectr",
+                    "to_evetr",
+                    "to_grass",
+                    "to_bsoil",
+                    "to_water",
+                    "to_runoff",
+                ],
+            ),
+            (
+                "evetr",
+                [
+                    "to_paved",
+                    "to_bldgs",
+                    "to_dectr",
+                    "to_grass",
+                    "to_bsoil",
+                    "to_water",
+                    "to_soilstore",
+                ],
+            ),
+            (
+                "dectr",
+                [
+                    "to_paved",
+                    "to_bldgs",
+                    "to_evetr",
+                    "to_grass",
+                    "to_bsoil",
+                    "to_water",
+                    "to_soilstore",
+                ],
+            ),
+            (
+                "grass",
+                [
+                    "to_paved",
+                    "to_bldgs",
+                    "to_evetr",
+                    "to_dectr",
+                    "to_bsoil",
+                    "to_water",
+                    "to_soilstore",
+                ],
+            ),
+            (
+                "bsoil",
+                [
+                    "to_paved",
+                    "to_bldgs",
+                    "to_evetr",
+                    "to_dectr",
+                    "to_grass",
+                    "to_water",
+                    "to_soilstore",
+                ],
+            ),
+        ] {
             for field in [
                 "soil_depth",
                 "soil_store_capacity",
@@ -3976,6 +4160,12 @@ fn nan_poison_completeness_across_all_six_anchors() {
                 strict_jobs.push((
                     anchor_idx,
                     format!("sites[0].properties.land_cover.{surf}.{field}"),
+                ));
+            }
+            for wd_field in wd_fields {
+                strict_jobs.push((
+                    anchor_idx,
+                    format!("sites[0].properties.land_cover.{surf}.waterdist.{wd_field}"),
                 ));
             }
         }

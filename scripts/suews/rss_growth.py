@@ -334,7 +334,24 @@ def installed_identity(supy):
 
     bridge = _load_rust_module()
     dist = metadata.distribution("supy")
-    direct = dist.read_text("direct_url.json")
+    direct_entry = next(
+        (entry for entry in (dist.files or ()) if entry.name == "direct_url.json"),
+        None,
+    )
+    direct_path = (
+        Path(dist.locate_file(direct_entry))
+        if direct_entry is not None
+        else (
+            Path(dist._path) / "direct_url.json"  # ruff: ignore[private-member-access]
+            if getattr(dist, "_path", None) is not None
+            else None
+        )
+    )
+    direct = (
+        direct_path.read_text(encoding="utf-8")
+        if direct_path is not None and direct_path.is_file()
+        else None
+    )
     binaries = {Path(bridge.__file__).resolve()}
     # Include packaged shared libraries (e.g. repaired-wheel Fortran runtime).
     for entry in dist.files or ():

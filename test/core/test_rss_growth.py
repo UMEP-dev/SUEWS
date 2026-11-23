@@ -12,7 +12,7 @@ import pytest
 
 from scripts.suews import rss_growth as rss
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-MEMORY", "C-TOOLING")]
 LIMIT = 256 * 1024
 
 

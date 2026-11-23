@@ -276,7 +276,11 @@ def test_pyo3_all_entry_points_reject_invalid_resolved_storage_heat(kind: str):
 
     _, state_json, _ = _run_pyo3(rust, valid_json, forcing)
 
-    match = r"model\.physics\.storage_heat"
+    match = (
+        r"model\.physics\..*missing"
+        if kind == "missing-physics"
+        else r"model\.physics\.storage_heat"
+    )
     with pytest.raises(RuntimeError, match=match):
         rust.run_suews(invalid_payload, forcing_list, n_rows)
 

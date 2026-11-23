@@ -109,7 +109,8 @@ fn storage_heat_required_by_value_string_and_path_readers() {
             }
         }
 
-        // Missing entire model.physics section also reports model.physics.storage_heat.
+        // Missing entire model.physics section is also rejected with a model.physics.* path
+        // (whichever required physics selector is checked first).
         let mut no_physics: Value = serde_yaml::from_str(fixture).unwrap();
         no_physics["model"]["control"]["output"]["dir"] = ".".into();
         no_physics["model"]
@@ -123,7 +124,10 @@ fn storage_heat_required_by_value_string_and_path_readers() {
             load_run_config_from_str(&text).unwrap_err(),
             load_run_config(&path).unwrap_err(),
         ] {
-            assert!(error.contains(PATH), "missing physics section: {error}");
+            assert!(
+                error.contains("model.physics.") && error.contains("missing"),
+                "missing physics section: {error}"
+            );
         }
     }
 }

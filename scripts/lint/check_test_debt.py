@@ -255,11 +255,25 @@ def _walk_named_exprs(expr: ast.AST, record) -> None:
         _walk_named_exprs(child, record)
 
 
+def _walk_target_exprs(target: ast.AST, record) -> None:
+    if isinstance(target, ast.Subscript):
+        _walk_named_exprs(target.value, record)
+        _walk_named_exprs(target.slice, record)
+    elif isinstance(target, ast.Attribute):
+        _walk_named_exprs(target.value, record)
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        for elt in target.elts:
+            _walk_target_exprs(elt, record)
+    elif isinstance(target, ast.Starred):
+        _walk_target_exprs(target.value, record)
+
+
 def _record_target_bindings(target: ast.AST, record) -> None:
     names: set[str] = set()
     _collect_target_names(target, names)
     for name in names:
         record(name)
+    _walk_target_exprs(target, record)
 
 
 def _walk_compound_bindings(stmt: ast.stmt, record, walk_block) -> None:
@@ -305,6 +319,8 @@ def _walk_compound_bindings(stmt: ast.stmt, record, walk_block) -> None:
 def _record_ann_aug_bindings(stmt: ast.AnnAssign | ast.AugAssign, record) -> None:
     if isinstance(stmt.target, ast.Name):
         record(stmt.target.id)
+    else:
+        _walk_target_exprs(stmt.target, record)
     if isinstance(stmt, ast.AnnAssign):
         _walk_named_exprs(stmt.annotation, record)
     if stmt.value is not None:
@@ -1663,8 +1679,6 @@ def _python_ledger_records(root):
 
 
 _UnitEnv = dict[str, set[str]]
-_DeferredNode = ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda | ast.GeneratorExp
-_DeferredMap = dict[int, tuple[_DeferredNode, _UnitEnv, _UnitEnv, frozenset[str]]]
 
 
 def _copy_unittest_env(env: _UnitEnv) -> _UnitEnv:
@@ -1682,9 +1696,18 @@ def _classify_unittest_expr(expr: ast.AST, env: _UnitEnv) -> set[str]:
         return set(env.get(expr.id, ()))
     if isinstance(expr, ast.NamedExpr):
         return _classify_unittest_expr(expr.value, env)
+    if isinstance(expr, ast.IfExp):
+        return _classify_unittest_expr(expr.body, env) | _classify_unittest_expr(
+            expr.orelse, env
+        )
+    if isinstance(expr, ast.BoolOp):
+        out: set[str] = set()
+        for value in expr.values:
+            out.update(_classify_unittest_expr(value, env))
+        return out
     if isinstance(expr, ast.Attribute):
         bases = _classify_unittest_expr(expr.value, env)
-        out: set[str] = set()
+        out = set()
         if "unittest" in bases and expr.attr == "case":
             out.add("unittest_case")
         if ("unittest" in bases or "unittest_case" in bases) and (
@@ -1695,15 +1718,23 @@ def _classify_unittest_expr(expr: ast.AST, env: _UnitEnv) -> set[str]:
     return set()
 
 
-def _merge_unittest_envs(envs: list[_UnitEnv]) -> _UnitEnv:
-    merged: _UnitEnv = {}
-    for branch_env in envs:
-        _update_unittest_env(merged, branch_env)
-    return merged
+@dataclass(frozen=True)
+class _UnitScope:
+    scope_kind: str
+    non_class_env: _UnitEnv
+    global_names: frozenset[str] = frozenset()
+    nonlocal_names: frozenset[str] = frozenset()
+    enclosing_env: _UnitEnv | None = None
+    walrus_env: _UnitEnv | None = None
 
 
 class _UnittestExpectedFailureFinder:
-    """Find unittest.expectedFailure decorator and call registrations by scope."""
+    """Find unittest.expectedFailure decorator and call registrations by scope.
+
+    Alias propagation within a single lexical scope is monotone (conservative
+    and flow-insensitive), while parameter, comprehension-target, class, and
+    inner-scope local bindings respect Python lexical scoping.
+    """
 
     def __init__(self, tree: ast.Module) -> None:
         self.tree = tree
@@ -1711,439 +1742,227 @@ class _UnittestExpectedFailureFinder:
         self.sites: list[ast.AST] = []
         self._seen_sites: set[int] = set()
         self.module_env: _UnitEnv = {}
-        self.module_seen_env: _UnitEnv = {}
-        self._seen_sinks: list[_UnitEnv] = []
-        self._loop_sinks: list[tuple[_UnitEnv, _UnitEnv]] = []
-        self._active_deferred: _DeferredMap = {}
-        self._active_scope_kind: str = "module"
-        self._active_non_class_env: _UnitEnv = self.module_env
-        self._active_comp_bound: set[str] = set()
-        self._active_gen_walrus: _UnitEnv = {}
-        self._gen_walrus_targets: dict[int, _UnitEnv] = {}
 
     def _record_site(self, node: ast.AST) -> None:
         if id(node) not in self._seen_sites:
             self._seen_sites.add(id(node))
             self.sites.append(node)
 
-    @staticmethod
-    def _queue_deferred(
-        node: _DeferredNode,
-        def_env: _UnitEnv,
-        default_envs: _UnitEnv,
-        deferred: _DeferredMap,
-        shadowed: frozenset[str] = frozenset(),
+    def _bind_name(
+        self, name: str, kinds: set[str], env: _UnitEnv, scope: _UnitScope
     ) -> None:
-        filtered_def = {k: set(v) for k, v in def_env.items() if k not in shadowed}
-        existing = deferred.get(id(node))
-        if existing is None:
-            deferred[id(node)] = (
-                node,
-                filtered_def,
-                _copy_unittest_env(default_envs),
-                shadowed,
-            )
-        else:
-            _update_unittest_env(existing[1], filtered_def)
-            _update_unittest_env(existing[2], default_envs)
-
-    def _propagate_to_deferred(
-        self, env: _UnitEnv, scope_kind: str, deferred: _DeferredMap
-    ) -> None:
-        for sink_env in self._seen_sinks:
-            _update_unittest_env(sink_env, env)
-        if scope_kind == "class":
+        if not kinds:
             return
-        for _, live_env, _, shadowed in deferred.values():
-            for key, values in env.items():
-                if values and key not in shadowed:
-                    live_env.setdefault(key, set()).update(values)
-        if scope_kind == "module":
-            _update_unittest_env(self.module_seen_env, env)
-
-    def _run_scope_fixed_point(
-        self, stmts: list[ast.stmt], base_env: _UnitEnv, scope_kind: str
-    ) -> None:
-        gen_walrus: _UnitEnv = {}
-        prev_gen_walrus = self._active_gen_walrus
-        self._active_gen_walrus = gen_walrus
-        try:
-            while True:
-                before_gen = _copy_unittest_env(gen_walrus)
-                scope_env = _merge_unittest_envs([base_env, gen_walrus])
-                if scope_kind == "module":
-                    self.module_env = scope_env
-                deferred: _DeferredMap = {}
-                self._walk_block(stmts, scope_env, scope_kind, scope_env, deferred)
-                self._flush_deferred(deferred)
-                if gen_walrus == before_gen:
-                    break
-        finally:
-            self._active_gen_walrus = prev_gen_walrus
+        env.setdefault(name, set()).update(kinds)
+        if name in scope.global_names:
+            self.module_env.setdefault(name, set()).update(kinds)
+        if name in scope.nonlocal_names and scope.enclosing_env is not None:
+            scope.enclosing_env.setdefault(name, set()).update(kinds)
 
     def collect(self) -> list[ast.AST]:
-        self._run_scope_fixed_point(self.tree.body, {}, "module")
+        scope = _UnitScope("module", self.module_env)
+        self._walk_scope(self.tree.body, self.module_env, scope)
         return self.sites
 
-    def _flush_expr_deferred(
-        self,
-        node: ast.Lambda | ast.GeneratorExp,
-        live_env: _UnitEnv,
-        default_envs: _UnitEnv,
-        shadowed: frozenset[str],
+    def _walk_scope(
+        self, stmts: list[ast.stmt], env: _UnitEnv, scope: _UnitScope
     ) -> None:
-        expr_deferred: _DeferredMap = {}
-        prev = (
-            self._active_deferred,
-            self._active_scope_kind,
-            self._active_non_class_env,
-            self._active_comp_bound,
-            self._loop_sinks,
-        )
-        self._loop_sinks = []
-        if isinstance(node, ast.Lambda):
-            param_names = _function_param_names(node.args)
-            body_env: _UnitEnv = {
-                k: set(v)
-                for k, v in live_env.items()
-                if k not in param_names and k not in shadowed
-            }
-            _update_unittest_env(body_env, default_envs)
-            self._active_deferred = expr_deferred
-            self._active_scope_kind = "function"
-            self._active_non_class_env = body_env
-            self._active_comp_bound = set()
-            try:
-                self._scan_expr(node.body, body_env)
-            finally:
-                (
-                    self._active_deferred,
-                    self._active_scope_kind,
-                    self._active_non_class_env,
-                    self._active_comp_bound,
-                    self._loop_sinks,
-                ) = prev
-        else:
-            body_env = {k: set(v) for k, v in live_env.items() if k not in shadowed}
-            target_gen_walrus = self._gen_walrus_targets.get(id(node))
-            self._active_deferred = expr_deferred
-            self._active_scope_kind = "function"
-            self._active_non_class_env = body_env
-            self._active_comp_bound = set()
-            try:
-                self._scan_comprehension_body(
-                    node, body_env, target_gen_walrus, skip_first_iter=True
-                )
-            finally:
-                (
-                    self._active_deferred,
-                    self._active_scope_kind,
-                    self._active_non_class_env,
-                    self._active_comp_bound,
-                    self._loop_sinks,
-                ) = prev
-        self._flush_deferred(expr_deferred)
-
-    def _flush_deferred(self, deferred: _DeferredMap) -> None:
-        for node, live_env, default_envs, shadowed in deferred.values():
-            if isinstance(node, (ast.Lambda, ast.GeneratorExp)):
-                self._flush_expr_deferred(node, live_env, default_envs, shadowed)
-                continue
-            param_names = _function_param_names(node.args)
-            local_bound, _, global_names, nonlocal_names = _collect_scope_bindings(
-                node.body
+        while True:
+            before_env = _copy_unittest_env(env)
+            before_mod = _copy_unittest_env(self.module_env)
+            before_enc = (
+                _copy_unittest_env(scope.enclosing_env)
+                if scope.enclosing_env is not None
+                else None
             )
-            excluded = (
-                param_names | global_names | shadowed | (local_bound - nonlocal_names)
-            )
-            child_env: _UnitEnv = {
-                k: set(v) for k, v in live_env.items() if k not in excluded
-            }
-            for name in global_names:
-                if name in self.module_seen_env:
-                    child_env.setdefault(name, set()).update(self.module_seen_env[name])
-            _update_unittest_env(child_env, default_envs)
-            prev_sinks = self._seen_sinks
-            prev_loops = self._loop_sinks
-            self._seen_sinks = []
-            self._loop_sinks = []
-            try:
-                self._run_scope_fixed_point(node.body, child_env, "function")
-            finally:
-                self._seen_sinks = prev_sinks
-                self._loop_sinks = prev_loops
-
-    def _scan_comprehension_pass(
-        self,
-        expr: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
-        iter_env: _UnitEnv,
-        comp_walrus: _UnitEnv,
-        prev_comp_bound: set[str],
-    ) -> set[str]:
-        local_comp_bound = set(prev_comp_bound)
-        for index, gen in enumerate(expr.generators):
-            if index > 0:
-                self._scan_expr(gen.iter, iter_env, comp_walrus)
-            bound: set[str] = set()
-            _collect_target_names(gen.target, bound)
-            local_comp_bound |= bound
-            self._active_comp_bound = local_comp_bound
-            for name in bound:
-                iter_env.pop(name, None)
-            for cond in gen.ifs:
-                self._scan_expr(cond, iter_env, comp_walrus)
-        if isinstance(expr, ast.DictComp):
-            self._scan_expr(expr.key, iter_env, comp_walrus)
-            self._scan_expr(expr.value, iter_env, comp_walrus)
-        else:
-            self._scan_expr(expr.elt, iter_env, comp_walrus)
-        return local_comp_bound
-
-    def _scan_comprehension_body(
-        self,
-        expr: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
-        env: _UnitEnv,
-        walrus_env: _UnitEnv | None,
-        *,
-        skip_first_iter: bool = False,
-    ) -> None:
-        body_base = (
-            self._active_non_class_env if self._active_scope_kind == "class" else env
-        )
-        target_walrus = walrus_env if walrus_env is not None else env
-        if not skip_first_iter:
-            self._scan_expr(expr.generators[0].iter, env, target_walrus)
-        comp_env = _copy_unittest_env(body_base)
-        comp_walrus: _UnitEnv = {}
-        prev_comp_bound = self._active_comp_bound
-        prev_scope_kind = self._active_scope_kind
-        try:
-            if prev_scope_kind == "class":
-                self._active_scope_kind = "function"
-            while True:
-                before_env = _copy_unittest_env(comp_env)
-                before_walrus = _copy_unittest_env(comp_walrus)
-                local_bound = self._scan_comprehension_pass(
-                    expr, _copy_unittest_env(comp_env), comp_walrus, prev_comp_bound
-                )
-                merged_walrus = _merge_unittest_envs([before_walrus, comp_walrus])
-                merged_env = _copy_unittest_env(before_env)
-                for key, values in merged_walrus.items():
-                    if key not in local_bound:
-                        merged_env.setdefault(key, set()).update(values)
-                comp_walrus = merged_walrus
-                if merged_walrus == before_walrus and merged_env == before_env:
-                    break
-                comp_env = merged_env
-        finally:
-            self._active_comp_bound = prev_comp_bound
-            self._active_scope_kind = prev_scope_kind
-        _update_unittest_env(target_walrus, comp_walrus)
-        self._propagate_to_deferred(
-            target_walrus, self._active_scope_kind, self._active_deferred
-        )
-
-    def _scan_comprehension(
-        self,
-        expr: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
-        env: _UnitEnv,
-        walrus_env: _UnitEnv | None,
-    ) -> None:
-        self._scan_comprehension_body(expr, env, walrus_env)
-        if isinstance(expr, ast.GeneratorExp):
-            def_env = (
-                self._active_non_class_env
-                if self._active_scope_kind == "class"
-                else env
-            )
-            self._gen_walrus_targets[id(expr)] = self._active_gen_walrus
-            self._queue_deferred(
-                expr,
-                def_env,
-                {},
-                self._active_deferred,
-                frozenset(self._active_comp_bound),
-            )
-
-    def _scan_short_circuit_tail(
-        self, nodes: list[ast.expr], env: _UnitEnv, walrus_env: _UnitEnv | None
-    ) -> None:
-        cur_env = _copy_unittest_env(env)
-        merged_env = _copy_unittest_env(env)
-        cur_walrus = _copy_unittest_env(walrus_env) if walrus_env is not None else None
-        merged_walrus = (
-            _copy_unittest_env(walrus_env) if walrus_env is not None else None
-        )
-        for val in nodes:
-            self._scan_expr(val, cur_env, cur_walrus)
-            _update_unittest_env(merged_env, cur_env)
-            if merged_walrus is not None and cur_walrus is not None:
-                _update_unittest_env(merged_walrus, cur_walrus)
-        env.clear()
-        env.update(merged_env)
-        if walrus_env is not None and merged_walrus is not None:
-            walrus_env.clear()
-            walrus_env.update(merged_walrus)
+            before_sites = len(self.sites)
+            for stmt in stmts:
+                self._walk_stmt(stmt, env, scope)
+            if (
+                env == before_env
+                and self.module_env == before_mod
+                and (before_enc is None or scope.enclosing_env == before_enc)
+                and len(self.sites) == before_sites
+            ):
+                break
 
     def _scan_and_collect_defaults(
-        self, args: ast.arguments, env: _UnitEnv, walrus_env: _UnitEnv | None = None
+        self, args: ast.arguments, env: _UnitEnv, scope: _UnitScope
     ) -> _UnitEnv:
         param_envs: _UnitEnv = {}
         positional = [*args.posonlyargs, *args.args]
         offset = len(positional) - len(args.defaults)
         for index, default in enumerate(args.defaults):
-            self._scan_expr(default, env, walrus_env)
+            self._scan_expr(default, env, scope)
             kinds = _classify_unittest_expr(default, env)
             if kinds:
                 param_envs[positional[offset + index].arg] = kinds
         for arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
             if default is not None:
-                self._scan_expr(default, env, walrus_env)
+                self._scan_expr(default, env, scope)
                 kinds = _classify_unittest_expr(default, env)
                 if kinds:
                     param_envs[arg.arg] = kinds
         return param_envs
 
-    def _scan_if_exp(
-        self, expr: ast.IfExp, env: _UnitEnv, walrus_env: _UnitEnv | None
+    def _scan_comprehension(
+        self,
+        expr: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
+        env: _UnitEnv,
+        scope: _UnitScope,
     ) -> None:
-        self._scan_expr(expr.test, env, walrus_env)
-        body_env, else_env = _copy_unittest_env(env), _copy_unittest_env(env)
-        body_walrus = _copy_unittest_env(walrus_env) if walrus_env is not None else None
-        else_walrus = _copy_unittest_env(walrus_env) if walrus_env is not None else None
-        self._scan_expr(expr.body, body_env, body_walrus)
-        self._scan_expr(expr.orelse, else_env, else_walrus)
-        env.clear()
-        env.update(_merge_unittest_envs([body_env, else_env]))
-        if (
-            walrus_env is not None
-            and body_walrus is not None
-            and else_walrus is not None
-        ):
-            walrus_env.clear()
-            walrus_env.update(_merge_unittest_envs([body_walrus, else_walrus]))
+        self._scan_expr(expr.generators[0].iter, env, scope)
+        comp_targets: set[str] = set()
+        for gen in expr.generators:
+            _collect_target_names(gen.target, comp_targets)
+        body_base = scope.non_class_env if scope.scope_kind == "class" else env
+        comp_env: _UnitEnv = {
+            k: set(v) for k, v in body_base.items() if k not in comp_targets
+        }
+        target_walrus = scope.walrus_env if scope.walrus_env is not None else env
+        comp_scope = _UnitScope(
+            scope_kind="function",
+            non_class_env=comp_env,
+            global_names=scope.global_names,
+            nonlocal_names=scope.nonlocal_names,
+            enclosing_env=scope.enclosing_env,
+            walrus_env=target_walrus,
+        )
+        while True:
+            before_comp = _copy_unittest_env(comp_env)
+            before_walrus = _copy_unittest_env(target_walrus)
+            before_sites = len(self.sites)
+            for index, gen in enumerate(expr.generators):
+                if index > 0:
+                    self._scan_expr(gen.iter, comp_env, comp_scope)
+                for cond in gen.ifs:
+                    self._scan_expr(cond, comp_env, comp_scope)
+            if isinstance(expr, ast.DictComp):
+                self._scan_expr(expr.key, comp_env, comp_scope)
+                self._scan_expr(expr.value, comp_env, comp_scope)
+            else:
+                self._scan_expr(expr.elt, comp_env, comp_scope)
+            if (
+                comp_env == before_comp
+                and target_walrus == before_walrus
+                and len(self.sites) == before_sites
+            ):
+                break
 
-    def _scan_expr(
-        self, expr: ast.AST, env: _UnitEnv, walrus_env: _UnitEnv | None = None
-    ) -> None:
+    def _scan_lambda(self, expr: ast.Lambda, env: _UnitEnv, scope: _UnitScope) -> None:
+        default_envs = self._scan_and_collect_defaults(expr.args, env, scope)
+        outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
+        param_names = _function_param_names(expr.args)
+        lam_env: _UnitEnv = {
+            k: set(v) for k, v in outer_non_class.items() if k not in param_names
+        }
+        _update_unittest_env(lam_env, default_envs)
+        lam_scope = _UnitScope("function", lam_env, enclosing_env=outer_non_class)
+        while True:
+            before_lam = _copy_unittest_env(lam_env)
+            before_sites = len(self.sites)
+            self._scan_expr(expr.body, lam_env, lam_scope)
+            if lam_env == before_lam and len(self.sites) == before_sites:
+                break
+
+    def _scan_expr(self, expr: ast.AST, env: _UnitEnv, scope: _UnitScope) -> None:
         if isinstance(expr, ast.Call):
+            self._scan_expr(expr.func, env, scope)
             if "expected_failure" in _classify_unittest_expr(expr.func, env):
                 self._record_site(expr)
-            else:
-                self._scan_expr(expr.func, env, walrus_env)
             for arg in expr.args:
-                self._scan_expr(arg, env, walrus_env)
+                self._scan_expr(arg, env, scope)
             for kw in expr.keywords:
-                self._scan_expr(kw.value, env, walrus_env)
+                self._scan_expr(kw.value, env, scope)
         elif isinstance(expr, ast.NamedExpr):
-            self._scan_expr(expr.value, env, walrus_env)
+            self._scan_expr(expr.value, env, scope)
             kinds = _classify_unittest_expr(expr.value, env)
-            self._bind_target(expr.target, kinds, env)
-            if walrus_env is not None:
-                self._bind_target(expr.target, kinds, walrus_env)
-            self._propagate_to_deferred(
-                walrus_env if walrus_env is not None else env,
-                self._active_scope_kind,
-                self._active_deferred,
-            )
-        elif isinstance(expr, ast.BoolOp):
-            self._scan_expr(expr.values[0], env, walrus_env)
-            self._scan_short_circuit_tail(expr.values[1:], env, walrus_env)
-        elif isinstance(expr, ast.Compare):
-            self._scan_expr(expr.left, env, walrus_env)
-            if expr.comparators:
-                self._scan_expr(expr.comparators[0], env, walrus_env)
-                self._scan_short_circuit_tail(expr.comparators[1:], env, walrus_env)
-        elif isinstance(expr, ast.IfExp):
-            self._scan_if_exp(expr, env, walrus_env)
+            self._bind_name(expr.target.id, kinds, env, scope)
+            if scope.walrus_env is not None:
+                self._bind_name(expr.target.id, kinds, scope.walrus_env, scope)
         elif isinstance(expr, ast.Lambda):
-            default_envs = self._scan_and_collect_defaults(expr.args, env, walrus_env)
-            def_env = (
-                self._active_non_class_env
-                if self._active_scope_kind == "class"
-                else env
-            )
-            self._queue_deferred(
-                expr,
-                def_env,
-                default_envs,
-                self._active_deferred,
-                frozenset(self._active_comp_bound),
-            )
+            self._scan_lambda(expr, env, scope)
         elif isinstance(
             expr, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
         ):
-            self._scan_comprehension(expr, env, walrus_env)
+            self._scan_comprehension(expr, env, scope)
         else:
             for child in ast.iter_child_nodes(expr):
-                self._scan_expr(child, env, walrus_env)
+                self._scan_expr(child, env, scope)
 
-    def _scan_decorators(self, decorators: list[ast.expr], env: _UnitEnv) -> None:
+    def _scan_decorators(
+        self, decorators: list[ast.expr], env: _UnitEnv, scope: _UnitScope
+    ) -> None:
         for dec in decorators:
+            self._scan_expr(dec, env, scope)
             if "expected_failure" in _classify_unittest_expr(dec, env):
                 self._record_site(dec)
-            else:
-                self._scan_expr(dec, env)
 
-    def _bind_target(self, target: ast.AST, kinds: set[str], env: _UnitEnv) -> None:
+    def _bind_target(
+        self, target: ast.AST, kinds: set[str], env: _UnitEnv, scope: _UnitScope
+    ) -> None:
         if isinstance(target, ast.Name):
-            if kinds:
-                env[target.id] = set(kinds)
-            else:
-                env.pop(target.id, None)
-            return
-        if isinstance(target, (ast.Tuple, ast.List)):
+            self._bind_name(target.id, kinds, env, scope)
+        elif isinstance(target, (ast.Tuple, ast.List)):
             for elt in target.elts:
-                self._bind_target(elt, set(), env)
-            return
-        if isinstance(target, ast.Starred):
-            self._bind_target(target.value, set(), env)
-            return
-        self._scan_expr(target, env)
+                self._bind_target(elt, set(), env, scope)
+        elif isinstance(target, ast.Starred):
+            self._bind_target(target.value, set(), env, scope)
+        else:
+            self._scan_expr(target, env, scope)
 
-    @staticmethod
-    def _handle_import(stmt: ast.Import, env: _UnitEnv) -> None:
+    def _handle_import(
+        self, stmt: ast.Import, env: _UnitEnv, scope: _UnitScope
+    ) -> None:
         for alias in stmt.names:
             bound = alias.asname or alias.name.split(".", 1)[0]
             if alias.name == "unittest":
-                env[bound] = {"unittest"}
+                self._bind_name(bound, {"unittest"}, env, scope)
             elif alias.name == "unittest.case":
-                env[bound] = {"unittest_case"} if alias.asname else {"unittest"}
-            else:
-                env.pop(bound, None)
+                kind = "unittest_case" if alias.asname else "unittest"
+                self._bind_name(bound, {kind}, env, scope)
 
-    @staticmethod
-    def _handle_import_from(stmt: ast.ImportFrom, env: _UnitEnv) -> None:
-        if stmt.level == 0 and stmt.module == "unittest":
+    def _handle_import_from(
+        self, stmt: ast.ImportFrom, env: _UnitEnv, scope: _UnitScope
+    ) -> None:
+        if stmt.level != 0:
+            return
+        if stmt.module == "unittest":
             for alias in stmt.names:
                 if alias.name == "expectedFailure":
-                    env[alias.asname or "expectedFailure"] = {"expected_failure"}
+                    self._bind_name(
+                        alias.asname or "expectedFailure",
+                        {"expected_failure"},
+                        env,
+                        scope,
+                    )
                 elif alias.name == "case":
-                    env[alias.asname or "case"] = {"unittest_case"}
+                    self._bind_name(
+                        alias.asname or "case", {"unittest_case"}, env, scope
+                    )
                 elif alias.name == "*":
-                    env["expectedFailure"] = {"expected_failure"}
-                    env["case"] = {"unittest_case"}
-                else:
-                    env.pop(alias.asname or alias.name, None)
-        elif stmt.level == 0 and stmt.module == "unittest.case":
+                    self._bind_name("expectedFailure", {"expected_failure"}, env, scope)
+                    self._bind_name("case", {"unittest_case"}, env, scope)
+        elif stmt.module == "unittest.case":
             for alias in stmt.names:
                 if alias.name in {"expectedFailure", "*"}:
-                    env[alias.asname or "expectedFailure"] = {"expected_failure"}
-                else:
-                    env.pop(alias.asname or alias.name, None)
-        else:
-            for alias in stmt.names:
-                if alias.name != "*":
-                    env.pop(alias.asname or alias.name, None)
+                    self._bind_name(
+                        alias.asname or "expectedFailure",
+                        {"expected_failure"},
+                        env,
+                        scope,
+                    )
 
-    def _handle_assign(self, stmt: ast.Assign, env: _UnitEnv) -> None:
+    def _handle_assign(
+        self, stmt: ast.Assign, env: _UnitEnv, scope: _UnitScope
+    ) -> None:
         parallel = isinstance(stmt.value, (ast.Tuple, ast.List)) and not any(
             isinstance(elt, ast.Starred) for elt in stmt.value.elts
         )
         if parallel:
             kinds_list: list[set[str]] = []
             for elt in stmt.value.elts:
-                self._scan_expr(elt, env)
+                self._scan_expr(elt, env, scope)
                 kinds_list.append(_classify_unittest_expr(elt, env))
             for target in stmt.targets:
                 if (
@@ -2154,25 +1973,23 @@ class _UnittestExpectedFailureFinder:
                     for sub_target, sub_kinds in zip(
                         target.elts, kinds_list, strict=True
                     ):
-                        self._bind_target(sub_target, sub_kinds, env)
+                        self._bind_target(sub_target, sub_kinds, env, scope)
                 else:
-                    self._bind_target(target, set(), env)
+                    self._bind_target(target, set(), env, scope)
             return
-        self._scan_expr(stmt.value, env)
+        self._scan_expr(stmt.value, env, scope)
         kinds = _classify_unittest_expr(stmt.value, env)
         for target in stmt.targets:
-            self._bind_target(target, kinds, env)
+            self._bind_target(target, kinds, env, scope)
 
     def _handle_func_def(
         self,
         stmt: ast.FunctionDef | ast.AsyncFunctionDef,
         env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
+        scope: _UnitScope,
     ) -> None:
-        self._scan_decorators(stmt.decorator_list, env)
-        default_envs = self._scan_and_collect_defaults(stmt.args, env)
+        self._scan_decorators(stmt.decorator_list, env, scope)
+        default_envs = self._scan_and_collect_defaults(stmt.args, env, scope)
         if not self.postponed_annotations:
             for arg in (
                 *stmt.args.posonlyargs,
@@ -2181,324 +1998,119 @@ class _UnittestExpectedFailureFinder:
                 *(a for a in (stmt.args.vararg, stmt.args.kwarg) if a is not None),
             ):
                 if arg.annotation is not None:
-                    self._scan_expr(arg.annotation, env)
+                    self._scan_expr(arg.annotation, env, scope)
             if stmt.returns is not None:
-                self._scan_expr(stmt.returns, env)
-        env.pop(stmt.name, None)
-        def_env = non_class_env if scope_kind == "class" else env
-        self._queue_deferred(stmt, def_env, default_envs, deferred)
+                self._scan_expr(stmt.returns, env, scope)
+        outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
+        param_names = _function_param_names(stmt.args)
+        local_bound, _, global_names, nonlocal_names = _collect_scope_bindings(
+            stmt.body
+        )
+        excluded = param_names | global_names | (local_bound - nonlocal_names)
+        child_env: _UnitEnv = {
+            k: set(v) for k, v in outer_non_class.items() if k not in excluded
+        }
+        for name in global_names:
+            if name in self.module_env:
+                child_env.setdefault(name, set()).update(self.module_env[name])
+        _update_unittest_env(child_env, default_envs)
+        child_scope = _UnitScope(
+            scope_kind="function",
+            non_class_env=child_env,
+            global_names=frozenset(global_names),
+            nonlocal_names=frozenset(nonlocal_names),
+            enclosing_env=outer_non_class,
+        )
+        self._walk_scope(stmt.body, child_env, child_scope)
 
     def _handle_class_def(
-        self,
-        stmt: ast.ClassDef,
-        env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
+        self, stmt: ast.ClassDef, env: _UnitEnv, scope: _UnitScope
     ) -> None:
-        self._scan_decorators(stmt.decorator_list, env)
+        self._scan_decorators(stmt.decorator_list, env, scope)
         for base in stmt.bases:
-            self._scan_expr(base, env)
+            self._scan_expr(base, env, scope)
         for kw in stmt.keywords:
-            self._scan_expr(kw.value, env)
-        env.pop(stmt.name, None)
-        outer_non_class = non_class_env if scope_kind == "class" else env
+            self._scan_expr(kw.value, env, scope)
+        outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
         class_env = _copy_unittest_env(outer_non_class)
-        prev_sinks = self._seen_sinks
-        prev_loops = self._loop_sinks
-        self._seen_sinks = []
-        self._loop_sinks = []
-        try:
-            self._walk_block(stmt.body, class_env, "class", outer_non_class, deferred)
-        finally:
-            self._seen_sinks = prev_sinks
-            self._loop_sinks = prev_loops
+        class_scope = _UnitScope("class", outer_non_class)
+        self._walk_scope(stmt.body, class_env, class_scope)
 
-    def _walk_try_stmt(
+    def _walk_try_or_match(
         self,
-        stmt: ast.Try | ast.TryStar,
+        stmt: ast.Try | ast.TryStar | ast.Match,
         env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
+        scope: _UnitScope,
     ) -> None:
-        in_class = scope_kind == "class"
-        body_env = _copy_unittest_env(env)
-        finally_seen = _copy_unittest_env(env)
-        try_seen = _copy_unittest_env(env)
-        self._seen_sinks.append(finally_seen)
-        try:
-            self._seen_sinks.append(try_seen)
-            try:
-                self._walk_block(
-                    stmt.body,
-                    body_env,
-                    scope_kind,
-                    non_class_env if in_class else body_env,
-                    deferred,
-                )
-            finally:
-                self._seen_sinks.pop()
-            orelse_env = _copy_unittest_env(body_env)
-            self._walk_block(
-                stmt.orelse,
-                orelse_env,
-                scope_kind,
-                non_class_env if in_class else orelse_env,
-                deferred,
-            )
-            branch_envs = [orelse_env]
+        if isinstance(stmt, (ast.Try, ast.TryStar)):
+            for sub in stmt.body:
+                self._walk_stmt(sub, env, scope)
             for handler in stmt.handlers:
                 if handler.type is not None:
-                    self._scan_expr(handler.type, try_seen)
-                h_env = _copy_unittest_env(try_seen)
-                if handler.name:
-                    h_env.pop(handler.name, None)
-                self._walk_block(
-                    handler.body,
-                    h_env,
-                    scope_kind,
-                    non_class_env if in_class else h_env,
-                    deferred,
-                )
-                branch_envs.append(h_env)
-        finally:
-            self._seen_sinks.pop()
-        normal_env = _merge_unittest_envs(branch_envs)
-        if stmt.finalbody:
-            finally_env = _merge_unittest_envs([normal_env, finally_seen])
-            self._walk_block(
-                stmt.finalbody,
-                finally_env,
-                scope_kind,
-                non_class_env if in_class else finally_env,
-                deferred,
-            )
-            env.clear()
-            env.update(finally_env)
+                    self._scan_expr(handler.type, env, scope)
+                for sub in handler.body:
+                    self._walk_stmt(sub, env, scope)
+            for sub in (*stmt.orelse, *stmt.finalbody):
+                self._walk_stmt(sub, env, scope)
         else:
-            env.clear()
-            env.update(normal_env)
-        self._propagate_to_deferred(env, scope_kind, deferred)
-
-    def _walk_match_stmt(
-        self,
-        stmt: ast.Match,
-        env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
-    ) -> None:
-        in_class = scope_kind == "class"
-        self._scan_expr(stmt.subject, env)
-        branch_envs = [_copy_unittest_env(env)]
-        for case in stmt.cases:
-            case_env = _copy_unittest_env(env)
-            bound: set[str] = set()
-            _collect_pattern_names(case.pattern, bound)
-            for name in bound:
-                case_env.pop(name, None)
-            if case.guard is not None:
-                self._scan_expr(case.guard, case_env)
-            self._walk_block(
-                case.body,
-                case_env,
-                scope_kind,
-                non_class_env if in_class else case_env,
-                deferred,
-            )
-            branch_envs.append(case_env)
-        env.clear()
-        env.update(_merge_unittest_envs(branch_envs))
-        self._propagate_to_deferred(env, scope_kind, deferred)
-
-    def _walk_loop_stmt(
-        self,
-        stmt: ast.For | ast.AsyncFor | ast.While,
-        env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
-    ) -> None:
-        in_class = scope_kind == "class"
-        if isinstance(stmt, (ast.For, ast.AsyncFor)):
-            self._scan_expr(stmt.iter, env)
-        else:
-            self._scan_expr(stmt.test, env)
-        entry_env = _copy_unittest_env(env)
-        iter_env = _copy_unittest_env(env)
-        break_env: _UnitEnv = {}
-        continue_env: _UnitEnv = {}
-        self._loop_sinks.append((break_env, continue_env))
-        try:
-            while True:
-                before = _copy_unittest_env(iter_env)
-                body_env = _copy_unittest_env(iter_env)
-                if isinstance(stmt, (ast.For, ast.AsyncFor)):
-                    self._bind_target(stmt.target, set(), body_env)
-                else:
-                    self._scan_expr(stmt.test, body_env)
-                self._walk_block(
-                    stmt.body,
-                    body_env,
-                    scope_kind,
-                    non_class_env if in_class else body_env,
-                    deferred,
-                )
-                merged_iter = _merge_unittest_envs([before, body_env, continue_env])
-                if merged_iter == before:
-                    break
-                iter_env = merged_iter
-        finally:
-            self._loop_sinks.pop()
-        else_env = _merge_unittest_envs([entry_env, iter_env])
-        self._walk_block(
-            stmt.orelse,
-            else_env,
-            scope_kind,
-            non_class_env if in_class else else_env,
-            deferred,
-        )
-        env.clear()
-        env.update(_merge_unittest_envs([entry_env, iter_env, else_env, break_env]))
-        self._propagate_to_deferred(env, scope_kind, deferred)
+            self._scan_expr(stmt.subject, env, scope)
+            for case in stmt.cases:
+                if case.guard is not None:
+                    self._scan_expr(case.guard, env, scope)
+                for sub in case.body:
+                    self._walk_stmt(sub, env, scope)
 
     def _walk_compound_stmt(
-        self,
-        stmt: ast.stmt,
-        env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
+        self, stmt: ast.stmt, env: _UnitEnv, scope: _UnitScope
     ) -> None:
-        in_class = scope_kind == "class"
-        if isinstance(stmt, ast.If):
-            self._scan_expr(stmt.test, env)
-            body_env, else_env = _copy_unittest_env(env), _copy_unittest_env(env)
-            self._walk_block(
-                stmt.body,
-                body_env,
-                scope_kind,
-                non_class_env if in_class else body_env,
-                deferred,
-            )
-            self._walk_block(
-                stmt.orelse,
-                else_env,
-                scope_kind,
-                non_class_env if in_class else else_env,
-                deferred,
-            )
-            env.clear()
-            env.update(_merge_unittest_envs([body_env, else_env]))
-            self._propagate_to_deferred(env, scope_kind, deferred)
-        elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
-            self._walk_loop_stmt(stmt, env, scope_kind, non_class_env, deferred)
+        if isinstance(stmt, (ast.If, ast.While)):
+            self._scan_expr(stmt.test, env, scope)
+            for sub in (*stmt.body, *stmt.orelse):
+                self._walk_stmt(sub, env, scope)
+        elif isinstance(stmt, (ast.For, ast.AsyncFor)):
+            self._scan_expr(stmt.iter, env, scope)
+            self._bind_target(stmt.target, set(), env, scope)
+            for sub in (*stmt.body, *stmt.orelse):
+                self._walk_stmt(sub, env, scope)
         elif isinstance(stmt, (ast.With, ast.AsyncWith)):
             for item in stmt.items:
-                self._scan_expr(item.context_expr, env)
+                self._scan_expr(item.context_expr, env, scope)
                 if item.optional_vars is not None:
-                    self._bind_target(item.optional_vars, set(), env)
-            self._walk_block(
-                stmt.body,
-                env,
-                scope_kind,
-                non_class_env if in_class else env,
-                deferred,
-            )
-        elif isinstance(stmt, (ast.Try, ast.TryStar)):
-            self._walk_try_stmt(stmt, env, scope_kind, non_class_env, deferred)
-        elif isinstance(stmt, ast.Match):
-            self._walk_match_stmt(stmt, env, scope_kind, non_class_env, deferred)
-        elif isinstance(stmt, ast.Assert):
-            self._scan_expr(stmt.test, env)
-            if stmt.msg is not None:
-                self._scan_short_circuit_tail([stmt.msg], env, None)
-        elif isinstance(stmt, ast.Break):
-            if self._loop_sinks:
-                _update_unittest_env(self._loop_sinks[-1][0], env)
-        elif isinstance(stmt, ast.Continue):
-            if self._loop_sinks:
-                _update_unittest_env(self._loop_sinks[-1][1], env)
+                    self._bind_target(item.optional_vars, set(), env, scope)
+            for sub in stmt.body:
+                self._walk_stmt(sub, env, scope)
+        elif isinstance(stmt, (ast.Try, ast.TryStar, ast.Match)):
+            self._walk_try_or_match(stmt, env, scope)
         else:
             for child in ast.iter_child_nodes(stmt):
-                self._scan_expr(child, env)
+                self._scan_expr(child, env, scope)
 
-    def _handle_delete_target(self, target: ast.AST, env: _UnitEnv) -> None:
-        if isinstance(target, ast.Name):
-            env.pop(target.id, None)
-        elif isinstance(target, (ast.Tuple, ast.List)):
-            for elt in target.elts:
-                self._handle_delete_target(elt, env)
-        else:
-            self._scan_expr(target, env)
-
-    def _walk_stmt(
-        self,
-        stmt: ast.stmt,
-        env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
-    ) -> None:
+    def _walk_stmt(self, stmt: ast.stmt, env: _UnitEnv, scope: _UnitScope) -> None:
         if isinstance(stmt, ast.Import):
-            self._handle_import(stmt, env)
-            self._propagate_to_deferred(env, scope_kind, deferred)
+            self._handle_import(stmt, env, scope)
         elif isinstance(stmt, ast.ImportFrom):
-            self._handle_import_from(stmt, env)
-            self._propagate_to_deferred(env, scope_kind, deferred)
+            self._handle_import_from(stmt, env, scope)
         elif isinstance(stmt, ast.Assign):
-            self._handle_assign(stmt, env)
-            self._propagate_to_deferred(env, scope_kind, deferred)
+            self._handle_assign(stmt, env, scope)
         elif isinstance(stmt, ast.AnnAssign):
             if stmt.value is not None:
-                self._scan_expr(stmt.value, env)
+                self._scan_expr(stmt.value, env, scope)
                 self._bind_target(
-                    stmt.target, _classify_unittest_expr(stmt.value, env), env
+                    stmt.target, _classify_unittest_expr(stmt.value, env), env, scope
                 )
-                self._propagate_to_deferred(env, scope_kind, deferred)
             elif not isinstance(stmt.target, ast.Name):
-                self._scan_expr(stmt.target, env)
-            if scope_kind in {"module", "class"} and not self.postponed_annotations:
-                self._scan_expr(stmt.annotation, env)
-        elif isinstance(stmt, ast.AugAssign):
-            self._scan_expr(stmt.value, env)
-            self._bind_target(stmt.target, set(), env)
-        elif isinstance(stmt, ast.Delete):
-            for target in stmt.targets:
-                self._handle_delete_target(target, env)
+                self._scan_expr(stmt.target, env, scope)
+            if (
+                scope.scope_kind in {"module", "class"}
+                and not self.postponed_annotations
+            ):
+                self._scan_expr(stmt.annotation, env, scope)
         elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            self._handle_func_def(stmt, env, scope_kind, non_class_env, deferred)
+            self._handle_func_def(stmt, env, scope)
         elif isinstance(stmt, ast.ClassDef):
-            self._handle_class_def(stmt, env, scope_kind, non_class_env, deferred)
+            self._handle_class_def(stmt, env, scope)
         else:
-            self._walk_compound_stmt(stmt, env, scope_kind, non_class_env, deferred)
-
-    def _walk_block(
-        self,
-        stmts: list[ast.stmt],
-        env: _UnitEnv,
-        scope_kind: str,
-        non_class_env: _UnitEnv,
-        deferred: _DeferredMap,
-    ) -> None:
-        prev = (
-            self._active_deferred,
-            self._active_scope_kind,
-            self._active_non_class_env,
-        )
-        self._active_deferred = deferred
-        self._active_scope_kind = scope_kind
-        self._active_non_class_env = non_class_env
-        try:
-            for stmt in stmts:
-                self._walk_stmt(stmt, env, scope_kind, non_class_env, deferred)
-        finally:
-            (
-                self._active_deferred,
-                self._active_scope_kind,
-                self._active_non_class_env,
-            ) = prev
+            self._walk_compound_stmt(stmt, env, scope)
 
 
 def _suppression_nodes(tree, parents):

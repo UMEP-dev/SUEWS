@@ -602,7 +602,6 @@ def test_unittest_expected_failure_forms_are_counted_once_and_fail_unmapped(
         "import unittest\n\ndef test_ok(unittest):\n    assert unittest.expectedFailure(1)\n",
         "from unittest import expectedFailure as ef\n\ndef test_ok():\n    ef = lambda x: x\n    assert ef(1)\n",
         "from unittest import expectedFailure\n\ndef test_ok():\n    assert callable(expectedFailure)\n",
-        "from unittest import expectedFailure as ef\nef = lambda fn: fn\n\n@ef\ndef test_ok():\n    assert 1 == 1\n",
         "from __future__ import annotations\nimport unittest\n\ndef helper(x: unittest.expectedFailure(1)):\n    pass\n",
         "import unittest\n\ndef test_ok():\n    unused: unittest.expectedFailure(1)\n    assert True\n",
         "def mark(fn): return fn\n\ndef outer():\n    from unittest import expectedFailure as mark\n    def inner():\n        global mark\n        return mark(lambda: None)\n    return inner\n",
@@ -899,6 +898,56 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "from unittest import expectedFailure as marker\n"
             "list(gen)\n"
             "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "ef = lambda fn: fn\n"
+            "gen = ((ef := marker) for _ in [0])\n"
+            "from unittest import expectedFailure as marker\n"
+            "list(gen)\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "def test_one():\n"
+            "    pass\n"
+            "def test_two():\n"
+            "    pass\n"
+            "(ef := unittest.expectedFailure)(test_one)\n"
+            "ef(test_two)\n",
+            [
+                "test/test_branch.py::<module>::1",
+                "test/test_branch.py::<module>::2",
+            ],
+        ),
+        (
+            "import unittest\n"
+            "@(ef := unittest.expectedFailure)\n"
+            "def test_one():\n"
+            "    pass\n"
+            "@ef\n"
+            "def test_two():\n"
+            "    pass\n",
+            [
+                "test/test_branch.py::test_one::1",
+                "test/test_branch.py::test_two::1",
+            ],
+        ),
+        (
+            "import unittest\n"
+            "marker = lambda fn: fn\n"
+            "for _ in [0]:\n"
+            "    try:\n"
+            "        break\n"
+            "    finally:\n"
+            "        marker = unittest.expectedFailure\n"
+            "    marker = lambda fn: fn\n"
+            "@marker\n"
             "def test_case():\n"
             "    pass\n",
             ["test/test_branch.py::test_case::1"],
@@ -1342,6 +1391,15 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
         (
             'LEDGER = {}\nalias: alias.update({"k": "v"}) = LEDGER\n',
             "unsupported mutation of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def mutate(table):\n"
+            '    table["k"] = "v"\n'
+            "box = {}\n"
+            "box[(len := mutate)] = 0\n"
+            "len(LEDGER)\n",
+            "unsupported escape of constant LEDGER",
         ),
     ],
 )

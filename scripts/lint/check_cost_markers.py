@@ -80,6 +80,7 @@ BAND = 2.0
 # session fixture to whichever test reaches it first on each worker.
 DEFAULT_PHASE = "call"
 PHASES = ("setup", "call", "teardown", "total")
+AXES = ("api", "physics")
 COST_MARKERS = ("medium", "slow")
 # Outcomes whose call phase ran and so carry a measurement.
 MEASURED_OUTCOMES = frozenset({"passed", "failed", "xpassed"})
@@ -106,6 +107,7 @@ class TestCost:
     source: str
     outcome: str = "passed"
     marker_reasons: tuple[tuple[str, str], ...] = ()
+    axis: str | None = None
 
     @property
     def cost_marker(self) -> str | None:
@@ -288,6 +290,35 @@ def _pytest_payload(payload: Any, path: Path) -> dict[str, Any] | None:
     return payload
 
 
+def source_axis(path: Path) -> str | None:
+    """Return the CI test axis (``api`` or ``physics``) a metrics artefact belongs to."""
+    stem = path.stem.lower()
+    for axis in AXES:
+        if stem == axis or stem.startswith(f"{axis}-") or stem.startswith(f"{axis}_"):
+            return axis
+    for parent in path.parents:
+        name = parent.name.lower()
+        if name in AXES:
+            return name
+    return None
+
+
+def missing_required_axes(
+    tests: Iterable[TestCost], required_axes: Iterable[str]
+) -> list[str]:
+    """Return required axes that have no measured tests in ``tests``."""
+    present = {test.axis for test in tests if test.measured and test.axis is not None}
+    missing: list[str] = []
+    seen: set[str] = set()
+    for axis in required_axes:
+        if axis not in AXES:
+            raise ValueError(f"unknown axis {axis!r}; expected one of {AXES}")
+        if axis not in present and axis not in seen:
+            missing.append(axis)
+            seen.add(axis)
+    return missing
+
+
 def load_tests(
     paths: Iterable[Path],
     *,
@@ -315,6 +346,7 @@ def load_tests(
                 skipped.append(path.as_posix())
             continue
         sources.append(path.name)
+        axis = source_axis(path)
         for record in metrics["tests"]:
             reasons = record.get("marker_reasons") or {}
             tests.append(
@@ -326,6 +358,7 @@ def load_tests(
                     source=path.name,
                     outcome=str(record.get("outcome")),
                     marker_reasons=tuple(sorted((str(k), str(v)) for k, v in reasons.items())),
+                    axis=axis,
                 )
             )
     return tests, sources
@@ -515,6 +548,16 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         type=Path,
         help="write the outcome (counts and flagged tests) as JSON to this file",
     )
+    parser.add_argument(
+        "--require-axis",
+        dest="require_axes",
+        action="append",
+        choices=AXES,
+        help=(
+            "require at least one measured test from this lane axis (api or physics); "
+            "repeat to require both axes before reporting clean"
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -531,6 +574,16 @@ def main(argv: list[str] | None = None) -> int:
     if not tests:
         print("[X] no per-test records found; pass ci-metrics-*-cp312-manylinux-x86_64 artefacts")
         return 2
+    if args.require_axes:
+        missing = missing_required_axes(tests, args.require_axes)
+        if missing:
+            present = sorted({t.axis for t in tests if t.measured and t.axis is not None})
+            found_str = ", ".join(present) if present else "none"
+            print(
+                f"[X] missing measured metrics for required axis/axes: {', '.join(missing)} "
+                f"(measured axes present: {found_str})"
+            )
+            return 2
     report = check_costs(
         tests,
         medium_seconds=args.medium_seconds,

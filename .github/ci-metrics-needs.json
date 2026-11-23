@@ -81,6 +81,12 @@
     "Build MCP package",
     "Determine build matrix"
   ],
+  "Build and test (manylinux x86_64) / Require lowest-direct dependency smoke tests": [
+    "Build and test (manylinux x86_64) / Lowest-direct dependency smoke tests (Linux cp312)",
+    "Build and test (manylinux x86_64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix"
+  ],
   "Physics-change label": [
     "Determine build matrix"
   ],

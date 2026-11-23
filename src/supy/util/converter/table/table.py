@@ -798,6 +798,131 @@ def change_var_nml(toFile, toVar, toVal):
     nml.write(toFile)
 
 
+_RUNCONTROL_PATH_DEFAULTS = (
+    ("fileinputpath", "FileInputPath", "Input"),
+    ("fileoutputpath", "FileOutputPath", "Output"),
+)
+
+
+def _to_relative_runcontrol_dir(raw_path: str, default_name: str) -> str | None:
+    """Return a relative ``./<name>/`` path when ``raw_path`` is absolute.
+
+    Parameters
+    ----------
+    raw_path : str
+        Path string read from ``RunControl.nml``.
+    default_name : str
+        Fallback folder name when ``raw_path`` has no usable leaf component.
+
+    Returns
+    -------
+    str | None
+        Relative directory string (e.g. ``"./Input/"``) if ``raw_path`` is
+        absolute or rooted, or ``None`` if it is already relative.
+    """
+    stripped = raw_path.strip()
+    path_raw = Path(stripped)
+    if not (path_raw.is_absolute() or path_raw.anchor):
+        return None
+    components: list[str] = []
+    for part in path_raw.parts[1:]:
+        if part == "..":
+            if components:
+                components.pop()
+        elif part and part != ".":
+            components.append(part)
+    leaf = components[-1] if components else default_name
+    return f"./{leaf}/"
+
+
+def _rewrite_absolute_runcontrol_paths(path_runcontrol: Path) -> bool:
+    """Rewrite absolute input/output paths in an output ``RunControl.nml``.
+
+    Absolute ``FileInputPath`` and ``FileOutputPath`` entries are rewritten to
+    relative folders under the target directory (using the last path component,
+    e.g. ``"./Input/"``) so converted tables never write outside ``toDir``.
+    Relative paths are left untouched without rewriting the file.
+
+    Parameters
+    ----------
+    path_runcontrol : Path
+        Path to the output ``RunControl.nml`` to inspect and update if needed.
+
+    Returns
+    -------
+    bool
+        ``True`` if ``path_runcontrol`` was rewritten, ``False`` otherwise.
+    """
+    if not path_runcontrol.exists():
+        if not path_runcontrol.parent.is_dir():
+            return False
+        matched = next(
+            (
+                p
+                for p in path_runcontrol.parent.iterdir()
+                if p.is_file() and p.name.lower() == path_runcontrol.name.lower()
+            ),
+            None,
+        )
+        if matched is None:
+            return False
+        path_runcontrol = matched
+
+    nml = f90nml.read(str(path_runcontrol))
+    if not nml:
+        return False
+    section = nml["runcontrol"] if "runcontrol" in nml else next(iter(nml.values()))
+
+    changed = False
+    for key, display_name, default_name in _RUNCONTROL_PATH_DEFAULTS:
+        if key not in section:
+            continue
+        value = section[key]
+        if not isinstance(value, str):
+            continue
+        rewritten = _to_relative_runcontrol_dir(value, default_name)
+        if rewritten is None:
+            continue
+        section[key] = rewritten
+        changed = True
+        logger_supy.info(
+            "Rewrote absolute %s %r -> %r in %s",
+            display_name,
+            value,
+            rewritten,
+            path_runcontrol.name,
+        )
+
+    if changed:
+        nml.write(str(path_runcontrol), force=True)
+    return changed
+
+
+def _prepare_output_dirs(path_to_dir: Path) -> tuple[pd.Series, Path, Path]:
+    """Resolve and create output input/output folders inside ``path_to_dir``.
+
+    Parameters
+    ----------
+    path_to_dir : Path
+        Target output directory containing the converted ``RunControl.nml``.
+
+    Returns
+    -------
+    tuple[pd.Series, Path, Path]
+        ``(ser_nml, path_input, path_output)`` loaded from the output
+        ``RunControl.nml`` after rewriting any absolute paths.
+    """
+    path_runcontrol = path_to_dir / "RunControl.nml"
+    _rewrite_absolute_runcontrol_paths(path_runcontrol)
+
+    ser_nml = load_SUEWS_nml_simple(str(path_runcontrol)).runcontrol
+    path_input = (path_to_dir / ser_nml["fileinputpath"]).resolve()
+    path_output = (path_to_dir / ser_nml["fileoutputpath"]).resolve()
+    path_input.mkdir(exist_ok=True)
+    path_output.mkdir(exist_ok=True)
+    return ser_nml, path_input, path_output
+
+
 def _copy_and_clean_files(fromDir, toDir, file_patterns, clean_txt=True):
     """Copy files matching patterns and optionally clean text files."""
     for fileX in sorted(os.listdir(fromDir)):
@@ -843,11 +968,7 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     _copy_and_clean_files(fromDir, toDir, ["*.nml"], clean_txt=False)
 
     # Create the standard directory structure
-    ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
-    path_input = (Path(toDir) / ser_nml["fileinputpath"]).resolve()
-    path_output = (Path(toDir) / ser_nml["fileoutputpath"]).resolve()
-    path_input.mkdir(exist_ok=True)
-    path_output.mkdir(exist_ok=True)
+    _, path_input, _ = _prepare_output_dirs(Path(toDir))
 
     # Move table files to Input directory
     list_table_input = sorted(
@@ -1639,6 +1760,10 @@ def convert_table(
                 logger_supy.debug(f"Cleaning original file: {fileX.name}")
                 clean_legacy_table(path_dst)
 
+        # Rewrite any absolute FileInputPath/FileOutputPath in the working copy
+        # before chained steps run so intermediate steps never re-scan fromDir.
+        _rewrite_absolute_runcontrol_paths(tempDir_1 / "RunControl.nml")
+
         # Indirect version conversion process
         # The alternation logic needs to account for starting position
         # Files start in tempDir_1, so first conversion should read from tempDir_1
@@ -1793,12 +1918,7 @@ def convert_table(
             rmtree(tempDir_2, ignore_errors=True)
 
     # cleaning and move input tables into the `input` folder
-    ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
-
-    path_input = (Path(toDir) / ser_nml["fileinputpath"]).resolve()
-    path_output = (Path(toDir) / ser_nml["fileoutputpath"]).resolve()
-    path_input.mkdir(exist_ok=True)
-    path_output.mkdir(exist_ok=True)
+    ser_nml, path_input, _ = _prepare_output_dirs(Path(toDir))
 
     list_table_input = sorted(
         list(Path(toDir).glob("SUEWS*.txt"))

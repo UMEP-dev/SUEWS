@@ -327,3 +327,12 @@ plugin:
 AGENT_PLUGIN_OUT ?= ../suews-agent
 agent-plugin:
 	$(PYTHON) scripts/build_agent_plugin.py --output $(AGENT_PLUGIN_OUT)
+
+# Linux-only real-physics witness; execute on remote compute or CI, not macOS.
+.PHONY: test-rss-growth test-rss-growth-contract
+RSS_GROWTH_ARGS ?= --output rss-growth
+test-rss-growth:
+	$(PYTHON) scripts/suews/rss_growth.py $(RSS_GROWTH_ARGS)
+
+test-rss-growth-contract:
+	$(PYTHON) -m pytest test/core/test_rss_growth.py -q

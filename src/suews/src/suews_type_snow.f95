@@ -2,6 +2,7 @@ module module_type_snow
 
     USE module_ctrl_const_allocate, ONLY: &
        nsurf
+    USE module_type_surface, ONLY: OHM_PRM
 
     ! use module_ctrl_type
 
@@ -27,6 +28,7 @@ module module_type_snow
        REAL(KIND(1D0)) :: tau_r = 0.0D0 ! Time constant for snow density ageing [-]
        REAL(KIND(1D0)) :: temperature_melt_factor = 0.0D0 ! Hourly temperature melt factor of snow [mm K-1 h-1]
        REAL(KIND(1D0)) :: radiation_melt_factor = 0.0D0 ! Hourly radiation melt factor of snow [mm W-1 h-1]
+       TYPE(OHM_PRM) :: ohm ! Objective Hysteresis Model parameters for snow surface
     END TYPE SNOW_PRM
 
     TYPE, PUBLIC :: SNOW_STATE

@@ -1284,6 +1284,69 @@ fn apply_ohm_overrides(
     Ok(())
 }
 
+/// Read the 14 snow OHM fields (`properties.snow.ohm_threshold_*` and
+/// `properties.snow.ohm_coef.*.*`) into `site.snow.ohm` (#2109).
+///
+/// `SUEWS_cal_Qs` (`suews_ctrl_driver.f95`) invokes `OHM` when
+/// `StorageHeatMethod` is in `{1, 6, 7, 8}` or during `StorageHeatMethod == 3`
+/// (AnOHM) spin-up, and `OHM` (`suews_phys_ohm.f95`) reads
+/// `OHM_coef(nsurf + 1, 3, 1:3)` (`winter_wet` `a1`/`a2`/`a3`) when
+/// `SnowUse == 1`. Those three active coefficients must therefore be finite
+/// numbers whenever `snow_ohm_is_read(snow_use, storage_heat_method)` holds
+/// (BR-02). Unused snow OHM keys may be absent or null (BR-03), while any
+/// explicitly supplied non-null value is still validated strictly as a finite
+/// number so malformed or non-finite inputs are never silently dropped.
+fn apply_snow_ohm_overrides(
+    ohm: &mut crate::ohm_prm::OhmPrm,
+    site_root: &Value,
+    snow_use: i32,
+    storage_heat_method: i32,
+) -> Result<(), String> {
+    let site_at = site_yaml_at(site_root);
+    let winter_wet_active = snow_ohm_is_read(snow_use, storage_heat_method);
+
+    validate_optional_mapping(site_root, &["properties", "snow", "ohm_coef"], &site_at)?;
+    for season in OHM_SEASONS {
+        validate_optional_mapping(
+            site_root,
+            &["properties", "snow", "ohm_coef", season],
+            &site_at,
+        )?;
+    }
+
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "ohm_threshsw"],
+        &site_at,
+        false,
+    )? {
+        ohm.ohm_threshold_summer_winter = v;
+    }
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "ohm_threshwd"],
+        &site_at,
+        false,
+    )? {
+        ohm.ohm_threshold_wet_dry = v;
+    }
+
+    for (coef_index, coef_key) in [(0_usize, "a1"), (1_usize, "a2"), (2_usize, "a3")] {
+        for season in OHM_SEASONS {
+            let required = winter_wet_active && season == "winter_wet";
+            if let Some(v) = require_if_active_numeric(
+                site_root,
+                &["properties", "snow", "ohm_coef", season, coef_key],
+                &site_at,
+                required,
+            )? {
+                set_ohm_coef_for_season(&mut ohm.ohm_coef_lc[coef_index], season, v);
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Read the three soil parameters for one land cover.
 ///
 /// Active non-water surfaces (`sfr > 0.0`) participate in the soil water
@@ -1912,6 +1975,15 @@ fn facet_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
     ehc_is_on(storage_heat_method) && spartacus_on
 }
 
+/// Whether the kernel reads `properties.snow.ohm_coef.winter_wet.{a1,a2,a3}`:
+/// `SUEWS_cal_Qs` (`suews_ctrl_driver.f95`) calls `OHM` when
+/// `StorageHeatMethod` is in `{1, 6, 7, 8}` or during `StorageHeatMethod == 3`
+/// (AnOHM) spin-up, and `OHM` (`suews_phys_ohm.f95`) evaluates snow storage
+/// heat `deltaQi` from `OHM_coef(nsurf + 1, 3, 1:3)` when `SnowUse == 1`.
+fn snow_ohm_is_read(snow_use: i32, storage_heat_method: i32) -> bool {
+    snow_use == 1 && matches!(storage_heat_method, 1 | 3 | 6 | 7 | 8)
+}
+
 /// Read `properties.vertical_layers`. Where the kernel reads the building
 /// layer geometry (`vertical_layers_are_read`), the cumulative building
 /// fraction per layer is required as a whole list, and the entries the
@@ -2254,6 +2326,7 @@ fn apply_snow_overrides(
     site: &mut SuewsSite,
     site_root: &Value,
     snow_use: i32,
+    storage_heat_method: i32,
 ) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
     validate_optional_mapping(site_root, &["properties", "snow"], &site_at)?;
@@ -2431,6 +2504,7 @@ fn apply_snow_overrides(
             site.snow.snowpack_limit[surface_idx] = v;
         }
     }
+    apply_snow_ohm_overrides(&mut site.snow.ohm, site_root, snow_use, storage_heat_method)?;
     Ok(())
 }
 
@@ -4046,7 +4120,7 @@ fn apply_site_overrides(
     )?;
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root, config, sfr_surf)?;
-    apply_snow_overrides(site, site_root, config.snow_use)?;
+    apply_snow_overrides(site, site_root, config.snow_use, storage_heat_method)?;
     apply_irrigation_overrides(site, site_root, config)?;
     apply_vertical_layers_overrides(
         site,
@@ -12379,6 +12453,118 @@ mod tests {
                     "{display_suffix}={bad_yaml}: expected path and `{expected_phrase}` in error, got: {err}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn snow_ohm_parameters_load_distinct_values_and_enforce_active_contract() {
+        let mut root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture should parse");
+        *get_path_mut(&mut root, &["model", "physics", "snow_use"]).unwrap() =
+            serde_yaml::from_str("{value: 1}").unwrap();
+
+        let snow = &mut root["sites"][0]["properties"]["snow"];
+
+        *get_path_mut(snow, &["ohm_threshold_summer_winter"]).unwrap() =
+            serde_yaml::from_str("{value: 11.25}").unwrap();
+        *get_path_mut(snow, &["ohm_threshold_wet_dry"]).unwrap() =
+            serde_yaml::from_str("{value: 0.77}").unwrap();
+
+        let distinct = [
+            ("summer_dry", [0.11, 0.21, -11.0]),
+            ("summer_wet", [0.12, 0.22, -12.0]),
+            ("winter_dry", [0.13, 0.23, -13.0]),
+            ("winter_wet", [0.14, 0.24, -14.0]),
+        ];
+        for (season, vals) in distinct {
+            for (coef, val) in ["a1", "a2", "a3"].into_iter().zip(vals) {
+                *get_path_mut(snow, &["ohm_coef", season, coef]).unwrap() =
+                    serde_yaml::from_str(&format!("{{value: {val}}}")).unwrap();
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root).expect("distinct snow OHM must load");
+        assert!((run_cfg.site.snow.ohm.ohm_threshold_summer_winter - 11.25).abs() < 1.0e-12);
+        assert!((run_cfg.site.snow.ohm.ohm_threshold_wet_dry - 0.77).abs() < 1.0e-12);
+        for (i, coef_lc) in run_cfg.site.snow.ohm.ohm_coef_lc.iter().enumerate() {
+            assert!((coef_lc.summer_dry - distinct[0].1[i]).abs() < 1.0e-12);
+            assert!((coef_lc.summer_wet - distinct[1].1[i]).abs() < 1.0e-12);
+            assert!((coef_lc.winter_dry - distinct[2].1[i]).abs() < 1.0e-12);
+            assert!((coef_lc.winter_wet - distinct[3].1[i]).abs() < 1.0e-12);
+        }
+
+        // Active snow OHM (snow_use = 1, storage_heat in {1, 3, 6, 7, 8}) rejects
+        // missing, null, non-numeric, and non-finite winter_wet coefficients.
+        for method in [1, 3, 6, 7, 8] {
+            for coef in ["a1", "a2", "a3"] {
+                // Omitted key
+                let mut missing: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                *get_path_mut(&mut missing, &["model", "physics", "snow_use"]).unwrap() =
+                    serde_yaml::from_str("{value: 1}").unwrap();
+                *get_path_mut(&mut missing, &["model", "physics", "storage_heat"]).unwrap() =
+                    serde_yaml::from_str(&format!("{{value: {method}}}")).unwrap();
+                missing["sites"][0]["properties"]["snow"]["ohm_coef"]["winter_wet"]
+                    .as_mapping_mut()
+                    .unwrap()
+                    .remove(Value::String(coef.into()));
+                let err = load_run_config_from_value(&mut missing).expect_err(
+                    "missing active snow winter_wet OHM coefficient must fail",
+                );
+                assert!(
+                    err.contains(&format!("properties.snow.ohm_coef.winter_wet.{coef}")),
+                    "missing error for method={method} coef={coef} should name canonical path: {err}"
+                );
+
+                // Null / malformed / non-finite values
+                for bad in ["null", "{value: null}", "\"bad\"", ".nan", ".inf"] {
+                    let mut invalid: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                    *get_path_mut(&mut invalid, &["model", "physics", "snow_use"]).unwrap() =
+                        serde_yaml::from_str("{value: 1}").unwrap();
+                    *get_path_mut(&mut invalid, &["model", "physics", "storage_heat"]).unwrap() =
+                        serde_yaml::from_str(&format!("{{value: {method}}}")).unwrap();
+                    invalid["sites"][0]["properties"]["snow"]["ohm_coef"]["winter_wet"][coef] =
+                        serde_yaml::from_str(bad).unwrap();
+                    let err = load_run_config_from_value(&mut invalid).expect_err(
+                        "invalid active snow winter_wet OHM coefficient must fail",
+                    );
+                    assert!(
+                        err.contains(&format!("properties.snow.ohm_coef.winter_wet.{coef}")),
+                        "invalid error for method={method} coef={coef} bad={bad}: {err}"
+                    );
+                }
+            }
+        }
+
+        // Inactive branches (snow_use = 0, or storage_heat = 5 EHC) permit
+        // absent or null winter_wet coefficients (BR-03), while still rejecting
+        // explicit non-finite or malformed values (BR-02/BR-08).
+        for (snow_use, storage_heat) in [(0, 1), (1, 5)] {
+            let mut inactive: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            *get_path_mut(&mut inactive, &["model", "physics", "snow_use"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {snow_use}}}")).unwrap();
+            *get_path_mut(&mut inactive, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {storage_heat}}}")).unwrap();
+            inactive["sites"][0]["properties"]["snow"]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String("ohm_coef".into()));
+            let cfg = load_run_config_from_value(&mut inactive)
+                .expect("inactive snow OHM must allow omitted ohm_coef");
+            assert_eq!(cfg.site.snow.ohm.ohm_coef_lc[0].winter_wet, 0.0);
+
+            let mut malformed: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            *get_path_mut(&mut malformed, &["model", "physics", "snow_use"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {snow_use}}}")).unwrap();
+            *get_path_mut(&mut malformed, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {storage_heat}}}")).unwrap();
+            malformed["sites"][0]["properties"]["snow"]["ohm_threshold_summer_winter"] =
+                serde_yaml::from_str(".nan").unwrap();
+            let err = load_run_config_from_value(&mut malformed)
+                .expect_err("explicit non-finite snow OHM threshold must fail even when inactive");
+            assert!(
+                err.contains("properties.snow.ohm_threshold_summer_winter"),
+                "error should name canonical threshold key: {err}"
+            );
         }
     }
 }

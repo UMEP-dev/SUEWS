@@ -625,16 +625,6 @@ mod python_bindings {
         }
 
         #[getter]
-        fn tair_prev(&self) -> f64 {
-            self.state.tair_prev
-        }
-
-        #[setter]
-        fn set_tair_prev(&mut self, value: f64) {
-            self.state.tair_prev = value;
-        }
-
-        #[getter]
         fn iter_safe(&self) -> bool {
             self.state.iter_safe
         }

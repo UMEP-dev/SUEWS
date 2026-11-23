@@ -207,6 +207,147 @@ pub use timer::*;
 pub use water_dist::*;
 #[cfg(feature = "physics")]
 pub use yaml_config::*;
+
+/// Minimum OS thread stack size (8 MiB) for Rayon worker threads executing
+/// `-frecursive` Fortran physics routines (`suews_cal_multitsteps_c` ->
+/// `SUEWS_cal_multitsteps_dts` -> `SUEWS_cal_Main` -> `SUEWS_cal_Main_impl`).
+///
+/// Linux `std::thread` defaults to 2 MiB worker stacks (compared with 8 MiB
+/// on the main thread), which can overflow under recursive Fortran stack
+/// frames on manylinux/GCC 14 builds (#2291).
+pub const FORTRAN_WORKER_STACK_SIZE: usize = 8 * 1024 * 1024;
+
+static DEFAULT_FORTRAN_POOL: std::sync::OnceLock<Result<rayon::ThreadPool, String>> =
+    std::sync::OnceLock::new();
+
+/// Execute a parallel Fortran workload on a Rayon pool whose worker threads
+/// carry [`FORTRAN_WORKER_STACK_SIZE`].
+///
+/// - `max_workers == Some(0)` returns an error.
+/// - `max_workers == Some(n)` runs inside a scoped pool of `n` workers.
+/// - `max_workers == None` reuses a lazily-initialised dedicated pool
+///   (honouring `RAYON_NUM_THREADS` when set) rather than Rayon's global pool,
+///   which may already have been initialised with Linux's 2 MiB default stack.
+pub fn run_in_fortran_pool<R, F>(max_workers: Option<usize>, op: F) -> Result<R, String>
+where
+    F: FnOnce() -> R + Send,
+    R: Send,
+{
+    match max_workers {
+        Some(0) => Err("max_workers must be a positive integer".to_string()),
+        Some(workers) => {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(workers)
+                .stack_size(FORTRAN_WORKER_STACK_SIZE)
+                .thread_name(|idx| format!("suews-fortran-{idx}"))
+                .build()
+                .map_err(|e| e.to_string())?;
+            Ok(pool.install(op))
+        }
+        None => {
+            let pool = DEFAULT_FORTRAN_POOL
+                .get_or_init(|| {
+                    rayon::ThreadPoolBuilder::new()
+                        .stack_size(FORTRAN_WORKER_STACK_SIZE)
+                        .thread_name(|idx| format!("suews-fortran-{idx}"))
+                        .build()
+                        .map_err(|e| e.to_string())
+                })
+                .as_ref()
+                .map_err(Clone::clone)?;
+            Ok(pool.install(op))
+        }
+    }
+}
+
+// contract: C-ISOLATION
+#[cfg(test)]
+mod fortran_pool_tests {
+    use super::{run_in_fortran_pool, FORTRAN_WORKER_STACK_SIZE};
+    use std::collections::HashSet;
+
+    /// Allocate `depth` recursive frames of 64 KiB each on the current thread
+    /// stack, touching the buffer so the OS faults pages in and preventing
+    /// tail-call or dead-store elimination.
+    #[inline(never)]
+    fn touch_stack_frames(depth: usize, seed: u8) -> u8 {
+        let mut buf = [seed; 64 * 1024];
+        buf[0] = seed.wrapping_add(depth as u8);
+        buf[buf.len() - 1] = seed.wrapping_sub(depth as u8);
+        let guard = std::hint::black_box(&buf);
+        let edge = guard[0] ^ guard[guard.len() - 1];
+        if depth <= 1 {
+            edge
+        } else {
+            edge ^ touch_stack_frames(depth - 1, seed.wrapping_add(1))
+        }
+    }
+
+    #[test]
+    fn fortran_pool_rejects_zero_workers() {
+        let err = run_in_fortran_pool(Some(0), || 42_usize)
+            .expect_err("max_workers=Some(0) must be rejected");
+        assert!(
+            err.contains("positive integer"),
+            "unexpected error for zero workers: {err}"
+        );
+    }
+
+    #[test]
+    fn fortran_pool_workers_support_3mib_stack_for_default_and_explicit_counts() {
+        const _: () = assert!(FORTRAN_WORKER_STACK_SIZE >= 8 * 1024 * 1024);
+
+        // 48 * 64 KiB = 3 MiB per worker: exceeds Linux's 2 MiB default
+        // std::thread stack so an unconfigured Rayon worker would SIGSEGV.
+        const FRAMES: usize = 48;
+
+        let scoped = run_in_fortran_pool(Some(2), || {
+            rayon::broadcast(|ctx| {
+                let name = std::thread::current()
+                    .name()
+                    .unwrap_or_default()
+                    .to_string();
+                let checksum = touch_stack_frames(FRAMES, ctx.index() as u8);
+                (ctx.index(), name, checksum)
+            })
+        })
+        .expect("scoped Fortran Rayon pool should run");
+        assert_eq!(scoped.len(), 2);
+        for (idx, name, _) in &scoped {
+            assert_eq!(name, &format!("suews-fortran-{idx}"));
+        }
+
+        let default_first = run_in_fortran_pool(None, || {
+            rayon::broadcast(|ctx| {
+                let current = std::thread::current();
+                let name = current.name().unwrap_or_default().to_string();
+                let checksum = touch_stack_frames(FRAMES, ctx.index() as u8);
+                (ctx.index(), current.id(), name, checksum)
+            })
+        })
+        .expect("default Fortran Rayon pool should run");
+        assert!(!default_first.is_empty());
+        for (idx, _, name, _) in &default_first {
+            assert_eq!(name, &format!("suews-fortran-{idx}"));
+        }
+
+        // Second call reuses the lazily-initialised default pool (identical worker ThreadIds).
+        let default_second = run_in_fortran_pool(None, || {
+            rayon::broadcast(|ctx| {
+                (
+                    ctx.index(),
+                    std::thread::current().id(),
+                    touch_stack_frames(FRAMES, 7),
+                )
+            })
+        })
+        .expect("default Fortran Rayon pool should remain reusable");
+        let first_ids: HashSet<_> = default_first.iter().map(|(_, id, _, _)| *id).collect();
+        let second_ids: HashSet<_> = default_second.iter().map(|(_, id, _)| *id).collect();
+        assert_eq!(second_ids, first_ids);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // PyO3 Python extension module (`--features python` / `python-extension`)
 //
@@ -4312,15 +4453,8 @@ mod python_bindings {
         };
 
         let results: Vec<Result<(usize, Vec<f64>, String, usize, KernelWarnings), _>> =
-            if let Some(workers) = max_workers {
-                rayon::ThreadPoolBuilder::new()
-                    .num_threads(workers)
-                    .build()
-                    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?
-                    .install(run_parallel)
-            } else {
-                run_parallel()
-            };
+            run_in_fortran_pool(max_workers, run_parallel)
+                .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
         // Convert errors to PyResult, then box each output block as bytes
         results
@@ -4396,15 +4530,8 @@ mod python_bindings {
         };
 
         let results: Vec<Result<(usize, Vec<f64>, String, usize, KernelWarnings), _>> =
-            if let Some(workers) = max_workers {
-                rayon::ThreadPoolBuilder::new()
-                    .num_threads(workers)
-                    .build()
-                    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?
-                    .install(run_parallel)
-            } else {
-                run_parallel()
-            };
+            run_in_fortran_pool(max_workers, run_parallel)
+                .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
         results
             .into_iter()
@@ -4746,15 +4873,8 @@ mod python_bindings {
                 .collect::<Vec<Result<_, String>>>()
         };
 
-        let results = if let Some(workers) = max_workers {
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(workers)
-                .build()
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .install(run_parallel)
-        } else {
-            run_parallel()
-        };
+        let results =
+            run_in_fortran_pool(max_workers, run_parallel).map_err(PyRuntimeError::new_err)?;
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()

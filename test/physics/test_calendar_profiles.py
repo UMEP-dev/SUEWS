@@ -108,6 +108,7 @@ def _run_config(
         output.df,
         expected_grids=(1,),
         expected_timestamps=df_forcing.index,
+        forcing=sim.forcing.df,
         tstep=300,
     )
     return output.df, sim.state_init

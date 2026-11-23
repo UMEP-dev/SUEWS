@@ -177,3 +177,32 @@ Related Documentation
 - :ref:`suews_checkpoint` - Typed checkpoint restart artefact
 - :doc:`/data-structures/df_forcing` - Forcing data format
 - :doc:`/outputs/variables/index` - Output variable reference
+
+Site identifiers
+----------------
+
+``sites[].gridiv`` identifies a site in source configuration, output dataframe
+indexes, diagnostics and checkpoint keys.
+Omitting it in source configuration still means ``1``.
+Identifiers must be distinct after source validation: for example, ``37`` and
+``"37"`` describe the same public key, so they cannot identify two sites.
+
+The Python simulation interface preserves integer labels outside the signed
+32-bit range.
+Only its private execution copies use compact native identifiers: existing
+signed 32-bit labels (including zero and negative values) retain their values,
+and exceptional labels receive unused positive integers in sorted public-ID
+order.
+If the positive range is exhausted, allocation continues through zero and
+negative integers.
+The same site set reconstructs the same allocation in any order, including
+when resuming a saved checkpoint with a reordered configuration.
+Independent simulations may reuse native identifiers.
+No mapping needs to be added to a checkpoint, and source YAML is not rewritten.
+
+The developer-facing native string and ``suews-engine run`` interfaces read
+resolved input directly and do not perform this Python allocation.
+Their single-site reader consumes the first site; a native batch is a list of
+independent single-site payloads.
+Use the Python simulation interface for public labels outside the native
+signed 32-bit range.

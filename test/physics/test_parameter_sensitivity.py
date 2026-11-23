@@ -474,6 +474,8 @@ def test_spartacus_roof_albedo_sensitivity_increases_kup_and_reduces_qn(
     # ARRANGE
     cfg_base = copy.deepcopy(sensitivity_env["base_cfg"])
     cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+    cfg_base.model.physics.storage_heat = StorageHeatMethod.STEBBS
+    cfg_base.model.physics.stebbs.enabled = True
     vl_base = cfg_base.sites[0].properties.vertical_layers
     vl_base.building_frac.value[0] = cfg_base.sites[
         0
@@ -649,6 +651,8 @@ def test_zero_area_surface_radiation_perturbation_invariant_across_coupled_schem
         cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_AIR_SURFACE
     elif scheme == "spartacus_1003":
         cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+        cfg_base.model.physics.storage_heat = StorageHeatMethod.STEBBS
+        cfg_base.model.physics.stebbs.enabled = True
         vl = cfg_base.sites[0].properties.vertical_layers
         vl.building_frac.value[0] = cfg_base.sites[
             0

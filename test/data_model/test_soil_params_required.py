@@ -25,7 +25,12 @@ import yaml
 
 from supy import SUEWSSimulation
 from supy._env import trv_supy_module
-from supy._run_rust import run_suews_rust
+from supy._run_rust import (
+    _check_rust_available,
+    _prepare_forcing_block,
+    _run_grid_into,
+    run_suews_rust,
+)
 from supy.cmd.suews_cli import cli
 from supy.data_model.configuration import (
     CURRENT_SCHEMA_VERSION,
@@ -679,16 +684,36 @@ def test_cli_convert_positive_controls_and_reloads(
 
 
 def test_rust_bridge_rejects_missing_soil_param_on_programmatic_config() -> None:
-    """Even if a programmatic config drops a soil field, the Rust bridge refuses it."""
+    """Missing soil_depth is blocked at the Python handoff and inside the Rust bridge."""
     # ARRANGE
     sim = SUEWSSimulation.from_sample_data()
     cfg = sim.config.model_copy(deep=True)
     cfg.sites[0].properties.land_cover.paved.soil_depth = None
     forcing_slice = sim.forcing.df.iloc[:2]
 
-    # ACT / ASSERT
+    # ACT / ASSERT 1: Python execution handoff rejects mutated config before Rust runs
+    with pytest.raises(
+        ValueError,
+        match=r"land_cover\.paved:.*soil_depth",
+    ):
+        run_suews_rust(cfg, forcing_slice, grid_id=cfg.sites[0].gridiv)
+
+    # ACT / ASSERT 2: raw engine YAML without paved.soil_depth is still rejected by Rust
+    raw_yaml = yaml.safe_dump(
+        cfg.model_dump(exclude_none=True, mode="json"), sort_keys=False
+    )
+    forcing_block = _prepare_forcing_block(
+        forcing_slice,
+        soil_moisture_method=int(cfg.model.physics.soil_moisture.value.value),
+    )
     with pytest.raises(
         RuntimeError,
         match=r"properties\.land_cover\.paved\.soil_depth.*is missing",
     ):
-        run_suews_rust(cfg, forcing_slice, grid_id=cfg.sites[0].gridiv)
+        _run_grid_into(
+            _check_rust_available(),
+            raw_yaml,
+            forcing_block,
+            len(forcing_slice),
+            cfg.sites[0].gridiv,
+        )

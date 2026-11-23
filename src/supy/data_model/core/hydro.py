@@ -400,23 +400,7 @@ class WaterDistribution(DataModelBase):
         if not math.isclose(total, 1.0, rel_tol=1e-5):
             raise ValueError(f"Water distribution sum must be 1.0, got {total}")
 
-    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
-        """Convert water distribution parameters to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-            surf_idx: Surface index (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil, 6=water)
-
-        Returns:
-            pd.DataFrame: DataFrame containing water distribution parameters with MultiIndex columns
-        """
-        # Create tuples for MultiIndex columns
-        param_tuples = []
-        values = []
-
-        # Add all non-None distribution parameters using a two-step process
-        # 1. Collect all non-None values (unwrapping RefValue so {value: null}
-        # behaves the same as None and never shadows the active terminal field)
+    def _to_df_state_cols(self, grid_id: int, surf_idx: int) -> dict:
         list_waterdist_value = []
         for attr in (
             "to_paved",
@@ -431,8 +415,6 @@ class WaterDistribution(DataModelBase):
             raw = value.value if isinstance(value, RefValue) else value
             list_waterdist_value.append(0.0 if raw is None else raw)
 
-        # Impervious surfaces route remainder to to_runoff; pervious surfaces to
-        # to_soilstore.
         to_soilstore = (
             self.to_soilstore.value
             if isinstance(self.to_soilstore, RefValue)
@@ -448,24 +430,30 @@ class WaterDistribution(DataModelBase):
             0.0 if to_soilstore_or_runoff is None else to_soilstore_or_runoff
         )
 
-        # 2. Create param_tuples and values - only add non-None values following the order of the list
-        for i, value in enumerate(list_waterdist_value):
-            if value is not None:
-                param_tuples.append(("waterdist", f"({i}, {surf_idx})"))
-                values.append(value)
+        return {
+            ("waterdist", f"({i}, {surf_idx})"): float(value)
+            for i, value in enumerate(list_waterdist_value)
+            if value is not None
+        }
 
-        # Create MultiIndex columns
-        columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
+    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
+        """Convert water distribution parameters to DataFrame state format.
 
-        # Create DataFrame with single row
-        df = pd.DataFrame(
+        Args:
+            grid_id: Grid ID for the DataFrame index
+            surf_idx: Surface index (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil, 6=water)
+
+        Returns:
+            pd.DataFrame: DataFrame containing water distribution parameters with MultiIndex columns
+        """
+        cols = self._to_df_state_cols(grid_id, surf_idx)
+        columns = pd.MultiIndex.from_tuples(cols.keys(), names=["var", "ind_dim"])
+        return pd.DataFrame(
             index=pd.Index([grid_id], name="grid"),
             columns=columns,
-            data=[values],
+            data=[list(cols.values())],
             dtype=float,
         )
-
-        return df
 
     @classmethod
     def from_df_state(
@@ -747,38 +735,8 @@ class StorageDrainParams(DataModelBase):
             return handler(self)
         return handler(self.model_copy(update={"store_cap": capacity}))
 
-    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
-        """Convert storage and drain parameters to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-            surf_idx: Surface index (0=paved, 1=bldgs, 2=dectr, 3=evetr, 4=grass, 5=bsoil, 6=water)
-
-        Returns:
-            pd.DataFrame: DataFrame containing storage and drain parameters with MultiIndex columns
-        """
-        # Create tuples for MultiIndex columns
-        param_tuples = [
-            ("storedrainprm", f"({i}, {surf_idx})")
-            for i, _ in enumerate([
-                "store_min",
-                "drain_eq",
-                "drain_coef_1",
-                "drain_coef_2",
-                "store_max",
-                "store_cap",
-            ])
-        ]
-
-        # Create MultiIndex columns
-        columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
-
-        # Create DataFrame with single row
-        df = pd.DataFrame(
-            index=pd.Index([grid_id], name="grid"), columns=columns, dtype=float
-        )
-
-        # Fill values
+    def _to_df_state_cols(self, grid_id: int, surf_idx: int) -> dict:
+        cols = {}
         for i, var in enumerate([
             "store_min",
             "drain_eq",
@@ -793,10 +751,30 @@ class StorageDrainParams(DataModelBase):
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                val = 0.0  # Default to 0.0 for DataFrame compatibility
-            df.loc[grid_id, ("storedrainprm", f"({i}, {surf_idx})")] = val
+                val = 0.0
+            cols[("storedrainprm", f"({i}, {surf_idx})")] = (
+                float("nan") if val is None else float(val)
+            )
+        return cols
 
-        return df
+    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
+        """Convert storage and drain parameters to DataFrame state format.
+
+        Args:
+            grid_id: Grid ID for the DataFrame index
+            surf_idx: Surface index (0=paved, 1=bldgs, 2=dectr, 3=evetr, 4=grass, 5=bsoil, 6=water)
+
+        Returns:
+            pd.DataFrame: DataFrame containing storage and drain parameters with MultiIndex columns
+        """
+        cols = self._to_df_state_cols(grid_id, surf_idx)
+        columns = pd.MultiIndex.from_tuples(cols.keys(), names=["var", "ind_dim"])
+        return pd.DataFrame(
+            index=pd.Index([grid_id], name="grid"),
+            columns=columns,
+            data=[list(cols.values())],
+            dtype=float,
+        )
 
     @classmethod
     def from_df_state(

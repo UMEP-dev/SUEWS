@@ -67,6 +67,7 @@ except Exception:
 
 # Import from supy modules
 try:
+    from ..data_model.core._yaml_io import safe_load_yaml
     from ..data_model.core.config import SUEWSConfig
     from ..data_model.core.field_renames import (
         read_physics_key,
@@ -82,6 +83,7 @@ except ImportError:
     import sys
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
+    from supy.data_model.core._yaml_io import safe_load_yaml
     from supy.data_model.core.config import SUEWSConfig
     from supy.data_model.core.field_renames import (
         read_physics_key,
@@ -96,6 +98,9 @@ except ImportError:
 # Sentinel used by the critical-physics-presence check below; module-level
 # so identity comparison stays stable across calls.
 _PHYSICS_KEY_MISSING = object()
+# Capture the default function object so monkeypatching ``check_migration_needed``
+# in tests still calls the patched 1-argument callable directly.
+_DEFAULT_CHECK_MIGRATION_NEEDED = check_migration_needed
 
 console = Console()
 
@@ -131,8 +136,7 @@ def validate_single_file(
     try:
         # Load configuration
         with open(file_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-        flatten_physics_in_config(config)
+            config = safe_load_yaml(f)
 
         target_is_current = (
             schema_version is None or schema_version == CURRENT_SCHEMA_VERSION
@@ -140,19 +144,30 @@ def validate_single_file(
 
         # Only flag migration pressure when validating against the current
         # schema. An explicit older target version is a schema-only check.
-        if target_is_current and check_migration_needed(str(file_path)):
-            if ValidationError:
-                errors.append(
-                    ValidationError(
-                        code=ErrorCode.SCHEMA_VERSION_MISMATCH,
-                        message="Configuration uses old schema version and may need migration",
-                        location=str(file_path),
-                    )
+        # Reuse the already-parsed document before flattening when the default
+        # helper is active, avoiding a duplicate full YAML parse.
+        if target_is_current:
+            if check_migration_needed is _DEFAULT_CHECK_MIGRATION_NEEDED:
+                needs_migration = check_migration_needed(
+                    str(file_path), _parsed_config=config
                 )
             else:
-                errors.append(
-                    "Configuration uses old schema version and may need migration"
-                )
+                needs_migration = check_migration_needed(str(file_path))
+            if needs_migration:
+                if ValidationError:
+                    errors.append(
+                        ValidationError(
+                            code=ErrorCode.SCHEMA_VERSION_MISMATCH,
+                            message="Configuration uses old schema version and may need migration",
+                            location=str(file_path),
+                        )
+                    )
+                else:
+                    errors.append(
+                        "Configuration uses old schema version and may need migration"
+                    )
+
+        flatten_physics_in_config(config)
 
         # Validate against schema
         validator = jsonschema.Draft7Validator(schema)
@@ -606,21 +621,28 @@ def cli(
     ctx.exit(code)
 
 
-def _experimental_features_restriction(user_yaml_file, mode):
-    """Return public-mode experimental-feature violations.
+_PRELOADED_YAML_UNSET = object()
 
-    Returns:
-        tuple: ``(ok, restrictions, read_error)`` where ``ok`` is false
-        when validation should halt.
+
+def _experimental_features_restriction_with_data(user_yaml_file, mode):
+    """Return public-mode experimental-feature violations and parsed YAML data.
+
+    Returns
+    -------
+    tuple
+        ``(ok, restrictions, read_error, parsed_data)`` where ``parsed_data`` is
+        the unmutated parsed YAML document in public mode (so a single CLI
+        invocation can hand it to Phase A without re-parsing the same file), or
+        ``_PRELOADED_YAML_UNSET`` when the file was not parsed.
     """
     if mode != "public":
-        return True, [], None  # Dev mode allows all features
+        return True, [], None, _PRELOADED_YAML_UNSET  # Dev mode allows all features
 
     try:
         with open(user_yaml_file, "r", encoding="utf-8") as f:
-            user_yaml_data = yaml.safe_load(f)
+            user_yaml_data = safe_load_yaml(f)
     except Exception as e:
-        return False, [], f"Error reading YAML file: {e}"
+        return False, [], f"Error reading YAML file: {e}", _PRELOADED_YAML_UNSET
 
     # Read physics keys via helpers that accept both the new snake_case name
     # and its legacy alias — the Pydantic shim accepts both, so this gate must
@@ -631,13 +653,13 @@ def _experimental_features_restriction(user_yaml_file, mode):
     # This gate checks feature policy, not structure. Leave malformed mappings
     # to the selected validation phase so it can report their YAML locations.
     if not isinstance(user_yaml_data, dict):
-        return True, [], None
+        return True, [], None, user_yaml_data
     model = user_yaml_data.get("model", {})
     if not isinstance(model, dict):
-        return True, [], None
+        return True, [], None, user_yaml_data
     physics = model.get("physics", {})
     if not isinstance(physics, dict):
-        return True, [], None
+        return True, [], None, user_yaml_data
     restrictions_violated = []
 
     # gh#1456: use the shared composer so nested bool-like strings (`off`,
@@ -655,9 +677,22 @@ def _experimental_features_restriction(user_yaml_file, mode):
         restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
 
     if restrictions_violated:
-        return False, restrictions_violated, None
+        return False, restrictions_violated, None, user_yaml_data
 
-    return True, [], None
+    return True, [], None, user_yaml_data
+
+
+def _experimental_features_restriction(user_yaml_file, mode):
+    """Return public-mode experimental-feature violations.
+
+    Returns:
+        tuple: ``(ok, restrictions, read_error)`` where ``ok`` is false
+        when validation should halt.
+    """
+    ok, restrictions, read_error, _ = _experimental_features_restriction_with_data(
+        user_yaml_file, mode
+    )
+    return ok, restrictions, read_error
 
 
 def _print_experimental_features_restriction(restrictions_violated):
@@ -1012,9 +1047,12 @@ def _execute_pipeline(
             data={"file": str(file)},
         )
 
-    ok_experimental, restrictions_violated, read_error = (
-        _experimental_features_restriction(user_yaml_file, mode)
-    )
+    (
+        ok_experimental,
+        restrictions_violated,
+        read_error,
+        preloaded_user_data,
+    ) = _experimental_features_restriction_with_data(user_yaml_file, mode)
     if not ok_experimental:
         if read_error:
             return _emit_pipeline_startup_error(
@@ -1041,6 +1079,12 @@ def _execute_pipeline(
         _print_experimental_features_restriction(restrictions_violated)
         return 1
 
+    phase_a_preload_kwargs = (
+        {"_preloaded_user_data": preloaded_user_data}
+        if preloaded_user_data is not _PRELOADED_YAML_UNSET
+        else {}
+    )
+
     if pipeline == "ABC":
         from ..data_model.validation.pipeline.orchestrator import (
             ABCOutputError, ABCPublicationInterrupted, run_abc_pipeline,
@@ -1059,6 +1103,7 @@ def _execute_pipeline(
                 result = run_abc_pipeline(
                     user_yaml_file, mode=mode, forcing=forcing,
                     science_fixes=science_fixes,
+                    **phase_a_preload_kwargs,
                 )
         except ABCPublicationInterrupted as exc:
             # Name the outputs left inconsistent before the interrupt
@@ -1143,6 +1188,7 @@ def _execute_pipeline(
             phase="A",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         return _emit_pipeline_result(
             phases=[phase_a_report],
@@ -1204,6 +1250,7 @@ def _execute_pipeline(
             phase="AB",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         a_ok = not a_ok_report.has_errors
         if not a_ok:
@@ -1331,6 +1378,7 @@ def _execute_pipeline(
             phase="AC",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         a_ok = not a_ok_report.has_errors
         if not a_ok:

@@ -41,6 +41,7 @@ from ..core.yaml_helpers import (
     DLSCheck,
     get_ref_or_bare,
     get_value_safe,
+    is_ref_only as _is_ref_only,
     set_ref_or_bare,
     get_stebbs_block as _get_stebbs_block,
     get_stebbsmethod_value as _get_stebbsmethod_value,
@@ -51,6 +52,7 @@ from ..core.yaml_helpers import (
 from ...core.field_renames import normalise_yaml_renames
 from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
+from .phase_b_rules.rules_core import rule_crash_result
 from .phase_b_rules import (
     RulesRegistry,
     ValidationResult,
@@ -1250,6 +1252,11 @@ def adjust_surface_temperatures(
     """
     adjustments = []
     month = datetime.strptime(start_date, "%Y-%m-%d").month
+    physics = yaml_data.get("model", {}).get("physics", {})
+    # With STEBBS switched off its block is nullified later in the pipeline,
+    # so initialising its temperatures here would only suggest values that are
+    # immediately discarded.
+    stebbs_enabled = _get_stebbsmethod_value(physics) != 0
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -1304,7 +1311,7 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        if isinstance(stebbs, dict):
+        if stebbs_enabled and isinstance(stebbs, dict):
             for key in (
                 "temperature_air_outdoor_initial",
                 "temperature_air_indoor_initial",
@@ -1328,7 +1335,7 @@ def adjust_surface_temperatures(
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
-        elif isinstance(stebbs, dict):
+        elif stebbs_enabled and isinstance(stebbs, dict):
             for key in ("temperature_air_month_mean_diffmax",):
                 if key in stebbs:
                     old_val = get_ref_or_bare(stebbs, key)
@@ -1349,7 +1356,7 @@ def adjust_surface_temperatures(
         annual_temp = get_mean_annual_air_temperature(lat, lng)
         if (
             annual_temp is not None
-            and isinstance(stebbs, dict)
+            and stebbs_enabled and isinstance(stebbs, dict)
             and "temperature_air_annual_mean" in stebbs
         ):
             old_annual_val = get_ref_or_bare(stebbs, "temperature_air_annual_mean")
@@ -1587,6 +1594,10 @@ def adjust_model_dependent_nullification(
 
                 def _recursive_nullify(node: Any, path: str):
                     if isinstance(node, dict):
+                        if _is_ref_only(node):
+                            # Ref-only placeholder: already value-less; never
+                            # descend into its ``ref`` metadata (gh#2297).
+                            return
                         if "value" in node:
                             inner = node.get("value")
                             if isinstance(inner, list):
@@ -2165,7 +2176,9 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
     rcmethod_value = get_value_safe(_get_stebbs_block(physics), "capacitance")
 
-    if rcmethod_value == 0:
+    # With STEBBS switched off, adjust_model_dependent_nullification has already
+    # nullified building_archetype; do not restore these fractions.
+    if rcmethod_value == 0 and _get_stebbsmethod_value(physics) != 0:
         sites = yaml_data.get("sites", [])
         for site_idx, site in enumerate(sites):
             props = site.get("properties", {})
@@ -2437,7 +2450,10 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
     return yaml_data, adjustments
 
 def run_scientific_adjustment_pipeline(
-    yaml_data: dict, start_date: str, model_year: int
+    yaml_data: dict,
+    start_date: str,
+    model_year: int,
+    errors: Optional[List[ValidationResult]] = None,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Apply automatic scientific corrections and adjustments.
@@ -2454,6 +2470,10 @@ def run_scientific_adjustment_pipeline(
         Simulation start date in 'YYYY-MM-DD' format.
     model_year : int
         Simulation year for leap year and seasonal calculations.
+    errors : list of ValidationResult, optional
+        When given, an adjustment step that raises is rolled back and reported
+        here as one ERROR naming the step; the remaining steps still run.
+        Without it the exception propagates.
 
     Returns
     -------
@@ -2484,14 +2504,34 @@ def run_scientific_adjustment_pipeline(
         (adjust_model_option_setpointmethod, (updated_data,)),
         (adjust_model_option_stebbsmethod, (updated_data,))
     ]:
-        updated_data, adj = adjust_func(*args)
+        if errors is None:
+            updated_data, adj = adjust_func(*args)
+            adjustments.extend(adj)
+            continue
+        snapshot = deepcopy(updated_data)
+        try:
+            updated_data, adj = adjust_func(updated_data, *args[1:])
+        except Exception as exc:
+            logger_supy.debug(
+                "Phase B adjustment %s failed", adjust_func.__name__, exc_info=True
+            )
+            updated_data = snapshot
+            errors.append(
+                rule_crash_result(
+                    f"adjustment '{adjust_func.__name__}'", adjust_func.__name__, exc
+                )
+            )
+            continue
         adjustments.extend(adj)
 
     return updated_data, adjustments
 
 
 def collect_science_suggestions(
-    yaml_data: dict, start_date: str, model_year: int
+    yaml_data: dict,
+    start_date: str,
+    model_year: int,
+    errors: Optional[List[ValidationResult]] = None,
 ) -> List[ScienceSuggestion]:
     """
     Collect scientific initialisation suggestions without mutating the input data.
@@ -2501,7 +2541,7 @@ def collect_science_suggestions(
     or scientifically curated values.
     """
     _, adjustments = run_scientific_adjustment_pipeline(
-        yaml_data, start_date, model_year
+        yaml_data, start_date, model_year, errors=errors
     )
     return [_adjustment_to_suggestion(adjustment) for adjustment in adjustments]
 
@@ -2511,6 +2551,7 @@ def apply_science_suggestions(
     suggestions: List[ScienceSuggestion],
     start_date: str,
     model_year: int,
+    errors: Optional[List[ValidationResult]] = None,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Apply the scientific transformation pipeline explicitly requested by the user.
@@ -2520,7 +2561,9 @@ def apply_science_suggestions(
     mutation code that would duplicate the existing domain logic.
     """
     del suggestions
-    return run_scientific_adjustment_pipeline(yaml_data, start_date, model_year)
+    return run_scientific_adjustment_pipeline(
+        yaml_data, start_date, model_year, errors=errors
+    )
 
 
 def create_science_report(
@@ -3052,23 +3095,36 @@ def run_science_check(
     critical_errors = [r for r in validation_results if r.status == "ERROR"]
     suggestions = []
     adjustments = []
+    # A crashing adjustment step is reported once (the apply path re-runs the
+    # same steps, so only its own run collects errors).
+    adjustment_errors: List[ValidationResult] = []
     if not critical_errors:
         if science_fixes == "apply":
             suggestions = collect_science_suggestions(
-                uptodate_data, start_date, model_year
+                uptodate_data, start_date, model_year, errors=[]
             )
             science_checked_data, adjustments = apply_science_suggestions(
-                uptodate_data, suggestions, start_date, model_year
+                uptodate_data,
+                suggestions,
+                start_date,
+                model_year,
+                errors=adjustment_errors,
             )
         elif science_fixes == "suggest":
             suggestions = collect_science_suggestions(
-                uptodate_data, start_date, model_year
+                uptodate_data, start_date, model_year, errors=adjustment_errors
             )
             science_checked_data = deepcopy(uptodate_data)
         else:
             science_checked_data = deepcopy(uptodate_data)
     else:
         science_checked_data = deepcopy(uptodate_data)
+    if adjustment_errors:
+        validation_results = [*validation_results, *adjustment_errors]
+        critical_errors = [*critical_errors, *adjustment_errors]
+        # Nothing is written once an error is present, so do not report the
+        # steps that did run as applied.
+        adjustments = []
 
     science_yaml_filename = (
         os.path.basename(science_yaml_file) if science_yaml_file else None

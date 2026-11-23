@@ -588,9 +588,11 @@ def test_phase_b_stebbs_rules_fire_with_nested_enabled_form(registry):
                 "gridiv": 1,
                 "properties": {
                     "building_archetype": {
-                        "wall_reflectivity": {"value": 0.5},
-                        "wall_absorptivity": {"value": 0.5},
-                        "wall_transmissivity": {"value": 0.5},
+                        # Canonical names: Phase B renames legacy spellings
+                        # before the rules run (gh#2297).
+                        "reflectivity_wall_external": {"value": 0.5},
+                        "absorptivity_wall_external": {"value": 0.5},
+                        "transmissivity_wall_external": {"value": 0.5},
                         # setpointmethod==0 -> scalar setpoints required and missing
                     },
                 },
@@ -978,7 +980,8 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
 
 def test_adjust_model_option_rcmethod_sets_defaults():
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 0}}}},
+        # STEBBS on: with it off the archetype stays nullified (gh#2297).
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "capacitance": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {

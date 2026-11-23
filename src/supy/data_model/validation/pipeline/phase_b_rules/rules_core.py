@@ -22,8 +22,12 @@ def function_name(context):
 """
 
 from dataclasses import asdict, dataclass, fields
+import logging
 from types import MappingProxyType
 from typing import Any, Mapping, Tuple, Optional
+
+
+logger = logging.getLogger("supy.data_model")
 
 
 VALID_SEVERITIES = {
@@ -184,7 +188,28 @@ class RulesRegistry:
             context = self.context
 
         for rule_id, rule_fn in self.ordered_rule_items():
-            validation_results.extend(
-                rule_fn(context)
-            )
+            try:
+                rule_results = list(rule_fn(context))
+            except Exception as exc:
+                # One faulty rule must not hide the findings of the others:
+                # report the crash as a single ERROR naming the rule and carry on.
+                logger.debug("Phase B rule %r failed", rule_id, exc_info=True)
+                rule_results = [rule_crash_result(f"rule '{rule_id}'", rule_id, exc)]
+            validation_results.extend(rule_results)
         return validation_results
+
+
+def rule_crash_result(label: str, rule_id: str, exc: BaseException) -> ValidationResult:
+    """Build the ERROR result reported when a Phase B rule or adjustment crashes."""
+    return ValidationResult(
+        status="ERROR",
+        category="VALIDATOR",
+        parameter=str(rule_id),
+        code=f"VALIDATOR.RULE_FAILED.{rule_id}".upper(),
+        message=(
+            f"Phase B {label} failed with {type(exc).__name__}: {exc}. "
+            "The remaining checks still ran. This is a validator fault rather "
+            "than a configuration error; please report it with the YAML file."
+        ),
+        suggested_value=None,
+    )

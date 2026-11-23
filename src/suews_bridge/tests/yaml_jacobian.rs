@@ -30,8 +30,9 @@
 //!    1-to-1 permutations or swaps that preserve bijectivity.
 //! 4. **Delta and type fidelity**: float perturbations move target slots by
 //!    their exact perturbation delta and integer perturbations move them by
-//!    `1.0`, pinning the four known `#2101` float-DOY `read_i32` silent-zeroing
-//!    keys.
+//!    `1.0` (all four `#2101` DOY keys are now integer-typed and strictly
+//!    validated via `require_optional_doy_i32`, leaving `KNOWN_NON_UNIT_DELTAS`
+//!    empty).
 //! 5. **NaN-poison completeness across all six anchors**: every numeric
 //!    `RunConfig` slot produced from all six resolved anchors (and from every
 //!    finite leaf perturbation) is finite outside a ratcheted allowlist
@@ -165,20 +166,10 @@ const KNOWN_CLOBBERED_SPARTACUS_LAYERS: &[(&str, usize)] = &[
     ),
 ];
 
-/// #2101: Float-serialised day-of-year parameters silently zeroed by
-/// `read_i32` when perturbed by a non-integer float delta. `startdls` and
-/// `enddls` now use strict integer validation (#2002); remove the remaining
-/// two entries once `ie_start` and `ie_end` migrate off `read_i32`.
-const KNOWN_NON_UNIT_DELTAS: &[(&str, &str)] = &[
-    (
-        "sites[0].properties.irrigation.ie_start",
-        "site.irrigation.ie_start",
-    ),
-    (
-        "sites[0].properties.irrigation.ie_end",
-        "site.irrigation.ie_end",
-    ),
-];
+/// Ratcheted allowlist for any non-unit perturbation deltas. Empty at baseline
+/// after `#2101` enforced integer-only DOYs (`ie_start`, `ie_end`, `startdls`,
+/// `enddls`) via `require_optional_doy_i32`.
+const KNOWN_NON_UNIT_DELTAS: &[(&str, &str)] = &[];
 
 /// Ratcheted allowlist for any known non-finite (`NaN`/`Inf`) `RunConfig`
 /// slots after loading a resolved anchor YAML. Empty at baseline: all six
@@ -3730,8 +3721,8 @@ fn precedence_fallbacks_and_spartacus_clobber_witness() {
     );
 
     // 8. Integer perturbations on the four #2101 DOY keys move each slot by
-    //    exactly +1.0 (confirming the non-unit failure is specifically the
-    //    float-to-read_i32 mismatch, not an unwired key).
+    //    exactly +/-1.0 within [1, 366], while fractional (20.5) and
+    //    out-of-range (0, 367) values fail loudly with the YAML path.
     let doy_paths: &[(&[&str], &str)] = &[
         (&["irrigation", "ie_start"], "site.irrigation.ie_start"),
         (&["irrigation", "ie_end"], "site.irrigation.ie_end"),
@@ -3756,20 +3747,42 @@ fn precedence_fallbacks_and_spartacus_clobber_witness() {
         ];
         full_path.extend(rel_path.iter().map(|s| Step::Key((*s).to_string())));
         let base_val = base_flat[*slot_name];
+        let step: i64 = if base_val >= 366.0 { -1 } else { 1 };
         let mut pert_root = orig_sample.clone();
         assert!(set_scalar_or_ref_value(
             &mut pert_root,
             &full_path,
-            Value::Number(((base_val.round() as i64) + 1).into()),
+            Value::Number(((base_val.round() as i64) + step).into()),
         ));
         let pert_flat = flatten_run_config_map(
             &load_run_config_from_value(&mut pert_root).expect("load integer-perturbed DOY"),
         );
         let actual_delta = pert_flat[*slot_name] - base_val;
         assert!(
-            (actual_delta - 1.0).abs() < DELTA_TOL,
-            "{slot_name}: integer +1 perturbation expected delta 1.0, got {actual_delta}"
+            (actual_delta - step as f64).abs() < DELTA_TOL,
+            "{slot_name}: integer {step:+} perturbation expected delta {step}.0, got {actual_delta}"
         );
+
+        let expected_path_fragment = format!("properties.{}.{}", rel_path[0], rel_path[1]);
+        for bad_val in [
+            serde_yaml::to_value(20.5_f64).unwrap(),
+            Value::Number(0_i64.into()),
+            Value::Number(367_i64.into()),
+        ] {
+            let mut bad_root = orig_sample.clone();
+            assert!(set_scalar_or_ref_value(
+                &mut bad_root,
+                &full_path,
+                bad_val.clone()
+            ));
+            let err = load_run_config_from_value(&mut bad_root).expect_err(&format!(
+                "{slot_name}: invalid DOY {bad_val:?} must be rejected"
+            ));
+            assert!(
+                err.contains(&expected_path_fragment),
+                "{slot_name}: error must name `{expected_path_fragment}`, got: {err}"
+            );
+        }
     }
 }
 
@@ -4053,6 +4066,14 @@ fn nan_poison_completeness_across_all_six_anchors() {
     let mut strict_jobs: Vec<(usize, String)> = Vec::new();
     for anchor_idx in 0..6 {
         for field in ["lat", "lng", "alt", "timezone", "surfacearea", "z"] {
+            strict_jobs.push((anchor_idx, format!("sites[0].properties.{field}")));
+        }
+        for field in [
+            "irrigation.ie_start",
+            "irrigation.ie_end",
+            "anthropogenic_emissions.startdls",
+            "anthropogenic_emissions.enddls",
+        ] {
             strict_jobs.push((anchor_idx, format!("sites[0].properties.{field}")));
         }
         strict_jobs.push((

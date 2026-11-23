@@ -5,23 +5,47 @@
         "startdls": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
                 },
-                {
-                  "type": "number"
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
                 }
-              ],
-              "ge": 1,
-              "le": 366
+              },
+              "title": "RefValue[int]",
+              "type": "object"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Start of daylight savings time in decimal day of year",
+          "description": "Start of daylight savings time in integer day of year (1-366)",
           "display_name": "Daylight Saving Start",
           "title": "Startdls",
           "unit": "1"
@@ -29,23 +53,47 @@
         "enddls": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
                 },
-                {
-                  "type": "number"
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
                 }
-              ],
-              "ge": 1,
-              "le": 366
+              },
+              "title": "RefValue[int]",
+              "type": "object"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "End of daylight savings time in decimal day of year",
+          "description": "End of daylight savings time in integer day of year (1-366)",
           "display_name": "Daylight Saving End",
           "title": "Enddls",
           "unit": "1"
@@ -6907,17 +6955,47 @@
         "ie_start": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
+                },
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "title": "RefValue[int]",
+              "type": "object"
             },
             {
-              "type": "number"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Day of year when irrigation starts",
+          "description": "Integer day of year (1-366) when irrigation starts",
           "display_name": "Irrigation Start Day",
           "title": "Ie Start",
           "unit": "1"
@@ -6925,17 +7003,47 @@
         "ie_end": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
+                },
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "title": "RefValue[int]",
+              "type": "object"
             },
             {
-              "type": "number"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Day of year when irrigation ends",
+          "description": "Integer day of year (1-366) when irrigation ends",
           "display_name": "Irrigation End Day",
           "title": "Ie End",
           "unit": "1"
@@ -13735,7 +13843,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev16. Initial vegetation senescence degree days (sdd_id) must be finite for evergreen trees, deciduous trees and grass (#2001). Omission defaults to zero. Migration preserves signed finite values and references and reports each invalid site and vegetation type.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev17. Day-of-year fields for irrigation (ie_start, ie_end) and daylight saving time (startdls, enddls) require whole integers in 1..366 or null/omission to disable (#2101, #2001, #2002). The (2026.6.dev16 -> 2026.6.dev17) migration normalises exact whole-number floats (e.g. 86.0 -> 86), preserves null and disabled ref-only/empty mappings, and rejects fractional, boolean, non-finite or out-of-range values rather than truncating or zeroing them.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13788,20 +13896,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev16",
+  "title": "SUEWS Configuration Schema v2026.6.dev17",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev16.json",
-  "version": "2026.6.dev16",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev17.json",
+  "version": "2026.6.dev17",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev16"
+    "schema_version": "2026.6.dev17"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev16",
+      "schema_version": "2026.6.dev17",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

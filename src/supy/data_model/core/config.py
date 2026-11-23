@@ -4040,12 +4040,14 @@ class SUEWSConfig(DataModelBase):
         ``SUEWSSimulation.run``, ``config_to_engine_yaml``, ``_grid_config_jsons``,
         and ``SUEWSConfig.to_df_state``. Runs ``validate_non_null_ref_values``,
         ``validate_soil_depths``, ``validate_active_veg_lai_max``,
-        ``validate_water_distributions``, ``validate_hourly_profile_hours``, and
-        ``_validate_engine_contracts`` (structural, scalar-bound, conditional/physics,
-        active-site including non-water soil parameters, active drainage coefficients,
-        and cross-field rules) so programmatic construction, ``model_construct()``, or
-        post-construction in-place mutations cannot bypass loader validation before
-        lossy state conversion or Rust execution (gh#2086, gh#2099, gh#2128).
+        ``validate_water_distributions``, ``validate_hourly_profile_hours``,
+        ``validate_doy_parameters``, and ``_validate_engine_contracts``
+        (structural, scalar-bound, conditional/physics, active-site including
+        non-water soil parameters, active drainage coefficients, and cross-field
+        rules) so programmatic construction, ``model_construct()``, or
+        post-construction in-place mutations cannot bypass loader validation
+        before lossy state conversion or Rust execution (gh#2086, gh#2099,
+        gh#2128).
 
         Parameters
         ----------
@@ -4071,8 +4073,9 @@ class SUEWSConfig(DataModelBase):
             positive ``soil_store_capacity``, non-positive or non-finite
             ``lai_max`` on active vegetated surfaces, invalid per-surface
             ``WaterDistribution`` invariants, incomplete or invalid 24-hour
-            profile keys, missing required active runtime
-            parameters, or violated cross-field bounds.
+            profile keys, non-integer or out-of-range (``1..366``) day-of-year
+            fields, missing required active runtime parameters, or violated
+            cross-field bounds.
         """
         if not isinstance(getattr(self, "model", None), Model):
             raise ValueError(
@@ -4093,6 +4096,7 @@ class SUEWSConfig(DataModelBase):
         self.validate_water_distributions()
         self.validate_hourly_profile_hours()
         self._validate_senescence_states()
+        self.validate_doy_parameters()
         self._validate_engine_contracts(
             require_land_cover=require_land_cover,
             require_drainage=require_drainage,
@@ -4648,6 +4652,56 @@ class SUEWSConfig(DataModelBase):
         issues = self._check_active_veg_lai_max_params()
         if issues:
             raise ValueError("\n".join(issues))
+
+    def validate_doy_parameters(self) -> None:
+        """Validate integer day-of-year (1..366) invariants across all sites.
+
+        Defence in depth at public engine/export boundaries in case a live
+        model was mutated post-construction (for example ``ie_start.value = 0``
+        or ``ie_start = 20.5``).
+        """
+        from .human_activity import coerce_integer_doy_scalar
+
+        errors = []
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            props = getattr(site, "properties", None)
+            if props is None:
+                continue
+            doy_fields = []
+            if props.irrigation is not None:
+                doy_fields.extend([
+                    ("irrigation.ie_start", props.irrigation.ie_start),
+                    ("irrigation.ie_end", props.irrigation.ie_end),
+                ])
+            if props.anthropogenic_emissions is not None:
+                doy_fields.extend([
+                    (
+                        "anthropogenic_emissions.startdls",
+                        props.anthropogenic_emissions.startdls,
+                    ),
+                    (
+                        "anthropogenic_emissions.enddls",
+                        props.anthropogenic_emissions.enddls,
+                    ),
+                ])
+            for path, raw in doy_fields:
+                inner = raw.value if isinstance(raw, RefValue) else raw
+                if inner is None:
+                    continue
+                try:
+                    val = coerce_integer_doy_scalar(inner, f"{site_name}: {path}")
+                except ValueError as exc:
+                    errors.append(str(exc))
+                    continue
+                if not (1 <= val <= 366):
+                    errors.append(
+                        f"{site_name}: {path} must be an integer day of year "
+                        f"between 1 and 366 (greater than or equal to 1 and "
+                        f"less than or equal to 366), got {val}."
+                    )
+        if errors:
+            raise ValueError("\n".join(errors))
 
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None

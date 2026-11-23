@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: 2026.6.dev16
+schema_version: 2026.6.dev17
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
   configuration
 strict_initial_state_bounds: true
@@ -1869,9 +1869,9 @@ sites:
       faut:
         value: 0.0
       ie_start:
-        value: 1.0
+        value: 1
       ie_end:
-        value: 366.0
+        value: 366
       internalwateruse_h:
         value: 0.0
       daywatper:
@@ -1994,9 +1994,9 @@ sites:
           '24': -999.0
     anthropogenic_emissions:
       startdls:
-        value: 86.0
+        value: 86
       enddls:
-        value: 303.0
+        value: 303
       heat:
         qf0_beu:
           working_day: 0.88
@@ -3895,7 +3895,7 @@ sites:
 _auto_generate_annotated: false
 _yaml_raw:
   name: sample_config
-  schema_version: 2026.6.dev16
+  schema_version: 2026.6.dev17
   description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
     configuration
   model:

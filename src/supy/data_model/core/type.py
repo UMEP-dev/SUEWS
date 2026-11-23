@@ -4,6 +4,7 @@ import types
 from typing import (
     Annotated,
     Any,
+    Callable,
     ClassVar,
     Generic,
     Literal,
@@ -83,6 +84,7 @@ class RefValue(BaseModel, Generic[T]):
     _non_null_field_name: Optional[str] = PrivateAttr(default=None)
     _non_null_expected_kind: str = PrivateAttr(default="value")
     _reject_bool_field_name: Optional[str] = PrivateAttr(default=None)
+    _value_validator: Optional[Callable[[Any], Any]] = PrivateAttr(default=None)
 
     model_config = ConfigDict(
         # Configure serialization to handle the value field properly
@@ -156,6 +158,10 @@ class RefValue(BaseModel, Generic[T]):
         """Bind this wrapper so ``.value = True`` / ``np.bool_`` fails before coercion."""
         self._reject_bool_field_name = field_name
 
+    def _bind_value_validator(self, validator: Callable[[Any], Any]) -> None:
+        """Bind a scalar validator enforced before assignment to ``.value``."""
+        self._value_validator = validator
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "value":
             if value is None:
@@ -164,12 +170,17 @@ class RefValue(BaseModel, Generic[T]):
                     reject_null_value(
                         None,
                         field_name,
-                        expected_kind=getattr(self, "_non_null_expected_kind", "value"),
+                        expected_kind=getattr(
+                            self, "_non_null_expected_kind", "value"
+                        ),
                     )
             else:
                 bool_field = getattr(self, "_reject_bool_field_name", None)
                 if bool_field is not None:
                     reject_bool_input(value, bool_field)
+                validator = getattr(self, "_value_validator", None)
+                if validator is not None:
+                    value = validator(value)
         super().__setattr__(name, value)
 
     @field_validator("value", mode="before")

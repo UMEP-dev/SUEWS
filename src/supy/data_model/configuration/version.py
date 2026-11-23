@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev16"
+CURRENT_SCHEMA_VERSION = "2026.6.dev17"
 
 # Schema version history and descriptions.
 #
@@ -239,6 +239,15 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "evergreen trees, deciduous trees and grass (#2001). Omission defaults "
         "to zero. Migration preserves signed finite values and references and "
         "reports each invalid site and vegetation type."
+    ),
+    "2026.6.dev17": (
+        "Day-of-year fields for irrigation (ie_start, ie_end) and daylight "
+        "saving time (startdls, enddls) require whole integers in 1..366 or "
+        "null/omission to disable (#2101, #2001, #2002). The "
+        "(2026.6.dev16 -> 2026.6.dev17) migration normalises exact "
+        "whole-number floats (e.g. 86.0 -> 86), preserves null and disabled "
+        "ref-only/empty mappings, and rejects fractional, boolean, non-finite "
+        "or out-of-range values rather than truncating or zeroing them."
     ),
 }
 

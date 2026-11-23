@@ -1,5 +1,5 @@
 name: test
-schema_version: 2026.6.dev16
+schema_version: 2026.6.dev17
 description: grid 21_25_00_00
 strict_initial_state_bounds: true
 model:
@@ -1853,9 +1853,9 @@ sites:
       faut:
         value: 0.0
       ie_start:
-        value: 1.0
+        value: 1
       ie_end:
-        value: 366.0
+        value: 366
       internalwateruse_h:
         value: 0.0
       daywatper:
@@ -1978,9 +1978,9 @@ sites:
           '24': -999.0
     anthropogenic_emissions:
       startdls:
-        value: 85.0
+        value: 85
       enddls:
-        value: 302.0
+        value: 302
       heat:
         qf0_beu:
           working_day: 0.88

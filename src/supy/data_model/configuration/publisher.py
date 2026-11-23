@@ -10,6 +10,7 @@ representations of the SUEWS configuration structure. This enables:
 - Schema versioning and evolution tracking
 """
 
+from copy import deepcopy
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -114,10 +115,89 @@ def generate_json_schema(
                 "Senescence degree days at the start of the model run"
             )
 
+    # Preserve pre-dev17 float day-of-year schema and descriptions; emit
+    # enforceable Draft 2020-12 bounds and disabled mapping forms from dev17.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev17"):
+        _restore_historical_doy_fields(schema["$defs"])
+    else:
+        _apply_dev17_doy_json_schema(schema["$defs"])
+
     # Add examples
     schema["examples"] = [_get_minimal_example(version)]
 
     return schema
+
+
+def _apply_dev17_doy_json_schema(definitions: Dict[str, Any]) -> None:
+    """Emit enforceable Draft 2020-12 bounds and disabled forms for dev17 DOY fields."""
+    doy_wrapped_schema = {
+        "additionalProperties": False,
+        "properties": {
+            "value": {
+                "anyOf": [
+                    {"type": "integer", "minimum": 1, "maximum": 366},
+                    {"type": "null"},
+                ],
+                "title": "Value",
+            },
+            "ref": {
+                "anyOf": [
+                    {"$ref": "#/$defs/Reference"},
+                    {"type": "null"},
+                ],
+                "default": None,
+            },
+        },
+        "title": "RefValue[int]",
+        "type": "object",
+    }
+    doy_any_of = [
+        doy_wrapped_schema,
+        {"type": "integer", "minimum": 1, "maximum": 366},
+        {"type": "null"},
+    ]
+    for model_name, field_names in (
+        ("AnthropogenicEmissions", ("startdls", "enddls")),
+        ("IrrigationParams", ("ie_start", "ie_end")),
+    ):
+        props = definitions[model_name]["properties"]
+        for field_name in field_names:
+            props[field_name]["anyOf"] = deepcopy(doy_any_of)
+
+
+def _restore_historical_doy_fields(definitions: Dict[str, Any]) -> None:
+    """Preserve float day-of-year schema metadata published before schema 2026.6.dev17."""
+    anthro_props = definitions["AnthropogenicEmissions"]["properties"]
+    for field_name, desc in (
+        ("startdls", "Start of daylight savings time in decimal day of year"),
+        ("enddls", "End of daylight savings time in decimal day of year"),
+    ):
+        prop = anthro_props[field_name]
+        prop["description"] = desc
+        prop["anyOf"] = [
+            {
+                "anyOf": [
+                    {"$ref": "#/$defs/RefValue_float_"},
+                    {"type": "number"},
+                ],
+                "ge": 1,
+                "le": 366,
+            },
+            {"type": "null"},
+        ]
+
+    irrig_props = definitions["IrrigationParams"]["properties"]
+    for field_name, desc in (
+        ("ie_start", "Day of year when irrigation starts"),
+        ("ie_end", "Day of year when irrigation ends"),
+    ):
+        prop = irrig_props[field_name]
+        prop["description"] = desc
+        prop["anyOf"] = [
+            {"$ref": "#/$defs/RefValue_float_"},
+            {"type": "number"},
+            {"type": "null"},
+        ]
 
 
 def _restore_historical_water_descriptions(definitions: Dict[str, Any]) -> None:

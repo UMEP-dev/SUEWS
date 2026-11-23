@@ -899,6 +899,12 @@ def find_missing_parameters(
             elif isinstance(standard_value, dict) and isinstance(
                 user_dict.get(key), dict
             ):
+                if (
+                    key in {"ie_start", "ie_end", "startdls", "enddls"}
+                    and "value" not in user_dict[key]
+                    and all(k == "ref" for k in user_dict[key])
+                ):
+                    continue
                 nested_missing = find_missing_parameters(
                     user_dict[key], standard_value, full_path
                 )

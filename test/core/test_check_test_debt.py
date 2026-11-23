@@ -605,6 +605,7 @@ def test_unittest_expected_failure_forms_are_counted_once_and_fail_unmapped(
         "from unittest import expectedFailure as ef\nef = lambda fn: fn\n\n@ef\ndef test_ok():\n    assert 1 == 1\n",
         "from __future__ import annotations\nimport unittest\n\ndef helper(x: unittest.expectedFailure(1)):\n    pass\n",
         "import unittest\n\ndef test_ok():\n    unused: unittest.expectedFailure(1)\n    assert True\n",
+        "def mark(fn): return fn\n\ndef outer():\n    from unittest import expectedFailure as mark\n    def inner():\n        global mark\n        return mark(lambda: None)\n    return inner\n",
     ],
 )
 def test_unrelated_unittest_and_expected_failure_names_are_not_flagged(tree, source):
@@ -714,6 +715,40 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "def test_case():\n"
             "    pass\n"
             "wrap(test_case)\n",
+            ["test/test_branch.py::<module>::1"],
+        ),
+        (
+            "import unittest\n"
+            "(ef := unittest.expectedFailure)\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "[(ef := unittest.expectedFailure) for _ in [0]]\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "wrap = lambda fn, mark=ef: mark(fn)\n"
+            "def wrap_def(fn, mark=ef):\n"
+            "    return mark(fn)\n",
+            [
+                "test/test_branch.py::<module>::1",
+                "test/test_branch.py::wrap_def::1",
+            ],
+        ),
+        (
+            "from __future__ import annotations\n"
+            "import unittest\n"
+            "def test_case():\n"
+            "    pass\n"
+            "unittest.expectedFailure(test_case).flag: int\n",
             ["test/test_branch.py::<module>::1"],
         ),
     ],
@@ -1000,7 +1035,7 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
         "    ALIAS = {}\n"
         '    ALIAS[("local.f95", "l")] = "#0"\n'
         "    unused: LEDGER.clear()\n"
-        "    return len(ALIAS) + len(sorted(LEDGER, key=len))\n"
+        "    return len(ALIAS) + len(sorted(LEDGER, key=len)) + int(type(LEDGER) is dict)\n"
         "OTHER = {}\n"
         'OTHER[("b.f95", "y")] = "#999"\n'
         "def mutate_unrelated(table, key, issue):\n"
@@ -1122,10 +1157,14 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             "unsupported escape of constant LEDGER",
         ),
         (
-            "LEDGER = {}\n"
-            "[(alias := LEDGER) for _ in [0]]\n"
-            'alias["k"] = "v"\n',
+            'LEDGER = {}\n[(alias := LEDGER) for _ in [0]]\nalias["k"] = "v"\n',
             "unsupported mutation of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            'Holder = type("Holder", (), {"table": LEDGER})\n'
+            'Holder.table["k"] = "v"\n',
+            "unsupported escape of constant LEDGER",
         ),
     ],
 )

@@ -38,7 +38,6 @@ _SAFE_SCALAR_BUILTINS = frozenset({
     "print",
     "repr",
     "str",
-    "type",
 })
 _SAFE_ELEMENT_BUILTINS = frozenset({
     "dict",
@@ -848,7 +847,7 @@ class _ConstantMutationChecker:
         for key, value in enclosing_env.items():
             if (
                 key in nonlocal_names
-                or key not in local_bound
+                or (key not in local_bound and key not in global_names)
                 or (key in self.dependencies and key not in param_names)
             ):
                 func_env[key] = value
@@ -1228,6 +1227,17 @@ class _ConstantMutationChecker:
             self._check_key_callback_escape(call, deep, local_bound)
         return (deep[0], True) if deep is not None else None
 
+    @staticmethod
+    def _is_safe_scalar_call(fname: str, call: ast.Call) -> bool:
+        if fname in _SAFE_SCALAR_BUILTINS:
+            return True
+        return (
+            fname == "type"
+            and len(call.args) == 1
+            and not call.keywords
+            and not isinstance(call.args[0], ast.Starred)
+        )
+
     def _eval_name_call(
         self,
         call: ast.Call,
@@ -1250,7 +1260,7 @@ class _ConstantMutationChecker:
                 return dyn
         if not all_taints:
             return None
-        if is_builtin and fname in _SAFE_SCALAR_BUILTINS:
+        if is_builtin and self._is_safe_scalar_call(fname, call):
             return None
         if is_builtin and fname in _SAFE_ELEMENT_BUILTINS:
             return self._eval_safe_element_builtin(
@@ -1606,7 +1616,7 @@ def _python_ledger_records(root):
 
 _UnitEnv = dict[str, set[str]]
 _DeferredNode = ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
-_DeferredMap = dict[int, tuple[_DeferredNode, _UnitEnv]]
+_DeferredMap = dict[int, tuple[_DeferredNode, _UnitEnv, _UnitEnv]]
 
 
 def _copy_unittest_env(env: _UnitEnv) -> _UnitEnv:
@@ -1617,6 +1627,22 @@ def _update_unittest_env(target: _UnitEnv, source: _UnitEnv) -> None:
     for key, values in source.items():
         if values:
             target.setdefault(key, set()).update(values)
+
+
+def _default_unittest_param_envs(args: ast.arguments, env: _UnitEnv) -> _UnitEnv:
+    param_envs: _UnitEnv = {}
+    positional = [*args.posonlyargs, *args.args]
+    offset = len(positional) - len(args.defaults)
+    for index, default in enumerate(args.defaults):
+        kinds = _classify_unittest_expr(default, env)
+        if kinds:
+            param_envs[positional[offset + index].arg] = kinds
+    for arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
+        if default is not None:
+            kinds = _classify_unittest_expr(default, env)
+            if kinds:
+                param_envs[arg.arg] = kinds
+    return param_envs
 
 
 def _classify_unittest_expr(expr: ast.AST, env: _UnitEnv) -> set[str]:
@@ -1664,13 +1690,21 @@ class _UnittestExpectedFailureFinder:
 
     @staticmethod
     def _queue_deferred(
-        node: _DeferredNode, def_env: _UnitEnv, deferred: _DeferredMap
+        node: _DeferredNode,
+        def_env: _UnitEnv,
+        default_envs: _UnitEnv,
+        deferred: _DeferredMap,
     ) -> None:
         existing = deferred.get(id(node))
         if existing is None:
-            deferred[id(node)] = (node, _copy_unittest_env(def_env))
+            deferred[id(node)] = (
+                node,
+                _copy_unittest_env(def_env),
+                _copy_unittest_env(default_envs),
+            )
         else:
             _update_unittest_env(existing[1], def_env)
+            _update_unittest_env(existing[2], default_envs)
 
     def _propagate_to_deferred(
         self, env: _UnitEnv, scope_kind: str, deferred: _DeferredMap
@@ -1680,7 +1714,7 @@ class _UnittestExpectedFailureFinder:
         for sink_id, sink_env in self._seen_sinks:
             if sink_id == id(deferred):
                 _update_unittest_env(sink_env, env)
-        for _, live_env in deferred.values():
+        for _, live_env, _ in deferred.values():
             _update_unittest_env(live_env, env)
         if scope_kind == "module":
             _update_unittest_env(self.module_seen_env, env)
@@ -1694,12 +1728,13 @@ class _UnittestExpectedFailureFinder:
         return self.sites
 
     def _flush_deferred(self, deferred: _DeferredMap) -> None:
-        for node, live_env in deferred.values():
+        for node, live_env, default_envs in deferred.values():
             if isinstance(node, ast.Lambda):
                 param_names = _function_param_names(node.args)
                 lam_env: _UnitEnv = {
                     k: set(v) for k, v in live_env.items() if k not in param_names
                 }
+                _update_unittest_env(lam_env, default_envs)
                 lam_deferred: _DeferredMap = {}
                 prev = (
                     self._active_deferred,
@@ -1723,61 +1758,86 @@ class _UnittestExpectedFailureFinder:
             local_bound, _, global_names, nonlocal_names = _collect_scope_bindings(
                 node.body
             )
-            shadowed = param_names | (local_bound - global_names - nonlocal_names)
+            shadowed = param_names | global_names | (local_bound - nonlocal_names)
             child_env: _UnitEnv = {
                 k: set(v) for k, v in live_env.items() if k not in shadowed
             }
             for name in global_names:
                 if name in self.module_seen_env:
                     child_env.setdefault(name, set()).update(self.module_seen_env[name])
+            _update_unittest_env(child_env, default_envs)
             child_deferred: _DeferredMap = {}
             self._walk_block(
                 node.body, child_env, "function", child_env, child_deferred
             )
             self._flush_deferred(child_deferred)
 
-    def _scan_expr(self, expr: ast.AST, env: _UnitEnv) -> None:
+    def _scan_comprehension(
+        self,
+        expr: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
+        env: _UnitEnv,
+        walrus_env: _UnitEnv | None,
+    ) -> None:
+        comp_env = _copy_unittest_env(env)
+        target_walrus = walrus_env if walrus_env is not None else env
+        for index, gen in enumerate(expr.generators):
+            self._scan_expr(gen.iter, env if index == 0 else comp_env, target_walrus)
+            bound: set[str] = set()
+            _collect_target_names(gen.target, bound)
+            for name in bound:
+                comp_env.pop(name, None)
+            for cond in gen.ifs:
+                self._scan_expr(cond, comp_env, target_walrus)
+        if isinstance(expr, ast.DictComp):
+            self._scan_expr(expr.key, comp_env, target_walrus)
+            self._scan_expr(expr.value, comp_env, target_walrus)
+        else:
+            self._scan_expr(expr.elt, comp_env, target_walrus)
+
+    def _scan_expr(
+        self, expr: ast.AST, env: _UnitEnv, walrus_env: _UnitEnv | None = None
+    ) -> None:
         if isinstance(expr, ast.Call):
             if "expected_failure" in _classify_unittest_expr(expr.func, env):
                 self._record_site(expr)
             else:
-                self._scan_expr(expr.func, env)
+                self._scan_expr(expr.func, env, walrus_env)
             for arg in expr.args:
-                self._scan_expr(arg, env)
+                self._scan_expr(arg, env, walrus_env)
             for kw in expr.keywords:
-                self._scan_expr(kw.value, env)
+                self._scan_expr(kw.value, env, walrus_env)
+            return
+        if isinstance(expr, ast.NamedExpr):
+            self._scan_expr(expr.value, env, walrus_env)
+            kinds = _classify_unittest_expr(expr.value, env)
+            self._bind_target(expr.target, kinds, env)
+            if walrus_env is not None:
+                self._bind_target(expr.target, kinds, walrus_env)
+            self._propagate_to_deferred(
+                walrus_env if walrus_env is not None else env,
+                self._active_scope_kind,
+                self._active_deferred,
+            )
             return
         if isinstance(expr, ast.Lambda):
             for default in (*expr.args.defaults, *expr.args.kw_defaults):
                 if default is not None:
-                    self._scan_expr(default, env)
+                    self._scan_expr(default, env, walrus_env)
+            default_envs = _default_unittest_param_envs(expr.args, env)
             def_env = (
                 self._active_non_class_env
                 if self._active_scope_kind == "class"
                 else env
             )
-            self._queue_deferred(expr, def_env, self._active_deferred)
+            self._queue_deferred(expr, def_env, default_envs, self._active_deferred)
             return
         if isinstance(
             expr, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
         ):
-            comp_env = _copy_unittest_env(env)
-            for gen in expr.generators:
-                self._scan_expr(gen.iter, comp_env)
-                bound: set[str] = set()
-                _collect_target_names(gen.target, bound)
-                for name in bound:
-                    comp_env.pop(name, None)
-                for cond in gen.ifs:
-                    self._scan_expr(cond, comp_env)
-            if isinstance(expr, ast.DictComp):
-                self._scan_expr(expr.key, comp_env)
-                self._scan_expr(expr.value, comp_env)
-            else:
-                self._scan_expr(expr.elt, comp_env)
+            self._scan_comprehension(expr, env, walrus_env)
             return
         for child in ast.iter_child_nodes(expr):
-            self._scan_expr(child, env)
+            self._scan_expr(child, env, walrus_env)
 
     def _scan_decorators(self, decorators: list[ast.expr], env: _UnitEnv) -> None:
         for dec in decorators:
@@ -1884,9 +1944,10 @@ class _UnittestExpectedFailureFinder:
                     self._scan_expr(arg.annotation, env)
             if stmt.returns is not None:
                 self._scan_expr(stmt.returns, env)
+        default_envs = _default_unittest_param_envs(stmt.args, env)
         env.pop(stmt.name, None)
         def_env = non_class_env if scope_kind == "class" else env
-        self._queue_deferred(stmt, def_env, deferred)
+        self._queue_deferred(stmt, def_env, default_envs, deferred)
 
     def _handle_class_def(
         self,
@@ -2115,6 +2176,8 @@ class _UnittestExpectedFailureFinder:
                     stmt.target, _classify_unittest_expr(stmt.value, env), env
                 )
                 self._propagate_to_deferred(env, scope_kind, deferred)
+            elif not isinstance(stmt.target, ast.Name):
+                self._scan_expr(stmt.target, env)
         elif isinstance(stmt, ast.AugAssign):
             self._scan_expr(stmt.value, env)
             self._bind_target(stmt.target, set(), env)

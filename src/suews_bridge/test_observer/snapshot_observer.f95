@@ -993,12 +993,6 @@ CONTAINS
       CALL site%spartacus%allocate(nlayer_i)
 
       CALL state%allocate(nlayer_i, ndepth_i)
-      CALL state%stebbsState%allocate(1, nlayer_i)
-      IF (ALLOCATED(state%stebbsState%buildings)) THEN
-         DO ib = 1, SIZE(state%stebbsState%buildings)
-            CALL state%stebbsState%buildings(ib)%allocate(nlayer_i)
-         END DO
-      END IF
 
       CALL unpack_site_scalars(scalars, 24_c_int, site, err)
       IF (err /= 0_c_int) RETURN
@@ -1006,6 +1000,15 @@ CONTAINS
       IF (err /= 0_c_int) RETURN
       CALL site%cal_surf(config)
       CALL unpack_state_members(state, nlayer_i, ndepth_i, state_flat, state_len, state_toc, 26_c_int, 13_c_int, err)
+      IF (err /= 0_c_int) RETURN
+      IF (.NOT. ALLOCATED(state%stebbsState%buildings)) THEN
+         CALL state%stebbsState%allocate(1, nlayer_i)
+         IF (ALLOCATED(state%stebbsState%buildings)) THEN
+            DO ib = 1, SIZE(state%stebbsState%buildings)
+               CALL state%stebbsState%buildings(ib)%allocate(nlayer_i)
+            END DO
+         END IF
+      END IF
    END SUBROUTINE init_site_and_state
 
    SUBROUTINE load_row_forcing(forcing, row24, wu7)

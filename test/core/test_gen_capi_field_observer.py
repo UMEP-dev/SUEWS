@@ -470,6 +470,7 @@ def test_reverse_pack_audit_rejects_dropped_component(tmp_path: Path) -> None:
         gen.MANIFEST_PATH, types_by_lower, gen.CAPI_DIR, gen.KERNEL_SRC_DIR
     )
     shutil.copy2(gen.CAPI_DIR / "ohm.f95", tmp_path / "ohm.f95")
+    shutil.copy2(gen.CAPI_DIR / "stebbs_state.f95", tmp_path / "stebbs_state.f95")
     orig_driver = (gen.CAPI_DIR / "driver.f95").read_text(encoding="utf-8")
 
     mutated_atm = orig_driver.replace(
@@ -509,6 +510,7 @@ def test_reverse_pack_audit_rejects_dropped_ohm_field_and_stale_exclusion(
         gen.MANIFEST_PATH, types_by_lower, gen.CAPI_DIR, gen.KERNEL_SRC_DIR
     )
     shutil.copy2(gen.CAPI_DIR / "driver.f95", tmp_path / "driver.f95")
+    shutil.copy2(gen.CAPI_DIR / "stebbs_state.f95", tmp_path / "stebbs_state.f95")
     orig_ohm = (gen.CAPI_DIR / "ohm.f95").read_text(encoding="utf-8")
     mutated_ohm = orig_ohm.replace(
         "flat(idx) = merge(1.0_c_double, 0.0_c_double, state%anohm_coeff_ready); idx = idx + 1",

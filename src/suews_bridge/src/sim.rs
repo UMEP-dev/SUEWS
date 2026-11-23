@@ -31,7 +31,7 @@ use crate::solar::solar_state_from_ordered_values;
 use crate::spartacus_layer_prm::{spartacus_layer_prm_from_ordered_values, SpartacusLayerPrm};
 use crate::spartacus_prm::SpartacusPrm;
 use crate::stebbs_prm::stebbs_prm_from_ordered_values;
-use crate::stebbs_state::stebbs_state_from_ordered_values;
+use crate::stebbs_state::{stebbs_state_expected_flat_len, StebbsState};
 use crate::suews_site::SuewsSite;
 use crate::suews_state::SuewsState;
 use crate::surf_store::surf_store_prm_from_ordered_values;
@@ -548,6 +548,7 @@ pub fn decode_state_members(
     state_toc: &[i32],
     nlayer: usize,
     ndepth: usize,
+    stebbs_bldg_nlayer: usize,
 ) -> Result<SuewsState, BridgeError> {
     let flag_state = flag_state_from_ordered_values(member_slice(
         state_flat,
@@ -599,11 +600,10 @@ pub fn decode_state_members(
         state_toc,
         STATE_MEMBER_ROUGHNESS_STATE,
     )?)?;
-    let stebbs_state = stebbs_state_from_ordered_values(member_slice(
-        state_flat,
-        state_toc,
-        STATE_MEMBER_STEBBS_STATE,
-    )?)?;
+    let stebbs_state = StebbsState::from_flat_with_bldg_nlayer(
+        member_slice(state_flat, state_toc, STATE_MEMBER_STEBBS_STATE)?,
+        stebbs_bldg_nlayer,
+    )?;
     let nhood_state = nhood_state_from_ordered_values(member_slice(
         state_flat,
         state_toc,
@@ -868,6 +868,34 @@ fn validate_checkpoint_ehc_temperatures(run_cfg: &RunConfig) -> Result<(), Bridg
              heat method 5 (EHC) reads this initial temperature, so it must be finite. The \
              checkpoint was likely written by a run whose options did not read it",
             index % ndepth + 1,
+        )));
+    }
+    Ok(())
+}
+
+/// Reject an active-STEBBS checkpoint whose `stebbs_bldg_init` or
+/// `buildings(:)` dimensions are incompatible with the resumed configuration
+/// (`BR-06`).
+fn validate_checkpoint_stebbs_state(run_cfg: &RunConfig) -> Result<(), BridgeError> {
+    if !matches!(run_cfg.config.stebbs_method, 1 | 2) {
+        return Ok(());
+    }
+    let nlayer = usize::try_from(run_cfg.nlayer).unwrap_or(0);
+    let stebbs = &run_cfg.state.stebbs_state;
+    if run_cfg.state.flag_state.stebbs_bldg_init != 0 && stebbs.buildings.is_empty() {
+        return Err(simulation_error(format!(
+            "checkpoint has stebbs_bldg_init = {} but omits STEBBS_STATE%buildings(:) state; \
+             regenerate the checkpoint with stebbs_state schema version {}",
+            run_cfg.state.flag_state.stebbs_bldg_init,
+            crate::stebbs_state::STEBBS_STATE_SCHEMA_VERSION,
+        )));
+    }
+    if !stebbs.buildings.is_empty() && stebbs.bldg_nlayer != nlayer {
+        return Err(simulation_error(format!(
+            "checkpoint stebbs_state has bldg_nlayer = {}, but the configuration has \
+             nlayer = {nlayer}; STEBBS buildings(:)%Textwall_C/Textroof_C layer counts \
+             must match",
+            stebbs.bldg_nlayer,
         )));
     }
     Ok(())
@@ -1171,6 +1199,7 @@ fn prepare_checkpoint_input(
 
     validate_dyohm_material_inputs(&run_cfg)?;
     validate_checkpoint_ehc_temperatures(&run_cfg)?;
+    validate_checkpoint_stebbs_state(&run_cfg)?;
 
     let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
     let day_of_month = {
@@ -1334,8 +1363,39 @@ pub fn run_simulation_into(
         input.ndepth,
     )?;
 
+    let out_stebbs_bldg_count = if !input.state.stebbs_state.buildings.is_empty() {
+        input.state.stebbs_state.buildings.len()
+    } else if matches!(input.config.stebbs_method, 1 | 2) {
+        1
+    } else {
+        0
+    };
+    let out_stebbs_bldg_nlayer = if out_stebbs_bldg_count > 0 {
+        input.nlayer as usize
+    } else {
+        0
+    };
+    let out_stebbs_len =
+        stebbs_state_expected_flat_len(out_stebbs_bldg_count, out_stebbs_bldg_nlayer)?;
+
+    let mut state_out_toc = vec![0_i32; STATE_MEMBER_COUNT * 2];
+    let mut state_out_total_len = 0_usize;
+    for member_idx in 0..STATE_MEMBER_COUNT {
+        let len = if member_idx == STATE_MEMBER_STEBBS_STATE {
+            out_stebbs_len
+        } else {
+            usize::try_from(state_members.toc[2 * member_idx + 1])
+                .map_err(|_| BridgeError::BadBuffer)?
+        };
+        state_out_toc[2 * member_idx] = i32_len(state_out_total_len, "state output offset")?;
+        state_out_toc[2 * member_idx + 1] = i32_len(len, "state output member length")?;
+        state_out_total_len = state_out_total_len
+            .checked_add(len)
+            .ok_or(BridgeError::BadBuffer)?;
+    }
+
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
-    let mut state_out = vec![0.0_f64; state_members.flat.len()];
+    let mut state_out = vec![0.0_f64; state_out_total_len];
     for (label, table, ncols) in [
         ("data", &out.data, OUTPUT_DATA_COLS),
         ("datetime", &out.datetime, OUTPUT_DATETIME_COLS),
@@ -1368,6 +1428,7 @@ pub fn run_simulation_into(
     let len_sim_i32 = i32_len(input.len_sim, "len_sim")?;
     let forcing_cols_i32 = i32_len(MET_FORCING_COLS, "forcing column count")?;
     let state_out_len_i32 = i32_len(state_out.len(), "state output length")?;
+    let state_out_toc_len_i32 = i32_len(state_out_toc.len(), "state output toc length")?;
     let output_reach = reach_i64(&out.data, "output")?;
     let output_ld_i32 = i32_len(out.data.ld, "output leading dimension")?;
     let datetime_reach = reach_i64(&out.datetime, "datetime output")?;
@@ -1403,6 +1464,8 @@ pub fn run_simulation_into(
             timer_len_i32,
             state_out.as_mut_ptr(),
             state_out_len_i32,
+            state_out_toc.as_ptr(),
+            state_out_toc_len_i32,
             out.data.ptr.as_ptr(),
             output_reach,
             output_ld_i32,
@@ -1441,9 +1504,10 @@ pub fn run_simulation_into(
     let state = decode_state_members(
         &input.state,
         &state_out,
-        &state_members.toc,
+        &state_out_toc,
         input.nlayer as usize,
         input.ndepth as usize,
+        out_stebbs_bldg_nlayer,
     )?;
 
     let warnings = decode_kernel_warnings(
@@ -1910,5 +1974,74 @@ mod kernel_warning_tests {
         assert_eq!(decoded.total, 1);
         let empty = decode_kernel_warnings(0, 0, &timer, &text, 8);
         assert_eq!(empty, KernelWarnings::default());
+    }
+}
+
+#[cfg(test)]
+mod stebbs_checkpoint_validation_tests {
+    use super::*;
+    use crate::stebbs_state::StebbsBldg;
+
+    fn sample_stebbs_run_cfg(stebbs_method: i32, nlayer: i32) -> RunConfig {
+        let yaml_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test/fixtures/bridge/stebbs_resolved.yml");
+        let yaml_str =
+            std::fs::read_to_string(&yaml_path).expect("stebbs_resolved.yml fixture must be readable");
+        let mut run_cfg = crate::yaml_config::load_run_config_from_str(&yaml_str)
+            .expect("stebbs_resolved.yml fixture must load");
+        run_cfg.config.stebbs_method = stebbs_method;
+        run_cfg.nlayer = nlayer;
+        run_cfg
+    }
+
+    #[test]
+    fn rejects_initialized_stebbs_without_buildings() {
+        let mut run_cfg = sample_stebbs_run_cfg(1, 3);
+        run_cfg.state.flag_state.stebbs_bldg_init = 1;
+        run_cfg.state.stebbs_state.buildings.clear();
+        run_cfg.state.stebbs_state.bldg_nlayer = 0;
+
+        let err = validate_checkpoint_stebbs_state(&run_cfg)
+            .expect_err("stebbs_bldg_init=1 with empty buildings must fail");
+        assert!(
+            err.to_string().contains("STEBBS_STATE%buildings(:)"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_mismatched_bldg_nlayer() {
+        let mut run_cfg = sample_stebbs_run_cfg(1, 3);
+        run_cfg.state.flag_state.stebbs_bldg_init = 1;
+        run_cfg.state.stebbs_state.bldg_nlayer = 5;
+        run_cfg.state.stebbs_state.buildings = vec![StebbsBldg::with_nlayer(5)];
+
+        let err = validate_checkpoint_stebbs_state(&run_cfg)
+            .expect_err("mismatched bldg_nlayer must fail");
+        assert!(
+            err.to_string().contains("bldg_nlayer = 5"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn accepts_valid_initialized_and_cold_start_stebbs() {
+        let mut cold = sample_stebbs_run_cfg(1, 3);
+        cold.state.flag_state.stebbs_bldg_init = 0;
+        cold.state.stebbs_state.buildings.clear();
+        cold.state.stebbs_state.bldg_nlayer = 0;
+        validate_checkpoint_stebbs_state(&cold).expect("cold start STEBBS should be accepted");
+
+        let mut warm = sample_stebbs_run_cfg(1, 3);
+        warm.state.flag_state.stebbs_bldg_init = 1;
+        warm.state.stebbs_state.bldg_nlayer = 3;
+        warm.state.stebbs_state.buildings = vec![StebbsBldg::with_nlayer(3)];
+        validate_checkpoint_stebbs_state(&warm).expect("warm start STEBBS should be accepted");
+
+        let mut disabled = sample_stebbs_run_cfg(0, 3);
+        disabled.state.flag_state.stebbs_bldg_init = 1;
+        disabled.state.stebbs_state.buildings.clear();
+        validate_checkpoint_stebbs_state(&disabled)
+            .expect("STEBBS disabled skips STEBBS buildings validation");
     }
 }

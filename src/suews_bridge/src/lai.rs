@@ -3,7 +3,7 @@ use crate::error::BridgeError;
 use crate::ffi;
 
 pub const LAI_PRM_FLAT_LEN: usize = 13;
-pub const LAI_PRM_SCHEMA_VERSION: u32 = 2;
+pub const LAI_PRM_SCHEMA_VERSION: u32 = 1;
 
 pub type LaiPrmSchema = crate::codec::SimpleSchema;
 

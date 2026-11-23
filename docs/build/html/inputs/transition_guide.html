@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-23T06:13:09+00:00" />
-    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.23.dev17 documentation</title>
+    <meta property="article:modified_time" content="2026-11-23T10:29:47+00:00" />
+    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.23.dev23 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=2d12169f"></script>
+    <script src="../_static/documentation_options.js?v=0bb5a4c5"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.7. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev17" />
+  <meta name="docsearch:version" content="2026.11.23.dev23" />
     <meta name="docbuild:last-update" content="2026-11-23"/>
   
     
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev17, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9eca134db6fcccffd6a45bccc19e1336b05bdcd1" style="color: #31708f;">9eca134</a>).
+        (2026.11.23.dev23, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60bb1fc397e6432d8983531ae33e37edf2a146b0" style="color: #31708f;">60bb1fc</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -157,8 +157,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev17 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev17 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev23 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev23 documentation - Home"/>
   
   
 </a></div>
@@ -641,25 +641,26 @@
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migrating-legacy-bulk-wuh-volumes">4.8.4. Migrating legacy bulk <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> volumes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.8.5. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev16">4.8.5.1. Upgrading to Schema 2026.6.dev16</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev15">4.8.5.2. Upgrading to Schema 2026.6.dev15</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#runoff-from-paved-and-building-surfaces-in-schema-2026-6-dev12">4.8.5.3. Runoff from paved and building surfaces in schema 2026.6.dev12</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev11">4.8.5.4. Upgrading to Schema 2026.6.dev11</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev10">4.8.5.5. Upgrading to Schema 2026.6.dev10</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev9">4.8.5.6. Upgrading to Schema 2026.6.dev9</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev8">4.8.5.7. Upgrading to Schema 2026.6.dev8</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev7">4.8.5.8. Upgrading to Schema 2026.6.dev7</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev6">4.8.5.9. Upgrading to Schema 2026.6.dev6</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev5">4.8.5.10. Upgrading to Schema 2026.6.dev5</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev4">4.8.5.11. Upgrading to Schema 2026.6.dev4</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev3">4.8.5.12. Upgrading to Schema 2026.6.dev3</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev2">4.8.5.13. Upgrading to Schema 2026.6.dev2</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev1">4.8.5.14. Upgrading to Schema 2026.6.dev1</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.8.5.15. Upgrading to Schema 2026.5</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.8.5.16. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.8.5.17. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.8.5.18. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.8.5.19. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev17">4.8.5.1. Upgrading to Schema 2026.6.dev17</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev16">4.8.5.2. Upgrading to Schema 2026.6.dev16</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev15">4.8.5.3. Upgrading to Schema 2026.6.dev15</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#runoff-from-paved-and-building-surfaces-in-schema-2026-6-dev12">4.8.5.4. Runoff from paved and building surfaces in schema 2026.6.dev12</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev11">4.8.5.5. Upgrading to Schema 2026.6.dev11</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev10">4.8.5.6. Upgrading to Schema 2026.6.dev10</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev9">4.8.5.7. Upgrading to Schema 2026.6.dev9</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev8">4.8.5.8. Upgrading to Schema 2026.6.dev8</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev7">4.8.5.9. Upgrading to Schema 2026.6.dev7</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev6">4.8.5.10. Upgrading to Schema 2026.6.dev6</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev5">4.8.5.11. Upgrading to Schema 2026.6.dev5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev4">4.8.5.12. Upgrading to Schema 2026.6.dev4</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev3">4.8.5.13. Upgrading to Schema 2026.6.dev3</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev2">4.8.5.14. Upgrading to Schema 2026.6.dev2</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev1">4.8.5.15. Upgrading to Schema 2026.6.dev1</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.8.5.16. Upgrading to Schema 2026.5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.8.5.17. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.8.5.18. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.8.5.19. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.8.5.20. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options">4.8.6. Nested Physics Sub-Options</a></li>
@@ -867,8 +868,28 @@ reason so you can reconstruct intent if needed.</p>
 <p>The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in <a class="reference internal" href="../contributing/schema/schema_versioning.html#schema-version-history"><span class="std std-ref">Version History</span></a>.</p>
+<section id="upgrading-to-schema-2026-6-dev17">
+<span id="schema-dev17-integer-doy"></span><h3><span class="section-number">4.8.5.1. </span>Upgrading to Schema 2026.6.dev17<a class="headerlink" href="#upgrading-to-schema-2026-6-dev17" title="Link to this heading">#</a></h3>
+<p>Day-of-year windows for irrigation
+(<code class="docutils literal notranslate"><span class="pre">sites[].properties.irrigation.ie_start</span></code>, <code class="docutils literal notranslate"><span class="pre">ie_end</span></code>) and daylight saving
+time (<code class="docutils literal notranslate"><span class="pre">sites[].properties.anthropogenic_emissions.startdls</span></code>, <code class="docutils literal notranslate"><span class="pre">enddls</span></code>) now
+require whole integers between <code class="docutils literal notranslate"><span class="pre">1</span></code> and <code class="docutils literal notranslate"><span class="pre">366</span></code>, or <code class="docutils literal notranslate"><span class="pre">null</span></code> / omission when
+disabled. Earlier versions declared float fields and could silently truncate
+fractional values or turn invalid native inputs into zero.</p>
+<p>Migrating to <code class="docutils literal notranslate"><span class="pre">2026.6.dev17</span></code> normalises exact whole-number floats such as
+<code class="docutils literal notranslate"><span class="pre">86.0</span></code> to <code class="docutils literal notranslate"><span class="pre">86</span></code> (preserving reference metadata) and leaves <code class="docutils literal notranslate"><span class="pre">null</span></code>, empty
+mappings (<code class="docutils literal notranslate"><span class="pre">{}</span></code>), and reference-only mappings (<code class="docutils literal notranslate"><span class="pre">{ref:</span> <span class="pre">...}</span></code>) as disabled
+windows. Fractional values (such as <code class="docutils literal notranslate"><span class="pre">20.5</span></code>), explicit <code class="docutils literal notranslate"><span class="pre">0</span></code>, booleans,
+non-finite numbers, and integers outside <code class="docutils literal notranslate"><span class="pre">1..366</span></code> stop migration with the
+affected site and field path so you can choose the intended calendar day
+explicitly:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">suews schema migrate site.yml --target-version 2026.6.dev17 --dry-run</span>
+<span class="go">suews schema migrate site.yml --target-version 2026.6.dev17</span>
+</pre></div>
+</div>
+</section>
 <section id="upgrading-to-schema-2026-6-dev16">
-<span id="schema-dev16-vegetation-senescence"></span><h3><span class="section-number">4.8.5.1. </span>Upgrading to Schema 2026.6.dev16<a class="headerlink" href="#upgrading-to-schema-2026-6-dev16" title="Link to this heading">#</a></h3>
+<span id="schema-dev16-vegetation-senescence"></span><h3><span class="section-number">4.8.5.2. </span>Upgrading to Schema 2026.6.dev16<a class="headerlink" href="#upgrading-to-schema-2026-6-dev16" title="Link to this heading">#</a></h3>
 <p>Check the initial senescence degree days (<code class="docutils literal notranslate"><span class="pre">sdd_id</span></code>, in K d) under
 <code class="docutils literal notranslate"><span class="pre">sites[].initial_states.evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code> and <code class="docutils literal notranslate"><span class="pre">grass</span></code>. Earlier SuPy
 versions could accept <code class="docutils literal notranslate"><span class="pre">.nan</span></code>, <code class="docutils literal notranslate"><span class="pre">.inf</span></code> or <code class="docutils literal notranslate"><span class="pre">-.inf</span></code> and run with an
@@ -895,7 +916,7 @@ used a non-finite input, retain its original software version and input
 alongside any corrected run.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev15">
-<span id="schema-dev15-drainage-coefficients"></span><h3><span class="section-number">4.8.5.2. </span>Upgrading to Schema 2026.6.dev15<a class="headerlink" href="#upgrading-to-schema-2026-6-dev15" title="Link to this heading">#</a></h3>
+<span id="schema-dev15-drainage-coefficients"></span><h3><span class="section-number">4.8.5.3. </span>Upgrading to Schema 2026.6.dev15<a class="headerlink" href="#upgrading-to-schema-2026-6-dev15" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev12</span></code> covers water routing, schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev13</span></code>
 removes fresh-run radiation memory (see <a class="reference internal" href="#schema-dev13-radiation-memory"><span class="std std-ref">Radiation memory in the 2026.6.dev13 development schema</span></a>),
 and schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev14</span></code> removes the remaining continuation-only initial
@@ -963,7 +984,7 @@ and the structural check above can pass. Before running that site, supply
 malformed values remain subject to load-time validation.</p>
 </section>
 <section id="runoff-from-paved-and-building-surfaces-in-schema-2026-6-dev12">
-<span id="schema-dev12-water-routing"></span><h3><span class="section-number">4.8.5.3. </span>Runoff from paved and building surfaces in schema 2026.6.dev12<a class="headerlink" href="#runoff-from-paved-and-building-surfaces-in-schema-2026-6-dev12" title="Link to this heading">#</a></h3>
+<span id="schema-dev12-water-routing"></span><h3><span class="section-number">4.8.5.4. </span>Runoff from paved and building surfaces in schema 2026.6.dev12<a class="headerlink" href="#runoff-from-paved-and-building-surfaces-in-schema-2026-6-dev12" title="Link to this heading">#</a></h3>
 <p>Check the <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> blocks under <code class="docutils literal notranslate"><span class="pre">sites[*].properties.land_cover.paved</span></code>
 and <code class="docutils literal notranslate"><span class="pre">sites[*].properties.land_cover.bldgs</span></code> if you use runoff from earlier
 simulations. Some YAML files retain a zero in the unused <code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code>
@@ -985,11 +1006,18 @@ The missing 4.827 mm also appeared as a deficit in the grid water balance.
 With the corrected reader, both files give 8.416 mm and the balance closes.
 The size of the difference at another site depends on its surface fractions,
 drainage and weather.</p>
-<p>Migration removes the unused <code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code> zero from this block. It keeps
-<code class="docutils literal notranslate"><span class="pre">to_runoff:</span> <span class="pre">0.98</span></code>, <code class="docutils literal notranslate"><span class="pre">to_grass:</span> <span class="pre">0.02</span></code> and any zero for an applicable
-destination, including a genuine zero runoff fraction. A previously valid
-paved or building block that already omitted the unused field needs no edit
-to its fractions for this correction.</p>
+<p>When you migrate from dev11 to dev12, check the following changes in each
+non-water surface’s <code class="docutils literal notranslate"><span class="pre">waterdist</span></code> block. Migration removes an explicit numeric
+zero from a surface’s route to itself (for example, <code class="docutils literal notranslate"><span class="pre">grass.to_grass</span></code>), from
+<code class="docutils literal notranslate"><span class="pre">to_soilstore</span></code> on <code class="docutils literal notranslate"><span class="pre">paved</span></code> and <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, and from <code class="docutils literal notranslate"><span class="pre">to_runoff</span></code> on
+<code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> and <code class="docutils literal notranslate"><span class="pre">bsoil</span></code>. These rules also apply to
+wrapped zeros such as <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">0.0}</span></code>. A non-zero fraction in any of these
+destinations causes migration to report the site, surface and field to correct.</p>
+<p>Migration keeps all fractions for applicable destinations, including zero.
+In the paved example above, the migrated file keeps <code class="docutils literal notranslate"><span class="pre">to_runoff:</span> <span class="pre">0.98</span></code>
+and <code class="docutils literal notranslate"><span class="pre">to_grass:</span> <span class="pre">0.02</span></code>. A paved surface with a genuine zero runoff fraction
+also keeps that zero. See <a class="reference internal" href="#waterdist-yaml-rules"><span class="std std-ref">Within-grid water distribution (waterdist)</span></a> for the applicable
+destinations and the rules for zero-area surfaces.</p>
 <p>The following commands apply to an installation using schema dev12. With
 dev15 installed, follow <a class="reference internal" href="#schema-dev15-drainage-coefficients"><span class="std std-ref">Upgrading to Schema 2026.6.dev15</span></a> to check
 water routing, radiation memory, continuation state and drainage coefficients.
@@ -1038,7 +1066,7 @@ the same forcing and dates and compare daily sums of runoff (<code class="docuti
 for each grid, alongside the water balance.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev11">
-<span id="schema-dev11-soil-parameters"></span><h3><span class="section-number">4.8.5.4. </span>Upgrading to Schema 2026.6.dev11<a class="headerlink" href="#upgrading-to-schema-2026-6-dev11" title="Link to this heading">#</a></h3>
+<span id="schema-dev11-soil-parameters"></span><h3><span class="section-number">4.8.5.5. </span>Upgrading to Schema 2026.6.dev11<a class="headerlink" href="#upgrading-to-schema-2026-6-dev11" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev11</span></code> requires <code class="docutils literal notranslate"><span class="pre">soil_depth</span></code>, <code class="docutils literal notranslate"><span class="pre">soil_store_capacity</span></code> and
 <code class="docutils literal notranslate"><span class="pre">saturated_hydraulic_conductivity</span></code> on every active (<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>) non-water
 surface (<code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code> and <code class="docutils literal notranslate"><span class="pre">bsoil</span></code>)
@@ -1068,7 +1096,7 @@ omitted) are written explicitly as <code class="docutils literal notranslate"><s
 metadata.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev10">
-<span id="schema-dev10-storage-capacity"></span><h3><span class="section-number">4.8.5.5. </span>Upgrading to Schema 2026.6.dev10<a class="headerlink" href="#upgrading-to-schema-2026-6-dev10" title="Link to this heading">#</a></h3>
+<span id="schema-dev10-storage-capacity"></span><h3><span class="section-number">4.8.5.6. </span>Upgrading to Schema 2026.6.dev10<a class="headerlink" href="#upgrading-to-schema-2026-6-dev10" title="Link to this heading">#</a></h3>
 <p>In a surface’s <code class="docutils literal notranslate"><span class="pre">storage_drain_params</span></code>, the model now reads the current water
 storage capacity from <code class="docutils literal notranslate"><span class="pre">store_cap</span></code>. Earlier versions read <code class="docutils literal notranslate"><span class="pre">store_max</span></code> even
 when a different capacity was supplied. For example, with <code class="docutils literal notranslate"><span class="pre">store_max</span></code> of
@@ -1085,7 +1113,7 @@ To reproduce an earlier run that used unequal values, start from the configurati
 with <code class="docutils literal notranslate"><span class="pre">store_cap</span></code> set to the former <code class="docutils literal notranslate"><span class="pre">store_max</span></code> value.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev9">
-<span id="schema-dev9-soil-migration"></span><h3><span class="section-number">4.8.5.6. </span>Upgrading to Schema 2026.6.dev9<a class="headerlink" href="#upgrading-to-schema-2026-6-dev9" title="Link to this heading">#</a></h3>
+<span id="schema-dev9-soil-migration"></span><h3><span class="section-number">4.8.5.7. </span>Upgrading to Schema 2026.6.dev9<a class="headerlink" href="#upgrading-to-schema-2026-6-dev9" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">soil_moisture_deficit</span></code> becomes <code class="docutils literal notranslate"><span class="pre">soil_moisture</span></code> with <code class="docutils literal notranslate"><span class="pre">modelled</span></code> (0)
 and <code class="docutils literal notranslate"><span class="pre">observed</span></code> (1); method 2 is no longer a current-schema option.
 For modelled configurations, run:</p>
@@ -1122,7 +1150,7 @@ match every contributing soil depth within an absolute tolerance of one
 micrometre. Modelled runs require no observation metadata or field capacity.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev8">
-<span id="schema-dev8-snowalb-null"></span><h3><span class="section-number">4.8.5.7. </span>Upgrading to Schema 2026.6.dev8<a class="headerlink" href="#upgrading-to-schema-2026-6-dev8" title="Link to this heading">#</a></h3>
+<span id="schema-dev8-snowalb-null"></span><h3><span class="section-number">4.8.5.8. </span>Upgrading to Schema 2026.6.dev8<a class="headerlink" href="#upgrading-to-schema-2026-6-dev8" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev8</span></code> no longer accepts a null initial snow albedo. A
 configuration with</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">initial_states</span><span class="p">:</span>
@@ -1149,7 +1177,7 @@ This also repairs vegetation-free files emitted by the older table converter.
 Non-null values and reference metadata are retained.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev7">
-<span id="schema-dev7-co2-point-source"></span><h3><span class="section-number">4.8.5.8. </span>Upgrading to Schema 2026.6.dev7<a class="headerlink" href="#upgrading-to-schema-2026-6-dev7" title="Link to this heading">#</a></h3>
+<span id="schema-dev7-co2-point-source"></span><h3><span class="section-number">4.8.5.9. </span>Upgrading to Schema 2026.6.dev7<a class="headerlink" href="#upgrading-to-schema-2026-6-dev7" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev7</span></code> requires the CO2 point source whenever the emissions
 method adds it to the CO2 flux: a biogenic CO2 method, <code class="docutils literal notranslate"><span class="pre">11</span></code>-<code class="docutils literal notranslate"><span class="pre">16</span></code>,
 <code class="docutils literal notranslate"><span class="pre">21</span></code>-<code class="docutils literal notranslate"><span class="pre">26</span></code>, <code class="docutils literal notranslate"><span class="pre">31</span></code>-<code class="docutils literal notranslate"><span class="pre">36</span></code> or <code class="docutils literal notranslate"><span class="pre">41</span></code>-<code class="docutils literal notranslate"><span class="pre">46</span></code> under
@@ -1171,7 +1199,7 @@ point source is absent or null and keeps any value you gave, so an upgraded
 configuration produces the same output. Upgrade with <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code>.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev6">
-<span id="schema-dev6-provisional-output"></span><h3><span class="section-number">4.8.5.9. </span>Upgrading to Schema 2026.6.dev6<a class="headerlink" href="#upgrading-to-schema-2026-6-dev6" title="Link to this heading">#</a></h3>
+<span id="schema-dev6-provisional-output"></span><h3><span class="section-number">4.8.5.10. </span>Upgrading to Schema 2026.6.dev6<a class="headerlink" href="#upgrading-to-schema-2026-6-dev6" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev6</span></code> adds <code class="docutils literal notranslate"><span class="pre">include_provisional</span></code> under
 <code class="docutils literal notranslate"><span class="pre">model.control.output</span></code>. Output groups whose variables may still change
 between releases (<code class="docutils literal notranslate"><span class="pre">BEERS</span></code>, <code class="docutils literal notranslate"><span class="pre">EHC</span></code>, <code class="docutils literal notranslate"><span class="pre">NHood</span></code>, <code class="docutils literal notranslate"><span class="pre">SPARTACUS</span></code> and
@@ -1197,7 +1225,7 @@ to the current schema and stamps the output with that version.
 Default output groups and non-streaming Parquet output are unchanged.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev5">
-<span id="schema-dev5-shortwave-migration"></span><h3><span class="section-number">4.8.5.10. </span>Upgrading to Schema 2026.6.dev5<a class="headerlink" href="#upgrading-to-schema-2026-6-dev5" title="Link to this heading">#</a></h3>
+<span id="schema-dev5-shortwave-migration"></span><h3><span class="section-number">4.8.5.11. </span>Upgrading to Schema 2026.6.dev5<a class="headerlink" href="#upgrading-to-schema-2026-6-dev5" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev5</span></code> renames the shortwave splitting selector to <code class="docutils literal notranslate"><span class="pre">perez</span></code>.
 The previous text selector is no longer accepted when loading a configuration.
 Use the schema converter to update an older YAML before loading it:</p>
@@ -1216,7 +1244,7 @@ the version stamp does not rename the old selector.</p>
 inputs. See <a class="reference internal" href="../parameterisations-and-sub-models.html#shortwave-partition"><span class="std std-ref">Direct and diffuse shortwave partitioning</span></a> for both splitting methods.</p>
 </section>
 <section id="upgrading-to-schema-2026-6-dev4">
-<h3><span class="section-number">4.8.5.11. </span>Upgrading to Schema 2026.6.dev4<a class="headerlink" href="#upgrading-to-schema-2026-6-dev4" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.12. </span>Upgrading to Schema 2026.6.dev4<a class="headerlink" href="#upgrading-to-schema-2026-6-dev4" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev4</span></code> adds optional shading and space-heating controls under
 <code class="docutils literal notranslate"><span class="pre">sites[*].properties.stebbs</span></code>:</p>
 <ul class="simple">
@@ -1258,7 +1286,7 @@ physics corrections in the model code.</p>
 </div>
 </section>
 <section id="upgrading-to-schema-2026-6-dev3">
-<h3><span class="section-number">4.8.5.12. </span>Upgrading to Schema 2026.6.dev3<a class="headerlink" href="#upgrading-to-schema-2026-6-dev3" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.13. </span>Upgrading to Schema 2026.6.dev3<a class="headerlink" href="#upgrading-to-schema-2026-6-dev3" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev3</span></code> completes the naming-convention sweep for the
 <code class="docutils literal notranslate"><span class="pre">sites[*].properties.anthropogenic_emissions.co2</span></code> section. The migration
 renames fourteen YAML keys while preserving their values:</p>
@@ -1320,7 +1348,7 @@ change.</p>
 </div>
 </section>
 <section id="upgrading-to-schema-2026-6-dev2">
-<h3><span class="section-number">4.8.5.13. </span>Upgrading to Schema 2026.6.dev2<a class="headerlink" href="#upgrading-to-schema-2026-6-dev2" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.14. </span>Upgrading to Schema 2026.6.dev2<a class="headerlink" href="#upgrading-to-schema-2026-6-dev2" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev2</span></code> adds the opt-in
 <code class="docutils literal notranslate"><span class="pre">model.physics.storage_heat:</span> <span class="pre">dyohm_building</span></code> selector
 (<code class="docutils literal notranslate"><span class="pre">StorageHeatMethod=8</span></code>). This method uses DyOHM to determine the
@@ -1335,7 +1363,7 @@ the current schema and stamps <code class="docutils literal notranslate"><span c
 </div>
 </section>
 <section id="upgrading-to-schema-2026-6-dev1">
-<h3><span class="section-number">4.8.5.14. </span>Upgrading to Schema 2026.6.dev1<a class="headerlink" href="#upgrading-to-schema-2026-6-dev1" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.15. </span>Upgrading to Schema 2026.6.dev1<a class="headerlink" href="#upgrading-to-schema-2026-6-dev1" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev1</span></code> is a development schema for the
 SPARTACUS direct/diffuse benchmark work. It extends the <code class="docutils literal notranslate"><span class="pre">2026.5</span></code>
 surface with default-backed controls:</p>
@@ -1375,7 +1403,7 @@ current schema and stamps <code class="docutils literal notranslate"><span class
 </div>
 </section>
 <section id="upgrading-to-schema-2026-5">
-<h3><span class="section-number">4.8.5.15. </span>Upgrading to Schema 2026.5<a class="headerlink" href="#upgrading-to-schema-2026-5" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.16. </span>Upgrading to Schema 2026.5<a class="headerlink" href="#upgrading-to-schema-2026-5" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> is the YAML schema shipped with release <code class="docutils literal notranslate"><span class="pre">2026.6.5</span></code>.
 It is the single released label collapsing the <code class="docutils literal notranslate"><span class="pre">2026.5.dev1</span></code> ..
 <code class="docutils literal notranslate"><span class="pre">2026.5.dev14</span></code> development cycle: one <code class="docutils literal notranslate"><span class="pre">(2026.4</span> <span class="pre">-&gt;</span> <span class="pre">2026.5)</span></code> handler
@@ -1436,7 +1464,7 @@ DataFrame / Fortran column names are unchanged, so there is <strong>no
 model-output change</strong> versus <code class="docutils literal notranslate"><span class="pre">2026.4.3</span></code>.</p>
 </section>
 <section id="upgrading-to-schema-2026-4-suews-2026-4-3">
-<h3><span class="section-number">4.8.5.16. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.17. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
 <p>Upgrading from <code class="docutils literal notranslate"><span class="pre">2026.1</span></code> (shipped with 2026.1.28) or earlier applies
 the following deltas:</p>
 <ul class="simple">
@@ -1464,7 +1492,7 @@ further to the 2026.5 schema, use
 <code class="docutils literal notranslate"><span class="pre">--target-version</span> <span class="pre">2026.5</span></code> (or omit the flag to reach the latest).</p>
 </section>
 <section id="upgrading-to-schema-2026-1-suews-2026-1-28">
-<h3><span class="section-number">4.8.5.17. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.18. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
 <p>Landed with the STEBBS clean-up (#879). If you are moving from the
 <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> shape (2025.10.15 or 2025.11.20):</p>
 <ul class="simple">
@@ -1488,7 +1516,7 @@ work; the profiles default to previous scalar behaviour.</p></li>
 <p>Otherwise the 2026.4 -&gt; 2026.5 chain above is applied in one pass.</p>
 </section>
 <section id="preserving-your-values-through-renames">
-<h3><span class="section-number">4.8.5.18. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.19. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
 <p>The rename handlers preserve the user’s value. When both the old and
 the new key happen to be present in the same YAML (for example if
 you’ve partially hand-edited), the newer value wins and the stale
@@ -1500,7 +1528,7 @@ upgraded file, pass <code class="docutils literal notranslate"><span class="pre"
 </div>
 </section>
 <section id="troubleshooting">
-<h3><span class="section-number">4.8.5.19. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.8.5.20. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
 <p><strong>Common Issues and Solutions:</strong></p>
 <ol class="arabic simple">
 <li><p><strong>“Could not auto-detect version”</strong></p>
@@ -1825,25 +1853,26 @@ version label.</p>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migrating-legacy-bulk-wuh-volumes">4.8.4. Migrating legacy bulk <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> volumes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.8.5. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev16">4.8.5.1. Upgrading to Schema 2026.6.dev16</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev15">4.8.5.2. Upgrading to Schema 2026.6.dev15</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#runoff-from-paved-and-building-surfaces-in-schema-2026-6-dev12">4.8.5.3. Runoff from paved and building surfaces in schema 2026.6.dev12</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev11">4.8.5.4. Upgrading to Schema 2026.6.dev11</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev10">4.8.5.5. Upgrading to Schema 2026.6.dev10</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev9">4.8.5.6. Upgrading to Schema 2026.6.dev9</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev8">4.8.5.7. Upgrading to Schema 2026.6.dev8</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev7">4.8.5.8. Upgrading to Schema 2026.6.dev7</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev6">4.8.5.9. Upgrading to Schema 2026.6.dev6</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev5">4.8.5.10. Upgrading to Schema 2026.6.dev5</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev4">4.8.5.11. Upgrading to Schema 2026.6.dev4</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev3">4.8.5.12. Upgrading to Schema 2026.6.dev3</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev2">4.8.5.13. Upgrading to Schema 2026.6.dev2</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev1">4.8.5.14. Upgrading to Schema 2026.6.dev1</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.8.5.15. Upgrading to Schema 2026.5</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.8.5.16. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.8.5.17. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.8.5.18. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.8.5.19. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev17">4.8.5.1. Upgrading to Schema 2026.6.dev17</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev16">4.8.5.2. Upgrading to Schema 2026.6.dev16</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev15">4.8.5.3. Upgrading to Schema 2026.6.dev15</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#runoff-from-paved-and-building-surfaces-in-schema-2026-6-dev12">4.8.5.4. Runoff from paved and building surfaces in schema 2026.6.dev12</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev11">4.8.5.5. Upgrading to Schema 2026.6.dev11</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev10">4.8.5.6. Upgrading to Schema 2026.6.dev10</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev9">4.8.5.7. Upgrading to Schema 2026.6.dev9</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev8">4.8.5.8. Upgrading to Schema 2026.6.dev8</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev7">4.8.5.9. Upgrading to Schema 2026.6.dev7</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev6">4.8.5.10. Upgrading to Schema 2026.6.dev6</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev5">4.8.5.11. Upgrading to Schema 2026.6.dev5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev4">4.8.5.12. Upgrading to Schema 2026.6.dev4</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev3">4.8.5.13. Upgrading to Schema 2026.6.dev3</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev2">4.8.5.14. Upgrading to Schema 2026.6.dev2</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev1">4.8.5.15. Upgrading to Schema 2026.6.dev1</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.8.5.16. Upgrading to Schema 2026.5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.8.5.17. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.8.5.18. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.8.5.19. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.8.5.20. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options">4.8.6. Nested Physics Sub-Options</a></li>
@@ -1892,8 +1921,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev17 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9eca134db6fcccffd6a45bccc19e1336b05bdcd1">9eca134</a> |
+  <p>Version: 2026.11.23.dev23 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60bb1fc397e6432d8983531ae33e37edf2a146b0">60bb1fc</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

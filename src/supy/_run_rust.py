@@ -5,27 +5,25 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from functools import cache
 from importlib import import_module
+import json
 from pathlib import Path
+import re
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
-import json
-
 import yaml
 
-from .suews_checkpoint import _format_duplicate_grid_key_error
-
-# Use C-based YAML dumper when available (5-10x faster than pure Python)
-_yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
-
 from ._env import logger_supy, warn_platform_support
-from ._post import df_var, gen_index
-
 from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
+from ._post import df_var, gen_index
+from .suews_checkpoint import _format_duplicate_grid_key_error
 
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
+
+# Use C-based YAML dumper when available (5-10x faster than pure Python)
+_yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 
 LAI_KERNEL_COLUMNS = tuple(f"lai_{suffix}" for suffix in LAI_LANDCOVER_SUFFIXES)
@@ -605,6 +603,7 @@ def _write_grid_output(
     ar_data: np.ndarray,
     ar_datetime: np.ndarray,
     state_json: str | None = None,
+    grid_id: int | None = None,
 ) -> tuple[str | None, Any]:
     """Run one grid with the kernel writing into *ar_data* and *ar_datetime*.
 
@@ -612,14 +611,19 @@ def _write_grid_output(
     Returns ``(state_json, raw_warnings)``. With *state_json*, the run
     continues from that checkpoint.
     """
-    state_json_out, len_sim, raw_warnings = rust_module.run_suews_into(
-        config_text,
-        forcing_block,
-        len_forcing,
-        ar_data,
-        ar_datetime,
-        state_json,
-    )
+    try:
+        state_json_out, len_sim, raw_warnings = rust_module.run_suews_into(
+            config_text,
+            forcing_block,
+            len_forcing,
+            ar_data,
+            ar_datetime,
+            state_json,
+        )
+    except (RuntimeError, ValueError) as error:
+        if grid_id is None:
+            raise
+        raise type(error)(_public_grid_error(str(error), [grid_id], [config_text])) from None
     if len_sim != len_forcing:
         raise RuntimeError(
             f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
@@ -649,6 +653,7 @@ def _run_grid_into(
         ar_data,
         ar_datetime,
         state_json,
+        grid_id,
     )
     df_output = _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
     return df_output, state_json_out, raw_warnings
@@ -758,15 +763,20 @@ def _write_grids_output(
     kernel_warnings = KernelWarningLog()
 
     if use_rayon:
-        raw_results = rust_module.run_suews_multi_into(
-            list_config_jsons,
-            forcing_block,
-            len_forcing,
-            [ar_data[rows] for rows in list_rows],
-            [ar_datetime[rows] for rows in list_rows],
-            list_state_jsons,
-            max_workers,
-        )
+        try:
+            raw_results = rust_module.run_suews_multi_into(
+                list_config_jsons,
+                forcing_block,
+                len_forcing,
+                [ar_data[rows] for rows in list_rows],
+                [ar_datetime[rows] for rows in list_rows],
+                list_state_jsons,
+                max_workers,
+            )
+        except (RuntimeError, ValueError) as error:
+            raise type(error)(
+                _public_grid_error(str(error), list_grid_ids, list_config_jsons)
+            ) from None
         # raw_results: list of (grid_index, state_json, len_sim, warnings)
         for idx, state_json, len_sim, raw_warnings in sorted(
             raw_results, key=lambda r: r[0]
@@ -792,6 +802,7 @@ def _write_grids_output(
                 ar_data[rows],
                 ar_datetime[rows],
                 list_state_jsons[idx] if list_state_jsons is not None else None,
+                grid_id,
             )
             if state_json is not None:
                 dict_state_json[grid_id] = state_json
@@ -978,7 +989,8 @@ def run_suews_rust(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = config_to_engine_yaml(config, for_file_output=False)
+    _, list_config_jsons = _grid_config_jsons(config)
+    config_yaml = list_config_jsons[0]
     forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
 
     df_output, state_json, raw_warnings = _run_grid_into(
@@ -1087,9 +1099,64 @@ def run_suews_rust_multi(
 
 def _check_unique_grid_ids(list_gridiv: list[Any]) -> None:
     """Refuse a configuration that lists one grid ID twice."""
-    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
-    if list_dupes:
-        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
+    seen = set()
+    duplicates = set()
+    for grid in list_gridiv:
+        if grid in seen:
+            duplicates.add(grid)
+        seen.add(grid)
+    if duplicates:
+        raise ValueError(f"Duplicate gridiv values in config.sites: {duplicates}")
+
+
+def _native_grid_ids(list_grid_ids: list[int]) -> dict[int, int]:
+    """Allocate reproducible i32 identities for one public run's site set.
+
+    Reserve all representable labels first. Exceptional labels, sorted by
+    their exact Python integer value, take free positive IDs, then non-positive
+    IDs if necessary. Separate runs need no shared registry; the same site set
+    reconstructs the map after reordering or checkpoint reload.
+    """
+    _check_unique_grid_ids(list_grid_ids)
+    minimum, maximum = -(2**31), 2**31 - 1
+    if len(list_grid_ids) > 2**32:
+        raise ValueError("Too many sites for distinct signed 32-bit native grid IDs")
+    assigned = {grid: grid for grid in list_grid_ids if minimum <= grid <= maximum}
+    reserved = set(assigned)
+    candidate = 1
+    for grid in sorted(set(list_grid_ids) - reserved):
+        while candidate in reserved:
+            candidate = candidate + 1 if candidate > 0 else candidate - 1
+            if candidate > maximum:
+                candidate = 0
+        assigned[grid] = candidate
+        reserved.add(candidate)
+    return assigned
+
+
+def _public_grid_error(message: str, ids: list[int], payloads: list[str]) -> str:
+    """Restore site paths and the bridge's positional batch error prefix."""
+    native_to_public = {}
+    for grid, payload in zip(ids, payloads, strict=True):
+        try:
+            native = yaml.safe_load(payload)["sites"][0]["gridiv"]
+        except (yaml.YAMLError, KeyError, IndexError, TypeError):
+            # Legacy callers can supply YAML, including an invalid document
+            # that caused the native error. Never hide that original error.
+            continue
+        if isinstance(native, int):
+            native_to_public[native] = grid
+    message = re.sub(
+        r"sites\[gridiv=(-?\d+)\]",
+        lambda match: f"sites[gridiv={native_to_public.get(int(match[1]), int(match[1]))}]",
+        message,
+    )
+    prefix = re.match(r"grid (\d+):", message)
+    if prefix and int(prefix[1]) < len(ids):
+        return f"grid {ids[int(prefix[1])]}:" + message[prefix.end():]
+    if len(ids) == 1:
+        return f"grid {ids[0]}: {message}"
+    return message
 
 
 def _check_max_workers(max_workers: int | None) -> None:
@@ -1145,16 +1212,17 @@ def _normalise_state_grid_ids(states: dict[Any, str]) -> dict[int, str]:
 def _grid_config_jsons(config: SUEWSConfig) -> tuple[list[int], list[str]]:
     """Return each site's grid ID and its one-site config as a JSON string.
 
-    The Rust bridge's YAML preprocessor accepts both new snake_case and
-    legacy fused spellings (gh#1322), so the Pydantic dump is submitted
-    verbatim.
+    Only this private execution copy receives native grid IDs. Source YAML,
+    output indexes and checkpoint keys retain the original public labels.
     """
     config_dict = _engine_config_dict(config)
-    list_grid_ids = []
+    list_grid_ids = [_normalise_grid_id(site.gridiv) for site in config.sites]
+    native_ids = _native_grid_ids(list_grid_ids)
     list_config_jsons = []
-    for site in config.sites:
-        list_grid_ids.append(_normalise_grid_id(site.gridiv))
-        config_dict["sites"] = [site.model_dump(exclude_none=True, mode="json")]
+    for grid_id, site in zip(list_grid_ids, config.sites, strict=True):
+        site_dict = site.model_dump(exclude_none=True, mode="json")
+        site_dict["gridiv"] = native_ids[grid_id]
+        config_dict["sites"] = [site_dict]
         list_config_jsons.append(json.dumps(config_dict))
     return list_grid_ids, list_config_jsons
 
@@ -1228,7 +1296,8 @@ def run_suews_rust_with_state(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    config_yaml = config_to_engine_yaml(config, for_file_output=False)
+    _, list_config_jsons = _grid_config_jsons(config)
+    config_yaml = list_config_jsons[0]
     forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
 
     df_output, new_state_json, raw_warnings = _run_grid_into(

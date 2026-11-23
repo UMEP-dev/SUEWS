@@ -49,12 +49,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
-      function: "apply_land_cover_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_ohm_overrides"
     contract: "C-STRICT"
     issue: 1991
@@ -62,12 +56,6 @@ mappings:
   - selector:
       ledger: "R"
       function: "apply_site_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
-      function: "apply_site_scalar_overrides"
     contract: "C-STRICT"
     issue: 1991
     classification: "defect"

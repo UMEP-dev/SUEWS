@@ -417,6 +417,65 @@ fn require_i32(root: &Value, path: &[&str], at: &str) -> Result<i32, String> {
     }
 }
 
+/// Require that `path` below `root` is a YAML mapping.
+fn require_mapping<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a Value, String> {
+    let shown = yaml_path_display(at, path);
+    match get_path(root, path) {
+        Some(value @ Value::Mapping(_)) => Ok(value),
+        Some(other) => Err(format!(
+            "`{shown}` is {}; it must be a mapping",
+            yaml_kind(other)
+        )),
+        None => Err(format!(
+            "`{shown}` is missing; the bridge does not fill in a value, give it in the YAML"
+        )),
+    }
+}
+
+/// Reject a non-mapping parent node when an optional sub-block is present.
+fn validate_optional_mapping(root: &Value, path: &[&str], at: &str) -> Result<(), String> {
+    match get_path(root, path) {
+        None | Some(Value::Null) | Some(Value::Mapping(_)) => Ok(()),
+        Some(other) => Err(format!(
+            "`{}` is {}; it must be a mapping",
+            yaml_path_display(at, path),
+            yaml_kind(other)
+        )),
+    }
+}
+
+/// Read a finite numeric field when `required` is true; when `required` is
+/// false, permit absent/null (returning `Ok(None)`) while still validating any
+/// supplied non-null value as a finite number so malformed inputs fail cleanly.
+fn require_if_active_numeric(
+    root: &Value,
+    path: &[&str],
+    at: &str,
+    required: bool,
+) -> Result<Option<f64>, String> {
+    if required {
+        require_numeric(root, path, at).map(Some)
+    } else {
+        match get_path(root, path).and_then(given_value) {
+            None | Some(Value::Null) => Ok(None),
+            Some(_) => require_numeric(root, path, at).map(Some),
+        }
+    }
+}
+
+/// Read a required surface area fraction (`0.0 <= sfr <= 1.0`).
+fn require_surface_sfr(site_root: &Value, surface_name: &str, at: &str) -> Result<f64, String> {
+    let path = ["properties", "land_cover", surface_name, "sfr"];
+    let v = require_numeric(site_root, &path, at)?;
+    if !(0.0..=1.0).contains(&v) {
+        return Err(format!(
+            "`{}` is {v}; surface fraction must be between 0 and 1",
+            yaml_path_display(at, &path)
+        ));
+    }
+    Ok(v)
+}
+
 /// Read a required string, accepting a scalar or a `value` wrapper.
 #[cfg_attr(not(test), allow(dead_code))]
 fn require_string(root: &Value, path: &[&str], at: &str) -> Result<String, String> {
@@ -1788,265 +1847,282 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
     Ok(())
 }
 
-fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
+/// Read per-surface land-cover scalar properties for all seven SUEWS surface
+/// classes under `properties.land_cover.<surface>` (#1991, #2002).
+///
+/// Surface area fractions (`sfr`) are copied from the already-validated
+/// `sfr_surf` slice ("one read, one source"). Every other scalar is required
+/// whenever the selected physics options and surface fractions make the
+/// Fortran kernel consume it, and otherwise permits omission/null while
+/// rejecting malformed or non-finite values with the canonical YAML path:
+/// - `emis`: active across all 7 surfaces when `net_radiation_method > 0`
+///   (`NARP`), `snow_use != 0` (`NARP` snow branch), or `storage_heat_method == 3`
+///   (`AnOHM`); `paved.emis` and `bldgs.emis` are also read by `BEERS_cal_main`
+///   whenever `bldgs.sfr > 0`.
+/// - `state_limit`: active only for `water` when `water.sfr > 0`
+///   (`suews_phys_waterdist.f95`, `suews_phys_snow.f95`); non-water
+///   `state_limit` values are unread dummies in Fortran.
+/// - `wet_threshold`: active unconditionally across all 7 surfaces when
+///   `snow_use == 0` (`cal_evap_multi`), and gated on `sfr > 0` when
+///   `snow_use != 0` (`SnowCalc`).
+/// - `irrigation_fraction`: active across all 7 surfaces when
+///   `water_use_method == 0` (`SUEWS_cal_WaterUse` multiplies `wu_surf * IrrFrac`).
+///   Omitting `irrigation_fraction` in Python emits `default=0.0` (#2001 parity);
+///   explicit `None`/`{value: null}` acceptance in `SurfaceProperties` is tracked
+///   separately under #2101 (`debt_opt_surface_thresholds` /
+///   `irrigation-fraction-null-active`), so rejecting missing/null here ensures
+///   active nulls fail loudly instead of silently substituting `0.0`.
+/// - `bldgh`, `height_evergreen_tree`, `height_deciduous_tree`: active when
+///   their own surface has `sfr > 0` (`SUEWS_cal_RoughnessParameters` and
+///   `SPARTACUS` mask zero-fraction terms, matching the Python data model).
+/// - `faibldg`, `fai_evergreen_tree`, `fai_deciduous_tree`: active when
+///   `fai_method == 0` and their own surface has `sfr > 0`.
+/// - `alb_min`, `alb_max` (vegetated) and `porosity_*`, `capacity_*`
+///   (`dectr`): active unconditionally in `update_Veg`
+///   (`suews_phys_dailystate.f95`).
+/// - `max_conductance` (vegetated): active when that vegetated surface has
+///   `sfr > 0` (`SurfaceResistance` cycles on `sfr == 0`).
+fn apply_land_cover_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    config: &SuewsConfig,
+    sfr_surf: &[f64; NSURF],
+) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
-    if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "paved"]) {
-        if let Some(v) = read_numeric(lc_root, &["sfr"]) {
-            site.lc_paved.sfr = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["emis"]) {
+    let emis_all =
+        config.net_radiation_method > 0 || config.snow_use != 0 || config.storage_heat_method == 3;
+    let bldg_sfr = sfr_surf[1];
+    let evetr_sfr = sfr_surf[2];
+    let dectr_sfr = sfr_surf[3];
+    let grass_sfr = sfr_surf[4];
+    let bsoil_sfr = sfr_surf[5];
+    let water_sfr = sfr_surf[6];
+    let paved_sfr = sfr_surf[0];
+    let emis_paved_bldg = emis_all || bldg_sfr > 0.0;
+    let irrfrac_active = config.water_use_method == 0;
+    let fai_provided = config.fai_method == 0;
+    let snow_off = config.snow_use == 0;
+
+    {
+        let lc_root = require_mapping(site_root, &["properties", "land_cover", "paved"], &site_at)?;
+        let at = format!("{site_at}.properties.land_cover.paved");
+        site.lc_paved.sfr = paved_sfr;
+        if let Some(v) = require_if_active_numeric(lc_root, &["emis"], &at, emis_paved_bldg)? {
             site.lc_paved.emis = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["statelimit"], &at, false)? {
             site.lc_paved.state_limit = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["wetthresh"], &at, snow_off || paved_sfr > 0.0)?
+        {
             site.lc_paved.wet_threshold = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_paved.irrfracpaved = v;
         }
         apply_ohm_overrides(&mut site.lc_paved.ohm, lc_root)?;
-        apply_soil_overrides(
-            &mut site.lc_paved.soil,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.paved"),
-            site.lc_paved.sfr > 0.0,
-        )?;
+        apply_soil_overrides(&mut site.lc_paved.soil, lc_root, &at, paved_sfr > 0.0)?;
         apply_waterdist_overrides(&mut site.lc_paved.waterdist, lc_root)?;
     }
 
-    if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "bldgs"]) {
-        if let Some(v) = read_numeric(lc_root, &["sfr"]) {
-            site.lc_bldg.sfr = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["emis"]) {
+    {
+        let lc_root = require_mapping(site_root, &["properties", "land_cover", "bldgs"], &site_at)?;
+        let at = format!("{site_at}.properties.land_cover.bldgs");
+        site.lc_bldg.sfr = bldg_sfr;
+        if let Some(v) = require_if_active_numeric(lc_root, &["emis"], &at, emis_paved_bldg)? {
             site.lc_bldg.emis = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["faibldg"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["faibldg"], &at, fai_provided && bldg_sfr > 0.0)?
+        {
             site.lc_bldg.faibldg = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["bldgh"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["bldgh"], &at, bldg_sfr > 0.0)? {
             site.lc_bldg.bldgh = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["statelimit"], &at, false)? {
             site.lc_bldg.state_limit = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["wetthresh"], &at, snow_off || bldg_sfr > 0.0)?
+        {
             site.lc_bldg.wet_threshold = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_bldg.irrfracbldgs = v;
         }
         apply_ohm_overrides(&mut site.lc_bldg.ohm, lc_root)?;
-        apply_soil_overrides(
-            &mut site.lc_bldg.soil,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.bldgs"),
-            site.lc_bldg.sfr > 0.0,
-        )?;
+        apply_soil_overrides(&mut site.lc_bldg.soil, lc_root, &at, bldg_sfr > 0.0)?;
         apply_waterdist_overrides(&mut site.lc_bldg.waterdist, lc_root)?;
     }
 
-    if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "evetr"]) {
-        if let Some(v) = read_numeric(lc_root, &["sfr"]) {
-            site.lc_evetr.sfr = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["emis"]) {
+    {
+        let lc_root = require_mapping(site_root, &["properties", "land_cover", "evetr"], &site_at)?;
+        let at = format!("{site_at}.properties.land_cover.evetr");
+        site.lc_evetr.sfr = evetr_sfr;
+        if let Some(v) = require_if_active_numeric(lc_root, &["emis"], &at, emis_all)? {
             site.lc_evetr.emis = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["faievetree"]) {
+        if let Some(v) = require_if_active_numeric(
+            lc_root,
+            &["faievetree"],
+            &at,
+            fai_provided && evetr_sfr > 0.0,
+        )? {
             site.lc_evetr.fai_evergreen_tree = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["evetreeh"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["evetreeh"], &at, evetr_sfr > 0.0)? {
             site.lc_evetr.height_evergreen_tree = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["alb_min"]) {
-            site.lc_evetr.alb_min = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["alb_max"]) {
-            site.lc_evetr.alb_max = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
+        site.lc_evetr.alb_min = require_numeric(lc_root, &["alb_min"], &at)?;
+        site.lc_evetr.alb_max = require_numeric(lc_root, &["alb_max"], &at)?;
+        if let Some(v) = require_if_active_numeric(lc_root, &["statelimit"], &at, false)? {
             site.lc_evetr.state_limit = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["wetthresh"], &at, snow_off || evetr_sfr > 0.0)?
+        {
             site.lc_evetr.wet_threshold = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_evetr.irrfracevetr = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["maxconductance"], &at, evetr_sfr > 0.0)?
+        {
             site.lc_evetr.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_evetr.ohm, lc_root)?;
-        apply_soil_overrides(
-            &mut site.lc_evetr.soil,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.evetr"),
-            site.lc_evetr.sfr > 0.0,
-        )?;
+        apply_soil_overrides(&mut site.lc_evetr.soil, lc_root, &at, evetr_sfr > 0.0)?;
         apply_bioco2_overrides(&mut site.lc_evetr.bioco2, lc_root)?;
-        apply_lai_overrides(
-            &mut site.lc_evetr.lai,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.evetr"),
-            site.lc_evetr.sfr,
-        )?;
+        apply_lai_overrides(&mut site.lc_evetr.lai, lc_root, &at, evetr_sfr)?;
         apply_waterdist_overrides(&mut site.lc_evetr.waterdist, lc_root)?;
     }
 
-    if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "dectr"]) {
-        if let Some(v) = read_numeric(lc_root, &["sfr"]) {
-            site.lc_dectr.sfr = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["emis"]) {
+    {
+        let lc_root = require_mapping(site_root, &["properties", "land_cover", "dectr"], &site_at)?;
+        let at = format!("{site_at}.properties.land_cover.dectr");
+        site.lc_dectr.sfr = dectr_sfr;
+        if let Some(v) = require_if_active_numeric(lc_root, &["emis"], &at, emis_all)? {
             site.lc_dectr.emis = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["faidectree"]) {
+        if let Some(v) = require_if_active_numeric(
+            lc_root,
+            &["faidectree"],
+            &at,
+            fai_provided && dectr_sfr > 0.0,
+        )? {
             site.lc_dectr.fai_deciduous_tree = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["dectreeh"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["dectreeh"], &at, dectr_sfr > 0.0)? {
             site.lc_dectr.height_deciduous_tree = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["pormin_dec"]) {
-            site.lc_dectr.porosity_min_deciduous = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["pormax_dec"]) {
-            site.lc_dectr.porosity_max_deciduous = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["capmax_dec"]) {
-            site.lc_dectr.capacity_max_deciduous = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["capmin_dec"]) {
-            site.lc_dectr.capacity_min_deciduous = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["alb_min"]) {
-            site.lc_dectr.alb_min = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["alb_max"]) {
-            site.lc_dectr.alb_max = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
+        site.lc_dectr.porosity_min_deciduous = require_numeric(lc_root, &["pormin_dec"], &at)?;
+        site.lc_dectr.porosity_max_deciduous = require_numeric(lc_root, &["pormax_dec"], &at)?;
+        site.lc_dectr.capacity_max_deciduous = require_numeric(lc_root, &["capmax_dec"], &at)?;
+        site.lc_dectr.capacity_min_deciduous = require_numeric(lc_root, &["capmin_dec"], &at)?;
+        site.lc_dectr.alb_min = require_numeric(lc_root, &["alb_min"], &at)?;
+        site.lc_dectr.alb_max = require_numeric(lc_root, &["alb_max"], &at)?;
+        if let Some(v) = require_if_active_numeric(lc_root, &["statelimit"], &at, false)? {
             site.lc_dectr.state_limit = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["wetthresh"], &at, snow_off || dectr_sfr > 0.0)?
+        {
             site.lc_dectr.wet_threshold = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_dectr.irrfracdectr = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["maxconductance"], &at, dectr_sfr > 0.0)?
+        {
             site.lc_dectr.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_dectr.ohm, lc_root)?;
-        apply_soil_overrides(
-            &mut site.lc_dectr.soil,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.dectr"),
-            site.lc_dectr.sfr > 0.0,
-        )?;
+        apply_soil_overrides(&mut site.lc_dectr.soil, lc_root, &at, dectr_sfr > 0.0)?;
         apply_bioco2_overrides(&mut site.lc_dectr.bioco2, lc_root)?;
-        apply_lai_overrides(
-            &mut site.lc_dectr.lai,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.dectr"),
-            site.lc_dectr.sfr,
-        )?;
+        apply_lai_overrides(&mut site.lc_dectr.lai, lc_root, &at, dectr_sfr)?;
         apply_waterdist_overrides(&mut site.lc_dectr.waterdist, lc_root)?;
     }
 
-    if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "grass"]) {
-        if let Some(v) = read_numeric(lc_root, &["sfr"]) {
-            site.lc_grass.sfr = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["emis"]) {
+    {
+        let lc_root = require_mapping(site_root, &["properties", "land_cover", "grass"], &site_at)?;
+        let at = format!("{site_at}.properties.land_cover.grass");
+        site.lc_grass.sfr = grass_sfr;
+        if let Some(v) = require_if_active_numeric(lc_root, &["emis"], &at, emis_all)? {
             site.lc_grass.emis = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["alb_min"]) {
-            site.lc_grass.alb_min = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["alb_max"]) {
-            site.lc_grass.alb_max = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
+        site.lc_grass.alb_min = require_numeric(lc_root, &["alb_min"], &at)?;
+        site.lc_grass.alb_max = require_numeric(lc_root, &["alb_max"], &at)?;
+        if let Some(v) = require_if_active_numeric(lc_root, &["statelimit"], &at, false)? {
             site.lc_grass.state_limit = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["wetthresh"], &at, snow_off || grass_sfr > 0.0)?
+        {
             site.lc_grass.wet_threshold = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_grass.irrfracgrass = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["maxconductance"], &at, grass_sfr > 0.0)?
+        {
             site.lc_grass.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_grass.ohm, lc_root)?;
-        apply_soil_overrides(
-            &mut site.lc_grass.soil,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.grass"),
-            site.lc_grass.sfr > 0.0,
-        )?;
+        apply_soil_overrides(&mut site.lc_grass.soil, lc_root, &at, grass_sfr > 0.0)?;
         apply_bioco2_overrides(&mut site.lc_grass.bioco2, lc_root)?;
-        apply_lai_overrides(
-            &mut site.lc_grass.lai,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.grass"),
-            site.lc_grass.sfr,
-        )?;
+        apply_lai_overrides(&mut site.lc_grass.lai, lc_root, &at, grass_sfr)?;
         apply_waterdist_overrides(&mut site.lc_grass.waterdist, lc_root)?;
     }
 
-    if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "bsoil"]) {
-        if let Some(v) = read_numeric(lc_root, &["sfr"]) {
-            site.lc_bsoil.sfr = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["emis"]) {
+    {
+        let lc_root = require_mapping(site_root, &["properties", "land_cover", "bsoil"], &site_at)?;
+        let at = format!("{site_at}.properties.land_cover.bsoil");
+        site.lc_bsoil.sfr = bsoil_sfr;
+        if let Some(v) = require_if_active_numeric(lc_root, &["emis"], &at, emis_all)? {
             site.lc_bsoil.emis = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["statelimit"], &at, false)? {
             site.lc_bsoil.state_limit = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["wetthresh"], &at, snow_off || bsoil_sfr > 0.0)?
+        {
             site.lc_bsoil.wet_threshold = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_bsoil.irrfracbsoil = v;
         }
         apply_ohm_overrides(&mut site.lc_bsoil.ohm, lc_root)?;
-        apply_soil_overrides(
-            &mut site.lc_bsoil.soil,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.bsoil"),
-            site.lc_bsoil.sfr > 0.0,
-        )?;
+        apply_soil_overrides(&mut site.lc_bsoil.soil, lc_root, &at, bsoil_sfr > 0.0)?;
         apply_waterdist_overrides(&mut site.lc_bsoil.waterdist, lc_root)?;
     }
 
-    if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "water"]) {
-        if let Some(v) = read_numeric(lc_root, &["sfr"]) {
-            site.lc_water.sfr = v;
-        }
-        if let Some(v) = read_numeric(lc_root, &["emis"]) {
+    {
+        let lc_root = require_mapping(site_root, &["properties", "land_cover", "water"], &site_at)?;
+        let at = format!("{site_at}.properties.land_cover.water");
+        site.lc_water.sfr = water_sfr;
+        if let Some(v) = require_if_active_numeric(lc_root, &["emis"], &at, emis_all)? {
             site.lc_water.emis = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["statelimit"], &at, water_sfr > 0.0)?
+        {
             site.lc_water.state_limit = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
+        if let Some(v) =
+            require_if_active_numeric(lc_root, &["wetthresh"], &at, snow_off || water_sfr > 0.0)?
+        {
             site.lc_water.wet_threshold = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
+        if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_water.irrfracwater = v;
         }
         apply_ohm_overrides(&mut site.lc_water.ohm, lc_root)?;
-        apply_soil_overrides(
-            &mut site.lc_water.soil,
-            lc_root,
-            &format!("{site_at}.properties.land_cover.water"),
-            false,
-        )?;
+        apply_soil_overrides(&mut site.lc_water.soil, lc_root, &at, false)?;
     }
     Ok(())
 }
@@ -2754,9 +2830,11 @@ fn apply_site_overrides(
     site_root: &Value,
     nlayer: usize,
     ndepth: usize,
-    storage_heat_method: i32,
-    spartacus_on: bool,
+    config: &SuewsConfig,
+    sfr_surf: &[f64; NSURF],
 ) -> Result<(), String> {
+    let storage_heat_method = config.storage_heat_method;
+    let spartacus_on = config.net_radiation_method > 1000;
     apply_conductance_overrides(site, root, site_root)?;
     site.lumps = read_lumps(site_root)?;
     apply_spartacus_overrides(site, site_root)?;
@@ -2770,7 +2848,7 @@ fn apply_site_overrides(
         site.spartacus.sw_dn_direct_frac = v;
     }
     resize_site_variable_arrays(site, nlayer);
-    apply_land_cover_overrides(site, site_root)?;
+    apply_land_cover_overrides(site, site_root, config, sfr_surf)?;
     apply_snow_overrides(site, site_root)?;
     apply_irrigation_overrides(site, site_root)?;
     apply_vertical_layers_overrides(site, site_root, storage_heat_method, spartacus_on)?;
@@ -3189,7 +3267,7 @@ fn emissions_method_uses_co2_point_source(emissions_method: i32) -> bool {
 fn apply_site_scalar_overrides(
     site_scalars: &mut SiteScalars,
     site_root: &Value,
-    emissions_method: i32,
+    config: &SuewsConfig,
 ) -> Result<(), String> {
     // SiteProperties resolves these unconditionally, including valid zero
     // coordinates, altitude and UTC offset. Defaults belong to that model.
@@ -3208,50 +3286,7 @@ fn apply_site_scalar_overrides(
     site_scalars.timezone = require_numeric(site_root, &["properties", "timezone"], &at)?;
     site_scalars.surfacearea = require_numeric(site_root, &["properties", "surfacearea"], &at)?;
     site_scalars.z = require_numeric(site_root, &["properties", "z"], &at)?;
-    if let Some(v) = read_numeric(site_root, &["properties", "z0m_in"]) {
-        site_scalars.z0m_in = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "zdm_in"]) {
-        site_scalars.zdm_in = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "pipecapacity"]) {
-        site_scalars.pipecapacity = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "runofftowater"]) {
-        site_scalars.runofftowater = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "narp_trans_site"]) {
-        site_scalars.narp_trans_site = v;
-    }
-    // supy writes the point source inside the co2 block as
-    // `emission_co2_point_source`, which `normalize_field_names` folds to
-    // `co2pointsource`. No schema has written a flat
-    // `properties.CO2PointSource`, so that spelling is not read. The bridge
-    // does not stand in a value: when this method uses the point source and
-    // the YAML has none, the run stops naming the key.
-    let point_source_path = &[
-        "properties",
-        "anthropogenic_emissions",
-        "co2",
-        "co2pointsource",
-    ];
-    site_scalars.co2_point_source = if emissions_method_uses_co2_point_source(emissions_method) {
-        let at = format!(
-            "{}.properties.anthropogenic_emissions.co2.emission_co2_point_source",
-            site_yaml_at(site_root)
-        );
-        let required_error = |reason| {
-            format!(
-                "`{at}` is {reason}, but emissionsmethod {emissions_method} uses the CO2 point \
-             source; give it in kg C day-1 (0 for no point source)"
-            )
-        };
-        read_finite_numeric(site_root, point_source_path)
-            .map_err(required_error)?
-            .ok_or_else(|| required_error("missing, null or non-numeric"))?
-    } else {
-        read_numeric(site_root, point_source_path).unwrap_or(f64::NAN)
-    };
+
     // supy writes the water-body flow change in the water land cover, at
     // `land_cover.water.flowchange`; the kernel's water balance reads it as
     // the site-level `siteInfo%flow_change`, packed from this field. No
@@ -3261,9 +3296,8 @@ fn apply_site_scalar_overrides(
     // or null value (or a missing water block) stops the run naming the key.
     let flowchange_error = |reason| {
         format!(
-            "`{}.properties.land_cover.water.flowchange` is {reason}; \
-         give the water-body flow change in mm h-1 (0 for none)",
-            site_yaml_at(site_root)
+            "`{at}.properties.land_cover.water.flowchange` is {reason}; \
+         give the water-body flow change in mm h-1 (0 for none)"
         )
     };
     site_scalars.flowchange = read_finite_numeric(
@@ -3272,26 +3306,156 @@ fn apply_site_scalar_overrides(
     )
     .map_err(flowchange_error)?
     .ok_or_else(|| flowchange_error("missing, null or non-numeric"))?;
-    if let Some(v) = read_numeric(site_root, &["properties", "n_buildings"]) {
-        site_scalars.n_buildings = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "h_std"]) {
-        site_scalars.h_std = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "lambda_c"]) {
-        site_scalars.lambda_c = v;
-    }
-    if let Some(v) = read_i32(site_root, &["gridiv"]) {
-        site_scalars.gridiv = v;
+
+    site_scalars.gridiv = require_i32(site_root, &["gridiv"], &at)?;
+
+    // Read all seven surface area fractions once here ("one read, one source")
+    // so both `site_scalars.sfr_surf` and `apply_land_cover_overrides` consume
+    // the validated values.
+    require_mapping(site_root, &["properties", "land_cover"], &at)?;
+    for (surface_name, idx) in SURFACE_YAML_ORDER {
+        require_mapping(site_root, &["properties", "land_cover", surface_name], &at)?;
+        site_scalars.sfr_surf[idx] = require_surface_sfr(site_root, surface_name, &at)?;
     }
 
-    for (surface_name, idx) in SURFACE_YAML_ORDER {
-        if let Some(v) = read_numeric(
+    let non_water_active = site_scalars.sfr_surf[..6].iter().any(|&s| s > 0.0);
+    let bldg_sfr = site_scalars.sfr_surf[1];
+    let evetr_sfr = site_scalars.sfr_surf[2];
+    let dectr_sfr = site_scalars.sfr_surf[3];
+    let water_sfr = site_scalars.sfr_surf[6];
+
+    // `z0m_in` and `zdm_in` are read by `SUEWS_cal_RoughnessParameters` when
+    // `RoughLenMomMethod == 1` and by the `RSLProfile` MOST fallback whenever
+    // `flag_RSL == .FALSE.` (reachable whenever `RSLMethod != 1`).
+    let roughness_in_active = config.rough_len_mom_method == 1 || config.rsl_method != 1;
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "z0m_in"],
+        &at,
+        roughness_in_active,
+    )? {
+        site_scalars.z0m_in = v;
+    }
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "zdm_in"],
+        &at,
+        roughness_in_active,
+    )? {
+        site_scalars.zdm_in = v;
+    }
+
+    // `pipecapacity` is consumed inside `updateFlood`, which runs only for
+    // active non-water surfaces (`is < WaterSurf` with `sfr > 0`).
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "pipecapacity"],
+        &at,
+        non_water_active,
+    )? {
+        site_scalars.pipecapacity = v;
+    }
+
+    // `runofftowater` is consumed inside `updateFlood` only when a non-water
+    // surface is active and `sfr_surf(WaterSurf) > 0.0000001` (Fortran default
+    // REAL literal in `suews_phys_waterdist.f95`).
+    let runoff_to_water_active = non_water_active && water_sfr > f64::from(0.0000001_f32);
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "runofftowater"],
+        &at,
+        runoff_to_water_active,
+    )? {
+        site_scalars.runofftowater = v;
+    }
+
+    // `narp_trans_site` is only read in `suews_phys_narp.f95` under
+    // `ldown_option == 4 || 5`, which `RadMethod` does not currently emit.
+    // Validate finiteness when supplied and forward verbatim.
+    if let Some(v) =
+        require_if_active_numeric(site_root, &["properties", "narp_trans_site"], &at, false)?
+    {
+        site_scalars.narp_trans_site = v;
+    }
+
+    // supy writes the point source inside the co2 block as
+    // `emission_co2_point_source`, which `normalize_field_names` folds to
+    // `co2pointsource`. No schema has written a flat
+    // `properties.CO2PointSource`, so that spelling is not read. The bridge
+    // does not stand in a value: when this method uses the point source and
+    // the YAML has none, the run stops naming the key.
+    let emissions_method = config.emissions_method;
+    let point_source_path = &[
+        "properties",
+        "anthropogenic_emissions",
+        "co2",
+        "co2pointsource",
+    ];
+    site_scalars.co2_point_source = if emissions_method_uses_co2_point_source(emissions_method) {
+        let point_at =
+            format!("{at}.properties.anthropogenic_emissions.co2.emission_co2_point_source");
+        let required_error = |reason| {
+            format!(
+                "`{point_at}` is {reason}, but emissionsmethod {emissions_method} uses the CO2 point \
+             source; give it in kg C day-1 (0 for no point source)"
+            )
+        };
+        read_finite_numeric(site_root, point_source_path)
+            .map_err(required_error)?
+            .ok_or_else(|| required_error("missing, null or non-numeric"))?
+    } else {
+        validate_optional_mapping(site_root, &["properties", "anthropogenic_emissions"], &at)?;
+        validate_optional_mapping(
             site_root,
-            &["properties", "land_cover", surface_name, "sfr"],
-        ) {
-            site_scalars.sfr_surf[idx] = v;
+            &["properties", "anthropogenic_emissions", "co2"],
+            &at,
+        )?;
+        match get_path(site_root, point_source_path).and_then(given_value) {
+            None | Some(Value::Null) => f64::NAN,
+            Some(Value::Number(n)) => n.as_f64().ok_or_else(|| {
+                format!(
+                    "`{}` is not representable as a number",
+                    yaml_path_display(&at, point_source_path)
+                )
+            })?,
+            Some(other) => {
+                return Err(format!(
+                    "`{}` is {}; it must be a number",
+                    yaml_path_display(&at, point_source_path),
+                    yaml_kind(other)
+                ));
+            }
         }
+    };
+
+    // `n_buildings` and `h_std` are consumed exclusively inside
+    // `RSL_cal_prms` (`flag_RSL == .TRUE.`). Since `bldg_sfr <= PAI <= bldg_sfr
+    // + evetr_sfr + dectr_sfr`, `RSLMethod == 2` can enter RSL only when the
+    // upper bound exceeds `0.1` and the lower bound is below `0.68` using the
+    // exact default-REAL (`f32`) literals in `suews_phys_rslprof.f95:457`
+    // (`0.68_f32 as f64 > 0.68_f64`, so `bldgs.sfr == 0.68` still enters RSL).
+    let rsl_may_run = config.rsl_method == 1
+        || (config.rsl_method == 2
+            && (bldg_sfr + evetr_sfr + dectr_sfr) > f64::from(0.1_f32)
+            && bldg_sfr < f64::from(0.68_f32));
+    if let Some(v) =
+        require_if_active_numeric(site_root, &["properties", "n_buildings"], &at, rsl_may_run)?
+    {
+        site_scalars.n_buildings = v;
+    }
+    if let Some(v) =
+        require_if_active_numeric(site_root, &["properties", "h_std"], &at, rsl_may_run)?
+    {
+        site_scalars.h_std = v;
+    }
+
+    // `lambda_c` is consumed only by building DyOHM (`StorageHeatMethod` 6 or 8);
+    // non-building surfaces use the constant `lambda_c1 = 1.0`.
+    let lambda_c_active = matches!(config.storage_heat_method, 6 | 8);
+    if let Some(v) =
+        require_if_active_numeric(site_root, &["properties", "lambda_c"], &at, lambda_c_active)?
+    {
+        site_scalars.lambda_c = v;
     }
     Ok(())
 }
@@ -3371,16 +3535,16 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
+    apply_site_scalar_overrides(&mut site_scalars, site_root, &config)?;
     apply_site_overrides(
         &mut site,
         root,
         site_root,
         nlayer as usize,
         ndepth as usize,
-        config.storage_heat_method,
-        config.net_radiation_method > 1000,
+        &config,
+        &site_scalars.sfr_surf,
     )?;
-    apply_site_scalar_overrides(&mut site_scalars, site_root, config.emissions_method)?;
     // One read, one source: the water land cover carries the same flow
     // change the kernel reads at site level (`siteInfo%flow_change`).
     site.lc_water.flowchange = site_scalars.flowchange;
@@ -3581,8 +3745,7 @@ mod tests {
             .as_mapping_mut()
             .unwrap()
             .remove(Value::String("dir".to_string()));
-        root["model"]["control"]["output_file"] =
-            serde_yaml::from_str("{path: legacy}").unwrap();
+        root["model"]["control"]["output_file"] = serde_yaml::from_str("{path: legacy}").unwrap();
         assert!(load_run_config_from_value(&mut root.clone())
             .unwrap()
             .output_dir
@@ -3644,7 +3807,8 @@ mod tests {
         }
     }
 
-    const REQUIRED_SITE_COORDINATES: [&str; 6] = ["lat", "lng", "alt", "timezone", "z", "surfacearea"];
+    const REQUIRED_SITE_COORDINATES: [&str; 6] =
+        ["lat", "lng", "alt", "timezone", "z", "surfacearea"];
 
     #[test]
     fn resolved_site_coordinates_preserve_bare_and_wrapped_values() {
@@ -4647,7 +4811,10 @@ mod tests {
                     serde_yaml::from_str(&value).unwrap();
                 let error = load_run_config_from_value(&mut root)
                     .expect_err("measurement height must be finite");
-                assert!(error.contains("sites[gridiv=1].properties.z"), "{value}: {error}");
+                assert!(
+                    error.contains("sites[gridiv=1].properties.z"),
+                    "{value}: {error}"
+                );
                 assert!(error.contains("is non-finite"), "{value}: {error}");
             }
         }
@@ -5928,7 +6095,8 @@ mod tests {
             serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
         let site = first_site_mut(&mut root).expect("fixture has site");
         let paved = get_path_mut(site, &["properties", "land_cover", "paved"]).unwrap();
-        *get_path_mut(paved, &["soil_depth"]).unwrap() = serde_yaml::from_str("{value: 412.5}").unwrap();
+        *get_path_mut(paved, &["soil_depth"]).unwrap() =
+            serde_yaml::from_str("{value: 412.5}").unwrap();
         *get_path_mut(paved, &["soil_store_capacity"]).unwrap() =
             serde_yaml::from_str("{value: 173.25}").unwrap();
         *get_path_mut(paved, &["saturated_hydraulic_conductivity"]).unwrap() =
@@ -5937,7 +6105,9 @@ mod tests {
         let run_cfg = load_run_config_from_value(&mut root).expect("custom soil values parse");
         assert!((run_cfg.site.lc_paved.soil.soil_depth - 412.5).abs() < 1.0e-12);
         assert!((run_cfg.site.lc_paved.soil.soil_store_capacity - 173.25).abs() < 1.0e-12);
-        assert!((run_cfg.site.lc_paved.soil.saturated_hydraulic_conductivity - 0.00275).abs() < 1.0e-12);
+        assert!(
+            (run_cfg.site.lc_paved.soil.saturated_hydraulic_conductivity - 0.00275).abs() < 1.0e-12
+        );
     }
 
     #[test]
@@ -6523,5 +6693,419 @@ mod tests {
                 "invalid slot value {bad_val} error should name canonical slot path: {err}"
             );
         }
+    }
+
+    #[test]
+    fn site_scalar_overrides_enforce_option_gated_requirements() {
+        let base_root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+
+        // 1. Missing/non-integer gridiv is rejected when coordinates are valid.
+        for bad_gridiv in [None, Some("null"), Some("1.5"), Some("\"one\"")] {
+            let mut root = base_root.clone();
+            let site = first_site_mut(&mut root).unwrap().as_mapping_mut().unwrap();
+            site.remove(Value::String("gridiv".to_string()));
+            if let Some(raw) = bad_gridiv {
+                site.insert(
+                    Value::String("gridiv".to_string()),
+                    serde_yaml::from_str(raw).unwrap(),
+                );
+            }
+            let err =
+                load_run_config_from_value(&mut root).expect_err("invalid gridiv must be rejected");
+            assert!(err.contains(".gridiv`"), "{bad_gridiv:?}: {err}");
+        }
+
+        // 2. Missing, null, or out-of-range sfr is rejected; validated sfr propagates to both SiteScalars and lc_*.
+        for bad_sfr in [None, Some("null"), Some("-0.1"), Some("1.1"), Some(".nan")] {
+            let mut root = base_root.clone();
+            let paved = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "paved"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            paved.remove(Value::String("sfr".to_string()));
+            if let Some(raw) = bad_sfr {
+                paved.insert(
+                    Value::String("sfr".to_string()),
+                    serde_yaml::from_str(raw).unwrap(),
+                );
+            }
+            let err =
+                load_run_config_from_value(&mut root).expect_err("invalid sfr must be rejected");
+            assert!(
+                err.contains("sites[gridiv=1].properties.land_cover.paved.sfr`"),
+                "{bad_sfr:?}: {err}"
+            );
+        }
+
+        // 3. z0m_in / zdm_in: required when RoughLenMomMethod == 1 or RSLMethod != 1;
+        //    omissible when RoughLenMomMethod != 1 && RSLMethod == 1.
+        for key in ["z0m_in", "zdm_in"] {
+            let mut active = base_root.clone();
+            active["model"]["physics"]["roughness_length_momentum"] = Value::from(1);
+            active["model"]["physics"]["roughness_sublayer"] = Value::from(1);
+            first_site_mut(&mut active).unwrap()["properties"]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String(key.to_string()));
+            let err = load_run_config_from_value(&mut active)
+                .expect_err("active roughness_in must be required");
+            assert!(
+                err.contains(&format!("`sites[gridiv=1].properties.{key}`")),
+                "{key}: {err}"
+            );
+
+            let mut inactive = base_root.clone();
+            inactive["model"]["physics"]["roughness_length_momentum"] = Value::from(2);
+            inactive["model"]["physics"]["roughness_sublayer"] = Value::from(1);
+            first_site_mut(&mut inactive).unwrap()["properties"]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String(key.to_string()));
+            let rc = load_run_config_from_value(&mut inactive)
+                .expect("inactive roughness_in should be omissible");
+            assert_eq!(
+                if key == "z0m_in" {
+                    rc.site_scalars.z0m_in
+                } else {
+                    rc.site_scalars.zdm_in
+                },
+                0.0
+            );
+        }
+
+        // 4. pipecapacity & runofftowater: water-only site permits omitting both;
+        //    non-water site with water.sfr == 0 requires pipecapacity and permits omitting runofftowater;
+        //    non-water site with water.sfr > 1e-7 requires both.
+        let mut water_only = base_root.clone();
+        for (surf, val) in [
+            ("paved", 0.0),
+            ("bldgs", 0.0),
+            ("evetr", 0.0),
+            ("dectr", 0.0),
+            ("grass", 0.0),
+            ("bsoil", 0.0),
+            ("water", 1.0),
+        ] {
+            *get_path_mut(
+                first_site_mut(&mut water_only).unwrap(),
+                &["properties", "land_cover", surf, "sfr"],
+            )
+            .unwrap() = Value::from(val);
+        }
+        let props = first_site_mut(&mut water_only).unwrap()["properties"]
+            .as_mapping_mut()
+            .unwrap();
+        props.remove(Value::String("pipecapacity".to_string()));
+        props.remove(Value::String("runofftowater".to_string()));
+        props.remove(Value::String("narp_trans_site".to_string()));
+        props.remove(Value::String("lambda_c".to_string()));
+        props.remove(Value::String("n_buildings".to_string()));
+        props.remove(Value::String("h_std".to_string()));
+        water_only["model"]["physics"]["roughness_sublayer"] = Value::from(2);
+        water_only["model"]["physics"]["storage_heat"] = Value::from(1);
+        let rc_water = load_run_config_from_value(&mut water_only.clone())
+            .expect("water-only site should permit omitting inactive scalars");
+        assert_eq!(rc_water.site_scalars.sfr_surf[6], 1.0);
+        assert_eq!(rc_water.site.lc_water.sfr, 1.0);
+
+        // 5. Active pipecapacity, runofftowater, n_buildings, h_std, lambda_c reject omission,
+        //    null, wrapped null, and non-finite values.
+        for (key, setup_dyohm, set_water_sfr) in [
+            ("pipecapacity", false, None),
+            ("runofftowater", false, Some(0.1)),
+            ("n_buildings", false, None),
+            ("h_std", false, None),
+            ("lambda_c", true, None),
+        ] {
+            for bad_raw in [
+                None,
+                Some("null"),
+                Some("{value: null}"),
+                Some(".nan"),
+                Some(".inf"),
+            ] {
+                let mut root = base_root.clone();
+                if setup_dyohm {
+                    root["model"]["physics"]["storage_heat"] = Value::from(6);
+                }
+                if let Some(wsfr) = set_water_sfr {
+                    *get_path_mut(
+                        first_site_mut(&mut root).unwrap(),
+                        &["properties", "land_cover", "water", "sfr"],
+                    )
+                    .unwrap() = Value::from(wsfr);
+                }
+                let props = first_site_mut(&mut root).unwrap()["properties"]
+                    .as_mapping_mut()
+                    .unwrap();
+                props.remove(Value::String(key.to_string()));
+                if let Some(raw) = bad_raw {
+                    props.insert(
+                        Value::String(key.to_string()),
+                        serde_yaml::from_str(raw).unwrap(),
+                    );
+                }
+                let err = load_run_config_from_value(&mut root)
+                    .expect_err("active site scalar must be required");
+                assert!(
+                    err.contains(&format!("`sites[gridiv=1].properties.{key}`")),
+                    "{key} ({bad_raw:?}): {err}"
+                );
+            }
+        }
+
+        // 5b. RSLMethod == 2 with bldgs.sfr == 0.68 and zero trees still satisfies Fortran's
+        //     default-REAL literal bound `PAI < 0.68` (`0.68_f32 as f64 > 0.68_f64`), so
+        //     n_buildings and h_std must remain required.
+        for key in ["n_buildings", "h_std"] {
+            let mut root = base_root.clone();
+            root["model"]["physics"]["roughness_sublayer"] = Value::from(2);
+            for (surf, val) in [
+                ("paved", 0.32),
+                ("bldgs", 0.68),
+                ("evetr", 0.0),
+                ("dectr", 0.0),
+                ("grass", 0.0),
+                ("bsoil", 0.0),
+                ("water", 0.0),
+            ] {
+                *get_path_mut(
+                    first_site_mut(&mut root).unwrap(),
+                    &["properties", "land_cover", surf, "sfr"],
+                )
+                .unwrap() = Value::from(val);
+            }
+            first_site_mut(&mut root).unwrap()["properties"]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String(key.to_string()));
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("rsl=2 with bldgs.sfr=0.68 must require RSL scalars");
+            assert!(
+                err.contains(&format!("`sites[gridiv=1].properties.{key}`")),
+                "rsl=2 bldgs.sfr=0.68 {key}: {err}"
+            );
+        }
+
+        // 6. Inactive co2_point_source allows null and NaN -> f64::NAN, rejects non-numeric values.
+        let mut co2_nan = base_root.clone();
+        co2_nan["model"]["physics"]["emissions"] = Value::from(2);
+        *get_path_mut(
+            first_site_mut(&mut co2_nan).unwrap(),
+            &[
+                "properties",
+                "anthropogenic_emissions",
+                "co2",
+                "emission_co2_point_source",
+            ],
+        )
+        .unwrap() = serde_yaml::from_str(".nan").unwrap();
+        let rc_co2 = load_run_config_from_value(&mut co2_nan)
+            .expect("inactive co2_point_source must allow .nan");
+        assert!(rc_co2.site_scalars.co2_point_source.is_nan());
+
+        let mut co2_bad = base_root.clone();
+        co2_bad["model"]["physics"]["emissions"] = Value::from(2);
+        *get_path_mut(
+            first_site_mut(&mut co2_bad).unwrap(),
+            &[
+                "properties",
+                "anthropogenic_emissions",
+                "co2",
+                "emission_co2_point_source",
+            ],
+        )
+        .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+        let err = load_run_config_from_value(&mut co2_bad)
+            .expect_err("inactive co2_point_source must reject non-numeric values");
+        assert!(
+            err.contains(
+                "`sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source`"
+            ),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn land_cover_overrides_enforce_option_gated_requirements() {
+        let base_root: Value =
+            serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+
+        // 1. Active land-cover fields reject omission with canonical field names.
+        for (surface, key, expected_display) in [
+            ("paved", "emis", "emis"),
+            ("bldgs", "bldgh", "bldgh"),
+            ("bldgs", "faibldg", "faibldg"),
+            ("evetr", "height_evergreen_tree", "height_evergreen_tree"),
+            ("evetr", "fai_evergreen_tree", "fai_evergreen_tree"),
+            ("evetr", "alb_min", "alb_min"),
+            ("evetr", "alb_max", "alb_max"),
+            ("evetr", "max_conductance", "max_conductance"),
+            ("dectr", "height_deciduous_tree", "height_deciduous_tree"),
+            ("dectr", "fai_deciduous_tree", "fai_deciduous_tree"),
+            ("dectr", "porosity_min_deciduous", "porosity_min_deciduous"),
+            ("dectr", "porosity_max_deciduous", "porosity_max_deciduous"),
+            ("dectr", "capacity_max_deciduous", "capacity_max_deciduous"),
+            ("dectr", "capacity_min_deciduous", "capacity_min_deciduous"),
+            ("grass", "wet_threshold", "wet_threshold"),
+            ("bsoil", "irrigation_fraction", "irrigation_fraction"),
+            ("water", "state_limit", "state_limit"),
+        ] {
+            let mut root = base_root.clone();
+            if matches!(surface, "evetr" | "water") {
+                *get_path_mut(
+                    first_site_mut(&mut root).unwrap(),
+                    &["properties", "land_cover", surface, "sfr"],
+                )
+                .unwrap() = Value::from(0.1);
+            }
+            let lc = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", surface],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            lc.remove(Value::String(key.to_string()));
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("active land-cover scalar must be rejected when omitted");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.{surface}.{expected_display}`"
+                )),
+                "{surface}.{key}: {err}"
+            );
+        }
+
+        // 2. BEERS requires paved.emis and bldgs.emis whenever bldgs.sfr > 0, even if
+        //    net_radiation == 0, snow_use == 0, storage_heat == 1.
+        for surf in ["paved", "bldgs"] {
+            let mut root = base_root.clone();
+            root["model"]["physics"]["net_radiation"] = Value::from(0);
+            root["model"]["physics"]["snow_use"] = Value::from(0);
+            root["model"]["physics"]["storage_heat"] = Value::from(1);
+            get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", surf],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("emis".to_string()));
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("BEERS requires paved/bldgs emis when bldgs.sfr > 0");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.{surf}.emis`"
+                )),
+                "{surf}: {err}"
+            );
+        }
+
+        // 3. Inactive land-cover branches permit omission while still rejecting malformed values.
+        let mut inactive = base_root.clone();
+        inactive["model"]["physics"]["net_radiation"] = Value::from(0);
+        inactive["model"]["physics"]["snow_use"] = Value::from(0);
+        inactive["model"]["physics"]["storage_heat"] = Value::from(1);
+        inactive["model"]["physics"]["water_use"] = Value::from(1);
+        inactive["model"]["physics"]["frontal_area_index"] = Value::from(1);
+        for (surf, val) in [
+            ("paved", 1.0),
+            ("bldgs", 0.0),
+            ("evetr", 0.0),
+            ("dectr", 0.0),
+            ("grass", 0.0),
+            ("bsoil", 0.0),
+            ("water", 0.0),
+        ] {
+            *get_path_mut(
+                first_site_mut(&mut inactive).unwrap(),
+                &["properties", "land_cover", surf, "sfr"],
+            )
+            .unwrap() = Value::from(val);
+        }
+        for (surf, keys) in [
+            ("paved", vec!["emis", "state_limit", "irrigation_fraction"]),
+            (
+                "bldgs",
+                vec![
+                    "emis",
+                    "state_limit",
+                    "irrigation_fraction",
+                    "bldgh",
+                    "faibldg",
+                ],
+            ),
+            (
+                "evetr",
+                vec![
+                    "emis",
+                    "state_limit",
+                    "irrigation_fraction",
+                    "height_evergreen_tree",
+                    "fai_evergreen_tree",
+                    "max_conductance",
+                ],
+            ),
+            (
+                "dectr",
+                vec![
+                    "emis",
+                    "state_limit",
+                    "irrigation_fraction",
+                    "height_deciduous_tree",
+                    "fai_deciduous_tree",
+                    "max_conductance",
+                ],
+            ),
+            (
+                "grass",
+                vec![
+                    "emis",
+                    "state_limit",
+                    "irrigation_fraction",
+                    "max_conductance",
+                ],
+            ),
+            ("bsoil", vec!["emis", "state_limit", "irrigation_fraction"]),
+            ("water", vec!["emis", "state_limit", "irrigation_fraction"]),
+        ] {
+            let map = get_path_mut(
+                first_site_mut(&mut inactive).unwrap(),
+                &["properties", "land_cover", surf],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            for key in keys {
+                map.remove(Value::String(key.to_string()));
+            }
+        }
+        load_run_config_from_value(&mut inactive.clone())
+            .expect("inactive land-cover fields should be omissible");
+
+        // Malformed inactive field still fails with canonical path.
+        let mut malformed_inactive = inactive;
+        get_path_mut(
+            first_site_mut(&mut malformed_inactive).unwrap(),
+            &["properties", "land_cover", "paved"],
+        )
+        .unwrap()
+        .as_mapping_mut()
+        .unwrap()
+        .insert(
+            Value::String("state_limit".to_string()),
+            serde_yaml::from_str("\"bad\"").unwrap(),
+        );
+        let err = load_run_config_from_value(&mut malformed_inactive)
+            .expect_err("malformed inactive land-cover scalar must be rejected");
+        assert!(
+            err.contains("`sites[gridiv=1].properties.land_cover.paved.state_limit`"),
+            "{err}"
+        );
     }
 }

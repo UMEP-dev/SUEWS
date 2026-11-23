@@ -216,7 +216,7 @@ def test_published_schema_rejects_memory_without_backdating_the_rule(include_int
     from jsonschema import Draft202012Validator, ValidationError
     from supy.data_model.configuration.publisher import generate_json_schema
 
-    for version in ("2026.6.dev12", "2026.6.dev13", "2026.6.dev14"):
+    for version in ("2026.6.dev12", "2026.6.dev13", "2026.6.dev14", "2026.6.dev15"):
         schema = generate_json_schema(version, include_internal=include_internal)
         validator = Draft202012Validator({
             "$ref": "#/$defs/InitialStates",
@@ -225,7 +225,7 @@ def test_published_schema_rejects_memory_without_backdating_the_rule(include_int
         validator.validate({})
         for name in ("qn_surfs", "dqndt_surf"):
             for values in ([0.0] * 7, None):
-                if version in ("2026.6.dev13", "2026.6.dev14"):
+                if version in ("2026.6.dev13", "2026.6.dev14", "2026.6.dev15"):
                     with pytest.raises(ValidationError):
                         validator.validate({name: values})
                 else:
@@ -241,7 +241,7 @@ def test_published_schema_rejects_memory_without_backdating_the_rule(include_int
             "rs",
         ):
             for value in (0.0, None):
-                if version == "2026.6.dev14":
+                if version in ("2026.6.dev14", "2026.6.dev15"):
                     with pytest.raises(ValidationError):
                         validator.validate({name: value})
                 else:
@@ -253,7 +253,7 @@ def test_published_schema_rejects_memory_without_backdating_the_rule(include_int
             })
             veg_validator.validate({})
             for value in ({"wu_total": 0.0, "wu_auto": 0.0, "wu_manual": 0.0}, None):
-                if version == "2026.6.dev14":
+                if version in ("2026.6.dev14", "2026.6.dev15"):
                     with pytest.raises(ValidationError):
                         veg_validator.validate({"wu": value})
                 else:
@@ -261,7 +261,9 @@ def test_published_schema_rejects_memory_without_backdating_the_rule(include_int
 
 
 @pytest.mark.parametrize("sites", [None, 17, "invalid", {"gridiv": 1}])
-@pytest.mark.parametrize("version", [None, "2026.6.dev14", "2026.6.dev13", "2026.6.dev12"])
+@pytest.mark.parametrize(
+    "version", [None, "2026.6.dev15", "2026.6.dev14", "2026.6.dev13", "2026.6.dev12"]
+)
 def test_invalid_sites_reaches_public_validation(sites, version, tmp_path):
     raw = {"sites": sites}
     if version is not None:

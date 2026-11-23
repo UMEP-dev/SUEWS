@@ -641,6 +641,70 @@ class SUEWSConfig(DataModelBase):
             )
         return self
 
+    def _iter_drainage_coefficient_issues(
+        self, *, for_execution: bool = False
+    ) -> list[dict[str, str]]:
+        """Check current inputs; sparse construction is not an execution contract."""
+        issues = []
+
+        def add_issue(path, field, message):
+            issues.append({
+                "error_text": f"{path}.{field}: {message}",
+                "path": path.replace(".", "/"),
+                "param": field,
+                "message": message,
+                "fix": "Supply the identified input; no drainage equation or coefficient is inferred",
+            })
+
+        for i, site in enumerate(self.sites):
+            for name in NON_WATER_SURFACES:
+                surface = getattr(site.properties.land_cover, name)
+                if _unwrap_value(surface.sfr) <= 0:
+                    continue
+                path = f"sites[{i}].properties.land_cover.{name}"
+                params = surface.storage_drain_params
+                absent = params is None or params.is_placeholder()
+                if absent:
+                    # Construction and annotation accept an omitted block even
+                    # when area is explicit. Only an engine handoff requires it.
+                    if for_execution:
+                        add_issue(
+                            path, "storage_drain_params",
+                            "Missing drainage block for an active non-water surface",
+                        )
+                    continue
+                path += ".storage_drain_params"
+                equation = _unwrap_value(params.drain_eq)
+                if not (
+                    isinstance(equation, (int, float))
+                    and not isinstance(equation, bool)
+                    and -(2**31) <= equation <= 2**31 - 1
+                    and equation == int(equation)
+                ):
+                    add_issue(
+                        path, "drain_eq",
+                        "Drainage selector must be an exact 32-bit integer",
+                    )
+                    continue
+                if equation not in (1, 2, 3):
+                    # Existing integer selectors outside 1-3 retain their prior
+                    # transport. Their scientific meaning is not defined here.
+                    continue
+                for field in ("drain_coef_1", "drain_coef_2"):
+                    value = _unwrap_value(getattr(params, field))
+                    if (
+                        isinstance(value, (int, float))
+                        and not isinstance(value, bool)
+                        and math.isfinite(value)
+                    ):
+                        continue
+                    add_issue(
+                        path, field,
+                        "A finite drainage coefficient is required for an active "
+                        "non-water surface using drain_eq 1, 2 or 3; explicit zero is allowed",
+                    )
+        return issues
+
     @model_validator(mode="after")
     def _validate_soil_observation(self) -> "SUEWSConfig":
         """Observed content must represent every contributing whole soil store.
@@ -880,6 +944,12 @@ class SUEWSConfig(DataModelBase):
             all_critical_issues.extend(zero_soil_depth_issues)
         if active_veg_lai_max_issues:
             all_critical_issues.extend(active_veg_lai_max_issues)
+        # Collect declared drainage defects here, after the existing checks,
+        # so one new contract cannot hide other actionable errors or prevent
+        # auto-generated annotated YAML on the failure path.
+        all_critical_issues.extend(
+            issue["error_text"] for issue in self._iter_drainage_coefficient_issues()
+        )
 
         if all_critical_issues:
             # Preserve the annotated-YAML UX on the failure path: if the caller
@@ -3902,7 +3972,7 @@ class SUEWSConfig(DataModelBase):
         return issues
 
     def validate_non_null_ref_values(self, _path: str = "") -> None:
-        """Reject null non-optional RefValue fields and active biogenic CO2 nulls."""
+        """Check non-optional values and consumed conditional inputs at handoff."""
         super().validate_non_null_ref_values(_path)
         bioco2_issues = self._iter_biogenic_co2_null_issues()
         if bioco2_issues:
@@ -3957,7 +4027,12 @@ class SUEWSConfig(DataModelBase):
                         )
         return bound_errors
 
-    def validate_for_engine(self, *, require_land_cover: bool = True) -> None:
+    def validate_for_engine(
+        self,
+        *,
+        require_land_cover: bool = True,
+        require_drainage: Optional[bool] = None,
+    ) -> None:
         """Enforce live runtime and cross-field contracts before engine or state handoff.
 
         Canonical pre-execution boundary invoked by ``SUEWSSimulation.update_config``,
@@ -3966,10 +4041,10 @@ class SUEWSConfig(DataModelBase):
         ``validate_soil_depths``, ``validate_active_veg_lai_max``,
         ``validate_water_distributions``, ``validate_hourly_profile_hours``, and
         ``_validate_engine_contracts`` (structural, scalar-bound, conditional/physics,
-        active-site including non-water soil parameters, and cross-field rules) so
-        programmatic construction, ``model_construct()``, or post-construction
-        in-place mutations cannot bypass loader validation before lossy state
-        conversion or Rust execution (gh#2086, gh#2099, gh#2128).
+        active-site including non-water soil parameters, active drainage coefficients,
+        and cross-field rules) so programmatic construction, ``model_construct()``, or
+        post-construction in-place mutations cannot bypass loader validation before
+        lossy state conversion or Rust execution (gh#2086, gh#2099, gh#2128).
 
         Parameters
         ----------
@@ -3980,6 +4055,12 @@ class SUEWSConfig(DataModelBase):
             active surface requirements on every site that declared ``land_cover``
             while preserving sparse non-land-cover fixtures used for incremental
             patching and unit-test round-trips.
+        require_drainage : bool, optional
+            When True, require a non-placeholder ``storage_drain_params`` block on
+            every active non-water surface. Defaults to ``require_land_cover``.
+            ``SUEWSSimulation.update_config(SUEWSConfig)`` passes ``False`` so
+            configs that omit drainage blocks can still be updated before execution
+            while preserving declared-drainage checks and ``require_land_cover``.
 
         Raises
         ------
@@ -4010,9 +4091,28 @@ class SUEWSConfig(DataModelBase):
         self.validate_active_veg_lai_max()
         self.validate_water_distributions()
         self.validate_hourly_profile_hours()
-        self._validate_engine_contracts(require_land_cover=require_land_cover)
+        self._validate_engine_contracts(
+            require_land_cover=require_land_cover,
+            require_drainage=require_drainage,
+        )
 
-    def _validate_engine_contracts(self, *, require_land_cover: bool = True) -> None:
+    def validate_for_serialisation(self) -> None:
+        """Check live values while retaining support for partial configurations.
+
+        Configuration updates and DataFrame round-trips do not execute physics.
+        They retain omitted drainage blocks, but still reject invalid declared
+        coefficients, non-optional null values, positive-capacity zero depths,
+        non-positive active vegetation ``lai_max``, invalid water routing, and
+        malformed hourly profiles.
+        """
+        self.validate_for_engine(require_land_cover=False, require_drainage=False)
+
+    def _validate_engine_contracts(
+        self,
+        *,
+        require_land_cover: bool = True,
+        require_drainage: Optional[bool] = None,
+    ) -> None:
         """Validate scalar bounds, active-site requirements, and cross-field rules."""
         bound_errors = self._check_execution_scalar_bounds()
         if bound_errors:
@@ -4047,6 +4147,15 @@ class SUEWSConfig(DataModelBase):
             self._check_critical_null_site_params(
                 include_programmatic=True,
                 require_land_cover=require_land_cover,
+            )
+        )
+        for_drainage = (
+            require_land_cover if require_drainage is None else require_drainage
+        )
+        all_critical_issues.extend(
+            issue["error_text"]
+            for issue in self._iter_drainage_coefficient_issues(
+                for_execution=for_drainage
             )
         )
         if all_critical_issues:
@@ -4576,6 +4685,7 @@ class SUEWSConfig(DataModelBase):
             *self._iter_critical_null_site_param_issues(),
             *self._iter_zero_soil_depth_issues(),
             *self._iter_active_veg_lai_max_issues(),
+            *self._iter_drainage_coefficient_issues(for_execution=True),
         ):
             if issue["path"] == site_prefix or issue["path"].startswith(
                 f"{site_prefix}/"
@@ -5971,7 +6081,7 @@ class SUEWSConfig(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing SUEWS configuration state
         """
-        self.validate_for_engine(require_land_cover=False)
+        self.validate_for_serialisation()
         if use_conditional_validation and _validation_available:
             # Pre-validate configuration before conversion
             config_data = self.model_dump()

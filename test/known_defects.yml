@@ -31,6 +31,12 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
+      function: "apply_drainage_overrides"
+    contract: "C-STRICT"
+    issue: 1991
+    classification: "defect"
+  - selector:
+      ledger: "R"
       function: "apply_ehc_overrides"
     contract: "C-STRICT"
     issue: 1991

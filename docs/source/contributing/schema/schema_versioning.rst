@@ -30,7 +30,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev12"`` describes the shape of the configuration
+``schema_version: "2026.6.dev15"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -43,7 +43,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev12"
+   schema_version: "2026.6.dev15"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -61,7 +61,10 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number -- ``2026.6.dev12`` comes after ``2026.6.dev11``,
+as a floating-point number -- ``2026.6.dev15`` comes after ``2026.6.dev14``,
+which comes after ``2026.6.dev13``,
+which comes after ``2026.6.dev12``,
+which comes after ``2026.6.dev11``,
 which comes after ``2026.6.dev10``,
 which comes after ``2026.6.dev9``,
 which comes after ``2026.6.dev8``,
@@ -122,7 +125,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev12 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev15 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -131,13 +134,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev12.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev15.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev12.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev15.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -187,7 +190,17 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev14** (current development version)
+**Schema 2026.6.dev15** (current development version)
+   Active non-water surfaces using drainage equations 1, 2 or 3 require both
+   finite drainage coefficients. The migration preserves supplied values and
+   retains omitted blocks for partial configuration work; engine export requires
+   those blocks. Declared equations with missing coefficients stop migration.
+   Explicit zero remains accepted; water and zero-area surfaces are exempt.
+   Active native and mutable inputs require an exact integer selector,
+   preserving whole-number floats and existing integer codes.
+   See :ref:`schema_dev15_drainage_coefficients`.
+
+**Schema 2026.6.dev14** (development)
    Removes the remaining 17 continuation-only ``initial_states`` inputs from
    fresh runs: ``evetr.wu``, ``dectr.wu`` and ``grass.wu`` (``wu_total``,
    ``wu_auto``, ``wu_manual``), plus ``dt_since_start``, ``tair_av``,

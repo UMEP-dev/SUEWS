@@ -118,6 +118,12 @@ beside the source so supplied relative paths still resolve correctly:
 
    Ordinary model dumps and ``to_yaml()`` remain portable source exports and leave an omitted directory unset. Buffer-only library calls return arrays and leave an omitted directory unset, including when the current working directory is unavailable. The public Python ``save(path)`` argument still takes precedence over the configured directory.
 
+   Each resolved site must supply all four LUMPS parameters in
+   ``sites[].properties.lumps``, including ``raincover``, ``rainmaxres``,
+   ``drainrt`` and ``veg_type``. When an ordinary source configuration omits
+   the block or a field, SuPy supplies the documented defaults during export.
+   Regenerate an incomplete engine input from its source configuration.
+
 For detailed usage and examples, see the :doc:`/workflow` guide.
 
 suews convert

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-22T23:02:15+00:00" />
-    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.22.dev39 documentation</title>
+    <meta property="article:modified_time" content="2026-11-23T01:39:31+00:00" />
+    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.22.dev42 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=6ae67f93"></script>
+    <script src="../_static/documentation_options.js?v=53600b1a"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="6.3.7.9. supy.util.AttributionResult" href="_autosummary/supy.util.AttributionResult.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.22.dev39" />
-    <meta name="docbuild:last-update" content="2026-11-22"/>
+  <meta name="docsearch:version" content="2026.11.22.dev42" />
+    <meta name="docbuild:last-update" content="2026-11-23"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.22.dev39, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f0de7ac17d98747f32ece8826f5a43a53ecc6e15" style="color: #31708f;">f0de7ac</a>).
+        (2026.11.22.dev42, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e7fdcf8140ca24fdd07534ca60ae79995501e39f" style="color: #31708f;">e7fdcf8</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.22.dev39 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.22.dev39 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.22.dev42 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.22.dev42 documentation - Home"/>
   
   
 </a></div>
@@ -741,6 +741,11 @@ beside the source so supplied relative paths still resolve correctly:</p>
 <p>With an explicit empty string (<code class="docutils literal notranslate"><span class="pre">dir:</span> <span class="pre">&quot;&quot;</span></code>), the engine writes beside the exported YAML. A relative path, including <code class="docutils literal notranslate"><span class="pre">.</span></code>, also starts from the exported file’s directory. Keep the export beside its source to preserve that base. An absolute path keeps its original destination.</p>
 <p>A standalone file containing only the legacy <code class="docutils literal notranslate"><span class="pre">model.control.output_file.path</span></code> is rejected. Move its value to <code class="docutils literal notranslate"><span class="pre">model.control.output.dir</span></code> before running the file.</p>
 <p>Ordinary model dumps and <code class="docutils literal notranslate"><span class="pre">to_yaml()</span></code> remain portable source exports and leave an omitted directory unset. Buffer-only library calls return arrays and leave an omitted directory unset, including when the current working directory is unavailable. The public Python <code class="docutils literal notranslate"><span class="pre">save(path)</span></code> argument still takes precedence over the configured directory.</p>
+<p>Each resolved site must supply all four LUMPS parameters in
+<code class="docutils literal notranslate"><span class="pre">sites[].properties.lumps</span></code>, including <code class="docutils literal notranslate"><span class="pre">raincover</span></code>, <code class="docutils literal notranslate"><span class="pre">rainmaxres</span></code>,
+<code class="docutils literal notranslate"><span class="pre">drainrt</span></code> and <code class="docutils literal notranslate"><span class="pre">veg_type</span></code>. When an ordinary source configuration omits
+the block or a field, SuPy supplies the documented defaults during export.
+Regenerate an incomplete engine input from its source configuration.</p>
 </div>
 <p>For detailed usage and examples, see the <a class="reference internal" href="../workflow.html"><span class="doc">Getting Started</span></a> guide.</p>
 </section>
@@ -922,7 +927,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-22.
+  Last updated on 2026-11-23.
   <br/>
 </p>
   </div>
@@ -930,8 +935,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.22.dev39 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f0de7ac17d98747f32ece8826f5a43a53ecc6e15">f0de7ac</a> |
+  <p>Version: 2026.11.22.dev42 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e7fdcf8140ca24fdd07534ca60ae79995501e39f">e7fdcf8</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

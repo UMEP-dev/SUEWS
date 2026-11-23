@@ -1,5 +1,7 @@
 ! EHC heatflux calculations module
 MODULE module_phys_ehc_heatflux
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
+   USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
 CONTAINS
    SUBROUTINE thomas_triMat(lw, diag, up, rhs, n, x)
@@ -26,10 +28,14 @@ CONTAINS
       END DO
    END SUBROUTINE thomas_triMat
 
-   SUBROUTINE heatcond1d_vstep(T, Qs, dx, dt, k, rhocp, bc)
+   SUBROUTINE heatcond1d_vstep(T, Qs, dx, dt, k, rhocp, bc, q_top, q_bottom)
       REAL(KIND(1D0)), INTENT(inout) :: T(:)
       REAL(KIND(1D0)), INTENT(in) :: dx(:), dt, k(:), rhocp(:), bc(2)
       REAL(KIND(1D0)), INTENT(out) :: Qs
+      ! time-mean conductive fluxes over dt: into the slab at the top face and
+      ! out of the slab at the bottom face [W m-2]; dU/dt = q_top - q_bottom
+      REAL(KIND(1D0)), INTENT(out), OPTIONAL :: q_top, q_bottom
+      REAL(KIND(1D0)) :: q_top_acc, q_bottom_acc
       INTEGER :: i, n
       REAL(KIND(1D0)), ALLOCATABLE :: g_itf(:), T_in(:), T_temp(:), dt_limit(:)
       REAL(KIND(1D0)) :: dt_remain
@@ -40,6 +46,8 @@ CONTAINS
 
       n = SIZE(T)
       Qs = 0.0D0
+      IF (PRESENT(q_top)) q_top = 0.0D0
+      IF (PRESENT(q_bottom)) q_bottom = 0.0D0
       IF (n <= 0 .OR. dt <= 0.0D0) RETURN
       IF (ANY(dx <= 0.0D0) .OR. ANY(k <= 0.0D0) .OR. ANY(rhocp <= 0.0D0)) RETURN
 
@@ -71,8 +79,12 @@ CONTAINS
       ! Qs is the material heat-content tendency, matching DeltaQS storage.
       dt_remain = dt
       dt_step_cfl = 0.45D0*MINVAL(dt_limit)
+      q_top_acc = 0.0D0
+      q_bottom_acc = 0.0D0
       DO WHILE (dt_remain > 1.0D-10)
          dt_step = MIN(dt_step_cfl, dt_remain)
+         q_top_acc = q_top_acc + dt_step*g_up*(bc(1) - T(1))
+         q_bottom_acc = q_bottom_acc + dt_step*g_down*(T(n) - bc(2))
          DO i = 1, n
             IF (i == 1) THEN
                g_left = g_up*(bc(1) - T(i))
@@ -90,6 +102,8 @@ CONTAINS
          dt_remain = dt_remain - dt_step
       END DO
       Qs = SUM((T - T_in)*rhocp*dx)/dt
+      IF (PRESENT(q_top)) q_top = q_top_acc/dt
+      IF (PRESENT(q_bottom)) q_bottom = q_bottom_acc/dt
    END SUBROUTINE heatcond1d_vstep
 
    SUBROUTINE heatcond1d_gstep(T, Qs, heat_cap, g_face, dt, bc, q_top, q_bottom)
@@ -152,11 +166,138 @@ CONTAINS
       IF (PRESENT(q_bottom)) q_bottom = q_bottom_acc/dt
    END SUBROUTINE heatcond1d_gstep
 
-   RECURSIVE SUBROUTINE heatcond1d_CN(T, Qs, dx, dt, k, rhocp, bc)
+   SUBROUTINE heatcond1d_seb_implicit( &
+      T, heat_cap, g_face, dt, t_bottom, &
+      g_top, a_top, b_top, &
+      ts, q_top_each, q_top, q_bottom, dudt)
+      ! Backward-Euler conduction through one column whose top face is closed
+      ! by the linearised surface energy balance of m surface nodes rather than
+      ! by a prescribed surface temperature.
+      !
+      ! Each surface node j has zero heat capacity and satisfies
+      !    a_top(j) - b_top(j)*ts(j) - g_top(j)*(ts(j) - T(1)) = 0,
+      ! i.e. Q* - QE - rho*cp*(Ts - Ta)/r_a - G = 0 linearised about the
+      ! current Tsfc iterate Ts* with dQ*/dTs = -R1 (R1 >= 0):
+      !    b_top = rho*cp/r_a + R1,  a_top = Q*(Ts*) - QE + R1*Ts* + rho*cp*Ta/r_a.
+      ! No surface node carries QF; indoor heat enters through the lower boundary.
+      ! All of g_top, a_top and b_top are per unit area of the column (for a
+      ! plan-area slab, already weighted by surface fraction), so m = 1 is a
+      ! single facet and m > 1 is several surfaces sharing one slab.
+      ! Eliminating the surface nodes gives a Robin condition on layer 1:
+      !    q_top = sum_j g_top(j)*b_top(j)/(g_top(j) + b_top(j)) * (a_top(j)/b_top(j) - T(1)),
+      ! and the layers are then one tridiagonal solve. All fluxes are end-of-step
+      ! (backward Euler), so dU/dt = q_top - q_bottom and the surface balance
+      ! closes exactly for the linearised source.
+      !
+      ! T(n):           layer temperatures, in: start of step, out: end of step
+      ! heat_cap(n):    layer heat capacity per unit area [J m-2 K-1]
+      ! g_face(n+1):    face conductances [W m-2 K-1]; g_face(1) is unused (the
+      !                 top faces are g_top), g_face(n+1) couples to t_bottom
+      !                 (0 gives an insulated lower face)
+      ! ts(m):          end-of-step surface temperatures
+      ! q_top_each(m):  conductive flux from surface node j into layer 1
+      ! q_top, q_bottom, dudt: column totals [W m-2]
+      IMPLICIT NONE
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(INOUT) :: T
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: heat_cap, g_face
+      REAL(KIND(1D0)), INTENT(IN) :: dt, t_bottom
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: g_top, a_top, b_top
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(OUT) :: ts, q_top_each
+      REAL(KIND(1D0)), INTENT(OUT) :: q_top, q_bottom, dudt
+
+      INTEGER :: n, m, i, j
+      REAL(KIND(1D0)), DIMENSION(SIZE(T)) :: T_in, lw, diag, up, rhs, T_out
+      REAL(KIND(1D0)) :: g_robin, s_robin, denom
+
+      n = SIZE(T)
+      m = SIZE(g_top)
+      ! Safe outputs on failure; the caller propagates the fatal error and
+      ! retains the incoming layer temperatures.
+      ts = -999.0D0
+      q_top_each = -999.0D0
+      q_top = -999.0D0
+      q_bottom = -999.0D0
+      dudt = -999.0D0
+      IF (n <= 0 .OR. m <= 0 .OR. .NOT. IEEE_IS_FINITE(dt) .OR. dt <= 0.0D0) THEN
+         CALL set_supy_error(116, 'heatcond1d_seb_implicit: column sizes and timestep must be positive and finite')
+         RETURN
+      END IF
+      IF (SIZE(heat_cap) /= n .OR. SIZE(g_face) /= n + 1 .OR. SIZE(a_top) /= m .OR. SIZE(b_top) /= m &
+          .OR. SIZE(ts) /= m .OR. SIZE(q_top_each) /= m) THEN
+         CALL set_supy_error(116, 'heatcond1d_seb_implicit: inconsistent column or surface array sizes')
+         RETURN
+      END IF
+      IF (ANY(.NOT. IEEE_IS_FINITE(heat_cap)) .OR. ANY(heat_cap <= 0.0D0) &
+          .OR. ANY(.NOT. IEEE_IS_FINITE(g_face)) .OR. ANY(g_face < 0.0D0) &
+          .OR. ANY(.NOT. IEEE_IS_FINITE(g_top)) .OR. ANY(g_top < 0.0D0) &
+          .OR. ANY(.NOT. IEEE_IS_FINITE(b_top)) .OR. ANY(b_top < 0.0D0) &
+          .OR. ANY(.NOT. IEEE_IS_FINITE(a_top)) .OR. ANY(.NOT. IEEE_IS_FINITE(T)) &
+          .OR. .NOT. IEEE_IS_FINITE(t_bottom)) THEN
+         CALL set_supy_error(116, 'heatcond1d_seb_implicit: invalid heat capacity, conductance or temperature')
+         RETURN
+      END IF
+
+      T_in = T
+      ! Robin coefficients of the eliminated surface nodes
+      g_robin = 0.0D0
+      s_robin = 0.0D0
+      DO j = 1, m
+         denom = g_top(j) + b_top(j)
+         IF (denom > 0.0D0) THEN
+            g_robin = g_robin + g_top(j)*b_top(j)/denom
+            s_robin = s_robin + g_top(j)*a_top(j)/denom
+         END IF
+      END DO
+
+      lw = 0.0D0
+      up = 0.0D0
+      DO i = 1, n
+         diag(i) = heat_cap(i)/dt + g_face(i + 1)
+         rhs(i) = heat_cap(i)/dt*T_in(i)
+         IF (i == 1) THEN
+            diag(i) = diag(i) + g_robin
+            rhs(i) = rhs(i) + s_robin
+         ELSE
+            diag(i) = diag(i) + g_face(i)
+            lw(i - 1) = -g_face(i)
+         END IF
+         IF (i < n) THEN
+            up(i) = -g_face(i + 1)
+         ELSE
+            rhs(i) = rhs(i) + g_face(n + 1)*t_bottom
+         END IF
+      END DO
+
+      IF (n == 1) THEN
+         T_out(1) = rhs(1)/diag(1)
+      ELSE
+         CALL thomas_triMat(lw, diag, up, rhs, n, T_out)
+      END IF
+      T = T_out
+
+      DO j = 1, m
+         denom = g_top(j) + b_top(j)
+         IF (denom > 0.0D0) THEN
+            ts(j) = (a_top(j) + g_top(j)*T(1))/denom
+         ELSE
+            ts(j) = T(1)
+         END IF
+         q_top_each(j) = g_top(j)*(ts(j) - T(1))
+      END DO
+      q_top = SUM(q_top_each)
+      q_bottom = g_face(n + 1)*(T(n) - t_bottom)
+      dudt = SUM(heat_cap*(T - T_in))/dt
+   END SUBROUTINE heatcond1d_seb_implicit
+
+   RECURSIVE SUBROUTINE heatcond1d_CN(T, Qs, dx, dt, k, rhocp, bc, q_bottom)
       REAL(KIND(1D0)), INTENT(inout) :: T(:)
       REAL(KIND(1D0)), INTENT(in) :: dx(:), dt, k(:), rhocp(:), bc(2)
       ! REAL(KIND(1D0)), INTENT(out) :: Qs, Tsfc
       REAL(KIND(1D0)), INTENT(out) :: Qs
+      ! diagnostic only: time mean of the end-of-substep conductive flux out
+      ! of the lower face [W m-2] (does not affect T or Qs)
+      REAL(KIND(1D0)), INTENT(out), OPTIONAL :: q_bottom
+      REAL(KIND(1D0)) :: q_bottom_acc
       ! LOGICAL, INTENT(in) :: bctype(2) ! if true, use surrogate flux as boundary condition
       REAL(KIND(1D0)) :: alpha, T_lw, T_up
       REAL(KIND(1D0)) :: Qs_acc
@@ -202,6 +343,7 @@ CONTAINS
       !PRINT *, 'dt_step_cfl: ', dt_step_cfl
 
       Qs_acc = 0.0 ! accumulated heat storage
+      q_bottom_acc = 0.0D0
       DO WHILE (dt_remain > 1E-10)
          dt_step = MIN(dt_step_cfl, dt_remain)
          !T_tmp(1) = T_up
@@ -242,7 +384,9 @@ CONTAINS
          CALL thomas_triMat(vec_lw, vec_diag, vec_up, vec_rhs, n, T_tmp)
          dt_remain = dt_remain - dt_step
          Qs_acc = Qs_acc + (T_up - T_tmp(1))*k(1)/(dx(1)*0.5)*dt_step
+         q_bottom_acc = q_bottom_acc + (T_tmp(n) - T_lw)*k(n)/(dx(n)*0.5D0)*dt_step
       END DO
+      IF (PRESENT(q_bottom)) q_bottom = q_bottom_acc/dt
 
       T_out = T_tmp
       ! Tsfc = T_out(1)
@@ -411,9 +555,70 @@ MODULE module_phys_ehc
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
+   USE module_ctrl_const_allocate, ONLY: nsurf
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    IMPLICIT NONE
 
+   ! ---------------------------------------------------------------------------
+   ! Implicit surface coupling of EHC (ehc_surface_coupling = implicit).
+   ! Passing this argument to EHC selects the implicit solver, so the inputs
+   ! cannot be supplied in part. Inputs, per unit facet area: each facet's
+   ! surface energy balance linearised about the current Tsfc iterate,
+   !    a - b*Tsfc - G = 0   (see heatcond1d_seb_implicit),
+   ! and the lower-boundary temperatures of the columns. Outputs: the solved
+   ! surface temperatures.
+   ! ---------------------------------------------------------------------------
+   TYPE, PUBLIC :: dts_ehc_implicit
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: a_surf = 0.0D0 ! [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: b_surf = 0.0D0 ! [W m-2 K-1]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: a_roof, b_roof ! (nlayer)
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: a_wall, b_wall ! (nlayer)
+      ! lower boundary of each ground-surface column (deep soil) [degC]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: t_deep_surf = 0.0D0
+      ! indoor boundary of the roof and wall columns and of the building
+      ! surface on the plan-area slab [degC]
+      REAL(KIND(1D0)) :: t_indoor = 20.0D0
+      ! ISO 6946:2017 Table 7; effective indoor film includes convection and
+      ! radiation. Zero selects the former bare half-cell boundary [m2 K W-1].
+      REAL(KIND(1D0)) :: r_indoor_roof = 0.10D0
+      REAL(KIND(1D0)) :: r_indoor_wall = 0.13D0
+      ! solved surface temperatures [degC]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: tsfc_surf = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof, tsfc_wall ! (nlayer)
+   END TYPE dts_ehc_implicit
+
 CONTAINS
+
+   SUBROUTINE ehc_init_profile(dz, k, t_outer, t_inner, r_inner, temp)
+      ! Cell-centre steady profile: outer face prescribed, indoor film in
+      ! series with all material layers. Temperature is linear in cumulative
+      ! resistance, not geometric depth. Caller selects fresh implicit starts
+      ! only; invalid/absent material columns retain their configured state.
+      REAL(KIND(1D0)), INTENT(IN) :: dz(:), k(:), t_outer, t_inner, r_inner
+      REAL(KIND(1D0)), INTENT(INOUT) :: temp(:)
+      REAL(KIND(1D0)) :: resist(SIZE(dz)), r_total, r_centre
+      INTEGER :: i
+
+      IF (SIZE(temp) /= SIZE(dz) .OR. SIZE(k) /= SIZE(dz)) THEN
+         CALL set_supy_error(116, 'ehc_init_profile: inconsistent column sizes')
+         RETURN
+      END IF
+      IF (.NOT. IEEE_IS_FINITE(r_inner) .OR. r_inner < 0.0D0) THEN
+         CALL set_supy_error(116, 'ehc_init_profile: indoor resistance must be finite and non-negative')
+         RETURN
+      END IF
+      IF (SIZE(dz) == 0) RETURN
+      IF (ANY(.NOT. IEEE_IS_FINITE(dz)) .OR. ANY(.NOT. IEEE_IS_FINITE(k))) RETURN
+      IF (ANY(dz <= 0.0D0) .OR. ANY(k <= 0.0D0)) RETURN
+      resist = dz/k
+      r_total = SUM(resist) + r_inner
+      r_centre = 0.0D0
+      DO i = 1, SIZE(dz)
+         temp(i) = t_outer + (t_inner - t_outer)*(r_centre + 0.5D0*resist(i))/r_total
+         r_centre = r_centre + resist(i)
+      END DO
+   END SUBROUTINE ehc_init_profile
    ! ===============================================================================================
    ! extended ESTM, TS 20 Jan 2022
    ! renamed to EHC (explicit heat conduction) to avoid confusion with ESTM
@@ -429,12 +634,15 @@ CONTAINS
       temp_out_wall, QS_wall, & !output
       temp_out_surf, temp_fast_surf, temp_slow_surf, QS_surf, & !output
       QS, & !output
-      errorState) ! inout: per-grid warning log (GH#1737)
+      dudt_grid, q_bottom_grid, q_indoor_grid, & !output: diagnostics
+      errorState, & ! inout: per-grid warning log (GH#1737)
+      implicit_seb) ! optional inout: implicit surface coupling
       USE module_ctrl_const_allocate, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
       USE module_ctrl_type, ONLY: error_state
-      USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_gstep, heatcond1d_CN, heatcond1d_CN_dense
+      USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_gstep, heatcond1d_CN, heatcond1d_CN_dense, &
+                                          heatcond1d_seb_implicit
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep
@@ -497,6 +705,23 @@ CONTAINS
       ! grid aggregated results
       REAL(KIND(1D0)), INTENT(out) :: QS
 
+      ! Diagnostics, plan-area weighted over the grid [W m-2]; -999 where a
+      ! route does not provide them:
+      !   dudt_grid      heat-content tendency of all conduction columns
+      !   q_bottom_grid  conductive flux leaving the columns at their lower
+      !                  boundaries (deep soil and indoor), positive downward
+      !   q_indoor_grid  conductive flux from the indoor boundary into the
+      !                  building columns (roofs and walls, or the building
+      !                  surface on the plan-area slab)
+      REAL(KIND(1D0)), INTENT(out) :: dudt_grid, q_bottom_grid, q_indoor_grid
+
+      ! Implicit surface coupling: when present, Tsfc is solved here together
+      ! with the layer temperatures and returned in implicit_seb%tsfc_*, the
+      ! lower boundaries come from implicit_seb, and QS is the conductive flux
+      ! into the material at the surface (q_top). Water on the facet route
+      ! keeps heatcond1d_CN and the driver's Tsfc update.
+      TYPE(dts_ehc_implicit), INTENT(inout), OPTIONAL :: implicit_seb
+
       ! internal use
       ! temporary arrays in calculations
       ! note: nsurf is used as the maximum number of surfaces
@@ -549,6 +774,53 @@ CONTAINS
       LOGICAL :: use_dual_timescale, use_qs_surface_gradient_alloc, allocation_success
       LOGICAL :: use_state_admittance
       LOGICAL :: use_ehc_experimental_controls
+      ! per-facet diagnostics
+      REAL(KIND(1D0)) :: q_top_facet, q_bottom_facet, dudt_facet, weight_facet
+      ! implicit surface coupling
+      LOGICAL :: use_implicit
+      INTEGER :: n_top, i_top
+      INTEGER, DIMENSION(nsurf) :: top_surface
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: g_top_imp, a_top_imp, b_top_imp, ts_imp, q_each_imp
+      REAL(KIND(1D0)), DIMENSION(ndepth + 1) :: g_imp
+      REAL(KIND(1D0)), DIMENSION(ndepth) :: cap_imp
+      REAL(KIND(1D0)) :: q_bottom_imp, dudt_imp, t_bottom_imp, g_bottom_bldg
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: tin_surf_use
+
+      dudt_grid = -999.0D0
+      q_bottom_grid = -999.0D0
+      q_indoor_grid = -999.0D0
+      tin_surf_use = tin_surf
+
+      use_implicit = PRESENT(implicit_seb)
+      IF (use_implicit) THEN
+         IF (.NOT. IEEE_IS_FINITE(implicit_seb%r_indoor_roof) .OR. &
+             .NOT. IEEE_IS_FINITE(implicit_seb%r_indoor_wall) .OR. &
+             implicit_seb%r_indoor_roof < 0.0D0 .OR. implicit_seb%r_indoor_wall < 0.0D0) THEN
+            CALL set_supy_error(116, 'EHC: indoor resistance must be finite and non-negative')
+            CALL ehc_fail_outputs()
+            RETURN
+         END IF
+         IF (.NOT. (ALLOCATED(implicit_seb%a_roof) .AND. ALLOCATED(implicit_seb%b_roof) &
+                    .AND. ALLOCATED(implicit_seb%a_wall) .AND. ALLOCATED(implicit_seb%b_wall) &
+                    .AND. ALLOCATED(implicit_seb%tsfc_roof) .AND. ALLOCATED(implicit_seb%tsfc_wall))) THEN
+            CALL set_supy_error(116, 'EHC: implicit coupling arrays for roofs and walls are not allocated')
+            CALL ehc_fail_outputs()
+            RETURN
+         END IF
+         IF (MIN(SIZE(implicit_seb%a_roof), SIZE(implicit_seb%b_roof), SIZE(implicit_seb%a_wall), &
+                 SIZE(implicit_seb%b_wall), SIZE(implicit_seb%tsfc_roof), SIZE(implicit_seb%tsfc_wall)) < nlayer) THEN
+            CALL set_supy_error(116, 'EHC: implicit coupling arrays are shorter than nlayer')
+            CALL ehc_fail_outputs()
+            RETURN
+         END IF
+         implicit_seb%tsfc_surf = tsfc_surf
+         implicit_seb%tsfc_roof(1:nlayer) = tsfc_roof
+         implicit_seb%tsfc_wall(1:nlayer) = tsfc_wall
+         ! ground columns end at the deep-soil temperature, the building
+         ! surface of the plan-area slab at the indoor temperature
+         tin_surf_use = implicit_seb%t_deep_surf
+         tin_surf_use(BldgSurf) = implicit_seb%t_indoor
+      END IF
 
       QS = 0.0D0
       QS_surf = 0.0D0
@@ -558,7 +830,7 @@ CONTAINS
       temp_out_roof = temp_in_roof
       temp_out_wall = temp_in_wall
 
-      use_ehc_experimental_controls = ehc_experimental_controls_enabled()
+      use_ehc_experimental_controls = (.NOT. use_implicit) .AND. ehc_experimental_controls_enabled()
       use_zero_flux_bottom = .FALSE.
       use_parallel_surfaces = .FALSE.
       bottom_g_scale = 1.0D0
@@ -677,6 +949,25 @@ CONTAINS
          END IF
       END IF
 
+      ! Validate all layers of an active implicit column before any division.
+      ! A wholly absent column still uses the existing zero-conduction path.
+      IF (use_implicit) THEN
+         IF (.NOT. use_lumped_slab) THEN
+            DO i_facet = 1, nlayer
+               CALL check_active_column(dz_roof(i_facet, :), k_roof(i_facet, :), cp_roof(i_facet, :))
+               CALL check_active_column(dz_wall(i_facet, :), k_wall(i_facet, :), cp_wall(i_facet, :))
+            END DO
+         END IF
+         DO i_facet = 1, nsurf
+            IF (.NOT. use_lumped_slab .AND. i_facet == BldgSurf) CYCLE
+            CALL check_active_column(dz_surf(i_facet, :), k_surf(i_facet, :), cp_surf(i_facet, :))
+         END DO
+         IF (supy_error_flag()) THEN
+            CALL ehc_fail_outputs()
+            RETURN
+         END IF
+      END IF
+
       IF (use_lumped_slab) THEN
          ! Coarse plan-area slab: aggregate only the standard SUEWS surface fractions.
          ! This keeps EHC comparable to OHM before adding facet-resolved complexity.
@@ -735,6 +1026,78 @@ CONTAINS
             CALL errorState%report( &
                message='lumped slab: invalid aggregated heat capacity; QS remains zero', &
                location='EHC', is_fatal=.FALSE.)
+            RETURN
+         END IF
+
+         IF (use_implicit) THEN
+            ! One slab shared by the valid surfaces; each surface keeps its own
+            ! zero-capacity surface node and energy balance, coupled to the top
+            ! layer through its own half-layer conductance.
+            n_top = 0
+            g_imp = 0.0D0
+            t_bottom_imp = 0.0D0
+            g_bottom_bldg = 0.0D0
+            DO i_facet = 1, nsurf
+               IF (.NOT. valid_lumped_surf(i_facet)) CYCLE
+               n_top = n_top + 1
+               top_surface(n_top) = i_facet
+               g_top_imp(n_top) = sfr_surf(i_facet)*2.0D0*k_surf(i_facet, 1)/dz_surf(i_facet, 1)
+               a_top_imp(n_top) = sfr_surf(i_facet)*implicit_seb%a_surf(i_facet)
+               b_top_imp(n_top) = sfr_surf(i_facet)*implicit_seb%b_surf(i_facet)
+               DO i_depth = 1, ndepth - 1
+                  g_imp(i_depth + 1) = g_imp(i_depth + 1) + sfr_surf(i_facet)/ &
+                                       (0.5D0*dz_surf(i_facet, i_depth)/k_surf(i_facet, i_depth) &
+                                        + 0.5D0*dz_surf(i_facet, i_depth + 1)/k_surf(i_facet, i_depth + 1))
+               END DO
+               face_resistance = 0.5D0*dz_surf(i_facet, ndepth)/k_surf(i_facet, ndepth)
+               ! The shared slab has a horizontal building surface, no
+               ! separate wall column: use the roof film on its indoor branch.
+               IF (i_facet == BldgSurf) face_resistance = face_resistance + implicit_seb%r_indoor_roof
+               g_imp(ndepth + 1) = g_imp(ndepth + 1) + sfr_surf(i_facet)/face_resistance
+               t_bottom_imp = t_bottom_imp + sfr_surf(i_facet)*tin_surf_use(i_facet)/face_resistance
+               IF (i_facet == BldgSurf) g_bottom_bldg = sfr_surf(i_facet)/face_resistance
+            END DO
+            ! the shared lower face sees each surface's boundary through that
+            ! surface's own conductance: one effective temperature
+            IF (g_imp(ndepth + 1) > 0.0D0) t_bottom_imp = t_bottom_imp/g_imp(ndepth + 1)
+
+            CALL heatcond1d_seb_implicit( &
+               temp_lumped, cap_lumped, g_imp, tstep*1.0D0, t_bottom_imp, &
+               g_top_imp(1:n_top), a_top_imp(1:n_top), b_top_imp(1:n_top), &
+               ts_imp(1:n_top), q_each_imp(1:n_top), qs_lumped, q_bottom_imp, dudt_imp)
+            IF (supy_error_flag()) THEN
+               CALL ehc_fail_outputs()
+               RETURN
+            END IF
+
+            QS = qs_lumped
+            QS_roof = 0.0D0
+            QS_wall = 0.0D0
+            DO i_top = 1, n_top
+               i_facet = top_surface(i_top)
+               QS_surf(i_facet) = q_each_imp(i_top)/sfr_surf(i_facet)
+               implicit_seb%tsfc_surf(i_facet) = ts_imp(i_top)
+               temp_out_surf(i_facet, :) = temp_lumped
+            END DO
+            ! backward Euler: every flux is end-of-step, so the shared lower
+            ! face splits exactly into each surface's share
+            dudt_grid = dudt_imp
+            q_bottom_grid = q_bottom_imp
+            q_indoor_grid = g_bottom_bldg*(implicit_seb%t_indoor - temp_lumped(ndepth))
+            ! The building surface's storage also takes in what its column
+            ! receives from the indoor boundary, so the building tile's residual
+            ! QH, with that indoor input as its QF, is the aerodynamic flux of
+            ! its surface node (see ehc_implicit_qf_surface in the driver).
+            IF (sfr_surf(BldgSurf) > 0.0D0) &
+               QS_surf(BldgSurf) = QS_surf(BldgSurf) + q_indoor_grid/sfr_surf(BldgSurf)
+            QS = qs_lumped + q_indoor_grid
+            ! a surface without valid thermal layers stores nothing: close its
+            ! energy balance with zero conduction
+            DO i_facet = 1, nsurf
+               IF (sfr_surf(i_facet) > 0.0D0 .AND. .NOT. valid_lumped_surf(i_facet) &
+                   .AND. implicit_seb%b_surf(i_facet) > 0.0D0) &
+                  implicit_seb%tsfc_surf(i_facet) = implicit_seb%a_surf(i_facet)/implicit_seb%b_surf(i_facet)
+            END DO
             RETURN
          END IF
 
@@ -885,11 +1248,15 @@ CONTAINS
 
          ! With a finite lower boundary, SUEWS needs the outdoor-surface storage
          ! flux; the material heat-content tendency also includes lower exchange.
-            IF (use_zero_flux_bottom) THEN
-               QS = qs_lumped
-            ELSE
-               QS = q_top_lumped
-            END IF
+         IF (use_zero_flux_bottom) THEN
+            QS = qs_lumped
+         ELSE
+            QS = q_top_lumped
+         END IF
+         ! the explicit slab has no separate indoor boundary (the building
+         ! surface shares the lumped lower face), so q_indoor_grid stays -999
+         dudt_grid = qs_lumped
+         q_bottom_grid = q_bottom_lumped
             QS_roof = 0.0D0
             QS_wall = 0.0D0
             IF (use_qs_surface_gradient_alloc) THEN
@@ -913,6 +1280,9 @@ CONTAINS
       use_heatcond1d = .TRUE.
       use_heatcond1d_water = .FALSE.
       debug = .FALSE.
+      dudt_grid = 0.0D0
+      q_bottom_grid = 0.0D0
+      q_indoor_grid = 0.0D0
 
       ! sub-facets of buildings: e.g. walls, roofs, etc.
       DO i_group = 1, 3
@@ -945,6 +1315,7 @@ CONTAINS
             ! TODO: to update with actual values from input files
             tsfc_cal(1:nfacet) = tsfc_roof(1:nfacet)
             tin_cal(1:nfacet) = tin_roof(1:nfacet)
+            IF (use_implicit) tin_cal(1:nfacet) = implicit_seb%t_indoor
             ! PRINT *, 'tin_cal for roof! ', tin_cal
             temp_cal(1:nfacet, 1:ndepth) = temp_in_roof(1:nfacet, 1:ndepth)
             ! PRINT *, 'temp_cal for roof! ',temp_cal
@@ -958,6 +1329,7 @@ CONTAINS
             ! TODO: to update with actual values from input files
             tsfc_cal(1:nfacet) = tsfc_wall(1:nfacet)
             tin_cal(1:nfacet) = tin_wall(1:nfacet)
+            IF (use_implicit) tin_cal(1:nfacet) = implicit_seb%t_indoor
             temp_cal(1:nfacet, 1:ndepth) = temp_in_wall(1:nfacet, 1:ndepth)
             ! TODO: temporarily set this for testing
             k_cal(1:nfacet, 1:ndepth) = k_wall(1:nfacet, 1:ndepth)
@@ -969,7 +1341,7 @@ CONTAINS
             ! PRINT *, 'translation for surf! '
             ! nfacet = nsurf
             tsfc_cal(1:nfacet) = tsfc_surf(1:nfacet)
-            tin_cal(1:nfacet) = tin_surf(1:nfacet)
+            tin_cal(1:nfacet) = tin_surf_use(1:nfacet)
             temp_cal(1:nfacet, 1:ndepth) = temp_in_surf(1:nfacet, 1:ndepth)
             ! TODO: to update with actual values from input files
             k_cal(1:nfacet, 1:ndepth) = k_surf(1:nfacet, 1:ndepth)
@@ -1006,6 +1378,84 @@ CONTAINS
                END IF
             ELSE
                use_heatcond1d = .TRUE.
+            END IF
+
+            ! plan-area weight of this facet in the grid aggregates
+            IF (i_group == 1) THEN
+               weight_facet = sfr_roof(i_facet)
+            ELSE IF (i_group == 2) THEN
+               weight_facet = sfr_wall(i_facet)
+            ELSE
+               weight_facet = sfr_surf(i_facet)
+            END IF
+
+            ! implicit surface coupling: one solver for every conducting facet
+            ! except water, which keeps heatcond1d_CN below (its Tsfc is
+            ! updated by the driver); the building tile is the roof/wall
+            ! aggregate
+            IF (use_implicit .AND. i_group == 3 .AND. i_facet == WaterSurf) THEN
+               IF (column_absent(dz_cal(i_facet, :), cp_cal(i_facet, :))) THEN
+                  IF (implicit_seb%b_surf(i_facet) > 0.0D0) &
+                     tsfc_cal(i_facet) = implicit_seb%a_surf(i_facet)/implicit_seb%b_surf(i_facet)
+                  CYCLE
+               END IF
+            END IF
+            IF (use_implicit .AND. .NOT. (i_group == 3 .AND. i_facet == WaterSurf)) THEN
+               IF (.NOT. (i_group == 3 .AND. i_facet == BldgSurf)) THEN
+                  IF (.NOT. column_absent(dz_cal(i_facet, :), cp_cal(i_facet, :))) THEN
+                     cap_imp = cp_cal(i_facet, :)*dz_cal(i_facet, :)
+                     g_imp(1) = 2.0D0*k_cal(i_facet, 1)/dz_cal(i_facet, 1)
+                     DO i_depth = 1, ndepth - 1
+                        g_imp(i_depth + 1) = 2.0D0*k_cal(i_facet, i_depth)*k_cal(i_facet, i_depth + 1) &
+                                             /(k_cal(i_facet, i_depth + 1)*dz_cal(i_facet, i_depth) &
+                                               + k_cal(i_facet, i_depth)*dz_cal(i_facet, i_depth + 1))
+                     END DO
+                     ! Keep the existing ground and zero-film arithmetic;
+                     ! only indoor facets acquire a series surface resistance.
+                     g_imp(ndepth + 1) = 2.0D0*k_cal(i_facet, ndepth)/dz_cal(i_facet, ndepth)
+                     face_resistance = 0.5D0*dz_cal(i_facet, ndepth)/k_cal(i_facet, ndepth)
+                     IF (i_group == 1 .AND. implicit_seb%r_indoor_roof > 0.0D0) &
+                        g_imp(ndepth + 1) = 1.0D0/(implicit_seb%r_indoor_roof + face_resistance)
+                     IF (i_group == 2 .AND. implicit_seb%r_indoor_wall > 0.0D0) &
+                        g_imp(ndepth + 1) = 1.0D0/(implicit_seb%r_indoor_wall + face_resistance)
+                     IF (i_group == 1) THEN
+                        a_top_imp(1) = implicit_seb%a_roof(i_facet)
+                        b_top_imp(1) = implicit_seb%b_roof(i_facet)
+                     ELSE IF (i_group == 2) THEN
+                        a_top_imp(1) = implicit_seb%a_wall(i_facet)
+                        b_top_imp(1) = implicit_seb%b_wall(i_facet)
+                     ELSE
+                        a_top_imp(1) = implicit_seb%a_surf(i_facet)
+                        b_top_imp(1) = implicit_seb%b_surf(i_facet)
+                     END IF
+                     CALL heatcond1d_seb_implicit( &
+                        temp_cal(i_facet, :), cap_imp, g_imp, tstep*1.0D0, tin_cal(i_facet), &
+                        g_imp(1:1), a_top_imp(1:1), b_top_imp(1:1), &
+                        ts_imp(1:1), q_each_imp(1:1), QS_cal(i_facet), q_bottom_imp, dudt_imp)
+                     IF (supy_error_flag()) THEN
+                        CALL ehc_fail_outputs()
+                        RETURN
+                     END IF
+                     tsfc_cal(i_facet) = ts_imp(1)
+                     dudt_grid = dudt_grid + weight_facet*dudt_imp
+                     q_bottom_grid = q_bottom_grid + weight_facet*q_bottom_imp
+                     IF (i_group /= 3) q_indoor_grid = q_indoor_grid - weight_facet*q_bottom_imp
+                  ELSE
+                     ! no valid thermal layers: QS = 0 and the surface balance
+                     ! closes with zero conduction
+                     IF (i_group == 1) THEN
+                        IF (implicit_seb%b_roof(i_facet) > 0.0D0) &
+                           tsfc_cal(i_facet) = implicit_seb%a_roof(i_facet)/implicit_seb%b_roof(i_facet)
+                     ELSE IF (i_group == 2) THEN
+                        IF (implicit_seb%b_wall(i_facet) > 0.0D0) &
+                           tsfc_cal(i_facet) = implicit_seb%a_wall(i_facet)/implicit_seb%b_wall(i_facet)
+                     ELSE
+                        IF (implicit_seb%b_surf(i_facet) > 0.0D0) &
+                           tsfc_cal(i_facet) = implicit_seb%a_surf(i_facet)/implicit_seb%b_surf(i_facet)
+                     END IF
+                  END IF
+               END IF
+               CYCLE
             END IF
 
             ! actual heat conduction calculations
@@ -1069,7 +1519,12 @@ CONTAINS
                   tstep*1.D0, &
                   k_cal(i_facet, 1:ndepth), &
                   cp_cal(i_facet, 1:ndepth), &
-                  bc)
+                  bc, q_top_facet, q_bottom_facet)
+               ! Legacy facet QS is the heat-content tendency dU/dt.
+               dudt_facet = QS_cal(i_facet)
+               dudt_grid = dudt_grid + weight_facet*dudt_facet
+               q_bottom_grid = q_bottom_grid + weight_facet*q_bottom_facet
+               IF (i_group /= 3) q_indoor_grid = q_indoor_grid - weight_facet*q_bottom_facet
 
                ! update temperature at all inner interfaces
                ! tin_cal(i_facet, :) = temp_all_cal
@@ -1113,7 +1568,10 @@ CONTAINS
                   tstep*1.D0, &
                   k_cal(i_facet, 1:ndepth), &
                   cp_cal(i_facet, 1:ndepth), &
-                  bc)
+                  bc, q_bottom_facet)
+               ! water QS is the heat-content tendency here in both couplings
+               dudt_grid = dudt_grid + weight_facet*QS_cal(i_facet)
+               q_bottom_grid = q_bottom_grid + weight_facet*q_bottom_facet
 
                ! ! update temperature at all inner interfaces
                ! temp_cal(i_facet, :) = temp_all_cal
@@ -1124,15 +1582,15 @@ CONTAINS
          ! translate results to back to the output arrays of facet groups
          IF (i_group == 1) THEN
             QS_roof = QS_cal(1:nfacet)
-            ! tsfc_roof = tsfc_cal(1:nfacet)
+            IF (use_implicit) implicit_seb%tsfc_roof(1:nfacet) = tsfc_cal(1:nfacet)
             temp_out_roof = temp_cal(:nfacet, :)
          ELSE IF (i_group == 2) THEN
             QS_wall = QS_cal(1:nfacet)
-            ! tsfc_wall = tsfc_cal(1:nfacet)
+            IF (use_implicit) implicit_seb%tsfc_wall(1:nfacet) = tsfc_cal(1:nfacet)
             temp_out_wall = temp_cal(:nfacet, :)
          ELSE IF (i_group == 3) THEN
             QS_surf = QS_cal(1:nfacet)
-            ! tsfc_surf = tsfc_cal(1:nfacet)
+            IF (use_implicit) implicit_seb%tsfc_surf = tsfc_cal(1:nfacet)
             temp_out_surf = temp_cal(:nfacet, :)
          END IF
 
@@ -1155,6 +1613,10 @@ CONTAINS
          QS_surf(BldgSurf) = 0.0
       ELSE
          QS_surf(BldgSurf) = (DOT_PRODUCT(QS_roof, sfr_roof) + DOT_PRODUCT(QS_wall, sfr_wall))/sfr_surf(BldgSurf)
+         ! implicit: roof and wall QS are each facet's surface flux (q_top);
+         ! the building tile also stores what its envelope receives from the
+         ! indoor boundary, so its QS is the envelope's dU/dt
+         IF (use_implicit) QS_surf(BldgSurf) = QS_surf(BldgSurf) + q_indoor_grid/sfr_surf(BldgSurf)
       END IF
 
       DO i_depth = 1, ndepth
@@ -1167,6 +1629,50 @@ CONTAINS
       ! all standard suews surfaces
       qs = DOT_PRODUCT(QS_surf, sfr_surf)
       !PRINT *, 'QS_surf in ESTM_ehc', QS_surf
+
+   CONTAINS
+
+      LOGICAL FUNCTION column_absent(dz, cp)
+         REAL(KIND(1D0)), INTENT(IN) :: dz(:), cp(:)
+         ! Preserve the existing whole-column sentinels: missing thicknesses
+         ! or zero heat capacity throughout. One bad layer is not an absence.
+         column_absent = ALL(dz == -999.0D0) .OR. ALL(cp == 0.0D0)
+      END FUNCTION column_absent
+
+      SUBROUTINE check_active_column(dz, k, cp)
+         REAL(KIND(1D0)), INTENT(IN) :: dz(:), k(:), cp(:)
+         IF (ANY(.NOT. IEEE_IS_FINITE(dz)) .OR. ANY(.NOT. IEEE_IS_FINITE(k)) &
+             .OR. ANY(.NOT. IEEE_IS_FINITE(cp))) THEN
+            CALL set_supy_error(116, 'EHC: thermal layer properties must be finite')
+            RETURN
+         END IF
+         IF (column_absent(dz, cp)) RETURN
+         IF (ANY(dz <= 0.0D0) .OR. ANY(k <= 0.0D0) .OR. ANY(cp <= 0.0D0)) &
+            CALL set_supy_error(116, 'EHC: active thermal layers must have positive thickness, conductivity and heat capacity')
+      END SUBROUTINE check_active_column
+
+      SUBROUTINE ehc_fail_outputs()
+         ! safe outputs before returning on a fatal error
+         QS = -999.0D0
+         QS_surf = -999.0D0
+         QS_roof = -999.0D0
+         QS_wall = -999.0D0
+         dudt_grid = -999.0D0
+         q_bottom_grid = -999.0D0
+         q_indoor_grid = -999.0D0
+         IF (PRESENT(implicit_seb)) THEN
+            implicit_seb%tsfc_surf = tsfc_surf
+            IF (ALLOCATED(implicit_seb%tsfc_roof)) THEN
+               IF (SIZE(implicit_seb%tsfc_roof) >= nlayer) implicit_seb%tsfc_roof(1:nlayer) = tsfc_roof
+            END IF
+            IF (ALLOCATED(implicit_seb%tsfc_wall)) THEN
+               IF (SIZE(implicit_seb%tsfc_wall) >= nlayer) implicit_seb%tsfc_wall(1:nlayer) = tsfc_wall
+            END IF
+         END IF
+         temp_out_surf = temp_in_surf
+         temp_out_roof = temp_in_roof
+         temp_out_wall = temp_in_wall
+      END SUBROUTINE ehc_fail_outputs
 
    END SUBROUTINE EHC
 

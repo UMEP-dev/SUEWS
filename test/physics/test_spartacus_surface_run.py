@@ -16,12 +16,14 @@ SURFACES = ["Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"]
 GROUND = [0, 2, 3, 4, 5, 6]
 
 
-def run_surface_case(direct_albedo=False, storage_heat=5):
+def run_surface_case(direct_albedo=False, storage_heat=5, ehc_surface_coupling=None):
     """Six daytime timesteps with SPARTACUS and the selected storage scheme."""
     state, forcing = load_sample_frames()
     state = state.iloc[[0]].copy()
     state.loc[:, ("netradiationmethod", "0")] = 1003
     state.loc[:, ("storageheatmethod", "0")] = storage_heat
+    if ehc_surface_coupling is not None:
+        state.loc[:, ("ehc_surface_coupling", "0")] = ehc_surface_coupling
     # Since #1858 this flag reaches the kernel; the test below checks it.
     state.loc[:, ("use_sw_direct_albedo", "0")] = float(direct_albedo)
     state.loc[:, ("ground_albedo_dir_mult_fact", "0")] = 1.4 if direct_albedo else 1.0
@@ -66,9 +68,19 @@ def test_simulated_surface_ground_budget(direct_albedo):
     )
 
 
-def test_spartacus_ehc_surface_energy_budget():
+@pytest.mark.parametrize(
+    ("ehc_surface_coupling", "ground_includes_qf"),
+    [
+        pytest.param(None, False, id="default_implicit"),
+        pytest.param(0, True, id="explicit"),
+    ],
+)
+def test_spartacus_ehc_surface_energy_budget(ehc_surface_coupling, ground_includes_qf):
     """SPARTACUS with buildings and supported EHC closes the per-surface energy budget."""
-    output, state, _ = run_surface_case(storage_heat=5)
+    output, state, _ = run_surface_case(
+        storage_heat=5,
+        ehc_surface_coupling=ehc_surface_coupling,
+    )
     fractions = state["sfr_surf"].iloc[0].to_numpy()
     fluxes = output["SUEWS"]
     columns = [f"{flux}_{surface}" for flux in ["QN", "QS"] for surface in SURFACES]
@@ -82,22 +94,25 @@ def test_spartacus_ehc_surface_energy_budget():
             fluxes[[f"{flux}_{surface}" for surface in SURFACES]].to_numpy() @ fractions
         )
         np.testing.assert_allclose(weighted, fluxes[flux], rtol=0, atol=1e-6)
-    # Grid-scale closure holds with QF included.
+    # Grid-scale closure holds with QF included in both implicit and explicit coupling.
     grid_residual = (
         fluxes["QN"] + fluxes["QF"] - fluxes["QS"] - fluxes["QH"] - fluxes["QE"]
     )
     np.testing.assert_allclose(grid_residual, 0, rtol=0, atol=1e-6)
-    # Per-surface closure for all active ground surfaces includes QF.
+    # Under default implicit EHC, QF is not distributed onto ground facets
+    # (QF - QIndoor enters canyon air and grid-scale QH; suews_ctrl_driver.f95).
+    # Under explicit EHC (ehc_surface_coupling=0), QF is still added per ground facet.
     # Under SPARTACUS + EHC, QN_Bldgs holds the SPARTACUS residual (including
     # canopy LW and air absorption; suews_phys_spartacus.f95), whereas QH_Bldgs
     # aggregates pure roof/wall facet balances without QF (suews_ctrl_driver.f95).
+    qf_ground = fluxes["QF"] if ground_includes_qf else 0.0
     for i in GROUND:
         if fractions[i] == 0:
             continue
         surface = SURFACES[i]
         residual = (
             fluxes[f"QN_{surface}"]
-            + fluxes["QF"]
+            + qf_ground
             - fluxes[f"QS_{surface}"]
             - turbulent[f"QH_{surface}"]
             - turbulent[f"QE_{surface}"]

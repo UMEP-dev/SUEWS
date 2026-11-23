@@ -219,6 +219,33 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev18_ehc_implicit:
+
+Upgrading to Schema 2026.6.dev18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When ``model.physics.storage_heat`` selects EHC (method 5), ``2026.6.dev18``
+defaults ``model.physics.ehc_surface_coupling`` to ``implicit`` rather than
+``explicit``, solving each facet's linearised surface energy balance together
+with backward Euler conduction. Four companion optional controls are added under
+``model.physics``: ``control_ehc_stability`` (default ``off``),
+``control_ehc_initial_profile`` (default ``true``),
+``resistance_ehc_indoor_roof`` (default ``0.10`` m2 K W-1), and
+``resistance_ehc_indoor_wall`` (default ``0.13`` m2 K W-1).
+
+Existing method-5 YAML files that omit ``ehc_surface_coupling`` remain valid
+and now run with implicit coupling. To retain the legacy explicit coupling and
+boundary treatment, set ``model.physics.ehc_surface_coupling: explicit`` (other
+storage heat methods ignore these fields). To migrate an older configuration
+explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev18
+
+See :doc:`../outputs/ehc` for boundary conditions, envelope initialisation, and
+the seven diagnostics appended in output contract ``2.1.0``.
+
 .. _schema_dev17_integer_doy:
 
 Upgrading to Schema 2026.6.dev17
@@ -1229,7 +1256,6 @@ The checkpoint representation is unchanged. Its seven-surface order remains
 paved, bldg, evetr, dectr, grass, bsoil, water; mean radiation memory uses
 :math:`\mathrm{W\,m^{-2}}` and its rate uses
 :math:`\mathrm{W\,m^{-2}\,h^{-1}}`.
-
 
 .. _schema_dev14_continuation_state:
 

@@ -760,6 +760,14 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
         &[("forcing", 1), ("constant", 2), ("perez", 3), ("reindl", 4)],
     ),
     (
+        "ehc_surface_coupling",
+        &[("explicit", 0), ("implicit", 1)],
+    ),
+    (
+        "control_ehc_stability",
+        &[("off", 0), ("relax", 1), ("secant", 2)],
+    ),
+    (
         "emissions",
         &[
             ("observed", 0),

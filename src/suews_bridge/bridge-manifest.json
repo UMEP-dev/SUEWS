@@ -43,6 +43,12 @@
       "status": "bridged"
     },
     {
+      "name": "dts_ehc_implicit",
+      "source": "src/suews/src/suews_phys_ehc.f95",
+      "status": "excluded",
+      "rationale": "Temporary surface-energy linearisation and solved-temperature workspace shared between the Fortran driver and EHC routines; it is neither persisted model state nor an input/output type crossing the Rust bridge."
+    },
+    {
       "name": "EHC_PRM",
       "source": "src/suews/src/suews_type_ehc.f95",
       "status": "bridged"

@@ -6101,7 +6101,7 @@ contains
       pos = 0_c_int
       unpack_err = SUEWS_CAPI_OK
       err = SUEWS_CAPI_OK
-      if (n_meta < 24_c_int) then
+      if (n_meta < 29_c_int) then
          err = SUEWS_CAPI_BAD_BUFFER
          return
       end if
@@ -6135,6 +6135,11 @@ contains
       call obs_emit_int_scalar(22_c_int, actual%setpointmethod, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_logical_scalar(23_c_int, actual%flag_test, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_int_scalar(24_c_int, actual%ForcingTimestampReference, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(25_c_int, actual%EHCSurfaceCoupling, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(26_c_int, actual%control_ehc_stability, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(27_c_int, actual%control_ehc_initial_profile, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(28_c_int, actual%resistance_ehc_indoor_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(29_c_int, actual%resistance_ehc_indoor_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
 
       n_out = pos
    end subroutine suews_obs_unpack_suews_config

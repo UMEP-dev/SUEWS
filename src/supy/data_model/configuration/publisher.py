@@ -122,6 +122,25 @@ def generate_json_schema(
     else:
         _apply_dev17_doy_json_schema(schema["$defs"])
 
+    # Implicit EHC controls were introduced in dev18.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev18"):
+        physics_props = schema["$defs"].get("ModelPhysics", {}).get("properties", {})
+        for field_name in (
+            "ehc_surface_coupling",
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ):
+            physics_props.pop(field_name, None)
+        for def_name in (
+            "EHCSurfaceCoupling",
+            "EHCStabilityControl",
+            "RefValue_EHCSurfaceCoupling_",
+            "RefValue_EHCStabilityControl_",
+        ):
+            schema["$defs"].pop(def_name, None)
+
     # Add examples
     schema["examples"] = [_get_minimal_example(version)]
 

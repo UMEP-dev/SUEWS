@@ -36,7 +36,7 @@ MODULE SUEWS_Driver
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
-   USE module_phys_ehc, ONLY: EHC
+   USE module_phys_ehc, ONLY: EHC, dts_ehc_implicit, ehc_init_profile
    USE module_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
    USE module_phys_dailystate, ONLY: update_DailyStateLine, SUEWS_cal_DailyState
    USE module_phys_waterdist, ONLY: &
@@ -65,12 +65,13 @@ MODULE SUEWS_Driver
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
-                          SUEWS_cal_DLS, SUEWS_cal_timer_reference
+                          SUEWS_cal_DLS, SUEWS_cal_timer_reference, cal_weekday_index
    ! Re-export error state accessors from module_ctrl_error_state
    USE module_ctrl_error_state, ONLY: supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN, &
                                        reset_supy_error, set_supy_error
    USE module_ctrl_error, ONLY: ErrorHint
-   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day
+   USE module_ctrl_const_mathconst, ONLY: pi
+   USE module_ctrl_const_physconst, ONLY: C2K, SBConst, sec_per_day
    IMPLICIT NONE
 
    ! Make error state accessors public for the C-ABI driver
@@ -109,6 +110,27 @@ MODULE SUEWS_Driver
          TYPE(SUEWS_STATE_BLOCK), INTENT(OUT), OPTIONAL :: block_mod_state
       END SUBROUTINE run_multitsteps_block
    END INTERFACE
+
+   ! Per-timestep EHC output diagnostics: recomputed every timestep and written
+   ! to the EHC output group, so kept out of persisted HEAT_STATE.
+   TYPE, PRIVATE :: dts_ehc_diagnostics
+      REAL(KIND(1D0)) :: ehc_dudt = -999.0D0 ! heat-content tendency of EHC columns [W m-2]
+      REAL(KIND(1D0)) :: ehc_q_bottom = -999.0D0 ! conductive flux leaving lower boundaries [W m-2]
+      REAL(KIND(1D0)) :: ehc_q_indoor = -999.0D0 ! conductive flux from indoor boundary into building columns [W m-2]
+      REAL(KIND(1D0)) :: ehc_t_indoor = -999.0D0 ! indoor boundary temperature of implicit EHC columns [degC]
+      REAL(KIND(1D0)) :: ehc_t_deep = -999.0D0 ! area-weighted lower boundary temperature of ground columns [degC]
+      REAL(KIND(1D0)) :: ehc_qf_air = -999.0D0 ! QF entering air rather than a surface energy balance [W m-2]
+      REAL(KIND(1D0)) :: qf_build = -999.0D0 ! building energy-use part of QF [W m-2]
+   END TYPE dts_ehc_diagnostics
+
+   ! Per-timestep numerical history only: no checkpoint or shared mutable state.
+   TYPE, PRIVATE :: dts_ehc_stability_iteration
+      REAL(KIND(1D0)) :: qh
+      REAL(KIND(1D0)) :: qh_negative, residual_negative
+      REAL(KIND(1D0)) :: qh_positive, residual_positive
+      LOGICAL :: has_negative, has_positive
+   END TYPE dts_ehc_stability_iteration
+   PRIVATE :: ehc_stability_start, ehc_stability_update
 
 CONTAINS
 
@@ -209,6 +231,10 @@ CONTAINS
       ! (z-d)/L [-] and free-convection velocity [m s-1] accepted before the current
       ! outer pass, restored before the EHC residual-QH resistance call
       REAL(KIND(1D0)) :: zl_pass_start, w_f_pass_start
+      TYPE(dts_ehc_diagnostics) :: ehcDiag
+      TYPE(dts_ehc_stability_iteration) :: ehc_stability
+      INTEGER, PARAMETER :: ehc_stability_first_pass = 16
+      LOGICAL :: use_ehc_stability, verify_ehc_stability, relax_ehc_stability
 
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
@@ -221,7 +247,7 @@ CONTAINS
       max_iter = max_iter_default
       ehc_restore_best_mode = 0
       use_ehc_experimental_controls = ehc_experimental_controls_enabled()
-      IF (config%StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
+      IF (config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling /= 1 .AND. use_ehc_experimental_controls) THEN
          CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_MAX_ITER", max_iter_env_value, STATUS=max_iter_env_status)
          IF (max_iter_env_status == 0 .AND. LEN_TRIM(max_iter_env_value) > 0) THEN
             READ (max_iter_env_value, *, IOSTAT=max_iter_env_status) max_iter
@@ -239,6 +265,23 @@ CONTAINS
             END SELECT
          END IF
       END IF
+      use_ehc_stability = config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1 &
+                          .AND. config%control_ehc_stability > 0
+      verify_ehc_stability = .FALSE.
+      relax_ehc_stability = .FALSE.
+      IF (config%StorageHeatMethod == 5 .AND. &
+          (config%control_ehc_stability < 0 .OR. config%control_ehc_stability > 2)) THEN
+         CALL set_supy_error(116, 'SUEWS_cal_Main: control_ehc_stability must be 0, 1 or 2')
+         CALL sync_error_to_state(modState, timer)
+         RETURN
+      END IF
+      ehcDiag%ehc_dudt = -999.0D0
+      ehcDiag%ehc_q_bottom = -999.0D0
+      ehcDiag%ehc_q_indoor = -999.0D0
+      ehcDiag%ehc_t_indoor = -999.0D0
+      ehcDiag%ehc_t_deep = -999.0D0
+      ehcDiag%ehc_qf_air = -999.0D0
+      ehcDiag%qf_build = -999.0D0
 
       ! ####################################################################################
       ASSOCIATE ( &
@@ -302,6 +345,20 @@ CONTAINS
                snowState%snow_albedo = 0.
                snowState%ice_frac = 0.
                snowState%snow_pack = 0.
+            END IF
+
+            ! Initialise only fresh implicit facet envelopes, before the
+            ! timestep-start snapshot that every nonlinear pass restores.
+            ! Checkpoint entry disables the option in prepare_checkpoint_input;
+            ! elapsed time also prevents reinitialisation on later timesteps.
+            IF (config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1 &
+                .AND. config%control_ehc_initial_profile .AND. config%NetRadiationMethod > 1000 &
+                .AND. timer%dt_since_start == timer%tstep) THEN
+               CALL ehc_init_envelope(config, timer, forcing, siteInfo, modState)
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
             END IF
 
             ! save initial values of model states
@@ -394,6 +451,8 @@ CONTAINS
             ehc_best_iter_score = HUGE(1.0D0)
             ! max_iter = 30
             DO WHILE (i_iter < 3 .OR. ((.NOT. flag_converge) .AND. (i_iter < max_iter)))
+               relax_ehc_stability = use_ehc_stability .AND. i_iter >= ehc_stability_first_pass &
+                                     .AND. .NOT. verify_ehc_stability
                IF (diagnose == 1) THEN
                   PRINT *, '=========================== '
                   PRINT *, 'iteration is ', i_iter
@@ -491,7 +550,7 @@ CONTAINS
                ! ===================ANTHROPOGENIC HEAT AND CO2 FLUX======================
                CALL SUEWS_cal_AnthropogenicEmission( &
                   timer, config, forcing, siteInfo, & ! input
-                  modState) ! input/output:
+                  modState, ehcDiag) ! input/output:
                IF (supy_error_flag()) THEN
                   CALL sync_error_to_state(modState, timer)
                   RETURN
@@ -521,7 +580,7 @@ CONTAINS
                IF (diagnose == 1) PRINT *, 'Tsfc_surf before QS', heatState%tsfc_surf
                CALL SUEWS_cal_Qs( &
                   timer, config, forcing, siteInfo, datetimeLine, & !input
-                  modState, & ! input/output:
+                  modState, ehcDiag, & ! input/output:
                   dataOutLineESTM, dataOutLineSTEBBS)
                IF (supy_error_flag()) THEN
                   CALL sync_error_to_state(modState, timer)
@@ -565,9 +624,17 @@ CONTAINS
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
                zl_pass_start = modState%atmState%z_l
                w_f_pass_start = w_f_pass_prev
-               CALL SUEWS_cal_Resistance( &
-                  timer, config, forcing, siteInfo, & ! input
-                  modState, w_f_pass_prev) ! input/output:
+               IF (relax_ehc_stability) THEN
+                  IF (i_iter == ehc_stability_first_pass) &
+                     CALL ehc_stability_start(ehc_stability, heatState%qh_init)
+                  CALL SUEWS_cal_Resistance( &
+                     timer, config, forcing, siteInfo, & ! input
+                     modState, w_f_pass_prev, qh_stability=ehc_stability%qh) ! input/output:
+               ELSE
+                  CALL SUEWS_cal_Resistance( &
+                     timer, config, forcing, siteInfo, & ! input
+                     modState, w_f_pass_prev) ! input/output:
+               END IF
                IF (supy_error_flag()) THEN
                   CALL sync_error_to_state(modState, timer)
                   RETURN
@@ -620,7 +687,7 @@ CONTAINS
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_QH...'
                CALL SUEWS_cal_QH( &
                   timer, config, forcing, siteInfo, & ! input
-                  modState) ! input/output:
+                  modState, ehcDiag) ! input/output:
                IF (supy_error_flag()) THEN
                   CALL sync_error_to_state(modState, timer)
                   RETURN
@@ -637,9 +704,16 @@ CONTAINS
                   ! pass, so its result supersedes the first call's
                   modState%atmState%z_l = zl_pass_start
                   w_f_pass_prev = w_f_pass_start
-                  CALL SUEWS_cal_Resistance( &
-                     timer, config, forcing, siteInfo, & ! input
-                     modState, w_f_pass_prev) ! input/output:
+                  IF (relax_ehc_stability) THEN
+                     CALL ehc_stability_update(config%control_ehc_stability, ehc_stability, heatState%qh_init)
+                     CALL SUEWS_cal_Resistance( &
+                        timer, config, forcing, siteInfo, & ! input
+                        modState, w_f_pass_prev, qh_stability=ehc_stability%qh) ! input/output:
+                  ELSE
+                     CALL SUEWS_cal_Resistance( &
+                        timer, config, forcing, siteInfo, & ! input
+                        modState, w_f_pass_prev) ! input/output:
+                  END IF
                   IF (supy_error_flag()) THEN
                      CALL sync_error_to_state(modState, timer)
                      RETURN
@@ -649,7 +723,7 @@ CONTAINS
                ! ============ update surface temperature of this iteration ===============
                CALL suews_update_tsurf( &
                   timer, config, forcing, siteInfo, & ! input
-                  modState) ! input/output:
+                  modState, ehcDiag) ! input/output:
                IF (supy_error_flag()) THEN
                   CALL sync_error_to_state(modState, timer)
                   RETURN
@@ -674,7 +748,17 @@ CONTAINS
                   END IF
                END IF
 
-
+               IF (verify_ehc_stability) THEN
+                  ! This complete pass used the original QH/stability update and
+                  ! unchanged temperature/flux tests. Accept only its verdict.
+                  verify_ehc_stability = .FALSE.
+                  IF (.NOT. flag_converge) CALL ehc_stability_start(ehc_stability, heatState%qh_init)
+               ELSE IF (relax_ehc_stability .AND. flag_converge) THEN
+                  ! A small damped change alone is not convergence. Require a
+                  ! full undamped pass, still within the original 59-pass cap.
+                  flag_converge = .FALSE.
+                  verify_ehc_stability = .TRUE.
+               END IF
                ! IF (i_iter == 1) THEN
                !    modState_tstepstart = modState
                ! END IF
@@ -792,7 +876,7 @@ CONTAINS
                IF (Diagnose == 1) WRITE (*, *) 'Calling EHC_update_outputLine...'
                CALL EHC_update_outputLine( &
                   timer, & !input
-                  modState, & ! input/output:
+                  modState, ehcDiag, & ! input/output:
                   datetimeLine, dataOutLineEHC) !output
             END IF
 
@@ -1016,7 +1100,7 @@ CONTAINS
 
    SUBROUTINE suews_update_tsurf( &
       timer, config, forcing, siteInfo, & ! input
-      modState) ! input/output:
+      modState, ehcDiag) ! input/output:
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -1028,16 +1112,29 @@ CONTAINS
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
+      TYPE(dts_ehc_diagnostics), INTENT(IN) :: ehcDiag
 
       INTEGER :: i_surf, i_layer, env_status
       REAL(KIND(1D0)) :: dif_tsfc_iter, dif_qh_iter, qh_flux_tol, ratio_iter, qh_resist_iter
       REAL(KIND(1D0)) :: qh_step_limit, tsfc_flux_step_limit, tsfc_iter_step_limit_use
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qf_surf_ehc
+      LOGICAL :: use_implicit
+      ! implicit EHC: water on the facet route keeps the legacy relaxed update
+      REAL(KIND(1D0)), PARAMETER :: ratio_iter_water = 0.3D0
+      ! implicit EHC outer-loop tolerances: solved Tsfc change [K] and facet
+      ! balance closure [W m-2] for the coupled surface/conduction solve
+      REAL(KIND(1D0)), PARAMETER :: tsfc_tol_implicit = 0.01D0
+      REAL(KIND(1D0)), PARAMETER :: qh_flux_tol_implicit = 1.0D0
+      REAL(KIND(1D0)) :: tsfc_tol
+      ! implicit EHC with building facets: change of the water Tsfc, which
+      ! keeps the legacy relaxed update and is tested as in the explicit loop
+      REAL(KIND(1D0)) :: dif_tsfc_water
       REAL(KIND(1D0)), PARAMETER :: tsfc_air_limit = 50.0D0
       REAL(KIND(1D0)), PARAMETER :: tsfc_iter_step_limit = 10.0D0
       CHARACTER(LEN=64) :: env_value
       LOGICAL :: use_building_facets_for_ehc, use_adaptive_relax
       LOGICAL :: use_ehc_experimental_controls
+      LOGICAL, DIMENSION(nsurf) :: active_nonwater_mask
 
       ASSOCIATE ( &
          flagState => modState%flagState, &
@@ -1087,8 +1184,13 @@ CONTAINS
             )
 
             use_building_facets_for_ehc = StorageHeatMethod == 5 .AND. NetRadiationMethod > 1000
-            use_ehc_experimental_controls = ehc_experimental_controls_enabled()
-            CALL configure_ehc_qf_surface_allocation(StorageHeatMethod, NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+            use_implicit = StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1
+            use_ehc_experimental_controls = (.NOT. use_implicit) .AND. ehc_experimental_controls_enabled()
+            IF (use_implicit) THEN
+               CALL ehc_implicit_qf_surface(sfr_surf, ehcDiag%ehc_q_indoor, qf_surf_ehc)
+            ELSE
+               CALL configure_ehc_qf_surface_allocation(StorageHeatMethod, NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+            END IF
             tsfc_iter_step_limit_use = tsfc_iter_step_limit
             use_adaptive_relax = .FALSE.
             IF (StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
@@ -1113,19 +1215,32 @@ CONTAINS
                END IF
             END IF
 
+            ! Implicit EHC coupling: Tsfc was solved with the conduction columns
+            ! in SUEWS_cal_Qs, so this routine only measures the change between
+            ! iterates (no residual inversion, relaxation or step limits),
+            ! except for water on the facet route, which keeps heatcond1d_CN
+            ! and the legacy relaxed update from its residual sensible heat.
+
             !============ calculate surface temperature ===============
-            IF (StorageHeatMethod == 5) THEN
+            IF (use_implicit) THEN
+               IF (use_building_facets_for_ehc) THEN
+                  tsfc_surf(WaterSurf) = tsfc0_out_surf(WaterSurf)*(1.0D0 - ratio_iter_water) &
+                                         + ratio_iter_water*cal_tsfc( &
+                                         QN_surf(WaterSurf) + qf_surf_ehc(WaterSurf) - QS_surf(WaterSurf) &
+                                         - QE_surf(WaterSurf), avdens, avcp, RA_h, temp_c)
+               END IF
+            ELSE IF (StorageHeatMethod == 5) THEN
                ! EHC solves QS from the current surface-temperature boundary.
                ! The next Tsurf iterate is therefore the temperature that would
                ! make aerodynamic sensible heat match the current surface energy
                ! residual: QN + QF - QS - QE.
                TSfc_C = cal_tsfc(qh_residual, avdens, avcp, RA_h, temp_c)
 
-                  DO i_surf = 1, nsurf
-                     tsfc_surf(i_surf) = cal_tsfc( &
-                        QN_surf(i_surf) + qf_surf_ehc(i_surf) - QS_surf(i_surf) - QE_surf(i_surf), &
-                        avdens, avcp, RA_h, temp_c)
-                  END DO
+               DO i_surf = 1, nsurf
+                  tsfc_surf(i_surf) = cal_tsfc( &
+                     QN_surf(i_surf) + qf_surf_ehc(i_surf) - QS_surf(i_surf) - QE_surf(i_surf), &
+                     avdens, avcp, RA_h, temp_c)
+               END DO
 
                IF (use_building_facets_for_ehc) THEN
                   DO i_layer = 1, nlayer
@@ -1166,25 +1281,32 @@ CONTAINS
                END IF
             END IF
             dif_qh_iter = 0.0D0
-            qh_flux_tol = 5.0D0
-            IF (StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
-               CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_QH_FLUX_TOL", env_value, STATUS=env_status)
-               IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-                  READ (env_value, *, IOSTAT=env_status) qh_flux_tol
-                  IF (env_status /= 0) qh_flux_tol = 5.0D0
-                  qh_flux_tol = MAX(0.1D0, qh_flux_tol)
-               END IF
-            END IF
-
-            ! ====test===
-            ! see if this converges better
-            ratio_iter = 0.3D0
-            IF (StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
-               CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_TSFC_RELAX", env_value, STATUS=env_status)
-               IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-                  READ (env_value, *, IOSTAT=env_status) ratio_iter
-                  IF (env_status /= 0) ratio_iter = 0.3D0
-                  ratio_iter = MAX(0.05D0, MIN(1.0D0, ratio_iter))
+            dif_tsfc_water = 0.0D0
+            ! outer-loop tolerances: the implicit coupling tests the full change
+            ! of the solved Tsfc and the closure of each facet balance
+            IF (use_implicit) THEN
+               tsfc_tol = tsfc_tol_implicit
+               qh_flux_tol = qh_flux_tol_implicit
+               ratio_iter = 1.0D0
+            ELSE
+               ! default-real literal, as in the legacy test (dif_tsfc_iter > .05),
+               ! so the explicit comparison is unchanged to the last bit
+               tsfc_tol = REAL(0.05, KIND(1D0))
+               qh_flux_tol = 5.0D0
+               ratio_iter = 0.3D0
+               IF (StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
+                  CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_QH_FLUX_TOL", env_value, STATUS=env_status)
+                  IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+                     READ (env_value, *, IOSTAT=env_status) qh_flux_tol
+                     IF (env_status /= 0) qh_flux_tol = 5.0D0
+                     qh_flux_tol = MAX(0.1D0, qh_flux_tol)
+                  END IF
+                  CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_TSFC_RELAX", env_value, STATUS=env_status)
+                  IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+                     READ (env_value, *, IOSTAT=env_status) ratio_iter
+                     IF (env_status /= 0) ratio_iter = 0.3D0
+                     ratio_iter = MAX(0.05D0, MIN(1.0D0, ratio_iter))
+                  END IF
                END IF
             END IF
             tsfc_surf = (tsfc0_out_surf*(1 - ratio_iter) + tsfc_surf*ratio_iter)
@@ -1193,7 +1315,55 @@ CONTAINS
                tsfc_wall = (tsfc0_out_wall*(1 - ratio_iter) + tsfc_wall*ratio_iter)
             END IF
 
-            IF (StorageHeatMethod == 5) THEN
+            IF (use_implicit) THEN
+               IF (use_building_facets_for_ehc) THEN
+                  ! water keeps its relaxed fixed-point step (omega 0.3), so a
+                  ! 0.01 K test on that step would need ~13 passes per kelvin
+                  ! of initial error; it keeps the legacy 0.05 K test instead
+                  IF (sfr_surf(WaterSurf) > 0.0D0) THEN
+                     dif_tsfc_water = ABS(tsfc_surf(WaterSurf) - tsfc0_out_surf(WaterSurf))
+                  END IF
+                  active_nonwater_mask = (sfr_surf > 0.0D0) .AND. [(i_surf /= WaterSurf, i_surf=1, nsurf)]
+                  IF (ANY(active_nonwater_mask)) THEN
+                     dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf), MASK=active_nonwater_mask)
+                  ELSE
+                     dif_tsfc_iter = 0.0D0
+                  END IF
+                  IF (sfr_surf(BldgSurf) > 0.0D0) THEN
+                     dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc_roof - tsfc0_out_roof)), dif_tsfc_iter)
+                     dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc_wall - tsfc0_out_wall)), dif_tsfc_iter)
+                  END IF
+               ELSE
+                  IF (ANY(sfr_surf > 0.0D0)) THEN
+                     dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf), MASK=(sfr_surf > 0.0D0))
+                  ELSE
+                     dif_tsfc_iter = 0.0D0
+                  END IF
+               END IF
+               ! closure of each solved surface balance with the updated QE and r_a
+               IF (RA_h > 0.0D0 .AND. avdens > 0.0D0 .AND. avcp > 0.0D0) THEN
+                  DO i_surf = 1, nsurf
+                     ! the building tile is its facets; water on the facet
+                     ! route converges through its relaxed Tsfc step instead
+                     IF (use_building_facets_for_ehc .AND. (i_surf == BldgSurf .OR. i_surf == WaterSurf)) CYCLE
+                     IF (sfr_surf(i_surf) <= 0.0D0) CYCLE
+                     qh_resist_iter = avdens*avcp*(tsfc_surf(i_surf) - temp_c)/RA_h
+                     dif_qh_iter = MAX(dif_qh_iter, ABS( &
+                        QN_surf(i_surf) + qf_surf_ehc(i_surf) - QS_surf(i_surf) - QE_surf(i_surf) - qh_resist_iter))
+                  END DO
+                  IF (use_building_facets_for_ehc .AND. sfr_surf(BldgSurf) > 0.0D0) THEN
+                     DO i_layer = 1, nlayer
+                        qh_resist_iter = avdens*avcp*(tsfc_roof(i_layer) - temp_c)/RA_h
+                        dif_qh_iter = MAX(dif_qh_iter, ABS( &
+                           QN_roof(i_layer) - QS_roof(i_layer) - QE_roof(i_layer) - qh_resist_iter))
+                        qh_resist_iter = avdens*avcp*(tsfc_wall(i_layer) - temp_c)/RA_h
+                        dif_qh_iter = MAX(dif_qh_iter, ABS( &
+                           QN_wall(i_layer) - QS_wall(i_layer) - QE_wall(i_layer) - qh_resist_iter))
+                     END DO
+                  END IF
+               END IF
+               TSfc_C = DOT_PRODUCT(tsfc_surf, sfr_surf)
+            ELSE IF (StorageHeatMethod == 5) THEN
                ! The EHC Tsurf update is a fixed-point iterate inferred from the
                ! residual sensible heat flux. Keep that numerical iterate within
                ! a physical envelope so a bad residual cannot pollute heat or
@@ -1271,7 +1441,8 @@ CONTAINS
 
             ! Test if sensible heat fluxes converge in iterations
             ! MP Testing 0.1 -> 0.05
-            IF (dif_tsfc_iter > .05 .OR. dif_qh_iter > qh_flux_tol) THEN
+            IF (dif_tsfc_iter > tsfc_tol .OR. dif_qh_iter > qh_flux_tol &
+                .OR. dif_tsfc_water > REAL(0.05, KIND(1D0))) THEN
                flag_converge = .FALSE.
             ELSE
                flag_converge = .TRUE.
@@ -1377,7 +1548,7 @@ CONTAINS
 ! ===================ANTHROPOGENIC HEAT + CO2 FLUX================================
    SUBROUTINE SUEWS_cal_AnthropogenicEmission( &
       timer, config, forcing, siteInfo, & ! input
-      modState) ! input/output:
+      modState, ehcDiag) ! input/output:
 
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                anthroEmis_STATE, atm_state, SUEWS_STATE
@@ -1389,6 +1560,7 @@ CONTAINS
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
       TYPE(SUEWS_STATE), INTENT(INout) :: modState
+      TYPE(dts_ehc_diagnostics), INTENT(INOUT) :: ehcDiag
       ! TYPE(anthroEmis_STATE), INTENT(INout) :: anthroEmisState
       ! TYPE(heat_STATE), INTENT(INout) :: heatState
       ! TYPE(atm_state), INTENT(INout) :: atmState
@@ -1507,6 +1679,13 @@ CONTAINS
 
                IF (EmissionsMethod == 0) THEN ! use observed qf
                   qf = QF_obs
+                  ! Observed QF carries no split by source. Fallback: the
+                  ! site's building energy-use fraction of the base QF,
+                  ! QF0_BEU (weekday/weekend), applied to the whole observed
+                  ! value; it omits the heating and cooling terms that the
+                  ! modelled methods attribute to buildings, so it is likely
+                  ! low in winter. Diagnostic only (EHC output group).
+                  ehcDiag%qf_build = QF0_BEU(cal_weekday_index(DayofWeek_id(1)))*qf
                ELSEIF ((EmissionsMethod > 0 .AND. EmissionsMethod <= 6) .OR. EmissionsMethod >= 11) THEN
                   ! choose temperature for anthropogenic heat flux calculation
                   Tair = MERGE(T_half_bldg_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
@@ -1525,7 +1704,7 @@ CONTAINS
                      QF0_BEU, QF_SAHP, &
                      Fc_anthro, Fc_metab, Fc_traff, Fc_build, Fc_point, &
                      AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea, &
-                     modState)
+                     modState, ehcDiag%qf_build)
                   IF (supy_error_flag()) RETURN
 
                ELSE
@@ -2125,7 +2304,7 @@ CONTAINS
 
    SUBROUTINE SUEWS_cal_Qs( &
       timer, config, forcing, siteInfo, datetimeLine, & ! input
-      modState, & ! input/output:
+      modState, ehcDiag, & ! input/output:
       dataOutLineESTM, dataOutLineSTEBBS)
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_TIMER, &
@@ -2143,6 +2322,7 @@ CONTAINS
       TYPE(SUEWS_SITE), INTENT(in) :: siteInfo
       REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine !date & time
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
+      TYPE(dts_ehc_diagnostics), INTENT(inout) :: ehcDiag
 
       REAL(KIND(1D0)) :: OHM_coef(nsurf + 1, 4, 3) ! OHM coefficients [-]
       REAL(KIND(1D0)) :: OHM_threshSW(nsurf + 1) ! Temperature threshold determining whether summer/winter OHM coefficients are applied [degC]
@@ -2166,6 +2346,9 @@ CONTAINS
       REAL(KIND(1D0)) :: Tair_mav_5d ! Tair_mav_5d=HDD(id-1,4) HDD at the begining of today (id-1)
       REAL(KIND(1D0)) :: qn_use ! qn used in OHM calculations [W m-2]
       CHARACTER(LEN=12) :: str_storage_heat ! StorageHeatMethod as text for the error message
+      ! EHC implicit surface coupling: linearised surface energy balance,
+      ! lower-boundary temperatures and the solved surface temperatures
+      TYPE(dts_ehc_implicit) :: ehc_seb
 
       ASSOCIATE ( &
          atmState => modState%atmState, &
@@ -2585,18 +2768,52 @@ CONTAINS
                   ! ASSOCIATE (v => dz_wall(1, 1:ndepth))
                   !    PRINT *, 'dz_wall in cal_qs', v, SIZE(v)
                   ! END ASSOCIATE
-                  CALL EHC( &
-                     tstep, & !input
-                     nlayer, config%NetRadiationMethod <= 1000, &
-                     ! QG_surf, qg_roof, qg_wall, &
-                     tsfc_roof, tin_roof, temp_in_roof, k_roof, cp_roof, dz_roof, sfr_roof, & !input
-                     tsfc_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & !input
-                     tsfc_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & !input
-                     heatState%temp_roof, QS_roof, & !output
-                     heatState%temp_wall, QS_wall, & !output
-                     heatState%temp_surf, heatState%temp_surf_ehc_fast, heatState%temp_surf_ehc_slow, QS_surf, & !output
-                     QS, & !output
-                     modState%errorState)
+                  IF (config%EHCSurfaceCoupling == 1) THEN
+                     ALLOCATE (ehc_seb%a_roof(nlayer), ehc_seb%b_roof(nlayer), &
+                               ehc_seb%a_wall(nlayer), ehc_seb%b_wall(nlayer), &
+                               ehc_seb%tsfc_roof(nlayer), ehc_seb%tsfc_wall(nlayer))
+                     CALL ehc_seb_linearisation( &
+                        config, forcing, siteInfo, modState, & ! input
+                        ehc_seb) ! inout: a, b
+                     CALL ehc_implicit_boundaries( &
+                        config, timer, siteInfo, modState, & ! input
+                        ehc_seb) ! inout: t_deep_surf, t_indoor
+                     CALL EHC( &
+                        tstep, & !input
+                        nlayer, config%NetRadiationMethod <= 1000, &
+                        tsfc_roof, tin_roof, temp_in_roof, k_roof, cp_roof, dz_roof, sfr_roof, & !input
+                        tsfc_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & !input
+                        tsfc_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & !input
+                        heatState%temp_roof, QS_roof, & !output
+                        heatState%temp_wall, QS_wall, & !output
+                        heatState%temp_surf, heatState%temp_surf_ehc_fast, heatState%temp_surf_ehc_slow, QS_surf, & !output
+                        QS, & !output
+                        ehcDiag%ehc_dudt, ehcDiag%ehc_q_bottom, ehcDiag%ehc_q_indoor, & !output
+                        modState%errorState, &
+                        ehc_seb)
+                     IF (supy_error_flag()) RETURN
+                     CALL ehc_apply_implicit_tsfc( &
+                        config, forcing, siteInfo, ehc_seb, & ! input
+                        modState) ! inout
+                     ehcDiag%ehc_t_indoor = ehc_seb%t_indoor
+                     ehcDiag%ehc_t_deep = cal_ehc_ground_mean(ehc_seb%t_deep_surf, siteInfo%sfr_surf)
+                  ELSE
+                     CALL EHC( &
+                        tstep, & !input
+                        nlayer, config%NetRadiationMethod <= 1000, &
+                        ! QG_surf, qg_roof, qg_wall, &
+                        tsfc_roof, tin_roof, temp_in_roof, k_roof, cp_roof, dz_roof, sfr_roof, & !input
+                        tsfc_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & !input
+                        tsfc_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & !input
+                        heatState%temp_roof, QS_roof, & !output
+                        heatState%temp_wall, QS_wall, & !output
+                        heatState%temp_surf, heatState%temp_surf_ehc_fast, heatState%temp_surf_ehc_slow, QS_surf, & !output
+                        QS, & !output
+                        ehcDiag%ehc_dudt, ehcDiag%ehc_q_bottom, ehcDiag%ehc_q_indoor, & !output
+                        modState%errorState)
+                     ehcDiag%ehc_t_indoor = -999.0D0
+                     ehcDiag%ehc_t_deep = cal_ehc_ground_mean(tin_surf, siteInfo%sfr_surf)
+                  END IF
 
                   ! TODO: add deltaQi to output for snow heat storage
 
@@ -3585,8 +3802,12 @@ CONTAINS
                   ! == calculate QE ==
                   ! --- general suews surfaces ---
                   ! net available energy for evaporation
-                  CALL configure_ehc_qf_surface_allocation( &
-                     storageheatmethod, config%NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+                  IF (storageheatmethod == 5 .AND. config%EHCSurfaceCoupling == 1) THEN
+                     qf_surf_ehc = qf
+                  ELSE
+                     CALL configure_ehc_qf_surface_allocation( &
+                        storageheatmethod, config%NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+                  END IF
                   qn_e_surf = qn_surf + qf_surf_ehc - qs_surf ! qn1 changed to qn1_snowfree, lj in May 2013
 
                ! soil store capacity
@@ -3735,7 +3956,7 @@ CONTAINS
 
    SUBROUTINE SUEWS_cal_QH( &
       timer, config, forcing, siteInfo, & ! input
-      modState) ! input/output:
+      modState, ehcDiag) ! input/output:
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, &
@@ -3749,6 +3970,7 @@ CONTAINS
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
+      TYPE(dts_ehc_diagnostics), INTENT(inout) :: ehcDiag
 
       INTEGER :: is
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qf_surf_ehc
@@ -3827,7 +4049,21 @@ CONTAINS
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             use_building_facets_for_ehc = storageheatmethod == 5 .AND. NetRadiationMethod > 1000
-            CALL configure_ehc_qf_surface_allocation(storageheatmethod, NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+            IF (storageheatmethod == 5 .AND. config%EHCSurfaceCoupling == 1) THEN
+               CALL ehc_implicit_qf_surface(sfr_surf, ehcDiag%ehc_q_indoor, qf_surf_ehc)
+            ELSE
+               CALL configure_ehc_qf_surface_allocation(storageheatmethod, NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
+            END IF
+            IF (storageheatmethod == 5) THEN
+               ! QF that enters no surface energy balance: on the explicit
+               ! facet route the building tile's share, in the implicit
+               ! coupling everything but the indoor input to the envelope
+               IF (use_building_facets_for_ehc .AND. config%EHCSurfaceCoupling /= 1) THEN
+                  ehcDiag%ehc_qf_air = qf - DOT_PRODUCT(qf_surf_ehc, sfr_surf) + qf_surf_ehc(BldgSurf)*sfr_surf(BldgSurf)
+               ELSE
+                  ehcDiag%ehc_qf_air = qf - DOT_PRODUCT(qf_surf_ehc, sfr_surf)
+               END IF
+            END IF
             qh_residual = (qn + qf + QmRain) - (qe + qs + Qm + QmFreez) !qh=(qn1+qf+QmRain+QmFreez)-(qeOut+qs+Qm)
 
             ! Calculate resistance-based QH as the physical counterpart to the
@@ -3895,9 +4131,67 @@ CONTAINS
 
 !===============Resistance Calculations=======================
 
+   SUBROUTINE ehc_stability_start(history, qh)
+      TYPE(dts_ehc_stability_iteration), INTENT(OUT) :: history
+      REAL(KIND(1D0)), INTENT(IN) :: qh
+
+      history%qh = qh
+      history%qh_negative = qh
+      history%qh_positive = qh
+      history%residual_negative = 0.0D0
+      history%residual_positive = 0.0D0
+      history%has_negative = .FALSE.
+      history%has_positive = .FALSE.
+   END SUBROUTINE ehc_stability_start
+
+   SUBROUTINE ehc_stability_update(method, history, qh_residual)
+      INTEGER, INTENT(IN) :: method
+      TYPE(dts_ehc_stability_iteration), INTENT(INOUT) :: history
+      REAL(KIND(1D0)), INTENT(IN) :: qh_residual
+      REAL(KIND(1D0)), PARAMETER :: QH_RELAXATION = 0.25D0
+      REAL(KIND(1D0)), PARAMETER :: SECANT_MARGIN = 0.1D0
+      REAL(KIND(1D0)) :: residual, proposal, lower, upper, width
+
+      ! Residual of the outer QH map, evaluated after the current heat balance.
+      ! Other coupled fields are still iterating: this is an acceleration,
+      ! not a proof of a scalar bracket. The caller verifies the original map.
+      residual = qh_residual - history%qh
+      IF (residual == 0.0D0) RETURN
+      proposal = history%qh + QH_RELAXATION*residual
+      IF (method == 2) THEN
+         IF (residual < 0.0D0) THEN
+            history%qh_negative = history%qh
+            history%residual_negative = residual
+            history%has_negative = .TRUE.
+         ELSE IF (residual > 0.0D0) THEN
+            history%qh_positive = history%qh
+            history%residual_positive = residual
+            history%has_positive = .TRUE.
+         END IF
+         IF (history%has_negative .AND. history%has_positive) THEN
+            lower = MIN(history%qh_negative, history%qh_positive)
+            upper = MAX(history%qh_negative, history%qh_positive)
+            width = upper - lower
+            IF (width > EPSILON(width)*MAX(1.0D0, ABS(lower), ABS(upper))) THEN
+               proposal = history%qh_positive - history%residual_positive &
+                          *(history%qh_positive - history%qh_negative) &
+                          /(history%residual_positive - history%residual_negative)
+               ! Central 80% safeguard avoids endpoint stagnation. A narrow
+               ! bracket falls back to the same 0.25 relaxed update.
+               IF (proposal < lower + SECANT_MARGIN*width .OR. proposal > upper - SECANT_MARGIN*width) &
+                  proposal = lower + 0.5D0*width
+            ELSE
+               history%has_negative = .FALSE.
+               history%has_positive = .FALSE.
+            END IF
+         END IF
+      END IF
+      history%qh = proposal
+   END SUBROUTINE ehc_stability_update
+
    SUBROUTINE SUEWS_cal_Resistance( &
       timer, config, forcing, siteInfo, & ! input
-      modState, w_f_pass_prev, skip_relaxation) ! input/output:
+      modState, w_f_pass_prev, skip_relaxation, qh_stability) ! input/output:
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, CONDUCTANCE_PRM, &
                                SUEWS_FORCING, &
@@ -3920,7 +4214,9 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(INOUT) :: w_f_pass_prev
 
       LOGICAL, INTENT(IN), OPTIONAL :: skip_relaxation
+      REAL(KIND(1D0)), INTENT(IN), OPTIONAL :: qh_stability
       LOGICAL :: apply_relaxation
+      REAL(KIND(1D0)) :: qh_stability_input
 
       INTEGER, PARAMETER :: AerodynamicResistanceMethod = 2 !method to calculate RA [-]
 
@@ -3942,6 +4238,9 @@ CONTAINS
       INTEGER :: env_status
       CHARACTER(LEN=64) :: env_value
       CHARACTER(LEN=64) :: ehc_ra_heat_mode
+      ! implicit EHC: r_a of the previous Tsfc iterate, for a damped update
+      REAL(KIND(1D0)) :: ra_prev_iter
+      REAL(KIND(1D0)), PARAMETER :: ehc_implicit_ra_relax = 0.5D0
 
       apply_relaxation = .TRUE.
       IF (PRESENT(skip_relaxation)) apply_relaxation = .NOT. skip_relaxation
@@ -4030,6 +4329,8 @@ CONTAINS
                RAsnow = 0.0
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling STAB_lumps...'
+               qh_stability_input = QH_init
+               IF (PRESENT(qh_stability)) qh_stability_input = qh_stability
                !u* and Obukhov length out
                ! (z-d)/L carried from the previous outer pass (atmState is iteration-safe)
                zL_prev_pass = zL
@@ -4040,7 +4341,7 @@ CONTAINS
                   zdm, & !zero-plane displacement
                   avU1, & !Average wind speed
                   Temp_C, & !Air temperature
-                  QH_init, & !sensible heat flux
+                  qh_stability_input, & !sensible heat flux; ledger QH is never changed
                   avdens, & ! air density
                   avcp, & ! heat capacity of air
                   L_mod, & ! output: !Obukhov length
@@ -4053,7 +4354,7 @@ CONTAINS
                ! timestep takes the solve as it is
                IF (apply_relaxation .AND. modState%flagState%i_iter > 1) THEN
                   zL = relax_zl(zL_prev_pass, zL, modState%flagState%i_iter)
-                  CALL stability_scales(StabilityMethod, zzd, z0m, avU1, QH_init/(avdens*avcp), &
+                  CALL stability_scales(StabilityMethod, zzd, z0m, avU1, qh_stability_input/(avdens*avcp), &
                                         zL, L_mod, UStar, TStar)
                   IF (supy_error_flag()) RETURN
                END IF
@@ -4062,7 +4363,7 @@ CONTAINS
                ! flux on the unstable branch, damped between passes like (z-d)/L;
                ! the caller holds the previous pass's value for this timestep
                IF (zL < 0.0D0) THEN
-                  w_f_new = free_convection_velocity(QH_init/(avdens*avcp), Temp_C, zzd)
+                  w_f_new = free_convection_velocity(qh_stability_input/(avdens*avcp), Temp_C, zzd)
                ELSE
                   w_f_new = 0.0D0
                END IF
@@ -4071,6 +4372,7 @@ CONTAINS
                IF (apply_relaxation) w_f_pass_prev = w_f_pass
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling AerodynamicResistance...'
+               ra_prev_iter = RA
                CALL AerodynamicResistance( &
                   ZZD, & ! input:
                   z0m, &
@@ -4086,7 +4388,15 @@ CONTAINS
                   modState)
                IF (supy_error_flag()) RETURN
 
-               IF (config%StorageHeatMethod == 5 .AND. ehc_experimental_controls_enabled()) THEN
+               ! Implicit EHC removes the conduction slope from the Tsfc
+               ! iteration; the remaining Tsfc -> QH -> L -> r_a feedback
+               ! can oscillate in stable conditions. Retain the 0.5 r_a
+               ! damping on relaxed passes from outer pass 2 onwards.
+               IF (apply_relaxation .AND. config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1 &
+                   .AND. modState%flagState%i_iter > 1 .AND. ra_prev_iter > 0.0D0) THEN
+                  RA = ra_prev_iter + ehc_implicit_ra_relax*(RA - ra_prev_iter)
+               ELSE IF (config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling /= 1 &
+                        .AND. ehc_experimental_controls_enabled()) THEN
                   ehc_ra_heat_factor = 1.0D0
                   CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_RA_HEAT_FACTOR", env_value, STATUS=env_status)
                   IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
@@ -4528,7 +4838,7 @@ CONTAINS
 !==============Update output arrays=========================
    SUBROUTINE EHC_update_outputLine( &
       timer, & !input
-      modState, & ! input/output:
+      modState, ehcDiag, & ! input/output:
       datetimeLine, dataOutLineEHC) !output
 
       USE module_ctrl_type, ONLY: SUEWS_TIMER, HEAT_STATE, HYDRO_STATE, SUEWS_STATE
@@ -4537,6 +4847,7 @@ CONTAINS
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
+      TYPE(dts_ehc_diagnostics), INTENT(IN) :: ehcDiag
 
       ! TYPE(HEAT_STATE), INTENT(IN) :: heatState
       ! TYPE(HYDRO_STATE), INTENT(IN) :: hydroState
@@ -4572,7 +4883,14 @@ CONTAINS
             QE_wall => heatState%QE_wall, &
             QH_wall => heatState%QH_wall, &
             state_wall => hydroState%state_wall, &
-            soilstore_wall => hydroState%soil_store_wall &
+            soilstore_wall => hydroState%soil_store_wall, &
+            ehc_dudt => ehcDiag%ehc_dudt, &
+            ehc_q_bottom => ehcDiag%ehc_q_bottom, &
+            ehc_q_indoor => ehcDiag%ehc_q_indoor, &
+            qf_build => ehcDiag%qf_build, &
+            ehc_qf_air => ehcDiag%ehc_qf_air, &
+            ehc_t_indoor => ehcDiag%ehc_t_indoor, &
+            ehc_t_deep => ehcDiag%ehc_t_deep &
             &)
 
             ! date & time:
@@ -4596,7 +4914,9 @@ CONTAINS
                              fill_sim_res(QE_wall, n_fill), &
                              fill_sim_res(QH_wall, n_fill), &
                              fill_sim_res(state_wall, n_fill), &
-                             fill_sim_res(soilstore_wall, n_fill) &
+                             fill_sim_res(soilstore_wall, n_fill), &
+                             ehc_dudt, ehc_q_bottom, ehc_q_indoor, qf_build, ehc_qf_air, &
+                             ehc_t_indoor, ehc_t_deep &
                              ]
 
             ! set invalid values to NAN
@@ -6617,6 +6937,238 @@ CONTAINS
       state_iter%temp_surf_ehc_fast = state_stepstart%temp_surf_ehc_fast
       state_iter%temp_surf_ehc_slow = state_stepstart%temp_surf_ehc_slow
    END SUBROUTINE reset_ehc_heat_state_for_tsurf_iteration
+
+   SUBROUTINE ehc_seb_linearisation( &
+      config, forcing, siteInfo, modState, &
+      seb)
+      ! Linearise each facet's surface energy balance about the current Tsfc
+      ! iterate Ts* for the implicit EHC coupling:
+      !    Q*(Ts) - QE - rho*cp*(Ts - Ta)/r_a - G = 0,
+      !    Q*(Ts) ~ Q*(Ts*) - R1*(Ts - Ts*),  R1 = 4*emis*sigma*Ts*^3,
+      ! giving  a - b*Ts - G = 0  with  b = rho*cp/r_a + R1  and
+      ! a = Q*(Ts*) - QE + R1*Ts* + rho*cp*Ta/r_a  [W m-2, per facet area].
+      ! No facet carries QF: traffic and metabolic heat enter the canyon air,
+      ! and building energy use reaches the envelope through its indoor
+      ! boundary (see ehc_implicit_qf_surface).
+      ! R1 is zero where outgoing longwave is built from air temperature
+      ! (NARP methods below 10). QE is the latest iterate (lagged by one Tsfc
+      ! iteration), and r_a carries the stability correction of the latest
+      ! QH; both are refreshed by the driver's outer iteration.
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_STATE), INTENT(IN) :: modState
+      TYPE(dts_ehc_implicit), INTENT(INOUT) :: seb
+
+      ! r_a used before any resistance exists (first step of a run) [s m-1]
+      REAL(KIND(1D0)), PARAMETER :: ra_fallback = 50.0D0
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: emis_surf, r1_surf
+      REAL(KIND(1D0)), DIMENSION(siteInfo%nlayer) :: r1_roof, r1_wall
+      REAL(KIND(1D0)) :: h, ra
+      LOGICAL :: lup_from_tsfc
+
+      ASSOCIATE (heatState => modState%heatState, atmState => modState%atmState)
+         ra = atmState%RA_h
+         IF (.NOT. ra > 0.0D0) ra = ra_fallback
+         h = atmState%av_density*atmState%av_cp/ra
+
+         lup_from_tsfc = config%NetRadiationMethod >= 10
+         emis_surf = [siteInfo%lc_paved%emis, siteInfo%lc_bldg%emis, siteInfo%lc_evetr%emis, &
+                      siteInfo%lc_dectr%emis, siteInfo%lc_grass%emis, siteInfo%lc_bsoil%emis, &
+                      siteInfo%lc_water%emis]
+         r1_surf = 0.0D0
+         r1_roof = 0.0D0
+         r1_wall = 0.0D0
+         IF (lup_from_tsfc) THEN
+            r1_surf = 4.0D0*emis_surf*SBConst*(heatState%tsfc_surf + C2K)**3
+            IF (config%NetRadiationMethod > 1000) THEN
+               r1_roof = 4.0D0*siteInfo%spartacus_layer%emis_roof(1:siteInfo%nlayer)*SBConst &
+                         *(heatState%tsfc_roof + C2K)**3
+               r1_wall = 4.0D0*siteInfo%spartacus_layer%emis_wall(1:siteInfo%nlayer)*SBConst &
+                         *(heatState%tsfc_wall + C2K)**3
+            END IF
+         END IF
+
+         seb%b_surf = h + r1_surf
+         seb%a_surf = heatState%QN_surf - heatState%QE_surf + r1_surf*heatState%tsfc_surf + h*forcing%temp_c
+         seb%b_roof = h + r1_roof
+         seb%a_roof = heatState%QN_roof - heatState%QE_roof + r1_roof*heatState%tsfc_roof + h*forcing%temp_c
+         seb%b_wall = h + r1_wall
+         seb%a_wall = heatState%QN_wall - heatState%QE_wall + r1_wall*heatState%tsfc_wall + h*forcing%temp_c
+      END ASSOCIATE
+   END SUBROUTINE ehc_seb_linearisation
+
+   SUBROUTINE ehc_init_envelope(config, timer, forcing, siteInfo, modState)
+      ! EHC roof/wall outer faces contact outdoor air; no ground-floor
+      ! envelope column exists on this route. Deep-soil ground columns and
+      ! the shared slab retain their configured initial temperatures.
+      ! This optional initial approximation balances conduction, not the full
+      ! radiative/convective SEB; subsequent timesteps solve that SEB normally.
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      TYPE(dts_ehc_implicit) :: seb
+      INTEGER :: i
+
+      CALL ehc_implicit_boundaries(config, timer, siteInfo, modState, seb)
+      DO i = 1, siteInfo%nlayer
+         CALL ehc_init_profile(siteInfo%ehc%dz_roof(i, :), siteInfo%ehc%k_roof(i, :), &
+                               forcing%temp_c, seb%t_indoor, seb%r_indoor_roof, modState%heatState%temp_roof(i, :))
+         CALL ehc_init_profile(siteInfo%ehc%dz_wall(i, :), siteInfo%ehc%k_wall(i, :), &
+                               forcing%temp_c, seb%t_indoor, seb%r_indoor_wall, modState%heatState%temp_wall(i, :))
+      END DO
+   END SUBROUTINE ehc_init_envelope
+
+   SUBROUTINE ehc_implicit_boundaries( &
+      config, timer, siteInfo, modState, &
+      seb)
+      ! Lower-boundary temperatures of the implicit EHC columns.
+      !
+      ! Deep soil, under each ground surface: the annual surface temperature
+      ! wave propagated to the bottom of that surface's column by the
+      ! analytical solution for a periodic boundary on a homogeneous
+      ! half-space,
+      !    T(z, t) = Tm - A exp(-z/d) cos(w (t - t0) - z/d),  d = SQRT(2 kappa/w),
+      ! with w = 2 pi / (365.25 days), z the column depth (sum of its layer
+      ! thicknesses), kappa = z**2/(R C) the diffusivity of a homogeneous
+      ! slab with the column's thermal resistance R = sum(dz/k) and heat
+      ! capacity C = sum(rho_cp dz), Tm the annual mean air temperature and A
+      ! half the largest difference between monthly mean air temperatures
+      ! (properties.stebbs.temperature_air_annual_mean and
+      ! temperature_air_month_mean_diffmax, used whether or not STEBBS runs),
+      ! and t0 the coldest day of the surface wave: 15 January in the
+      ! northern hemisphere, half a year later in the southern.
+      ! YAML defaults are 10 degC for the mean and 10 K for the range;
+      ! method-5 users should set both for their site's climate.
+      ! Only a state with both values zero keeps the configured tin;
+      ! omitting these properties from YAML does not select that fallback.
+      !
+      ! Indoor, for the roof and wall columns and the building surface of the
+      ! plan-area slab: STEBBS's indoor air temperature where STEBBS runs,
+      ! otherwise properties.stebbs.temperature_air_indoor_initial, or
+      ! 20 degC where that is unset (zero).
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_STATE), INTENT(IN) :: modState
+      TYPE(dts_ehc_implicit), INTENT(INOUT) :: seb
+
+      REAL(KIND(1D0)), PARAMETER :: days_per_year = 365.25D0
+      REAL(KIND(1D0)), PARAMETER :: coldest_day_north = 15.0D0 ! day of year
+      REAL(KIND(1D0)), PARAMETER :: t_indoor_default = 20.0D0 ! [degC]
+      REAL(KIND(1D0)) :: w_day, w_sec, t_mean, t_amp, t0, phase
+      REAL(KIND(1D0)) :: depth, resist, cap, kappa, d_damp
+      INTEGER :: i_surf
+
+      seb%r_indoor_roof = config%resistance_ehc_indoor_roof
+      seb%r_indoor_wall = config%resistance_ehc_indoor_wall
+      ASSOCIATE (stebbsState => modState%stebbsState, ehcPrm => siteInfo%ehc)
+         t_mean = stebbsState%deep_soil_temperature
+         t_amp = 0.5D0*stebbsState%MonthMeanAirTemperature_diffmax
+         w_day = 2.0D0*pi/days_per_year
+         w_sec = w_day/REAL(sec_per_day, KIND(1D0))
+         t0 = coldest_day_north
+         IF (siteInfo%lat < 0.0D0) t0 = t0 + 0.5D0*days_per_year
+         ! timer%dectime counts days from the start of the year (0 at
+         ! 1 January 00:00)
+         phase = w_day*(timer%dectime + 1.0D0 - t0)
+
+         seb%t_deep_surf = ehcPrm%tin_surf
+         IF (t_mean /= 0.0D0 .OR. t_amp /= 0.0D0) THEN
+            DO i_surf = 1, nsurf
+               depth = SUM(ehcPrm%dz_surf(i_surf, :))
+               IF (ANY(ehcPrm%dz_surf(i_surf, :) <= 0.0D0) .OR. ANY(ehcPrm%k_surf(i_surf, :) <= 0.0D0) &
+                   .OR. ANY(ehcPrm%cp_surf(i_surf, :) <= 0.0D0)) THEN
+                  seb%t_deep_surf(i_surf) = t_mean
+                  CYCLE
+               END IF
+               resist = SUM(ehcPrm%dz_surf(i_surf, :)/ehcPrm%k_surf(i_surf, :))
+               cap = SUM(ehcPrm%cp_surf(i_surf, :)*ehcPrm%dz_surf(i_surf, :))
+               kappa = depth**2/(resist*cap)
+               d_damp = SQRT(2.0D0*kappa/w_sec)
+               seb%t_deep_surf(i_surf) = t_mean - t_amp*EXP(-depth/d_damp)*COS(phase - depth/d_damp)
+            END DO
+         END IF
+
+         seb%t_indoor = t_indoor_default
+         IF (stebbsState%indoor_air_start_temperature /= 0.0D0) &
+            seb%t_indoor = stebbsState%indoor_air_start_temperature
+         IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
+            IF (ALLOCATED(stebbsState%buildings) .AND. modState%flagState%stebbs_bldg_init == 1) THEN
+               IF (SIZE(stebbsState%buildings) >= 1) seb%t_indoor = stebbsState%buildings(1)%Tair_ind - C2K
+            END IF
+         END IF
+      END ASSOCIATE
+   END SUBROUTINE ehc_implicit_boundaries
+
+   SUBROUTINE ehc_apply_implicit_tsfc( &
+      config, forcing, siteInfo, seb, modState)
+      ! Carry the surface temperatures solved with the conduction columns into
+      ! the model state. With building facets, the building tile has no column
+      ! of its own: its Tsfc is the one whose aerodynamic flux equals the
+      ! area-weighted roof and wall fluxes, matching how QS and QH aggregate.
+      ! Water on the facet route is not solved here (EHC returns its input
+      ! Tsfc); suews_update_tsurf updates it.
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(dts_ehc_implicit), INTENT(IN) :: seb
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+
+      ASSOCIATE (heatState => modState%heatState, sfr_bldg => siteInfo%sfr_surf(BldgSurf), &
+                 nlayer => siteInfo%nlayer)
+         heatState%tsfc_surf = seb%tsfc_surf
+         IF (config%NetRadiationMethod > 1000) THEN
+            heatState%tsfc_roof = seb%tsfc_roof(1:nlayer)
+            heatState%tsfc_wall = seb%tsfc_wall(1:nlayer)
+            IF (sfr_bldg > 1.0D-8) THEN
+               heatState%tsfc_surf(BldgSurf) = forcing%temp_c + &
+                  (DOT_PRODUCT(siteInfo%sfr_roof, seb%tsfc_roof(1:nlayer) - forcing%temp_c) &
+                   + DOT_PRODUCT(siteInfo%sfr_wall, seb%tsfc_wall(1:nlayer) - forcing%temp_c))/sfr_bldg
+            END IF
+         END IF
+         heatState%tsfc_c = DOT_PRODUCT(heatState%tsfc_surf, siteInfo%sfr_surf)
+      END ASSOCIATE
+   END SUBROUTINE ehc_apply_implicit_tsfc
+
+   SUBROUTINE ehc_implicit_qf_surface(sfr_surf, q_indoor, qf_surf)
+      ! QF entering each surface's energy balance in the implicit EHC
+      ! coupling. Facets carry no QF; the building tile carries the heat its
+      ! envelope receives from the indoor boundary (q_indoor, plan-area
+      ! weighted), so its residual QH equals the aerodynamic flux of its
+      ! facets. The rest of the grid QF, QF - q_indoor (traffic, metabolism
+      ! and any building energy use that does not pass through the
+      ! envelope), enters the canyon air and appears only in the grid QH.
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: sfr_surf
+      REAL(KIND(1D0)), INTENT(IN) :: q_indoor
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(OUT) :: qf_surf
+
+      qf_surf = 0.0D0
+      IF (sfr_surf(BldgSurf) > 1.0D-8 .AND. q_indoor > -999.0D0) qf_surf(BldgSurf) = q_indoor/sfr_surf(BldgSurf)
+   END SUBROUTINE ehc_implicit_qf_surface
+
+   PURE FUNCTION cal_ehc_ground_mean(t_surf, sfr_surf) RESULT(t_mean)
+      ! area-weighted mean over the covered non-building surfaces
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: t_surf, sfr_surf
+      REAL(KIND(1D0)) :: t_mean
+      REAL(KIND(1D0)) :: w
+      INTEGER :: i_surf
+
+      t_mean = 0.0D0
+      w = 0.0D0
+      DO i_surf = 1, nsurf
+         IF (i_surf == BldgSurf .OR. sfr_surf(i_surf) <= 0.0D0) CYCLE
+         t_mean = t_mean + sfr_surf(i_surf)*t_surf(i_surf)
+         w = w + sfr_surf(i_surf)
+      END DO
+      IF (w > 0.0D0) THEN
+         t_mean = t_mean/w
+      ELSE
+         t_mean = -999.0D0
+      END IF
+   END FUNCTION cal_ehc_ground_mean
 
 FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt, errorState) RESULT(Temp_out)
     !--------------------------------------------------------------------

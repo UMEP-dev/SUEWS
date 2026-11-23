@@ -1067,12 +1067,13 @@ def test_schema_dev17_migration_and_historical_boundaries(
     sample_config_dict: dict, tmp_path: Path
 ) -> None:
     """Versioned dev16 -> dev17 migration enforces integer DOYs while historical targets preserve float DOYs."""
+    from packaging.version import Version
     from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
     from supy.data_model.configuration.migration import SchemaMigrator
     from supy.data_model.configuration.publisher import generate_json_schema
     from supy.util.converter.yaml_upgrade import SoilMigrationContext, YamlUpgradeError
 
-    assert CURRENT_SCHEMA_VERSION == "2026.6.dev17"
+    assert Version(CURRENT_SCHEMA_VERSION) >= Version("2026.6.dev17")
     migrator = SchemaMigrator()
 
     # 1. dev16 -> dev17 normalises whole-number floats and preserves ref metadata.

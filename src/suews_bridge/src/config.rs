@@ -6,14 +6,14 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SUEWS_CONFIG_FLAT_LEN: usize = 24;
-pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 4;
+pub const SUEWS_CONFIG_FLAT_LEN: usize = 29;
+pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 5;
 
 pub type SuewsConfigSchema = crate::codec::SimpleSchema;
 
 pub type SuewsConfigValuesPayload = ValuesPayload;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SuewsConfig {
     pub rsl_method: i32,
     pub emissions_method: i32,
@@ -39,6 +39,11 @@ pub struct SuewsConfig {
     pub flag_test: bool,
     pub kdown_split_method: i32,
     pub forcing_timestamp_reference: i32,
+    pub ehc_surface_coupling: i32,
+    pub control_ehc_initial_profile: bool,
+    pub resistance_ehc_indoor_roof: f64,
+    pub resistance_ehc_indoor_wall: f64,
+    pub control_ehc_stability: i32,
 }
 
 impl Default for SuewsConfig {
@@ -68,6 +73,11 @@ impl Default for SuewsConfig {
             flag_test: false,
             kdown_split_method: 3,
             forcing_timestamp_reference: 0,
+            ehc_surface_coupling: 1,
+            control_ehc_initial_profile: true,
+            resistance_ehc_indoor_roof: 0.10,
+            resistance_ehc_indoor_wall: 0.13,
+            control_ehc_stability: 0,
         }
     }
 }
@@ -92,6 +102,16 @@ fn decode_int(value: f64) -> Result<i32, BridgeError> {
 impl SuewsConfig {
     pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
         validate_flat_len(flat, SUEWS_CONFIG_FLAT_LEN)?;
+        if flat[26..28].iter().any(|v| !v.is_finite() || *v < 0.0) {
+            return Err(BridgeError::BadState);
+        }
+        if flat[24] != 0.0 && flat[24] != 1.0 {
+            return Err(BridgeError::BadState);
+        }
+        let control_ehc_stability = decode_int(flat[28])?;
+        if !(0..=2).contains(&control_ehc_stability) {
+            return Err(BridgeError::BadState);
+        }
 
         Ok(Self {
             rsl_method: decode_int(flat[0])?,
@@ -118,6 +138,11 @@ impl SuewsConfig {
             flag_test: flat[21] >= 0.5,
             kdown_split_method: decode_int(flat[22])?,
             forcing_timestamp_reference: decode_int(flat[23])?,
+            ehc_surface_coupling: decode_int(flat[24])?,
+            control_ehc_initial_profile: flat[25] >= 0.5,
+            resistance_ehc_indoor_roof: flat[26],
+            resistance_ehc_indoor_wall: flat[27],
+            control_ehc_stability,
         })
     }
 
@@ -147,6 +172,15 @@ impl SuewsConfig {
             if self.flag_test { 1.0 } else { 0.0 },
             self.kdown_split_method as f64,
             self.forcing_timestamp_reference as f64,
+            self.ehc_surface_coupling as f64,
+            if self.control_ehc_initial_profile {
+                1.0
+            } else {
+                0.0
+            },
+            self.resistance_ehc_indoor_roof,
+            self.resistance_ehc_indoor_wall,
+            self.control_ehc_stability as f64,
         ]
     }
 }
@@ -227,6 +261,11 @@ pub fn suews_config_field_names() -> Vec<String> {
         "flag_test".to_string(),
         "kdown_split_method".to_string(),
         "forcing_timestamp_reference".to_string(),
+        "ehc_surface_coupling".to_string(),
+        "control_ehc_initial_profile".to_string(),
+        "resistance_ehc_indoor_roof".to_string(),
+        "resistance_ehc_indoor_wall".to_string(),
+        "control_ehc_stability".to_string(),
     ]
 }
 
@@ -329,11 +368,151 @@ mod tests {
         mapped.insert("water_use_method".to_string(), 2.0);
         mapped.insert("use_sw_direct_albedo".to_string(), 1.0);
         mapped.insert("flag_test".to_string(), 1.0);
+        mapped.insert("control_ehc_initial_profile".to_string(), 0.0);
+        mapped.insert("resistance_ehc_indoor_roof".to_string(), 0.25);
+        mapped.insert("resistance_ehc_indoor_wall".to_string(), 0.30);
+        mapped.insert("control_ehc_stability".to_string(), 2.0);
 
         let updated = suews_config_from_map(&mapped).expect("map to state should succeed");
         assert_eq!(updated.water_use_method, 2);
         assert!(updated.use_sw_direct_albedo);
         assert!(updated.flag_test);
+        assert!(!updated.control_ehc_initial_profile);
+        assert_eq!(updated.resistance_ehc_indoor_roof, 0.25);
+        assert_eq!(updated.resistance_ehc_indoor_wall, 0.30);
+        assert_eq!(updated.control_ehc_stability, 2);
+    }
+
+    #[test]
+    fn ehc_coupling_rejects_invalid_flat_values() {
+        for value in [
+            -999.0, -1.0, 2.0, 0.5, 1.5, 1.0000000001, f64::NAN, f64::INFINITY,
+        ] {
+            let mut flat = SuewsConfig::default().to_flat();
+            flat[24] = value;
+            assert_eq!(
+                SuewsConfig::from_flat(&flat).unwrap_err(),
+                BridgeError::BadState
+            );
+        }
+        for value in [0, 1] {
+            let mut flat = SuewsConfig::default().to_flat();
+            flat[24] = value as f64;
+            assert_eq!(
+                SuewsConfig::from_flat(&flat).unwrap().ehc_surface_coupling,
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn stability_control_rejects_invalid_flat_values() {
+        for value in [-999.0, -1.0, 3.0, 1.5, f64::NAN, f64::INFINITY] {
+            let mut flat = SuewsConfig::default().to_flat();
+            flat[28] = value;
+            assert_eq!(
+                SuewsConfig::from_flat(&flat).unwrap_err(),
+                BridgeError::BadState
+            );
+        }
+        for value in [0, 1, 2] {
+            let mut flat = SuewsConfig::default().to_flat();
+            flat[28] = value as f64;
+            assert_eq!(
+                SuewsConfig::from_flat(&flat).unwrap().control_ehc_stability,
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn indoor_resistance_rejects_invalid_flat_values() {
+        for index in [26, 27] {
+            for value in [-1.0, -999.0, f64::NAN, f64::INFINITY] {
+                let mut flat = SuewsConfig::default().to_flat();
+                flat[index] = value;
+                assert_eq!(SuewsConfig::from_flat(&flat), Err(BridgeError::BadState));
+            }
+        }
+    }
+
+    #[cfg(feature = "physics")]
+    #[test]
+    fn batch_driver_rejects_short_configuration_buffers() {
+        // An invalid layer count is a sentinel immediately after the buffer
+        // checks: a full config reaches BAD_STATE, a short one must not.
+        // All backing buffers are valid; the early guard reads none of them.
+        for config_len in 25..=SUEWS_CONFIG_FLAT_LEN {
+            let timer = [0.0; 18];
+            let config = SuewsConfig::default().to_flat();
+            let scalars = [0.0; 24];
+            let flat = [0.0];
+            let toc = [0];
+            let mut timer_out = [0.0; 18];
+            let mut state_out = [0.0];
+            let mut output = [0.0];
+            let mut datetime = [0.0];
+            let mut sim_err = 0;
+            let mut message = [0; 1];
+            let mut warn_total = 0;
+            let mut warn_stored = 0;
+            let mut warn_timer = [0];
+            let mut warn_text = [0; 1];
+            let mut err = -1;
+            unsafe {
+                ffi::suews_cal_multitsteps_c(
+                    timer.as_ptr(),
+                    18,
+                    config.as_ptr(),
+                    config_len as i32,
+                    scalars.as_ptr(),
+                    24,
+                    flat.as_ptr(),
+                    1,
+                    toc.as_ptr(),
+                    1,
+                    0,
+                    flat.as_ptr(),
+                    1,
+                    toc.as_ptr(),
+                    1,
+                    0,
+                    flat.as_ptr(),
+                    1,
+                    32,
+                    0,
+                    5,
+                    timer_out.as_mut_ptr(),
+                    18,
+                    state_out.as_mut_ptr(),
+                    1,
+                    toc.as_ptr(),
+                    1,
+                    output.as_mut_ptr(),
+                    1,
+                    1,
+                    datetime.as_mut_ptr(),
+                    1,
+                    1,
+                    &mut sim_err,
+                    message.as_mut_ptr(),
+                    1,
+                    &mut warn_total,
+                    &mut warn_stored,
+                    0,
+                    warn_timer.as_mut_ptr(),
+                    warn_text.as_mut_ptr(),
+                    1,
+                    &mut err,
+                );
+            }
+            let expected = if config_len < SUEWS_CONFIG_FLAT_LEN {
+                ffi::SUEWS_CAPI_BAD_BUFFER
+            } else {
+                ffi::SUEWS_CAPI_BAD_STATE
+            };
+            assert_eq!(err, expected, "configuration length {config_len}");
+        }
     }
 
     #[test]

@@ -41,6 +41,8 @@ Quick Start
    # Run simulation
    output = sim.run()
 
+See :doc:`EHC coupling and heat diagnostics <../../outputs/ehc>` for method-5 defaults, initial temperatures and explicit compatibility settings.
+
 Configuration Structure
 -----------------------
 

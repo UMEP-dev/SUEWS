@@ -1433,7 +1433,9 @@ def adjust_land_cover_fractions(
 
         for surface_type, surface_props in land_cover.items():
             if isinstance(surface_props, dict):
-                sfr_value = surface_props.get("sfr", {}).get("value")
+                sfr_value = None
+                sfr_value = surface_props.get("sfr", {})
+                sfr_value = sfr_value.get("value") if isinstance(sfr_value, Mapping) else sfr_value
                 if sfr_value is not None:
                     surface_fractions[surface_type] = sfr_value
                     sfr_sum += sfr_value
@@ -1452,7 +1454,7 @@ def adjust_land_cover_fractions(
             old_value = surface_fractions[max_surface]
             new_value = old_value + correction
 
-            land_cover[max_surface]["sfr"]["value"] = new_value
+            land_cover[max_surface]["sfr"] = {"value": new_value}
             correction_applied = True
 
             # Always report adjustments, but use appropriate format based on visibility

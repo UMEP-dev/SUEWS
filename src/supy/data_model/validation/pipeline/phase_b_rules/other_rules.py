@@ -184,8 +184,11 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
         surface_types = []
 
         for surface_type, surface_props in land_cover.items():
+            sfr_value = None
             if isinstance(surface_props, Mapping):
-                sfr_value = surface_props.get("sfr", {}).get("value")
+                sfr_value = surface_props.get("sfr", {})
+                sfr_value = sfr_value.get("value") if isinstance(sfr_value, Mapping) else sfr_value
+   
                 if sfr_value is not None:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))

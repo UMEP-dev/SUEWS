@@ -597,6 +597,12 @@ def test_unittest_expected_failure_forms_are_counted_once_and_fail_unmapped(
         "from unittest import expectedFailure\n\ndef test_ok():\n    assert 1 == 1\n",
         "def expectedFailure(fn): return fn\n\n@expectedFailure\ndef test_ok():\n    assert 1 == 1\n",
         "from custom_module import expectedFailure\n\n@expectedFailure\ndef test_ok():\n    assert 1 == 1\n",
+        "def helper():\n    from unittest import expectedFailure as ef\n    return ef\n\ndef test_ok(ef):\n    assert ef(1)\n",
+        "def test_ok(unittest):\n    assert unittest.expectedFailure(1)\n",
+        "import unittest\n\ndef test_ok(unittest):\n    assert unittest.expectedFailure(1)\n",
+        "from unittest import expectedFailure as ef\n\ndef test_ok():\n    ef = lambda x: x\n    assert ef(1)\n",
+        "from unittest import expectedFailure\n\ndef test_ok():\n    assert callable(expectedFailure)\n",
+        "from unittest import expectedFailure as ef\nef = lambda fn: fn\n\n@ef\ndef test_ok():\n    assert 1 == 1\n",
     ],
 )
 def test_unrelated_unittest_and_expected_failure_names_are_not_flagged(tree, source):
@@ -605,6 +611,37 @@ def test_unrelated_unittest_and_expected_failure_names_are_not_flagged(tree, sou
     records, errors = checker.extract_records(tree)
     assert not errors
     assert [r for r in records if r["source"] == name] == []
+
+
+def test_unittest_expected_failure_assignment_aliases_count_each_application(tree):
+    name = "test/test_alias_apps.py"
+    (tree / name).write_text(
+        "import unittest\n"
+        "ut = unittest\n"
+        "uc = ut.case\n"
+        "ef = uc.expectedFailure\n\n"
+        "class TestAlias(unittest.TestCase):\n"
+        "    @ef\n"
+        "    def test_one(self):\n"
+        "        self.assertEqual(1, 2)\n\n"
+        "    @ef\n"
+        "    def test_two(self):\n"
+        "        self.assertEqual(1, 2)\n\n"
+        "def make_local():\n"
+        "    from unittest import expectedFailure as local_ef\n"
+        "    @local_ef\n"
+        "    def test_inner():\n"
+        "        pass\n"
+        "    return test_inner\n",
+        encoding="utf-8",
+    )
+    records, errors = checker.extract_records(tree)
+    assert not errors
+    assert [r["id"] for r in records if r["source"] == name] == [
+        f"{name}::TestAlias.test_one::1",
+        f"{name}::TestAlias.test_two::1",
+        f"{name}::make_local.test_inner::1",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -759,6 +796,22 @@ def test_saved_local_valid_literal_registration_links_cleanly(tree):
             "unsupported mutation of constant ALLOWED",
         ),
         (
+            'box = [ALLOWED] * 1\nbox[0][("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            'box = dict(table=ALLOWED)\nbox["table"][("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            'alias = next(iter(()), ALLOWED)\nalias[("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
+            'alias = min(iter(()), default=ALLOWED)\nalias[("ledger_review_sample.f95", "count")] = "#2087"',
+            "unsupported mutation of constant ALLOWED",
+        ),
+        (
             "if (alias := ALLOWED) is not None:\n"
             '    alias[("ledger_review_sample.f95", "count")] = "#2087"',
             "unsupported mutation of constant ALLOWED",
@@ -814,6 +867,35 @@ def test_saved_local_alias_helper_and_escape_writes_fail_closed_while_linter_acc
     assert any(diagnostic in e for e in checker.check_tree(tree)["errors"])
 
 
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        'witness: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})',
+        'def _ann(x: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})):\n    pass',
+        'def _ret() -> ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"}):\n    pass',
+    ],
+)
+def test_saved_local_evaluated_annotation_writes_fail_closed(tree, snippet):
+    _write_fortran_sample(tree)
+    linter_path = tree / "scripts/lint/check_saved_fortran_locals.py"
+    source = linter_path.read_text(encoding="utf-8").replace(
+        "from __future__ import annotations\n", ""
+    )
+    intro = "ALLOWED: dict[tuple[str, str], str] = {}"
+    assert source.count(intro) == 1
+    linter_path.write_text(
+        source.replace(intro, f"{intro}\n{snippet}"), encoding="utf-8"
+    )
+    linter_run = _run_saved_locals_linter(tree)
+    assert linter_run.returncode == 0, linter_run.stdout + linter_run.stderr
+    assert "(1 allowlisted)" in linter_run.stdout
+    assert checker.main(["--root", str(tree), "--strict"]) == 1
+    assert any(
+        "unsupported mutation of constant ALLOWED" in e
+        for e in checker.check_tree(tree)["errors"]
+    )
+
+
 def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allowed(
     tmp_path,
 ):
@@ -830,6 +912,10 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
         "    copied = LEDGER.copy()\n"
         '    copied[("copy.f95", "c")] = "#0"\n'
         "    return count_entries(eff) + len(merged.keys()) + len(copied)\n"
+        "def shadow_outer_alias():\n"
+        "    ALIAS = {}\n"
+        '    ALIAS[("local.f95", "l")] = "#0"\n'
+        "    return len(ALIAS) + len(sorted(LEDGER, key=len))\n"
         "OTHER = {}\n"
         'OTHER[("b.f95", "y")] = "#999"\n'
         "def mutate_unrelated(table, key, issue):\n"
@@ -880,6 +966,32 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             'reg(*(LEDGER, "k", "v"))\n',
             "unsupported mutation of constant LEDGER",
         ),
+        (
+            'LEDGER = {}\nbox = 1 * [LEDGER]\nbox[0]["k"] = "v"\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            'LEDGER = {}\nalias = max(LEDGER, {})\nalias["k"] = "v"\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            'LEDGER = {}\nalias = sum((), LEDGER)\nalias["k"] = "v"\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            'LEDGER = {}\nbox = [LEDGER]\nsorted(box, key=lambda d: d.setdefault("k", "v"))\n',
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "alias = LEDGER\n"
+            "def outer():\n"
+            "    alias = {}\n"
+            "    def inner():\n"
+            "        global alias\n"
+            '        alias["k"] = "v"\n',
+            "unsupported mutation of constant LEDGER",
+        ),
     ],
 )
 def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
@@ -888,3 +1000,22 @@ def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
     (tmp_path / "ledger.py").write_text(source, encoding="utf-8")
     with pytest.raises(ValueError, match=match):
         checker._python_values(tmp_path, "ledger.py", ("LEDGER",))
+
+
+def test_saved_local_mixed_type_malformed_key_reports_value_error_not_type_error(tree):
+    linter_path = tree / "scripts/lint/check_saved_fortran_locals.py"
+    intro = "ALLOWED: dict[tuple[str, str], str] = {}"
+    source = linter_path.read_text(encoding="utf-8")
+    linter_path.write_text(
+        source.replace(
+            intro,
+            'ALLOWED = {("sample.f95", "count"): "#2087", "bad_key": "#2087"}',
+        ),
+        encoding="utf-8",
+    )
+    _, errors = checker.extract_records(tree)
+    assert any(
+        "scripts/lint/check_saved_fortran_locals.py: unsupported entry key in ALLOWED: 'bad_key'"
+        in err
+        for err in errors
+    )

@@ -60,10 +60,11 @@ Because it is static and single-file, it does not detect mutations performed
 by another module after import or through dynamic introspection such as
 `sys.modules` or `.__dict__`.
 The suppression scan detects calls named `xfail`, bare `pytest.mark.xfail`
-markers, `unittest.expectedFailure` (including standard `unittest`,
-`unittest.case` and `expectedFailure` import forms and aliases) and Rust
-ignore attributes; it does not resolve arbitrary dynamic Python aliases (such
-as `getattr` or module rebinding) or Rust macros.
+markers, `unittest.expectedFailure` decorator and call registrations (including
+scoped `unittest`, `unittest.case`, and `expectedFailure` import forms and
+simple assignment aliases) and Rust ignore attributes; it does not resolve
+arbitrary dynamic Python aliases (such as `getattr`, container indirection, or
+cross-module re-exports) or Rust macros.
 
 The closing rule is detection only, as decided by Ting Sun on 21 November 2026.
 The separate `Recorded test debt` workflow checks on pull requests and daily on

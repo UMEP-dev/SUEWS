@@ -297,6 +297,15 @@ def _walk_compound_bindings(stmt: ast.stmt, record, walk_block) -> None:
         _walk_named_exprs(stmt, record)
 
 
+def _record_ann_aug_bindings(stmt: ast.AnnAssign | ast.AugAssign, record) -> None:
+    if isinstance(stmt.target, ast.Name):
+        record(stmt.target.id)
+    if isinstance(stmt, ast.AnnAssign):
+        _walk_named_exprs(stmt.annotation, record)
+    if stmt.value is not None:
+        _walk_named_exprs(stmt.value, record)
+
+
 def _collect_scope_bindings(
     stmts: list[ast.stmt],
 ) -> tuple[set[str], dict[str, ast.FunctionDef], set[str], set[str]]:
@@ -324,10 +333,7 @@ def _collect_scope_bindings(
                     _record_target_bindings(target, record)
                 _walk_named_exprs(stmt.value, record)
             elif isinstance(stmt, (ast.AnnAssign, ast.AugAssign)):
-                if isinstance(stmt.target, ast.Name):
-                    record(stmt.target.id)
-                if stmt.value is not None:
-                    _walk_named_exprs(stmt.value, record)
+                _record_ann_aug_bindings(stmt, record)
             elif isinstance(stmt, (ast.Import, ast.ImportFrom)):
                 for alias in stmt.names:
                     if alias.name != "*":
@@ -509,6 +515,12 @@ class _ConstantMutationChecker:
         if isinstance(stmt, ast.Assign):
             self._check_assign(stmt, env, ctx, in_class)
         elif isinstance(stmt, ast.AnnAssign):
+            ann_taint = self._eval_expr(stmt.annotation, env, ctx)
+            if ann_taint is not None:
+                self._fail(
+                    stmt.annotation,
+                    f"unsupported escape of constant {ann_taint[0]}",
+                )
             rhs_taint = (
                 self._eval_expr(stmt.value, env, ctx)
                 if stmt.value is not None
@@ -776,6 +788,27 @@ class _ConstantMutationChecker:
                     taints[arg.arg] = taint
         return taints
 
+    def _check_func_annotations(
+        self, args: ast.arguments, returns: ast.expr | None, env, ctx
+    ) -> None:
+        all_args = [*args.posonlyargs, *args.args, *args.kwonlyargs]
+        if args.vararg is not None:
+            all_args.append(args.vararg)
+        if args.kwarg is not None:
+            all_args.append(args.kwarg)
+        for arg in all_args:
+            if arg.annotation is not None:
+                ann_taint = self._eval_expr(arg.annotation, env, ctx)
+                if ann_taint is not None:
+                    self._fail(
+                        arg.annotation,
+                        f"unsupported escape of constant {ann_taint[0]}",
+                    )
+        if returns is not None:
+            ret_taint = self._eval_expr(returns, env, ctx)
+            if ret_taint is not None:
+                self._fail(returns, f"unsupported escape of constant {ret_taint[0]}")
+
     def _check_func_def(
         self, stmt: ast.FunctionDef | ast.AsyncFunctionDef, env, ctx
     ) -> None:
@@ -783,6 +816,7 @@ class _ConstantMutationChecker:
             self._fail(stmt, f"unsupported mutation of constant {stmt.name}")
         for decorator in stmt.decorator_list:
             self._eval_expr(decorator, env, ctx)
+        self._check_func_annotations(stmt.args, stmt.returns, env, ctx)
         default_taints = self._default_param_taints(stmt.args, env, ctx)
         self._check_function_body(stmt, default_taints, env)
 
@@ -797,11 +831,17 @@ class _ConstantMutationChecker:
             _collect_scope_bindings(func.body)
         )
         local_bound |= param_names
-        func_env = {
-            key: value
-            for key, value in enclosing_env.items()
-            if (key not in param_names or key in self.dependencies)
-        }
+        func_env: dict[str, _Taint] = {}
+        for key, value in enclosing_env.items():
+            if (
+                key in nonlocal_names
+                or key not in local_bound
+                or (key in self.dependencies and key not in param_names)
+            ):
+                func_env[key] = value
+        for key in global_names:
+            if key in self.module_env:
+                func_env[key] = _merge_taint(func_env.get(key), self.module_env[key])  # type: ignore[assignment]
         for key, value in param_taints.items():
             func_env[key] = _merge_taint(func_env.get(key), value)  # type: ignore[assignment]
         cache_key = (id(func), tuple(sorted(func_env.items())))
@@ -930,7 +970,7 @@ class _ConstantMutationChecker:
             lt = self._eval_expr(node.left, env, ctx)
             rt = self._eval_expr(node.right, env, ctx)
             if isinstance(
-                node.op, (ast.BitOr, ast.Add, ast.Sub, ast.BitAnd, ast.BitXor)
+                node.op, (ast.BitOr, ast.Add, ast.Sub, ast.BitAnd, ast.BitXor, ast.Mult)
             ):
                 if lt is not None and lt[1]:
                     result = (lt[0], True)
@@ -1023,6 +1063,128 @@ class _ConstantMutationChecker:
             return self.root_taints.get(call.args[1].value)
         return None
 
+    def _is_safe_key_callable(self, expr: ast.AST, local_bound: set[str]) -> bool:
+        return (
+            isinstance(expr, ast.Name)
+            and expr.id in _SAFE_SCALAR_BUILTINS
+            and expr.id not in local_bound
+            and expr.id not in self.module_bound
+        )
+
+    def _check_key_callback_escape(
+        self,
+        call: ast.Call,
+        item_taint: _Taint | None,
+        local_bound: set[str],
+    ) -> None:
+        if item_taint is None:
+            return
+        for kw in call.keywords:
+            if kw.arg is None:
+                self._fail(call, f"unsupported escape of constant {item_taint[0]}")
+            if kw.arg == "key" and not self._is_safe_key_callable(
+                kw.value, local_bound
+            ):
+                self._fail(call, f"unsupported escape of constant {item_taint[0]}")
+
+    @staticmethod
+    def _eval_dict_builtin(
+        pos_taints: list[tuple[bool, _Taint | None]],
+        kw_taints: list[tuple[str | None, _Taint | None]],
+    ) -> _Taint | None:
+        merged: _Taint | None = None
+        for _, taint in pos_taints:
+            if taint is not None and taint[1]:
+                merged = _merge_taint(merged, (taint[0], True))
+        for key, taint in kw_taints:
+            if taint is not None and (key is not None or taint[1]):
+                merged = _merge_taint(merged, (taint[0], True))
+        return merged
+
+    @staticmethod
+    def _eval_defaulting_builtin(
+        fname: str,
+        pos_taints: list[tuple[bool, _Taint | None]],
+        kw_taints: list[tuple[str | None, _Taint | None]],
+    ) -> _Taint | None:
+        merged: _Taint | None = None
+        if pos_taints:
+            _, first = pos_taints[0]
+            if first is not None and first[1]:
+                merged = _merge_taint(merged, (first[0], True))
+            for is_star, taint in pos_taints[1:]:
+                if taint is None:
+                    continue
+                if not is_star:
+                    merged = _merge_taint(merged, taint)
+                elif taint[1]:
+                    merged = _merge_taint(merged, (taint[0], True))
+        for key, taint in kw_taints:
+            if taint is None:
+                continue
+            if fname == "sum" and key == "start":
+                merged = _merge_taint(merged, taint)
+            elif taint[1]:
+                merged = _merge_taint(merged, (taint[0], True))
+        return merged
+
+    def _eval_minmax_builtin(
+        self,
+        call: ast.Call,
+        pos_taints: list[tuple[bool, _Taint | None]],
+        kw_taints: list[tuple[str | None, _Taint | None]],
+        local_bound: set[str],
+    ) -> _Taint | None:
+        has_star = any(is_star for is_star, _ in pos_taints)
+        direct_pos = len(pos_taints) >= 2 or has_star
+        item_taint: _Taint | None = None
+        for is_star, taint in pos_taints:
+            if taint is None:
+                continue
+            if not is_star and direct_pos:
+                item_taint = _merge_taint(item_taint, taint)
+            elif taint[1]:
+                item_taint = _merge_taint(item_taint, (taint[0], True))
+        merged = item_taint
+        for key, taint in kw_taints:
+            if taint is None:
+                continue
+            if key == "default":
+                merged = _merge_taint(merged, taint)
+            elif key == "key":
+                self._fail(call, f"unsupported escape of constant {taint[0]}")
+            elif taint[1]:
+                merged = _merge_taint(merged, (taint[0], True))
+        self._check_key_callback_escape(call, item_taint, local_bound)
+        return merged
+
+    def _eval_safe_element_builtin(
+        self,
+        call: ast.Call,
+        fname: str,
+        pos_taints: list[tuple[bool, _Taint | None]],
+        kw_taints: list[tuple[str | None, _Taint | None]],
+        all_taints: list[_Taint],
+        local_bound: set[str],
+    ) -> _Taint | None:
+        if fname == "dict":
+            return self._eval_dict_builtin(pos_taints, kw_taints)
+        if fname in {"next", "sum"}:
+            return self._eval_defaulting_builtin(fname, pos_taints, kw_taints)
+        if fname in {"min", "max"}:
+            return self._eval_minmax_builtin(call, pos_taints, kw_taints, local_bound)
+        if fname == "iter":
+            if len(pos_taints) >= 2 and pos_taints[0][1] is not None:
+                self._fail(
+                    call, f"unsupported escape of constant {pos_taints[0][1][0]}"
+                )
+            deep = next((t for t in all_taints if t[1]), None)
+            return (deep[0], True) if deep is not None else None
+        deep = next((t for t in all_taints if t[1]), None)
+        if fname == "sorted":
+            self._check_key_callback_escape(call, deep, local_bound)
+        return (deep[0], True) if deep is not None else None
+
     def _eval_name_call(
         self, call: ast.Call, fname: str, env, ctx, pos_taints, kw_taints, all_taints
     ) -> _Taint | None:
@@ -1037,8 +1199,9 @@ class _ConstantMutationChecker:
         if is_builtin and fname in _SAFE_SCALAR_BUILTINS:
             return None
         if is_builtin and fname in _SAFE_ELEMENT_BUILTINS:
-            deep = next((t for t in all_taints if t[1]), None)
-            return (deep[0], True) if deep is not None else None
+            return self._eval_safe_element_builtin(
+                call, fname, pos_taints, kw_taints, all_taints, local_bound
+            )
         target_func = local_funcs.get(fname)
         target_enclosing = env if target_func is not None else self.module_env
         if target_func is None and fname not in local_bound:
@@ -1350,109 +1513,359 @@ def _python_ledger_records(root):
             ]
         else:
             keys = values
+        if ledger == "Z":
+            for key in keys:
+                if not (
+                    isinstance(key, tuple)
+                    and len(key) == 2
+                    and all(isinstance(part, str) for part in key)
+                ):
+                    raise ValueError(
+                        f"{path}: unsupported entry key in {name}: {key!r}"
+                    )
         for key in sorted(keys):
-            if ledger == "Z" and not (
-                isinstance(key, tuple)
-                and len(key) == 2
-                and all(isinstance(part, str) for part in key)
-            ):
-                raise ValueError(f"{path}: unsupported entry key in {name}: {key!r}")
             identifier = "::".join(map(str, key)) if isinstance(key, tuple) else key
             attributes = {"owner_issue": values[key]} if ledger == "Z" else {}
             records.append(_record(ledger, identifier, path, **attributes))
     return records
 
 
-def _record_unittest_from_import(
-    node: ast.ImportFrom,
-    unittest_case_modules: set[str],
-    expected_failure_names: set[str],
-) -> None:
-    if node.module == "unittest":
-        for alias in node.names:
-            if alias.name == "expectedFailure":
-                expected_failure_names.add(alias.asname or "expectedFailure")
-            elif alias.name == "case":
-                unittest_case_modules.add(alias.asname or "case")
-            elif alias.name == "*":
-                expected_failure_names.add("expectedFailure")
-                unittest_case_modules.add("case")
-    elif node.module == "unittest.case":
-        for alias in node.names:
-            if alias.name in {"expectedFailure", "*"}:
-                expected_failure_names.add(alias.asname or "expectedFailure")
+def _classify_unittest_expr(expr: ast.AST, env: dict[str, str]) -> str | None:
+    if isinstance(expr, ast.Name) and isinstance(expr.ctx, ast.Load):
+        return env.get(expr.id)
+    if isinstance(expr, ast.Attribute):
+        base = _classify_unittest_expr(expr.value, env)
+        if base == "unittest" and expr.attr == "case":
+            return "unittest_case"
+        if base in {"unittest", "unittest_case"} and expr.attr == "expectedFailure":
+            return "expected_failure"
+    return None
 
 
-def _unittest_expected_failure_imports(
-    tree: ast.AST,
-) -> tuple[set[str], set[str], set[str]]:
-    """Collect unittest module and expectedFailure import bindings in a file."""
-    unittest_modules = {"unittest"}
-    unittest_case_modules: set[str] = set()
-    expected_failure_names: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name == "unittest":
-                    unittest_modules.add(alias.asname or "unittest")
-                elif alias.name == "unittest.case":
-                    if alias.asname:
-                        unittest_case_modules.add(alias.asname)
-                    else:
-                        unittest_modules.add("unittest")
-        elif isinstance(node, ast.ImportFrom) and node.level == 0:
-            _record_unittest_from_import(
-                node, unittest_case_modules, expected_failure_names
-            )
-    return unittest_modules, unittest_case_modules, expected_failure_names
+def _merge_unittest_envs(envs: list[dict[str, str]]) -> dict[str, str]:
+    merged: dict[str, str] = {}
+    for branch_env in envs:
+        for key, value in branch_env.items():
+            merged.setdefault(key, value)
+    return merged
 
 
-def _is_unittest_expected_failure_ref(
-    node: ast.AST,
-    unittest_modules: set[str],
-    unittest_case_modules: set[str],
-    expected_failure_names: set[str],
-) -> bool:
-    if isinstance(node, ast.Name):
-        return isinstance(node.ctx, ast.Load) and node.id in expected_failure_names
-    if isinstance(node, ast.Attribute) and node.attr == "expectedFailure":
-        if isinstance(node.value, ast.Name) and node.value.id in (
-            unittest_modules | unittest_case_modules
+class _UnittestExpectedFailureFinder:
+    """Find unittest.expectedFailure decorator and call registrations by scope."""
+
+    def __init__(self, tree: ast.Module) -> None:
+        self.tree = tree
+        self.sites: list[ast.AST] = []
+        self.module_env: dict[str, str] = {}
+
+    def collect(self) -> list[ast.AST]:
+        self._walk_block(self.tree.body, self.module_env, self.module_env)
+        return self.sites
+
+    def _scan_expr(self, expr: ast.AST, env: dict[str, str]) -> None:
+        if isinstance(expr, ast.Call):
+            if _classify_unittest_expr(expr.func, env) == "expected_failure":
+                self.sites.append(expr)
+            else:
+                self._scan_expr(expr.func, env)
+            for arg in expr.args:
+                self._scan_expr(arg, env)
+            for kw in expr.keywords:
+                self._scan_expr(kw.value, env)
+            return
+        if isinstance(expr, ast.Lambda):
+            for default in (*expr.args.defaults, *expr.args.kw_defaults):
+                if default is not None:
+                    self._scan_expr(default, env)
+            param_names = _function_param_names(expr.args)
+            lam_env = {k: v for k, v in env.items() if k not in param_names}
+            self._scan_expr(expr.body, lam_env)
+            return
+        if isinstance(
+            expr, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
         ):
-            return True
-        if (
-            isinstance(node.value, ast.Attribute)
-            and node.value.attr == "case"
-            and isinstance(node.value.value, ast.Name)
-            and node.value.value.id in unittest_modules
+            comp_env = dict(env)
+            for gen in expr.generators:
+                self._scan_expr(gen.iter, comp_env)
+                bound: set[str] = set()
+                _collect_target_names(gen.target, bound)
+                for name in bound:
+                    comp_env.pop(name, None)
+                for cond in gen.ifs:
+                    self._scan_expr(cond, comp_env)
+            if isinstance(expr, ast.DictComp):
+                self._scan_expr(expr.key, comp_env)
+                self._scan_expr(expr.value, comp_env)
+            else:
+                self._scan_expr(expr.elt, comp_env)
+            return
+        for child in ast.iter_child_nodes(expr):
+            self._scan_expr(child, env)
+
+    def _scan_decorators(self, decorators: list[ast.expr], env: dict[str, str]) -> None:
+        for dec in decorators:
+            if _classify_unittest_expr(dec, env) == "expected_failure":
+                self.sites.append(dec)
+            else:
+                self._scan_expr(dec, env)
+
+    def _bind_target(
+        self, target: ast.AST, kind: str | None, env: dict[str, str]
+    ) -> None:
+        if isinstance(target, ast.Name):
+            if kind is not None:
+                env[target.id] = kind
+            else:
+                env.pop(target.id, None)
+            return
+        if isinstance(target, (ast.Tuple, ast.List)):
+            for elt in target.elts:
+                self._bind_target(elt, None, env)
+            return
+        if isinstance(target, ast.Starred):
+            self._bind_target(target.value, None, env)
+            return
+        self._scan_expr(target, env)
+
+    @staticmethod
+    def _handle_import(stmt: ast.Import, env: dict[str, str]) -> None:
+        for alias in stmt.names:
+            bound = alias.asname or alias.name.split(".", 1)[0]
+            if alias.name == "unittest":
+                env[bound] = "unittest"
+            elif alias.name == "unittest.case":
+                env[bound] = "unittest_case" if alias.asname else "unittest"
+            else:
+                env.pop(bound, None)
+
+    @staticmethod
+    def _handle_import_from(stmt: ast.ImportFrom, env: dict[str, str]) -> None:
+        if stmt.level == 0 and stmt.module == "unittest":
+            for alias in stmt.names:
+                if alias.name == "expectedFailure":
+                    env[alias.asname or "expectedFailure"] = "expected_failure"
+                elif alias.name == "case":
+                    env[alias.asname or "case"] = "unittest_case"
+                elif alias.name == "*":
+                    env["expectedFailure"] = "expected_failure"
+                    env["case"] = "unittest_case"
+                else:
+                    env.pop(alias.asname or alias.name, None)
+        elif stmt.level == 0 and stmt.module == "unittest.case":
+            for alias in stmt.names:
+                if alias.name in {"expectedFailure", "*"}:
+                    env[alias.asname or "expectedFailure"] = "expected_failure"
+                else:
+                    env.pop(alias.asname or alias.name, None)
+        else:
+            for alias in stmt.names:
+                if alias.name != "*":
+                    env.pop(alias.asname or alias.name, None)
+
+    def _handle_assign(self, stmt: ast.Assign, env: dict[str, str]) -> None:
+        self._scan_expr(stmt.value, env)
+        parallel = isinstance(stmt.value, (ast.Tuple, ast.List)) and not any(
+            isinstance(elt, ast.Starred) for elt in stmt.value.elts
+        )
+        if parallel:
+            kinds = [_classify_unittest_expr(elt, env) for elt in stmt.value.elts]
+            for target in stmt.targets:
+                if (
+                    isinstance(target, (ast.Tuple, ast.List))
+                    and not any(isinstance(elt, ast.Starred) for elt in target.elts)
+                    and len(target.elts) == len(kinds)
+                ):
+                    for sub_target, sub_kind in zip(target.elts, kinds, strict=True):
+                        self._bind_target(sub_target, sub_kind, env)
+                else:
+                    self._bind_target(target, None, env)
+            return
+        kind = _classify_unittest_expr(stmt.value, env)
+        for target in stmt.targets:
+            self._bind_target(target, kind, env)
+
+    def _handle_func_def(
+        self,
+        stmt: ast.FunctionDef | ast.AsyncFunctionDef,
+        env: dict[str, str],
+        non_class_env: dict[str, str],
+    ) -> None:
+        self._scan_decorators(stmt.decorator_list, env)
+        for default in (*stmt.args.defaults, *stmt.args.kw_defaults):
+            if default is not None:
+                self._scan_expr(default, env)
+        for arg in (
+            *stmt.args.posonlyargs,
+            *stmt.args.args,
+            *stmt.args.kwonlyargs,
+            *(a for a in (stmt.args.vararg, stmt.args.kwarg) if a is not None),
         ):
-            return True
-    return False
+            if arg.annotation is not None:
+                self._scan_expr(arg.annotation, env)
+        if stmt.returns is not None:
+            self._scan_expr(stmt.returns, env)
+        env.pop(stmt.name, None)
+        param_names = _function_param_names(stmt.args)
+        local_bound, _, global_names, nonlocal_names = _collect_scope_bindings(
+            stmt.body
+        )
+        shadowed = param_names | (local_bound - global_names - nonlocal_names)
+        child_env = {k: v for k, v in non_class_env.items() if k not in shadowed}
+        for name in global_names:
+            if name in self.module_env:
+                child_env[name] = self.module_env[name]
+        self._walk_block(stmt.body, child_env, child_env)
+
+    def _handle_class_def(
+        self,
+        stmt: ast.ClassDef,
+        env: dict[str, str],
+        non_class_env: dict[str, str],
+    ) -> None:
+        self._scan_decorators(stmt.decorator_list, env)
+        for base in stmt.bases:
+            self._scan_expr(base, env)
+        for kw in stmt.keywords:
+            self._scan_expr(kw.value, env)
+        env.pop(stmt.name, None)
+        class_env = dict(env)
+        self._walk_block(stmt.body, class_env, non_class_env)
+
+    def _walk_try_stmt(
+        self,
+        stmt: ast.Try | ast.TryStar,
+        env: dict[str, str],
+        non_class_env: dict[str, str],
+    ) -> None:
+        body_env = dict(env)
+        self._walk_block(stmt.body, body_env, non_class_env)
+        orelse_env = dict(body_env)
+        self._walk_block(stmt.orelse, orelse_env, non_class_env)
+        branch_envs = [orelse_env]
+        for handler in stmt.handlers:
+            if handler.type is not None:
+                self._scan_expr(handler.type, env)
+            h_env = dict(env)
+            if handler.name:
+                h_env.pop(handler.name, None)
+            self._walk_block(handler.body, h_env, non_class_env)
+            branch_envs.append(h_env)
+        env.clear()
+        env.update(_merge_unittest_envs(branch_envs))
+        self._walk_block(stmt.finalbody, env, non_class_env)
+
+    def _walk_match_stmt(
+        self, stmt: ast.Match, env: dict[str, str], non_class_env: dict[str, str]
+    ) -> None:
+        self._scan_expr(stmt.subject, env)
+        branch_envs = [dict(env)]
+        for case in stmt.cases:
+            case_env = dict(env)
+            bound: set[str] = set()
+            _collect_pattern_names(case.pattern, bound)
+            for name in bound:
+                case_env.pop(name, None)
+            if case.guard is not None:
+                self._scan_expr(case.guard, case_env)
+            self._walk_block(case.body, case_env, non_class_env)
+            branch_envs.append(case_env)
+        env.clear()
+        env.update(_merge_unittest_envs(branch_envs))
+
+    def _walk_compound_stmt(
+        self, stmt: ast.stmt, env: dict[str, str], non_class_env: dict[str, str]
+    ) -> None:
+        if isinstance(stmt, (ast.If, ast.While)):
+            self._scan_expr(stmt.test, env)
+            body_env, else_env = dict(env), dict(env)
+            self._walk_block(stmt.body, body_env, non_class_env)
+            self._walk_block(stmt.orelse, else_env, non_class_env)
+            env.clear()
+            env.update(_merge_unittest_envs([body_env, else_env]))
+        elif isinstance(stmt, (ast.For, ast.AsyncFor)):
+            self._scan_expr(stmt.iter, env)
+            body_env, else_env = dict(env), dict(env)
+            self._bind_target(stmt.target, None, body_env)
+            self._walk_block(stmt.body, body_env, non_class_env)
+            self._walk_block(stmt.orelse, else_env, non_class_env)
+            env.clear()
+            env.update(_merge_unittest_envs([body_env, else_env]))
+        elif isinstance(stmt, (ast.With, ast.AsyncWith)):
+            for item in stmt.items:
+                self._scan_expr(item.context_expr, env)
+                if item.optional_vars is not None:
+                    self._bind_target(item.optional_vars, None, env)
+            self._walk_block(stmt.body, env, non_class_env)
+        elif isinstance(stmt, (ast.Try, ast.TryStar)):
+            self._walk_try_stmt(stmt, env, non_class_env)
+        elif isinstance(stmt, ast.Match):
+            self._walk_match_stmt(stmt, env, non_class_env)
+        else:
+            for child in ast.iter_child_nodes(stmt):
+                self._scan_expr(child, env)
+
+    def _walk_stmt(
+        self, stmt: ast.stmt, env: dict[str, str], non_class_env: dict[str, str]
+    ) -> None:
+        if isinstance(stmt, ast.Import):
+            self._handle_import(stmt, env)
+        elif isinstance(stmt, ast.ImportFrom):
+            self._handle_import_from(stmt, env)
+        elif isinstance(stmt, ast.Assign):
+            self._handle_assign(stmt, env)
+        elif isinstance(stmt, ast.AnnAssign):
+            self._scan_expr(stmt.annotation, env)
+            if stmt.value is not None:
+                self._scan_expr(stmt.value, env)
+                self._bind_target(
+                    stmt.target, _classify_unittest_expr(stmt.value, env), env
+                )
+        elif isinstance(stmt, ast.AugAssign):
+            self._scan_expr(stmt.value, env)
+            self._bind_target(stmt.target, None, env)
+        elif isinstance(stmt, ast.Delete):
+            for target in stmt.targets:
+                if isinstance(target, ast.Name):
+                    env.pop(target.id, None)
+                else:
+                    self._scan_expr(target, env)
+        elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            self._handle_func_def(stmt, env, non_class_env)
+        elif isinstance(stmt, ast.ClassDef):
+            self._handle_class_def(stmt, env, non_class_env)
+        else:
+            self._walk_compound_stmt(stmt, env, non_class_env)
+
+    def _walk_block(
+        self,
+        stmts: list[ast.stmt],
+        env: dict[str, str],
+        non_class_env: dict[str, str],
+    ) -> None:
+        for stmt in stmts:
+            self._walk_stmt(stmt, env, non_class_env)
 
 
 def _suppression_nodes(tree, parents):
     """Return each Python suppression once, in source order."""
-    unittest_modules, unittest_case_modules, expected_failure_names = (
-        _unittest_expected_failure_imports(tree)
-    )
-    sites = []
+    sites: list[ast.AST] = []
+    seen: set[int] = set()
+
+    def add(node: ast.AST) -> None:
+        if id(node) not in seen:
+            seen.add(id(node))
+            sites.append(node)
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             func = node.func
-            is_xfail = (
-                (isinstance(func, ast.Attribute) and func.attr == "xfail")
-                or (isinstance(func, ast.Name) and func.id == "xfail")
-                or _is_unittest_expected_failure_ref(
-                    func,
-                    unittest_modules,
-                    unittest_case_modules,
-                    expected_failure_names,
-                )
+            is_xfail = (isinstance(func, ast.Attribute) and func.attr == "xfail") or (
+                isinstance(func, ast.Name) and func.id == "xfail"
             )
         else:
-            # Bare marks and unittest.expectedFailure work in decorators,
-            # pytestmark containers and pytest.param(marks=...). The function
-            # of a call is already counted above, so never count it twice.
+            # Bare marks work in decorators, pytestmark containers and
+            # pytest.param(marks=...). The function of a call is already
+            # counted above, so never count it twice.
             parent = parents.get(node)
             is_call_func = isinstance(parent, ast.Call) and parent.func is node
             is_bare_pytest = (
@@ -1463,15 +1876,11 @@ def _suppression_nodes(tree, parents):
                 and isinstance(node.value.value, ast.Name)
                 and node.value.value.id == "pytest"
             )
-            is_bare_unittest = _is_unittest_expected_failure_ref(
-                node,
-                unittest_modules,
-                unittest_case_modules,
-                expected_failure_names,
-            )
-            is_xfail = (is_bare_pytest or is_bare_unittest) and not is_call_func
+            is_xfail = is_bare_pytest and not is_call_func
         if is_xfail:
-            sites.append(node)
+            add(node)
+    for node in _UnittestExpectedFailureFinder(tree).collect():
+        add(node)
     return sorted(sites, key=lambda node: (node.lineno, node.col_offset))
 
 

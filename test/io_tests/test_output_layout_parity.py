@@ -1,5 +1,6 @@
 """Observable output writer layout parity tests."""
 
+from datetime import datetime, timedelta
 from importlib.resources import as_file, files
 import os
 from pathlib import Path
@@ -171,8 +172,16 @@ def _write_short_engine_inputs(run_dir: Path) -> Path:
         .splitlines()
         if line.strip()
     ]
+    selected_lines = forcing_lines[:3]
+    last_row = selected_lines[-1].split()
+    last_ts = datetime(int(last_row[0]), 1, 1) + timedelta(
+        days=int(last_row[1]) - 1,
+        hours=int(last_row[2]),
+        minutes=int(last_row[3]),
+    )
+    control["end_time"] = last_ts.strftime("%Y-%m-%d %H:%M:%S")
     (run_dir / forcing_name).write_text(
-        "\n".join(forcing_lines[:3]) + "\n", encoding="utf-8"
+        "\n".join(selected_lines) + "\n", encoding="utf-8"
     )
     config_path = run_dir / "sample_config.yml"
     config_path.write_text(

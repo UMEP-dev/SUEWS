@@ -87,6 +87,8 @@ def _prepare_resolved_run(
 
     control = cfg["model"]["control"]
     control["output"]["dir"] = str(run_dir)
+    control["start_time"] = None
+    control["end_time"] = None
     forcing_entry = control.get("forcing", {}).get("file")
     forcing_name = _unwrap(forcing_entry)
     assert isinstance(forcing_name, str) and forcing_name
@@ -132,6 +134,8 @@ def test_data_model_emits_required_bioco2_ohm_lai_defaults(tmp_path: Path):
         sample_dir.joinpath("sample_config.yml").read_text(encoding="utf-8")
     )
     sample_raw["model"]["control"]["output"]["dir"] = str(tmp_path)
+    sample_raw["model"]["control"]["start_time"] = None
+    sample_raw["model"]["control"]["end_time"] = None
     sample_raw["model"]["physics"]["storage_heat"] = {"value": 3}
     sample_raw["model"]["physics"]["emissions"] = {"value": 32}
 

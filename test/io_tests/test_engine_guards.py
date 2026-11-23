@@ -1,5 +1,6 @@
 """End-to-end input-guard regressions for standalone ``suews-engine`` and Fortran anthro."""
 
+from datetime import datetime, timedelta
 from importlib import import_module
 from importlib.resources import as_file, files
 import os
@@ -59,6 +60,21 @@ def _prepare_engine_inputs(
     )
     assert isinstance(forcing_name, str) and forcing_name
 
+    forcing_raw = sample_dir.joinpath(forcing_name).read_text(encoding="utf-8")
+    forcing_lines = [line for line in forcing_raw.splitlines() if line.strip()]
+    header = forcing_lines[0].split()
+    rows = [line.split() for line in forcing_lines[1 : forcing_rows + 1]]
+    if forcing_mutator is not None:
+        header, rows = forcing_mutator(header, rows)
+
+    last_row = rows[-1]
+    last_ts = datetime(int(last_row[0]), 1, 1) + timedelta(
+        days=int(last_row[1]) - 1,
+        hours=int(last_row[2]),
+        minutes=int(last_row[3]),
+    )
+    control["end_time"] = last_ts.strftime("%Y-%m-%d %H:%M:%S")
+
     cfg["model"]["physics"]["emissions"] = {"value": emissions}
     resolved_yaml = _run_rust.config_to_engine_yaml(SUEWSConfig.from_dict(cfg))
 
@@ -68,13 +84,6 @@ def _prepare_engine_inputs(
             "value": override_emissions_raw
         }
         resolved_yaml = yaml.safe_dump(resolved_doc, sort_keys=False)
-
-    forcing_raw = sample_dir.joinpath(forcing_name).read_text(encoding="utf-8")
-    forcing_lines = [line for line in forcing_raw.splitlines() if line.strip()]
-    header = forcing_lines[0].split()
-    rows = [line.split() for line in forcing_lines[1 : forcing_rows + 1]]
-    if forcing_mutator is not None:
-        header, rows = forcing_mutator(header, rows)
 
     forcing_text = "\n".join([" ".join(header), *(" ".join(row) for row in rows)])
     (run_dir / forcing_name).write_text(forcing_text + "\n", encoding="utf-8")

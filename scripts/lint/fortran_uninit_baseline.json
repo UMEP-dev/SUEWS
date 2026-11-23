@@ -8,7 +8,7 @@
     "-Wmaybe-uninitialized"
   ],
   "unit_count": 113,
-  "entry_count": 30,
+  "entry_count": 28,
   "entries": [
     {
       "file": "src/suews/ext_lib/spartacus-surface/radsurf/radsurf_urban_lw.F90",
@@ -170,18 +170,6 @@
       "file": "src/suews/src/suews_phys_narp.f95",
       "proc": "narp",
       "var": "tsurf_0_k",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_phys_resist.f95",
-      "proc": "suews_cal_roughnessparameters",
-      "var": "z0m_zh",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_phys_resist.f95",
-      "proc": "suews_cal_roughnessparameters",
-      "var": "zdm_zh",
       "kind": "maybe-uninitialized"
     },
     {

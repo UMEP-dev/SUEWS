@@ -1,6 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_resist
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_const_physconst, ONLY: eps_fp
    IMPLICIT NONE
 
@@ -494,7 +495,6 @@ CONTAINS
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, PHENOLOGY_STATE, ROUGHNESS_STATE, SUEWS_STATE
-      USE module_ctrl_error_state, ONLY: supy_error_flag
       IMPLICIT NONE
 
       INTEGER, PARAMETER :: nsurf = 7 ! number of surface types
@@ -564,6 +564,7 @@ CONTAINS
       REAL(KIND(1D0)) :: z0m_zh0 ! z0m for non-roughness elements (i.e. zh=0)
       REAL(KIND(1D0)) :: zdm_zh0 ! zdm for non-roughness elements (i.e. zh=0)
       REAL(KIND(1D0)) :: non_rough_fraction
+      CHARACTER(LEN=32) :: str_rough_method
 
       ! calculated values of FAI
       ! REAL(KIND(1D0)), INTENT(out) :: FAIBldg_use
@@ -625,6 +626,29 @@ CONTAINS
 
             ! porosity_dectr = phenState_prev%porosity_id
 
+            ! Validate momentum roughness method before any branch so
+            ! unsupported codes (e.g. 5 / ALTERNATIVE) fail even when Zh == 0.
+            SELECT CASE (RoughLenMomMethod)
+            CASE (1, 2, 3, 4)
+               ! Supported momentum roughness-length methods
+            CASE DEFAULT
+               WRITE (str_rough_method, '(I0)') RoughLenMomMethod
+               CALL set_supy_error( &
+                  113, &
+                  'SUEWS_cal_RoughnessParameters: unsupported RoughLenMomMethod '// &
+                  TRIM(str_rough_method)//'; use 1, 2, 3, or 4')
+               FAI = -999.0D0
+               PAI = -999.0D0
+               Zh = -999.0D0
+               z0m = -999.0D0
+               zdm = -999.0D0
+               ZZD = -999.0D0
+               FAIBldg_use = -999.0D0
+               FAIEveTree_use = -999.0D0
+               FAIDecTree_use = -999.0D0
+               RETURN
+            END SELECT
+
             !Total area of buildings and trees
             ! areaZh = (sfr_surf(BldgSurf) + sfr_surf(ConifSurf) + sfr_surf(DecidSurf))
             ! TS 19 Jun 2022: take porosity of trees into account; to be consistent with PAI calculation in RSL
@@ -680,24 +704,41 @@ CONTAINS
                FAI = 1E-5
             END IF
 
-            IF (Zh /= 0) THEN
+            IF (Zh /= 0 .AND. RoughLenMomMethod /= 1) THEN
                !Calculate z0m and zdm depending on the Z0 method
-               IF (RoughLenMomMethod == 2) THEN !Rule of thumb (G&O 1999)
+               SELECT CASE (RoughLenMomMethod)
+               CASE (2) !Rule of thumb (G&O 1999)
                   z0m_zh = 0.1*Zh
                   zdm_zh = 0.7*Zh
-               ELSEIF (RoughLenMomMethod == 3) THEN !MacDonald 1998
+               CASE (3) !MacDonald 1998
                   zdm_zh = (1 + 4.43**(-sfr_surf(BldgSurf))*(sfr_surf(BldgSurf) - 1))*Zh
                   ! #1615: z0m must use the zdm_zh computed above, not the persistent `zdm`
                   ! state (which still holds the previous timestep's PAI-blended value here)
                   z0m_zh = ((1 - zdm_zh/Zh)*EXP(-(0.5*1.0*1.2/0.4**2*(1 - zdm_zh/Zh)*FAI)**(-0.5)))*Zh
-               ELSEIF (RoughLenMomMethod == 4) THEN ! lambdaP dependent as in Fig.1a of G&O (1999)
+               CASE (4) ! lambdaP dependent as in Fig.1a of G&O (1999)
                   ! these are derived using digitalised points
                   zdm_zh = (-0.182 + 0.722*sigmoid(-1.16 + 3.89*PAI) + 0.493*sigmoid(-5.17 + 32.7*PAI))*Zh
                   z0m_zh = (0.00208 + &
                             0.0165*MIN(PAI, .7) + 2.52*MIN(PAI, .7)**2 + &
                             3.21*MIN(PAI, .7)**3 - 43.6*MIN(PAI, .7)**4 + &
                             76.5*MIN(PAI, .7)**5 - 40.*MIN(PAI, .7)**6)*Zh
-               END IF
+               CASE DEFAULT
+                  WRITE (str_rough_method, '(I0)') RoughLenMomMethod
+                  CALL set_supy_error( &
+                     113, &
+                     'SUEWS_cal_RoughnessParameters: unsupported RoughLenMomMethod '// &
+                     TRIM(str_rough_method)//'; use 1, 2, 3, or 4')
+                  FAI = -999.0D0
+                  PAI = -999.0D0
+                  Zh = -999.0D0
+                  z0m = -999.0D0
+                  zdm = -999.0D0
+                  ZZD = -999.0D0
+                  FAIBldg_use = -999.0D0
+                  FAIEveTree_use = -999.0D0
+                  FAIDecTree_use = -999.0D0
+                  RETURN
+               END SELECT
                ! #271: to smooth the z0m (and zdm) values when other non-rough surfaces are present
                IF (non_rough_fraction > eps_fp) THEN
                   z0m = DOT_PRODUCT([z0m_zh, z0m_zh0], [PAI, non_rough_fraction])

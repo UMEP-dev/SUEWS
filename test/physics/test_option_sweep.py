@@ -100,6 +100,13 @@ OPTION_VALUES_REJECTED = {
     # gh#1783 the RSL profile returned NaN T2/RH2/Q2/U10 without a warning.
     ("stability", 0): "stability=0 is a reserved code",
     ("stability", 1): "stability=1 is a reserved code",
+    # Momentum roughness code 5 (ALTERNATIVE) has no formulation in
+    # SUEWS_cal_RoughnessParameters; before gh#2105 z0m_zh/zdm_zh remained
+    # unassigned in the kernel.
+    (
+        "roughness_length_momentum",
+        5,
+    ): "roughness_length_momentum=5 (ALTERNATIVE) is not available",
 }
 
 

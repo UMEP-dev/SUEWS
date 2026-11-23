@@ -113,6 +113,7 @@ jobs:
     outputs:
       api_cells: ${{ steps.layout.outputs.api_cells }}
       physics_shards: ${{ steps.layout.outputs.physics_shards }}
+      effective_split_tests: ${{ steps.layout.outputs.effective_split_tests }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -189,7 +190,8 @@ jobs:
           build_profile: ${{ inputs.build_profile }}
           artifact_prefix: ${{ inputs.artifact_prefix }}
           metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics
-          skip_tests: ${{ inputs.split_tests }}
+          skip_tests: ${{ inputs.split_tests && inputs.test_tier != 'smoke' && inputs.test_tier != 'core' && inputs.test_tier != 'cfg' }}
+          manylinux_x86_64_image: ${{ env.MANYLINUX_IMAGE }}
 
   # The analytic Fortran probe tests (test_free_convection.py and others)
   # compile a small program against the source-build libraries in
@@ -199,7 +201,7 @@ jobs:
   # (run_ci_tests.py, SUEWS_FORTRAN_PROBES_PREBUILT).
   fortran_probes:
     name: fortran probes | ${{ fromJson(inputs.python_json)[0] }} | manylinux x86_64
-    if: inputs.split_tests
+    if: inputs.split_tests && inputs.test_tier != 'smoke' && inputs.test_tier != 'core' && inputs.test_tier != 'cfg'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -236,7 +238,7 @@ jobs:
   physics:
     name: physics | ${{ matrix.python }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}${{ matrix.shard && format(' shard {0}', matrix.shard) || '' }}
     needs: [layout, build, fortran_probes]
-    if: inputs.split_tests
+    if: needs.layout.outputs.effective_split_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -445,6 +447,34 @@ jobs:
           .lowest-venv/bin/python -m pytest -n 4 --dist worksteal -q --tb=short \
             -m "(smoke or core) and not slow and not qgis" \
             test/core test/data_model test/io_tests test/cmd
+          printf '{"result": "success"}\n' > lowest-direct-deps-result.json
+
+      - name: Upload lowest-direct dependency result marker
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: lowest-direct-deps-result
+          path: lowest-direct-deps-result.json
+          if-no-files-found: error
+          retention-days: 3
+
+  # Fail closed inside build_wheels if lowest_direct_deps was requested and the
+  # wheel succeeded, but lowest_direct_deps was skipped or failed (#2284).
+  lowest_direct_deps_guard:
+    name: Require lowest-direct dependency smoke tests
+    needs: [build, lowest_direct_deps]
+    if: always() && inputs.run_lowest_direct_deps && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed if lowest_direct_deps did not succeed
+        shell: bash
+        env:
+          LOWEST_DIRECT_DEPS_RESULT: ${{ needs.lowest_direct_deps.result }}
+        run: |
+          if [[ "$LOWEST_DIRECT_DEPS_RESULT" != "success" ]]; then
+            echo "::error::lowest_direct_deps was required (run_lowest_direct_deps=true) but finished with '${LOWEST_DIRECT_DEPS_RESULT}'"
+            exit 1
+          fi
+          echo "[OK] lowest_direct_deps succeeded"
 
   # Nightly and on demand: Python line and branch coverage of supy and
   # suews_mcp over the whole suite except the qgis tests, on the Linux cp312

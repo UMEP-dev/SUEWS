@@ -40,6 +40,8 @@
 #   INPUT_PLAT_WINDOWS   -- inputs.plat_windows
 #   INPUT_PY312..PY315   -- inputs.py312..py315
 #   INPUT_TEST_TIER      -- inputs.test_tier (dispatch only)
+#   INPUT_LOWEST_DIRECT_DEPS -- inputs.lowest_direct_deps (dispatch only;
+#                           custom matrix requires plat_linux=true when true)
 #   FULL_MATRIX          -- "true" if the PR carries the 0-ci:full-matrix label
 #                           (pull_request only). Opts a PR into PR_PLATFORMS
 #                           (Linux, macOS arm64, Windows); without it every PR
@@ -63,6 +65,7 @@ IS_DRAFT="${IS_DRAFT:-false}"
 FULL_MATRIX="${FULL_MATRIX:-false}"
 INPUT_MATRIX_CONFIG="${INPUT_MATRIX_CONFIG:-}"
 INPUT_TEST_TIER="${INPUT_TEST_TIER:-all}"
+INPUT_LOWEST_DIRECT_DEPS="${INPUT_LOWEST_DIRECT_DEPS:-false}"
 PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
 CI_CHANGED="${CI_CHANGED:-false}"
 TESTS_CHANGED="${TESTS_CHANGED:-false}"
@@ -260,6 +263,11 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
 
       if [[ "$PLATFORMS" == "[]" ]]; then
         echo "::error::Custom matrix requires at least one platform"
+        exit 1
+      fi
+
+      if [[ "${INPUT_LOWEST_DIRECT_DEPS}" == "true" ]] && [[ "${INPUT_PLAT_LINUX:-false}" != "true" ]]; then
+        echo "::error::Custom matrix with lowest_direct_deps=true requires plat_linux=true (lowest-direct dependency smoke tests run on the Linux cp312 wheel)"
         exit 1
       fi
 

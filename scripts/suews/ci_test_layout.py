@@ -59,19 +59,29 @@ def api_cells(
     return cells
 
 
+def effective_split_tests(split_tests: bool, tier: str) -> bool:
+    """Return whether physics tests actually split out of the wheel job.
+
+    Unsharded tiers (``smoke``, ``core``, ``cfg``) stay inside the wheel job
+    even when ``split_tests`` is requested: running one unsharded physics job
+    would upload its metrics under the wheel job's artefact name (#2284).
+    """
+    return bool(split_tests and tier not in UNSHARDED_TIERS)
+
+
 def physics_shards(split_tests: bool, tier: str, count: int) -> list[str]:
     """Return the physics shard labels; ``[""]`` means the physics tier stays in the wheel job.
 
     A split layout always has at least two shards: an unsharded physics job
     would upload its metrics under the wheel job's artefact name.
     """
-    if not split_tests or tier in UNSHARDED_TIERS:
+    if not effective_split_tests(split_tests, tier):
         return [""]
     return shard_labels(max(count, 2))
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Write ``api_cells`` and ``physics_shards`` to ``$GITHUB_OUTPUT`` (or stdout)."""
+    """Write ``api_cells``, ``physics_shards``, and ``effective_split_tests`` to ``$GITHUB_OUTPUT`` (or stdout)."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--api-python", required=True, help="JSON array of Python tags")
     parser.add_argument("--tier", required=True)
@@ -91,10 +101,12 @@ def main(argv: list[str] | None = None) -> int:
         args.bookend_core,
         args.full_python,
     )
+    split_active = effective_split_tests(args.split_tests, args.tier)
     shards = physics_shards(args.split_tests, args.tier, args.physics_shards)
     lines = [
         f"api_cells={json.dumps(cells, separators=(',', ':'))}",
         f"physics_shards={json.dumps(shards, separators=(',', ':'))}",
+        f"effective_split_tests={'true' if split_active else 'false'}",
     ]
     output = os.environ.get("GITHUB_OUTPUT")
     if output:

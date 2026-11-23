@@ -454,6 +454,7 @@ jobs:
           INPUT_PY314: ${{ inputs.py314 }}
           INPUT_PY315: ${{ inputs.py315 }}
           INPUT_TEST_TIER: ${{ inputs.test_tier }}
+          INPUT_LOWEST_DIRECT_DEPS: ${{ inputs.lowest_direct_deps }}
           GITHUB_REF: ${{ github.ref }}
           PR_PYPROJECT: _pr_meta/pyproject.toml
         run: bash .github/scripts/determine-matrix.sh
@@ -788,6 +789,8 @@ jobs:
         shell: bash
         run: >-
           python scripts/lint/check_cost_markers.py ci-metrics
+          --require-axis api
+          --require-axis physics
           --histogram
           --markdown "$GITHUB_STEP_SUMMARY"
           --json cost-markers.json
@@ -1319,6 +1322,38 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
+      - name: Download lowest-direct dependency result marker
+        if: needs.build_wheels.result == 'success' && needs.detect-changes.outputs.dependency-audit-changed == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: lowest-direct-deps-result
+          path: _lowest_direct_deps
+
+      # Resolve lowest_direct_deps independently from build_wheels: when
+      # dependency-audit paths changed and build_wheels succeeded, only an
+      # explicit marker uploaded by lowest_direct_deps after pytest passes
+      # counts as 'success'; a wheel-pass / floor-skip regression resolves
+      # to 'skipped' and fails closed in pr-gate.sh (#2284).
+      - name: Resolve independent lowest-direct dependency result
+        id: lowest-direct-result
+        shell: bash
+        env:
+          BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
+          DEPENDENCY_AUDIT_CHANGED: ${{ needs.detect-changes.outputs.dependency-audit-changed }}
+        run: |
+          if [[ "$DEPENDENCY_AUDIT_CHANGED" != "true" ]]; then
+            result="skipped"
+          elif [[ "$BUILD_WHEELS_RESULT" != "success" ]]; then
+            result="$BUILD_WHEELS_RESULT"
+          elif [[ -f _lowest_direct_deps/lowest-direct-deps-result.json ]] && \
+               python3 -c 'import json, sys; data = json.load(open(sys.argv[1], encoding="utf-8")); sys.exit(0 if data.get("result") == "success" else 1)' _lowest_direct_deps/lowest-direct-deps-result.json; then
+            result="success"
+          else
+            result="skipped"
+          fi
+          echo "result=${result}" >> "$GITHUB_OUTPUT"
+
       # build_wheels is one node per run whose result aggregates every
       # platform's wheel build and api lane (the lane is chained inside the
       # reusable workflow), so the same result feeds both gate inputs; the
@@ -1334,10 +1369,10 @@ jobs:
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           PHYSICS_LABEL_RESULT: ${{ needs.check_physics_label.result }}
-          # The floor job runs inside the Linux build_wheels call (it starts
-          # when the wheel exists), so when it was required its result is
-          # build_wheels' result; otherwise it did not run.
-          LOWEST_DIRECT_DEPS_RESULT: ${{ needs.detect-changes.outputs.dependency-audit-changed == 'true' && needs.build_wheels.result || 'skipped' }}
+          # Independently observed from the lowest_direct_deps marker artefact
+          # when required, so a skipped floor job cannot hide behind a green
+          # wheel build (#2284).
+          LOWEST_DIRECT_DEPS_RESULT: ${{ steps.lowest-direct-result.outputs.result }}
           LOWEST_DIRECT_DEPS_REQUIRED: ${{ needs.build_wheels.result == 'success' && needs.detect-changes.outputs.dependency-audit-changed == 'true' }}
           RUST_TEST_RESULT: ${{ needs.rust_test.result }}
           RUST_TEST_CHANGED: ${{ needs.detect-changes.outputs.rust-test-changed }}

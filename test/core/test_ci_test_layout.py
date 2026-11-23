@@ -6,7 +6,12 @@ import json
 
 import pytest
 
-from scripts.suews.ci_test_layout import api_cells, main, physics_shards
+from scripts.suews.ci_test_layout import (
+    api_cells,
+    effective_split_tests,
+    main,
+    physics_shards,
+)
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
@@ -33,10 +38,37 @@ def test_merge_queue_and_nightly_layouts() -> None:
 
 @pytest.mark.parametrize("tier", ["smoke", "core", "cfg"])
 def test_draft_tiers_are_never_sharded(tier: str) -> None:
-    """An empty shard would exit pytest with code 5."""
+    """An empty shard would exit pytest with code 5 and must stay inside the wheel job (#2284)."""
     cells = api_cells(["cp312", "cp315"], tier, "cp312", 4, False, "cp312")
     assert all(c["shard"] == "" for c in cells)
     assert physics_shards(True, tier, 2) == [""]
+    assert effective_split_tests(True, tier) is False
+
+
+def test_effective_split_tests_and_cli_output(tmp_path, monkeypatch, capsys) -> None:
+    assert effective_split_tests(True, "standard") is True
+    assert effective_split_tests(True, "physics-full") is True
+    assert effective_split_tests(False, "standard") is False
+
+    output = tmp_path / "smoke_out"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    assert (
+        main([
+            "--api-python",
+            '["cp312"]',
+            "--tier",
+            "smoke",
+            "--split-tests",
+            "--physics-shards",
+            "2",
+        ])
+        == 0
+    )
+    lines = dict(
+        line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines()
+    )
+    assert lines["effective_split_tests"] == "false"
+    assert json.loads(lines["physics_shards"]) == [""]
 
 
 def test_split_layout_has_at_least_two_physics_shards() -> None:
@@ -61,3 +93,4 @@ def test_cli_writes_github_outputs(tmp_path, monkeypatch, capsys) -> None:
     lines = dict(line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines())
     assert len(json.loads(lines["api_cells"])) == 5
     assert json.loads(lines["physics_shards"]) == ["1-of-2", "2-of-2"]
+    assert lines["effective_split_tests"] == "true"

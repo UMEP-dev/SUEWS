@@ -37,7 +37,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always active for every site; validate_site_required_fields lists all 11 scalars as required.",
-      "owner_issue": "#2002",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2101"
@@ -90,7 +90,7 @@
       },
       "category": "optional_control",
       "active_condition": "Optional in YAML when meteorological forcing is supplied programmatically through SUEWSSimulation.update_forcing().",
-      "owner_issue": "#2001",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2083"
       ],
@@ -118,7 +118,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive on the open-water surface, which has no subsurface soil store.",
-      "owner_issue": "#2077",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2001"
       ],
@@ -149,7 +149,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for all six non-water surfaces with sfr > 0; omitting store_max silently alters runoff and QE.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2076",
       "related_issues": [
         "#1991",
         "#2001",
@@ -179,7 +179,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Open water does not use surface-drainage equations (sample_config ships -999 sentinels for water drainage).",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2001"
       ],
@@ -204,7 +204,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when storage_heat uses OHM (1) or DyOHM (6).",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001",
@@ -227,7 +227,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive when storage_heat=5 (EHC) handles all facets.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2083"
       ],
@@ -256,7 +256,7 @@
       },
       "category": "active_gap",
       "active_condition": "OHM thresholds are active under OHM/DyOHM (storage_heat=1,6); AnOHM parameters are active under storage_heat=3.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -282,7 +282,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for vegetated surfaces (evetr, dectr, grass) with sfr > 0 under modelled LAI (laimethod=1).",
-      "owner_issue": "#2101",
+      "owner_issue": "#2076",
       "related_issues": [
         "#1991",
         "#2001",
@@ -357,7 +357,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active under emissions=12 (CO2 emissions enabled); emission_co2_point_source is already rejected on all 3 mutations.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001",
@@ -419,7 +419,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for vegetated surfaces (evetr, dectr, grass) with sfr > 0 under emissions=12; omitting theta_bio_co2 or beta_bio_co2 produces NaN FcPhoto/Fc.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001",
@@ -442,7 +442,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for vegetated surfaces under biogenic CO2 methods; omit emits defaults while Optional[...] allows explicit null.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -612,7 +612,55 @@
       "rationale": "Snowpack limits and snow initial states are inactive when snow processes are disabled."
     },
     {
-      "id": "snow-ohm-coef-unwired",
+      "id": "snow-ohm-coef-active",
+      "anchors": [
+        "snow_cold"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.ohm_coef.winter_wet.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "active_gap",
+      "active_condition": "Active when snow_use=1 with OHM-calling storage heat (snow_cold anchor; wired in #2109, winter_wet read by OHM).",
+      "owner_issue": "#1982",
+      "related_issues": [
+        "#1991",
+        "#2001",
+        "#2002"
+      ],
+      "rationale": "Active snow winter_wet OHM coefficients a1/a2/a3 default to None in OHMCoefficients and are dropped or nulled in engine YAML even when snow OHM is active."
+    },
+    {
+      "id": "snow-ohm-coef-winter-wet-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.ohm_coef.winter_wet.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when snow_use=0 (snow disabled).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2083"
+      ],
+      "rationale": "Snow winter_wet OHM coefficients are unused when snow processes are disabled and permit conditional absence under BR-03."
+    },
+    {
+      "id": "snow-ohm-coef-unconsumed-regimes-inactive",
       "anchors": [
         "all_surfaces_baseline",
         "co2_methods",
@@ -622,23 +670,25 @@
         "irrigation_and_dls"
       ],
       "path_patterns": [
-        "sites[0].properties.snow.ohm_coef.*.*"
+        "sites[0].properties.snow.ohm_coef.summer_dry.*",
+        "sites[0].properties.snow.ohm_coef.summer_wet.*",
+        "sites[0].properties.snow.ohm_coef.winter_dry.*"
       ],
       "mutations": {
         "omit": "dropped",
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
-      "category": "unwired_parameter",
-      "active_condition": "Unwired across Rust bridge and Fortran kernel (deltaQi === 0).",
-      "owner_issue": "#2109",
+      "category": "inactive_optional",
+      "active_condition": "Unconsumed across all anchors: OHM (suews_phys_ohm.f95) evaluates snow deltaQi unconditionally from winter_wet OHM_coef(nsurf + 1, 3, 1:3).",
+      "owner_issue": "#2083",
       "related_issues": [
-        "#2084"
+        "#2083"
       ],
-      "rationale": "Snow OHM coefficients are unwired in the bridge/kernel and default to None."
+      "rationale": "Non-winter_wet snow OHM regimes are transported when present but never read by OHM, so conditional absence is permitted under BR-03."
     },
     {
-      "id": "snow-ohm-thresholds-unwired",
+      "id": "snow-ohm-thresholds-inactive",
       "anchors": [
         "all_surfaces_baseline",
         "co2_methods",
@@ -655,13 +705,13 @@
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
-      "category": "unwired_parameter",
-      "active_condition": "Unwired across Rust bridge and Fortran kernel.",
-      "owner_issue": "#2109",
+      "category": "inactive_optional",
+      "active_condition": "Unconsumed across all anchors: OHM (suews_phys_ohm.f95) does not switch snow regimes via OHM_threshSW(8) or OHM_threshWD(8).",
+      "owner_issue": "#2083",
       "related_issues": [
-        "#2084"
+        "#2083"
       ],
-      "rationale": "Snow OHM thresholds are unwired in the bridge/kernel and accept explicit nulls."
+      "rationale": "Snow OHM thresholds are transported when present but never read by OHM, so conditional absence is permitted under BR-03."
     },
     {
       "id": "stebbs-roof-and-outer-null-active",
@@ -683,7 +733,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); wall/window/ground STEBBS fields already reject explicit nulls.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -789,7 +839,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active under SPARTACUS/EHC facet moisture/conduction (net_radiation=1003, storage_heat=5).",
-      "owner_issue": "#2101",
+      "owner_issue": "#2076",
       "related_issues": [
         "#1991",
         "#2001",
@@ -840,7 +890,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active under SPARTACUS radiation (net_radiation=1003); omit emits defaults while Optional[...] allows explicit null.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2085",
       "related_issues": [
         "#2085",
         "#1991"
@@ -894,7 +944,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when EHC (storage_heat=5) or DyOHM (storage_heat=6) evolves surface/inner temperatures.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2003",
       "related_issues": [
         "#1991",
         "#2001"
@@ -944,7 +994,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active whenever at least one actual simulation date satisfies water_use=modelled (WaterUseMethod==0), Fortran DayWat(wd)==1.0 (wd from Day_Of_Week: 1=Sun..7=Sat indexed into [monday..sunday]), AND Fortran hemispheric season (lat>=0: ie_start-1 <= doy <= ie_end+1; lat<0: not(ie_end <= doy <= ie_start)), independent of faut or irrigation_fraction: update_WaterUse (suews_phys_dailystate.f95:589-631) adds ponding demand WUDay_P unconditionally to WUDay_A/WUDay_total.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001",
@@ -971,7 +1021,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive ONLY when zero actual simulation dates satisfy WaterUseMethod==0 AND DayWat(wd)==1.0 AND the Fortran hemispheric season predicate (e.g. water_use=observed on observed_and_dyohm, all daywat.*==0.0 on the four non-irrigation modelled anchors, closed season such as NH 280..100, or closed weekdays outside the simulation window). Neither faut==0 nor irrigation_fraction==0 disables h_maintain.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2083"
       ],
@@ -994,7 +1044,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when water_use=modelled (WaterUseMethod==0) with irrigation.daywat.* == 1.0 (ie_start/ie_end gate update_WaterUse at suews_phys_dailystate.f95:593-602; internalwateruse_h splits total water use when wu > 0 at suews_phys_waterdist.f95:1420-1437).",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001",
@@ -1023,7 +1073,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive when water_use=observed (WaterUseMethod==1 with zero observed water use, observed_and_dyohm) or when water_use=modelled with all irrigation.daywat.* == 0.0 (the four non-irrigation modelled anchors), so update_WaterUse does not evaluate ie_start/ie_end and total water use wu == 0.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2083"
       ],
@@ -1043,7 +1093,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active under modelled irrigation (irrigation_and_dls anchor); omit emits 0.0 while Optional[...] allows explicit null.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1068,7 +1118,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive when water_use=observed (WaterUseMethod==1, observed_and_dyohm) or when all seven irrigation.daywat.* flags are 0.0 (so update_WaterUse outputs WUDay_id==0 on the four non-irrigation modelled anchors).",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2083"
       ],
@@ -1097,7 +1147,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for DayProfile and WeeklyProfile scalar fields (omit emits defaults and wrapped_null rejects, while bare_null drops the key).",
-      "owner_issue": "#2001",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2101"
@@ -1128,7 +1178,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for 24-hour diurnal profiles; setting an hour slot to null passes validation and emits null into engine YAML.",
-      "owner_issue": "#2001",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2101"
@@ -1153,7 +1203,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); omitting or nulling a 10-minute slot passes validation.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1182,7 +1232,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive when stebbs.enabled=False.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#2083"
       ],
@@ -1206,7 +1256,7 @@
       },
       "category": "optional_control",
       "active_condition": "Output group list is a user-selectable subset of diagnostic groups; removing an element omits that group from output.",
-      "owner_issue": "#2001",
+      "owner_issue": "#2083",
       "related_issues": [
         "#1991"
       ],
@@ -1234,7 +1284,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when storage_heat = 5 (EHC) on spartacus_ehc_stebbs.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1256,7 +1306,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when storage_heat = 6 (DyOHM) on observed_and_dyohm; bare_null is already rejected for bldgs thermal layers.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1288,7 +1338,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive when storage_heat = 1 (OHM); active EHC coverage is tracked on spartacus_ehc_stebbs.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1332,7 +1382,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive under storage_heat = 6 (DyOHM) outside bldgs; active EHC coverage is tracked on spartacus_ehc_stebbs.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1354,7 +1404,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when net_radiation = 1003 (SPARTACUS) on spartacus_ehc_stebbs.",
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1380,7 +1430,7 @@
       },
       "category": "inactive_optional",
       "active_condition": "Inactive when SPARTACUS is disabled; active coverage is tracked on spartacus_ehc_stebbs.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2083",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1405,7 +1455,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always active for every site; hdd_id is a fixed 12-slot heating/cooling degree-day state vector.",
-      "owner_issue": "#2101",
+      "owner_issue": "#2003",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1432,7 +1482,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always triggered when {value: null} is supplied on vegetated LAI parameters.",
-      "owner_issue": "#2001",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991"
       ],
@@ -1479,7 +1529,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always triggered when {value: null} is supplied on a 24-hour or 144-step profile slot.",
-      "owner_issue": "#2001",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991"
       ],

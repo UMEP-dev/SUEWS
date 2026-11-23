@@ -37,10 +37,6 @@ class ContinuationDifference(AssertionError):
     """An exact comparison failed, with the first variable/time and magnitude."""
 
 
-class _Issue2107BuildingsDifference(ContinuationDifference):
-    """Lost buildings affect only building-derived STEBBS output."""
-
-
 class _Issue2108ThermalDifference(ContinuationDifference):
     """Missing fast/slow EHC temperatures first change storage heat."""
 
@@ -56,24 +52,6 @@ def _known_difference(equal, actual, mode, boundary):
     if actual.index[row][-1] != boundary:
         return ContinuationDifference
     columns = actual.columns
-    if mode == "stebbs" and columns[col] == ("STEBBS", "ws_bh"):
-        independent = {
-            "ws_10",
-            "Tair_2",
-            "Twater_mains",
-            "Kroof_in",
-            "Lroof_in",
-            "Kwall_in",
-            "Lwall_in",
-        }
-        protected = [
-            group != "STEBBS" or name in independent for group, name in columns
-        ]
-        if (
-            equal[:, protected].all()
-            and not np.isfinite(actual["STEBBS", "Tair_ind"]).all()
-        ):
-            return _Issue2107BuildingsDifference
     if mode == "dual_ehc" and columns[col] == ("SUEWS", "QS"):
         independent = {"Kdown", "Kup", "Ldown", "Lup", "Tsurf", "QN", "Rain", "Irr"}
         protected = [
@@ -222,14 +200,7 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode, monkeypatch):
         "default",
         "snow",
         "spartacus",
-        pytest.param(
-            "stebbs",
-            marks=pytest.mark.xfail(
-                strict=True,
-                raises=_Issue2107BuildingsDifference,
-                reason="#2107: buildings(:) lost across continuation",
-            ),
-        ),
+        "stebbs",
         pytest.param(
             "dual_ehc",
             marks=pytest.mark.xfail(

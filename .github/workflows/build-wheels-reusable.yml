@@ -47,7 +47,7 @@ on:
         type: boolean
         default: false
       api_shard_python:
-        description: 'Test-time CPython tag whose api cell on this call''s platform is split into api_shard_count shards (the pull-request layout passes cp312 for Linux and Windows); empty runs every api cell whole. Only read when run_api_tests is true'
+        description: 'Test-time CPython tag whose api cell on this call''s platform is split into api_shard_count shards, or all to split every non-bookend_core api cell (the pull-request layout passes cp312 for Linux and all for Windows); empty runs every api cell whole. Only read when run_api_tests is true'
         required: false
         type: string
         default: ''

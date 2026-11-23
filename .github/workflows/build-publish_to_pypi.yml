@@ -125,13 +125,17 @@ on:
         description: 'Also record the zero-tolerance spread of the full-year sample comparison on every built platform for the two CPython bookends (what the nightly does; uploads tolerance-spread-* artefacts)'
         type: boolean
         default: false
+      rss_growth:
+        description: 'Run both real-physics RSS growth lanes and retention controls (requires Linux wheel)'
+        type: boolean
+        default: false
       api_serial_platforms:
         description: 'Comma-separated platforms (manylinux, macosx, win) whose api lane runs in one process instead of on its xdist workers; the SUEWS_API_SERIAL_PLATFORMS repository variable does the same on every event where this input is empty'
         required: false
         type: string
         default: ''
       pr_api_lane:
-        description: 'Lay out the api lane as a pull request does (no macOS api cells; the Windows cp312 cell split into two shards), so the pull-request layout can be measured on a branch; pair it with test_tier standard and the custom matrix'
+        description: 'Lay out the api lane as a pull request does (no macOS api cells; every Windows api cell split into two shards), so the pull-request layout can be measured on a branch; pair it with test_tier standard and the custom matrix'
         type: boolean
         default: false
       cost_markers:
@@ -584,15 +588,15 @@ jobs:
         ${{ matrix.buildplat[1] == 'manylinux' &&
         (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
         (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)) }}
-      # Pull requests split the Windows cp312 api cell, the usual critical
-      # path, into two shards (scripts/suews/pytest_shard.py); Windows
-      # runners queue at about zero, so the extra runner costs no wait. The
-      # Linux build-Python cell runs as four shards on pull requests and in
+      # Pull requests split every Windows api cell (cp312 and cp315, via
+      # shard_python 'all') into two shards each (scripts/suews/pytest_shard.py);
+      # Windows runners queue at about zero, so the extra runners cost no wait.
+      # The Linux build-Python cell runs as four shards on pull requests and in
       # the merge queue. The nightly runs every cell whole.
       api_shard_python: >-
-        ${{ (((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win') ||
-        (matrix.buildplat[1] == 'manylinux' && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane)))
-        && fromJson(needs.determine_matrix.outputs.python)[0] || '' }}
+        ${{ ((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win') && 'all' ||
+        ((matrix.buildplat[1] == 'manylinux' && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane))
+        && fromJson(needs.determine_matrix.outputs.python)[0] || '') }}
       api_shard_count: ${{ matrix.buildplat[1] == 'manylinux' && 4 || 2 }}
       # A ready PR already validates both supported Python bookends. The merge
       # queue revalidates the combined tree on the abi3 floor only, on Linux,
@@ -687,6 +691,51 @@ jobs:
         with:
           name: suews-mcp-dist
           path: mcp/dist/*
+
+  rss_growth:
+    name: RSS growth (Linux cp312)
+    needs: [build_wheels]
+    # Start as a non-gating nightly recording job per CI conventions: the
+    # harness still exits non-zero on a threshold or control failure and always
+    # uploads rss-growth/ diagnostics, without turning the scheduled run red.
+    continue-on-error: true
+    # A requested lane still runs after a failed/skipped build and fails on
+    # the missing wheel, instead of silently disappearing from the nightly.
+    if: >-
+      always() && (github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.rss_growth == true))
+    runs-on: ubuntu-latest
+    # Ten workers, each bounded to four minutes, plus wheel setup and upload.
+    timeout-minutes: 55
+    env:
+      RSS_WHEEL_DIR: wheelhouse
+      RSS_WHEEL_ARTIFACT: cp312-manylinux-x86_64
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      RAYON_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-manylinux-x86_64
+          path: wheelhouse/
+      - name: Install this revision's wheel
+        run: python -m pip install --force-reinstall wheelhouse/*.whl
+      - name: Measure both lanes and prove retention detection
+        run: make test-rss-growth
+      - name: Preserve raw samples, diagnostics and child logs
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: rss-growth-linux-cp312
+          path: rss-growth/
+          if-no-files-found: error
+          retention-days: 30
 
   # Nightly and on demand: record the zero-tolerance spread of the full-year
   # sample comparison (scripts/suews/tolerance_spread.py) on every built

@@ -9,8 +9,8 @@ pick" into "the values that exist".
 
 What the sweep asserts for each runnable value:
 
-- the SUEWS output group is finite (bar the columns that mirror a forcing
-  column the sample does not carry), and
+- SUEWS cloud observations match supplied forcing, all other SUEWS
+  outputs are finite and non-sentinel, and
 - the water balance closes to the same 1e-4 mm bound
   `test_core_physics.test_water_balance_consistency` uses.
 
@@ -37,6 +37,7 @@ import re
 from typing import get_args
 
 from conftest import TIMESTEPS_PER_DAY, run_simulation
+from layer5_checks import assert_forcing_cloud, strict_finite_array
 import numpy as np
 import pytest
 
@@ -48,12 +49,6 @@ pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE
 # is exact by construction, so this is a numerical-noise margin, not a
 # physical tolerance.
 WATER_CLOSURE_TOLERANCE_MM = 1e-4
-
-# `Fcld` mirrors the `fcld` forcing column, which the bundled sample carries
-# as the -999 missing sentinel throughout. No net-radiation option reachable
-# in this sweep diagnoses cloud fraction instead, so the model reports it as
-# missing for every option value; that is the input, not a defect.
-SUEWS_COLUMNS_ABSENT_FROM_SAMPLE = ("Fcld",)
 
 # Values needing missing inputs or an implemented method combination.
 # Each maps to a fragment of the message the model refuses it with.
@@ -281,15 +276,11 @@ def test_option_value_runs_finite_and_conserves_water(
         f"unexpected={actual_times.difference(df_forcing.index).tolist()}"
     )
     residual = water_balance_residual_mm(df_output, df_state)
-    suews = df_output.loc[1, "SUEWS"].drop(
-        columns=list(SUEWS_COLUMNS_ABSENT_FROM_SAMPLE)
-    )
-    non_finite = suews.columns[
-        ~np.isfinite(suews.to_numpy(dtype=float)).all(axis=0)
-    ].tolist()
-    assert not non_finite, (
-        f"{field}={value.name} produced non-finite SUEWS output in {non_finite}"
-    )
+    suews = df_output.loc[1, "SUEWS"]
+    assert "Fcld" in suews, "SUEWS: missing required output column Fcld"
+    assert_forcing_cloud(suews["Fcld"], df_forcing)
+    suews = suews.drop(columns="Fcld")
+    strict_finite_array(suews, label="SUEWS")
 
     assert residual < WATER_CLOSURE_TOLERANCE_MM, (
         f"{field}={value.name}: water balance not closed, max residual "

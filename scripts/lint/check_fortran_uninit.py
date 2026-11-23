@@ -100,6 +100,7 @@ KERNEL_BASE_FLAGS = (
 )
 
 CAPI_BASE_FLAGS = (
+    "-cpp",
     "-fPIC",
     "-ffree-line-length-none",
     "-frecursive",

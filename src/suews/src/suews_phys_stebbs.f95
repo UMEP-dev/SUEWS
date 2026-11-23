@@ -739,6 +739,12 @@ CONTAINS
          height_forcing => siteInfo%z &
          )
 
+         IF (.NOT. ALLOCATED(stebbsState%buildings)) THEN
+            CALL stebbsState%ALLOCATE(1, nlayer)
+         ELSE IF (SIZE(stebbsState%buildings) < 1) THEN
+            CALL stebbsState%ALLOCATE(1, nlayer)
+         END IF
+
          ASSOCIATE ( &
             stebbs_bldg_init => flagstate%stebbs_bldg_init, &
             buildings => stebbsState%buildings, &
@@ -786,7 +792,11 @@ CONTAINS
 
             sout%ntstep = 1
             resolution = 1
-            IF (stebbs_bldg_init == 0 .OR. dt_start <= timestep) THEN
+            ! Only initialise building archetype state when stebbs_bldg_init == 0.
+            ! Inner-iteration rollbacks reset stebbs_bldg_init alongside stebbsState,
+            ! so step-1 retries still re-initialise while resumed checkpoints with
+            ! stebbs_bldg_init == 1 never clobber evolved building temperatures.
+            IF (stebbs_bldg_init == 0) THEN
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer, modState%errorState)
                stebbs_bldg_init = 1
             END IF

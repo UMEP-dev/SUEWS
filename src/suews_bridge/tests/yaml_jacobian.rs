@@ -63,8 +63,9 @@ use suews_bridge::{
     phenology_state_field_names, phenology_state_to_map, roughness_state_field_names,
     roughness_state_to_map, snow_prm_field_names, snow_state_field_names, snow_state_to_map,
     solar_state_field_names, solar_state_to_map, spartacus_layer_prm_field_names_with_dims,
-    spartacus_prm_field_names_with_height_len, stebbs_prm_field_names, stebbs_state_field_names,
-    stebbs_state_to_map, suews_config_field_names, suews_config_to_map, suews_site_to_map,
+    spartacus_prm_field_names_with_height_len, stebbs_prm_field_names,
+    stebbs_state_field_names_with_dims, stebbs_state_to_map, suews_config_field_names,
+    suews_config_to_map, suews_site_to_map,
     surf_store_prm_field_names, RunConfig,
 };
 
@@ -121,22 +122,6 @@ const KNOWN_DEAD_KEYS: &[&str] = &[
     "sites[0].properties.vertical_layers.roofs[1].wall_specular_frac",
     "sites[0].properties.vertical_layers.roofs[2].roof_albedo_dir_mult_fact",
     "sites[0].properties.vertical_layers.roofs[2].wall_specular_frac",
-    // #2109: Snow OHM parameters unwired across Rust bridge and Fortran kernel
-    // (14 keys).
-    "sites[0].properties.snow.ohm_threshold_summer_winter",
-    "sites[0].properties.snow.ohm_threshold_wet_dry",
-    "sites[0].properties.snow.ohm_coef.summer_dry.a1",
-    "sites[0].properties.snow.ohm_coef.summer_dry.a2",
-    "sites[0].properties.snow.ohm_coef.summer_dry.a3",
-    "sites[0].properties.snow.ohm_coef.summer_wet.a1",
-    "sites[0].properties.snow.ohm_coef.summer_wet.a2",
-    "sites[0].properties.snow.ohm_coef.summer_wet.a3",
-    "sites[0].properties.snow.ohm_coef.winter_dry.a1",
-    "sites[0].properties.snow.ohm_coef.winter_dry.a2",
-    "sites[0].properties.snow.ohm_coef.winter_dry.a3",
-    "sites[0].properties.snow.ohm_coef.winter_wet.a1",
-    "sites[0].properties.snow.ohm_coef.winter_wet.a2",
-    "sites[0].properties.snow.ohm_coef.winter_wet.a3",
 ];
 
 /// Reviewed slots permitted to be perturbed by more than one distinct YAML key
@@ -203,6 +188,8 @@ struct RunConfigShape {
     hydro_alloc_lens: [usize; 6],
     heat_nlayer: usize,
     heat_ndepth: usize,
+    stebbs_buildings_count: usize,
+    stebbs_bldg_nlayer: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -279,6 +266,8 @@ fn run_config_shape(rc: &RunConfig) -> RunConfigShape {
         hydro_alloc_lens: hydro_alloc_lens(rc),
         heat_nlayer: rc.state.heat_state.nlayer,
         heat_ndepth: rc.state.heat_state.ndepth,
+        stebbs_buildings_count: rc.state.stebbs_state.buildings.len(),
+        stebbs_bldg_nlayer: rc.state.stebbs_state.bldg_nlayer,
     }
 }
 
@@ -537,7 +526,11 @@ fn flatten_run_config_layout(rc: &RunConfig) -> RunConfigLayout {
         "state.roughness_state",
         roughness_state_field_names(),
     );
-    push_prefixed_names(&mut names, "state.stebbs_state", stebbs_state_field_names());
+    push_prefixed_names(
+        &mut names,
+        "state.stebbs_state",
+        stebbs_state_field_names_with_dims(shape.stebbs_buildings_count, shape.stebbs_bldg_nlayer),
+    );
     push_prefixed_names(&mut names, "state.nhood_state", nhood_state_field_names());
 
     for name in [
@@ -1717,6 +1710,22 @@ fn build_expected_receivers(
             b.expect_one(
                 format!("sites[0].properties.snow.snow_profile_24hr.{yaml_day}.{hour}"),
                 format!("site.snow.snowprof_24hr_{codec_day}_{:02}", hour - 1),
+            );
+        }
+    }
+    b.expect_one(
+        "sites[0].properties.snow.ohm_threshold_summer_winter".into(),
+        "site.snow.ohm.ohm_threshsw".into(),
+    );
+    b.expect_one(
+        "sites[0].properties.snow.ohm_threshold_wet_dry".into(),
+        "site.snow.ohm.ohm_threshwd".into(),
+    );
+    for (coef_idx, coef_key) in [(1_usize, "a1"), (2_usize, "a2"), (3_usize, "a3")] {
+        for season in ["summer_dry", "summer_wet", "winter_dry", "winter_wet"] {
+            b.expect_one(
+                format!("sites[0].properties.snow.ohm_coef.{season}.{coef_key}"),
+                format!("site.snow.ohm.ohm_coef_lc_{coef_idx}.{season}"),
             );
         }
     }
@@ -4187,6 +4196,24 @@ fn nan_poison_completeness_across_all_six_anchors() {
                 strict_jobs.push((
                     anchor_idx,
                     format!("sites[0].properties.land_cover.{surf}.waterdist.{wd_field}"),
+                ));
+            }
+        }
+        // Snow OHM parameters (#2109): explicit non-null inputs reject `.nan`
+        // across all anchors (and winter_wet is required when snow OHM is active).
+        strict_jobs.push((
+            anchor_idx,
+            "sites[0].properties.snow.ohm_threshold_summer_winter".into(),
+        ));
+        strict_jobs.push((
+            anchor_idx,
+            "sites[0].properties.snow.ohm_threshold_wet_dry".into(),
+        ));
+        for season in ["summer_dry", "summer_wet", "winter_dry", "winter_wet"] {
+            for coef in ["a1", "a2", "a3"] {
+                strict_jobs.push((
+                    anchor_idx,
+                    format!("sites[0].properties.snow.ohm_coef.{season}.{coef}"),
                 ));
             }
         }

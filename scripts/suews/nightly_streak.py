@@ -36,6 +36,7 @@ NON_GATING_JOB_PATTERNS = (
     "Cost-marker drift*",
     "Python coverage*",
     "* / Python coverage*",
+    "RSS growth*",
 )
 
 BAD_CONCLUSIONS = ("failure", "cancelled", "timed_out")
@@ -117,22 +118,25 @@ def _gh_json(args: list[str]) -> Any:
 
 def fetch(repo: str, workflow: str, limit: int) -> tuple[list, dict]:
     """Fetch the most recent scheduled runs and their jobs through gh."""
-    payload = _gh_json(
-        [
-            "gh",
-            "api",
-            f"repos/{repo}/actions/workflows/{workflow}/runs"
-            f"?event=schedule&per_page={limit}",
-        ]
-    )
+    payload = _gh_json([
+        "gh",
+        "api",
+        f"repos/{repo}/actions/workflows/{workflow}/runs"
+        f"?event=schedule&per_page={limit}",
+    ])
     runs = payload.get("workflow_runs", [])[:limit]
     if limit > 100:
-        raise SystemExit("--limit is capped at 100: the runs API returns one page of at most 100")
+        raise SystemExit(
+            "--limit is capped at 100: the runs API returns one page of at most 100"
+        )
     jobs_by_run_id = {}
     for run in runs:
-        jobs_payload = _gh_json(
-            ["gh", "api", "--paginate", f"repos/{repo}/actions/runs/{run['id']}/jobs"]
-        )
+        jobs_payload = _gh_json([
+            "gh",
+            "api",
+            "--paginate",
+            f"repos/{repo}/actions/runs/{run['id']}/jobs",
+        ])
         jobs_by_run_id[run["id"]] = jobs_payload.get("jobs", [])
     return runs, jobs_by_run_id
 

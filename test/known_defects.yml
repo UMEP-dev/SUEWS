@@ -68,13 +68,13 @@ mappings:
       ledger: "S"
       group: "debt_soil_non_water"
     contract: "C-SCHEMA"
-    issue: 2077
+    issue: 2076
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_soil_water"
     contract: "C-SCHEMA"
-    issue: 2077
+    issue: 2076
     classification: "defect"
   - selector:
       ledger: "S"
@@ -86,13 +86,13 @@ mappings:
       ledger: "S"
       group: "debt_biogenic_co2"
     contract: "C-VALID"
-    issue: 2001
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_anthro_co2"
     contract: "C-VALID"
-    issue: 2001
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
@@ -104,7 +104,7 @@ mappings:
       ledger: "S"
       group: "debt_lai_power"
     contract: "C-VALID"
-    issue: 2002
+    issue: 2076
     classification: "defect"
   - selector:
       ledger: "S"
@@ -116,7 +116,7 @@ mappings:
       ledger: "S"
       group: "debt_snow_no_default"
     contract: "C-VALID"
-    issue: 2002
+    issue: 1982
     classification: "defect"
   - selector:
       ledger: "S"
@@ -158,25 +158,25 @@ mappings:
       ledger: "S"
       group: "debt_opt_stebbs_archetype"
     contract: "C-VALID"
-    issue: 2101
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_stebbs_props"
     contract: "C-VALID"
-    issue: 2101
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_surface_thresholds"
     contract: "C-VALID"
-    issue: 2101
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_bioco2_enh"
     contract: "C-VALID"
-    issue: 2101
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
@@ -194,7 +194,7 @@ mappings:
       ledger: "S"
       group: "debt_opt_plain_scalars"
     contract: "C-VALID"
-    issue: 2101
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
@@ -212,23 +212,30 @@ mappings:
   - selector:
       ledger: "M"
       category: "active_gap"
-      owner_issue: "#2001"
+      owner_issue: "#1991"
     contract: "C-VALID"
-    issue: 2001
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "M"
       category: "active_gap"
-      owner_issue: "#2002"
+      owner_issue: "#2003"
     contract: "C-VALID"
-    issue: 2002
+    issue: 2003
     classification: "defect"
   - selector:
       ledger: "M"
       category: "active_gap"
-      owner_issue: "#2101"
+      owner_issue: "#2076"
     contract: "C-VALID"
-    issue: 2101
+    issue: 2076
+    classification: "defect"
+  - selector:
+      ledger: "M"
+      category: "active_gap"
+      owner_issue: "#2085"
+    contract: "C-VALID"
+    issue: 2085
     classification: "defect"
   - selector:
       ledger: "M"
@@ -240,30 +247,9 @@ mappings:
   - selector:
       ledger: "M"
       category: "inactive_optional"
-      owner_issue: "#2077"
-    contract: "C-VALID"
-    issue: 2077
-    classification: "accepted_exception"
-  - selector:
-      ledger: "M"
-      category: "inactive_optional"
       owner_issue: "#2083"
     contract: "C-VALID"
     issue: 2083
-    classification: "accepted_exception"
-  - selector:
-      ledger: "M"
-      category: "inactive_optional"
-      owner_issue: "#2101"
-    contract: "C-VALID"
-    issue: 2101
-    classification: "accepted_exception"
-  - selector:
-      ledger: "M"
-      category: "optional_control"
-      owner_issue: "#2001"
-    contract: "C-EMIT"
-    issue: 2001
     classification: "accepted_exception"
   - selector:
       ledger: "M"
@@ -272,24 +258,11 @@ mappings:
     contract: "C-EMIT"
     issue: 2083
     classification: "accepted_exception"
-  - selector:
-      ledger: "M"
-      category: "unwired_parameter"
-      owner_issue: "#2109"
-    contract: "C-BIND"
-    issue: 2109
-    classification: "defect"
   - selector:
       ledger: "J1"
       id_prefix: "sites[0].properties.vertical_layers.roofs["
     contract: "C-BIND"
     issue: 2085
-    classification: "defect"
-  - selector:
-      ledger: "J1"
-      id_prefix: "sites[0].properties.snow.ohm_"
-    contract: "C-BIND"
-    issue: 2109
     classification: "defect"
   - selector:
       ledger: "J1"
@@ -313,12 +286,6 @@ mappings:
       id_prefix: "heat_state.temp_surf_ehc_"
     contract: "C-EHC-RESTART"
     issue: 2108
-    classification: "defect"
-  - selector:
-      ledger: "O"
-      id: "stebbs_state.buildings"
-    contract: "C-STEBBS-RESTART"
-    issue: 2107
     classification: "defect"
   - selector:
       ledger: "O"
@@ -418,12 +385,6 @@ mappings:
   - selector:
       ledger: "X"
       id: "test/physics/test_continuation_matrix.py::test_continuation_matrix::1"
-    contract: "C-STEBBS-RESTART"
-    issue: 2107
-    classification: "defect"
-  - selector:
-      ledger: "X"
-      id: "test/physics/test_continuation_matrix.py::test_continuation_matrix::2"
     contract: "C-EHC-RESTART"
     issue: 2108
     classification: "defect"

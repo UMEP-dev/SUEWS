@@ -112,6 +112,9 @@
     "Schema version audit / *",
     "Workflow security / *"
   ],
+  "RSS growth (Linux cp312)": [
+    "Build and test (*) / *"
+  ],
   "Rust C-API field observer / *": [
     "Detect code changes"
   ],

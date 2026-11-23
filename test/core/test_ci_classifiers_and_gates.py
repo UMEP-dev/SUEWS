@@ -484,6 +484,31 @@ def test_path_filters_positive_only_and_closes_classifier_gaps() -> None:
     assert not _matches_category(filters, "rust_capi_observer", "docs/source/index.rst")
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "test/fixtures/bridge/sample_resolved.yml",
+        "test/fixtures/bridge/stebbs_resolved.yml",
+        "src/supy/data_model/output/version.py",
+        "src/supy/data_model/output/artefacts/2.0.0/catalogue.json",
+    ],
+)
+def test_rust_observer_runs_when_its_input_data_changes(path: str) -> None:
+    """Both PR routes must run the witness when only its input changes."""
+    workflow = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/rust-capi-observer.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    triggers = workflow[True] if True in workflow else workflow["on"]
+    standalone = triggers["pull_request"]["paths"]
+    assert any(_match_picomatch_pattern(path, pattern) for pattern in standalone)
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+    assert _matches_category(filters, "rust_capi_observer", path)
+
+
 def _sample_paths_for_workflow_glob(pattern: str) -> list[str]:
     """Generate representative concrete repo-relative paths for a GitHub paths glob."""
     if pattern == "**.py":
@@ -1464,9 +1489,7 @@ def test_nested_leaf_job_names_say_what_the_job_does() -> None:
     group = "Build and test (win AMD64)"
     wheel_job = f"{group} / {wheel_leaf}"
     api_job = f"{group} / API cross-CPython tests / {api_leaf}"
-    api_deps = {
-        d for k, deps in needs.items() if fnmatchcase(api_job, k) for d in deps
-    }
+    api_deps = {d for k, deps in needs.items() if fnmatchcase(api_job, k) for d in deps}
     # The api cell waits on its own platform's wheel build, and no wheel
     # pattern mistakes the api cell for a wheel build.
     assert any(fnmatchcase(wheel_job, d) for d in api_deps)

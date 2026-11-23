@@ -77,6 +77,38 @@ MODULE SUEWS_Driver
    PUBLIC :: supy_error_flag, get_supy_error
    PUBLIC :: reset_supy_error, set_supy_error
    PRIVATE :: SUEWS_cal_Main_impl
+   PRIVATE :: store_output_line, SUEWS_load_forcing_row, run_multitsteps_block
+
+   INTERFACE
+      MODULE SUBROUTINE store_output_line(line_out, ir, dataOutBlockData, datetimeBlock)
+         TYPE(output_line), INTENT(IN) :: line_out
+         INTEGER, INTENT(IN) :: ir
+         REAL(KIND(1D0)), INTENT(INOUT) :: dataOutBlockData(:, :), datetimeBlock(:, :)
+      END SUBROUTINE store_output_line
+
+      PURE MODULE SUBROUTINE SUEWS_load_forcing_row(forcing, MetForcingBlock, ir)
+         TYPE(SUEWS_FORCING), INTENT(INOUT) :: forcing
+         REAL(KIND(1D0)), DIMENSION(:, :), INTENT(IN) :: MetForcingBlock
+         INTEGER, INTENT(IN) :: ir
+      END SUBROUTINE SUEWS_load_forcing_row
+
+      MODULE SUBROUTINE run_multitsteps_block( &
+         timer, MetForcingBlock, len_sim, &
+         config, siteInfo, &
+         mod_state, &
+         output_block_suews, &
+         state_debug, block_mod_state)
+         TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
+         INTEGER, INTENT(IN) :: len_sim
+         REAL(KIND(1D0)), DIMENSION(len_sim, 24), INTENT(IN) :: MetForcingBlock
+         TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+         TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+         TYPE(SUEWS_STATE), INTENT(INOUT) :: mod_state
+         TYPE(output_block), INTENT(OUT) :: output_block_suews
+         TYPE(SUEWS_DEBUG), INTENT(OUT), OPTIONAL :: state_debug
+         TYPE(SUEWS_STATE_BLOCK), INTENT(OUT), OPTIONAL :: block_mod_state
+      END SUBROUTINE run_multitsteps_block
+   END INTERFACE
 
 CONTAINS
 
@@ -849,7 +881,7 @@ CONTAINS
       ! Local variables
       TYPE(SUEWS_FORCING) :: forcing
       TYPE(output_line) :: output_line_local
-      INTEGER :: ir, col_offset
+      INTEGER :: ir
 
       ! Loop over timesteps
       DO ir = 1, len_sim, 1
@@ -864,33 +896,7 @@ CONTAINS
             timer, siteInfo, siteInfo%anthroemis, &
             config%ForcingTimestampReference)
 
-         ! === Update forcing from forcing block ===
-         ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)
-         forcing%qn1_obs = MetForcingBlock(ir, 5)
-         forcing%qs_obs = MetForcingBlock(ir, 8)
-         forcing%qf_obs = MetForcingBlock(ir, 9)
-         forcing%U = MetForcingBlock(ir, 10)
-         forcing%RH = MetForcingBlock(ir, 11)
-         forcing%temp_c = MetForcingBlock(ir, 12)
-         forcing%pres = MetForcingBlock(ir, 13)
-         forcing%rain = MetForcingBlock(ir, 14)
-         forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snow_fraction = MetForcingBlock(ir, 16)
-         forcing%l_down = MetForcingBlock(ir, 17)
-         forcing%f_cloud = MetForcingBlock(ir, 18)
-         forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_evetr = MetForcingBlock(ir, 21)
-         forcing%LAI_dectr = MetForcingBlock(ir, 22)
-         forcing%LAI_grass = MetForcingBlock(ir, 23)
-         forcing%Wu_mm_paved = MetForcingBlock(ir, 24)
-         forcing%Wu_mm_bldgs = MetForcingBlock(ir, 25)
-         forcing%Wu_mm_evetr = MetForcingBlock(ir, 26)
-         forcing%Wu_mm_dectr = MetForcingBlock(ir, 27)
-         forcing%Wu_mm_grass = MetForcingBlock(ir, 28)
-         forcing%Wu_mm_bsoil = MetForcingBlock(ir, 29)
-         forcing%Wu_mm_water = MetForcingBlock(ir, 30)
-         forcing%kdiff = MetForcingBlock(ir, 31)
-         forcing%kdir = MetForcingBlock(ir, 32)
+         CALL SUEWS_load_forcing_row(forcing, MetForcingBlock, ir)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main_impl( &
@@ -903,40 +909,16 @@ CONTAINS
             EXIT
          END IF
 
-         ! === Store all output groups concatenated, datetime prefix once ===
-         datetimeBlock(ir, :) = output_line_local%dataOutLineSUEWS(1:5)
-         col_offset = 0
-         CALL store_group(output_line_local%dataOutLineSUEWS)
-         CALL store_group(output_line_local%dataOutLineSnow)
-         CALL store_group(output_line_local%dataOutLineBEERS)
-         CALL store_group(output_line_local%dataOutLineESTM)
-         CALL store_group(output_line_local%dataOutLineEHC)
-         CALL store_group(output_line_local%dataOutLineDailyState)
-         CALL store_group(output_line_local%dataoutLineRSL)
-         CALL store_group(output_line_local%dataOutLineDebug)
-         CALL store_group(output_line_local%dataOutLineSPARTACUS)
-         CALL store_group(output_line_local%dataOutLineSTEBBS)
-         CALL store_group(output_line_local%dataOutLineNHood)
+         CALL store_output_line(output_line_local, ir, dataOutBlockData, datetimeBlock)
 
          ! === Update dt_since_start for next iteration ===
          timer%dt_since_start = timer%dt_since_start + timer%tstep
 
       END DO
 
-   CONTAINS
-
-      ! Copy one group's data columns (its line minus the datetime prefix) into
-      ! row ir of dataOutBlockData and advance col_offset past them.
-      SUBROUTINE store_group(line)
-         REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: line
-         INTEGER :: n_data
-
-         n_data = SIZE(line) - 5
-         dataOutBlockData(ir, col_offset + 1:col_offset + n_data) = line(6:)
-         col_offset = col_offset + n_data
-      END SUBROUTINE store_group
-
    END SUBROUTINE SUEWS_cal_multitsteps_dts
+
+
 ! ================================================================================
 
    SUBROUTINE update_debug_info( &
@@ -1847,17 +1829,22 @@ CONTAINS
          )
 
          ! Safely resolve roof/wall surface temps without MERGE on
-         ! possibly-unallocated allocatable arrays.
+         ! possibly-unallocated or zero-length allocatable arrays.
          IF (config%StorageHeatMethod == 7 &
              .AND. ALLOCATED(stebbsState%buildings)) THEN
-            IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
-               tsfc_roof_local = stebbsState%buildings(1)%Textroof_C
+            IF (SIZE(stebbsState%buildings) >= 1) THEN
+               IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
+                  tsfc_roof_local = stebbsState%buildings(1)%Textroof_C
+               ELSE
+                  tsfc_roof_local = heatState%tsfc_roof
+               END IF
+               IF (ALLOCATED(stebbsState%buildings(1)%Textwall_C)) THEN
+                  tsfc_wall_local = stebbsState%buildings(1)%Textwall_C
+               ELSE
+                  tsfc_wall_local = heatState%tsfc_wall
+               END IF
             ELSE
                tsfc_roof_local = heatState%tsfc_roof
-            END IF
-            IF (ALLOCATED(stebbsState%buildings(1)%Textwall_C)) THEN
-               tsfc_wall_local = stebbsState%buildings(1)%Textwall_C
-            ELSE
                tsfc_wall_local = heatState%tsfc_wall
             END IF
          ELSE
@@ -1913,7 +1900,6 @@ CONTAINS
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
-            buildings => stebbsState%buildings, &
             rsl_z => stebbsState%z_array, &
             rsl_t_C => stebbsState%dataout_line_t_rsl, &
             spartacusPrm => siteInfo%spartacus, &
@@ -2203,6 +2189,7 @@ CONTAINS
             grassPrm => siteInfo%lc_grass, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
+            snowPrm => siteInfo%snow, &
             sfr_roof => siteInfo%sfr_roof, &
             sfr_wall => siteInfo%sfr_wall, &
             sfr_surf => siteInfo%sfr_surf, &
@@ -2391,20 +2378,24 @@ CONTAINS
                   OHM_coef(7, 3, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_wet
                   OHM_coef(7, 4, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_dry
                END IF
-               OHM_coef(8, 1, 1) = 0.0
-               OHM_coef(8, 2, 1) = 0.0
-               OHM_coef(8, 3, 1) = 0.0
-               OHM_coef(8, 4, 1) = 0.0
+               ! Snow OHM coefficients (surface index nsurf + 1 = 8).
+               ! Keep outside the DyOHM guard above so snow storage heat flux
+               ! deltaQi uses snowPrm%ohm across all OHM-calling methods.
+               ! OHM evaluates deltaQi from the winter_wet regime (8, 3, 1:3).
+               OHM_coef(8, 1, 1) = snowPrm%ohm%ohm_coef_lc(1)%summer_wet
+               OHM_coef(8, 2, 1) = snowPrm%ohm%ohm_coef_lc(1)%summer_dry
+               OHM_coef(8, 3, 1) = snowPrm%ohm%ohm_coef_lc(1)%winter_wet
+               OHM_coef(8, 4, 1) = snowPrm%ohm%ohm_coef_lc(1)%winter_dry
 
-               OHM_coef(8, 1, 2) = 0.0
-               OHM_coef(8, 2, 2) = 0.0
-               OHM_coef(8, 3, 2) = 0.0
-               OHM_coef(8, 4, 2) = 0.0
+               OHM_coef(8, 1, 2) = snowPrm%ohm%ohm_coef_lc(2)%summer_wet
+               OHM_coef(8, 2, 2) = snowPrm%ohm%ohm_coef_lc(2)%summer_dry
+               OHM_coef(8, 3, 2) = snowPrm%ohm%ohm_coef_lc(2)%winter_wet
+               OHM_coef(8, 4, 2) = snowPrm%ohm%ohm_coef_lc(2)%winter_dry
 
-               OHM_coef(8, 1, 3) = 0.0
-               OHM_coef(8, 2, 3) = 0.0
-               OHM_coef(8, 3, 3) = 0.0
-               OHM_coef(8, 4, 3) = 0.0
+               OHM_coef(8, 1, 3) = snowPrm%ohm%ohm_coef_lc(3)%summer_wet
+               OHM_coef(8, 2, 3) = snowPrm%ohm%ohm_coef_lc(3)%summer_dry
+               OHM_coef(8, 3, 3) = snowPrm%ohm%ohm_coef_lc(3)%winter_wet
+               OHM_coef(8, 4, 3) = snowPrm%ohm%ohm_coef_lc(3)%winter_dry
 
                OHM_threshSW(1) = pavedPrm%ohm%ohm_threshsw
                OHM_threshSW(2) = bldgPrm%ohm%ohm_threshsw
@@ -2413,6 +2404,7 @@ CONTAINS
                OHM_threshSW(5) = grassPrm%ohm%ohm_threshsw
                OHM_threshSW(6) = bsoilPrm%ohm%ohm_threshsw
                OHM_threshSW(7) = waterPrm%ohm%ohm_threshsw
+               OHM_threshSW(8) = snowPrm%ohm%ohm_threshsw
 
                OHM_threshWD(1) = pavedPrm%ohm%ohm_threshwd
                OHM_threshWD(2) = bldgPrm%ohm%ohm_threshwd
@@ -2421,6 +2413,7 @@ CONTAINS
                OHM_threshWD(5) = grassPrm%ohm%ohm_threshwd
                OHM_threshWD(6) = bsoilPrm%ohm%ohm_threshwd
                OHM_threshWD(7) = waterPrm%ohm%ohm_threshwd
+               OHM_threshWD(8) = snowPrm%ohm%ohm_threshwd
 
                SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
                SoilStoreCap(2) = bldgPrm%soil%soil_store_capacity
@@ -4975,7 +4968,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: lambda_c ! Building surface to plan area ratio [-]
 
       ! ---forcing-related variables
-      TYPE(SUEWS_FORCING) :: forcing
+      ! (timestep forcing rows are unpacked inside run_multitsteps_block)
 
       ! ESTM related:
       REAL(KIND(1D0)), INTENT(INOUT) :: Tair_av !average air temperature [degC]
@@ -5463,84 +5456,11 @@ CONTAINS
       ! inout variables
       ! ########################################################################################
       ! output variables
-      TYPE(output_line) :: output_line_suews
-      ! REAL(KIND(1D0)),DIMENSION(:,:,:),ALLOCATABLE,INTENT(OUT) ::datetimeBlock
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS) :: dataOutBlockSUEWS
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSnow) :: dataOutBlockSnow
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutESTM) :: dataOutBlockESTM
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutEHC) :: dataOutBlockEHC
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutRSL) :: dataOutBlockRSL
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsdataOutBEERS) :: dataOutBlockBEERS
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDebug) :: dataOutBlockDebug
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSPARTACUS) :: dataOutBlockSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDailyState) :: dataOutBlockDailyState
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSTEBBS) :: dataOutBlockSTEBBS
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutNHood) :: dataOutBlockNHood
+      TYPE(output_block), INTENT(OUT) :: output_block_suews
       ! ########################################################################################
 
-      ! internal temporal iteration related variables
-      ! INTEGER::dt_since_start ! time since simulation starts [s]
-
-      ! model output blocks of the same size as met forcing block
-
       ! local variables
-      ! length of met forcing block
-      INTEGER :: ir
       INTEGER :: i_bldg
-      ! met forcing variables
-      INTEGER, PARAMETER :: gridiv_x = 1 ! a dummy gridiv as this routine is only one grid
-
-      REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS - 5) :: dataOutLineSUEWS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSnow - 5) :: dataOutLineSnow
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutEHC - 5) :: dataOutLineEHC
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL - 5) :: dataOutLineRSL
-      ! REAL(KIND(1D0)), DIMENSION(ncolumnsdataOutSOLWEIG - 5) :: dataOutLineSOLWEIG
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutBEERS - 5) :: dataOutLineBEERS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDebug - 5) :: dataOutLinedebug
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5) :: dataOutLineSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutNHood - 5) :: dataOutLineNHood
-
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS, 1) :: dataOutBlockSUEWS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSnow, 1) :: dataOutBlockSnow_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutESTM, 1) :: dataOutBlockESTM_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutEHC, 1) :: dataOutBlockEHC_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutRSL, 1) :: dataOutBlockRSL_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsdataOutBEERS, 1) :: dataOutBlockBEERS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDebug, 1) :: dataOutBlockDebug_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSPARTACUS, 1) :: dataOutBlockSPARTACUS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDailyState, 1) :: dataOutBlockDailyState_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSTEBBS, 1) :: dataOutBlockSTEBBS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutNHood, 1) :: dataOutBlockNHood_X
-
-      ! REAL(KIND(1D0)), DIMENSION(10) :: MetForcingData_grid ! fake array as a placeholder
-
-      TYPE(output_block), INTENT(OUT) :: output_block_suews
-
-      ! Initialize output arrays to zero to avoid uninitialized memory
-      dataOutBlockSUEWS_X = 0.0D0
-      dataOutBlockSnow_X = 0.0D0
-      dataOutBlockESTM_X = 0.0D0
-      dataOutBlockEHC_X = 0.0D0
-      dataOutBlockRSL_X = 0.0D0
-      dataOutBlockBEERS_X = 0.0D0
-      dataOutBlockDebug_X = 0.0D0
-      dataOutBlockSPARTACUS_X = 0.0D0
-      dataOutBlockDailyState_X = 0.0D0
-      dataOutBlockSTEBBS_X = 0.0D0
-      dataOutBlockNHood_X = 0.0D0
-
-      ! Initialize block_mod_state if present but not yet allocated
-      ! Note: Python initializes block_mod_state before calling to ensure
-      ! f90wrap can properly access the allocated arrays after the call
-      IF (PRESENT(block_mod_state)) THEN
-         IF (.NOT. ALLOCATED(block_mod_state%BLOCK)) THEN
-            CALL block_mod_state%init(nlayer, ndepth, len_sim)
-         END IF
-      END IF
 
       ! ############# evaluation for DTS variables (start) #############
       siteInfo%lat = lat
@@ -6384,92 +6304,26 @@ CONTAINS
       !   allocate output arrays
 
       Diagnose = 0
-      DO ir = 1, len_sim, 1
-         ! =============================================================================
-         ! === Translate met data from MetForcingBlock to variable names used in model ==
-         ! =============================================================================
-         timer%iy = INT(MetForcingBlock(ir, 1)) !Integer variables
-         timer%id = INT(MetForcingBlock(ir, 2))
-         timer%it = INT(MetForcingBlock(ir, 3))
-         timer%imin = INT(MetForcingBlock(ir, 4))
-         timer%isec = 0 ! NOT used by SUEWS but by WRF-SUEWS via the cal_main interface
-
-         CALL SUEWS_cal_timer_reference( &
-            timer, siteInfo, siteInfo%anthroemis, &
-            config%ForcingTimestampReference)
-         ! CALL NARP_update_SunPosition(timer, siteInfo, mod_State)
-         ! print *, 'azimuth, zenith_deg', timer%azimuth, timer%zenith_deg
-
-         forcing%qn1_obs = MetForcingBlock(ir, 5) !Real values (kind(1d0))
-         forcing%qs_obs = MetForcingBlock(ir, 8)
-         forcing%qf_obs = MetForcingBlock(ir, 9)
-         forcing%U = MetForcingBlock(ir, 10)
-         forcing%RH = MetForcingBlock(ir, 11)
-         forcing%temp_c = MetForcingBlock(ir, 12)
-         forcing%pres = MetForcingBlock(ir, 13)
-         forcing%rain = MetForcingBlock(ir, 14)
-         forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snow_fraction = MetForcingBlock(ir, 16)
-         forcing%l_down = MetForcingBlock(ir, 17)
-         forcing%f_cloud = MetForcingBlock(ir, 18)
-         ! forcing%Wu_m3 = MetForcingBlock(ir, 19) ! Removed 2026-05-19
-         forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_evetr = MetForcingBlock(ir, 21)
-         forcing%LAI_dectr = MetForcingBlock(ir, 22)
-         forcing%LAI_grass = MetForcingBlock(ir, 23)
-
-         IF (config%flag_test .AND. PRESENT(state_debug)) THEN
-            CALL SUEWS_cal_Main_impl( &
-               timer, forcing, config, siteInfo, &
-               mod_State, &
-               output_line_suews, &
-               state_debug) !output
-         ELSE
-            CALL SUEWS_cal_Main_impl( &
-               timer, forcing, config, siteInfo, &
-               mod_State, &
-               output_line_suews) !output
-         END IF
-         IF (supy_error_flag()) THEN
-            CALL sync_error_to_state(mod_State, timer)
-            EXIT
-         END IF
-         ! update dt_since_start_x for next iteration, dt_since_start_x is used for Qn averaging. TS 28 Nov 2018
-         timer%dt_since_start = timer%dt_since_start + timer%tstep
-
-         !============ update DailyStateBlock ===============
-         dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
-
-         !============ update state_block ===============
-         ! Always copy state when block_mod_state is present (not just debug mode)
-         ! This enables state-based error handling for thread safety
-         IF (PRESENT(block_mod_state)) THEN
-            block_mod_state%BLOCK(ir) = mod_State
-         END IF
-
-         !============ write out results ===============
-         ! works at each timestep
-         CALL SUEWS_update_output( &
-            SnowUse, storageheatmethod, & !input
-            len_sim, 1, &
-            ir, gridiv_x, &
-            output_line_suews%dataOutLineSUEWS, &
-            output_line_suews%dataOutLineSnow, &
-            output_line_suews%dataOutLineESTM, & !input
-            output_line_suews%dataoutLineRSL, &
-            output_line_suews%dataOutLineBEERS, &
-            output_line_suews%dataOutLinedebug, &
-            output_line_suews%dataOutLineSPARTACUS, &
-            output_line_suews%dataOutLineEHC, &
-            output_line_suews%dataOutLineSTEBBS, &
-            output_line_suews%dataOutLineNHood, & !input
-            dataOutBlockSUEWS_X, dataOutBlockSnow_X, dataOutBlockESTM_X, & !
-            dataOutBlockRSL_X, dataOutBlockBEERS_X, dataOutBlockDebug_X, dataOutBlockSPARTACUS_X, dataOutBlockEHC_X, &
-            dataOutBlockSTEBBS_X, &
-            dataOutBlockNHood_X &
-            ) !inout
-
-      END DO
+      IF (PRESENT(state_debug) .AND. PRESENT(block_mod_state)) THEN
+         CALL run_multitsteps_block( &
+            timer, MetForcingBlock, len_sim, &
+            config, siteInfo, mod_State, output_block_suews, &
+            state_debug=state_debug, block_mod_state=block_mod_state)
+      ELSE IF (PRESENT(state_debug)) THEN
+         CALL run_multitsteps_block( &
+            timer, MetForcingBlock, len_sim, &
+            config, siteInfo, mod_State, output_block_suews, &
+            state_debug=state_debug)
+      ELSE IF (PRESENT(block_mod_state)) THEN
+         CALL run_multitsteps_block( &
+            timer, MetForcingBlock, len_sim, &
+            config, siteInfo, mod_State, output_block_suews, &
+            block_mod_state=block_mod_state)
+      ELSE
+         CALL run_multitsteps_block( &
+            timer, MetForcingBlock, len_sim, &
+            config, siteInfo, mod_State, output_block_suews)
+      END IF
 
       ! update INOUT variables
       ! Tair_av = forcing%Tair_av_5d
@@ -6534,34 +6388,6 @@ CONTAINS
          soilstore_wall = hydroState%soil_store_wall
          state_wall = hydroState%state_wall
       END IF
-
-      dataOutBlockSUEWS = dataOutBlockSUEWS_X(:, :, 1)
-      dataOutBlockSnow = dataOutBlockSnow_X(:, :, 1)
-      dataOutBlockESTM = dataOutBlockESTM_X(:, :, 1)
-      dataOutBlockEHC = dataOutBlockEHC_X(:, :, 1)
-      dataOutBlockRSL = dataOutBlockRSL_X(:, :, 1)
-      dataOutBlockBEERS = dataOutBlockBEERS_X(:, :, 1)
-      dataOutBlockDebug = dataOutBlockDebug_X(:, :, 1)
-      dataOutBlockSPARTACUS = dataOutBlockSPARTACUS_X(:, :, 1)
-      ! dataOutBlockDailyState = dataOutBlockDailyState_X(:, :, 1)
-      dataOutBlockSTEBBS = dataOutBlockSTEBBS_X(:, :, 1)
-
-      ! initialize output block
-      CALL output_block_suews%cleanup()
-      CALL output_block_suews%init(len_sim)
-      ! CALL output_block_finalize(output_block_suews)
-      ! CALL output_block_init(output_block_suews, len_sim)
-      ! transfer data to output block
-      output_block_suews%dataOutBlockSUEWS = dataOutBlockSUEWS
-      output_block_suews%dataOutBlockSnow = dataOutBlockSnow
-      output_block_suews%dataOutBlockESTM = dataOutBlockESTM
-      output_block_suews%dataOutBlockEHC = dataOutBlockEHC
-      output_block_suews%dataOutBlockRSL = dataOutBlockRSL
-      output_block_suews%dataOutBlockBEERS = dataOutBlockBEERS
-      output_block_suews%dataOutBlockDebug = dataOutBlockDebug
-      output_block_suews%dataOutBlockSPARTACUS = dataOutBlockSPARTACUS
-      output_block_suews%dataOutBlockDailyState = dataOutBlockDailyState
-      output_block_suews%dataOutBlockSTEBBS = dataOutBlockSTEBBS
 
    END SUBROUTINE SUEWS_cal_multitsteps
 
@@ -6917,3 +6743,200 @@ END FUNCTION cal_tsfc_dyohm
    END SUBROUTINE sync_error_to_state
 
 END MODULE SUEWS_Driver
+
+SUBMODULE (SUEWS_Driver) SUEWS_driver_io
+   IMPLICIT NONE
+CONTAINS
+   ! Transfer this timestep's measured inputs to the object passed to SUEWS_cal_Main_impl.
+   ! Columns 6 and 7 hold observed QH/QE; column 19 is the legacy bulk water-use slot.
+   ! The kernel consumes the seven resolved surface water-use columns (24 through 30).
+   MODULE PROCEDURE SUEWS_load_forcing_row
+      forcing%qn1_obs = MetForcingBlock(ir, 5)
+      forcing%qs_obs = MetForcingBlock(ir, 8)
+      forcing%qf_obs = MetForcingBlock(ir, 9)
+      forcing%U = MetForcingBlock(ir, 10)
+      forcing%RH = MetForcingBlock(ir, 11)
+      forcing%temp_c = MetForcingBlock(ir, 12)
+      forcing%pres = MetForcingBlock(ir, 13)
+      forcing%rain = MetForcingBlock(ir, 14)
+      forcing%kdown = MetForcingBlock(ir, 15)
+      forcing%snow_fraction = MetForcingBlock(ir, 16)
+      forcing%l_down = MetForcingBlock(ir, 17)
+      forcing%f_cloud = MetForcingBlock(ir, 18)
+      forcing%xsmd = MetForcingBlock(ir, 20)
+      forcing%LAI_evetr = MetForcingBlock(ir, 21)
+      forcing%LAI_dectr = MetForcingBlock(ir, 22)
+      forcing%LAI_grass = MetForcingBlock(ir, 23)
+      forcing%Wu_mm_paved = MetForcingBlock(ir, 24)
+      forcing%Wu_mm_bldgs = MetForcingBlock(ir, 25)
+      forcing%Wu_mm_evetr = MetForcingBlock(ir, 26)
+      forcing%Wu_mm_dectr = MetForcingBlock(ir, 27)
+      forcing%Wu_mm_grass = MetForcingBlock(ir, 28)
+      forcing%Wu_mm_bsoil = MetForcingBlock(ir, 29)
+      forcing%Wu_mm_water = MetForcingBlock(ir, 30)
+      forcing%kdiff = MetForcingBlock(ir, 31)
+      forcing%kdir = MetForcingBlock(ir, 32)
+   END PROCEDURE SUEWS_load_forcing_row
+
+   ! Shared by the live timestep loop and the opt-in native output witness.
+   ! Preserve the caller's column stride and all rows outside ir.
+   MODULE PROCEDURE store_output_line
+      INTEGER :: col_offset
+
+      ! === Store all output groups concatenated, datetime prefix once ===
+      datetimeBlock(ir, :) = line_out%dataOutLineSUEWS(1:5)
+      col_offset = 0
+      CALL store_group(line_out%dataOutLineSUEWS)
+      CALL store_group(line_out%dataOutLineSnow)
+      CALL store_group(line_out%dataOutLineBEERS)
+      CALL store_group(line_out%dataOutLineESTM)
+      CALL store_group(line_out%dataOutLineEHC)
+      CALL store_group(line_out%dataOutLineDailyState)
+      CALL store_group(line_out%dataoutLineRSL)
+      CALL store_group(line_out%dataOutLineDebug)
+      CALL store_group(line_out%dataOutLineSPARTACUS)
+      CALL store_group(line_out%dataOutLineSTEBBS)
+      CALL store_group(line_out%dataOutLineNHood)
+
+   CONTAINS
+
+      ! Copy one group's data columns (its line minus the datetime prefix) into
+      ! row ir of dataOutBlockData and advance col_offset past them.
+      SUBROUTINE store_group(line)
+         REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: line
+         INTEGER :: n_data
+
+         n_data = SIZE(line) - 5
+         dataOutBlockData(ir, col_offset + 1:col_offset + n_data) = line(6:)
+         col_offset = col_offset + n_data
+      END SUBROUTINE store_group
+
+   END PROCEDURE store_output_line
+
+   ! Shared legacy multiline execution and block-capture body used by
+   ! SUEWS_cal_multitsteps and the opt-in native receiver tests. Preserves the
+   ! exact legacy row capture, optional state_debug / block_mod_state semantics,
+   ! and output_block_suews population (including leaving dataOutBlockNHood at
+   ! its output_block%init sentinel and dataOutBlockESTM at zero).
+   MODULE PROCEDURE run_multitsteps_block
+      INTEGER, PARAMETER :: gridiv_x = 1
+      INTEGER :: ir
+      TYPE(SUEWS_FORCING) :: forcing
+      TYPE(output_line) :: output_line_suews
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDailyState) :: dataOutBlockDailyState
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS, 1) :: dataOutBlockSUEWS_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSnow, 1) :: dataOutBlockSnow_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutESTM, 1) :: dataOutBlockESTM_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutEHC, 1) :: dataOutBlockEHC_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutRSL, 1) :: dataOutBlockRSL_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsdataOutBEERS, 1) :: dataOutBlockBEERS_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDebug, 1) :: dataOutBlockDebug_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSPARTACUS, 1) :: dataOutBlockSPARTACUS_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSTEBBS, 1) :: dataOutBlockSTEBBS_X
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutNHood, 1) :: dataOutBlockNHood_X
+
+      dataOutBlockDailyState = 0.0D0
+      dataOutBlockSUEWS_X = 0.0D0
+      dataOutBlockSnow_X = 0.0D0
+      dataOutBlockESTM_X = 0.0D0
+      dataOutBlockEHC_X = 0.0D0
+      dataOutBlockRSL_X = 0.0D0
+      dataOutBlockBEERS_X = 0.0D0
+      dataOutBlockDebug_X = 0.0D0
+      dataOutBlockSPARTACUS_X = 0.0D0
+      dataOutBlockSTEBBS_X = 0.0D0
+      dataOutBlockNHood_X = 0.0D0
+
+      IF (PRESENT(block_mod_state)) THEN
+         IF (.NOT. ALLOCATED(block_mod_state%BLOCK)) THEN
+            CALL block_mod_state%init(siteInfo%nlayer, ndepth, len_sim)
+         END IF
+      END IF
+
+      DO ir = 1, len_sim, 1
+         timer%iy = INT(MetForcingBlock(ir, 1))
+         timer%id = INT(MetForcingBlock(ir, 2))
+         timer%it = INT(MetForcingBlock(ir, 3))
+         timer%imin = INT(MetForcingBlock(ir, 4))
+         timer%isec = 0
+
+         CALL SUEWS_cal_timer_reference( &
+            timer, siteInfo, siteInfo%anthroemis, &
+            config%ForcingTimestampReference)
+
+         forcing%qn1_obs = MetForcingBlock(ir, 5)
+         forcing%qs_obs = MetForcingBlock(ir, 8)
+         forcing%qf_obs = MetForcingBlock(ir, 9)
+         forcing%U = MetForcingBlock(ir, 10)
+         forcing%RH = MetForcingBlock(ir, 11)
+         forcing%temp_c = MetForcingBlock(ir, 12)
+         forcing%pres = MetForcingBlock(ir, 13)
+         forcing%rain = MetForcingBlock(ir, 14)
+         forcing%kdown = MetForcingBlock(ir, 15)
+         forcing%snow_fraction = MetForcingBlock(ir, 16)
+         forcing%l_down = MetForcingBlock(ir, 17)
+         forcing%f_cloud = MetForcingBlock(ir, 18)
+         forcing%xsmd = MetForcingBlock(ir, 20)
+         forcing%LAI_evetr = MetForcingBlock(ir, 21)
+         forcing%LAI_dectr = MetForcingBlock(ir, 22)
+         forcing%LAI_grass = MetForcingBlock(ir, 23)
+
+         IF (config%flag_test .AND. PRESENT(state_debug)) THEN
+            CALL SUEWS_cal_Main_impl( &
+               timer, forcing, config, siteInfo, &
+               mod_state, &
+               output_line_suews, &
+               state_debug)
+         ELSE
+            CALL SUEWS_cal_Main_impl( &
+               timer, forcing, config, siteInfo, &
+               mod_state, &
+               output_line_suews)
+         END IF
+         IF (supy_error_flag()) THEN
+            CALL sync_error_to_state(mod_state, timer)
+            EXIT
+         END IF
+         timer%dt_since_start = timer%dt_since_start + timer%tstep
+
+         dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
+
+         IF (PRESENT(block_mod_state)) THEN
+            block_mod_state%BLOCK(ir) = mod_state
+         END IF
+
+         CALL SUEWS_update_output( &
+            config%SnowUse, config%StorageHeatMethod, &
+            len_sim, 1, &
+            ir, gridiv_x, &
+            output_line_suews%dataOutLineSUEWS, &
+            output_line_suews%dataOutLineSnow, &
+            output_line_suews%dataOutLineESTM, &
+            output_line_suews%dataoutLineRSL, &
+            output_line_suews%dataOutLineBEERS, &
+            output_line_suews%dataOutLinedebug, &
+            output_line_suews%dataOutLineSPARTACUS, &
+            output_line_suews%dataOutLineEHC, &
+            output_line_suews%dataOutLineSTEBBS, &
+            output_line_suews%dataOutLineNHood, &
+            dataOutBlockSUEWS_X, dataOutBlockSnow_X, dataOutBlockESTM_X, &
+            dataOutBlockRSL_X, dataOutBlockBEERS_X, dataOutBlockDebug_X, dataOutBlockSPARTACUS_X, dataOutBlockEHC_X, &
+            dataOutBlockSTEBBS_X, &
+            dataOutBlockNHood_X &
+            )
+      END DO
+
+      CALL output_block_suews%cleanup()
+      CALL output_block_suews%init(len_sim)
+      output_block_suews%dataOutBlockSUEWS = dataOutBlockSUEWS_X(:, :, 1)
+      output_block_suews%dataOutBlockSnow = dataOutBlockSnow_X(:, :, 1)
+      output_block_suews%dataOutBlockESTM = dataOutBlockESTM_X(:, :, 1)
+      output_block_suews%dataOutBlockEHC = dataOutBlockEHC_X(:, :, 1)
+      output_block_suews%dataOutBlockRSL = dataOutBlockRSL_X(:, :, 1)
+      output_block_suews%dataOutBlockBEERS = dataOutBlockBEERS_X(:, :, 1)
+      output_block_suews%dataOutBlockDebug = dataOutBlockDebug_X(:, :, 1)
+      output_block_suews%dataOutBlockSPARTACUS = dataOutBlockSPARTACUS_X(:, :, 1)
+      output_block_suews%dataOutBlockDailyState = dataOutBlockDailyState
+      output_block_suews%dataOutBlockSTEBBS = dataOutBlockSTEBBS_X(:, :, 1)
+   END PROCEDURE run_multitsteps_block
+END SUBMODULE SUEWS_driver_io

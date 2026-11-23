@@ -265,10 +265,11 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
     Ready pull requests and the merge queue split the Linux wheel's tests into
     parallel jobs: physics shards in the wheel's manylinux image and the
     build-Python api cell as four shards; on a pull request the newer bookend
-    runs the core-bookend tier in one job. Windows (on a labelled PR) keeps its
-    two cp312 shards. The layout itself is scripts/suews/ci_test_layout.py; the
-    api reusable workflow runs whatever cells it is given, with each shard's
-    job and artefact named after the shard.
+    runs the core-bookend tier in one job. Windows (on a labelled PR) splits
+    every api cell (cp312 and cp315) into two shards via ``shard_python: all``.
+    The layout itself is scripts/suews/ci_test_layout.py; the api reusable
+    workflow runs whatever cells it is given, with each shard's job and
+    artefact named after the shard.
     """
     root = Path(__file__).resolve().parents[2]
     caller = yaml.safe_load(
@@ -332,9 +333,13 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
     assert "-e SUEWS_REFERENCE_LANE " in run["run"]
     assert "inputs.build_profile != 'checked'" in run["env"]["SUEWS_REFERENCE_LANE"]
     assert run["env"]["SUEWS_BUILD_PROFILE"] == "${{ inputs.build_profile }}"
-    # The Windows-or-Linux condition is parenthesised before && python || '':
-    # without it, && binds first and a Windows PR passes a boolean.
-    assert chain_with["api_shard_python"].startswith("${{ (((github.event_name")
+    # Windows PRs pass 'all' to shard every api cell (cp312 and cp315); Linux
+    # PRs and merge_group pass the build Python tag (fromJson(...)[0]).
+    assert chain_with["api_shard_python"].startswith(
+        "${{ ((github.event_name == 'pull_request' || inputs.pr_api_lane) && "
+        "matrix.buildplat[1] == 'win') && 'all' ||"
+    )
+    assert "fromJson(needs.determine_matrix.outputs.python)[0] || ''" in chain_with["api_shard_python"]
     assert "SUEWS_FORTRAN_PROBES_PREBUILT=1" in run["run"]
     assert '"$MANYLINUX_IMAGE"' in run["run"]
     reference = next(

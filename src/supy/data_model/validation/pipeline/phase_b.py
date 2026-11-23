@@ -39,7 +39,9 @@ from ..core.yaml_helpers import (
     collect_nullified_paths,
     _nullify_biogenic_in_props,
     DLSCheck,
+    get_ref_or_bare,
     get_value_safe,
+    set_ref_or_bare,
     get_stebbs_block as _get_stebbs_block,
     get_stebbsmethod_value as _get_stebbsmethod_value,
     HAS_TIMEZONE_FINDER,
@@ -399,7 +401,7 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
 
             current_path = f"{path}.{key}" if path else key
 
-            if isinstance(value, dict):
+            if isinstance(value, Mapping):
                 if "value" in value:
                     param_value = value["value"]
                     if param_value in (None, "") or (
@@ -409,6 +411,10 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
                         missing_params.append(current_path)
                 else:
                     _check_recursively(value, current_path)
+            elif value in (None, "") or (
+                isinstance(value, list) and any(v in (None, "") for v in value)
+            ):
+                missing_params.append(current_path)
 
     _check_recursively(surface_props)
     return missing_params
@@ -1185,22 +1191,22 @@ def update_temperature_parameters(
     """
     updated_params = []
 
-    if "temperature" in element and isinstance(element["temperature"], dict):
-        current_temp = element["temperature"].get("value")
+    if "temperature" in element:
+        current_temp = get_ref_or_bare(element, "temperature")
         if current_temp != [avg_temp] * 5:
-            element["temperature"]["value"] = [avg_temp] * 5
+            set_ref_or_bare(element, "temperature", [avg_temp] * 5)
             updated_params.append("temperature")
 
-    if "tsfc" in element and isinstance(element["tsfc"], dict):
-        current_tsfc = element["tsfc"].get("value")
+    if "tsfc" in element:
+        current_tsfc = get_ref_or_bare(element, "tsfc")
         if current_tsfc != avg_temp:
-            element["tsfc"]["value"] = avg_temp
+            set_ref_or_bare(element, "tsfc", avg_temp)
             updated_params.append("tsfc")
 
-    if "tin" in element and isinstance(element["tin"], dict):
-        current_tin = element["tin"].get("value")
+    if "tin" in element:
+        current_tin = get_ref_or_bare(element, "tin")
         if current_tin != avg_temp:
-            element["tin"]["value"] = avg_temp
+            set_ref_or_bare(element, "tin", avg_temp)
             updated_params.append("tin")
 
     return element, updated_params
@@ -1298,32 +1304,36 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        for key in ("temperature_air_outdoor_initial", "temperature_air_indoor_initial",):
-            if key in stebbs and isinstance(stebbs[key], dict):
-                old_val = stebbs[key].get("value")
-                if old_val != avg_temp:
-                    stebbs[key]["value"] = avg_temp
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter=f"stebbs.{key}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value=str(old_val),
-                            new_value=f"{avg_temp} C",
-                            reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+        if isinstance(stebbs, dict):
+            for key in (
+                "temperature_air_outdoor_initial",
+                "temperature_air_indoor_initial",
+            ):
+                if key in stebbs:
+                    old_val = get_ref_or_bare(stebbs, key)
+                    if old_val != avg_temp:
+                        set_ref_or_bare(stebbs, key, avg_temp)
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"stebbs.{key}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value=f"{avg_temp} C",
+                                reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+                            )
                         )
-                    )
 
         # Update temperature_air_month_mean_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
-        else:
+        elif isinstance(stebbs, dict):
             for key in ("temperature_air_month_mean_diffmax",):
-                if key in stebbs and isinstance(stebbs[key], dict):
-                    old_val = stebbs[key].get("value")
+                if key in stebbs:
+                    old_val = get_ref_or_bare(stebbs, key)
                     if old_val != diffmax_val:
-                        stebbs[key]["value"] = diffmax_val
+                        set_ref_or_bare(stebbs, key, diffmax_val)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter=f"stebbs.{key}",
@@ -1337,21 +1347,24 @@ def adjust_surface_temperatures(
 
         # Update STEBBS temperature_air_annual_mean using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if annual_temp is not None and "temperature_air_annual_mean" in stebbs:
-            if isinstance(stebbs["temperature_air_annual_mean"], dict):
-                old_annual_val = stebbs["temperature_air_annual_mean"].get("value")
-                if old_annual_val != annual_temp:
-                    stebbs["temperature_air_annual_mean"]["value"] = annual_temp
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter="stebbs.temperature_air_annual_mean",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value=str(old_annual_val),
-                            new_value=f"{annual_temp} C",
-                            reason=f"Set from CRU annual mean (1991-2020 normals) for coordinates ({lat:.2f}, {lng:.2f})",
-                        )
+        if (
+            annual_temp is not None
+            and isinstance(stebbs, dict)
+            and "temperature_air_annual_mean" in stebbs
+        ):
+            old_annual_val = get_ref_or_bare(stebbs, "temperature_air_annual_mean")
+            if old_annual_val != annual_temp:
+                set_ref_or_bare(stebbs, "temperature_air_annual_mean", annual_temp)
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="stebbs.temperature_air_annual_mean",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_annual_val),
+                        new_value=f"{annual_temp} C",
+                        reason=f"Set from CRU annual mean (1991-2020 normals) for coordinates ({lat:.2f}, {lng:.2f})",
                     )
+                )
 
         # Update temperatures in roofs and walls arrays
         for array_name in ["roofs", "walls"]:
@@ -1432,8 +1445,8 @@ def adjust_land_cover_fractions(
         sfr_sum = 0.0
 
         for surface_type, surface_props in land_cover.items():
-            if isinstance(surface_props, dict):
-                sfr_value = surface_props.get("sfr", {}).get("value")
+            if isinstance(surface_props, Mapping):
+                sfr_value = get_ref_or_bare(surface_props, "sfr")
                 if sfr_value is not None:
                     surface_fractions[surface_type] = sfr_value
                     sfr_sum += sfr_value
@@ -1452,7 +1465,7 @@ def adjust_land_cover_fractions(
             old_value = surface_fractions[max_surface]
             new_value = old_value + correction
 
-            land_cover[max_surface]["sfr"]["value"] = new_value
+            set_ref_or_bare(land_cover[max_surface], "sfr", new_value)
             correction_applied = True
 
             # Always report adjustments, but use appropriate format based on visibility
@@ -1487,7 +1500,7 @@ def adjust_land_cover_fractions(
             old_value = surface_fractions[max_surface]
             new_value = old_value - correction
 
-            land_cover[max_surface]["sfr"]["value"] = new_value
+            set_ref_or_bare(land_cover[max_surface], "sfr", new_value)
             correction_applied = True
 
             # Always report adjustments, but use appropriate format based on visibility
@@ -1833,7 +1846,7 @@ def _set_alb_id(
     old_val = get_value_safe(surf_state, "alb_id")
     if old_val is not None and math.isclose(old_val, new_alb_id):
         return False, old_val, new_alb_id
-    surf_state["alb_id"] = {"value": new_alb_id}
+    set_ref_or_bare(surf_state, "alb_id", new_alb_id)
     return True, old_val, new_alb_id
 
 
@@ -1916,9 +1929,9 @@ def adjust_seasonal_parameters(
         land_cover = props.get("land_cover", {})
         dectr = land_cover.get("dectr", {})
         if dectr:
-            sfr = dectr.get("sfr", {}).get("value", 0)
+            sfr = get_ref_or_bare(dectr, "sfr", 0)
 
-            if sfr > 0:
+            if sfr is not None and sfr > 0:
                 lai = dectr.get("lai", {})
                 laimin = get_value_safe(lai, "lai_min")
                 if laimin is None:
@@ -1942,7 +1955,7 @@ def adjust_seasonal_parameters(
 
                     current_lai = get_value_safe(initial_states["dectr"], "lai_id")
                     if current_lai != lai_val:
-                        initial_states["dectr"]["lai_id"] = {"value": lai_val}
+                        set_ref_or_bare(initial_states["dectr"], "lai_id", lai_val)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter="dectr.lai_id",
@@ -1968,7 +1981,7 @@ def adjust_seasonal_parameters(
         for surf_key, label in vegetated_surfaces:
             surf_props = land_cover.get(surf_key, {})
             # Check surface fraction:
-            sfr = surf_props.get("sfr", {}).get("value", 0)
+            sfr = get_ref_or_bare(surf_props, "sfr", 0)
             if not sfr:
                 continue  # Skip albedo adjustment if surface fraction is zero
 
@@ -2057,11 +2070,11 @@ def adjust_seasonal_parameters(
 
                         dls_updated = False
                         if current_startdls != start_dls:
-                            anthro_emissions["startdls"] = {"value": start_dls}
+                            set_ref_or_bare(anthro_emissions, "startdls", start_dls)
                             dls_updated = True
 
                         if current_enddls != end_dls:
-                            anthro_emissions["enddls"] = {"value": end_dls}
+                            set_ref_or_bare(anthro_emissions, "enddls", end_dls)
                             dls_updated = True
 
                         if dls_updated:
@@ -2093,9 +2106,9 @@ def adjust_seasonal_parameters(
                             )
 
                 if tz_offset is not None:
-                    current_timezone = props.get("timezone", {}).get("value")
+                    current_timezone = get_ref_or_bare(props, "timezone")
                     if current_timezone != tz_offset:
-                        props["timezone"] = {"value": tz_offset}
+                        set_ref_or_bare(props, "timezone", tz_offset)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter="timezone",
@@ -2160,12 +2173,13 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
             site_gridid = get_site_gridid(site)
 
             # fraction_heat_capacity_roof_external
-            roof_frac_entry = building_archetype.get(
-                "fraction_heat_capacity_roof_external", {}
+            old_roof_frac = get_ref_or_bare(
+                building_archetype, "fraction_heat_capacity_roof_external"
             )
-            old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
             if old_roof_frac != 0.5:
-                building_archetype["fraction_heat_capacity_roof_external"] = {"value": 0.5}
+                set_ref_or_bare(
+                    building_archetype, "fraction_heat_capacity_roof_external", 0.5
+                )
                 adjustments.append(
                     ScientificAdjustment(
                         parameter="building_archetype.fraction_heat_capacity_roof_external",
@@ -2178,12 +2192,13 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                 )
 
             # fraction_heat_capacity_wall_external
-            wall_frac_entry = building_archetype.get(
-                "fraction_heat_capacity_wall_external", {}
+            old_wall_frac = get_ref_or_bare(
+                building_archetype, "fraction_heat_capacity_wall_external"
             )
-            old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
             if old_wall_frac != 0.5:
-                building_archetype["fraction_heat_capacity_wall_external"] = {"value": 0.5}
+                set_ref_or_bare(
+                    building_archetype, "fraction_heat_capacity_wall_external", 0.5
+                )
                 adjustments.append(
                     ScientificAdjustment(
                         parameter="building_archetype.fraction_heat_capacity_wall_external",
@@ -2219,13 +2234,15 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         building_archetype = props.get("building_archetype", {})
         site_gridid = get_site_gridid(site)
 
-        if setpointmethod == 2:
-            for param in ["setpoint_temperature_heating_air", "setpoint_temperature_cooling_air"]:
-                entry = building_archetype.get(param)
-                if isinstance(entry, dict):
-                    old_val = entry.get("value")
+        if setpointmethod == 2 and isinstance(building_archetype, dict):
+            for param in [
+                "setpoint_temperature_heating_air",
+                "setpoint_temperature_cooling_air",
+            ]:
+                if param in building_archetype:
+                    old_val = get_ref_or_bare(building_archetype, param)
                     if old_val is not None:
-                        building_archetype[param]["value"] = None
+                        set_ref_or_bare(building_archetype, param, None)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter=f"building_archetype.{param}",
@@ -2233,7 +2250,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                                 site_gridid=site_gridid,
                                 old_value=str(old_val),
                                 new_value="null",
-                                reason="setpoint == 2, parameter not needed"
+                                reason="setpoint == 2, parameter not needed",
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
@@ -2325,37 +2342,39 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "reflectivity_window_external",
                 ]
                 # Nullify in stebbs
-                for param in window_params_stebbs:
-                    if param in stebbs and isinstance(stebbs[param], dict):
-                        old_val = stebbs[param].get("value")
-                        if old_val is not None:
-                            stebbs[param]["value"] = None
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter=f"stebbs.{param}",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(old_val),
-                                    new_value="null",
-                                    reason="WWR == 0, window parameter nullified"
+                if isinstance(stebbs, dict):
+                    for param in window_params_stebbs:
+                        if param in stebbs:
+                            old_val = get_ref_or_bare(stebbs, param)
+                            if old_val is not None:
+                                set_ref_or_bare(stebbs, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"stebbs.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 0, window parameter nullified",
+                                    )
                                 )
-                            )
                 # Nullify in building_archetype
-                for param in window_params_bldgarc:
-                    if param in bldgarc and isinstance(bldgarc[param], dict):
-                        old_val = bldgarc[param].get("value")
-                        if old_val is not None:
-                            bldgarc[param]["value"] = None
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter=f"building_archetype.{param}",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(old_val),
-                                    new_value="null",
-                                    reason="WWR == 0, window parameter nullified"
+                if isinstance(bldgarc, dict):
+                    for param in window_params_bldgarc:
+                        if param in bldgarc:
+                            old_val = get_ref_or_bare(bldgarc, param)
+                            if old_val is not None:
+                                set_ref_or_bare(bldgarc, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"building_archetype.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 0, window parameter nullified",
+                                    )
                                 )
-                            )
                 props["stebbs"] = stebbs
                 props["building_archetype"] = bldgarc
                 site["properties"] = props
@@ -2378,36 +2397,38 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "density_wall",
                     "specific_heat_capacity_wall",
                     ]
-                for param in wall_params_stebbs:
-                    entry = stebbs.get(param)
-                    if isinstance(entry, dict) and entry.get("value") is not None:
-                        old_val = entry["value"]
-                        entry["value"] = None
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter=f"stebbs.{param}",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(old_val),
-                                new_value="null",
-                                reason="WWR == 1, external wall parameter nullified"
-                            )
-                        )
-                for param in wall_params_bldgarc:
-                    entry = bldgarc.get(param)
-                    if isinstance(entry, dict) and entry.get("value") is not None:
-                        old_val = entry["value"]
-                        entry["value"] = None
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter=f"building_archetype.{param}",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(old_val),
-                                new_value="null",
-                                reason="WWR == 1, external wall parameter nullified"
-                            )
-                        )
+                if isinstance(stebbs, dict):
+                    for param in wall_params_stebbs:
+                        if param in stebbs:
+                            old_val = get_ref_or_bare(stebbs, param)
+                            if old_val is not None:
+                                set_ref_or_bare(stebbs, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"stebbs.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 1, external wall parameter nullified",
+                                    )
+                                )
+                if isinstance(bldgarc, dict):
+                    for param in wall_params_bldgarc:
+                        if param in bldgarc:
+                            old_val = get_ref_or_bare(bldgarc, param)
+                            if old_val is not None:
+                                set_ref_or_bare(bldgarc, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"building_archetype.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 1, external wall parameter nullified",
+                                    )
+                                )
                 props["stebbs"] = stebbs
                 props["building_archetype"] = bldgarc
                 site["properties"] = props

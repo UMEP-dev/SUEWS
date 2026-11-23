@@ -603,6 +603,8 @@ def test_unittest_expected_failure_forms_are_counted_once_and_fail_unmapped(
         "from unittest import expectedFailure as ef\n\ndef test_ok():\n    ef = lambda x: x\n    assert ef(1)\n",
         "from unittest import expectedFailure\n\ndef test_ok():\n    assert callable(expectedFailure)\n",
         "from unittest import expectedFailure as ef\nef = lambda fn: fn\n\n@ef\ndef test_ok():\n    assert 1 == 1\n",
+        "from __future__ import annotations\nimport unittest\n\ndef helper(x: unittest.expectedFailure(1)):\n    pass\n",
+        "import unittest\n\ndef test_ok():\n    unused: unittest.expectedFailure(1)\n    assert True\n",
     ],
 )
 def test_unrelated_unittest_and_expected_failure_names_are_not_flagged(tree, source):
@@ -677,6 +679,24 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "def test_case():\n"
             "    pass\n",
             ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "def wrap(fn):\n"
+            "    return ef(fn)\n"
+            "ef = unittest.expectedFailure\n"
+            "test_case = wrap(lambda: None)\n"
+            "ef = None\n",
+            ["test/test_branch.py::wrap::1"],
+        ),
+        (
+            "import unittest\n"
+            "marker = lambda fn: fn\n"
+            "test_case = lambda: None\n"
+            "for _ in range(2):\n"
+            "    test_case = marker(test_case)\n"
+            "    marker = unittest.expectedFailure\n",
+            ["test/test_branch.py::<module>::1"],
         ),
     ],
 )
@@ -1056,6 +1076,22 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             "    len = lambda d: d.setdefault('k', 'v')\n"
             "    def inner():\n"
             "        sorted([LEDGER], key=len)\n"
+            "    inner()\n"
+            "outer()\n",
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            'LEDGER = {}\nbox = {}\nbox["x"]: LEDGER.update({"new": 1})\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def helper(table):\n"
+            "    return len(table)\n"
+            "def outer():\n"
+            '    helper = lambda table: table.update({"new": 1})\n'
+            "    def inner():\n"
+            "        helper(LEDGER)\n"
             "    inner()\n"
             "outer()\n",
             "unsupported escape of constant LEDGER",

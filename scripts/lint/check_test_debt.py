@@ -526,11 +526,7 @@ class _ConstantMutationChecker:
         if isinstance(stmt, ast.Assign):
             self._check_assign(stmt, env, ctx, in_class)
         elif isinstance(stmt, ast.AnnAssign):
-            if (
-                ctx.scope_kind in {"module", "class"}
-                and not self.postponed_annotations
-                and stmt.simple
-            ):
+            if ctx.scope_kind in {"module", "class"} and not self.postponed_annotations:
                 ann_taint = self._eval_expr(stmt.annotation, env, ctx)
                 if ann_taint is not None:
                     self._fail(
@@ -808,7 +804,11 @@ class _ConstantMutationChecker:
                 ctx.enclosing_funcs,
             )
         enclosing_bound = ctx.enclosing_bound | ctx.local_bound
-        enclosing_funcs = dict(ctx.enclosing_funcs)
+        enclosing_funcs = {
+            name: entry
+            for name, entry in ctx.enclosing_funcs.items()
+            if name not in ctx.local_bound
+        }
         for name, fn in ctx.local_funcs.items():
             enclosing_funcs[name] = (fn, env, enclosing_bound, enclosing_funcs)
         return env, enclosing_bound, enclosing_funcs
@@ -1579,11 +1579,17 @@ def _python_ledger_records(root):
 
 
 _UnitEnv = dict[str, set[str]]
-_DeferredFunc = tuple[ast.FunctionDef | ast.AsyncFunctionDef, _UnitEnv]
+_DeferredMap = dict[int, tuple[ast.FunctionDef | ast.AsyncFunctionDef, _UnitEnv]]
 
 
 def _copy_unittest_env(env: _UnitEnv) -> _UnitEnv:
     return {key: set(values) for key, values in env.items() if values}
+
+
+def _update_unittest_env(target: _UnitEnv, source: _UnitEnv) -> None:
+    for key, values in source.items():
+        if values:
+            target.setdefault(key, set()).update(values)
 
 
 def _classify_unittest_expr(expr: ast.AST, env: _UnitEnv) -> set[str]:
@@ -1605,9 +1611,7 @@ def _classify_unittest_expr(expr: ast.AST, env: _UnitEnv) -> set[str]:
 def _merge_unittest_envs(envs: list[_UnitEnv]) -> _UnitEnv:
     merged: _UnitEnv = {}
     for branch_env in envs:
-        for key, values in branch_env.items():
-            if values:
-                merged.setdefault(key, set()).update(values)
+        _update_unittest_env(merged, branch_env)
     return merged
 
 
@@ -1616,41 +1620,58 @@ class _UnittestExpectedFailureFinder:
 
     def __init__(self, tree: ast.Module) -> None:
         self.tree = tree
+        self.postponed_annotations = _has_future_annotations(tree)
         self.sites: list[ast.AST] = []
+        self._seen_sites: set[int] = set()
         self.module_env: _UnitEnv = {}
+        self.module_seen_env: _UnitEnv = {}
+
+    def _record_site(self, node: ast.AST) -> None:
+        if id(node) not in self._seen_sites:
+            self._seen_sites.add(id(node))
+            self.sites.append(node)
+
+    def _propagate_to_deferred(
+        self, env: _UnitEnv, scope_kind: str, deferred: _DeferredMap
+    ) -> None:
+        if scope_kind == "class":
+            return
+        for _, live_env in deferred.values():
+            _update_unittest_env(live_env, env)
+        if scope_kind == "module":
+            _update_unittest_env(self.module_seen_env, env)
 
     def collect(self) -> list[ast.AST]:
-        deferred: list[_DeferredFunc] = []
+        deferred: _DeferredMap = {}
         self._walk_block(
-            self.tree.body, self.module_env, False, self.module_env, deferred
+            self.tree.body, self.module_env, "module", self.module_env, deferred
         )
-        self._flush_deferred(deferred, self.module_env)
+        self._flush_deferred(deferred)
         return self.sites
 
-    def _flush_deferred(
-        self, deferred: list[_DeferredFunc], end_scope_env: _UnitEnv
-    ) -> None:
-        for stmt, snapshot_env in deferred:
-            combined = _merge_unittest_envs([snapshot_env, end_scope_env])
+    def _flush_deferred(self, deferred: _DeferredMap) -> None:
+        for stmt, live_env in deferred.values():
             param_names = _function_param_names(stmt.args)
             local_bound, _, global_names, nonlocal_names = _collect_scope_bindings(
                 stmt.body
             )
             shadowed = param_names | (local_bound - global_names - nonlocal_names)
             child_env: _UnitEnv = {
-                k: set(v) for k, v in combined.items() if k not in shadowed
+                k: set(v) for k, v in live_env.items() if k not in shadowed
             }
             for name in global_names:
-                if name in self.module_env:
-                    child_env.setdefault(name, set()).update(self.module_env[name])
-            child_deferred: list[_DeferredFunc] = []
-            self._walk_block(stmt.body, child_env, False, child_env, child_deferred)
-            self._flush_deferred(child_deferred, child_env)
+                if name in self.module_seen_env:
+                    child_env.setdefault(name, set()).update(self.module_seen_env[name])
+            child_deferred: _DeferredMap = {}
+            self._walk_block(
+                stmt.body, child_env, "function", child_env, child_deferred
+            )
+            self._flush_deferred(child_deferred)
 
     def _scan_expr(self, expr: ast.AST, env: _UnitEnv) -> None:
         if isinstance(expr, ast.Call):
             if "expected_failure" in _classify_unittest_expr(expr.func, env):
-                self.sites.append(expr)
+                self._record_site(expr)
             else:
                 self._scan_expr(expr.func, env)
             for arg in expr.args:
@@ -1690,7 +1711,7 @@ class _UnittestExpectedFailureFinder:
     def _scan_decorators(self, decorators: list[ast.expr], env: _UnitEnv) -> None:
         for dec in decorators:
             if "expected_failure" in _classify_unittest_expr(dec, env):
-                self.sites.append(dec)
+                self._record_site(dec)
             else:
                 self._scan_expr(dec, env)
 
@@ -1773,35 +1794,40 @@ class _UnittestExpectedFailureFinder:
         self,
         stmt: ast.FunctionDef | ast.AsyncFunctionDef,
         env: _UnitEnv,
-        in_class: bool,
+        scope_kind: str,
         non_class_env: _UnitEnv,
-        deferred: list[_DeferredFunc],
+        deferred: _DeferredMap,
     ) -> None:
         self._scan_decorators(stmt.decorator_list, env)
         for default in (*stmt.args.defaults, *stmt.args.kw_defaults):
             if default is not None:
                 self._scan_expr(default, env)
-        for arg in (
-            *stmt.args.posonlyargs,
-            *stmt.args.args,
-            *stmt.args.kwonlyargs,
-            *(a for a in (stmt.args.vararg, stmt.args.kwarg) if a is not None),
-        ):
-            if arg.annotation is not None:
-                self._scan_expr(arg.annotation, env)
-        if stmt.returns is not None:
-            self._scan_expr(stmt.returns, env)
+        if not self.postponed_annotations:
+            for arg in (
+                *stmt.args.posonlyargs,
+                *stmt.args.args,
+                *stmt.args.kwonlyargs,
+                *(a for a in (stmt.args.vararg, stmt.args.kwarg) if a is not None),
+            ):
+                if arg.annotation is not None:
+                    self._scan_expr(arg.annotation, env)
+            if stmt.returns is not None:
+                self._scan_expr(stmt.returns, env)
         env.pop(stmt.name, None)
-        def_env = non_class_env if in_class else env
-        deferred.append((stmt, _copy_unittest_env(def_env)))
+        def_env = non_class_env if scope_kind == "class" else env
+        existing = deferred.get(id(stmt))
+        if existing is None:
+            deferred[id(stmt)] = (stmt, _copy_unittest_env(def_env))
+        else:
+            _update_unittest_env(existing[1], def_env)
 
     def _handle_class_def(
         self,
         stmt: ast.ClassDef,
         env: _UnitEnv,
-        in_class: bool,
+        scope_kind: str,
         non_class_env: _UnitEnv,
-        deferred: list[_DeferredFunc],
+        deferred: _DeferredMap,
     ) -> None:
         self._scan_decorators(stmt.decorator_list, env)
         for base in stmt.bases:
@@ -1810,22 +1836,23 @@ class _UnittestExpectedFailureFinder:
             self._scan_expr(kw.value, env)
         env.pop(stmt.name, None)
         class_env = _copy_unittest_env(env)
-        outer_non_class = non_class_env if in_class else env
-        self._walk_block(stmt.body, class_env, True, outer_non_class, deferred)
+        outer_non_class = non_class_env if scope_kind == "class" else env
+        self._walk_block(stmt.body, class_env, "class", outer_non_class, deferred)
 
     def _walk_try_stmt(
         self,
         stmt: ast.Try | ast.TryStar,
         env: _UnitEnv,
-        in_class: bool,
+        scope_kind: str,
         non_class_env: _UnitEnv,
-        deferred: list[_DeferredFunc],
+        deferred: _DeferredMap,
     ) -> None:
+        in_class = scope_kind == "class"
         body_env = _copy_unittest_env(env)
         self._walk_block(
             stmt.body,
             body_env,
-            in_class,
+            scope_kind,
             non_class_env if in_class else body_env,
             deferred,
         )
@@ -1833,7 +1860,7 @@ class _UnittestExpectedFailureFinder:
         self._walk_block(
             stmt.orelse,
             orelse_env,
-            in_class,
+            scope_kind,
             non_class_env if in_class else orelse_env,
             deferred,
         )
@@ -1847,17 +1874,18 @@ class _UnittestExpectedFailureFinder:
             self._walk_block(
                 handler.body,
                 h_env,
-                in_class,
+                scope_kind,
                 non_class_env if in_class else h_env,
                 deferred,
             )
             branch_envs.append(h_env)
         env.clear()
         env.update(_merge_unittest_envs(branch_envs))
+        self._propagate_to_deferred(env, scope_kind, deferred)
         self._walk_block(
             stmt.finalbody,
             env,
-            in_class,
+            scope_kind,
             non_class_env if in_class else env,
             deferred,
         )
@@ -1866,10 +1894,11 @@ class _UnittestExpectedFailureFinder:
         self,
         stmt: ast.Match,
         env: _UnitEnv,
-        in_class: bool,
+        scope_kind: str,
         non_class_env: _UnitEnv,
-        deferred: list[_DeferredFunc],
+        deferred: _DeferredMap,
     ) -> None:
+        in_class = scope_kind == "class"
         self._scan_expr(stmt.subject, env)
         branch_envs = [_copy_unittest_env(env)]
         for case in stmt.cases:
@@ -1883,73 +1912,107 @@ class _UnittestExpectedFailureFinder:
             self._walk_block(
                 case.body,
                 case_env,
-                in_class,
+                scope_kind,
                 non_class_env if in_class else case_env,
                 deferred,
             )
             branch_envs.append(case_env)
         env.clear()
         env.update(_merge_unittest_envs(branch_envs))
+        self._propagate_to_deferred(env, scope_kind, deferred)
+
+    def _walk_loop_stmt(
+        self,
+        stmt: ast.For | ast.AsyncFor | ast.While,
+        env: _UnitEnv,
+        scope_kind: str,
+        non_class_env: _UnitEnv,
+        deferred: _DeferredMap,
+    ) -> None:
+        in_class = scope_kind == "class"
+        if isinstance(stmt, (ast.For, ast.AsyncFor)):
+            self._scan_expr(stmt.iter, env)
+        else:
+            self._scan_expr(stmt.test, env)
+        entry_env = _copy_unittest_env(env)
+        iter_env = _copy_unittest_env(env)
+        while True:
+            before = _copy_unittest_env(iter_env)
+            body_env = _copy_unittest_env(iter_env)
+            if isinstance(stmt, (ast.For, ast.AsyncFor)):
+                self._bind_target(stmt.target, set(), body_env)
+            else:
+                self._scan_expr(stmt.test, body_env)
+            self._walk_block(
+                stmt.body,
+                body_env,
+                scope_kind,
+                non_class_env if in_class else body_env,
+                deferred,
+            )
+            merged_iter = _merge_unittest_envs([before, body_env])
+            if merged_iter == before:
+                break
+            iter_env = merged_iter
+        else_env = _merge_unittest_envs([entry_env, iter_env])
+        self._walk_block(
+            stmt.orelse,
+            else_env,
+            scope_kind,
+            non_class_env if in_class else else_env,
+            deferred,
+        )
+        env.clear()
+        env.update(_merge_unittest_envs([entry_env, iter_env, else_env]))
+        self._propagate_to_deferred(env, scope_kind, deferred)
 
     def _walk_compound_stmt(
         self,
         stmt: ast.stmt,
         env: _UnitEnv,
-        in_class: bool,
+        scope_kind: str,
         non_class_env: _UnitEnv,
-        deferred: list[_DeferredFunc],
+        deferred: _DeferredMap,
     ) -> None:
-        if isinstance(stmt, (ast.If, ast.While)):
+        in_class = scope_kind == "class"
+        if isinstance(stmt, ast.If):
             self._scan_expr(stmt.test, env)
             body_env, else_env = _copy_unittest_env(env), _copy_unittest_env(env)
             self._walk_block(
                 stmt.body,
                 body_env,
-                in_class,
+                scope_kind,
                 non_class_env if in_class else body_env,
                 deferred,
             )
             self._walk_block(
                 stmt.orelse,
                 else_env,
-                in_class,
+                scope_kind,
                 non_class_env if in_class else else_env,
                 deferred,
             )
             env.clear()
             env.update(_merge_unittest_envs([body_env, else_env]))
-        elif isinstance(stmt, (ast.For, ast.AsyncFor)):
-            self._scan_expr(stmt.iter, env)
-            body_env, else_env = _copy_unittest_env(env), _copy_unittest_env(env)
-            self._bind_target(stmt.target, set(), body_env)
-            self._walk_block(
-                stmt.body,
-                body_env,
-                in_class,
-                non_class_env if in_class else body_env,
-                deferred,
-            )
-            self._walk_block(
-                stmt.orelse,
-                else_env,
-                in_class,
-                non_class_env if in_class else else_env,
-                deferred,
-            )
-            env.clear()
-            env.update(_merge_unittest_envs([body_env, else_env]))
+            self._propagate_to_deferred(env, scope_kind, deferred)
+        elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+            self._walk_loop_stmt(stmt, env, scope_kind, non_class_env, deferred)
         elif isinstance(stmt, (ast.With, ast.AsyncWith)):
             for item in stmt.items:
                 self._scan_expr(item.context_expr, env)
                 if item.optional_vars is not None:
                     self._bind_target(item.optional_vars, set(), env)
             self._walk_block(
-                stmt.body, env, in_class, non_class_env if in_class else env, deferred
+                stmt.body,
+                env,
+                scope_kind,
+                non_class_env if in_class else env,
+                deferred,
             )
         elif isinstance(stmt, (ast.Try, ast.TryStar)):
-            self._walk_try_stmt(stmt, env, in_class, non_class_env, deferred)
+            self._walk_try_stmt(stmt, env, scope_kind, non_class_env, deferred)
         elif isinstance(stmt, ast.Match):
-            self._walk_match_stmt(stmt, env, in_class, non_class_env, deferred)
+            self._walk_match_stmt(stmt, env, scope_kind, non_class_env, deferred)
         else:
             for child in ast.iter_child_nodes(stmt):
                 self._scan_expr(child, env)
@@ -1958,23 +2021,28 @@ class _UnittestExpectedFailureFinder:
         self,
         stmt: ast.stmt,
         env: _UnitEnv,
-        in_class: bool,
+        scope_kind: str,
         non_class_env: _UnitEnv,
-        deferred: list[_DeferredFunc],
+        deferred: _DeferredMap,
     ) -> None:
         if isinstance(stmt, ast.Import):
             self._handle_import(stmt, env)
+            self._propagate_to_deferred(env, scope_kind, deferred)
         elif isinstance(stmt, ast.ImportFrom):
             self._handle_import_from(stmt, env)
+            self._propagate_to_deferred(env, scope_kind, deferred)
         elif isinstance(stmt, ast.Assign):
             self._handle_assign(stmt, env)
+            self._propagate_to_deferred(env, scope_kind, deferred)
         elif isinstance(stmt, ast.AnnAssign):
-            self._scan_expr(stmt.annotation, env)
+            if scope_kind in {"module", "class"} and not self.postponed_annotations:
+                self._scan_expr(stmt.annotation, env)
             if stmt.value is not None:
                 self._scan_expr(stmt.value, env)
                 self._bind_target(
                     stmt.target, _classify_unittest_expr(stmt.value, env), env
                 )
+                self._propagate_to_deferred(env, scope_kind, deferred)
         elif isinstance(stmt, ast.AugAssign):
             self._scan_expr(stmt.value, env)
             self._bind_target(stmt.target, set(), env)
@@ -1985,22 +2053,22 @@ class _UnittestExpectedFailureFinder:
                 else:
                     self._scan_expr(target, env)
         elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            self._handle_func_def(stmt, env, in_class, non_class_env, deferred)
+            self._handle_func_def(stmt, env, scope_kind, non_class_env, deferred)
         elif isinstance(stmt, ast.ClassDef):
-            self._handle_class_def(stmt, env, in_class, non_class_env, deferred)
+            self._handle_class_def(stmt, env, scope_kind, non_class_env, deferred)
         else:
-            self._walk_compound_stmt(stmt, env, in_class, non_class_env, deferred)
+            self._walk_compound_stmt(stmt, env, scope_kind, non_class_env, deferred)
 
     def _walk_block(
         self,
         stmts: list[ast.stmt],
         env: _UnitEnv,
-        in_class: bool,
+        scope_kind: str,
         non_class_env: _UnitEnv,
-        deferred: list[_DeferredFunc],
+        deferred: _DeferredMap,
     ) -> None:
         for stmt in stmts:
-            self._walk_stmt(stmt, env, in_class, non_class_env, deferred)
+            self._walk_stmt(stmt, env, scope_kind, non_class_env, deferred)
 
 
 def _suppression_nodes(tree, parents):

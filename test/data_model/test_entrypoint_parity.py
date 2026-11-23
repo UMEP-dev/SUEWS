@@ -2126,15 +2126,15 @@ class TestDfStateEngineYamlParityRatchet:
     def test_sdd_id_nan_and_float_df_state_none_to_nan_restoration_parity(
         self, compact_valid_dict, short_sample_forcing, tmp_path
     ):
-        """Pin float ``df_state`` ``None -> NaN -> null`` restoration gap vs YAML ``.nan``.
+        """Pin float ``df_state`` ``None -> NaN -> null`` export gap and native rejection.
 
         Refs #2001, #2002, #2099:
         YAML ``{value: .nan}`` and float-DataFrame ``None`` assignment (coerced
-        by pandas to ``NaN`` before ``from_df_state()``) currently bypass null
-        rejection, serialise ``sdd_id`` as ``null`` in engine YAML, and run
-        identically to explicit ``0.0`` across a 1-day (288-step) simulation.
+        by pandas to ``NaN`` before ``from_df_state()``) still bypass Python
+        null rejection and serialise ``sdd_id`` as ``null`` in engine YAML
+        (#2001), but the native Rust bridge (#2002) now rejects that ``null``
+        at ``sim.run()`` instead of silently defaulting ``sdd_id`` to ``0.0``.
         """
-        # ARRANGE: 1-day forcing slice (288 x 300 s) so DailyState updates
         df_day = short_sample_forcing(288)
         end_date = df_day.index[-1]
 
@@ -2143,10 +2143,9 @@ class TestDfStateEngineYamlParityRatchet:
             zero_dict["sites"][0]["initial_states"][surf]["sdd_id"] = {"value": 0.0}
         cfg_zero = SUEWSConfig.from_dict(zero_dict)
         sim_zero = SUEWSSimulation().update_config(cfg_zero, auto_load_forcing=False)
-        sim_zero.update_forcing(df_day)
-        df_out_zero = sim_zero.run(end_date=end_date).df
 
-        # 1. Direct YAML {value: .nan} loads, exports null in engine YAML, and matches 0.0
+        # 1. Direct YAML {value: .nan} exports null in engine YAML (#2001),
+        #    and the native bridge rejects it at run() (#2002).
         nan_dict = copy.deepcopy(zero_dict)
         nan_dict["sites"][0]["initial_states"]["dectr"]["sdd_id"] = {
             "value": float("nan")
@@ -2159,10 +2158,14 @@ class TestDfStateEngineYamlParityRatchet:
         )
         sim_nan = SUEWSSimulation().update_config(cfg_nan, auto_load_forcing=False)
         sim_nan.update_forcing(df_day)
-        df_out_nan = sim_nan.run(end_date=end_date).df
-        pd.testing.assert_frame_equal(df_out_nan, df_out_zero)
+        with pytest.raises(
+            RuntimeError,
+            match=r"sites\[gridiv=1\]\.initial_states\.dectr\.sdd_id.*null",
+        ):
+            sim_nan.run(end_date=end_date)
 
-        # 2. Float df_state None assignment -> NaN -> from_df_state() exports null and matches 0.0
+        # 2. Float df_state None assignment -> NaN -> from_df_state() exports
+        #    null (#2001), and the native bridge rejects it at run() (#2002).
         df_state = sim_zero.state_init.copy()
         df_state.loc[df_state.index[0], ("sdd_id", "(1,)")] = None
         assert pd.isna(df_state.loc[df_state.index[0], ("sdd_id", "(1,)")])
@@ -2176,8 +2179,11 @@ class TestDfStateEngineYamlParityRatchet:
             cfg_from_df_none, auto_load_forcing=False
         )
         sim_from_df.update_forcing(df_day)
-        df_out_from_df = sim_from_df.run(end_date=end_date).df
-        pd.testing.assert_frame_equal(df_out_from_df, df_out_zero)
+        with pytest.raises(
+            RuntimeError,
+            match=r"sites\[gridiv=1\]\.initial_states\.dectr\.sdd_id.*null",
+        ):
+            sim_from_df.run(end_date=end_date)
 
     @pytest.mark.parametrize("method", [6, 8], ids=["dyohm_6", "dyohm_bldg_8"])
     @pytest.mark.parametrize("wrapped", [True, False], ids=["wrapped", "bare"])

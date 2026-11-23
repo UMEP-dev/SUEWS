@@ -169,6 +169,7 @@ fn yaml_kind(value: &Value) -> &'static str {
 }
 
 /// Pass to the list readers when the kernel reads every entry of the list.
+#[cfg(test)]
 const ALL_ENTRIES: usize = usize::MAX;
 
 /// Parse a numeric list: bare (`[1.0, 2.0]`), wrapped in the RefValue form
@@ -569,6 +570,75 @@ fn require_sequence<'a>(
         }
     }
     Ok(items)
+}
+
+/// Read an optional finite numeric scalar on an inactive option branch (BR-03).
+/// Missing keys, bare `null`, wrapped `{value: null}`, and ref-only mappings
+/// return `Ok(None)`; any present non-null value is validated strictly.
+fn parse_optional_numeric(root: &Value, path: &[&str], at: &str) -> Result<Option<f64>, String> {
+    match get_path(root, path).and_then(given_value) {
+        None | Some(Value::Null) => Ok(None),
+        Some(_) => require_numeric(root, path, at).map(Some),
+    }
+}
+
+/// Read an optional exact integer scalar on an inactive option branch (BR-03).
+/// Missing keys, bare `null`, wrapped `{value: null}`, and ref-only mappings
+/// return `Ok(None)`; any present non-null value is validated strictly.
+fn parse_optional_i32(root: &Value, path: &[&str], at: &str) -> Result<Option<i32>, String> {
+    match get_path(root, path).and_then(given_value) {
+        None | Some(Value::Null) => Ok(None),
+        Some(_) => require_i32(root, path, at).map(Some),
+    }
+}
+
+/// Read an optional numeric list on an inactive option branch (`read == 0`).
+/// Missing keys, bare `null`, wrapped `{value: null}`, and ref-only mappings
+/// return `Ok(None)`. Malformed non-list values (strings, booleans, bare
+/// mappings) fail immediately naming the path without falling through to an
+/// alias. Inside a list, entries that are `null` or non-finite are carried as
+/// `LAYER_VALUE_ABSENT`; non-numeric kinds fail naming the path and index.
+fn parse_optional_numeric_sequence(
+    root: &Value,
+    paths: &[&[&str]],
+    at: &str,
+) -> Result<Option<Vec<f64>>, String> {
+    for path in paths {
+        let Some(value) = get_path(root, path) else {
+            continue;
+        };
+        let shown = yaml_path_display(at, path);
+        match given_value(value) {
+            None | Some(Value::Null) => continue,
+            Some(Value::Sequence(_)) => {
+                return parse_numeric_sequence(value, 0).map_err(|e| format!("`{shown}`: {e}"));
+            }
+            Some(other) => {
+                return Err(format!(
+                    "`{shown}` is {}; it must be a list of numbers",
+                    yaml_kind(other)
+                ));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn parse_optional_sized_numeric_sequence(
+    root: &Value,
+    paths: &[&[&str]],
+    at: &str,
+    required: usize,
+) -> Result<Option<Vec<f64>>, String> {
+    for path in paths {
+        match get_path(root, path).and_then(given_value) {
+            None | Some(Value::Null) => continue,
+            Some(_) => {
+                return require_sized_numeric_sequence(root, &[path], at, required).map(Some);
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn read_sequence<'a>(root: &'a Value, path: &[&str]) -> Option<&'a [Value]> {
@@ -2334,79 +2404,85 @@ fn apply_config_overrides(
     config: &mut SuewsConfig,
     root: &Value,
     site_root: &Value,
+    stebbs_nested: bool,
 ) -> Result<(), String> {
-    config.rsl_method = require_i32(root, &["model", "physics", "rslmethod"], "")?;
-    if get_path(root, &["model", "physics", "emissionsmethod"]).is_some() {
-        let v = require_i32(root, &["model", "physics", "emissionsmethod"], "")?;
-        if !is_valid_emissions_method(v) {
-            return Err(format!(
-                "`model.physics.emissions` has unsupported value {v}; valid values are 0 \
-                 (observed), 1..=6 (modelled heat), or 11..=16, 21..=26, 31..=36, 41..=46 \
-                 (biogenic CO2)"
-            ));
+    let site_at = site_yaml_at(site_root);
+    let map_stebbs_err = |err: String| {
+        if stebbs_nested {
+            err.replace(
+                "`model.physics.capacitance`",
+                "`model.physics.stebbs.capacitance`",
+            )
+            .replace("`model.physics.setpoint`", "`model.physics.stebbs.setpoint`")
+        } else {
+            err
         }
-        config.emissions_method = v;
+    };
+    config.rsl_method = require_i32(root, &["model", "physics", "rslmethod"], "")?;
+    let emissions_method = require_i32(root, &["model", "physics", "emissionsmethod"], "")?;
+    if !is_valid_emissions_method(emissions_method) {
+        return Err(format!(
+            "`model.physics.emissions` has unsupported value {emissions_method}; valid values are 0 \
+             (observed), 1..=6 (modelled heat), or 11..=16, 21..=26, 31..=36, 41..=46 \
+             (biogenic CO2)"
+        ));
     }
+    config.emissions_method = emissions_method;
     config.rough_len_heat_method =
         require_i32(root, &["model", "physics", "roughlenheatmethod"], "")?;
     config.rough_len_mom_method =
         require_i32(root, &["model", "physics", "roughlenmommethod"], "")?;
-    if let Some(v) = read_i32(root, &["model", "physics", "faimethod"]) {
-        config.fai_method = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "smdmethod"]) {
-        config.smd_method = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "waterusemethod"]) {
-        config.water_use_method = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "netradiationmethod"]) {
-        config.net_radiation_method = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "stabilitymethod"]) {
-        config.stability_method = v;
-    }
+    config.fai_method = require_i32(root, &["model", "physics", "faimethod"], "")?;
+    config.smd_method = require_i32(root, &["model", "physics", "smdmethod"], "")?;
+    config.water_use_method = require_i32(root, &["model", "physics", "waterusemethod"], "")?;
+    config.net_radiation_method =
+        require_i32(root, &["model", "physics", "netradiationmethod"], "")?;
+    config.stability_method = require_i32(root, &["model", "physics", "stabilitymethod"], "")?;
     config.storage_heat_method = require_i32(root, &["model", "physics", "storageheatmethod"], "")?;
-    if let Some(v) = read_i32(root, &["model", "control", "diagnose"]) {
-        config.diagnose = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "snowuse"]) {
-        config.snow_use = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "ohmincqf"]) {
-        config.ohm_inc_qf = v;
-    }
-    // EvapMethod defaults to 2 (Shuttleworth) when not specified.
-    // Matches Python DTS behaviour: supy/dts/_populate.py:272-273
-    config.evap_method = read_i32(root, &["model", "physics", "evapmethod"]).unwrap_or(2);
-    // LAImethod defaults to 1 (GDD model) when not specified.
-    // Matches Python DTS behaviour: supy/dts/_populate.py:275-276
-    config.lai_method = read_i32(root, &["model", "physics", "laimethod"]).unwrap_or(1);
+    config.diagnose = require_i32(root, &["model", "control", "diagnose"], "")?;
+    config.snow_use = require_i32(root, &["model", "physics", "snowuse"], "")?;
+    config.ohm_inc_qf = require_i32(root, &["model", "physics", "ohmincqf"], "")?;
+    config.evap_method = require_i32(root, &["model", "physics", "evapmethod"], "")?;
+    config.lai_method = require_i32(root, &["model", "physics", "laimethod"], "")?;
     config.rsl_level = require_i32(root, &["model", "physics", "rsllevel"], "")?;
-    if let Some(v) = read_i32(root, &["model", "physics", "stebbsmethod"]) {
-        config.stebbs_method = v;
+    config.stebbs_method = require_i32(root, &["model", "physics", "stebbsmethod"], "")?;
+    if config.stebbs_method != 0 {
+        config.rc_method = require_i32(root, &["model", "physics", "rcmethod"], "")
+            .map_err(&map_stebbs_err)?;
+        config.setpoint_method = require_i32(root, &["model", "physics", "setpointmethod"], "")
+            .map_err(&map_stebbs_err)?;
+    } else {
+        if let Some(v) = parse_optional_i32(root, &["model", "physics", "rcmethod"], "")
+            .map_err(&map_stebbs_err)?
+        {
+            config.rc_method = v;
+        }
+        if let Some(v) = parse_optional_i32(root, &["model", "physics", "setpointmethod"], "")
+            .map_err(&map_stebbs_err)?
+        {
+            config.setpoint_method = v;
+        }
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "rcmethod"]) {
-        config.rc_method = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "setpointmethod"]) {
-        config.setpoint_method = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "control", "flag_test"]) {
-        config.flag_test = v != 0;
-    }
-    if let Some(v) = read_i32(root, &["model", "control", "diag_qs"]) {
-        config.diag_qs = v;
-    }
-    config.kdown_split_method =
-        read_i32(root, &["model", "physics", "kdown_split_method"]).unwrap_or(3);
+    config.flag_test = require_i32(root, &["model", "control", "flag_test"], "")? != 0;
+    config.diag_qs = require_i32(root, &["model", "control", "diag_qs"], "")?;
+    config.kdown_split_method = require_i32(root, &["model", "physics", "kdown_split_method"], "")?;
     // The kernel reads this switch from the run configuration, but users set
     // it per site under `properties.spartacus` (gh#1858). Same threshold as
-    // `SuewsConfig::from_flat`.
-    if let Some(v) = read_numeric(
-        site_root,
-        &["properties", "spartacus", "use_sw_direct_albedo"],
-    ) {
+    // `SuewsConfig::from_flat`. Option-gated on SPARTACUS (BR-03).
+    let use_sw_direct_albedo = if config.net_radiation_method > 1000 {
+        Some(require_numeric(
+            site_root,
+            &["properties", "spartacus", "use_sw_direct_albedo"],
+            &site_at,
+        )?)
+    } else {
+        parse_optional_numeric(
+            site_root,
+            &["properties", "spartacus", "use_sw_direct_albedo"],
+            &site_at,
+        )?
+    };
+    if let Some(v) = use_sw_direct_albedo {
         config.use_sw_direct_albedo = v >= 0.5;
     }
     Ok(())
@@ -2977,11 +3053,40 @@ fn apply_drainage_overrides(
     Ok(())
 }
 
+/// Mirror Fortran `RadMethod` (`src/suews/src/suews_phys_narp.f95:61-106`) to
+/// derive `NetRadiationMethod_use`, which controls whether `NARP` consumes
+/// `tsfc_surf` (`NetRadiationMethod_use >= 10`).
+fn effective_net_radiation_method(net_radiation_method: i32, snow_use: i32) -> i32 {
+    if net_radiation_method == 0 {
+        if snow_use == 1 { 3000 } else { 0 }
+    } else if net_radiation_method > 0 {
+        if net_radiation_method < 100 {
+            net_radiation_method
+        } else if net_radiation_method < 1000 {
+            net_radiation_method / 100
+        } else if net_radiation_method > 1000 {
+            net_radiation_method
+        } else {
+            0
+        }
+    } else {
+        net_radiation_method
+    }
+}
+
 fn apply_state_overrides(
     state: &mut SuewsState,
     site_root: &Value,
     storage_heat_method: i32,
+    net_radiation_method: i32,
+    snow_use: i32,
 ) -> Result<(), String> {
+    let snow_on = snow_use != 0;
+    let spartacus_on = net_radiation_method > 1000;
+    let effective_nrad = effective_net_radiation_method(net_radiation_method, snow_use);
+    let surface_tsfc_required =
+        ehc_is_on(storage_heat_method) || spartacus_on || effective_nrad >= 10;
+    let facet_tsfc_required = spartacus_on;
     // STEBBS initial temperatures are provided under properties.stebbs in YAML
     // but consumed from stebbs_state by the physics core. Match the legacy
     // Fortran initialisation where DeepSoilTemperature falls back to
@@ -3041,10 +3146,13 @@ fn apply_state_overrides(
         }
     }
 
+    let site_at = site_yaml_at(site_root);
+    let initial_at = format!("{site_at}.initial_states");
     let Some(initial_states_root) = get_path(site_root, &["initial_states"]) else {
-        return Ok(());
+        return Err(format!(
+            "`{initial_at}` is missing; the bridge does not fill in initial states, give them in the YAML"
+        ));
     };
-    let initial_at = format!("{}.initial_states", site_yaml_at(site_root));
     for name in ["qn_surfs", "dqndt_surf"] {
         if get_path(initial_states_root, &[name]).is_some() {
             return Err(format!(
@@ -3089,54 +3197,76 @@ fn apply_state_overrides(
     // - STEBBS under NetRadiationMethod < 1000 sees 0 W m-2 BEERS roof/wall radiation
     //   on step 1 before `BEERS_cal_main` runs at the end of the step.
 
-    for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "soilstore"]) {
-            state.hydro_state.soilstore_surf[surface_idx] = v;
+    let read_snow_state = |surface_name: &str, key: &str| -> Result<Option<f64>, String> {
+        let path = [surface_name, key];
+        if snow_on {
+            require_numeric(initial_states_root, &path, &initial_at).map(Some)
+        } else {
+            parse_optional_numeric(initial_states_root, &path, &initial_at)
         }
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "state"]) {
-            state.hydro_state.state_surf[surface_idx] = v;
-        }
+    };
 
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "snowfrac"]) {
+    for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
+        state.hydro_state.soilstore_surf[surface_idx] =
+            require_numeric(initial_states_root, &[surface_name, "soilstore"], &initial_at)?;
+        state.hydro_state.state_surf[surface_idx] =
+            require_numeric(initial_states_root, &[surface_name, "state"], &initial_at)?;
+
+        if let Some(v) = read_snow_state(surface_name, "snowfrac")? {
             state.snow_state.snowfrac[surface_idx] = v;
         }
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "snowpack"]) {
+        if let Some(v) = read_snow_state(surface_name, "snowpack")? {
             state.snow_state.snowpack[surface_idx] = v;
         }
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "icefrac"]) {
+        if let Some(v) = read_snow_state(surface_name, "icefrac")? {
             state.snow_state.icefrac[surface_idx] = v;
         }
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "snowwater"]) {
+        if let Some(v) = read_snow_state(surface_name, "snowwater")? {
             state.snow_state.snowwater[surface_idx] = v;
         }
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "snowdens"]) {
+        if let Some(v) = read_snow_state(surface_name, "snowdens")? {
             state.snow_state.snowdens[surface_idx] = v;
         }
 
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "alb_id"])
-            .or_else(|| read_numeric(initial_states_root, &[surface_name, "alb"]))
-            .or_else(|| {
-                read_numeric(
-                    site_root,
-                    &["properties", "land_cover", surface_name, "alb"],
+        let init_alb_id =
+            parse_optional_numeric(initial_states_root, &[surface_name, "alb_id"], &initial_at)?;
+        let init_alb =
+            parse_optional_numeric(initial_states_root, &[surface_name, "alb"], &initial_at)?;
+        let lc_alb = parse_optional_numeric(
+            site_root,
+            &["properties", "land_cover", surface_name, "alb"],
+            &site_at,
+        )?;
+        let resolved_alb = init_alb_id.or(init_alb).or(lc_alb).ok_or_else(|| {
+            if matches!(surface_name, "evetr" | "dectr" | "grass") {
+                format!(
+                    "`{initial_at}.{surface_name}.alb_id` is missing; the bridge does not fill in a value, give it in the YAML"
                 )
-            })
-        {
-            state.phenology_state.alb[surface_idx] = v;
-        }
+            } else {
+                format!(
+                    "`{site_at}.properties.land_cover.{surface_name}.alb` is missing; the bridge does not fill in a value, give it in the YAML"
+                )
+            }
+        })?;
+        state.phenology_state.alb[surface_idx] = resolved_alb;
 
         let ndepth = state.heat_state.ndepth;
         if ndepth > 0 {
-            if let Some(temps) = read_sized_numeric_sequence(
-                initial_states_root,
-                &[&[surface_name, "temperature"]],
-                &initial_at,
-                if ehc_is_on(storage_heat_method) {
-                    ndepth
-                } else {
-                    0
-                },
-            )? {
+            let temps = if ehc_is_on(storage_heat_method) {
+                Some(require_sized_numeric_sequence(
+                    initial_states_root,
+                    &[&[surface_name, "temperature"]],
+                    &initial_at,
+                    ndepth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(
+                    initial_states_root,
+                    &[&[surface_name, "temperature"]],
+                    &initial_at,
+                )?
+            };
+            if let Some(temps) = temps {
                 let start = surface_idx * ndepth;
                 if start + ndepth <= state.heat_state.temp_surf.len() {
                     let copy_len = temps.len().min(ndepth);
@@ -3145,110 +3275,164 @@ fn apply_state_overrides(
                 }
             }
         }
-        if let Some(v) = read_numeric(initial_states_root, &[surface_name, "tsfc"]) {
+        let tsfc = if surface_tsfc_required {
+            Some(require_numeric(
+                initial_states_root,
+                &[surface_name, "tsfc"],
+                &initial_at,
+            )?)
+        } else {
+            parse_optional_numeric(initial_states_root, &[surface_name, "tsfc"], &initial_at)?
+        };
+        if let Some(v) = tsfc {
             if let Some(slot) = state.heat_state.tsfc_surf.get_mut(surface_idx) {
                 *slot = v;
             }
         }
     }
 
-    if let Some(v) = read_numeric(initial_states_root, &["snowalb"]) {
+    if let Some(v) = if snow_on {
+        Some(require_numeric(
+            initial_states_root,
+            &["snowalb"],
+            &initial_at,
+        )?)
+    } else {
+        parse_optional_numeric(initial_states_root, &["snowalb"], &initial_at)?
+    } {
         state.snow_state.snowalb = v;
     }
-    if let Some(v) = read_numeric(initial_states_root, &["snowfallcum"]) {
+    if let Some(v) = if snow_on {
+        Some(require_numeric(
+            initial_states_root,
+            &["snowfallcum"],
+            &initial_at,
+        )?)
+    } else {
+        parse_optional_numeric(initial_states_root, &["snowfallcum"], &initial_at)?
+    } {
         state.snow_state.snowfall_cum = v;
     }
 
     for (veg_name, veg_idx) in VEG_SURFACE_YAML_ORDER {
-        if let Some(v) = read_numeric(initial_states_root, &[veg_name, "lai_id"]) {
-            state.phenology_state.lai_id[veg_idx] = v;
-        }
-        if let Some(v) = read_numeric(initial_states_root, &[veg_name, "gdd_id"]) {
-            state.phenology_state.gdd_id[veg_idx] = v;
-        }
-        if let Some(v) = read_numeric(initial_states_root, &[veg_name, "sdd_id"]) {
-            state.phenology_state.sdd_id[veg_idx] = v;
-        }
+        state.phenology_state.lai_id[veg_idx] =
+            require_numeric(initial_states_root, &[veg_name, "lai_id"], &initial_at)?;
+        state.phenology_state.gdd_id[veg_idx] =
+            require_numeric(initial_states_root, &[veg_name, "gdd_id"], &initial_at)?;
+        state.phenology_state.sdd_id[veg_idx] =
+            require_numeric(initial_states_root, &[veg_name, "sdd_id"], &initial_at)?;
     }
 
-    if let Some(v) = read_numeric(initial_states_root, &["dectr", "porosity_id"]) {
-        state.phenology_state.porosity_id = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["dectr", "decidcap_id"]) {
-        state.phenology_state.decidcap_id = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["dectr", "alb_id"]) {
-        state.phenology_state.alb_dectr_id = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["evetr", "alb_id"]) {
-        state.phenology_state.alb_evetr_id = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["grass", "alb_id"]) {
-        state.phenology_state.alb_grass_id = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["tmin_id"]) {
-        state.phenology_state.tmin_id = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["tmax_id"]) {
-        state.phenology_state.tmax_id = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["lenday_id"]) {
-        state.phenology_state.len_day_id = v;
-    }
+    state.phenology_state.porosity_id =
+        require_numeric(initial_states_root, &["dectr", "porosity_id"], &initial_at)?;
+    state.phenology_state.decidcap_id =
+        require_numeric(initial_states_root, &["dectr", "decidcap_id"], &initial_at)?;
+    state.phenology_state.alb_dectr_id =
+        require_numeric(initial_states_root, &["dectr", "alb_id"], &initial_at)?;
+    state.phenology_state.alb_evetr_id =
+        require_numeric(initial_states_root, &["evetr", "alb_id"], &initial_at)?;
+    state.phenology_state.alb_grass_id =
+        require_numeric(initial_states_root, &["grass", "alb_id"], &initial_at)?;
+    state.phenology_state.tmin_id =
+        require_numeric(initial_states_root, &["tmin_id"], &initial_at)?;
+    state.phenology_state.tmax_id =
+        require_numeric(initial_states_root, &["tmax_id"], &initial_at)?;
+    state.phenology_state.len_day_id =
+        require_numeric(initial_states_root, &["lenday_id"], &initial_at)?;
 
-    if let Some(values) =
-        read_numeric_sequence(initial_states_root, &["hdd_id"], &initial_at, ALL_ENTRIES)?
-    {
-        assign_prefix(&mut state.anthroemis_state.hdd_id, values.as_slice());
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["qn_av"]) {
-        state.ohm_state.qn_av = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["qn_s_av"]) {
-        state.ohm_state.qn_s_av = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["dqndt"]) {
-        state.ohm_state.dqndt = v;
-    }
-    if let Some(v) = read_numeric(initial_states_root, &["dqnsdt"]) {
-        state.ohm_state.dqnsdt = v;
-    }
+    let hdd_values = require_sized_numeric_sequence(
+        initial_states_root,
+        &[&["hdd_id"]],
+        &initial_at,
+        state.anthroemis_state.hdd_id.len(),
+    )?;
+    assign_prefix(&mut state.anthroemis_state.hdd_id, hdd_values.as_slice());
+    state.ohm_state.qn_av = require_numeric(initial_states_root, &["qn_av"], &initial_at)?;
+    state.ohm_state.qn_s_av = require_numeric(initial_states_root, &["qn_s_av"], &initial_at)?;
+    state.ohm_state.dqndt = require_numeric(initial_states_root, &["dqndt"], &initial_at)?;
+    state.ohm_state.dqnsdt = require_numeric(initial_states_root, &["dqnsdt"], &initial_at)?;
 
-    if let Some(roofs) = read_sequence(initial_states_root, &["roofs"]) {
-        let ndepth = state.heat_state.ndepth;
-        if ehc_is_on(storage_heat_method) {
-            require_list_length(
-                roofs.len(),
-                state.heat_state.nlayer,
-                &format!("{initial_at}.roofs"),
-            )?;
+    let nlayer = state.heat_state.nlayer;
+    let ndepth = state.heat_state.ndepth;
+    let facet_hydro_read = facet_layers_are_read(storage_heat_method, spartacus_on);
+    let facet_temp_required = facet_layers_are_read(storage_heat_method, spartacus_on);
+    let facet_states_required = spartacus_on && nlayer > 0;
+
+    let roofs = if facet_states_required {
+        Some(require_sequence(
+            initial_states_root,
+            &["roofs"],
+            &initial_at,
+            nlayer,
+        )?)
+    } else {
+        let items = read_sequence(initial_states_root, &["roofs"]);
+        if let Some(items) = items {
+            if ehc_is_on(storage_heat_method) && nlayer > 0 {
+                require_list_length(items.len(), nlayer, &format!("{initial_at}.roofs"))?;
+            }
         }
+        items
+    };
+    if let Some(roofs) = roofs {
         for (layer_idx, roof_root) in roofs.iter().enumerate() {
-            if let Some(v) = read_numeric(roof_root, &["soilstore"]) {
+            let at = format!("{initial_at}.roofs[{layer_idx}]");
+            let active_temp = facet_temp_required && layer_idx < nlayer;
+            let lumped_ehc_temp =
+                ehc_is_on(storage_heat_method) && !spartacus_on && layer_idx < nlayer;
+            let active_tsfc = facet_tsfc_required && layer_idx < nlayer;
+            let active_hydro = facet_hydro_read && layer_idx < nlayer;
+            let soilstore = if active_hydro {
+                Some(require_numeric(roof_root, &["soilstore"], &at)?)
+            } else {
+                parse_optional_numeric(roof_root, &["soilstore"], &at)?
+            };
+            if let Some(v) = soilstore {
                 if let Some(slot) = state.hydro_state.soilstore_roof.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(roof_root, &["state"]) {
+            let surf_state = if active_hydro {
+                Some(require_numeric(roof_root, &["state"], &at)?)
+            } else {
+                parse_optional_numeric(roof_root, &["state"], &at)?
+            };
+            if let Some(v) = surf_state {
                 if let Some(slot) = state.hydro_state.state_roof.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(roof_root, &["tsfc"]) {
+            let tsfc = if active_tsfc {
+                Some(require_numeric(roof_root, &["tsfc"], &at)?)
+            } else {
+                parse_optional_numeric(roof_root, &["tsfc"], &at)?
+            };
+            if let Some(v) = tsfc {
                 if let Some(slot) = state.heat_state.tsfc_roof.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
             if ndepth > 0 {
-                let at = format!("{initial_at}.roofs[{layer_idx}]");
-                // EHC reads the initial temperatures of the nlayer roofs only.
-                let read = ehc_is_on(storage_heat_method) && layer_idx < state.heat_state.nlayer;
-                if let Some(temps) = read_sized_numeric_sequence(
-                    roof_root,
-                    &[&["temperature"]],
-                    &at,
-                    if read { ndepth } else { 0 },
-                )? {
+                // Facet-resolved EHC requires the nlayer roof temperatures;
+                // lumped EHC allows omitting them while still checking supplied lists.
+                let temps = if active_temp {
+                    Some(require_sized_numeric_sequence(
+                        roof_root,
+                        &[&["temperature"]],
+                        &at,
+                        ndepth,
+                    )?)
+                } else if lumped_ehc_temp {
+                    parse_optional_sized_numeric_sequence(
+                        roof_root,
+                        &[&["temperature"]],
+                        &at,
+                        ndepth,
+                    )?
+                } else {
+                    parse_optional_numeric_sequence(roof_root, &[&["temperature"]], &at)?
+                };
+                if let Some(temps) = temps {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_roof.len() {
                         let copy_len = temps.len().min(ndepth);
@@ -3260,41 +3444,81 @@ fn apply_state_overrides(
         }
     }
 
-    if let Some(walls) = read_sequence(initial_states_root, &["walls"]) {
-        let ndepth = state.heat_state.ndepth;
-        if ehc_is_on(storage_heat_method) {
-            require_list_length(
-                walls.len(),
-                state.heat_state.nlayer,
-                &format!("{initial_at}.walls"),
-            )?;
+    let walls = if facet_states_required {
+        Some(require_sequence(
+            initial_states_root,
+            &["walls"],
+            &initial_at,
+            nlayer,
+        )?)
+    } else {
+        let items = read_sequence(initial_states_root, &["walls"]);
+        if let Some(items) = items {
+            if ehc_is_on(storage_heat_method) && nlayer > 0 {
+                require_list_length(items.len(), nlayer, &format!("{initial_at}.walls"))?;
+            }
         }
+        items
+    };
+    if let Some(walls) = walls {
         for (layer_idx, wall_root) in walls.iter().enumerate() {
-            if let Some(v) = read_numeric(wall_root, &["soilstore"]) {
+            let at = format!("{initial_at}.walls[{layer_idx}]");
+            let active_temp = facet_temp_required && layer_idx < nlayer;
+            let lumped_ehc_temp =
+                ehc_is_on(storage_heat_method) && !spartacus_on && layer_idx < nlayer;
+            let active_tsfc = facet_tsfc_required && layer_idx < nlayer;
+            let active_hydro = facet_hydro_read && layer_idx < nlayer;
+            let soilstore = if active_hydro {
+                Some(require_numeric(wall_root, &["soilstore"], &at)?)
+            } else {
+                parse_optional_numeric(wall_root, &["soilstore"], &at)?
+            };
+            if let Some(v) = soilstore {
                 if let Some(slot) = state.hydro_state.soilstore_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(wall_root, &["state"]) {
+            let surf_state = if active_hydro {
+                Some(require_numeric(wall_root, &["state"], &at)?)
+            } else {
+                parse_optional_numeric(wall_root, &["state"], &at)?
+            };
+            if let Some(v) = surf_state {
                 if let Some(slot) = state.hydro_state.state_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(wall_root, &["tsfc"]) {
+            let tsfc = if active_tsfc {
+                Some(require_numeric(wall_root, &["tsfc"], &at)?)
+            } else {
+                parse_optional_numeric(wall_root, &["tsfc"], &at)?
+            };
+            if let Some(v) = tsfc {
                 if let Some(slot) = state.heat_state.tsfc_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
             if ndepth > 0 {
-                let at = format!("{initial_at}.walls[{layer_idx}]");
-                // EHC reads the initial temperatures of the nlayer walls only.
-                let read = ehc_is_on(storage_heat_method) && layer_idx < state.heat_state.nlayer;
-                if let Some(temps) = read_sized_numeric_sequence(
-                    wall_root,
-                    &[&["temperature"]],
-                    &at,
-                    if read { ndepth } else { 0 },
-                )? {
+                // Facet-resolved EHC requires the nlayer wall temperatures;
+                // lumped EHC allows omitting them while still checking supplied lists.
+                let temps = if active_temp {
+                    Some(require_sized_numeric_sequence(
+                        wall_root,
+                        &[&["temperature"]],
+                        &at,
+                        ndepth,
+                    )?)
+                } else if lumped_ehc_temp {
+                    parse_optional_sized_numeric_sequence(
+                        wall_root,
+                        &[&["temperature"]],
+                        &at,
+                        ndepth,
+                    )?
+                } else {
+                    parse_optional_numeric_sequence(wall_root, &[&["temperature"]], &at)?
+                };
+                if let Some(temps) = temps {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_wall.len() {
                         let copy_len = temps.len().min(ndepth);
@@ -3587,6 +3811,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // Callers of the Rust CLI bypass Python's `@model_validator` shim; this
     // is the single seam that makes `suews run config.yml` tolerate both
     // spellings end-to-end. See `field_renames.rs` for the registry.
+    let stebbs_nested = crate::field_renames::is_nested_stebbs_physics(root);
     normalize_field_names(root)?;
 
     let mut timer = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
@@ -3598,10 +3823,21 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let site_root = read_sites_indexed(root, 0)
         .ok_or_else(|| "config must contain at least one site under `sites`".to_string())?;
 
-    apply_config_overrides(&mut config, root, site_root)?;
+    apply_config_overrides(&mut config, root, site_root, stebbs_nested)?;
 
-    let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
-    let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
+    let site_at = site_yaml_at(site_root);
+    let nlayer = require_i32(site_root, &["properties", "vertical_layers", "nlayer"], &site_at)?;
+    if nlayer < 0 {
+        return Err(format!(
+            "`{site_at}.properties.vertical_layers.nlayer` must be non-negative (got {nlayer})"
+        ));
+    }
+    let ndepth = require_i32(site_root, &["properties", "vertical_layers", "ndepth"], &site_at)?;
+    if ndepth < 0 {
+        return Err(format!(
+            "`{site_at}.properties.vertical_layers.ndepth` must be non-negative (got {ndepth})"
+        ));
+    }
 
     apply_site_scalar_overrides(&mut site_scalars, site_root, &config)?;
     apply_site_overrides(
@@ -3617,17 +3853,22 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // change the kernel reads at site level (`siteInfo%flow_change`).
     site.lc_water.flowchange = site_scalars.flowchange;
 
-    if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
-        timer.tstep = tstep;
-        timer.tstep_prev = tstep;
-    }
+    let tstep = require_i32(root, &["model", "control", "tstep"], "")?;
+    timer.tstep = tstep;
+    timer.tstep_prev = tstep;
 
     // Resize variable-length arrays BEFORE applying state overrides so that
     // vectors like tsfc_surf have the correct length when values are assigned.
     resize_state_variable_arrays(&mut state, nlayer as usize, ndepth as usize);
 
     apply_drainage_overrides(&mut state, site_root, &site_scalars.sfr_surf)?;
-    apply_state_overrides(&mut state, site_root, config.storage_heat_method)?;
+    apply_state_overrides(
+        &mut state,
+        site_root,
+        config.storage_heat_method,
+        config.net_radiation_method,
+        config.snow_use,
+    )?;
 
     let forcing_timestamp_reference = read_forcing_timestamp_reference(root)?;
     config.forcing_timestamp_reference = match forcing_timestamp_reference {
@@ -7466,5 +7707,286 @@ mod tests {
             err.contains("`sites[gridiv=1].properties.land_cover.paved.state_limit`"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn config_dims_and_state_overrides_enforce_required_and_option_gated_inputs() {
+        // Active config switches and dimensions (stebbs fixture: SPARTACUS + STEBBS active).
+        let base: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+
+        for (path, expected) in [
+            (&["model", "physics", "emissions"][..], "model.physics.emissions"),
+            (&["model", "physics", "net_radiation"][..], "model.physics.net_radiation"),
+            (&["model", "physics", "stability"][..], "model.physics.stability"),
+            (&["model", "physics", "snow_use"][..], "model.physics.snow_use"),
+            (&["model", "physics", "evapmethod"][..], "model.physics.evapmethod"),
+            (&["model", "physics", "kdown_split_method"][..], "model.physics.kdown_split_method"),
+            (&["model", "control", "tstep"][..], "model.control.tstep"),
+            (&["model", "control", "diagnose"][..], "model.control.diagnose"),
+            (&["model", "control", "flag_test"][..], "model.control.flag_test"),
+            (&["model", "control", "diag_qs"][..], "model.control.diag_qs"),
+        ] {
+            let mut missing = base.clone();
+            let (parent, leaf) = path.split_at(path.len() - 1);
+            remove_key(get_path_mut(&mut missing, parent).unwrap(), leaf[0]);
+            let err = load_run_config_from_value(&mut missing)
+                .expect_err(&format!("missing {expected} must fail"));
+            assert!(err.contains(expected), "missing {expected}: {err}");
+        }
+
+        // Negative nlayer / ndepth and missing site-level required dimensions/states fail.
+        for (path, expected) in [
+            (
+                &["properties", "vertical_layers", "nlayer"][..],
+                "sites[gridiv=1].properties.vertical_layers.nlayer",
+            ),
+            (
+                &["properties", "vertical_layers", "ndepth"][..],
+                "sites[gridiv=1].properties.vertical_layers.ndepth",
+            ),
+            (
+                &["properties", "spartacus", "use_sw_direct_albedo"][..],
+                "sites[gridiv=1].properties.spartacus.use_sw_direct_albedo",
+            ),
+            (&["initial_states"][..], "sites[gridiv=1].initial_states"),
+            (
+                &["initial_states", "paved", "soilstore"][..],
+                "sites[gridiv=1].initial_states.paved.soilstore",
+            ),
+            (
+                &["initial_states", "hdd_id"][..],
+                "sites[gridiv=1].initial_states.hdd_id",
+            ),
+            (
+                &["initial_states", "dectr", "porosity_id"][..],
+                "sites[gridiv=1].initial_states.dectr.porosity_id",
+            ),
+            (
+                &["initial_states", "evetr", "lai_id"][..],
+                "sites[gridiv=1].initial_states.evetr.lai_id",
+            ),
+            (
+                &["initial_states", "qn_av"][..],
+                "sites[gridiv=1].initial_states.qn_av",
+            ),
+        ] {
+            let mut missing = base.clone();
+            let (parent, leaf) = path.split_at(path.len() - 1);
+            let site = first_site_mut(&mut missing).unwrap();
+            let container = if parent.is_empty() {
+                site
+            } else {
+                get_path_mut(site, parent).unwrap()
+            };
+            remove_key(container, leaf[0]);
+            let err = load_run_config_from_value(&mut missing)
+                .expect_err(&format!("missing {expected} must fail"));
+            assert!(err.contains(expected), "missing {expected}: {err}");
+        }
+
+        // Snow active (snow_use=1): missing paved.snowpack, snowalb, and snowfallcum fail.
+        for (path, expected) in [
+            (
+                &["initial_states", "paved", "snowpack"][..],
+                "sites[gridiv=1].initial_states.paved.snowpack",
+            ),
+            (
+                &["initial_states", "snowalb"][..],
+                "sites[gridiv=1].initial_states.snowalb",
+            ),
+            (
+                &["initial_states", "snowfallcum"][..],
+                "sites[gridiv=1].initial_states.snowfallcum",
+            ),
+        ] {
+            let mut snow_on = base.clone();
+            *get_path_mut(&mut snow_on, &["model", "physics", "snow_use"]).unwrap() =
+                serde_yaml::from_str("{value: 1}").unwrap();
+            let (parent, leaf) = path.split_at(path.len() - 1);
+            remove_key(
+                get_path_mut(first_site_mut(&mut snow_on).unwrap(), parent).unwrap(),
+                leaf[0],
+            );
+            let err = load_run_config_from_value(&mut snow_on)
+                .expect_err(&format!("missing {expected} under snow_use=1 must fail"));
+            assert!(err.contains(expected), "{err}");
+        }
+
+        // OHM (storage_heat=1) + SPARTACUS (net_radiation=1003): SPARTACUS consumes
+        // surface and facet tsfc before step-1 updates, so omitting them fails.
+        for (path, expected) in [
+            (
+                &["initial_states", "paved", "tsfc"][..],
+                "sites[gridiv=1].initial_states.paved.tsfc",
+            ),
+            (
+                &["initial_states", "roofs"][..],
+                "sites[gridiv=1].initial_states.roofs",
+            ),
+            (
+                &["initial_states", "walls"][..],
+                "sites[gridiv=1].initial_states.walls",
+            ),
+        ] {
+            let mut ohm_spartacus = base.clone();
+            *get_path_mut(&mut ohm_spartacus, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 1}").unwrap();
+            let (parent, leaf) = path.split_at(path.len() - 1);
+            remove_key(
+                get_path_mut(first_site_mut(&mut ohm_spartacus).unwrap(), parent).unwrap(),
+                leaf[0],
+            );
+            let err = load_run_config_from_value(&mut ohm_spartacus)
+                .expect_err(&format!("missing {expected} under OHM+SPARTACUS must fail"));
+            assert!(err.contains(expected), "{err}");
+        }
+        {
+            let mut ohm_spartacus = base.clone();
+            *get_path_mut(&mut ohm_spartacus, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 1}").unwrap();
+            let roofs = get_path_mut(
+                first_site_mut(&mut ohm_spartacus).unwrap(),
+                &["initial_states", "roofs"],
+            )
+            .unwrap()
+            .as_sequence_mut()
+            .unwrap();
+            remove_key(&mut roofs[0], "tsfc");
+            let err = load_run_config_from_value(&mut ohm_spartacus)
+                .expect_err("missing roofs[0].tsfc under OHM+SPARTACUS must fail");
+            assert!(
+                err.contains("sites[gridiv=1].initial_states.roofs[0].tsfc"),
+                "{err}"
+            );
+        }
+
+        // NARP effective method checks (mirroring Fortran RadMethod):
+        // - net_radiation=10 -> effective 10 (>= 10): consumes tsfc_surf
+        // - net_radiation=0 + snow_use=1 -> effective 3000 (>= 10): consumes tsfc_surf
+        // - net_radiation=100/200/300 -> effective 1/2/3 (< 10): does not consume tsfc_surf
+        for (nrad, snow) in [(10, 0), (0, 1)] {
+            let mut narp_req: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            *get_path_mut(&mut narp_req, &["model", "physics", "net_radiation"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {nrad}}}")).unwrap();
+            *get_path_mut(&mut narp_req, &["model", "physics", "snow_use"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {snow}}}")).unwrap();
+            remove_key(
+                get_path_mut(first_site_mut(&mut narp_req).unwrap(), &["initial_states", "paved"])
+                    .unwrap(),
+                "tsfc",
+            );
+            let err = load_run_config_from_value(&mut narp_req).expect_err(&format!(
+                "missing paved.tsfc under net_radiation={nrad}, snow_use={snow} must fail"
+            ));
+            assert!(
+                err.contains("sites[gridiv=1].initial_states.paved.tsfc"),
+                "{err}"
+            );
+        }
+        for nrad in [100, 200, 300] {
+            let mut narp_opt: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            *get_path_mut(&mut narp_opt, &["model", "physics", "net_radiation"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {nrad}}}")).unwrap();
+            remove_key(
+                get_path_mut(first_site_mut(&mut narp_opt).unwrap(), &["initial_states", "paved"])
+                    .unwrap(),
+                "tsfc",
+            );
+            load_run_config_from_value(&mut narp_opt).unwrap_or_else(|e| {
+                panic!(
+                    "omitted paved.tsfc under net_radiation={nrad} (effective {}) must pass under BR-03: {e}",
+                    nrad / 100
+                )
+            });
+        }
+
+        // Nested STEBBS diagnostics name `model.physics.stebbs.<field>`, while flat
+        // STEBBS diagnostics (both `stebbsmethod: {value: 1}` and legacy RefValue
+        // master toggle `stebbs: {value: 1}`) name `model.physics.<field>`.
+        for (leaf, expected) in [
+            ("capacitance", "model.physics.stebbs.capacitance"),
+            ("setpoint", "model.physics.stebbs.setpoint"),
+        ] {
+            let mut nested_bad = base.clone();
+            remove_key(
+                get_path_mut(&mut nested_bad, &["model", "physics", "stebbs"]).unwrap(),
+                leaf,
+            );
+            let err = load_run_config_from_value(&mut nested_bad)
+                .expect_err(&format!("missing nested {expected} must fail"));
+            assert!(err.contains(expected), "{err}");
+        }
+        for toggle_key in ["stebbsmethod", "stebbs"] {
+            let mut flat_bad = base.clone();
+            let physics = get_path_mut(&mut flat_bad, &["model", "physics"]).unwrap();
+            remove_key(physics, "stebbs");
+            let Value::Mapping(pmap) = physics else {
+                panic!("physics mapping");
+            };
+            pmap.insert(
+                Value::String(toggle_key.into()),
+                serde_yaml::from_str("{value: 1}").unwrap(),
+            );
+            pmap.insert(
+                Value::String("setpointmethod".into()),
+                serde_yaml::from_str("{value: 0}").unwrap(),
+            );
+            let err = load_run_config_from_value(&mut flat_bad).expect_err(&format!(
+                "missing flat rcmethod under {toggle_key}=1 must fail"
+            ));
+            assert!(
+                err.contains("model.physics.capacitance")
+                    && !err.contains("model.physics.stebbs.capacitance"),
+                "{toggle_key}: {err}"
+            );
+        }
+
+        // Lumped EHC (storage_heat=5, net_radiation=3, SPARTACUS off): facet
+        // initial states (roofs/walls) are not consumed and may be omitted.
+        {
+            let mut lumped_ehc: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            *get_path_mut(&mut lumped_ehc, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 5}").unwrap();
+            let init = get_path_mut(first_site_mut(&mut lumped_ehc).unwrap(), &["initial_states"])
+                .unwrap();
+            remove_key(init, "roofs");
+            remove_key(init, "walls");
+            load_run_config_from_value(&mut lumped_ehc)
+                .expect("lumped EHC without SPARTACUS must allow omitted initial_states.{roofs,walls}");
+        }
+
+        // Inactive BR-03 cases: snow_use=0 allows omitted snowpack/snowalb/snowfallcum,
+        // net_radiation=3 allows omitted use_sw_direct_albedo and paved.tsfc, and
+        // flat stebbs=0 allows omitted rcmethod/setpoint.
+        let mut inactive: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let physics = get_path_mut(&mut inactive, &["model", "physics"]).unwrap();
+        remove_key(physics, "stebbs");
+        let Value::Mapping(pmap) = physics else {
+            panic!("physics mapping");
+        };
+        pmap.insert(
+            Value::String("stebbsmethod".into()),
+            serde_yaml::from_str("{value: 0}").unwrap(),
+        );
+        let site = first_site_mut(&mut inactive).unwrap();
+        remove_key(
+            get_path_mut(site, &["properties", "spartacus"]).unwrap(),
+            "use_sw_direct_albedo",
+        );
+        remove_key(
+            get_path_mut(site, &["initial_states", "paved"]).unwrap(),
+            "snowpack",
+        );
+        remove_key(
+            get_path_mut(site, &["initial_states", "paved"]).unwrap(),
+            "tsfc",
+        );
+        remove_key(get_path_mut(site, &["initial_states"]).unwrap(), "snowalb");
+        remove_key(
+            get_path_mut(site, &["initial_states"]).unwrap(),
+            "snowfallcum",
+        );
+        load_run_config_from_value(&mut inactive)
+            .expect("omitted inactive snow/tsfc/use_sw_direct_albedo/STEBBS sub-switches must pass under BR-03");
     }
 }

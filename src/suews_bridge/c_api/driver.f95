@@ -49,7 +49,8 @@ use module_c_api_snow, only: SUEWS_CAPI_SNOW_STATE_LEN, snow_state_unpack
 use module_c_api_hydro_state, only: hydro_state_unpack
 use module_c_api_heat_state, only: heat_state_unpack
 use module_c_api_roughness, only: roughness_state_unpack
-use module_c_api_stebbs_state, only: stebbs_state_unpack
+use module_c_api_stebbs_state, only: SUEWS_CAPI_STEBBS_STATE_BASE_LEN, &
+                                     stebbs_state_unpack, stebbs_state_pack_real
 use module_c_api_nhood, only: nhood_state_unpack
 use SUEWS_Driver, only: sync_error_to_state, SUEWS_cal_multitsteps_dts
 
@@ -112,9 +113,7 @@ integer(c_int), parameter :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 76_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HYDRO_STATE_BASE_LEN = 10_c_int * int(nsurf, c_int) + 34_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HEAT_STATE_BASE_LEN = 7_c_int * int(nsurf, c_int) + 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ROUGHNESS_STATE_LEN = 11_c_int
-integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_LEN = 155_c_int
 integer(c_int), parameter :: SUEWS_CAPI_NHOOD_STATE_LEN = 5_c_int
-integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_RSL_LEN = 30_c_int
 
 public :: suews_cal_multitsteps_c
 ! Module-level Fortran exports (non-BIND(C)) for the opt-in test-only C-API field observer.
@@ -135,7 +134,6 @@ public :: pack_snow_state
 public :: pack_hydro_state
 public :: pack_heat_state
 public :: pack_roughness_state
-public :: pack_stebbs_state
 public :: pack_nhood_state
 public :: pack_kernel_warnings
 public :: suews_obs_reverse_checkpoint
@@ -155,6 +153,7 @@ subroutine suews_cal_multitsteps_c( &
    nlayer, ndepth, &
    timer_out, timer_out_len, &
    state_out_flat, state_out_len, &
+   state_out_toc, state_out_toc_len, &
    output_flat, output_len, output_ld, &
    datetime_flat, datetime_len, datetime_ld, &
    sim_err_code, sim_err_message, sim_err_message_len, &
@@ -192,6 +191,8 @@ subroutine suews_cal_multitsteps_c( &
    integer(c_int), value, intent(in) :: timer_out_len
    real(c_double), intent(out) :: state_out_flat(*)
    integer(c_int), value, intent(in) :: state_out_len
+   integer(c_int), intent(in) :: state_out_toc(*)
+   integer(c_int), value, intent(in) :: state_out_toc_len
    ! Output (gh#1849): output_flat receives the data columns of every output
    ! group with no datetime prefixes, column-major (len_sim, ncols_data), and
    ! datetime_flat the shared (len_sim, 5) datetime prefix. The kernel writes
@@ -308,8 +309,9 @@ subroutine suews_cal_multitsteps_c( &
       return
    end if
 
-   if (state_out_len<state_flat_len) then
-      err = SUEWS_CAPI_BAD_BUFFER
+   call validate_member_toc(state_out_len, state_out_toc, state_out_toc_len, state_member_count, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
       return
    end if
 
@@ -369,6 +371,23 @@ subroutine suews_cal_multitsteps_c( &
       return
    end if
 
+   ! Reject incomplete STEBBS restart state: stebbs_bldg_init /= 0 requires
+   ! unpacked buildings(:) state rather than silent zero-initialisation (BR-06).
+   if ((config_local%stebbsmethod==1 .or. config_local%stebbsmethod==2) .and. &
+       state_local%flagState%stebbs_bldg_init/=0 .and. &
+       .not. allocated(state_local%stebbsState%buildings)) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+
+   ! Cold-start STEBBS pre-allocation: allocate buildings(1) with nlayer before
+   ! stepping so step-1 SUEWS_cal_Qn sees the exact same pre-gen_building layout
+   ! while non-STEBBS runs leave buildings(:) unallocated.
+   if ((config_local%stebbsmethod==1 .or. config_local%stebbsmethod==2) .and. &
+       .not. allocated(state_local%stebbsState%buildings)) then
+      call state_local%stebbsState%allocate(1, nlayer_i)
+   end if
+
    call state_local%errorState%reset()
    call SUEWS_cal_multitsteps_dts( &
       timer_local, metforcing_block, len_sim_i, &
@@ -398,7 +417,7 @@ subroutine suews_cal_multitsteps_c( &
    call pack_state_to_output( &
       state_local, nlayer_i, ndepth_i, &
       state_out_flat, state_out_len, &
-      state_toc, state_toc_len, state_member_count, local_err)
+      state_out_toc, state_out_toc_len, state_member_count, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
@@ -581,8 +600,6 @@ subroutine initialise_site_state( &
    integer(c_int), intent(in) :: site_member_count
    integer(c_int), intent(out) :: err
 
-   integer :: ib
-
    call site%allocate(nlayer)
    site%nlayer = nlayer
    call site%ehc%allocate(nlayer, ndepth)
@@ -590,12 +607,6 @@ subroutine initialise_site_state( &
    call site%spartacus%allocate(nlayer)
 
    call state%allocate(nlayer, ndepth)
-   call state%stebbsState%allocate(1, nlayer)
-   if (allocated(state%stebbsState%buildings)) then
-      do ib = 1, size(state%stebbsState%buildings)
-         call state%stebbsState%buildings(ib)%allocate(nlayer)
-      end do
-   end if
 
    call unpack_site_scalars(site_scalars_flat, site_scalars_len, site, err)
    if (err/=SUEWS_CAPI_OK) return
@@ -1026,11 +1037,12 @@ subroutine unpack_state_members( &
 
    call member_span_from_toc(state_flat_len, state_toc, state_toc_len, state_member_count, &
                              SUEWS_CAPI_STATE_MEMBER_STEBBS, member_offset, member_len, local_err)
-   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_STEBBS_STATE_LEN) then
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_STEBBS_STATE_BASE_LEN) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
-   call stebbs_state_unpack(state_flat(int(member_offset) + 1), member_len, state%stebbsState, local_err)
+   call stebbs_state_unpack(state_flat(int(member_offset) + 1), member_len, int(nlayer, c_int), &
+                            state%stebbsState, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
@@ -1415,11 +1427,12 @@ subroutine pack_state_to_output( &
    ! --- Member 12: stebbs_state ---
    call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
                              SUEWS_CAPI_STATE_MEMBER_STEBBS, member_offset, member_len, local_err)
-   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_STEBBS_STATE_LEN) then
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_STEBBS_STATE_BASE_LEN) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
-   call pack_stebbs_state(state%stebbsState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   call stebbs_state_pack_real(state%stebbsState, int(nlayer, c_int), &
+                               state_out_flat(int(member_offset) + 1), member_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
@@ -1958,80 +1971,6 @@ subroutine pack_roughness_state(s, flat, n_flat, err)
 
    err = SUEWS_CAPI_OK
 end subroutine pack_roughness_state
-
-subroutine pack_stebbs_state(s, flat, n_flat, err)
-   implicit none
-   type(STEBBS_STATE), intent(in) :: s
-   real(c_double), intent(out) :: flat(*)
-   integer(c_int), intent(in) :: n_flat
-   integer(c_int), intent(out) :: err
-   integer(c_int) :: idx
-   integer(c_int) :: i
-   integer(c_int) :: bldg_count
-
-   if (n_flat<SUEWS_CAPI_STEBBS_STATE_LEN) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   idx = 1_c_int
-
-   flat(idx) = s%kdown_2d; idx = idx + 1_c_int
-   flat(idx) = s%kup_2d; idx = idx + 1_c_int
-   flat(idx) = s%k_west; idx = idx + 1_c_int
-   flat(idx) = s%k_south; idx = idx + 1_c_int
-   flat(idx) = s%k_north; idx = idx + 1_c_int
-   flat(idx) = s%k_east; idx = idx + 1_c_int
-   flat(idx) = s%ldown_2d; idx = idx + 1_c_int
-   flat(idx) = s%lup_2d; idx = idx + 1_c_int
-   flat(idx) = s%l_west; idx = idx + 1_c_int
-   flat(idx) = s%l_south; idx = idx + 1_c_int
-   flat(idx) = s%l_north; idx = idx + 1_c_int
-   flat(idx) = s%l_east; idx = idx + 1_c_int
-
-   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%z_array(i); idx = idx + 1_c_int
-   end do
-   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataout_line_u_rsl(i); idx = idx + 1_c_int
-   end do
-   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataout_line_t_rsl(i); idx = idx + 1_c_int
-   end do
-   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataout_line_q_rsl(i); idx = idx + 1_c_int
-   end do
-
-   flat(idx) = s%deep_soil_temperature; idx = idx + 1_c_int
-   flat(idx) = s%monthmeanairtemperature_diffmax; idx = idx + 1_c_int
-   flat(idx) = s%outdoor_air_start_temperature; idx = idx + 1_c_int
-   flat(idx) = s%indoor_air_start_temperature; idx = idx + 1_c_int
-   flat(idx) = s%indoor_mass_start_temperature; idx = idx + 1_c_int
-   flat(idx) = s%wall_indoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%wall_outdoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%roof_indoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%roof_outdoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%window_indoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%window_outdoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%ground_floor_indoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%ground_floor_outdoor_surface_temperature; idx = idx + 1_c_int
-   flat(idx) = s%water_tank_temperature_state; idx = idx + 1_c_int
-   flat(idx) = s%internal_wall_water_tank_temperature; idx = idx + 1_c_int
-   flat(idx) = s%external_wall_water_tank_temperature; idx = idx + 1_c_int
-   flat(idx) = s%mains_water_temperature; idx = idx + 1_c_int
-   flat(idx) = s%domestic_hot_water_temperature_in_use_in_building; idx = idx + 1_c_int
-   flat(idx) = s%internal_wall_dhw_vessel_temperature; idx = idx + 1_c_int
-   flat(idx) = s%external_wall_dhw_vessel_temperature; idx = idx + 1_c_int
-   flat(idx) = s%qs_stebbs; idx = idx + 1_c_int
-
-   bldg_count = 0_c_int
-   if (allocated(s%buildings)) bldg_count = int(size(s%buildings), c_int)
-   flat(idx) = real(bldg_count, c_double); idx = idx + 1_c_int
-
-   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
-
-   err = SUEWS_CAPI_OK
-end subroutine pack_stebbs_state
 
 subroutine pack_nhood_state(s, flat, n_flat, err)
    implicit none

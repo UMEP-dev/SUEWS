@@ -1829,17 +1829,22 @@ CONTAINS
          )
 
          ! Safely resolve roof/wall surface temps without MERGE on
-         ! possibly-unallocated allocatable arrays.
+         ! possibly-unallocated or zero-length allocatable arrays.
          IF (config%StorageHeatMethod == 7 &
              .AND. ALLOCATED(stebbsState%buildings)) THEN
-            IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
-               tsfc_roof_local = stebbsState%buildings(1)%Textroof_C
+            IF (SIZE(stebbsState%buildings) >= 1) THEN
+               IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
+                  tsfc_roof_local = stebbsState%buildings(1)%Textroof_C
+               ELSE
+                  tsfc_roof_local = heatState%tsfc_roof
+               END IF
+               IF (ALLOCATED(stebbsState%buildings(1)%Textwall_C)) THEN
+                  tsfc_wall_local = stebbsState%buildings(1)%Textwall_C
+               ELSE
+                  tsfc_wall_local = heatState%tsfc_wall
+               END IF
             ELSE
                tsfc_roof_local = heatState%tsfc_roof
-            END IF
-            IF (ALLOCATED(stebbsState%buildings(1)%Textwall_C)) THEN
-               tsfc_wall_local = stebbsState%buildings(1)%Textwall_C
-            ELSE
                tsfc_wall_local = heatState%tsfc_wall
             END IF
          ELSE
@@ -1895,7 +1900,6 @@ CONTAINS
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
-            buildings => stebbsState%buildings, &
             rsl_z => stebbsState%z_array, &
             rsl_t_C => stebbsState%dataout_line_t_rsl, &
             spartacusPrm => siteInfo%spartacus, &

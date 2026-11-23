@@ -77,6 +77,8 @@ unsafe extern "C" {
         timer_out_len: c_int,
         state_out_flat: *mut c_double,
         state_out_len: c_int,
+        state_out_toc: *const c_int,
+        state_out_toc_len: c_int,
         output_flat: *mut c_double,
         output_len: i64,
         output_ld: c_int,
@@ -453,6 +455,17 @@ unsafe extern "C" {
     pub fn suews_stebbs_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_stebbs_state_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    #[cfg(test)]
+    pub fn suews_stebbs_state_roundtrip(
+        in_flat: *const c_double,
+        n_in: c_int,
+        in_bldg_nlayer: c_int,
+        out_flat: *mut c_double,
+        n_out: c_int,
+        out_bldg_nlayer: c_int,
+        err: *mut c_int,
+    );
 
     // -----------------------------------------------------------------------
     // Output, diagnostic and water/irrigation facades

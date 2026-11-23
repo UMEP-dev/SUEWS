@@ -63,8 +63,9 @@ use suews_bridge::{
     phenology_state_field_names, phenology_state_to_map, roughness_state_field_names,
     roughness_state_to_map, snow_prm_field_names, snow_state_field_names, snow_state_to_map,
     solar_state_field_names, solar_state_to_map, spartacus_layer_prm_field_names_with_dims,
-    spartacus_prm_field_names_with_height_len, stebbs_prm_field_names, stebbs_state_field_names,
-    stebbs_state_to_map, suews_config_field_names, suews_config_to_map, suews_site_to_map,
+    spartacus_prm_field_names_with_height_len, stebbs_prm_field_names,
+    stebbs_state_field_names_with_dims, stebbs_state_to_map, suews_config_field_names,
+    suews_config_to_map, suews_site_to_map,
     surf_store_prm_field_names, RunConfig,
 };
 
@@ -187,6 +188,8 @@ struct RunConfigShape {
     hydro_alloc_lens: [usize; 6],
     heat_nlayer: usize,
     heat_ndepth: usize,
+    stebbs_buildings_count: usize,
+    stebbs_bldg_nlayer: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -263,6 +266,8 @@ fn run_config_shape(rc: &RunConfig) -> RunConfigShape {
         hydro_alloc_lens: hydro_alloc_lens(rc),
         heat_nlayer: rc.state.heat_state.nlayer,
         heat_ndepth: rc.state.heat_state.ndepth,
+        stebbs_buildings_count: rc.state.stebbs_state.buildings.len(),
+        stebbs_bldg_nlayer: rc.state.stebbs_state.bldg_nlayer,
     }
 }
 
@@ -521,7 +526,11 @@ fn flatten_run_config_layout(rc: &RunConfig) -> RunConfigLayout {
         "state.roughness_state",
         roughness_state_field_names(),
     );
-    push_prefixed_names(&mut names, "state.stebbs_state", stebbs_state_field_names());
+    push_prefixed_names(
+        &mut names,
+        "state.stebbs_state",
+        stebbs_state_field_names_with_dims(shape.stebbs_buildings_count, shape.stebbs_bldg_nlayer),
+    );
     push_prefixed_names(&mut names, "state.nhood_state", nhood_state_field_names());
 
     for name in [

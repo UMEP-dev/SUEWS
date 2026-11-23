@@ -107,6 +107,8 @@ class LeafField:
     bounds: tuple[DimBound, ...]
     bridged: bool
     unbridged_reason: str | None
+    parent_alloc_guard: str | None = None
+    parent_alloc_min_size: int = 1
 
 
 @dataclass(frozen=True)
@@ -217,10 +219,10 @@ REVERSE_PACK_SPECS: dict[str, ReversePackSpec] = {
         "solar_state",
     ),
     "stebbs_state": ReversePackSpec(
-        "driver.f95",
-        "module_c_api_driver",
-        "pack_stebbs_state",
-        (),
+        "stebbs_state.f95",
+        "module_c_api_stebbs_state",
+        "stebbs_state_pack_real",
+        ("bldg_nlayer",),
         "stebbs_state",
         has_buildings_count=True,
     ),
@@ -244,12 +246,7 @@ DRIVER_PACK_HELPERS: frozenset[str] = frozenset({
 
 # Reviewed components whose allocation count (not element payload) is packed out
 # by the reverse packer (so reverse static audit requires the component to be read).
-REVIEWED_REVERSE_COUNT_ONLY_COMPONENTS: dict[tuple[str, str], str] = {
-    (
-        "stebbs_state",
-        "buildings",
-    ): "pack_stebbs_state exports allocated size(s%buildings) into read-only buildings_count slot (gh#1989, gh#1991).",
-}
+REVIEWED_REVERSE_COUNT_ONLY_COMPONENTS: dict[tuple[str, str], str] = {}
 
 # Runtime-owned SUEWS_FORCING members that SUEWS_load_forcing_row must preserve
 # untouched while assigning all other scalar forcing inputs.
@@ -462,7 +459,7 @@ DIRECT_UNPACK_SPECS: dict[str, DirectUnpackSpec] = {
         "stebbs_state.f95",
         "module_c_api_stebbs_state",
         "stebbs_state_unpack",
-        (),
+        ("nlayer",),
         "stebbs_state",
     ),
     "surf_store_prm": DirectUnpackSpec(
@@ -607,10 +604,28 @@ REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {
         "heat_state",
         "ehc_iter_score",
     ): "Intra-timestep EHC iteration quality score written in kernel (gh#1574, gh#1989).",
+}
+
+# Reviewed unused legacy CHARACTER components inside bridged derived-type arrays.
+# The flat f64 C-API carries numeric, integer, and logical state only; any
+# unlisted CHARACTER component in an unpacked type fails generation loudly.
+REVIEWED_NON_NUMERIC_LEAF_COMPONENTS: dict[tuple[str, str], str] = {
     (
-        "stebbs_state",
-        "buildings",
-    ): "Internal STEBBS_BLDG allocatable working array allocated by driver; flat buffer stores read-only buildings_count (gh#1989, gh#1991).",
+        "stebbs_bldg",
+        "building_type",
+    ): "Unused legacy CHARACTER(len=256) label on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
+    (
+        "stebbs_bldg",
+        "building_name",
+    ): "Unused legacy CHARACTER(len=256) label on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
+    (
+        "stebbs_bldg",
+        "fnml_lbm",
+    ): "Unused legacy CHARACTER(len=256) namelist path on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
+    (
+        "stebbs_bldg",
+        "case_id",
+    ): "Unused legacy CHARACTER(len=256) case label on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
 }
 
 # Reviewed derived-only components inside driver-private types.
@@ -1333,9 +1348,19 @@ def expand_type_leaves(
     root_key = type_name.lower()
     leaves: list[LeafField] = []
 
-    def _walk(cur_type_key: str, prefix: str) -> None:
+    def _walk(
+        cur_type_key: str,
+        prefix: str,
+        parent_guard: str | None = None,
+        parent_min_size: int = 1,
+    ) -> None:
         tdef = types_by_lower[cur_type_key]
         for comp in tdef.components:
+            if (
+                cur_type_key,
+                comp.name.lower(),
+            ) in REVIEWED_NON_NUMERIC_LEAF_COMPONENTS:
+                continue
             path = f"{prefix}%{comp.name}" if prefix else comp.name
             unbridged_reason = unbridged_map.get((
                 root_key,
@@ -1359,14 +1384,38 @@ def expand_type_leaves(
                             bounds=comp.bounds,
                             bridged=unbridged_reason is None,
                             unbridged_reason=unbridged_reason,
+                            parent_alloc_guard=parent_guard,
+                            parent_alloc_min_size=parent_min_size,
                         )
                     )
+                    if comp.allocatable and unbridged_reason is None:
+                        if comp.rank != 1:
+                            raise FortranSyntaxError(
+                                f"unsupported allocatable rank-{comp.rank} bridged derived-type array {type_name}%{path}"
+                            )
+                        for elem_idx in (1, 2):
+                            _walk(
+                                sub_key,
+                                f"{path}({elem_idx})",
+                                parent_guard=path,
+                                parent_min_size=elem_idx,
+                            )
                 elif comp.rank == 0:
-                    _walk(sub_key, path)
+                    _walk(
+                        sub_key,
+                        path,
+                        parent_guard=parent_guard,
+                        parent_min_size=parent_min_size,
+                    )
                 elif comp.rank == 1:
                     b0 = comp.bounds[0]
                     for idx in range(b0.lower, b0.upper + 1):
-                        _walk(sub_key, f"{path}({idx})")
+                        _walk(
+                            sub_key,
+                            f"{path}({idx})",
+                            parent_guard=parent_guard,
+                            parent_min_size=parent_min_size,
+                        )
                 else:
                     raise FortranSyntaxError(
                         f"unsupported rank-{comp.rank} nested derived-type array {type_name}%{path}"
@@ -1382,6 +1431,8 @@ def expand_type_leaves(
                         bounds=comp.bounds,
                         bridged=unbridged_reason is None,
                         unbridged_reason=unbridged_reason,
+                        parent_alloc_guard=parent_guard,
+                        parent_alloc_min_size=parent_min_size,
                     )
                 )
 
@@ -2321,6 +2372,80 @@ def emit_fortran_observer(
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def _emit_single_leaf_lines(
+    tdef: FortranTypeDef,
+    leaf: LeafField,
+    common_tail: str,
+) -> list[str]:
+    """Emit the unguarded Fortran read-back lines for one expanded leaf."""
+    expr = f"actual%{leaf.path}"
+    fid = f"{leaf.field_id}_c_int"
+    if leaf.kind == "derived":
+        if leaf.allocatable:
+            return [
+                f"      if (allocated({expr})) then",
+                f"         call obs_emit_alloc_bounds_1d({fid}, int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), out_meta, n_meta, err)",
+                "      else",
+                f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                "      end if",
+            ]
+        # Non-allocatable excluded derived component (e.g. SUEWS_STATE%errorState):
+        # Fortran cannot call allocated() on a non-allocatable component, so emit a
+        # constant metadata sentinel here. Unpacking exclusions are enforced statically
+        # by audit_driver_private_unpackers (and driver.f95 rejects non-zero TOC spans).
+        return [f"      call obs_emit_unallocated({fid}, out_meta, n_meta, err)"]
+
+    if leaf.rank == 0:
+        helper = {
+            "real": "obs_emit_real_scalar",
+            "integer": "obs_emit_int_scalar",
+            "logical": "obs_emit_logical_scalar",
+        }.get(leaf.kind)
+        if helper is None:
+            raise FortranSyntaxError(
+                f"unsupported scalar observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+            )
+        return [f"      call {helper}({fid}, {expr}, {common_tail})"]
+
+    if leaf.rank == 1:
+        helper = {
+            "real": "obs_emit_real_1d",
+            "integer": "obs_emit_int_1d",
+        }.get(leaf.kind)
+        if helper is None:
+            raise FortranSyntaxError(
+                f"unsupported rank-1 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+            )
+        emit_call = (
+            f"call {helper}({fid}, {expr}, "
+            f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), {common_tail})"
+        )
+    elif leaf.rank == 2:
+        if leaf.kind != "real":
+            raise FortranSyntaxError(
+                f"unsupported rank-2 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+            )
+        emit_call = (
+            f"call obs_emit_real_2d({fid}, {expr}, "
+            f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), "
+            f"int(lbound({expr}, 2), c_int), int(ubound({expr}, 2), c_int), {common_tail})"
+        )
+    else:
+        raise FortranSyntaxError(
+            f"unsupported rank {leaf.rank} on {tdef.name}%{leaf.path}"
+        )
+
+    if leaf.allocatable:
+        return [
+            f"      if (allocated({expr})) then",
+            f"         {emit_call}",
+            "      else",
+            f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+            "      end if",
+        ]
+    return [f"      {emit_call}"]
+
+
 def _emit_leaf_observations(tdef: FortranTypeDef, leaves: list[LeafField]) -> list[str]:
     """Emit Fortran read-back calls for every expanded leaf of ``actual``."""
     lines: list[str] = []
@@ -2329,85 +2454,27 @@ def _emit_leaf_observations(tdef: FortranTypeDef, leaves: list[LeafField]) -> li
         "out_meta, n_meta, cap, pos, err"
     )
     for leaf in leaves:
-        expr = f"actual%{leaf.path}"
         fid = f"{leaf.field_id}_c_int"
-        if leaf.kind == "derived":
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         call obs_emit_alloc_bounds_1d({fid}, int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), out_meta, n_meta, err)",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                # Non-allocatable excluded derived component (e.g. SUEWS_STATE%errorState):
-                # Fortran cannot call allocated() on a non-allocatable component, so emit a
-                # constant metadata sentinel here. Unpacking exclusions are enforced statically
-                # by audit_driver_private_unpackers (and driver.f95 rejects non-zero TOC spans).
-                lines.append(
-                    f"      call obs_emit_unallocated({fid}, out_meta, n_meta, err)"
-                )
-            continue
-
-        if leaf.rank == 0:
-            helper = {
-                "real": "obs_emit_real_scalar",
-                "integer": "obs_emit_int_scalar",
-                "logical": "obs_emit_logical_scalar",
-            }.get(leaf.kind)
-            if helper is None:
-                raise FortranSyntaxError(
-                    f"unsupported scalar observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            lines.append(f"      call {helper}({fid}, {expr}, {common_tail})")
-        elif leaf.rank == 1:
-            helper = {
-                "real": "obs_emit_real_1d",
-                "integer": "obs_emit_int_1d",
-            }.get(leaf.kind)
-            if helper is None:
-                raise FortranSyntaxError(
-                    f"unsupported rank-1 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            emit_call = (
-                f"call {helper}({fid}, {expr}, "
-                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), {common_tail})"
-            )
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         {emit_call}",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                lines.append(f"      {emit_call}")
-        elif leaf.rank == 2:
-            if leaf.kind != "real":
-                raise FortranSyntaxError(
-                    f"unsupported rank-2 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            emit_call = (
-                f"call obs_emit_real_2d({fid}, {expr}, "
-                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), "
-                f"int(lbound({expr}, 2), c_int), int(ubound({expr}, 2), c_int), {common_tail})"
-            )
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         {emit_call}",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                lines.append(f"      {emit_call}")
+        leaf_lines = _emit_single_leaf_lines(tdef, leaf, common_tail)
+        if leaf.parent_alloc_guard is not None:
+            guard_expr = f"actual%{leaf.parent_alloc_guard}"
+            min_sz = leaf.parent_alloc_min_size
+            lines.extend([
+                f"      if (allocated({guard_expr})) then",
+                f"         if (size({guard_expr}) >= {min_sz}) then",
+            ])
+            for line in leaf_lines:
+                lines.append(f"      {line}")
+            lines.extend([
+                "         else",
+                f"            call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                "         end if",
+                "      else",
+                f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                "      end if",
+            ])
         else:
-            raise FortranSyntaxError(
-                f"unsupported rank {leaf.rank} on {tdef.name}%{leaf.path}"
-            )
+            lines.extend(leaf_lines)
     return lines
 
 
@@ -2696,10 +2763,22 @@ def _emit_seed_entry_subroutine(
         "      select case (fid)",
     ]
     for leaf in leaves:
-        if not leaf.bridged:
+        if not leaf.bridged or leaf.kind == "derived":
             continue
         expr = f"actual%{leaf.path}"
         lines.append(f"      case ({leaf.field_id}_c_int)")
+        if leaf.parent_alloc_guard is not None:
+            guard_expr = f"actual%{leaf.parent_alloc_guard}"
+            lines.extend([
+                f"         if (.not. allocated({guard_expr})) then",
+                "            err = SUEWS_CAPI_BAD_BUFFER",
+                "            return",
+                "         end if",
+                f"         if (size({guard_expr}) < {leaf.parent_alloc_min_size}) then",
+                "            err = SUEWS_CAPI_BAD_BUFFER",
+                "            return",
+                "         end if",
+            ])
         if leaf.rank == 0:
             if leaf.kind == "real":
                 lines.extend([
@@ -2865,13 +2944,28 @@ def _emit_fortran_reverse_pack_observer(
             "      if (nlayer > 0_c_int) call actual%allocate(nsurf, int(nlayer), int(ndepth))",
         ])
     if spec.has_buildings_count:
-        lines.extend([
-            "      if (bldg_count < 0_c_int) then",
-            "         err = SUEWS_CAPI_BAD_BUFFER",
-            "         return",
-            "      end if",
-            "      if (bldg_count > 0_c_int) allocate(actual%buildings(int(bldg_count)))",
-        ])
+        if spec.dim_args == ("bldg_nlayer",):
+            lines.extend([
+                "      if (bldg_nlayer < 0_c_int .or. bldg_count < 0_c_int) then",
+                "         err = SUEWS_CAPI_BAD_BUFFER",
+                "         return",
+                "      end if",
+                "      if (bldg_count > 0_c_int) then",
+                "         if (bldg_nlayer > 0_c_int) then",
+                "            call actual%allocate(int(bldg_count), int(bldg_nlayer))",
+                "         else",
+                "            allocate(actual%buildings(int(bldg_count)))",
+                "         end if",
+                "      end if",
+            ])
+        else:
+            lines.extend([
+                "      if (bldg_count < 0_c_int) then",
+                "         err = SUEWS_CAPI_BAD_BUFFER",
+                "         return",
+                "      end if",
+                "      if (bldg_count > 0_c_int) allocate(actual%buildings(int(bldg_count)))",
+            ])
 
     lines.extend([
         "      do k = 1_c_int, n_in",
@@ -2965,7 +3059,13 @@ def _emit_fortran_reverse_state_observer(
         "         return",
         "      end if",
         "      if (nlayer > 0_c_int) call actual%allocate(int(nlayer), int(ndepth))",
-        "      if (bldg_count > 0_c_int) allocate(actual%stebbsState%buildings(int(bldg_count)))",
+        "      if (bldg_count > 0_c_int) then",
+        "         if (nlayer > 0_c_int) then",
+        "            call actual%stebbsState%allocate(int(bldg_count), int(nlayer))",
+        "         else",
+        "            allocate(actual%stebbsState%buildings(int(bldg_count)))",
+        "         end if",
+        "      end if",
         "      do k = 1_c_int, n_in",
         "         fid = in_fid(k)",
     ]

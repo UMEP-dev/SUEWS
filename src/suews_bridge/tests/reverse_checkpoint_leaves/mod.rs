@@ -116,7 +116,7 @@ fn check_checkpoint(nlayer: usize, ndepth: usize, seeds: [f64; 3]) {
         );
     }
     assert_eq!(error, 0, "Fortran aggregate pack failed");
-    let returned = decode_state_members(&template, &output, &toc, nlayer, ndepth).unwrap();
+    let returned = decode_state_members(&template, &output, &toc, nlayer, ndepth, nlayer).unwrap();
     check_members(&returned, nlayer, ndepth, seeds);
 
     let timer = SuewsTimer {

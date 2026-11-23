@@ -30,24 +30,26 @@ use suews_bridge::{
     decode_state_members, encode_site_members_flat, encode_site_scalars_flat,
     encode_state_members_flat, error_entry_default_from_fortran, error_entry_schema_info,
     error_state_default_from_fortran, error_state_schema_info, heat_state_expected_flat_len,
-    output_block_schema_info, output_line_schema_info, suews_checkpoint_from_json,
-    suews_checkpoint_to_json, suews_debug_default_from_fortran, suews_debug_schema_info,
-    suews_forcing_schema_info, suews_site_schema_info, suews_state_block_default_from_fortran,
-    suews_state_block_schema_info, suews_state_default_from_fortran, suews_state_schema_info,
-    AnthroEmisPrm, AnthroEmisState, AnthroHeatPrm, AtmState, BioCo2Prm, BridgeError,
-    BuildingArchetypePrm, CheckpointTimer, ConductancePrm, EhcPrm, ErrorState, FlagState,
-    HeatState, HydroState, IrrigDaywater, IrrigationPrm, LaiPrm, LcBldgPrm, LcBsoilPrm, LcDectrPrm,
-    LcEvetrPrm, LcGrassPrm, LcPavedPrm, LcWaterPrm, LumpsPrm, NhoodState, OhmCoefLc, OhmPrm,
-    OhmState, OutputLine, PhenologyState, RoughnessState, SiteScalars, SnowPrm, SnowState, SoilPrm,
-    SolarState, SpartacusLayerPrm, SpartacusPrm, StebbsPrm, StebbsState, SuewsConfig, SuewsSite,
-    SuewsState, SuewsTimer, SurfStorePrm, WaterDistPrm, ANOHM_MAX_SAMPLES,
-    ANTHROEMIS_STATE_FLAT_LEN, ANTHROEMIS_STATE_HDD_LEN, ATM_STATE_FLAT_LEN,
-    BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS, BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
-    FLAG_STATE_FLAT_LEN, HYDRO_STATE_BASE_FLAT_LEN, NHOOD_STATE_FLAT_LEN, NSURF,
-    OHM_STATE_FLAT_LEN, PHENOLOGY_STATE_FLAT_LEN, PHENOLOGY_STATE_NVEGSURF,
-    PHENOLOGY_STATE_STORE_DRAIN_ROWS, ROUGHNESS_STATE_FLAT_LEN, SNOW_STATE_FLAT_LEN,
-    SNOW_STATE_REMOVAL_LEN, SOLAR_STATE_FLAT_LEN, STEBBS_PRM_PROFILE_GROUPS,
-    STEBBS_PRM_PROFILE_STEPS, STEBBS_STATE_FLAT_LEN, STEBBS_STATE_RSL_LEN, SUEWS_TIMER_FLAT_LEN,
+    output_block_schema_info, output_line_schema_info, stebbs_state_expected_flat_len,
+    suews_checkpoint_from_json, suews_checkpoint_to_json, suews_debug_default_from_fortran,
+    suews_debug_schema_info, suews_forcing_schema_info, suews_site_schema_info,
+    suews_state_block_default_from_fortran, suews_state_block_schema_info,
+    suews_state_default_from_fortran, suews_state_schema_info, AnthroEmisPrm, AnthroEmisState,
+    AnthroHeatPrm, AtmState, BioCo2Prm, BridgeError, BuildingArchetypePrm, CheckpointTimer,
+    ConductancePrm, EhcPrm, ErrorState, FlagState, HeatState, HydroState, IrrigDaywater,
+    IrrigationPrm, LaiPrm, LcBldgPrm, LcBsoilPrm, LcDectrPrm, LcEvetrPrm, LcGrassPrm, LcPavedPrm,
+    LcWaterPrm, LumpsPrm, NhoodState, OhmCoefLc, OhmPrm, OhmState, OutputLine, PhenologyState,
+    RoughnessState, SiteScalars, SnowPrm, SnowState, SoilPrm, SolarState, SpartacusLayerPrm,
+    SpartacusPrm, StebbsBldg, StebbsPrm, StebbsState, SuewsConfig, SuewsSite, SuewsState,
+    SuewsTimer, SurfStorePrm, WaterDistPrm, ANOHM_MAX_SAMPLES, ANTHROEMIS_STATE_FLAT_LEN,
+    ANTHROEMIS_STATE_HDD_LEN, ATM_STATE_FLAT_LEN, BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
+    BUILDING_ARCHETYPE_PRM_PROFILE_STEPS, FLAG_STATE_FLAT_LEN, HYDRO_STATE_BASE_FLAT_LEN,
+    NHOOD_STATE_FLAT_LEN, NSURF, OHM_STATE_FLAT_LEN, PHENOLOGY_STATE_FLAT_LEN,
+    PHENOLOGY_STATE_NVEGSURF, PHENOLOGY_STATE_STORE_DRAIN_ROWS, ROUGHNESS_STATE_FLAT_LEN,
+    SNOW_STATE_FLAT_LEN, SNOW_STATE_REMOVAL_LEN, SOLAR_STATE_FLAT_LEN,
+    STEBBS_BLDG_ENERGY_EXCHANGES_LEN, STEBBS_BLDG_PROFILE_GROUPS, STEBBS_BLDG_PROFILE_STEPS,
+    STEBBS_PRM_PROFILE_GROUPS, STEBBS_PRM_PROFILE_STEPS, STEBBS_STATE_RSL_LEN,
+    SUEWS_TIMER_FLAT_LEN,
 };
 
 #[allow(dead_code)]
@@ -70,7 +72,7 @@ use observer_manifest::{
     REVERSE_PACKED_TYPES,
 };
 
-const OBS_CAPACITY: usize = 8192;
+const OBS_CAPACITY: usize = 16384;
 const SUEWS_CAPI_OK: i32 = 0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -736,8 +738,9 @@ fn assert_observed_matches(
             ));
         }
 
-        // Fixed-shape kernel arrays must preserve exact declared Fortran lbound/ubound.
-        if !desc.allocatable && desc.rank == 1 {
+        // Fixed-shape kernel arrays must preserve exact declared Fortran lbound/ubound
+        // whenever their containing allocatable derived parent (if any) is allocated.
+        if exp_meta.allocated && !desc.allocatable && desc.rank == 1 {
             let (lb1, ub1) = desc.fixed_bounds[0];
             assert_eq!(
                 (exp_meta.lb1, exp_meta.ub1),
@@ -745,7 +748,7 @@ fn assert_observed_matches(
                 "{type_name}%{}: test expectation bounds do not match Fortran declaration",
                 desc.path
             );
-        } else if !desc.allocatable && desc.rank == 2 {
+        } else if exp_meta.allocated && !desc.allocatable && desc.rank == 2 {
             let (lb1, ub1) = desc.fixed_bounds[0];
             let (lb2, ub2) = desc.fixed_bounds[1];
             assert_eq!(
@@ -1797,8 +1800,282 @@ fn build_stebbs_prm(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> 
     }
 }
 
-fn build_stebbs_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> StebbsState {
+fn build_stebbs_bldg(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    bldg_nlayer: usize,
+    wall_active: bool,
+    window_active: bool,
+    iter_safe: bool,
+) -> StebbsBldg {
     let p = |f: &str| join_path(prefix, f);
+    StebbsBldg {
+        id_lbm: exp.int(&p("id_lbm")),
+        appliance_totalnumber: exp.int(&p("appliance_totalnumber")),
+        qhload_heating_tstep_fa: exp.real(&p("QHload_heating_tstepFA")),
+        qhload_cooling_tstep_fa: exp.real(&p("QHload_cooling_tstepFA")),
+        qh_metabolism: exp.real(&p("QH_metabolism")),
+        qe_metabolism: exp.real(&p("QE_metabolism")),
+        qhload_dhw_tstep_fa: exp.real(&p("QHload_dhw_tstepFA")),
+        qloss_drain_tstep_fa: exp.real(&p("Qloss_drain_tstepFA")),
+        ratio_window_wall: exp.real(&p("ratio_window_wall")),
+        a_footprint: exp.real(&p("a_footprint")),
+        height_building: exp.real(&p("height_building")),
+        wall_external_area: exp.real(&p("wall_external_area")),
+        internal_volume_ratio: exp.real(&p("internal_volume_ratio")),
+        thickness_wall: exp.real(&p("thickness_wall")),
+        thickness_wallext: exp.real(&p("thickness_wallext")),
+        thickness_roof: exp.real(&p("thickness_roof")),
+        thickness_roofext: exp.real(&p("thickness_roofext")),
+        thickness_groundfloor: exp.real(&p("thickness_groundfloor")),
+        depth_ground: exp.real(&p("depth_ground")),
+        thickness_window: exp.real(&p("thickness_window")),
+        conv_coeff_intwall: exp.real(&p("conv_coeff_intwall")),
+        conv_coeff_introof: exp.real(&p("conv_coeff_introof")),
+        conv_coeff_indoormass: exp.real(&p("conv_coeff_indoormass")),
+        conv_coeff_intgroundfloor: exp.real(&p("conv_coeff_intgroundfloor")),
+        conv_coeff_intwindow: exp.real(&p("conv_coeff_intwindow")),
+        conv_coeff_extwall: exp.real(&p("conv_coeff_extwall")),
+        conv_coeff_extroof: exp.real(&p("conv_coeff_extroof")),
+        conv_coeff_extwindow: exp.real(&p("conv_coeff_extwindow")),
+        conductivity_wall: exp.real(&p("conductivity_wall")),
+        conductivity_wallext: exp.real(&p("conductivity_wallext")),
+        conductivity_roof: exp.real(&p("conductivity_roof")),
+        conductivity_roofext: exp.real(&p("conductivity_roofext")),
+        conductivity_groundfloor: exp.real(&p("conductivity_groundfloor")),
+        conductivity_window: exp.real(&p("conductivity_window")),
+        conductivity_ground: exp.real(&p("conductivity_ground")),
+        density_wall: exp.real(&p("density_wall")),
+        density_wallext: exp.real(&p("density_wallext")),
+        density_roof: exp.real(&p("density_roof")),
+        density_roofext: exp.real(&p("density_roofext")),
+        weighting_factor_heatcapacity_wall: exp.real(&p("weighting_factor_heatcapacity_wall")),
+        weighting_factor_heatcapacity_roof: exp.real(&p("weighting_factor_heatcapacity_roof")),
+        density_groundfloor: exp.real(&p("density_groundfloor")),
+        density_window: exp.real(&p("density_window")),
+        density_indoormass: exp.real(&p("density_indoormass")),
+        density_air_ind: exp.real(&p("density_air_ind")),
+        cp_wall: exp.real(&p("cp_wall")),
+        cp_wallext: exp.real(&p("cp_wallext")),
+        cp_roof: exp.real(&p("cp_roof")),
+        cp_roofext: exp.real(&p("cp_roofext")),
+        cp_groundfloor: exp.real(&p("cp_groundfloor")),
+        cp_window: exp.real(&p("cp_window")),
+        cp_indoormass: exp.real(&p("cp_indoormass")),
+        cp_air_ind: exp.real(&p("cp_air_ind")),
+        emissivity_extwall: exp.real(&p("emissivity_extwall")),
+        emissivity_extroof: exp.real(&p("emissivity_extroof")),
+        emissivity_intwall: exp.real(&p("emissivity_intwall")),
+        emissivity_introof: exp.real(&p("emissivity_introof")),
+        emissivity_indoormass: exp.real(&p("emissivity_indoormass")),
+        emissivity_extwindow: exp.real(&p("emissivity_extwindow")),
+        emissivity_intwindow: exp.real(&p("emissivity_intwindow")),
+        window_transmissivity: exp.real(&p("window_transmissivity")),
+        window_absorptivity: exp.real(&p("window_absorptivity")),
+        window_reflectivity: exp.real(&p("window_reflectivity")),
+        wall_transmissivity_state: exp.real(&p("wall_transmissivity_state")),
+        wall_absorptivity: exp.real(&p("wall_absorptivity")),
+        wall_reflectivity: exp.real(&p("wall_reflectivity")),
+        roof_transmissivity_state: exp.real(&p("roof_transmissivity_state")),
+        roof_absorptivity: exp.real(&p("roof_absorptivity")),
+        roof_reflectivity: exp.real(&p("roof_reflectivity")),
+        occupants_state: exp.real(&p("occupants_state")),
+        metabolic_rate: exp.real(&p("metabolic_rate")),
+        metabolism_threshold: exp.real(&p("metabolism_threshold")),
+        ratio_metabolic_latent_sensible: exp.real(&p("ratio_metabolic_latent_sensible")),
+        internal_shading: exp.int(&p("internal_shading")),
+        reduction_factor_shading: exp.real(&p("reduction_factor_shading")),
+        temperature_threshold_shading: exp.real(&p("temperature_threshold_shading")),
+        radiation_threshold_shading: exp.real(&p("radiation_threshold_shading")),
+        appliance_power_rating: exp.real(&p("appliance_power_rating")),
+        lighting_power_rating: exp.real(&p("lighting_power_rating")),
+        frac_hotwater: exp.real(&p("frac_hotwater")),
+        maxheatingpower_air: exp.real(&p("maxheatingpower_air")),
+        heating_efficiency_air: exp.real(&p("heating_efficiency_air")),
+        destination_waste_heat: exp.int(&p("destination_waste_heat")),
+        fraction_convective_heating: exp.real(&p("fraction_convective_heating")),
+        maxcoolingpower_air: exp.real(&p("maxcoolingpower_air")),
+        coeff_performance_cooling: exp.real(&p("coeff_performance_cooling")),
+        vair_ind: exp.real(&p("Vair_ind")),
+        ventilation_rate: exp.real(&p("ventilation_rate")),
+        a_wall: exp.real(&p("a_wall")),
+        a_roof: exp.real(&p("a_roof")),
+        v_wall: exp.real(&p("v_wall")),
+        v_roof: exp.real(&p("v_roof")),
+        v_ground_floor: exp.real(&p("v_ground_floor")),
+        a_window: exp.real(&p("a_window")),
+        v_window: exp.real(&p("v_window")),
+        v_indoor_mass: exp.real(&p("v_indoor_mass")),
+        a_indoor_mass: exp.real(&p("a_indoor_mass")),
+        tair_ind: exp.real(&p("Tair_ind")),
+        t_indoor_mass: exp.real(&p("t_indoor_mass")),
+        t_int_wall: exp.real(&p("t_int_wall")),
+        t_int_roof: exp.real(&p("t_int_roof")),
+        t_ext_wall: exp.real(&p("t_ext_wall")),
+        t_ext_roof: exp.real(&p("t_ext_roof")),
+        t_int_window: exp.real(&p("t_int_window")),
+        t_ext_window: exp.real(&p("t_ext_window")),
+        t_int_ground_floor: exp.real(&p("t_int_ground_floor")),
+        t_ext_ground_floor: exp.real(&p("t_ext_ground_floor")),
+        twater_tank: exp.real(&p("Twater_tank")),
+        tintwall_tank: exp.real(&p("Tintwall_tank")),
+        textwall_tank: exp.real(&p("Textwall_tank")),
+        thickness_tankwall: exp.real(&p("thickness_tankwall")),
+        tincomingwater_tank: exp.real(&p("Tincomingwater_tank")),
+        vwater_tank: exp.real(&p("Vwater_tank")),
+        asurf_tank: exp.real(&p("Asurf_tank")),
+        vwall_tank: exp.real(&p("Vwall_tank")),
+        settwater_tank: exp.real(&p("setTwater_tank")),
+        init_wt_ts: exp.real(&p("init_wtTs")),
+        twater_vessel: exp.real(&p("Twater_vessel")),
+        tintwall_vessel: exp.real(&p("Tintwall_vessel")),
+        textwall_vessel: exp.real(&p("Textwall_vessel")),
+        thickness_wall_vessel: exp.real(&p("thickness_wall_vessel")),
+        vwater_vessel: exp.real(&p("Vwater_vessel")),
+        awater_vessel: exp.real(&p("Awater_vessel")),
+        vwall_vessel: exp.real(&p("Vwall_vessel")),
+        flowrate_water_supply: exp.real(&p("flowrate_water_supply")),
+        flowrate_water_supply_profile: exp
+            .real_arr_2d_col_major::<STEBBS_BLDG_PROFILE_GROUPS, STEBBS_BLDG_PROFILE_STEPS>(
+                &p("flowrate_water_supply_profile"),
+                0,
+                1,
+            ),
+        single_flowrate_water_supply: exp.real(&p("single_flowrate_water_supply")),
+        single_flowrate_water_drain: exp.real(&p("single_flowrate_water_drain")),
+        cp_water: exp.real(&p("cp_water")),
+        cp_wall_tank: exp.real(&p("cp_wall_tank")),
+        cp_wall_vessel: exp.real(&p("cp_wall_vessel")),
+        density_water: exp.real(&p("density_water")),
+        density_wall_tank: exp.real(&p("density_wall_tank")),
+        density_wall_vessel: exp.real(&p("density_wall_vessel")),
+        bvf_tank: exp.real(&p("BVF_tank")),
+        mvf_tank: exp.real(&p("MVF_tank")),
+        conductivity_wall_tank: exp.real(&p("conductivity_wall_tank")),
+        conv_coeff_intwall_tank: exp.real(&p("conv_coeff_intwall_tank")),
+        conv_coeff_extwall_tank: exp.real(&p("conv_coeff_extwall_tank")),
+        emissivity_extwall_tank: exp.real(&p("emissivity_extwall_tank")),
+        conductivity_wall_vessel: exp.real(&p("conductivity_wall_vessel")),
+        conv_coeff_intwall_vessel: exp.real(&p("conv_coeff_intwall_vessel")),
+        conv_coeff_extwall_vessel: exp.real(&p("conv_coeff_extwall_vessel")),
+        emissivity_extwall_vessel: exp.real(&p("emissivity_extwall_vessel")),
+        maxheatingpower_water: exp.real(&p("maxheatingpower_water")),
+        heating_efficiency_water: exp.real(&p("heating_efficiency_water")),
+        min_vwater_vessel: exp.real(&p("minVwater_vessel")),
+        max_vwater_vessel: exp.real(&p("maxVwater_vessel")),
+        min_heating_power_dhw: exp.real(&p("minHeatingPower_DHW")),
+        heating_power_dhw: exp.real(&p("HeatingPower_DHW")),
+        qfm_dom: exp.real(&p("qfm_dom")),
+        qheat_dom: exp.real(&p("qheat_dom")),
+        qcool_dom: exp.real(&p("qcool_dom")),
+        qfb_hw_dom: exp.real(&p("qfb_hw_dom")),
+        qfb_dom_air: exp.real(&p("qfb_dom_air")),
+        dom_temp: exp.real(&p("dom_temp")),
+        qn_bldg_tstep_fa: exp.real(&p("QN_bldg_tstepFA")),
+        qec_bldg_tstep_fa: exp.real(&p("QEC_bldg_tstepFA")),
+        qs_total_tstep_fa: exp.real(&p("QS_total_tstepFA")),
+        qh_bldg_tstep_fa: exp.real(&p("QH_bldg_tstepFA")),
+        qbae_bldg_tstep_fa: exp.real(&p("QBAE_bldg_tstepFA")),
+        qwaste_bldg_tstep_fa: exp.real(&p("QWaste_bldg_tstepFA")),
+        qs_bldg_tstep_fa: exp.real(&p("QS_bldg_tstepFA")),
+        qs_dhw_tstep_fa: exp.real(&p("QS_dhw_tstepFA")),
+        qs_ground_tstep_fa: exp.real(&p("QS_ground_tstepFA")),
+        qec_heating_tstep_fa: exp.real(&p("QEC_heating_tstepFA")),
+        qec_cooling_tstep_fa: exp.real(&p("QEC_cooling_tstepFA")),
+        qec_dhw_tstep_fa: exp.real(&p("QEC_dhw_tstepFA")),
+        ts: exp.real_arr_1d::<2>(&p("ts"), 1),
+        init_ts: exp.real_arr_1d::<2>(&p("initTs"), 1),
+        h_i: exp.real_arr_1d::<5>(&p("h_i"), 1),
+        k_eff: exp.real_arr_1d::<5>(&p("k_eff"), 1),
+        h_o: exp.real_arr_1d::<3>(&p("h_o"), 1),
+        rho: exp.real_arr_1d::<6>(&p("rho"), 1),
+        cp: exp.real_arr_1d::<6>(&p("cp"), 1),
+        emis: exp.real_arr_1d::<7>(&p("emis"), 1),
+        witar: exp.real_arr_1d::<3>(&p("witar"), 1),
+        wa_tar: exp.real_arr_1d::<3>(&p("waTAR"), 1),
+        roof_tar: exp.real_arr_1d::<3>(&p("roofTAR"), 1),
+        h_ts_average: exp.real_arr_1d::<3>(&p("h_ts_average"), 1),
+        hw_ts_average: exp.real_arr_1d::<3>(&p("HWTsAverage"), 1),
+        hw_power_average: exp.real_arr_1d::<3>(&p("hw_power_average"), 1),
+        energy_exchanges: exp.real_arr_1d::<STEBBS_BLDG_ENERGY_EXCHANGES_LEN>(
+            &p("energy_exchanges"),
+            1,
+        ),
+        textwall_c: exp.real_vec_1d(&p("Textwall_C"), bldg_nlayer),
+        textroof_c: exp.real_vec_1d(&p("Textroof_C"), bldg_nlayer),
+        wall_surface_active: exp.logical(&p("wall_surface_active"), wall_active),
+        window_surface_active: exp.logical(&p("window_surface_active"), window_active),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_stebbs_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    bldg_nlayer: usize,
+    num_buildings: usize,
+    iter_safe: bool,
+    wall_active: bool,
+    window_active: bool,
+) -> StebbsState {
+    let p = |f: &str| join_path(prefix, f);
+    let mut buildings = Vec::with_capacity(num_buildings);
+    if num_buildings == 0 {
+        exp.record_bounds(&p("buildings"), ExpectedBounds::unallocated());
+        for slot_prefix in ["buildings(1)%", "buildings(2)%"] {
+            for desc in OBS_FIELDS_STEBBS_STATE {
+                if let Some(sub) = desc.path.strip_prefix(slot_prefix) {
+                    exp.record_bounds(
+                        &p(&format!("{slot_prefix}{sub}")),
+                        ExpectedBounds::unallocated(),
+                    );
+                }
+            }
+        }
+    } else {
+        exp.record_bounds(&p("buildings"), ExpectedBounds::rank1(1, num_buildings as i32));
+        let b1_prefix = p("buildings(1)");
+        buildings.push(build_stebbs_bldg(
+            exp,
+            &b1_prefix,
+            bldg_nlayer,
+            wall_active,
+            window_active,
+            !iter_safe,
+        ));
+        if num_buildings >= 2 {
+            let b2_prefix = p("buildings(2)");
+            buildings.push(build_stebbs_bldg(
+                exp,
+                &b2_prefix,
+                bldg_nlayer,
+                !wall_active,
+                !window_active,
+                iter_safe,
+            ));
+        } else {
+            for desc in OBS_FIELDS_STEBBS_STATE {
+                if let Some(sub) = desc.path.strip_prefix("buildings(2)%") {
+                    exp.record_bounds(
+                        &p(&format!("buildings(2)%{sub}")),
+                        ExpectedBounds::unallocated(),
+                    );
+                }
+            }
+        }
+        for idx in 2..num_buildings {
+            let mut extra = StebbsBldg::with_nlayer(bldg_nlayer);
+            extra.id_lbm = 900 + idx as i32;
+            extra.tair_ind = 350.25 + idx as f64;
+            for (k, v) in extra.textwall_c.iter_mut().enumerate() {
+                *v = 40.5 + idx as f64 + k as f64 * 0.25;
+            }
+            for (k, v) in extra.textroof_c.iter_mut().enumerate() {
+                *v = 50.5 + idx as f64 + k as f64 * 0.25;
+            }
+            buildings.push(extra);
+        }
+    }
     StebbsState {
         kdown2d: exp.real(&p("kdown_2d")),
         kup2d: exp.real(&p("kup_2d")),
@@ -1840,9 +2117,8 @@ fn build_stebbs_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -
         internal_wall_dhw_vessel_temperature: exp.real(&p("internal_wall_dhw_vessel_temperature")),
         external_wall_dhw_vessel_temperature: exp.real(&p("external_wall_dhw_vessel_temperature")),
         qs_stebbs: exp.real(&p("QS_stebbs")),
-        // Read-only count in flat buffer; Fortran unpack skips it and leaves
-        // STEBBS_STATE%buildings unallocated (verified by unbridged invariant).
-        buildings_count: 7,
+        bldg_nlayer: if num_buildings == 0 { 0 } else { bldg_nlayer },
+        buildings,
         iter_safe: exp.logical(&p("iter_safe"), iter_safe),
     }
 }
@@ -2312,13 +2588,28 @@ fn observe_stebbs_prm() {
 
 #[test]
 fn observe_stebbs_state() {
-    for iter_safe in [false, true] {
+    for (bldg_nlayer, num_buildings, iter_safe, wall_active, window_active) in [
+        (3_usize, 0_usize, false, false, false),
+        (0_usize, 1_usize, false, true, true),
+        (3_usize, 1_usize, false, true, false),
+        (5_usize, 1_usize, true, false, true),
+        (3_usize, 2_usize, true, true, true),
+    ] {
         let mut exp = ExpectedStruct::new();
-        let val = build_stebbs_state(&mut exp, "", iter_safe);
+        let val = build_stebbs_state(
+            &mut exp,
+            "",
+            bldg_nlayer,
+            num_buildings,
+            iter_safe,
+            wall_active,
+            window_active,
+        );
         let flat = val.to_flat();
-        let observed = call_observer_0d(
+        let observed = call_observer_1d(
             observer_manifest::suews_obs_unpack_stebbs_state,
             &flat,
+            bldg_nlayer,
             OBS_FIELDS_STEBBS_STATE,
         );
         assert_observed_matches("STEBBS_STATE", OBS_FIELDS_STEBBS_STATE, &exp, &observed);
@@ -2506,7 +2797,15 @@ fn observe_suews_state() {
             hydro_state: build_hydro_state(&mut exp, "hydroState", nlayer, flip),
             heat_state: build_heat_state(&mut exp, "heatState", nlayer, ndepth, !flip),
             roughness_state: build_roughness_state(&mut exp, "roughnessState", flip),
-            stebbs_state: build_stebbs_state(&mut exp, "stebbsState", !flip),
+            stebbs_state: build_stebbs_state(
+                &mut exp,
+                "stebbsState",
+                nlayer,
+                1,
+                !flip,
+                !flip,
+                flip,
+            ),
             nhood_state: build_nhood_state(&mut exp, "nhoodState", flip),
         };
 
@@ -2665,22 +2964,22 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
                 );
                 direct_unbridged += 1;
             }
-            if desc.kind == ObsKind::Derived {
+            if desc.kind == ObsKind::Derived && !desc.allocatable {
                 assert!(
                     !desc.bridged,
-                    "{name}%{}: unexpected bridged derived leaf",
+                    "{name}%{}: unexpected bridged non-allocatable derived leaf",
                     desc.path
                 );
             }
         }
     }
     assert!(
-        direct_leaves > 700,
+        direct_leaves > 900,
         "unexpectedly small direct leaf count {direct_leaves}"
     );
     assert_eq!(
-        direct_unbridged, 6,
-        "expected exactly 6 reviewed unbridged leaves across the 30 direct types"
+        direct_unbridged, 5,
+        "expected exactly 5 reviewed unbridged leaves across the 30 direct types"
     );
 
     for (name, table) in all_driver_tables {
@@ -3255,31 +3554,48 @@ fn observe_reverse_roughness_state() {
 
 #[test]
 fn observe_reverse_stebbs_state() {
-    for (bldg_count, iter_safe) in [(0_usize, false), (2_usize, true), (3_usize, false)] {
+    for (bldg_nlayer, bldg_count, iter_safe, wall_active, window_active) in [
+        (3_usize, 0_usize, false, false, false),
+        (0_usize, 1_usize, true, true, false),
+        (3_usize, 1_usize, false, false, true),
+        (5_usize, 2_usize, true, true, true),
+    ] {
         let mut exp = ExpectedStruct::new();
-        let mut expected = build_stebbs_state(&mut exp, "", iter_safe);
-        // pack_stebbs_state derives buildings_count directly from allocated size(s%buildings).
-        expected.buildings_count = bldg_count;
+        let expected = build_stebbs_state(
+            &mut exp,
+            "",
+            bldg_nlayer,
+            bldg_count,
+            iter_safe,
+            wall_active,
+            window_active,
+        );
         let seed = build_reverse_seed_payload("STEBBS_STATE", OBS_FIELDS_STEBBS_STATE, &exp);
-        let (flat, err) = call_rev_pack_1d(
+        let flat_len = stebbs_state_expected_flat_len(bldg_count, bldg_nlayer).unwrap();
+        let (flat, err) = call_rev_pack_2d(
             observer_manifest::suews_obs_rev_pack_stebbs_state,
             &seed,
+            bldg_nlayer,
             bldg_count,
-            STEBBS_STATE_FLAT_LEN,
-            STEBBS_STATE_FLAT_LEN,
+            flat_len,
+            flat_len,
         );
         assert_eq!(
             err, SUEWS_CAPI_OK,
-            "pack_stebbs_state bldg_count={bldg_count} iter_safe={iter_safe}"
+            "stebbs_state_pack_real bldg_nlayer={bldg_nlayer} bldg_count={bldg_count} iter_safe={iter_safe}"
         );
-        assert_eq!(StebbsState::from_flat(&flat).unwrap(), expected);
-        if bldg_count == 0 {
-            let (_, short_err) = call_rev_pack_1d(
+        assert_eq!(
+            StebbsState::from_flat_with_bldg_nlayer(&flat, bldg_nlayer).unwrap(),
+            expected
+        );
+        if bldg_count == 0 || bldg_count == 2 {
+            let (_, short_err) = call_rev_pack_2d(
                 observer_manifest::suews_obs_rev_pack_stebbs_state,
                 &seed,
+                bldg_nlayer,
                 bldg_count,
-                STEBBS_STATE_FLAT_LEN - 1,
-                STEBBS_STATE_FLAT_LEN,
+                flat_len - 1,
+                flat_len,
             );
             assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
         }
@@ -3314,15 +3630,22 @@ fn observe_reverse_nhood_state() {
 
 #[test]
 fn observe_reverse_suews_state_and_checkpoint() {
-    // Full 12-member aggregate reverse proof (all 303 bridged leaves + STEBBS buildings_count)
-    // across asymmetric shapes, flipped logical polarities, and schema-v2 checkpoint JSON roundtrip.
+    // Full 12-member aggregate reverse proof (all bridged leaves including STEBBS buildings(:))
+    // across asymmetric shapes, flipped logical polarities, and schema-v3 checkpoint JSON roundtrip.
     for (nlayer, ndepth, bldg_count, flip, new_day) in [
         (3_usize, 5_usize, 0_usize, false, 0_i32),
         (4_usize, 2_usize, 2_usize, true, 1_i32),
     ] {
         let mut exp = ExpectedStruct::new();
-        let mut stebbs_expected = build_stebbs_state(&mut exp, "stebbsState", !flip);
-        stebbs_expected.buildings_count = bldg_count;
+        let stebbs_expected = build_stebbs_state(
+            &mut exp,
+            "stebbsState",
+            nlayer,
+            bldg_count,
+            !flip,
+            flip,
+            !flip,
+        );
         let expected_state = SuewsState {
             error_state: ErrorState::default(),
             flag_state: build_flag_state(&mut exp, "flagState", !flip, flip, !flip),
@@ -3348,6 +3671,11 @@ fn observe_reverse_suews_state_and_checkpoint() {
         let hydro_len = HYDRO_STATE_BASE_FLAT_LEN + 6 * nlayer;
         zero_template.hydro_state =
             HydroState::from_flat_with_lens(&vec![0.0; hydro_len], [nlayer; 6]).unwrap();
+        let stebbs_nlayer = if bldg_count == 0 { 0 } else { nlayer };
+        zero_template.stebbs_state.bldg_nlayer = stebbs_nlayer;
+        zero_template.stebbs_state.buildings = (0..bldg_count)
+            .map(|_| StebbsBldg::with_nlayer(stebbs_nlayer))
+            .collect();
         let (zero_flat, state_toc) = encode_state_members_flat(&zero_template).unwrap();
 
         let mut packed = vec![f64::NAN; zero_flat.len()];
@@ -3377,8 +3705,15 @@ fn observe_reverse_suews_state_and_checkpoint() {
             "pack_state_to_output ({nlayer},{ndepth}) flip={flip}"
         );
 
-        let decoded_state =
-            decode_state_members(&zero_template, &packed, &state_toc, nlayer, ndepth).unwrap();
+        let decoded_state = decode_state_members(
+            &zero_template,
+            &packed,
+            &state_toc,
+            nlayer,
+            ndepth,
+            nlayer,
+        )
+        .unwrap();
         assert_eq!(decoded_state, expected_state);
 
         // Also reverse-pack a checkpoint-valid SUEWS_TIMER through driver.f95::pack_timer

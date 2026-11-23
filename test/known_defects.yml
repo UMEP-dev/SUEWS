@@ -7,12 +7,6 @@ version: 1
 mappings:
   - selector:
       ledger: "R"
-      function: "apply_drainage_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_irrigation_overrides"
     contract: "C-STRICT"
     issue: 1991

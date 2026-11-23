@@ -4028,20 +4028,34 @@ fn apply_site_overrides(
     Ok(())
 }
 
-// Drainage coefficients are required only for contributing land surfaces using
-// existing equations 1-3. Preserve ignored inputs and explicit zero; selector
-// policy and the kernel's wet zero-area behaviour are separate contracts.
+// Read per-surface `storage_drain_params` into `state.phenology_state.store_drain_prm`
+// (#1991, #2002, #2145).
+//
+// Active-consumer gating (matches Fortran `StoreDrainPrm(6, nsurf)` reads):
+// - `[0]` (`store_min`) and `[4]` (`store_max`): unread in Fortran; optional
+//   when absent/null, validated as finite numbers when present. `store_min`
+//   retains the legacy fallback to `state_limit` when still `0.0`.
+// - `[1]` (`drain_eq`): integer selector when given on an active non-water
+//   surface (`require_i32`); optional finite number otherwise.
+// - `[2]` (`drain_coef_1`) and `[3]` (`drain_coef_2`): required on active
+//   non-water surfaces using drainage equations 1, 2 or 3; optional finite
+//   numbers otherwise (preserving ignored inputs and explicit zero).
+// - `[5]` (`store_cap`): required whenever Fortran reads `StoreDrainPrm(6, is)`
+//   on a contributing surface — `drainage` (`active && drain_eq == 1`),
+//   Rutter evaporation (`sfr > 0 && evap_method == 1`), AnOHM
+//   (`sfr > 0 && storage_heat_method == 3`), or EHC building soil-store
+//   scaling (`bldgs` with `sfr > 0 && storage_heat_method == 5 &&
+//   net_radiation_method > 1000`); optional finite number otherwise.
 fn apply_drainage_overrides(
     state: &mut SuewsState,
     site_root: &Value,
+    config: &SuewsConfig,
     fractions: &[f64],
 ) -> Result<(), String> {
+    let site_at = site_yaml_at(site_root);
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
-        let surface_at = format!(
-            "{}.properties.land_cover.{}",
-            site_yaml_at(site_root),
-            surface_name
-        );
+        let surface_at = format!("{site_at}.properties.land_cover.{surface_name}");
+        let sdp_at = format!("{surface_at}.storage_drain_params");
         // Resolved input must give the fraction: an omitted fraction cannot
         // establish that a configured land surface is inactive.
         if surface_name != "water" {
@@ -4072,9 +4086,10 @@ fn apply_drainage_overrides(
             })
         {
             return Err(format!(
-                "`{surface_at}.storage_drain_params` must be a mapping with drainage inputs for an active non-water surface; no drainage equation is inferred"
+                "`{sdp_at}` must be a mapping with drainage inputs for an active non-water surface; no drainage equation is inferred"
             ));
         }
+        validate_optional_mapping(site_root, &sdp_path, &site_at)?;
         // Read storedrainprm from land_cover for this surface.
         // Index i fills Fortran row i+1 of StoreDrainPrm(6, nsurf), in the
         // same order supy uses (StorageDrainParams.to_df_state):
@@ -4085,20 +4100,19 @@ fn apply_drainage_overrides(
         // evaporation capacity, the AnOHM moisture term and the building
         // soil-store scaling. Row 6 is reassigned daily only for deciduous
         // trees.
-        if let Some(sdp_root) = drainage {
-            if let Some(v) = read_numeric(sdp_root, &["store_min"]) {
+        if let Some(sdp_root @ Value::Mapping(_)) = drainage {
+            if let Some(v) = require_if_active_numeric(sdp_root, &["store_min"], &sdp_at, false)? {
                 state.phenology_state.store_drain_prm[surface_idx][0] = v;
             }
             if active && get_path(sdp_root, &["drain_eq"]).is_some() {
                 // Python declares an integer selector. Do not let native-only
                 // fractional input evade the coefficient check and then be
                 // truncated by Fortran INT(DrainEq). Whole floats remain valid.
-                state.phenology_state.store_drain_prm[surface_idx][1] = require_i32(
-                    sdp_root,
-                    &["drain_eq"],
-                    &format!("{surface_at}.storage_drain_params"),
-                )? as f64;
-            } else if let Some(v) = read_numeric(sdp_root, &["drain_eq"]) {
+                state.phenology_state.store_drain_prm[surface_idx][1] =
+                    require_i32(sdp_root, &["drain_eq"], &sdp_at)? as f64;
+            } else if let Some(v) =
+                require_if_active_numeric(sdp_root, &["drain_eq"], &sdp_at, false)?
+            {
                 state.phenology_state.store_drain_prm[surface_idx][1] = v;
             }
             let required = active
@@ -4106,32 +4120,46 @@ fn apply_drainage_overrides(
                     state.phenology_state.store_drain_prm[surface_idx][1],
                     1.0 | 2.0 | 3.0
                 );
-            let at = format!(
-                "{}.properties.land_cover.{}.storage_drain_params",
-                site_yaml_at(site_root),
-                surface_name
-            );
             for (key, slot) in [("drain_coef_1", 2), ("drain_coef_2", 3)] {
-                if required {
-                    state.phenology_state.store_drain_prm[surface_idx][slot] =
-                        require_numeric(sdp_root, &[key], &at)?;
-                } else if let Some(v) = read_numeric(sdp_root, &[key]) {
+                if let Some(v) = require_if_active_numeric(sdp_root, &[key], &sdp_at, required)? {
                     state.phenology_state.store_drain_prm[surface_idx][slot] = v;
                 }
             }
-            if let Some(v) = read_numeric(sdp_root, &["store_max"]) {
+            if let Some(v) = require_if_active_numeric(sdp_root, &["store_max"], &sdp_at, false)? {
                 state.phenology_state.store_drain_prm[surface_idx][4] = v;
             }
-            if let Some(v) = read_numeric(sdp_root, &["store_cap"]) {
-                state.phenology_state.store_drain_prm[surface_idx][5] = v;
-            }
+        }
+        let ehc_bldg_scaling = surface_name == "bldgs"
+            && fractions[surface_idx] > 0.0
+            && ehc_is_on(config.storage_heat_method)
+            && config.net_radiation_method > 1000;
+        let store_cap_required = (active
+            && state.phenology_state.store_drain_prm[surface_idx][1] == 1.0)
+            || (fractions[surface_idx] > 0.0
+                && (config.evap_method == 1 || config.storage_heat_method == 3))
+            || ehc_bldg_scaling;
+        if let Some(v) = require_if_active_numeric(
+            site_root,
+            &[
+                "properties",
+                "land_cover",
+                surface_name,
+                "storedrainprm",
+                "store_cap",
+            ],
+            &site_at,
+            store_cap_required,
+        )? {
+            state.phenology_state.store_drain_prm[surface_idx][5] = v;
         }
         // Fallback: use statelimit for store_min if not yet populated
         if state.phenology_state.store_drain_prm[surface_idx][0] == 0.0 {
-            if let Some(v) = read_numeric(
+            if let Some(v) = require_if_active_numeric(
                 site_root,
                 &["properties", "land_cover", surface_name, "statelimit"],
-            ) {
+                &site_at,
+                false,
+            )? {
                 state.phenology_state.store_drain_prm[surface_idx][0] = v;
             }
         }
@@ -4947,7 +4975,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // vectors like tsfc_surf have the correct length when values are assigned.
     resize_state_variable_arrays(&mut state, nlayer as usize, ndepth as usize);
 
-    apply_drainage_overrides(&mut state, site_root, &site_scalars.sfr_surf)?;
+    apply_drainage_overrides(&mut state, site_root, &config, &site_scalars.sfr_surf)?;
     apply_state_overrides(
         &mut state,
         site_root,
@@ -6430,6 +6458,343 @@ mod tests {
                 "store_drain_prm[paved][{slot}] should hold {name} = {expected}, got {}",
                 paved[slot]
             );
+        }
+    }
+
+    #[test]
+    fn store_cap_is_required_when_consumed_by_drain_eq1_rutter_or_anohm() {
+        // 1. drain_eq == 1 on an active non-water surface consumes StoreDrainPrm(6, is).
+        for mutation in [None, Some("null"), Some("{value: null}")] {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(Value::String("drain_eq".into()), Value::Number(1.into()));
+            if let Some(raw) = mutation {
+                sdp.insert(
+                    Value::String("store_cap".into()),
+                    serde_yaml::from_str(raw).unwrap(),
+                );
+            } else {
+                sdp.remove(Value::String("store_cap".into()));
+            }
+            let err = load_run_config_from_value(&mut root).unwrap_err();
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.land_cover.paved.storage_drain_params.store_cap`"
+                ),
+                "{err}"
+            );
+        }
+
+        // 2. Rutter evaporation (evapmethod == 1) consumes StoreDrainPrm(6, is) on active surfaces
+        //    even when drain_eq == 2 does not.
+        {
+            let mut root = stebbs_fixture_root();
+            get_path_mut(&mut root, &["model", "physics"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap()
+                .insert(Value::String("evapmethod".into()), Value::Number(1.into()));
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(Value::String("drain_eq".into()), Value::Number(2.into()));
+            sdp.remove(Value::String("store_cap".into()));
+            let err = load_run_config_from_value(&mut root).unwrap_err();
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.land_cover.paved.storage_drain_params.store_cap`"
+                ),
+                "{err}"
+            );
+        }
+
+        // 3. AnOHM (storage_heat == 3) consumes StoreDrainPrm(6, is) on active water too.
+        {
+            let mut root = stebbs_fixture_root();
+            let physics = get_path_mut(&mut root, &["model", "physics"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            physics.insert(
+                Value::String("storage_heat".into()),
+                Value::Number(3.into()),
+            );
+            let site = first_site_mut(&mut root).unwrap();
+            let water = get_path_mut(site, &["properties", "land_cover", "water"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            water.insert(
+                Value::String("sfr".into()),
+                serde_yaml::from_str("0.05").unwrap(),
+            );
+            water.remove(Value::String("storage_drain_params".into()));
+            let err = load_run_config_from_value(&mut root).unwrap_err();
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.land_cover.water.storage_drain_params.store_cap`"
+                ),
+                "{err}"
+            );
+        }
+
+        // 4. EHC building soil-store scaling (storage_heat == 5 and
+        //    net_radiation > 1000 with bldgs.sfr > 0) consumes
+        //    StoreDrainPrm(6, BldgSurf) even when evapmethod == 2 and drain_eq == 2 or 3.
+        for equation in [2, 3] {
+            for mutation in [None, Some("null"), Some("{value: null}")] {
+                let mut root = stebbs_fixture_root();
+                let physics = get_path_mut(&mut root, &["model", "physics"])
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                physics.insert(
+                    Value::String("storage_heat".into()),
+                    Value::Number(5.into()),
+                );
+                physics.insert(
+                    Value::String("net_radiation".into()),
+                    Value::Number(1001.into()),
+                );
+                let site = first_site_mut(&mut root).unwrap();
+                let sdp = get_path_mut(
+                    site,
+                    &["properties", "land_cover", "bldgs", "storage_drain_params"],
+                )
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+                sdp.insert(
+                    Value::String("drain_eq".into()),
+                    Value::Number(equation.into()),
+                );
+                if let Some(raw) = mutation {
+                    sdp.insert(
+                        Value::String("store_cap".into()),
+                        serde_yaml::from_str(raw).unwrap(),
+                    );
+                } else {
+                    sdp.remove(Value::String("store_cap".into()));
+                }
+                let err = load_run_config_from_value(&mut root).unwrap_err();
+                assert!(
+                    err.contains(
+                        "`sites[gridiv=1].properties.land_cover.bldgs.storage_drain_params.store_cap`"
+                    ),
+                    "drain_eq={equation} mutation={mutation:?}: {err}"
+                );
+            }
+        }
+        // Explicit zero and supplied values survive under active EHC building scaling.
+        for expected in [0.0, 0.42] {
+            let mut root = stebbs_fixture_root();
+            let physics = get_path_mut(&mut root, &["model", "physics"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            physics.insert(
+                Value::String("storage_heat".into()),
+                Value::Number(5.into()),
+            );
+            physics.insert(
+                Value::String("net_radiation".into()),
+                Value::Number(1001.into()),
+            );
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "bldgs", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(Value::String("drain_eq".into()), Value::Number(3.into()));
+            sdp.insert(
+                Value::String("store_cap".into()),
+                serde_yaml::from_str(&format!("{expected}")).unwrap(),
+            );
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            assert!((cfg.state.phenology_state.store_drain_prm[1][5] - expected).abs() < 1.0e-12);
+        }
+        // Negative controls for EHC building scaling: non-facet EHC (net_radiation <= 1000)
+        // and inactive building (bldgs.sfr == 0.0) do not require bldgs store_cap.
+        {
+            let mut root = stebbs_fixture_root();
+            let physics = get_path_mut(&mut root, &["model", "physics"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            physics.insert(
+                Value::String("storage_heat".into()),
+                Value::Number(5.into()),
+            );
+            physics.insert(
+                Value::String("net_radiation".into()),
+                Value::Number(3.into()),
+            );
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "bldgs", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(Value::String("drain_eq".into()), Value::Number(2.into()));
+            sdp.remove(Value::String("store_cap".into()));
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            assert_eq!(cfg.state.phenology_state.store_drain_prm[1][5], 0.0);
+        }
+        {
+            // Inactive building (sfr == 0.0) with active EHC + SPARTACUS does not require bldgs store_cap.
+            let mut root = stebbs_fixture_root();
+            let physics = get_path_mut(&mut root, &["model", "physics"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            physics.insert(
+                Value::String("storage_heat".into()),
+                Value::Number(5.into()),
+            );
+            physics.insert(
+                Value::String("net_radiation".into()),
+                Value::Number(1001.into()),
+            );
+            let site = first_site_mut(&mut root).unwrap();
+            let bldgs = get_path_mut(site, &["properties", "land_cover", "bldgs"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            bldgs.insert(
+                Value::String("sfr".into()),
+                serde_yaml::from_str("0.0").unwrap(),
+            );
+            bldgs.remove(Value::String("storage_drain_params".into()));
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            assert_eq!(cfg.state.phenology_state.store_drain_prm[1][5], 0.0);
+        }
+
+        // 5. When none of those consumers is active (evapmethod == 2, storageheatmethod == 7,
+        //    drain_eq == 2), omitting store_cap leaves row 6 at 0.0 and still succeeds.
+        {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let sdp = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap();
+            sdp.insert(Value::String("drain_eq".into()), Value::Number(2.into()));
+            sdp.remove(Value::String("store_cap".into()));
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            assert_eq!(cfg.state.phenology_state.store_drain_prm[0][5], 0.0);
+        }
+    }
+
+    #[test]
+    fn malformed_inactive_and_optional_drainage_fields_are_rejected_and_statelimit_fallback_works()
+    {
+        // Non-mapping storage_drain_params on an inactive surface or water must fail cleanly.
+        for surface in ["evetr", "water"] {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let lc = get_path_mut(site, &["properties", "land_cover", surface])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            if surface == "evetr" {
+                lc.insert(
+                    Value::String("sfr".into()),
+                    serde_yaml::from_str("0.0").unwrap(),
+                );
+            }
+            lc.insert(
+                Value::String("storage_drain_params".into()),
+                Value::String("bad".into()),
+            );
+            let err = load_run_config_from_value(&mut root).unwrap_err();
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.{surface}.storage_drain_params`"
+                )),
+                "{err}"
+            );
+            assert!(err.contains("mapping"), "{err}");
+        }
+
+        // Malformed/non-finite optional or inactive leaf values fail with canonical paths.
+        for field in [
+            "store_min",
+            "drain_eq",
+            "drain_coef_1",
+            "drain_coef_2",
+            "store_max",
+            "store_cap",
+        ] {
+            for bad in ["\"bad\"", ".nan", ".inf"] {
+                let mut root = stebbs_fixture_root();
+                let site = first_site_mut(&mut root).unwrap();
+                let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"])
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                evetr.insert(
+                    Value::String("sfr".into()),
+                    serde_yaml::from_str("0.0").unwrap(),
+                );
+                evetr
+                    .get_mut(Value::String("storage_drain_params".into()))
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap()
+                    .insert(
+                        Value::String(field.into()),
+                        serde_yaml::from_str(bad).unwrap(),
+                    );
+                let err = load_run_config_from_value(&mut root).unwrap_err();
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.evetr.storage_drain_params.{field}`"
+                    )),
+                    "{field}={bad}: {err}"
+                );
+            }
+        }
+
+        // Fallback: omitting store_min falls back to state_limit.
+        {
+            let mut root = stebbs_fixture_root();
+            let site = first_site_mut(&mut root).unwrap();
+            let paved = get_path_mut(site, &["properties", "land_cover", "paved"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            paved.insert(
+                Value::String("state_limit".into()),
+                serde_yaml::from_str("12.5").unwrap(),
+            );
+            paved
+                .get_mut(Value::String("storage_drain_params".into()))
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String("store_min".into()));
+            let cfg = load_run_config_from_value(&mut root).unwrap();
+            assert!((cfg.state.phenology_state.store_drain_prm[0][0] - 12.5).abs() < 1.0e-12);
         }
     }
 

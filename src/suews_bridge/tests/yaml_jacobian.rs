@@ -166,8 +166,9 @@ const KNOWN_CLOBBERED_SPARTACUS_LAYERS: &[(&str, usize)] = &[
 ];
 
 /// #2101: Float-serialised day-of-year parameters silently zeroed by
-/// `read_i32` when perturbed by a non-integer float delta. Remove entries here
-/// once #2101 fixes `ie_start`, `ie_end`, `startdls`, and `enddls`.
+/// `read_i32` when perturbed by a non-integer float delta. `startdls` and
+/// `enddls` now use strict integer validation (#2002); remove the remaining
+/// two entries once `ie_start` and `ie_end` migrate off `read_i32`.
 const KNOWN_NON_UNIT_DELTAS: &[(&str, &str)] = &[
     (
         "sites[0].properties.irrigation.ie_start",
@@ -176,14 +177,6 @@ const KNOWN_NON_UNIT_DELTAS: &[(&str, &str)] = &[
     (
         "sites[0].properties.irrigation.ie_end",
         "site.irrigation.ie_end",
-    ),
-    (
-        "sites[0].properties.anthropogenic_emissions.startdls",
-        "site.anthroemis.startdls",
-    ),
-    (
-        "sites[0].properties.anthropogenic_emissions.enddls",
-        "site.anthroemis.enddls",
     ),
 ];
 
@@ -710,10 +703,19 @@ fn collect_numeric_leaves(
         }
         Value::Number(num) => {
             if let Some(f) = num.as_f64() {
+                let display = format_display_path(prefix);
+                // `AnthropogenicEmissions.startdls`/`enddls` are still serialised
+                // as whole-number floats in resolved fixtures (#2101), while the
+                // bridge now validates them with strict integer parsing (#2002).
+                let is_strict_integer_doy = matches!(
+                    display.as_str(),
+                    "sites[0].properties.anthropogenic_emissions.startdls"
+                        | "sites[0].properties.anthropogenic_emissions.enddls"
+                );
                 out.push(NumericLeaf {
                     path: prefix.clone(),
-                    display: format_display_path(prefix),
-                    is_int: num.is_i64() || num.is_u64(),
+                    display,
+                    is_int: num.is_i64() || num.is_u64() || is_strict_integer_doy,
                     value: f,
                     in_wrapped_array,
                     in_long_profile: profile_group.is_some(),
@@ -4097,10 +4099,19 @@ fn nan_poison_completeness_across_all_six_anchors() {
         }
     }
 
-    // 3g. 24-hour profiles (#2098): strict reader rejects non-finite slot values.
+    // 3g. 24-hour profiles (#2098) and strict snow/anthro scalars (#2002):
+    //     reject non-finite values.
     strict_jobs.push((
         0,
         "sites[0].properties.anthropogenic_emissions.heat.ahprof_24hr.working_day.13".to_string(),
+    ));
+    strict_jobs.push((
+        0,
+        "sites[0].properties.anthropogenic_emissions.heat.qf_a.working_day".to_string(),
+    ));
+    strict_jobs.push((
+        4,
+        "sites[0].properties.snow.water_holding_capacity_max".to_string(),
     ));
 
     // 3h. Site scalars and land-cover parameters (#1991, #2002): strict readers
@@ -4197,11 +4208,6 @@ fn nan_poison_completeness_across_all_six_anchors() {
             1,
             "sites[0].properties.land_cover.bldgs.thermal_layers.k[0]",
             "site.ehc.k_surf_02_01",
-        ),
-        (
-            0,
-            "sites[0].properties.anthropogenic_emissions.heat.qf_a.working_day",
-            "site.anthroemis.anthroheat.qf_a_working",
         ),
         (
             1,

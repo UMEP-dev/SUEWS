@@ -43,7 +43,6 @@ module module_type_surface
       ! all variables are intensive and thus can be used for iteration safety
       REAL(KIND(1D0)) :: t2_prev = 0.0D0 ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav = 0.0D0 ! running average of wind speed [m s-1]
-      REAL(KIND(1D0)) :: tair_prev = 0.0D0
       REAL(KIND(1D0)), DIMENSION(nsurf):: qn_rav = 0.0D0 ! running average of net radiation [W m-2]
       REAL(KIND(1D0)) :: a1_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings

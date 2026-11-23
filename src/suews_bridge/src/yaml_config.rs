@@ -2259,9 +2259,7 @@ fn apply_config_overrides(
     root: &Value,
     site_root: &Value,
 ) -> Result<(), String> {
-    if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
-        config.rsl_method = v;
-    }
+    config.rsl_method = require_i32(root, &["model", "physics", "rslmethod"], "")?;
     if get_path(root, &["model", "physics", "emissionsmethod"]).is_some() {
         let v = require_i32(root, &["model", "physics", "emissionsmethod"], "")?;
         if !is_valid_emissions_method(v) {
@@ -2273,12 +2271,10 @@ fn apply_config_overrides(
         }
         config.emissions_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "roughlenheatmethod"]) {
-        config.rough_len_heat_method = v;
-    }
-    if let Some(v) = read_i32(root, &["model", "physics", "roughlenmommethod"]) {
-        config.rough_len_mom_method = v;
-    }
+    config.rough_len_heat_method =
+        require_i32(root, &["model", "physics", "roughlenheatmethod"], "")?;
+    config.rough_len_mom_method =
+        require_i32(root, &["model", "physics", "roughlenmommethod"], "")?;
     if let Some(v) = read_i32(root, &["model", "physics", "faimethod"]) {
         config.fai_method = v;
     }
@@ -2310,9 +2306,7 @@ fn apply_config_overrides(
     // LAImethod defaults to 1 (GDD model) when not specified.
     // Matches Python DTS behaviour: supy/dts/_populate.py:275-276
     config.lai_method = read_i32(root, &["model", "physics", "laimethod"]).unwrap_or(1);
-    if let Some(v) = read_i32(root, &["model", "physics", "rsllevel"]) {
-        config.rsl_level = v;
-    }
+    config.rsl_level = require_i32(root, &["model", "physics", "rsllevel"], "")?;
     if let Some(v) = read_i32(root, &["model", "physics", "stebbsmethod"]) {
         config.stebbs_method = v;
     }

@@ -31,12 +31,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
-      function: "apply_ehc_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_irrigation_overrides"
     contract: "C-STRICT"
     issue: 1991
@@ -55,25 +49,7 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
-      function: "apply_site_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_snow_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
-      function: "apply_spartacus_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
-      function: "apply_vertical_layers_overrides"
     contract: "C-STRICT"
     issue: 1991
     classification: "defect"

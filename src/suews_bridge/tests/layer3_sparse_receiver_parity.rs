@@ -557,9 +557,6 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         }
         if let Some(Value::Sequence(walls)) = vl.get_mut(Value::String("walls".to_string())) {
             walls.truncate(1);
-            let w0 = walls[0].as_mapping_mut().expect("walls[0]");
-            remove_key(w0, "thermal_layers");
-            remove_key(w0, "soil_store_capacity");
         }
     }
 
@@ -576,20 +573,13 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         }
     }
 
-    // Land cover flipped: supply dectr LAI+bioCO2+height+FAI and paved thermal_layers,
-    // omit evetr/grass LAI+bioCO2+height+FAI and bsoil thermal_layers.
+    // Land cover flipped: supply dectr LAI+bioCO2+height+FAI and asymmetric paved thermal_layers,
+    // omit evetr/grass LAI+bioCO2+height+FAI.
     let paved_k = [0.81, 0.82, 0.83, 0.84, 0.85];
     let paved_cp = [1.51e6, 1.52e6, 1.53e6, 1.54e6, 1.55e6];
     let paved_dz = [0.11, 0.12, 0.13, 0.14, 0.15];
     {
         let lc = mapping_at_mut(site, &["properties", "land_cover"]);
-        for surf_name in [
-            "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-        ] {
-            if let Some(Value::Mapping(surf)) = lc.get_mut(Value::String(surf_name.to_string())) {
-                remove_key(surf, "thermal_layers");
-            }
-        }
         let paved = lc
             .get_mut(Value::String("paved".to_string()))
             .expect("paved")
@@ -626,6 +616,85 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         )
         .insert(Value::String("lai_max".to_string()), grass_lai_max);
     }
+
+    // Active facet-resolved EHC (#2002): omitting surface or facet thermal_layers
+    // or facet soil_store_capacity must be rejected instead of falling back to 0.0.
+    {
+        let mut missing_bsoil = root.clone();
+        let bsoil = mapping_at_mut(
+            first_site_mut(&mut missing_bsoil),
+            &["properties", "land_cover", "bsoil"],
+        );
+        remove_key(bsoil, "thermal_layers");
+        let err = load_run_config_from_value(&mut missing_bsoil)
+            .expect_err("active EHC omitting bsoil thermal_layers must be rejected");
+        assert!(
+            err.contains("land_cover.bsoil.thermal_layers.k"),
+            "unexpected error for omitted EHC bsoil thermal_layers: {err}"
+        );
+    }
+    {
+        let mut missing_wall_tl = root.clone();
+        let vl = mapping_at_mut(
+            first_site_mut(&mut missing_wall_tl),
+            &["properties", "vertical_layers"],
+        );
+        let w0 = vl
+            .get_mut(Value::String("walls".to_string()))
+            .and_then(Value::as_sequence_mut)
+            .expect("walls")[0]
+            .as_mapping_mut()
+            .expect("walls[0]");
+        remove_key(w0, "thermal_layers");
+        let err = load_run_config_from_value(&mut missing_wall_tl)
+            .expect_err("facet-resolved EHC omitting walls[0].thermal_layers must be rejected");
+        assert!(
+            err.contains("vertical_layers.walls[0].thermal_layers.k"),
+            "unexpected error for omitted EHC walls[0].thermal_layers: {err}"
+        );
+    }
+    {
+        let mut missing_wall_cap = root.clone();
+        let vl = mapping_at_mut(
+            first_site_mut(&mut missing_wall_cap),
+            &["properties", "vertical_layers"],
+        );
+        let w0 = vl
+            .get_mut(Value::String("walls".to_string()))
+            .and_then(Value::as_sequence_mut)
+            .expect("walls")[0]
+            .as_mapping_mut()
+            .expect("walls[0]");
+        remove_key(w0, "soil_store_capacity");
+        let err = load_run_config_from_value(&mut missing_wall_cap)
+            .expect_err("facet-resolved EHC omitting walls[0].soil_store_capacity must be rejected");
+        assert!(
+            err.contains("vertical_layers.walls[0].soil_store_capacity"),
+            "unexpected error for omitted EHC walls[0].soil_store_capacity: {err}"
+        );
+    }
+
+    // Lumped EHC (storage_heat=5, net_radiation=3): inactive facet thermal_layers
+    // and soil_store_capacity remain optional and land on observed 0.0.
+    let mut lumped_root = root.clone();
+    {
+        let phys = mapping_at_mut(&mut lumped_root, &["model", "physics"]);
+        set_wrapped_f64(phys, "net_radiation", 3.0);
+        let vl = mapping_at_mut(
+            first_site_mut(&mut lumped_root),
+            &["properties", "vertical_layers"],
+        );
+        let w0 = vl
+            .get_mut(Value::String("walls".to_string()))
+            .and_then(Value::as_sequence_mut)
+            .expect("walls")[0]
+            .as_mapping_mut()
+            .expect("walls[0]");
+        remove_key(w0, "thermal_layers");
+        remove_key(w0, "soil_store_capacity");
+    }
+    let lumped_cfg = load_run_config_from_value(&mut lumped_root)
+        .expect("lumped EHC omitting inactive walls[0] parameters must load cleanly");
 
     let cfg = load_run_config_from_value(&mut root)
         .expect("sparse EHC flipped asymmetric YAML must load cleanly");
@@ -709,8 +778,8 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         "snow.snowdensmax supplied",
     );
 
-    // Active EHC: paved (surface idx 0) & roofs[0] arrive verbatim; omitted bsoil (idx 5)
-    // and walls[0] receive observed 0.0 (not df_state shadow defaults 1.0/1000.0/[0.1..0.5]/150.0).
+    // Active EHC: paved (surface idx 0) & roofs[0] arrive verbatim; under lumped EHC
+    // (facet_read == false), omitted walls[0] receives observed 0.0 (not shadow defaults).
     let ndepth = received.ehc.ndepth;
     assert_eq!(ndepth, 5, "expected 5 thermal depth layers under EHC");
     assert_slice_close(
@@ -728,22 +797,6 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         &paved_dz,
         "ehc.dz_surf[paved]",
     );
-    let bsoil_start = 5 * ndepth;
-    assert_slice_close(
-        &received.ehc.k_surf[bsoil_start..bsoil_start + ndepth],
-        &[0.0; 5],
-        "ehc.k_surf[bsoil] omitted",
-    );
-    assert_slice_close(
-        &received.ehc.cp_surf[bsoil_start..bsoil_start + ndepth],
-        &[0.0; 5],
-        "ehc.cp_surf[bsoil] omitted",
-    );
-    assert_slice_close(
-        &received.ehc.dz_surf[bsoil_start..bsoil_start + ndepth],
-        &[0.0; 5],
-        "ehc.dz_surf[bsoil] omitted",
-    );
 
     assert_slice_close(&received.ehc.k_roof[0..ndepth], &roof_k, "ehc.k_roof[0]");
     assert_slice_close(&received.ehc.cp_roof[0..ndepth], &roof_cp, "ehc.cp_roof[0]");
@@ -754,25 +807,26 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         "ehc.soil_storecap_roof[0]",
     );
 
+    let lumped_site = &lumped_cfg.site;
     assert_slice_close(
-        &received.ehc.k_wall[0..ndepth],
+        &lumped_site.ehc.k_wall[0..ndepth],
         &[0.0; 5],
-        "ehc.k_wall[0] omitted",
+        "lumped ehc.k_wall[0] omitted",
     );
     assert_slice_close(
-        &received.ehc.cp_wall[0..ndepth],
+        &lumped_site.ehc.cp_wall[0..ndepth],
         &[0.0; 5],
-        "ehc.cp_wall[0] omitted",
+        "lumped ehc.cp_wall[0] omitted",
     );
     assert_slice_close(
-        &received.ehc.dz_wall[0..ndepth],
+        &lumped_site.ehc.dz_wall[0..ndepth],
         &[0.0; 5],
-        "ehc.dz_wall[0] omitted",
+        "lumped ehc.dz_wall[0] omitted",
     );
     assert_close(
-        received.ehc.soil_storecap_wall[0],
+        lumped_site.ehc.soil_storecap_wall[0],
         0.0,
-        "ehc.soil_storecap_wall[0] omitted",
+        "lumped ehc.soil_storecap_wall[0] omitted",
     );
 }
 

@@ -249,21 +249,6 @@ fn parse_numeric_sequence(value: &Value, read: usize) -> Result<Option<Vec<f64>>
     }
 }
 
-/// Read a numeric list at `path` below `root`; see `parse_numeric_sequence`
-/// for `read`. `at` is the YAML path of `root`, used to name the list in an
-/// error.
-fn read_numeric_sequence(
-    root: &Value,
-    path: &[&str],
-    at: &str,
-    read: usize,
-) -> Result<Option<Vec<f64>>, String> {
-    let Some(value) = get_path(root, path) else {
-        return Ok(None);
-    };
-    parse_numeric_sequence(value, read).map_err(|e| format!("`{at}.{}`: {e}", path.join(".")))
-}
-
 /// Check a supplied list without turning whole-list absence into a requirement.
 fn require_list_length(actual: usize, required: usize, at: &str) -> Result<(), String> {
     if actual < required {
@@ -272,23 +257,6 @@ fn require_list_length(actual: usize, required: usize, at: &str) -> Result<(), S
         ));
     }
     Ok(())
-}
-
-fn read_sized_numeric_sequence(
-    root: &Value,
-    paths: &[&[&str]],
-    at: &str,
-    required: usize,
-) -> Result<Option<Vec<f64>>, String> {
-    // The kernel reads exactly the `required` leading entries, so the same
-    // count sets the length check and the finiteness check.
-    for path in paths {
-        if let Some(values) = read_numeric_sequence(root, path, at, required)? {
-            require_list_length(values.len(), required, &format!("{at}.{}", path.join(".")))?;
-            return Ok(Some(values));
-        }
-    }
-    Ok(None)
 }
 
 /// How an error names the site the bridge is reading. supy passes one site
@@ -1310,78 +1278,119 @@ fn apply_bioco2_overrides(
     Ok(())
 }
 
-fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "air_ext_lw"]) {
+fn apply_spartacus_overrides(
+    site: &mut SuewsSite,
+    root: &Value,
+    site_root: &Value,
+    spartacus_on: bool,
+    kdown_split_method: i32,
+    use_sw_direct_albedo: bool,
+) -> Result<(), String> {
+    let site_at = site_yaml_at(site_root);
+    let read_f = |key: &str| -> Result<Option<f64>, String> {
+        let path = ["properties", "spartacus", key];
+        if spartacus_on {
+            require_numeric(site_root, &path, &site_at).map(Some)
+        } else {
+            parse_optional_numeric(site_root, &path, &site_at)
+        }
+    };
+    let read_i = |key: &str| -> Result<Option<i32>, String> {
+        let path = ["properties", "spartacus", key];
+        if spartacus_on {
+            require_i32(site_root, &path, &site_at).map(Some)
+        } else {
+            parse_optional_i32(site_root, &path, &site_at)
+        }
+    };
+
+    if let Some(v) = read_f("air_ext_lw")? {
         site.spartacus.air_ext_lw = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "air_ext_sw"]) {
+    if let Some(v) = read_f("air_ext_sw")? {
         site.spartacus.air_ext_sw = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "air_ssa_lw"]) {
+    if let Some(v) = read_f("air_ssa_lw")? {
         site.spartacus.air_ssa_lw = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "air_ssa_sw"]) {
+    if let Some(v) = read_f("air_ssa_sw")? {
         site.spartacus.air_ssa_sw = v;
     }
-    if let Some(v) = read_numeric(
-        site_root,
-        &["properties", "spartacus", "ground_albedo_dir_mult_fact"],
-    ) {
+    let ground_mult_path = ["properties", "spartacus", "ground_albedo_dir_mult_fact"];
+    let ground_mult = if spartacus_on && use_sw_direct_albedo {
+        Some(require_numeric(site_root, &ground_mult_path, &site_at)?)
+    } else {
+        parse_optional_numeric(site_root, &ground_mult_path, &site_at)?
+    };
+    if let Some(v) = ground_mult {
         site.spartacus.ground_albedo_dir_mult_fact = v;
     }
-    if let Some(v) = read_i32(site_root, &["properties", "spartacus", "n_stream_lw_urban"]) {
+    if let Some(v) = read_i("n_stream_lw_urban")? {
         site.spartacus.n_stream_lw_urban = v;
     }
     site.spartacus.n_stream_lw_forest = site.spartacus.n_stream_lw_urban;
-    if let Some(v) = read_i32(site_root, &["properties", "spartacus", "n_stream_sw_urban"]) {
+    if let Some(v) = read_i("n_stream_sw_urban")? {
         site.spartacus.n_stream_sw_urban = v;
     }
-    if let Some(v) = read_i32(
-        site_root,
-        &["properties", "spartacus", "n_stream_sw_forest"],
-    ) {
+    if let Some(v) = read_i("n_stream_sw_forest")? {
         site.spartacus.n_stream_sw_forest = v;
     }
-    if let Some(v) = read_i32(
-        site_root,
-        &["properties", "spartacus", "n_stream_lw_forest"],
-    ) {
+    if let Some(v) = read_i("n_stream_lw_forest")? {
         site.spartacus.n_stream_lw_forest = v;
     }
-    if let Some(v) = read_i32(
+    if let Some(v) = parse_optional_i32(
         site_root,
         &["properties", "spartacus", "n_vegetation_region_urban"],
-    ) {
+        &site_at,
+    )? {
         site.spartacus.n_vegetation_region_urban = v;
     }
-    if let Some(v) = read_i32(
+    if let Some(v) = parse_optional_i32(
         site_root,
         &["properties", "spartacus", "n_vegetation_region_forest"],
-    ) {
+        &site_at,
+    )? {
         site.spartacus.n_vegetation_region_forest = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "sw_dn_direct_frac"]) {
-        site.spartacus.sw_dn_direct_frac = v;
-    }
-    if let Some(v) = read_numeric(
+    // Resolve sw_dn_direct_frac with canonical precedence:
+    // model.physics.kdown_split_constant_direct_fraction
+    //   > model.physics.sw_dn_direct_frac
+    //   > sites[...].properties.spartacus.sw_dn_direct_frac.
+    let kdown_const = parse_optional_numeric(
+        root,
+        &["model", "physics", "kdown_split_constant_direct_fraction"],
+        "",
+    )?;
+    let physics_sw = parse_optional_numeric(root, &["model", "physics", "sw_dn_direct_frac"], "")?;
+    let spartacus_sw = parse_optional_numeric(
         site_root,
-        &["properties", "spartacus", "use_sw_direct_albedo"],
-    ) {
+        &["properties", "spartacus", "sw_dn_direct_frac"],
+        &site_at,
+    )?;
+    if let Some(v) = kdown_const.or(physics_sw).or(spartacus_sw) {
+        site.spartacus.sw_dn_direct_frac = v;
+    } else if spartacus_on && kdown_split_method != 4 {
+        // SUEWS_cal_Qn CASE (4) (Reindl) does not consume sw_dn_direct_frac;
+        // CASE (1)/(2)/(3)/DEFAULT either use it directly or via Perez fallback.
+        return Err(format!(
+            "`{site_at}.properties.spartacus.sw_dn_direct_frac` is missing (and neither \
+             `model.physics.sw_dn_direct_frac` nor `model.physics.kdown_split_method.constant.sw_dn_direct_frac` \
+             was provided); the bridge does not fill in a value, give it in the YAML"
+        ));
+    }
+    if let Some(v) = read_f("use_sw_direct_albedo")? {
         site.spartacus.use_sw_direct_albedo = v;
     }
-    if let Some(v) = read_numeric(
-        site_root,
-        &["properties", "spartacus", "veg_contact_fraction_const"],
-    ) {
+    if let Some(v) = read_f("veg_contact_fraction_const")? {
         site.spartacus.veg_contact_fraction_const = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "veg_fsd_const"]) {
+    if let Some(v) = read_f("veg_fsd_const")? {
         site.spartacus.veg_fsd_const = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "veg_ssa_lw"]) {
+    if let Some(v) = read_f("veg_ssa_lw")? {
         site.spartacus.veg_ssa_lw = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "veg_ssa_sw"]) {
+    if let Some(v) = read_f("veg_ssa_sw")? {
         site.spartacus.veg_ssa_sw = v;
     }
     Ok(())
@@ -1443,30 +1452,29 @@ fn apply_vertical_layers_overrides(
     site_root: &Value,
     storage_heat_method: i32,
     spartacus_on: bool,
+    use_sw_direct_albedo: bool,
 ) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
     let nlayer = site.spartacus_layer.nlayer;
     let nspec = site.spartacus_layer.nspec;
     let layers_read = vertical_layers_are_read(storage_heat_method, spartacus_on);
-    // Entries the kernel reads per layer list; `height` gives the layer
-    // boundaries, one more than the layers.
-    let layer_entries_read = if layers_read { nlayer } else { 0 };
-    let height_entries_read = if layers_read { nlayer + 1 } else { 0 };
-    let veg_entries_read = if vegetation_layers_are_read(spartacus_on) {
-        nlayer
+    let veg_read = vegetation_layers_are_read(spartacus_on);
+
+    let read_layer_seq = |key: &str, required: usize| -> Result<Option<Vec<f64>>, String> {
+        let path = ["properties", "vertical_layers", key];
+        if required > 0 {
+            require_sized_numeric_sequence(site_root, &[&path], &site_at, required).map(Some)
+        } else {
+            parse_optional_numeric_sequence(site_root, &[&path], &site_at)
+        }
+    };
+
+    let height_req = if layers_read && nlayer > 0 {
+        nlayer + 1
     } else {
         0
     };
-
-    if let Some(height_values) = read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "height"],
-        &site_at,
-        height_entries_read,
-    )? {
-        // Both former branches (lengths match, or height non-empty) did the
-        // same prefix-assign, so they collapse to one condition. Behaviour is
-        // unchanged; the duplicated else-if may have been intended to differ.
+    if let Some(height_values) = read_layer_seq("height", height_req)? {
         if site.spartacus.height.len() == height_values.len() || !site.spartacus.height.is_empty() {
             assign_prefix(
                 site.spartacus.height.as_mut_slice(),
@@ -1476,103 +1484,101 @@ fn apply_vertical_layers_overrides(
     }
 
     let building_frac_at = format!("{site_at}.properties.vertical_layers.building_frac");
-    match read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "building_frac"],
-        &site_at,
-        layer_entries_read,
-    )? {
-        Some(building_frac) if building_frac.len() >= nlayer || !layers_read => {
-            assign_prefix(
-                site.spartacus_layer.building_frac.as_mut_slice(),
-                building_frac.as_slice(),
-            );
+    let layer_req = if layers_read && nlayer > 0 { nlayer } else { 0 };
+    if let Some(building_frac) = read_layer_seq("building_frac", layer_req).map_err(|e| {
+        if layer_req > 0 && e.contains("is missing") {
+            format!(
+                "`{building_frac_at}` is missing; it must be a list of nlayer = {nlayer} numbers"
+            )
+        } else {
+            e
         }
-        Some(building_frac) => {
-            return Err(format!(
-                "`{building_frac_at}` has {} values, but nlayer = {nlayer} needs {nlayer} \
-                 (cumulative building fraction per layer)",
-                building_frac.len()
-            ));
-        }
-        None if layers_read && nlayer > 0 => {
-            return Err(format!(
-                "`{building_frac_at}` is missing or not a list of numbers, but nlayer = {nlayer} \
-                 needs {nlayer} values (cumulative building fraction per layer, read under \
-                 storage heat method 5 or SPARTACUS)"
-            ));
-        }
-        // Not read under these options: left absent (`LAYER_VALUE_ABSENT`).
-        None => {}
+    })? {
+        assign_prefix(
+            site.spartacus_layer.building_frac.as_mut_slice(),
+            building_frac.as_slice(),
+        );
     }
-    if let Some(veg_frac) = read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "veg_frac"],
-        &site_at,
-        veg_entries_read,
-    )? {
+
+    let veg_req = if veg_read && nlayer > 0 { nlayer } else { 0 };
+    if let Some(veg_frac) = read_layer_seq("veg_frac", veg_req)? {
         assign_prefix(
             site.spartacus_layer.veg_frac.as_mut_slice(),
             veg_frac.as_slice(),
         );
     }
-    if let Some(building_scale) = read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "building_scale"],
-        &site_at,
-        layer_entries_read,
-    )? {
+    if let Some(building_scale) = read_layer_seq("building_scale", layer_req)? {
         assign_prefix(
             site.spartacus_layer.building_scale.as_mut_slice(),
             building_scale.as_slice(),
         );
     }
-    if let Some(veg_scale) = read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "veg_scale"],
-        &site_at,
-        veg_entries_read,
-    )? {
+    if let Some(veg_scale) = read_layer_seq("veg_scale", veg_req)? {
         assign_prefix(
             site.spartacus_layer.veg_scale.as_mut_slice(),
             veg_scale.as_slice(),
         );
     }
-    if let Some(veg_ext) = read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "veg_ext"],
-        &site_at,
-        veg_entries_read,
-    )? {
+    if let Some(veg_ext) = read_layer_seq("veg_ext", veg_req)? {
         assign_prefix(
             site.spartacus_layer.veg_ext.as_mut_slice(),
             veg_ext.as_slice(),
         );
     }
 
+    // A short or missing roof/wall list is reported as such before naming
+    // per-layer fields on an incomplete list.
+    if spartacus_on {
+        for facet in ["roofs", "walls"] {
+            let facet_at = format!("{site_at}.properties.vertical_layers.{facet}");
+            match read_sequence(site_root, &["properties", "vertical_layers", facet]) {
+                Some(items) => require_list_length(items.len(), nlayer, &facet_at)?,
+                None if nlayer > 0 => {
+                    return Err(format!(
+                        "`{facet_at}` is missing; SPARTACUS (net_radiation > 1000) needs \
+                         nlayer = {nlayer} {facet}, each with an emissivity"
+                    ));
+                }
+                None => {}
+            }
+        }
+    }
+
     if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
         for (layer_idx, roof_root) in roofs.iter().enumerate() {
-            if let Some(v) = read_numeric(roof_root, &["alb"]) {
+            let roof_at = format!("{site_at}.properties.vertical_layers.roofs[{layer_idx}]");
+            let active_facet = spartacus_on && layer_idx < nlayer;
+            let alb = if active_facet {
+                require_numeric(roof_root, &["alb"], &roof_at).map(Some)?
+            } else {
+                parse_optional_numeric(roof_root, &["alb"], &roof_at)?
+            };
+            if let Some(v) = alb {
                 if let Some(slot) = site.spartacus_layer.alb_roof.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            let emissivity = if spartacus_on && layer_idx < nlayer {
+            let emissivity = if active_facet {
                 read_finite_numeric(roof_root, &["emis"]).map_err(|reason| {
                     format!(
-                        "`{site_at}.properties.vertical_layers.roofs[{layer_idx}].emis` is {reason}; \
+                        "`{roof_at}.emis` is {reason}; \
                          SPARTACUS (net_radiation > 1000) needs a finite emissivity"
                     )
                 })?
             } else {
-                read_numeric(roof_root, &["emis"])
+                parse_optional_numeric(roof_root, &["emis"], &roof_at)?
             };
             if let Some(v) = emissivity {
                 if let Some(slot) = site.spartacus_layer.emis_roof.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(roof_root, &["roof_albedo_dir_mult_fact"]) {
+            let mult = if active_facet && use_sw_direct_albedo {
+                require_numeric(roof_root, &["roof_albedo_dir_mult_fact"], &roof_at).map(Some)?
+            } else {
+                parse_optional_numeric(roof_root, &["roof_albedo_dir_mult_fact"], &roof_at)?
+            };
+            if let Some(v) = mult {
                 set_spartacus_layer_all_specs(
                     site.spartacus_layer
                         .roof_albedo_dir_mult_fact
@@ -1583,7 +1589,8 @@ fn apply_vertical_layers_overrides(
                     v,
                 );
             }
-            if let Some(v) = read_numeric(roof_root, &["wall_specular_frac"]) {
+            let spec = parse_optional_numeric(roof_root, &["wall_specular_frac"], &roof_at)?;
+            if let Some(v) = spec {
                 set_spartacus_layer_all_specs(
                     site.spartacus_layer.wall_specular_frac.as_mut_slice(),
                     nlayer,
@@ -1597,27 +1604,36 @@ fn apply_vertical_layers_overrides(
 
     if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
         for (layer_idx, wall_root) in walls.iter().enumerate() {
-            if let Some(v) = read_numeric(wall_root, &["alb"]) {
+            let wall_at = format!("{site_at}.properties.vertical_layers.walls[{layer_idx}]");
+            let active_facet = spartacus_on && layer_idx < nlayer;
+            let alb = if active_facet {
+                require_numeric(wall_root, &["alb"], &wall_at).map(Some)?
+            } else {
+                parse_optional_numeric(wall_root, &["alb"], &wall_at)?
+            };
+            if let Some(v) = alb {
                 if let Some(slot) = site.spartacus_layer.alb_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            let emissivity = if spartacus_on && layer_idx < nlayer {
+            let emissivity = if active_facet {
                 read_finite_numeric(wall_root, &["emis"]).map_err(|reason| {
                     format!(
-                        "`{site_at}.properties.vertical_layers.walls[{layer_idx}].emis` is {reason}; \
+                        "`{wall_at}.emis` is {reason}; \
                          SPARTACUS (net_radiation > 1000) needs a finite emissivity"
                     )
                 })?
             } else {
-                read_numeric(wall_root, &["emis"])
+                parse_optional_numeric(wall_root, &["emis"], &wall_at)?
             };
             if let Some(v) = emissivity {
                 if let Some(slot) = site.spartacus_layer.emis_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(wall_root, &["roof_albedo_dir_mult_fact"]) {
+            let mult =
+                parse_optional_numeric(wall_root, &["roof_albedo_dir_mult_fact"], &wall_at)?;
+            if let Some(v) = mult {
                 set_spartacus_layer_all_specs(
                     site.spartacus_layer
                         .roof_albedo_dir_mult_fact
@@ -1628,7 +1644,12 @@ fn apply_vertical_layers_overrides(
                     v,
                 );
             }
-            if let Some(v) = read_numeric(wall_root, &["wall_specular_frac"]) {
+            let spec = if active_facet {
+                require_numeric(wall_root, &["wall_specular_frac"], &wall_at).map(Some)?
+            } else {
+                parse_optional_numeric(wall_root, &["wall_specular_frac"], &wall_at)?
+            };
+            if let Some(v) = spec {
                 set_spartacus_layer_all_specs(
                     site.spartacus_layer.wall_specular_frac.as_mut_slice(),
                     nlayer,
@@ -1657,12 +1678,6 @@ fn apply_vertical_layers_overrides(
             ("n_stream_sw_forest", site.spartacus.n_stream_sw_forest),
             ("n_stream_lw_forest", site.spartacus.n_stream_lw_forest),
         ] {
-            let path = ["properties", "spartacus", name];
-            if get_path(site_root, &path).is_some() && read_i32(site_root, &path).is_none() {
-                return Err(format!(
-                    "`{site_at}.properties.spartacus.{name}` must be a finite integer"
-                ));
-            }
             if value < 1 {
                 return Err(format!(
                     "`{site_at}.properties.spartacus.{name}` must be positive"
@@ -1671,42 +1686,23 @@ fn apply_vertical_layers_overrides(
         }
         let trees = site.lc_evetr.sfr + site.lc_dectr.sfr;
         if trees > 1.0e-12 {
-            for (name, value) in [
+            for (name, slot) in [
                 (
                     "n_vegetation_region_urban",
-                    site.spartacus.n_vegetation_region_urban,
+                    &mut site.spartacus.n_vegetation_region_urban,
                 ),
                 (
                     "n_vegetation_region_forest",
-                    site.spartacus.n_vegetation_region_forest,
+                    &mut site.spartacus.n_vegetation_region_forest,
                 ),
             ] {
-                let path = ["properties", "spartacus", name];
-                if get_path(site_root, &path).is_some() && read_i32(site_root, &path).is_none() {
-                    return Err(format!(
-                        "`{site_at}.properties.spartacus.{name}` must be a finite integer"
-                    ));
-                }
+                let value = require_i32(site_root, &["properties", "spartacus", name], &site_at)?;
+                *slot = value;
                 if !(1..=2).contains(&value) {
                     return Err(format!(
                         "`{site_at}.properties.spartacus.{name}` must be 1 or 2"
                     ));
                 }
-            }
-        }
-        // A short roof or wall list is reported as such, before naming the
-        // first layer it leaves without an emissivity.
-        for facet in ["roofs", "walls"] {
-            let facet_at = format!("{site_at}.properties.vertical_layers.{facet}");
-            match read_sequence(site_root, &["properties", "vertical_layers", facet]) {
-                Some(items) => require_list_length(items.len(), nlayer, &facet_at)?,
-                None if nlayer > 0 => {
-                    return Err(format!(
-                        "`{facet_at}` is missing; SPARTACUS (net_radiation > 1000) needs \
-                         nlayer = {nlayer} {facet}, each with an emissivity"
-                    ));
-                }
-                None => {}
             }
         }
         for (facet, values) in [
@@ -2551,58 +2547,97 @@ fn apply_ehc_overrides(
                 8 if surface_name != "bldgs" => 0,
                 _ => 1,
             };
-            // The diagnostic DyOHM temperature update also reads k and cp
-            // outside methods 6-8; dz is only used by the storage schemes.
+            // The diagnostic DyOHM temperature update reads k and cp outside
+            // methods 5-8 when thermal_layers are supplied, but OHM/AnOHM/LUMPS
+            // configurations do not require thermal_layers to be present; dz is
+            // only used by the thermal storage schemes (methods 5-8).
+            let require_surface_thermal =
+                (5..=8).contains(&storage_heat_method) && surface_depth > 0;
             let thickness_depth = if (5..=8).contains(&storage_heat_method) {
                 surface_depth
             } else {
                 0
             };
             let tl_path = ["properties", "land_cover", surface_name, "thermal_layers"];
-            if let Some(k_vals) = read_sized_numeric_sequence(
-                site_root,
-                &[&[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"]],
-                &site_at,
-                surface_depth,
-            )? {
+            let k_path = [tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"];
+            let k_vals = if require_surface_thermal {
+                Some(require_sized_numeric_sequence(
+                    site_root,
+                    &[&k_path],
+                    &site_at,
+                    surface_depth,
+                )?)
+            } else if surface_depth > 0 {
+                parse_optional_sized_numeric_sequence(
+                    site_root,
+                    &[&k_path],
+                    &site_at,
+                    surface_depth,
+                )?
+            } else {
+                parse_optional_numeric_sequence(site_root, &[&k_path], &site_at)?
+            };
+            if let Some(k_vals) = k_vals {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_surf[surface_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_sized_numeric_sequence(
-                site_root,
-                &[
-                    &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
-                    &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
-                ],
-                &site_at,
-                surface_depth,
-            )? {
+            let rho_cp_path = [tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"];
+            let cp_path = [tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"];
+            let cp_vals = if require_surface_thermal {
+                Some(require_sized_numeric_sequence(
+                    site_root,
+                    &[&rho_cp_path, &cp_path],
+                    &site_at,
+                    surface_depth,
+                )?)
+            } else if surface_depth > 0 {
+                parse_optional_sized_numeric_sequence(
+                    site_root,
+                    &[&rho_cp_path, &cp_path],
+                    &site_at,
+                    surface_depth,
+                )?
+            } else {
+                parse_optional_numeric_sequence(site_root, &[&rho_cp_path, &cp_path], &site_at)?
+            };
+            if let Some(cp_vals) = cp_vals {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_surf[surface_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_sized_numeric_sequence(
-                site_root,
-                &[&[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"]],
-                &site_at,
-                thickness_depth,
-            )? {
+            let dz_path = [tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"];
+            let dz_vals = if thickness_depth > 0 {
+                Some(require_sized_numeric_sequence(
+                    site_root,
+                    &[&dz_path],
+                    &site_at,
+                    thickness_depth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(site_root, &[&dz_path], &site_at)?
+            };
+            if let Some(dz_vals) = dz_vals {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_surf[surface_idx * ndepth + j] = v;
                 }
             }
 
             // tin_surf from initial_states.<surface>.tin, fallback to temperature[0].
-            let tin = match read_numeric(site_root, &["initial_states", surface_name, "tin"]) {
+            let tin_path = ["initial_states", surface_name, "tin"];
+            let temp_path = ["initial_states", surface_name, "temperature"];
+            let tin = match parse_optional_numeric(site_root, &tin_path, &site_at)? {
                 Some(v) => Some(v),
-                None => read_numeric_sequence(
-                    site_root,
-                    &["initial_states", surface_name, "temperature"],
-                    &site_at,
-                    surface_tin_entries_read,
-                )?
-                .and_then(|vals| vals.first().copied()),
+                None if surface_tin_entries_read > 0 => Some(
+                    require_sized_numeric_sequence(
+                        site_root,
+                        &[&temp_path],
+                        &site_at,
+                        surface_tin_entries_read,
+                    )?[0],
+                ),
+                None => parse_optional_numeric_sequence(site_root, &[&temp_path], &site_at)?
+                    .and_then(|vals| vals.first().copied()),
             };
             if let Some(v) = tin {
                 site.ehc.tin_surf[surface_idx] = v;
@@ -2610,52 +2645,82 @@ fn apply_ehc_overrides(
         }
     }
 
-    if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
-        if ehc_is_on(storage_heat_method) {
-            require_list_length(
-                roofs.len(),
-                nlayer,
-                &format!("{site_at}.properties.vertical_layers.roofs"),
-            )?;
-        }
+    let facet_read = facet_layers_are_read(storage_heat_method, spartacus_on);
+    let roofs = if facet_read && nlayer > 0 {
+        Some(require_sequence(
+            site_root,
+            &["properties", "vertical_layers", "roofs"],
+            &site_at,
+            nlayer,
+        )?)
+    } else {
+        read_sequence(site_root, &["properties", "vertical_layers", "roofs"])
+    };
+    if let Some(roofs) = roofs {
         for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
             let at = format!("{site_at}.properties.vertical_layers.roofs[{layer_idx}]");
-            if let Some(v) = read_numeric(roof_root, &["soilstorecap"]) {
+            let read_facet_scalar = |key: &str| -> Result<Option<f64>, String> {
+                if facet_read {
+                    require_numeric(roof_root, &[key], &at).map(Some)
+                } else {
+                    parse_optional_numeric(roof_root, &[key], &at)
+                }
+            };
+            if let Some(v) = read_facet_scalar("soilstorecap")? {
                 site.ehc.soil_storecap_roof[layer_idx] = v;
             }
-            if let Some(v) = read_numeric(roof_root, &["statelimit"]) {
+            if let Some(v) = read_facet_scalar("statelimit")? {
                 site.ehc.state_limit_roof[layer_idx] = v;
             }
-            if let Some(v) = read_numeric(roof_root, &["wetthresh"]) {
+            if let Some(v) = read_facet_scalar("wetthresh")? {
                 site.ehc.wet_thresh_roof[layer_idx] = v;
             }
 
-            if let Some(k_vals) = read_sized_numeric_sequence(
-                roof_root,
-                &[&["thermal_layers", "k"]],
-                &at,
-                facet_depth,
-            )? {
+            let k_vals = if facet_depth > 0 {
+                Some(require_sized_numeric_sequence(
+                    roof_root,
+                    &[&["thermal_layers", "k"]],
+                    &at,
+                    facet_depth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(roof_root, &[&["thermal_layers", "k"]], &at)?
+            };
+            if let Some(k_vals) = k_vals {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_roof[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_sized_numeric_sequence(
-                roof_root,
-                &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
-                &at,
-                facet_depth,
-            )? {
+            let cp_vals = if facet_depth > 0 {
+                Some(require_sized_numeric_sequence(
+                    roof_root,
+                    &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
+                    &at,
+                    facet_depth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(
+                    roof_root,
+                    &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
+                    &at,
+                )?
+            };
+            if let Some(cp_vals) = cp_vals {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_roof[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_sized_numeric_sequence(
-                roof_root,
-                &[&["thermal_layers", "dz"]],
-                &at,
-                facet_depth,
-            )? {
+            let dz_vals = if facet_depth > 0 {
+                Some(require_sized_numeric_sequence(
+                    roof_root,
+                    &[&["thermal_layers", "dz"]],
+                    &at,
+                    facet_depth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(roof_root, &[&["thermal_layers", "dz"]], &at)?
+            };
+            if let Some(dz_vals) = dz_vals {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_roof[layer_idx * ndepth + j] = v;
                 }
@@ -2663,52 +2728,81 @@ fn apply_ehc_overrides(
         }
     }
 
-    if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
-        if ehc_is_on(storage_heat_method) {
-            require_list_length(
-                walls.len(),
-                nlayer,
-                &format!("{site_at}.properties.vertical_layers.walls"),
-            )?;
-        }
+    let walls = if facet_read && nlayer > 0 {
+        Some(require_sequence(
+            site_root,
+            &["properties", "vertical_layers", "walls"],
+            &site_at,
+            nlayer,
+        )?)
+    } else {
+        read_sequence(site_root, &["properties", "vertical_layers", "walls"])
+    };
+    if let Some(walls) = walls {
         for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
             let at = format!("{site_at}.properties.vertical_layers.walls[{layer_idx}]");
-            if let Some(v) = read_numeric(wall_root, &["soilstorecap"]) {
+            let read_facet_scalar = |key: &str| -> Result<Option<f64>, String> {
+                if facet_read {
+                    require_numeric(wall_root, &[key], &at).map(Some)
+                } else {
+                    parse_optional_numeric(wall_root, &[key], &at)
+                }
+            };
+            if let Some(v) = read_facet_scalar("soilstorecap")? {
                 site.ehc.soil_storecap_wall[layer_idx] = v;
             }
-            if let Some(v) = read_numeric(wall_root, &["statelimit"]) {
+            if let Some(v) = read_facet_scalar("statelimit")? {
                 site.ehc.state_limit_wall[layer_idx] = v;
             }
-            if let Some(v) = read_numeric(wall_root, &["wetthresh"]) {
+            if let Some(v) = read_facet_scalar("wetthresh")? {
                 site.ehc.wet_thresh_wall[layer_idx] = v;
             }
 
-            if let Some(k_vals) = read_sized_numeric_sequence(
-                wall_root,
-                &[&["thermal_layers", "k"]],
-                &at,
-                facet_depth,
-            )? {
+            let k_vals = if facet_depth > 0 {
+                Some(require_sized_numeric_sequence(
+                    wall_root,
+                    &[&["thermal_layers", "k"]],
+                    &at,
+                    facet_depth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(wall_root, &[&["thermal_layers", "k"]], &at)?
+            };
+            if let Some(k_vals) = k_vals {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_wall[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_sized_numeric_sequence(
-                wall_root,
-                &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
-                &at,
-                facet_depth,
-            )? {
+            let cp_vals = if facet_depth > 0 {
+                Some(require_sized_numeric_sequence(
+                    wall_root,
+                    &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
+                    &at,
+                    facet_depth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(
+                    wall_root,
+                    &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
+                    &at,
+                )?
+            };
+            if let Some(cp_vals) = cp_vals {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_wall[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_sized_numeric_sequence(
-                wall_root,
-                &[&["thermal_layers", "dz"]],
-                &at,
-                facet_depth,
-            )? {
+            let dz_vals = if facet_depth > 0 {
+                Some(require_sized_numeric_sequence(
+                    wall_root,
+                    &[&["thermal_layers", "dz"]],
+                    &at,
+                    facet_depth,
+                )?)
+            } else {
+                parse_optional_numeric_sequence(wall_root, &[&["thermal_layers", "dz"]], &at)?
+            };
+            if let Some(dz_vals) = dz_vals {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_wall[layer_idx * ndepth + j] = v;
                 }
@@ -2716,15 +2810,41 @@ fn apply_ehc_overrides(
         }
     }
 
-    if let Some(roofs) = read_sequence(site_root, &["initial_states", "roofs"]) {
+    let initial_roofs = if facet_read && nlayer > 0 {
+        Some(require_sequence(
+            site_root,
+            &["initial_states", "roofs"],
+            &site_at,
+            nlayer,
+        )?)
+    } else {
+        let items = read_sequence(site_root, &["initial_states", "roofs"]);
+        if let Some(items) = items {
+            if ehc_is_on(storage_heat_method) && nlayer > 0 {
+                require_list_length(
+                    items.len(),
+                    nlayer,
+                    &format!("{site_at}.initial_states.roofs"),
+                )?;
+            }
+        }
+        items
+    };
+    if let Some(roofs) = initial_roofs {
         for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
             let at = format!("{site_at}.initial_states.roofs[{layer_idx}]");
-            let tin = match read_numeric(roof_root, &["tin"]) {
+            let tin = match parse_optional_numeric(roof_root, &["tin"], &at)? {
                 Some(v) => Some(v),
-                None => {
-                    read_numeric_sequence(roof_root, &["temperature"], &at, facet_tin_entries_read)?
-                        .and_then(|vals| vals.first().copied())
-                }
+                None if facet_tin_entries_read > 0 => Some(
+                    require_sized_numeric_sequence(
+                        roof_root,
+                        &[&["temperature"]],
+                        &at,
+                        facet_tin_entries_read,
+                    )?[0],
+                ),
+                None => parse_optional_numeric_sequence(roof_root, &[&["temperature"]], &at)?
+                    .and_then(|vals| vals.first().copied()),
             };
             if let Some(v) = tin {
                 site.ehc.tin_roof[layer_idx] = v;
@@ -2732,15 +2852,41 @@ fn apply_ehc_overrides(
         }
     }
 
-    if let Some(walls) = read_sequence(site_root, &["initial_states", "walls"]) {
+    let initial_walls = if facet_read && nlayer > 0 {
+        Some(require_sequence(
+            site_root,
+            &["initial_states", "walls"],
+            &site_at,
+            nlayer,
+        )?)
+    } else {
+        let items = read_sequence(site_root, &["initial_states", "walls"]);
+        if let Some(items) = items {
+            if ehc_is_on(storage_heat_method) && nlayer > 0 {
+                require_list_length(
+                    items.len(),
+                    nlayer,
+                    &format!("{site_at}.initial_states.walls"),
+                )?;
+            }
+        }
+        items
+    };
+    if let Some(walls) = initial_walls {
         for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
             let at = format!("{site_at}.initial_states.walls[{layer_idx}]");
-            let tin = match read_numeric(wall_root, &["tin"]) {
+            let tin = match parse_optional_numeric(wall_root, &["tin"], &at)? {
                 Some(v) => Some(v),
-                None => {
-                    read_numeric_sequence(wall_root, &["temperature"], &at, facet_tin_entries_read)?
-                        .and_then(|vals| vals.first().copied())
-                }
+                None if facet_tin_entries_read > 0 => Some(
+                    require_sized_numeric_sequence(
+                        wall_root,
+                        &[&["temperature"]],
+                        &at,
+                        facet_tin_entries_read,
+                    )?[0],
+                ),
+                None => parse_optional_numeric_sequence(wall_root, &[&["temperature"]], &at)?
+                    .and_then(|vals| vals.first().copied()),
             };
             if let Some(v) = tin {
                 site.ehc.tin_wall[layer_idx] = v;
@@ -2911,23 +3057,29 @@ fn apply_site_overrides(
 ) -> Result<(), String> {
     let storage_heat_method = config.storage_heat_method;
     let spartacus_on = config.net_radiation_method > 1000;
+    let kdown_split_method = config.kdown_split_method;
+    let use_sw_direct_albedo = config.use_sw_direct_albedo;
     apply_conductance_overrides(site, root, site_root)?;
     site.lumps = read_lumps(site_root)?;
-    apply_spartacus_overrides(site, site_root)?;
-    if let Some(v) = read_numeric(root, &["model", "physics", "sw_dn_direct_frac"]) {
-        site.spartacus.sw_dn_direct_frac = v;
-    }
-    if let Some(v) = read_numeric(
+    apply_spartacus_overrides(
+        site,
         root,
-        &["model", "physics", "kdown_split_constant_direct_fraction"],
-    ) {
-        site.spartacus.sw_dn_direct_frac = v;
-    }
+        site_root,
+        spartacus_on,
+        kdown_split_method,
+        use_sw_direct_albedo,
+    )?;
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root, config, sfr_surf)?;
     apply_snow_overrides(site, site_root)?;
     apply_irrigation_overrides(site, site_root)?;
-    apply_vertical_layers_overrides(site, site_root, storage_heat_method, spartacus_on)?;
+    apply_vertical_layers_overrides(
+        site,
+        site_root,
+        storage_heat_method,
+        spartacus_on,
+        use_sw_direct_albedo,
+    )?;
     apply_anthro_emis_overrides(site, site_root)?;
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
@@ -7988,5 +8140,208 @@ mod tests {
         );
         load_run_config_from_value(&mut inactive)
             .expect("omitted inactive snow/tsfc/use_sw_direct_albedo/STEBBS sub-switches must pass under BR-03");
+    }
+
+    #[test]
+    fn spartacus_vertical_layers_and_ehc_enforce_active_and_allow_inactive_absence() {
+        // Active SPARTACUS + facet-resolved EHC (stebbs fixture with storage_heat 5).
+        let mut base: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+        *get_path_mut(&mut base, &["model", "physics", "storage_heat"]).unwrap() =
+            serde_yaml::from_str("{value: 5}").unwrap();
+
+        for (path, expected) in [
+            (
+                &["properties", "spartacus", "air_ext_sw"][..],
+                "sites[gridiv=1].properties.spartacus.air_ext_sw",
+            ),
+            (
+                &["properties", "spartacus", "n_stream_sw_urban"][..],
+                "sites[gridiv=1].properties.spartacus.n_stream_sw_urban",
+            ),
+            (
+                &["properties", "spartacus", "veg_ssa_sw"][..],
+                "sites[gridiv=1].properties.spartacus.veg_ssa_sw",
+            ),
+            (
+                &["properties", "vertical_layers", "height"][..],
+                "sites[gridiv=1].properties.vertical_layers.height",
+            ),
+            (
+                &["properties", "vertical_layers", "building_scale"][..],
+                "sites[gridiv=1].properties.vertical_layers.building_scale",
+            ),
+            (
+                &["properties", "vertical_layers", "veg_frac"][..],
+                "sites[gridiv=1].properties.vertical_layers.veg_frac",
+            ),
+        ] {
+            let mut missing = base.clone();
+            let (parent_path, leaf) = path.split_at(path.len() - 1);
+            remove_key(
+                get_path_mut(first_site_mut(&mut missing).unwrap(), parent_path).unwrap(),
+                leaf[0],
+            );
+            let err = load_run_config_from_value(&mut missing)
+                .expect_err(&format!("missing {expected} under active SPARTACUS+EHC must fail"));
+            assert!(err.contains(expected), "missing {expected}: {err}");
+        }
+
+        // Missing roof albedo / soil_store_capacity / thermal_layers.k under SPARTACUS + EHC fails.
+        for (facet, key, expected) in [
+            ("roofs", "alb", "sites[gridiv=1].properties.vertical_layers.roofs[0].alb"),
+            (
+                "walls",
+                "wall_specular_frac",
+                "sites[gridiv=1].properties.vertical_layers.walls[0].wall_specular_frac",
+            ),
+            (
+                "roofs",
+                "soil_store_capacity",
+                "sites[gridiv=1].properties.vertical_layers.roofs[0].soil_store_capacity",
+            ),
+        ] {
+            let mut missing = base.clone();
+            let items = get_path_mut(
+                first_site_mut(&mut missing).unwrap(),
+                &["properties", "vertical_layers", facet],
+            )
+            .unwrap()
+            .as_sequence_mut()
+            .unwrap();
+            remove_key(&mut items[0], key);
+            let err = load_run_config_from_value(&mut missing)
+                .expect_err(&format!("missing {expected} must fail"));
+            assert!(err.contains(expected), "missing {expected}: {err}");
+        }
+
+        // Inactive SPARTACUS (net_radiation=3, storage_heat=1): omitting properties.spartacus and
+        // vertical_layers.veg_* succeeds cleanly (BR-03).
+        let mut inactive: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let site = first_site_mut(&mut inactive).unwrap();
+        remove_key(get_path_mut(site, &["properties"]).unwrap(), "spartacus");
+        remove_key(
+            get_path_mut(site, &["properties", "vertical_layers"]).unwrap(),
+            "veg_ext",
+        );
+        load_run_config_from_value(&mut inactive)
+            .expect("omitting inactive spartacus block and veg_ext must succeed under BR-03");
+
+        // Lumped EHC (net_radiation=3, storage_heat=5, nlayer=3): omitting
+        // properties.vertical_layers.roofs and walls succeeds because the lumped
+        // branch does not read facet properties (initial_states.roofs/walls stay required).
+        fixture_with_options(3, 5, |site| {
+            let vl = get_path_mut(site, &["properties", "vertical_layers"]).unwrap();
+            remove_key(vl, "roofs");
+            remove_key(vl, "walls");
+        })
+        .expect("lumped EHC (storage_heat=5, net_radiation=3) must allow omitted facet property lists");
+
+        // OHM (storage_heat=1) treats bare `null` and `{value: null}` on optional
+        // thermal_layers.{k, rho_cp} as absent, matching omitted lists.
+        for null_repr in ["null", "{value: null}"] {
+            fixture_with_options(3, 1, |site| {
+                set_site_path(site, "properties.land_cover.paved.thermal_layers.k", null_repr);
+                set_site_path(
+                    site,
+                    "properties.land_cover.paved.thermal_layers.rho_cp",
+                    null_repr,
+                );
+            })
+            .unwrap_or_else(|e| {
+                panic!("OHM must treat thermal_layers {null_repr} as absent: {e}")
+            });
+        }
+
+        // SPARTACUS + Reindl split (kdown_split_method=4) does not consume sw_dn_direct_frac,
+        // whereas Perez (3) requires it.
+        {
+            let mut reindl = base.clone();
+            *get_path_mut(&mut reindl, &["model", "physics", "kdown_split_method"]).unwrap() =
+                serde_yaml::from_str("{value: 4}").unwrap();
+            remove_key(
+                get_path_mut(&mut reindl, &["model", "physics"]).unwrap(),
+                "sw_dn_direct_frac",
+            );
+            remove_key(
+                get_path_mut(first_site_mut(&mut reindl).unwrap(), &["properties", "spartacus"])
+                    .unwrap(),
+                "sw_dn_direct_frac",
+            );
+            load_run_config_from_value(&mut reindl)
+                .expect("SPARTACUS with kdown_split_method=4 (Reindl) must allow omitted sw_dn_direct_frac");
+
+            let mut perez = base.clone();
+            *get_path_mut(&mut perez, &["model", "physics", "kdown_split_method"]).unwrap() =
+                serde_yaml::from_str("{value: 3}").unwrap();
+            remove_key(
+                get_path_mut(&mut perez, &["model", "physics"]).unwrap(),
+                "sw_dn_direct_frac",
+            );
+            remove_key(
+                get_path_mut(first_site_mut(&mut perez).unwrap(), &["properties", "spartacus"])
+                    .unwrap(),
+                "sw_dn_direct_frac",
+            );
+            let err = load_run_config_from_value(&mut perez)
+                .expect_err("SPARTACUS with kdown_split_method=3 (Perez) must require sw_dn_direct_frac");
+            assert!(err.contains("sw_dn_direct_frac"), "{err}");
+        }
+
+        // Direct-albedo multipliers are required only when SPARTACUS AND
+        // use_sw_direct_albedo are both enabled.
+        {
+            let mut dir_off = base.clone();
+            let site = first_site_mut(&mut dir_off).unwrap();
+            *get_path_mut(site, &["properties", "spartacus", "use_sw_direct_albedo"]).unwrap() =
+                serde_yaml::from_str("{value: 0}").unwrap();
+            remove_key(
+                get_path_mut(site, &["properties", "spartacus"]).unwrap(),
+                "ground_albedo_dir_mult_fact",
+            );
+            let roofs = get_path_mut(site, &["properties", "vertical_layers", "roofs"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            remove_key(&mut roofs[0], "roof_albedo_dir_mult_fact");
+            load_run_config_from_value(&mut dir_off)
+                .expect("use_sw_direct_albedo=0 must allow omitted direct-albedo multipliers");
+
+            let mut dir_on_ground = base.clone();
+            let site = first_site_mut(&mut dir_on_ground).unwrap();
+            *get_path_mut(site, &["properties", "spartacus", "use_sw_direct_albedo"]).unwrap() =
+                serde_yaml::from_str("{value: 1}").unwrap();
+            remove_key(
+                get_path_mut(site, &["properties", "spartacus"]).unwrap(),
+                "ground_albedo_dir_mult_fact",
+            );
+            let err = load_run_config_from_value(&mut dir_on_ground)
+                .expect_err("use_sw_direct_albedo=1 must require ground_albedo_dir_mult_fact");
+            assert!(err.contains("ground_albedo_dir_mult_fact"), "{err}");
+
+            let mut dir_on_roof = base.clone();
+            let site = first_site_mut(&mut dir_on_roof).unwrap();
+            *get_path_mut(site, &["properties", "spartacus", "use_sw_direct_albedo"]).unwrap() =
+                serde_yaml::from_str("{value: 1}").unwrap();
+            let roofs = get_path_mut(site, &["properties", "vertical_layers", "roofs"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            remove_key(&mut roofs[0], "roof_albedo_dir_mult_fact");
+            let err = load_run_config_from_value(&mut dir_on_roof)
+                .expect_err("use_sw_direct_albedo=1 must require roof_albedo_dir_mult_fact");
+            assert!(err.contains("roof_albedo_dir_mult_fact"), "{err}");
+        }
+
+        // Malformed whole-list values on inactive optional sequences are rejected rather than skipped.
+        for bad in ["false", "{value: \"bad\"}"] {
+            let err = fixture_with_options(3, 1, |site| {
+                set_site_path(site, "properties.vertical_layers.veg_ext", bad);
+            })
+            .expect_err(&format!("malformed inactive veg_ext={bad} must fail"));
+            assert!(
+                err.contains("sites[gridiv=1].properties.vertical_layers.veg_ext"),
+                "malformed inactive veg_ext={bad}: {err}"
+            );
+        }
     }
 }

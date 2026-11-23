@@ -93,17 +93,17 @@ Precompile any state transfer as mechanics, never invent it during execution.
 [procedure: Principle 1]
 
 An `inventory` is `{work: [file], home: [file], redirects: {original_path: [file]}}`,
-with each `file` containing
-`path` (root-relative), `size` (bytes) and `sha256` (file-byte digest). Sort by
-path; include hidden files recursively. Record symlinks separately with their
-link target; do not follow them outside the roots. Report unreadable files and
-other unobserved scope as recording limits, never omit them silently. Capture
-both inventories before and after each executed step, including failures and
-timeouts; unrun steps use null inventories with a reason. Preserve created or
-changed contents and prior versions. `redirects` maps each literal shared path
-(such as `/tmp/suews_debug`) to its per-run directory inventory; record each
-disclosed substitution or per-run mount/namespace (`{original_path, per_run_path,
-method}`) in `mechanics`. [procedure: Principle 1]
+with each `file` containing `path` (root-relative), `size` (bytes) and `sha256`
+(file-byte digest). Sort by path; include hidden files recursively. Record
+symlinks separately with their link target; do not follow them outside the
+roots. Report unreadable files and other unobserved scope as recording limits,
+never omit them silently. Capture both inventories before and after each
+executed step, including failures and timeouts; unrun steps use null inventories
+with a reason. Preserve created or changed contents and prior versions.
+`redirects` maps each literal shared path (such as `/tmp/suews_debug`) to its
+per-run directory inventory; record each disclosed substitution or per-run
+mount/namespace (`{original_path, per_run_path, method}`) in `mechanics`.
+[procedure: Principle 1]
 
 Record virtual-environment installation changes separately in the install step so they
 do not swamp reader outputs. List additional write locations and any unobserved
@@ -132,10 +132,10 @@ or unresolved), `evidence`, `premise`, `next_check` and `reproduction` (null unt
 available). Infrastructure/setup blockers (including a coordinator setup error
 where a wrongly chosen or wrongly assembled declared input mismatches the quoted
 page assumption, citing both the quoted assumption and the mismatching property)
-have their own record. Populate the handoff
-in SKILL.md from these records, preserving all untested promises and decisions.
-A confirmed observation includes the independent record and reproducer; inferred
-attribution never gains that status by association. [procedure: Principle 1]
+have their own record. Populate the handoff in SKILL.md from these records,
+preserving all untested promises and decisions. A confirmed observation includes
+the independent record and reproducer; inferred attribution never gains that
+status by association. [procedure: Principle 1]
 
 ## PR machine-readable handoff (schema version 1)
 

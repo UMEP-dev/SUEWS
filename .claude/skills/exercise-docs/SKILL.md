@@ -38,7 +38,7 @@ separate; a page revision does not prove which package was installed.
 Select only `:doc-source: hand-written` pages. `docs/source/_ext/doc_source.py`
 (delivered by #2181 for #2162) enforces `:doc-source:` labels on revisions where
 it exists.
-[fact: git grep -n "raise SphinxError" docs/source/_ext/doc_source.py && git log --diff-filter=A -- docs/source/_ext/doc_source.py]
+[fact: git grep -n "raise SphinxError" docs/source/_ext/doc_source.py; git log --diff-filter=A --oneline -- docs/source/_ext/doc_source.py (output names the adding commit, #2181)]
 When a page has no `:doc-source:` label, distinguish two cases: [procedure: Principle 1]
 
 - At a revision where `docs/source/_ext/doc_source.py` exists (`git cat-file -e
@@ -113,10 +113,12 @@ step. Never hand-edit a compiled script: correct the reading and compile again.
 Apply all of these compilation rules: [procedure: Principle 1]
 
 - Copy every documented command or Python statement verbatim from the page,
-  removing only presentation markup and code-block indentation. Preserve order,
-  language, working directory and interactive Python state between blocks.
-  Every step quotes its exact source sentence or code block and gives the source
-  path, full revision and inclusive line range.
+  removing only presentation markup and code-block indentation (the sole
+  exception is a coordinator-declared shared-path substitution under section 4,
+  recorded in `mechanics`, not as verbatim). Preserve order, language, working
+  directory and interactive Python state between blocks. Every step quotes its
+  exact source sentence or code block and gives the source path, full revision
+  and inclusive line range.
 - Mark a prose instruction needing an action `reader-inferred`; generate only
   the smallest action satisfying that quoted sentence. Record the choice and
   draw only from the coordinator's declared-input manifest from section 1 (citing
@@ -212,11 +214,13 @@ paths. Keep the evidence directory outside the reader's work/home; record the
 preparation commands, Python/platform and isolation checks. Where a page
 instruction names a literal shared or host-global path (such as
 `/tmp/suews_debug`), either replace it with a per-run path through a disclosed
-substitution decided at compile time and recorded as a `mechanics` entry (as
-`record-format.md` requires for precompiled mechanics, without presenting the
-substituted command as verbatim) or isolate it with a per-run mount/namespace;
-include the per-run path in per-step file inventories so concurrent or repeated
-runs cannot collide. [procedure: Principle 1]
+substitution or isolate it with a per-run mount/namespace. For a substitution,
+the coordinator declares it in both compilers' briefs (as it does for declared
+inputs) so the two compiles use the same per-run path, and the compile records
+it as a `mechanics` entry (as `record-format.md` requires for precompiled
+mechanics, without presenting the substituted command as verbatim). In either
+case, include the per-run path in per-step file inventories so concurrent or
+repeated runs cannot collide. [procedure: Principle 1]
 
 Exercise a page at repository revision `R` against SUEWS built from that same
 revision `R` (the primary `page-revision-build` route: a non-editable install
@@ -231,15 +235,14 @@ substitute a known working wheel for either route.
 
 Record the route (`page-revision-build` or `reader-install-line`), the revision
 built from or install command run, actual package/dependency versions,
-distribution hashes where available,
-inputs and installation output. Do not claim the page revision is the software
-revision without evidence. Identical scripts give identical decisions for the
-same inputs; changing package indexes, data, platform or external services can
-change outcomes. Preserve resolved inputs for comparison and report such drift
-without silently pinning or rewriting the page's install command.
-Keep the two routes' records separate so a packaging break in a published
-release is never conflated with a defect at the page's revision.
-[procedure: Principle 1]
+distribution hashes where available, inputs and installation output. Do not
+claim the page revision is the software revision without evidence. Identical
+scripts give identical decisions for the same inputs; changing package indexes,
+data, platform or external services can change outcomes. Preserve resolved
+inputs for comparison and report such drift without silently pinning or
+rewriting the page's install command. Keep the two routes' records separate so
+a packaging break in a published release is never conflated with a defect at
+the page's revision. [procedure: Principle 1]
 
 Run the frozen script mechanically using the persistent Python process, fresh
 shells and per-step inventories defined in record-format.md (Execution mechanics).

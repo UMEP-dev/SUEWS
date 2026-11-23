@@ -238,7 +238,9 @@ def _assert_diagnose_matches_monolithic(
     checks_w, checks_s = _check_map(env_dw), _check_map(env_ds)
     assert checks_s["output_files_present"]["passed"] is True
     assert checks_s["output_files_present"]["details"]["files"] == [str(path_dataset)]
-    assert checks_s["nan_proportion"]["details"] == checks_w["nan_proportion"]["details"]
+    assert (
+        checks_s["nan_proportion"]["details"] == checks_w["nan_proportion"]["details"]
+    )
     assert checks_s["energy_balance_closure"]["details"]["n_rows"] == expected_rows
     assert checks_s["energy_balance_closure"]["details"]["ratio_mean"] == pytest.approx(
         checks_w["energy_balance_closure"]["details"]["ratio_mean"]
@@ -262,8 +264,18 @@ def test_completed_streamed_parquet_matches_monolithic_and_ignores_noise(
 
     _assert_diagnose_matches_monolithic(dir_whole, dir_stream, path_dataset, 24)
 
-    rc_sw, env_sw = _invoke_cli(["summarise", str(dir_whole), "--variables", "QH,QE,QN"])
-    rc_ss, env_ss = _invoke_cli(["summarise", str(dir_stream), "--variables", "QH,QE,QN"])
+    rc_sw, env_sw = _invoke_cli([
+        "summarise",
+        str(dir_whole),
+        "--variables",
+        "QH,QE,QN",
+    ])
+    rc_ss, env_ss = _invoke_cli([
+        "summarise",
+        str(dir_stream),
+        "--variables",
+        "QH,QE,QN",
+    ])
     assert rc_sw == 0 and rc_ss == 0
     assert env_ss["data"]["n_steps"] == env_sw["data"]["n_steps"] == 24
     assert env_ss["data"]["period"] == env_sw["data"]["period"]
@@ -274,8 +286,12 @@ def test_completed_streamed_parquet_matches_monolithic_and_ignores_noise(
     assert env_cmp["data"]["time_axis_overlap"]["n"] == 24
     for var in ("QH", "QE", "QN"):
         assert env_cmp["data"]["per_variable"][var]["n"] == 24
-        assert env_cmp["data"]["per_variable"][var]["rmse"] == pytest.approx(0.0, abs=1e-12)
-        assert env_cmp["data"]["per_variable"][var]["bias"] == pytest.approx(0.0, abs=1e-12)
+        assert env_cmp["data"]["per_variable"][var]["rmse"] == pytest.approx(
+            0.0, abs=1e-12
+        )
+        assert env_cmp["data"]["per_variable"][var]["bias"] == pytest.approx(
+            0.0, abs=1e-12
+        )
 
     # Restricted output group policy is preserved: non-SUEWS STEBBS stays excluded.
     rc_stebbs, env_stebbs = _invoke_cli([
@@ -307,7 +323,10 @@ def test_later_part_only_signal_is_caught_by_compare_summarise_and_diagnose(
     dir_biased = tmp_path / "biased"
     _write_streamed_run(
         dir_biased,
-        [(2017, 1, df_base_1), (2017, 2, _make_balanced_frame(day2, qh_offset_by_grid={1: 20.0}))],
+        [
+            (2017, 1, df_base_1),
+            (2017, 2, _make_balanced_frame(day2, qh_offset_by_grid={1: 20.0})),
+        ],
         complete=True,
     )
 
@@ -324,7 +343,12 @@ def test_later_part_only_signal_is_caught_by_compare_summarise_and_diagnose(
     assert env_cmp["data"]["per_variable"]["QH"]["rmse"] > 10.0
 
     _, env_sum_b = _invoke_cli(["summarise", str(dir_base), "--variables", "QH"])
-    rc_sum_s, env_sum_s = _invoke_cli(["summarise", str(dir_biased), "--variables", "QH"])
+    rc_sum_s, env_sum_s = _invoke_cli([
+        "summarise",
+        str(dir_biased),
+        "--variables",
+        "QH",
+    ])
     assert rc_sum_s == 0 and env_sum_s["data"]["n_steps"] == 20
     assert env_sum_s["data"]["variables"][0]["mean"] == pytest.approx(
         env_sum_b["data"]["variables"][0]["mean"] + 10.0
@@ -363,9 +387,27 @@ def test_two_grid_multi_year_streamed_dataset_ordering_and_selection(
 ) -> None:
     """Two grids across two years preserve ordering, grid selection, and per-grid checks."""
     chunks_base = [
-        (2011, 2, _make_balanced_frame(pd.date_range("2011-12-31 22:05", periods=6, freq="5min"), grids=(1, 2))),
-        (2012, 1, _make_balanced_frame(pd.date_range("2012-01-01 00:05", periods=6, freq="5min"), grids=(1, 2))),
-        (2012, 2, _make_balanced_frame(pd.date_range("2012-01-02 00:05", periods=6, freq="5min"), grids=(1, 2))),
+        (
+            2011,
+            2,
+            _make_balanced_frame(
+                pd.date_range("2011-12-31 22:05", periods=6, freq="5min"), grids=(1, 2)
+            ),
+        ),
+        (
+            2012,
+            1,
+            _make_balanced_frame(
+                pd.date_range("2012-01-01 00:05", periods=6, freq="5min"), grids=(1, 2)
+            ),
+        ),
+        (
+            2012,
+            2,
+            _make_balanced_frame(
+                pd.date_range("2012-01-02 00:05", periods=6, freq="5min"), grids=(1, 2)
+            ),
+        ),
     ]
     part_last = pd.date_range("2012-01-02 00:05", periods=6, freq="5min")
     dir_base, dir_scen = tmp_path / "base_2g", tmp_path / "scen_2g"
@@ -377,7 +419,13 @@ def test_two_grid_multi_year_streamed_dataset_ordering_and_selection(
         [
             chunks_base[0],
             chunks_base[1],
-            (2012, 2, _make_balanced_frame(part_last, grids=(1, 2), qh_offset_by_grid={2: 15.0})),
+            (
+                2012,
+                2,
+                _make_balanced_frame(
+                    part_last, grids=(1, 2), qh_offset_by_grid={2: 15.0}
+                ),
+            ),
         ],
         site="site",
         complete=True,
@@ -426,7 +474,13 @@ def test_two_grid_multi_year_streamed_dataset_ordering_and_selection(
         [
             chunks_base[0],
             chunks_base[1],
-            (2012, 2, _make_balanced_frame(part_last, grids=(1, 2), nan_qh_fraction_by_grid={2: 0.5})),
+            (
+                2012,
+                2,
+                _make_balanced_frame(
+                    part_last, grids=(1, 2), nan_qh_fraction_by_grid={2: 0.5}
+                ),
+            ),
         ],
         site="site",
         complete=True,
@@ -438,7 +492,9 @@ def test_two_grid_multi_year_streamed_dataset_ordering_and_selection(
     assert checks["nan_proportion"]["details"]["n_partitions"] == 2
     fractions = checks["nan_proportion"]["details"]["fractions"]
     assert fractions["site_SUEWS_output.parquet[grid=1]"]["QH"] == pytest.approx(0.0)
-    assert fractions["site_SUEWS_output.parquet[grid=2]"]["QH"] == pytest.approx(3.0 / 18.0)
+    assert fractions["site_SUEWS_output.parquet[grid=2]"]["QH"] == pytest.approx(
+        3.0 / 18.0
+    )
 
 
 def test_partial_vs_completed_streamed_dataset(tmp_path: Path) -> None:
@@ -453,7 +509,9 @@ def test_partial_vs_completed_streamed_dataset(tmp_path: Path) -> None:
     path_dataset = _write_streamed_run(
         dir_partial, [(2017, 1, df_day1)], site="site", complete=False
     )
-    (path_dataset / ".part-2017-002.parquet.tmp").write_bytes(b"corrupted partial write")
+    (path_dataset / ".part-2017-002.parquet.tmp").write_bytes(
+        b"corrupted partial write"
+    )
 
     rc_dp, env_dp = _invoke_cli(["diagnose", str(dir_partial)])
     assert rc_dp == 0 and env_dp["status"] == "warning"
@@ -464,12 +522,18 @@ def test_partial_vs_completed_streamed_dataset(tmp_path: Path) -> None:
     assert checks_p["energy_balance_closure"]["passed"] is True
     assert checks_p["energy_balance_closure"]["details"]["n_rows"] == 8
 
-    assert _invoke_cli(["compare", str(dir_ref), str(dir_partial)])[1]["data"][
-        "time_axis_overlap"
-    ]["n"] == 8
-    assert _invoke_cli(["summarise", str(dir_partial), "--variables", "QH"])[1]["data"][
-        "n_steps"
-    ] == 8
+    assert (
+        _invoke_cli(["compare", str(dir_ref), str(dir_partial)])[1]["data"][
+            "time_axis_overlap"
+        ]["n"]
+        == 8
+    )
+    assert (
+        _invoke_cli(["summarise", str(dir_partial), "--variables", "QH"])[1]["data"][
+            "n_steps"
+        ]
+        == 8
+    )
 
     _write_streamed_run(
         dir_done,
@@ -482,12 +546,18 @@ def test_partial_vs_completed_streamed_dataset(tmp_path: Path) -> None:
     checks_c = _check_map(env_dc)
     assert checks_c["provenance_present"]["passed"] is True
     assert checks_c["energy_balance_closure"]["details"]["n_rows"] == 16
-    assert _invoke_cli(["compare", str(dir_ref), str(dir_done)])[1]["data"][
-        "time_axis_overlap"
-    ]["n"] == 16
-    assert _invoke_cli(["summarise", str(dir_done), "--variables", "QH"])[1]["data"][
-        "n_steps"
-    ] == 16
+    assert (
+        _invoke_cli(["compare", str(dir_ref), str(dir_done)])[1]["data"][
+            "time_axis_overlap"
+        ]["n"]
+        == 16
+    )
+    assert (
+        _invoke_cli(["summarise", str(dir_done), "--variables", "QH"])[1]["data"][
+            "n_steps"
+        ]
+        == 16
+    )
 
 
 def test_direct_input_standalone_file_vs_canonical_dataset_directory(
@@ -508,10 +578,17 @@ def test_direct_input_standalone_file_vs_canonical_dataset_directory(
         rc_cmp, env_cmp = _invoke_cli(["compare", str(left), str(right)])
         assert rc_cmp == 0 and env_cmp["status"] == "success"
         assert env_cmp["data"]["time_axis_overlap"]["n"] == 16
-        assert env_cmp["data"]["per_variable"]["QH"]["rmse"] == pytest.approx(0.0, abs=1e-12)
+        assert env_cmp["data"]["per_variable"]["QH"]["rmse"] == pytest.approx(
+            0.0, abs=1e-12
+        )
 
     _, env_sf = _invoke_cli(["summarise", str(path_file), "--variables", "QH,QE,QN"])
-    rc_sd, env_sd = _invoke_cli(["summarise", str(path_dataset), "--variables", "QH,QE,QN"])
+    rc_sd, env_sd = _invoke_cli([
+        "summarise",
+        str(path_dataset),
+        "--variables",
+        "QH,QE,QN",
+    ])
     assert rc_sd == 0
     assert env_sd["data"]["n_steps"] == env_sf["data"]["n_steps"] == 16
     assert env_sd["data"]["period"] == env_sf["data"]["period"]
@@ -551,7 +628,9 @@ def test_empty_and_temporary_only_dataset_directories_fail_cleanly(
     ds_empty = dir_empty / "site_SUEWS_output.parquet"
     ds_empty.mkdir(parents=True)
     (dir_empty / "provenance.json").write_text("{}", encoding="utf-8")
-    pd.DataFrame([{"site": "site"}]).to_parquet(dir_empty / "site_SUEWS_metadata.parquet")
+    pd.DataFrame([{"site": "site"}]).to_parquet(
+        dir_empty / "site_SUEWS_metadata.parquet"
+    )
 
     dir_tmp_only = tmp_path / "tmp_only_run"
     ds_tmp_only = dir_tmp_only / "site_SUEWS_output.parquet"
@@ -625,7 +704,9 @@ def test_explicit_clock_suffix_and_format_priority_avoid_double_counting(
     rc_cmp, env_cmp = _invoke_cli(["compare", str(dir_ref), str(dir_mixed)])
     assert rc_cmp == 0
     assert env_cmp["data"]["time_axis_overlap"]["n"] == 12
-    assert env_cmp["data"]["per_variable"]["QH"]["rmse"] == pytest.approx(0.0, abs=1e-12)
+    assert env_cmp["data"]["per_variable"]["QH"]["rmse"] == pytest.approx(
+        0.0, abs=1e-12
+    )
 
     rc_sum, env_sum = _invoke_cli(["summarise", str(dir_mixed), "--variables", "QH"])
     assert rc_sum == 0
@@ -633,9 +714,7 @@ def test_explicit_clock_suffix_and_format_priority_avoid_double_counting(
     assert env_sum["data"]["variables"][0]["nan_pct"] == pytest.approx(0.0)
 
 
-def _assert_full_summary_matches_monolithic(
-    dir_whole: Path, dir_stream: Path
-) -> None:
+def _assert_full_summary_matches_monolithic(dir_whole: Path, dir_stream: Path) -> None:
     """Compare full default summaries and direct finite/infinity counts."""
     rc_whole, env_whole = _invoke_cli(["summarise", str(dir_whole)])
     rc_stream, env_stream = _invoke_cli(["summarise", str(dir_stream)])
@@ -660,9 +739,9 @@ def _assert_full_summary_matches_monolithic(
         )
         assert not np.isinf(arr_whole).any(), key
         assert not np.isinf(arr_stream).any(), key
-        assert int(np.isfinite(arr_stream).sum()) == int(np.isfinite(arr_whole).sum()), (
-            key
-        )
+        assert int(np.isfinite(arr_stream).sum()) == int(
+            np.isfinite(arr_whole).sum()
+        ), key
         assert entry_whole["nan_pct"] == pytest.approx(
             float(np.isnan(arr_whole).mean() * 100.0), abs=1e-12
         )
@@ -689,12 +768,18 @@ def _assert_streamed_matches_monolithic_summary(
     aligns DailyState onto the ``23:00:00`` hourly rows (48 rows) across all
     groups.
     """
-    rc_whole_sel, env_whole_sel = _invoke_cli(
-        ["summarise", str(dir_whole), "--variables", "QH,QE,QN"]
-    )
-    rc_stream_sel, env_stream_sel = _invoke_cli(
-        ["summarise", str(dir_stream), "--variables", "QH,QE,QN"]
-    )
+    rc_whole_sel, env_whole_sel = _invoke_cli([
+        "summarise",
+        str(dir_whole),
+        "--variables",
+        "QH,QE,QN",
+    ])
+    rc_stream_sel, env_stream_sel = _invoke_cli([
+        "summarise",
+        str(dir_stream),
+        "--variables",
+        "QH,QE,QN",
+    ])
     assert rc_whole_sel == 0 and env_whole_sel["status"] == "success", env_whole_sel
     assert rc_stream_sel == 0 and env_stream_sel["status"] == "success", env_stream_sel
     assert env_whole_sel["data"]["n_steps"] == 48
@@ -769,8 +854,12 @@ def test_real_model_streamed_parquet_positive_control(
     assert rc_cmp == 0 and env_cmp["status"] == "success"
     for var in ("QH", "QE", "QN"):
         assert env_cmp["data"]["per_variable"][var]["n"] == 48
-        assert env_cmp["data"]["per_variable"][var]["rmse"] == pytest.approx(0.0, abs=1e-12)
-        assert env_cmp["data"]["per_variable"][var]["bias"] == pytest.approx(0.0, abs=1e-12)
+        assert env_cmp["data"]["per_variable"][var]["rmse"] == pytest.approx(
+            0.0, abs=1e-12
+        )
+        assert env_cmp["data"]["per_variable"][var]["bias"] == pytest.approx(
+            0.0, abs=1e-12
+        )
 
     _assert_streamed_matches_monolithic_summary(dir_whole, dir_stream)
 
@@ -932,9 +1021,13 @@ def test_harmless_column_reordering_preserved(tmp_path: Path) -> None:
     )
     rc_d, env_d = _invoke_cli(["diagnose", str(dir_reorder)])
     assert rc_d == 0 and env_d["status"] == "success", env_d
-    rc_c, env_c = _invoke_cli(
-        ["compare", str(dir_mono), str(dir_reorder), "--variables", "QH"]
-    )
+    rc_c, env_c = _invoke_cli([
+        "compare",
+        str(dir_mono),
+        str(dir_reorder),
+        "--variables",
+        "QH",
+    ])
     assert rc_c == 0 and env_c["data"]["per_variable"]["QH"]["n"] == 101
     assert env_c["data"]["per_variable"]["QH"]["rmse"] == pytest.approx(0.0, abs=1e-12)
 

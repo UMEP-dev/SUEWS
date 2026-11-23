@@ -944,7 +944,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when EHC (storage_heat=5) or DyOHM (storage_heat=6) evolves surface/inner temperatures.",
-      "owner_issue": "#2003",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1455,7 +1455,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always active for every site; hdd_id is a fixed 12-slot heating/cooling degree-day state vector.",
-      "owner_issue": "#2003",
+      "owner_issue": "#1991",
       "related_issues": [
         "#1991",
         "#2001"

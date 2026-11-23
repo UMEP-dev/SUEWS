@@ -106,7 +106,7 @@
       "reason": "Biogenic CO2 enhancement parameter typed Optional[FlexibleRefValue] with non-None default without active-method null guard."
     },
     "debt_opt_surface_init_temp": {
-      "owner_issue": "#2003",
+      "owner_issue": "#1991",
       "reason": "SurfaceInitialState temperature typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_building_layer_optical": {

@@ -182,7 +182,7 @@ mappings:
       ledger: "S"
       group: "debt_opt_surface_init_temp"
     contract: "C-WARMSTART"
-    issue: 2003
+    issue: 1991
     classification: "defect"
   - selector:
       ledger: "S"
@@ -215,13 +215,6 @@ mappings:
       owner_issue: "#1991"
     contract: "C-VALID"
     issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "M"
-      category: "active_gap"
-      owner_issue: "#2003"
-    contract: "C-VALID"
-    issue: 2003
     classification: "defect"
   - selector:
       ledger: "M"

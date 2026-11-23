@@ -7,6 +7,7 @@ that ensures users receive clear, actionable guidance about their configuration.
 
 from typing import List, Dict, Optional, Any, Union
 from pydantic import ValidationError, BaseModel
+from pydantic_core import PydanticCustomError
 import warnings
 import logging
 from enum import Enum
@@ -147,14 +148,21 @@ class ValidationReport:
     def raise_if_errors(self):
         """Raise ValidationError if there are any errors."""
         if self.has_errors():
-            error_messages = [
-                f"{issue.location}: {issue.message}"
+            # Reports retain messages and locations, but not the original input.
+            # Do not substitute the parameter name or message as an input value.
+            line_errors = [
+                {
+                    "type": PydanticCustomError(
+                        "configuration_error", "{message}", {"message": issue.message}
+                    ),
+                    "loc": (issue.location,),
+                    "input": None,  # Unknown: this report does not retain inputs.
+                }
                 for issue in self.issues
                 if issue.level == ValidationLevel.ERROR
             ]
-            raise ValidationError(
-                f"Configuration has {len(error_messages)} error(s):\n"
-                + "\n".join(error_messages)
+            raise ValidationError.from_exception_data(
+                "Configuration", line_errors, hide_input=True
             )
 
 

@@ -40,6 +40,7 @@ from ...core.field_renames import (
 )
 from ...core.physics_families import coerce_nested_to_flat, flatten_physics_in_config
 from ...core.physics_orthogonal import coerce_orthogonal_to_flat
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -131,7 +132,9 @@ def load_user_yaml_normalised(path: str) -> Any:
         ``normalise_yaml_renames``).
     """
     with open(path, "r", encoding="utf-8") as f:
-        return normalise_yaml_renames(yaml.safe_load(f))
+        data = normalise_yaml_renames(yaml.safe_load(f))
+    data, _ = normalise_hourly_profile_keys_in_raw_config(data)
+    return data
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -697,8 +700,9 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
                 paths.append(_p(path, "holiday"))
             return paths
 
-        # Recurse into keys
-        for k in set(list(before.keys()) + list(after.keys())):
+        # Preserve mapping order: set iteration made report text vary with
+        # PYTHONHASHSEED. New keys still follow the original input's keys.
+        for k in dict.fromkeys([*before, *after]):
             b = before.get(k)
             a = after.get(k)
             if b in (None, "") and a in (None, ""):

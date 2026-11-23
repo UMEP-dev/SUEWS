@@ -18,6 +18,10 @@ from ...core.physics_families import (
     coerce_nested_to_flat,
     flatten_physics_in_config,
 )
+from ...core.profile import (
+    HOURLY_PROFILE_FIELD_NAMES,
+    normalise_hourly_profile_keys_in_raw_config,
+)
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -376,6 +380,7 @@ def _normalise_phase_a_compatibility(
     normalised, replacements = _normalise_model_control_subobjects(config_data)
     normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
     replacements.extend(stebbs_replacements)
+    normalised, _ = normalise_hourly_profile_keys_in_raw_config(normalised)
     return normalised, replacements
 
 
@@ -1970,6 +1975,22 @@ def remove_extra_parameters_from_yaml(yaml_content, extra_params):
     return "\n".join(lines)
 
 
+def _is_hourly_profile_member_path(param_path: str) -> bool:
+    """Return True for missing hour slots or day types inside an existing 24-hour profile."""
+    parts = param_path.split(".")
+    if (
+        len(parts) >= 3
+        and parts[-2] in ("working_day", "holiday")
+        and parts[-3] in HOURLY_PROFILE_FIELD_NAMES
+    ):
+        return True
+    return (
+        len(parts) >= 2
+        and parts[-1] in ("working_day", "holiday")
+        and parts[-2] in HOURLY_PROFILE_FIELD_NAMES
+    )
+
+
 def create_uptodate_yaml_with_missing_params(
     yaml_content, missing_params, extra_params=None, mode="public"
 ):
@@ -1986,6 +2007,11 @@ def create_uptodate_yaml_with_missing_params(
     missing_params.sort(key=lambda x: x[0].count("."), reverse=True)
 
     for param_path, standard_value, is_physics in missing_params:
+        # Never pad missing 24-hour profile hour slots or day-type blocks with
+        # `null` placeholders: doing so would mask incomplete profiles from
+        # downstream strict completeness validation across Phase A -> C.
+        if _is_hourly_profile_member_path(param_path):
+            continue
         path_parts = param_path.split(".")
         param_name = path_parts[-1]
         insert_position = find_insertion_point(lines, path_parts)

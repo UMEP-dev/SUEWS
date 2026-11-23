@@ -325,7 +325,7 @@ class MomentumRoughnessMethod(Enum):
     2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)
     3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry
     4: LAMBDAP_DEPENDENT - Varies with plan area fraction λp (Grimmond & Oke 1999)
-    5: ALTERNATIVE - Alternative variable method
+    5: ALTERNATIVE - Reserved / unimplemented; not available (rejected at validation)
     """
 
     FIXED = 1  # Fixed roughness length
@@ -947,6 +947,25 @@ class ModelPhysics(DataModelBase):
                 f"stability={code} is a reserved code with no stability-function "
                 "implementation. Use 3 (Campbell & Norman, recommended), or 2 "
                 "(Hoegstrom) or 4 (Businger-Hoegstrom)."
+            )
+        return value
+
+    @field_validator("roughness_length_momentum", mode="after")
+    @classmethod
+    def _reject_unsupported_momentum_roughness(cls, value):
+        # gh#2105: code 5 (ALTERNATIVE) has no formulation in
+        # SUEWS_cal_RoughnessParameters, leaving z0m_zh and zdm_zh unassigned
+        # in the kernel. Refuse it on validated construction and direct field
+        # assignment, as for ESTM and reserved stability codes.
+        inner = value.value if isinstance(value, RefValue) else value
+        code = getattr(inner, "value", inner)
+        if code == MomentumRoughnessMethod.ALTERNATIVE.value:
+            raise ValueError(
+                "roughness_length_momentum=5 (ALTERNATIVE) is not available: "
+                "no momentum roughness-length formulation is implemented for it. "
+                "Use 1 (fixed), 2 (variable, Grimmond & Oke 1999), "
+                "3 (MacDonald et al. 1998), or 4 (lambda_p-dependent, "
+                "Grimmond & Oke 1999)."
             )
         return value
 

@@ -387,7 +387,8 @@ class RSTGenerator:
             "     - Notes",
             "   * - ``roughness_length_momentum``",
             "     - ``fixed``; ``variable``; ``macdonald`` / ``M98``; ``lambdap_dependent`` / ``GO99``; ``alternative``",
-            "     - Momentum roughness-length method.",
+            "     - Momentum roughness-length method. ``alternative`` (code 5) "
+            "has no implemented formulation and is rejected at validation.",
             "   * - ``roughness_length_heat``",
             "     - ``brutsaert`` / ``B82``; ``kawai`` / ``K09``; ``voogt_grimmond`` / ``VG00``; ``kanda`` / ``K07``; ``adaptive``",
             "     - Heat roughness-length method.",

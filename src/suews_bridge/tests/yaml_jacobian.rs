@@ -3964,6 +3964,12 @@ fn nan_poison_completeness_across_all_six_anchors() {
         }
     }
 
+    // 3g. 24-hour profiles (#2098): strict reader rejects non-finite slot values.
+    strict_jobs.push((
+        0,
+        "sites[0].properties.anthropogenic_emissions.heat.ahprof_24hr.working_day.13".to_string(),
+    ));
+
     // Execute all strict NaN rejection checks in parallel.
     strict_jobs.par_iter().for_each(|(anchor_idx, key)| {
         let (label, ref root, ref idx) = stripped_anchors[*anchor_idx];
@@ -4007,8 +4013,8 @@ fn nan_poison_completeness_across_all_six_anchors() {
         ),
         (
             0,
-            "sites[0].properties.anthropogenic_emissions.heat.ahprof_24hr.working_day.13",
-            "site.anthroemis.anthroheat.ahprof_24hr_working_12",
+            "sites[0].properties.anthropogenic_emissions.heat.qf_a.working_day",
+            "site.anthroemis.anthroheat.qf_a_working",
         ),
         (
             1,

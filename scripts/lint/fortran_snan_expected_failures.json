@@ -1,10 +1,4 @@
 {
   "description": "Known physics test failures under no-trap -finit-real=snan (gh#2095). Any failure outside this list or any JUnit <error> (collection, setup, or xdist worker crash) fails the nightly workflow immediately; --strict fails on every failure including entries listed here.",
-  "entries": [
-    {
-      "node": "test.physics.test_option_sweep::test_option_value_runs_finite_and_conserves_water[roughness_length_momentum=ALTERNATIVE]",
-      "issue": "#2105",
-      "reason": "MomentumRoughnessMethod=5 leaves z0m_zh/zdm_zh uninitialised in src/suews/src/suews_phys_resist.f95 (code 110 non-finite roughness length)"
-    }
-  ]
+  "entries": []
 }

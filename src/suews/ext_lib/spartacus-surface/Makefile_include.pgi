@@ -9,5 +9,6 @@ endif
 
 WARNFLAGS = -Minform=inform
 BASICFLAGS = -module ../mod -Mbyteswapio
+CONST_FFLAGS =
 DEBUGFLAGS = -g
 OMPFLAG = -mp=nonuma

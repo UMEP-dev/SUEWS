@@ -21,7 +21,7 @@
 !===============================================================================
 ! Main module following naming standard: matches filename
 MODULE module_util_time
-   USE module_ctrl_const_mathconst, ONLY: deg2rad_daylen_d0
+   USE module_ctrl_const_mathconst, ONLY: DEG2RAD, pi
    IMPLICIT NONE
    PRIVATE :: SUEWS_cal_local_standard_timer
 CONTAINS
@@ -239,7 +239,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: XLAT
       REAL(KIND(1D0)), INTENT(OUT) :: DEC, DAYL, SNDN, SNUP
       REAL(KIND(1D0)) :: SOC
-      REAL(KIND(1D0)), PARAMETER :: PI = 3.14159, RAD = deg2rad_daylen_d0
 
       !-----------------------------------------------------------------------
       !     Calculation of declination of sun (Eqn. 16). Amplitude= +/-23.45
@@ -247,7 +246,7 @@ CONTAINS
       DEC = -23.45*COS(2.0*PI*(DOY + 10.0)/365.0)
 
       !     Sun angles.  SOC limited for latitudes above polar circles.
-      SOC = TAN(RAD*DEC)*TAN(RAD*XLAT)
+      SOC = TAN(DEG2RAD*DEC)*TAN(DEG2RAD*XLAT)
       SOC = MIN(MAX(SOC, -1.0), 1.0)
 
       !     Calculate daylength, sunrise and sunset (Eqn. 17)
@@ -263,8 +262,8 @@ CONTAINS
 ! DAYL  Day length on day of simulation (from sunrise to sunset)  (hr)
 ! DEC   Solar declination or (90o - solar elevation at noon) (deg.)
 ! DOY   Day of year (d)
-! PI    PI=3.14159 (rad)
-! RAD   RAD=PI/180. (rad./deg.)
+! PI    Double-precision pi (rad)
+! RAD   Shared degree-to-radian factor (rad./deg.)
 ! SNDN  Time of sunset (hr)
 ! SNUP  Time of sunrise (hr)
 ! SOC   Sine over cosine (intermediate calculation)
@@ -452,7 +451,7 @@ CONTAINS
       END DO
 
       timer_st%id = total_minutes/min_per_day + 1
-      day_minutes = MOD(total_minutes, min_per_day)
+      day_minutes = MOD(total_minutes, INT(min_per_day))
       timer_st%it = day_minutes/60
       timer_st%imin = MOD(day_minutes, 60)
    END SUBROUTINE SUEWS_cal_local_standard_timer

@@ -22,7 +22,7 @@ import pytest
 pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE", "C-BALANCE")]
 
 C2K = 273.15
-SIGMA_SB = 5.67e-8
+SIGMA_SB = 5.670374419e-8
 SURFACES = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
 ITERATIVE_METHODS = (11, 12, 13, 1001, 1002, 1003)
 

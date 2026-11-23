@@ -43,6 +43,7 @@ sys.path.insert(0, str(test_data_dir))
 from sample_output_io import (  # noqa: E402
     REFERENCE_FLOAT_FORMAT,
     load_sample_output,
+    reference_source,
     run_sample_reference,
     write_reference_provenance,
     write_sample_output_shards,
@@ -89,7 +90,9 @@ if not np.allclose(
         f"rtol={ROUND_TRIP_RTOL})"
     )
 
-path_provenance = write_reference_provenance(df_output, test_data_dir, repo_root)
+path_provenance = write_reference_provenance(
+    df_output, test_data_dir, repo_root, source=reference_source(repo_root)
+)
 print(f"Wrote provenance sidecar: {path_provenance.name}")
 
 print(

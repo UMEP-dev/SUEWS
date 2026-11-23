@@ -74,7 +74,7 @@ function findTracker(openIssues, { marker, legacyTitle }) {
 // still matches. Keep in step with NON_GATING_JOB_PATTERNS in
 // scripts/suews/nightly_streak.py. They are labelled, not hidden: a red run
 // is red, but a reader should see which failures are information only.
-const RECORDING_JOB_PREFIXES = ['tolerance spread', 'cost marker drift', 'python coverage'];
+const RECORDING_JOB_PREFIXES = ['tolerance spread', 'cost marker drift', 'python coverage', 'rss growth'];
 
 const BAD_CONCLUSIONS = new Set(['failure', 'cancelled', 'timed_out', 'startup_failure']);
 

@@ -338,14 +338,11 @@ def installed_identity(supy):
         (entry for entry in (dist.files or ()) if entry.name == "direct_url.json"),
         None,
     )
+    dist_path = getattr(dist, "_path", None)
     direct_path = (
         Path(dist.locate_file(direct_entry))
         if direct_entry is not None
-        else (
-            Path(dist._path) / "direct_url.json"  # ruff: ignore[private-member-access]
-            if getattr(dist, "_path", None) is not None
-            else None
-        )
+        else (Path(dist_path) / "direct_url.json" if dist_path is not None else None)
     )
     direct = (
         direct_path.read_text(encoding="utf-8")

@@ -14,6 +14,8 @@ import json
 
 import yaml
 
+from .suews_checkpoint import _format_duplicate_grid_key_error
+
 # Use C-based YAML dumper when available (5-10x faster than pure Python)
 _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
@@ -1125,6 +1127,21 @@ def _check_state_grid_ids(
         )
 
 
+def _normalise_state_grid_ids(states: dict[Any, str]) -> dict[int, str]:
+    """Normalise public restart keys without silently discarding aliases."""
+    normalised: dict[int, str] = {}
+    seen_keys: dict[int, Any] = {}
+    for key, state in states.items():
+        grid_id = _normalise_grid_id(key)
+        if grid_id in normalised:
+            raise ValueError(
+                _format_duplicate_grid_key_error(grid_id, seen_keys[grid_id], key)
+            )
+        seen_keys[grid_id] = key
+        normalised[grid_id] = state
+    return normalised
+
+
 def _grid_config_jsons(config: SUEWSConfig) -> tuple[list[int], list[str]]:
     """Return each site's grid ID and its one-site config as a JSON string.
 
@@ -1159,10 +1176,7 @@ def run_suews_rust_multi_with_state(
     list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
     _check_unique_grid_ids(list_gridiv)
 
-    dict_state_json_by_grid = {
-        _normalise_grid_id(grid_id): state_json
-        for grid_id, state_json in dict_state_json_by_grid.items()
-    }
+    dict_state_json_by_grid = _normalise_state_grid_ids(dict_state_json_by_grid)
     _check_state_grid_ids(dict_state_json_by_grid, list_gridiv)
 
     rust_module = _check_rust_available()
@@ -1323,10 +1337,7 @@ def run_suews_rust_chunked(
     not joined afterwards and the run needs about the memory of its output
     once, however many chunks it is split into.
     """
-    initial_state_json_by_grid = {
-        _normalise_grid_id(grid_id): state_json
-        for grid_id, state_json in (initial_state_json_by_grid or {}).items()
-    }
+    initial_state_json_by_grid = _normalise_state_grid_ids(initial_state_json_by_grid or {})
 
     # Group forcing into chunks (same logic as traditional backend)
     idx_start = df_forcing.index.min()
@@ -1517,10 +1528,7 @@ def iter_suews_rust_streamed(
     """
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
-    initial_state_json_by_grid = {
-        _normalise_grid_id(grid_id): state_json
-        for grid_id, state_json in (initial_state_json_by_grid or {}).items()
-    }
+    initial_state_json_by_grid = _normalise_state_grid_ids(initial_state_json_by_grid or {})
     _check_chunk_grid_ids(config, initial_state_json_by_grid)
     ar_year, ar_chunk = forcing_chunk_keys(df_forcing.index, tstep_s, chunk_days)
     list_key = [ar_year, ar_chunk]

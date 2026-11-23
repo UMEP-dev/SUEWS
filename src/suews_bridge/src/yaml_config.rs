@@ -2175,44 +2175,40 @@ fn apply_snow_overrides(
     Ok(())
 }
 
-fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
-    // Top-level irrigation scalars: h_maintain, faut, ie_start, ie_end,
-    // internalwateruse_h
-    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "h_maintain"]) {
-        site.irrigation.h_maintain = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "faut"]) {
-        site.irrigation.faut = v;
-    }
-    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_start"]) {
-        site.irrigation.ie_start = v;
-    }
-    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_end"]) {
-        site.irrigation.ie_end = v;
-    }
-    if let Some(v) = read_numeric(
+fn apply_irrigation_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    config: &SuewsConfig,
+) -> Result<(), String> {
+    let site_at = site_yaml_at(site_root);
+    validate_optional_mapping(site_root, &["properties", "irrigation"], &site_at)?;
+    validate_optional_mapping(site_root, &["properties", "irrigation", "daywat"], &site_at)?;
+    validate_optional_mapping(
         site_root,
-        &["properties", "irrigation", "internalwateruse_h"],
-    ) {
-        site.irrigation.internalwateruse_h = v;
-    }
+        &["properties", "irrigation", "daywatper"],
+        &site_at,
+    )?;
 
-    // Per-vegetated-surface irrigation polynomial coefficients (Järvi 2011).
-    // ie_a / ie_m are stored as 3-element arrays indexed by veg surface
-    // (0=EveTr, 1=DecTr, 2=Grass); the YAML places one scalar per land_cover
-    // block but the Fortran physics interprets the three values as a single
-    // polynomial [a0 + a1*Tair + a2*days_since_rain] applied to every irrigated
-    // veg surface (Lewis Cameron / Arup case, gh#1421).
-    for (lc_name, veg_idx) in [("evetr", 0_usize), ("dectr", 1_usize), ("grass", 2_usize)] {
-        if let Some(v) = read_numeric(site_root, &["properties", "land_cover", lc_name, "ie_a"]) {
-            site.irrigation.ie_a[veg_idx] = v;
-        }
-        if let Some(v) = read_numeric(site_root, &["properties", "land_cover", lc_name, "ie_m"]) {
-            site.irrigation.ie_m[veg_idx] = v;
-        }
-    }
+    // Fortran consumer gates (`update_WaterUse` in `suews_phys_dailystate.f95`
+    // and `SUEWS_cal_WaterUse` in `suews_phys_waterdist.f95`):
+    // - `daywat.<day>` is read whenever `WaterUseMethod == 0` (modelled).
+    // - `daywatper.<day>` is read only when `WaterUseMethod == 0` and
+    //   `daywat.<day> == 1.0`.
+    // - `h_maintain`, `faut`, and `land_cover.{evetr,dectr,grass}.{ie_a,ie_m}`
+    //   are read only when `WaterUseMethod == 0` and at least one weekday has
+    //   `daywat == 1.0` (so `update_WaterUse` can enter its calculation block).
+    // - `internalwateruse_h` splits total water use `wu` into external and
+    //   internal components whenever `wu` can be non-zero: either active
+    //   modelled irrigation (`WaterUseMethod == 0` with any `daywat == 1.0`) or
+    //   observed water use (`WaterUseMethod == 1`, where forcing supplies `wu`).
+    //   When `WaterUseMethod == 0` and every `daywat != 1.0`, `WUDay_id == 0`
+    //   and `wu == 0` unconditionally, so `internalwateruse_h` is inactive.
+    let modelled_water_use = config.water_use_method == 0;
+    let observed_water_use = config.water_use_method == 1;
 
-    // Per-day daywat (flag) / daywatper (percent of plots irrigated on that day)
+    // Per-day daywat (flag) / daywatper (percent of plots irrigated on that day).
+    // Read these first so `any_daywat_on` gates the remaining modelled scalars.
+    let mut any_daywat_on = false;
     for (day_name, flag_field, percent_field) in [
         (
             "monday",
@@ -2250,20 +2246,88 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             &mut site.irrigation.irr_daywater.sunday_percent,
         ),
     ] {
-        if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "daywat", day_name])
-        {
+        if let Some(v) = require_if_active_numeric(
+            site_root,
+            &["properties", "irrigation", "daywat", day_name],
+            &site_at,
+            modelled_water_use,
+        )? {
             *flag_field = v;
         }
-        if let Some(v) = read_numeric(
+        let day_active = modelled_water_use && *flag_field == 1.0;
+        any_daywat_on |= day_active;
+        if let Some(v) = require_if_active_numeric(
             site_root,
             &["properties", "irrigation", "daywatper", day_name],
-        ) {
+            &site_at,
+            day_active,
+        )? {
             *percent_field = v;
         }
     }
 
+    let modelled_irrigation_active = modelled_water_use && any_daywat_on;
+    let internalwateruse_active = modelled_irrigation_active || observed_water_use;
+
+    // Top-level irrigation scalars: h_maintain, faut, ie_start, ie_end,
+    // internalwateruse_h. ie_start and ie_end stay on read_i32 for #2213.
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "irrigation", "h_maintain"],
+        &site_at,
+        modelled_irrigation_active,
+    )? {
+        site.irrigation.h_maintain = v;
+    }
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "irrigation", "faut"],
+        &site_at,
+        modelled_irrigation_active,
+    )? {
+        site.irrigation.faut = v;
+    }
+    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_start"]) {
+        site.irrigation.ie_start = v;
+    }
+    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_end"]) {
+        site.irrigation.ie_end = v;
+    }
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "irrigation", "internalwateruse_h"],
+        &site_at,
+        internalwateruse_active,
+    )? {
+        site.irrigation.internalwateruse_h = v;
+    }
+
+    // Per-vegetated-surface irrigation polynomial coefficients (Jarvi 2011).
+    // ie_a / ie_m are stored as 3-element arrays indexed by veg surface
+    // (0=EveTr, 1=DecTr, 2=Grass); the YAML places one scalar per land_cover
+    // block but the Fortran physics interprets the three values as a single
+    // polynomial [a0 + a1*Tair + a2*days_since_rain] applied to every irrigated
+    // veg surface (Lewis Cameron / Arup case, gh#1421).
+    for (lc_name, veg_idx) in [("evetr", 0_usize), ("dectr", 1_usize), ("grass", 2_usize)] {
+        if let Some(v) = require_if_active_numeric(
+            site_root,
+            &["properties", "land_cover", lc_name, "ie_a"],
+            &site_at,
+            modelled_irrigation_active,
+        )? {
+            site.irrigation.ie_a[veg_idx] = v;
+        }
+        if let Some(v) = require_if_active_numeric(
+            site_root,
+            &["properties", "land_cover", lc_name, "ie_m"],
+            &site_at,
+            modelled_irrigation_active,
+        )? {
+            site.irrigation.ie_m[veg_idx] = v;
+        }
+    }
+
     // 24-hour weekday/holiday automatic and manual water-use profiles.
-    let site_at = site_yaml_at(site_root);
     for (profile_name, working, holiday) in [
         (
             "wuprofa_24hr",
@@ -2650,45 +2714,38 @@ fn apply_conductance_overrides(
     root: &Value,
     site_root: &Value,
 ) -> Result<(), String> {
-    if let Some(v) = read_i32(root, &["model", "physics", "gsmodel"]) {
-        site.conductance.gs_model = v;
-    } else if let Some(v) = read_i32(site_root, &["properties", "conductance", "gsmodel"]) {
-        site.conductance.gs_model = v;
-    }
+    let site_at = site_yaml_at(site_root);
+    let gs_model = if get_path(root, &["model", "physics", "gsmodel"]).is_some() {
+        require_i32(root, &["model", "physics", "gsmodel"], "")?
+    } else if let Some(fallback_val) =
+        get_path(site_root, &["properties", "conductance", "gsmodel"])
+    {
+        // Pass the literal legacy site-level path as `at` with an empty subpath
+        // so `yaml_path_display` does not apply the model.physics `gsmodel` ->
+        // `surface_conductance` rename to `properties.conductance.gsmodel`.
+        let fallback_at = format!("{site_at}.properties.conductance.gsmodel");
+        require_i32(fallback_val, &[], &fallback_at)?
+    } else {
+        require_i32(root, &["model", "physics", "gsmodel"], "")?
+    };
 
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_max"]) {
-        site.conductance.g_max = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_k"]) {
-        site.conductance.g_k = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_q_base"]) {
-        site.conductance.g_q_base = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_q_shape"]) {
-        site.conductance.g_q_shape = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_t"]) {
-        site.conductance.g_t = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_sm"]) {
-        site.conductance.g_sm = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "kmax"]) {
-        site.conductance.kmax = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "s1"]) {
-        site.conductance.s1 = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "s2"]) {
-        site.conductance.s2 = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "th"]) {
-        site.conductance.th = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "conductance", "tl"]) {
-        site.conductance.tl = v;
-    }
+    let cond_root = require_mapping(site_root, &["properties", "conductance"], &site_at)?;
+    let cond_at = format!("{site_at}.properties.conductance");
+
+    site.conductance = crate::conductance::ConductancePrm {
+        g_max: require_numeric(cond_root, &["g_max"], &cond_at)?,
+        g_k: require_numeric(cond_root, &["g_k"], &cond_at)?,
+        g_q_base: require_numeric(cond_root, &["g_q_base"], &cond_at)?,
+        g_q_shape: require_numeric(cond_root, &["g_q_shape"], &cond_at)?,
+        g_t: require_numeric(cond_root, &["g_t"], &cond_at)?,
+        g_sm: require_numeric(cond_root, &["g_sm"], &cond_at)?,
+        kmax: require_numeric(cond_root, &["kmax"], &cond_at)?,
+        gs_model,
+        s1: require_numeric(cond_root, &["s1"], &cond_at)?,
+        s2: require_numeric(cond_root, &["s2"], &cond_at)?,
+        th: require_numeric(cond_root, &["th"], &cond_at)?,
+        tl: require_numeric(cond_root, &["tl"], &cond_at)?,
+    };
     Ok(())
 }
 
@@ -3688,7 +3745,7 @@ fn apply_site_overrides(
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root, config, sfr_surf)?;
     apply_snow_overrides(site, site_root, config.snow_use)?;
-    apply_irrigation_overrides(site, site_root)?;
+    apply_irrigation_overrides(site, site_root, config)?;
     apply_vertical_layers_overrides(
         site,
         site_root,
@@ -10513,6 +10570,434 @@ mod tests {
                     && err.contains("must be a plain mapping"),
                 "{err}"
             );
+        }
+    }
+
+    #[test]
+    fn resolved_conductance_preserves_distinct_values_and_rejects_invalid_fields() {
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        *get_path_mut(&mut root, &["model", "physics", "surface_conductance"]).unwrap() =
+            serde_yaml::from_str("{value: 1}").unwrap();
+        let site = first_site_mut(&mut root).unwrap();
+        site["gridiv"] = Value::from(47);
+        site["properties"]["conductance"] = serde_yaml::from_str(
+            "{g_max: 4.25, g_k: {value: 215.5}, g_q_base: 0.21, g_q_shape: {value: 0.82}, g_t: 27.5, g_sm: {value: 0.09}, kmax: 1150.0, s1: {value: 6.1}, s2: 1.4, th: {value: 52.0}, tl: -6.5}",
+        )
+        .unwrap();
+
+        let parsed = load_run_config_from_value(&mut root.clone())
+            .expect("valid resolved conductance block must load");
+        assert_eq!(parsed.site.conductance.gs_model, 1);
+        assert!((parsed.site.conductance.g_max - 4.25).abs() < 1e-12);
+        assert!((parsed.site.conductance.g_k - 215.5).abs() < 1e-12);
+        assert!((parsed.site.conductance.g_q_base - 0.21).abs() < 1e-12);
+        assert!((parsed.site.conductance.g_q_shape - 0.82).abs() < 1e-12);
+        assert!((parsed.site.conductance.g_t - 27.5).abs() < 1e-12);
+        assert!((parsed.site.conductance.g_sm - 0.09).abs() < 1e-12);
+        assert!((parsed.site.conductance.kmax - 1150.0).abs() < 1e-12);
+        assert!((parsed.site.conductance.s1 - 6.1).abs() < 1e-12);
+        assert!((parsed.site.conductance.s2 - 1.4).abs() < 1e-12);
+        assert!((parsed.site.conductance.th - 52.0).abs() < 1e-12);
+        assert!((parsed.site.conductance.tl - (-6.5)).abs() < 1e-12);
+
+        // Reject missing, null, wrapped null, non-finite, and malformed values for all 11 scalars.
+        let scalar_keys = [
+            "g_max",
+            "g_k",
+            "g_q_base",
+            "g_q_shape",
+            "g_t",
+            "g_sm",
+            "kmax",
+            "s1",
+            "s2",
+            "th",
+            "tl",
+        ];
+        for key in scalar_keys {
+            let expected_path = format!("sites[gridiv=47].properties.conductance.{key}");
+
+            let mut missing = root.clone();
+            remove_key(
+                get_path_mut(
+                    first_site_mut(&mut missing).unwrap(),
+                    &["properties", "conductance"],
+                )
+                .unwrap(),
+                key,
+            );
+            let err = load_run_config_from_value(&mut missing)
+                .expect_err(&format!("missing {key} must fail"));
+            assert!(err.contains(&expected_path), "{key} missing: {err}");
+
+            for bad in ["null", "{value: null}", ".nan", ".inf", "\"bad\"", "true"] {
+                let mut mutated = root.clone();
+                *get_path_mut(
+                    first_site_mut(&mut mutated).unwrap(),
+                    &["properties", "conductance", key],
+                )
+                .unwrap() = serde_yaml::from_str(bad).unwrap();
+                let err = load_run_config_from_value(&mut mutated)
+                    .expect_err(&format!("{key}={bad} must fail"));
+                assert!(err.contains(&expected_path), "{key}={bad}: {err}");
+            }
+        }
+
+        // Missing surface_conductance with no fallback rejects naming model.physics.surface_conductance.
+        let mut missing_gs = root.clone();
+        remove_key(
+            get_path_mut(&mut missing_gs, &["model", "physics"]).unwrap(),
+            "surface_conductance",
+        );
+        let err = load_run_config_from_value(&mut missing_gs)
+            .expect_err("missing surface_conductance with no fallback must fail");
+        assert!(
+            err.contains("model.physics.surface_conductance"),
+            "missing gs error: {err}"
+        );
+
+        // Malformed model.physics.surface_conductance must NOT silently fall back to properties.conductance.gsmodel.
+        for bad_gs in ["null", "{value: null}", "1.5", ".nan", "\"bad\"", "true"] {
+            let mut bad_root = root.clone();
+            *get_path_mut(&mut bad_root, &["model", "physics", "surface_conductance"]).unwrap() =
+                serde_yaml::from_str(bad_gs).unwrap();
+            if let Value::Mapping(map) = get_path_mut(
+                first_site_mut(&mut bad_root).unwrap(),
+                &["properties", "conductance"],
+            )
+            .unwrap()
+            {
+                map.insert(Value::String("gsmodel".to_string()), Value::from(2));
+            }
+            let err = load_run_config_from_value(&mut bad_root)
+                .expect_err(&format!("surface_conductance={bad_gs} must fail"));
+            let expected = if bad_gs == "\"bad\"" {
+                "surface_conductance"
+            } else {
+                "model.physics.surface_conductance"
+            };
+            assert!(
+                err.contains(expected),
+                "surface_conductance={bad_gs}: {err}"
+            );
+        }
+
+        // Legacy properties.conductance.gsmodel fallback still works when valid and rejects malformed values.
+        let mut fallback_ok = root.clone();
+        remove_key(
+            get_path_mut(&mut fallback_ok, &["model", "physics"]).unwrap(),
+            "surface_conductance",
+        );
+        if let Value::Mapping(map) = get_path_mut(
+            first_site_mut(&mut fallback_ok).unwrap(),
+            &["properties", "conductance"],
+        )
+        .unwrap()
+        {
+            map.insert(Value::String("gsmodel".to_string()), Value::from(2));
+        }
+        let parsed_fb = load_run_config_from_value(&mut fallback_ok)
+            .expect("valid properties.conductance.gsmodel fallback must load");
+        assert_eq!(parsed_fb.site.conductance.gs_model, 2);
+
+        let mut fallback_bad = root.clone();
+        remove_key(
+            get_path_mut(&mut fallback_bad, &["model", "physics"]).unwrap(),
+            "surface_conductance",
+        );
+        if let Value::Mapping(map) = get_path_mut(
+            first_site_mut(&mut fallback_bad).unwrap(),
+            &["properties", "conductance"],
+        )
+        .unwrap()
+        {
+            map.insert(
+                Value::String("gsmodel".to_string()),
+                serde_yaml::from_str("1.5").unwrap(),
+            );
+        }
+        let err = load_run_config_from_value(&mut fallback_bad)
+            .expect_err("fractional properties.conductance.gsmodel fallback must fail");
+        assert!(
+            err.contains("sites[gridiv=47].properties.conductance.gsmodel"),
+            "fallback bad gs error: {err}"
+        );
+
+        // Non-mapping properties.conductance fails cleanly naming its canonical path.
+        let mut bad_block = root.clone();
+        first_site_mut(&mut bad_block).unwrap()["properties"]["conductance"] = Value::from(123);
+        let err = load_run_config_from_value(&mut bad_block)
+            .expect_err("non-mapping properties.conductance must fail");
+        assert!(
+            err.contains("sites[gridiv=47].properties.conductance"),
+            "non-mapping conductance error: {err}"
+        );
+    }
+
+    #[test]
+    fn resolved_irrigation_scalars_preserve_distinct_values_and_reject_invalid_fields() {
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let site = first_site_mut(&mut root).unwrap();
+        site["gridiv"] = Value::from(53);
+        *get_path_mut(site, &["properties", "irrigation", "h_maintain"]).unwrap() =
+            serde_yaml::from_str("{value: -25.0}").unwrap();
+        *get_path_mut(site, &["properties", "irrigation", "faut"]).unwrap() =
+            serde_yaml::from_str("0.35").unwrap();
+        *get_path_mut(site, &["properties", "irrigation", "internalwateruse_h"]).unwrap() =
+            serde_yaml::from_str("{value: 0.12}").unwrap();
+        for (surf, a_val, m_val) in [
+            ("evetr", 0.11, 0.21),
+            ("dectr", 0.12, 0.22),
+            ("grass", 0.13, 0.23),
+        ] {
+            *get_path_mut(site, &["properties", "land_cover", surf, "ie_a"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {a_val}}}")).unwrap();
+            *get_path_mut(site, &["properties", "land_cover", surf, "ie_m"]).unwrap() =
+                serde_yaml::from_str(&format!("{m_val}")).unwrap();
+        }
+        for (i, day) in [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ]
+        .iter()
+        .enumerate()
+        {
+            let flag = if i % 2 == 0 { 1.0 } else { 0.0 };
+            let pct = 0.1 * ((i + 1) as f64);
+            *get_path_mut(site, &["properties", "irrigation", "daywat", day]).unwrap() =
+                serde_yaml::from_str(&format!("{flag}")).unwrap();
+            *get_path_mut(site, &["properties", "irrigation", "daywatper", day]).unwrap() =
+                serde_yaml::from_str(&format!("{pct}")).unwrap();
+        }
+
+        let parsed = load_run_config_from_value(&mut root.clone())
+            .expect("valid resolved irrigation block must load");
+        assert!((parsed.site.irrigation.h_maintain - (-25.0)).abs() < 1e-12);
+        assert!((parsed.site.irrigation.faut - 0.35).abs() < 1e-12);
+        assert!((parsed.site.irrigation.internalwateruse_h - 0.12).abs() < 1e-12);
+        assert!((parsed.site.irrigation.ie_a[0] - 0.11).abs() < 1e-12);
+        assert!((parsed.site.irrigation.ie_a[1] - 0.12).abs() < 1e-12);
+        assert!((parsed.site.irrigation.ie_a[2] - 0.13).abs() < 1e-12);
+        assert!((parsed.site.irrigation.ie_m[0] - 0.21).abs() < 1e-12);
+        assert!((parsed.site.irrigation.ie_m[1] - 0.22).abs() < 1e-12);
+        assert!((parsed.site.irrigation.ie_m[2] - 0.23).abs() < 1e-12);
+        assert!((parsed.site.irrigation.irr_daywater.monday_flag - 1.0).abs() < 1e-12);
+        assert!((parsed.site.irrigation.irr_daywater.tuesday_flag - 0.0).abs() < 1e-12);
+        assert!((parsed.site.irrigation.irr_daywater.sunday_percent - 0.7).abs() < 1e-12);
+
+        let targets: &[(&[&str], &str)] = &[
+            (
+                &["properties", "irrigation", "h_maintain"],
+                "sites[gridiv=53].properties.irrigation.h_maintain",
+            ),
+            (
+                &["properties", "irrigation", "faut"],
+                "sites[gridiv=53].properties.irrigation.faut",
+            ),
+            (
+                &["properties", "irrigation", "internalwateruse_h"],
+                "sites[gridiv=53].properties.irrigation.internalwateruse_h",
+            ),
+            (
+                &["properties", "land_cover", "evetr", "ie_a"],
+                "sites[gridiv=53].properties.land_cover.evetr.ie_a",
+            ),
+            (
+                &["properties", "land_cover", "dectr", "ie_m"],
+                "sites[gridiv=53].properties.land_cover.dectr.ie_m",
+            ),
+            (
+                &["properties", "land_cover", "grass", "ie_a"],
+                "sites[gridiv=53].properties.land_cover.grass.ie_a",
+            ),
+            (
+                &["properties", "irrigation", "daywat", "wednesday"],
+                "sites[gridiv=53].properties.irrigation.daywat.wednesday",
+            ),
+            (
+                &["properties", "irrigation", "daywatper", "friday"],
+                "sites[gridiv=53].properties.irrigation.daywatper.friday",
+            ),
+        ];
+
+        for &(path, expected) in targets {
+            let mut missing = root.clone();
+            let (parent_path, leaf_key) = path.split_at(path.len() - 1);
+            remove_key(
+                get_path_mut(first_site_mut(&mut missing).unwrap(), parent_path).unwrap(),
+                leaf_key[0],
+            );
+            let err = load_run_config_from_value(&mut missing)
+                .expect_err(&format!("missing {expected} must fail"));
+            assert!(err.contains(expected), "missing {expected}: {err}");
+
+            for bad in ["null", "{value: null}", ".nan", ".inf", "\"bad\""] {
+                let mut mutated = root.clone();
+                *get_path_mut(first_site_mut(&mut mutated).unwrap(), path).unwrap() =
+                    serde_yaml::from_str(bad).unwrap();
+                let err = load_run_config_from_value(&mut mutated)
+                    .expect_err(&format!("{expected}={bad} must fail"));
+                assert!(err.contains(expected), "{expected}={bad}: {err}");
+            }
+        }
+
+        // Per-day gate: tuesday has daywat=0.0, so daywatper.tuesday permits omission/null
+        // while still rejecting non-finite or non-numeric values.
+        let mut tuesday_omitted = root.clone();
+        remove_key(
+            get_path_mut(
+                first_site_mut(&mut tuesday_omitted).unwrap(),
+                &["properties", "irrigation", "daywatper"],
+            )
+            .unwrap(),
+            "tuesday",
+        );
+        load_run_config_from_value(&mut tuesday_omitted)
+            .expect("omitted daywatper on inactive weekday (daywat=0.0) must pass");
+        for bad in [".nan", "\"bad\""] {
+            let mut tuesday_bad = root.clone();
+            *get_path_mut(
+                first_site_mut(&mut tuesday_bad).unwrap(),
+                &["properties", "irrigation", "daywatper", "tuesday"],
+            )
+            .unwrap() = serde_yaml::from_str(bad).unwrap();
+            let err = load_run_config_from_value(&mut tuesday_bad)
+                .expect_err("malformed inactive daywatper must fail");
+            assert!(
+                err.contains("sites[gridiv=53].properties.irrigation.daywatper.tuesday"),
+                "malformed inactive daywatper: {err}"
+            );
+        }
+
+        // Inactive modelled irrigation (water_use=0 with all daywat=0.0, matching
+        // compact_valid_dict): h_maintain, faut, internalwateruse_h, ie_a, ie_m,
+        // and daywatper.* may be omitted or null, while daywat.* stays required
+        // and malformed values on inactive fields still fail.
+        let mut inactive_modelled = root.clone();
+        for day in [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ] {
+            *get_path_mut(
+                first_site_mut(&mut inactive_modelled).unwrap(),
+                &["properties", "irrigation", "daywat", day],
+            )
+            .unwrap() = Value::from(0.0);
+        }
+        let mut inactive_omitted = inactive_modelled.clone();
+        {
+            let s = first_site_mut(&mut inactive_omitted).unwrap();
+            let irr = get_path_mut(s, &["properties", "irrigation"]).unwrap();
+            remove_key(irr, "h_maintain");
+            remove_key(irr, "faut");
+            remove_key(irr, "internalwateruse_h");
+            remove_key(irr, "daywatper");
+            for surf in ["evetr", "dectr", "grass"] {
+                let lc = get_path_mut(s, &["properties", "land_cover", surf]).unwrap();
+                remove_key(lc, "ie_a");
+                remove_key(lc, "ie_m");
+            }
+        }
+        load_run_config_from_value(&mut inactive_omitted)
+            .expect("omitted irrigation scalars under water_use=0 with all daywat=0.0 must pass");
+
+        let mut inactive_missing_daywat = inactive_modelled.clone();
+        remove_key(
+            get_path_mut(
+                first_site_mut(&mut inactive_missing_daywat).unwrap(),
+                &["properties", "irrigation", "daywat"],
+            )
+            .unwrap(),
+            "monday",
+        );
+        let err = load_run_config_from_value(&mut inactive_missing_daywat)
+            .expect_err("missing daywat under water_use=0 must still fail");
+        assert!(
+            err.contains("sites[gridiv=53].properties.irrigation.daywat.monday"),
+            "missing daywat error: {err}"
+        );
+
+        let mut inactive_bad_hm = inactive_modelled.clone();
+        *get_path_mut(
+            first_site_mut(&mut inactive_bad_hm).unwrap(),
+            &["properties", "irrigation", "h_maintain"],
+        )
+        .unwrap() = serde_yaml::from_str(".nan").unwrap();
+        let err = load_run_config_from_value(&mut inactive_bad_hm)
+            .expect_err("NaN h_maintain under inactive modelled irrigation must fail");
+        assert!(
+            err.contains("sites[gridiv=53].properties.irrigation.h_maintain"),
+            "NaN inactive h_maintain error: {err}"
+        );
+
+        // Observed water use (water_use=1): daywat, daywatper, h_maintain, faut,
+        // ie_a, ie_m may be omitted, while internalwateruse_h stays required.
+        let mut observed = root.clone();
+        *get_path_mut(&mut observed, &["model", "physics", "water_use"]).unwrap() =
+            serde_yaml::from_str("{value: 1}").unwrap();
+        {
+            let s = first_site_mut(&mut observed).unwrap();
+            let irr = get_path_mut(s, &["properties", "irrigation"]).unwrap();
+            remove_key(irr, "h_maintain");
+            remove_key(irr, "faut");
+            remove_key(irr, "daywat");
+            remove_key(irr, "daywatper");
+            for surf in ["evetr", "dectr", "grass"] {
+                let lc = get_path_mut(s, &["properties", "land_cover", surf]).unwrap();
+                remove_key(lc, "ie_a");
+                remove_key(lc, "ie_m");
+            }
+        }
+        load_run_config_from_value(&mut observed.clone())
+            .expect("observed water_use=1 with omitted modelled irrigation scalars must pass");
+
+        let mut observed_missing_iwu = observed.clone();
+        remove_key(
+            get_path_mut(
+                first_site_mut(&mut observed_missing_iwu).unwrap(),
+                &["properties", "irrigation"],
+            )
+            .unwrap(),
+            "internalwateruse_h",
+        );
+        let err = load_run_config_from_value(&mut observed_missing_iwu)
+            .expect_err("observed water_use=1 without internalwateruse_h must fail");
+        assert!(
+            err.contains("sites[gridiv=53].properties.irrigation.internalwateruse_h"),
+            "observed missing internalwateruse_h error: {err}"
+        );
+
+        // Non-mapping parent blocks under properties.irrigation fail cleanly.
+        for (path, expected) in [
+            (
+                &["properties", "irrigation"][..],
+                "sites[gridiv=53].properties.irrigation",
+            ),
+            (
+                &["properties", "irrigation", "daywat"][..],
+                "sites[gridiv=53].properties.irrigation.daywat",
+            ),
+            (
+                &["properties", "irrigation", "daywatper"][..],
+                "sites[gridiv=53].properties.irrigation.daywatper",
+            ),
+        ] {
+            let mut bad_parent = root.clone();
+            *get_path_mut(first_site_mut(&mut bad_parent).unwrap(), path).unwrap() =
+                Value::from(123);
+            let err = load_run_config_from_value(&mut bad_parent)
+                .expect_err(&format!("non-mapping {expected} must fail"));
+            assert!(err.contains(expected), "non-mapping {expected}: {err}");
         }
     }
 }

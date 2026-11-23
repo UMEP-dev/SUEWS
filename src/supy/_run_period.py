@@ -93,6 +93,41 @@ def _coerce_bound(value: Any, index: pd.DatetimeIndex, name: str) -> pd.Timestam
     return ts
 
 
+def canonicalise_resolved_bound(value: Any, name: str) -> str:
+    """Normalise a run-period bound to the canonical ISO string for resolved YAML.
+
+    Date-only bounds (matching :func:`is_date_only`) stay ``YYYY-MM-DD`` so the
+    native engine preserves left-open calendar-day semantics; every other
+    Python-accepted bound (for example slash-separated timestamps such as
+    ``"2012/01/01 06:05"``) becomes an explicit ``YYYY-MM-DD HH:MM:SS[.fff]``
+    instant on the forcing clock.
+    """
+    date_only = is_date_only(value)
+    try:
+        ts = pd.Timestamp(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{name} must be a date, datetime or parseable string; got {value!r}"
+        ) from exc
+    if pd.isna(ts):
+        raise ValueError(f"{name} must not be NaT")
+    if ts.tzinfo is not None:
+        raise ValueError(
+            f"{name} must be timezone-naive on the forcing clock; got {value!r}"
+        )
+    if date_only:
+        return f"{ts.year:04d}-{ts.month:02d}-{ts.day:02d}"
+    base = (
+        f"{ts.year:04d}-{ts.month:02d}-{ts.day:02d} "
+        f"{ts.hour:02d}:{ts.minute:02d}:{ts.second:02d}"
+    )
+    subsec_ns = ts.microsecond * 1000 + ts.nanosecond
+    if subsec_ns:
+        frac = f"{subsec_ns:09d}".rstrip("0")
+        return f"{base}.{frac}"
+    return base
+
+
 def resolve_run_period(
     start_date: Any, end_date: Any, index: pd.DatetimeIndex
 ) -> RunPeriod:

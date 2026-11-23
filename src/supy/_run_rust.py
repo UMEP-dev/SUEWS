@@ -17,6 +17,7 @@ import yaml
 from ._env import logger_supy, warn_platform_support
 from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
 from ._post import df_var, gen_index
+from ._run_period import canonicalise_resolved_bound
 from .suews_checkpoint import _format_duplicate_grid_key_error
 
 if TYPE_CHECKING:
@@ -958,10 +959,22 @@ def config_to_engine_yaml(config: SUEWSConfig, *, for_file_output: bool = True) 
     """Return resolved YAML for standalone file execution or a buffer-only run.
 
     For file execution, capture the current directory when the source omits
-    its output directory. Supplied paths keep their spelling. A buffer-only
-    run has no destination to resolve.
+    its output directory. Supplied paths keep their spelling. Run-period bounds
+    (``model.control.start_time`` / ``end_time``) are canonicalised via
+    :func:`supy._run_period.canonicalise_resolved_bound` so any Python-accepted
+    bound format reaches the native engine in canonical ISO representation while
+    preserving date-only versus explicit-timestamp semantics. A buffer-only run
+    has no destination to resolve.
     """
     data = _engine_config_dict(config)
+    control = data.get("model", {}).get("control")
+    if isinstance(control, dict):
+        for bound_key in ("start_time", "end_time"):
+            raw_bound = control.get(bound_key)
+            if raw_bound is not None:
+                control[bound_key] = canonicalise_resolved_bound(
+                    raw_bound, f"model.control.{bound_key}"
+                )
     if for_file_output and config.model.control.output.dir is None:
         data["model"]["control"]["output"]["dir"] = str(Path.cwd())
     return yaml.dump(

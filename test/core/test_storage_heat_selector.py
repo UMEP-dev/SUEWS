@@ -397,6 +397,8 @@ def test_standalone_engine_rejects_invalid_resolved_storage_heat(
     cfg = yaml.safe_load(config_to_engine_yaml(SUEWSConfig.from_dict(src)))
     cfg["model"]["control"]["forcing"]["file"] = str(forcing_path)
     cfg["model"]["control"]["output"]["dir"] = str(tmp_path)
+    cfg["model"]["control"].pop("start_time", None)
+    cfg["model"]["control"].pop("end_time", None)
     mutator(cfg["model"]["physics"])
     yml_path = tmp_path / "resolved.yml"
     yml_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
@@ -435,6 +437,8 @@ def test_standalone_engine_preserves_kernel_error_106_for_unsupported_int_codes(
     cfg = yaml.safe_load(config_to_engine_yaml(SUEWSConfig.from_dict(src)))
     cfg["model"]["control"]["forcing"]["file"] = str(forcing_path)
     cfg["model"]["control"]["output"]["dir"] = str(tmp_path)
+    cfg["model"]["control"].pop("start_time", None)
+    cfg["model"]["control"].pop("end_time", None)
     cfg["model"]["physics"]["storage_heat"] = {"value": bad_code}
     yml_path = tmp_path / "resolved.yml"
     yml_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")

@@ -431,6 +431,8 @@ def test_standalone_engine_rejects_invalid_selectors_without_writing_output(
     doc = deepcopy(resolved_sample_dict)
     doc["model"]["control"]["output"]["dir"] = str(tmp_path)
     doc["model"]["control"]["forcing"]["file"] = "forcing.txt"
+    doc["model"]["control"].pop("start_time", None)
+    doc["model"]["control"].pop("end_time", None)
 
     if raw_snippet is None:
         doc["model"]["physics"].pop(selector, None)

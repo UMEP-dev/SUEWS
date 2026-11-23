@@ -60,6 +60,7 @@ use crate::building_archetype_prm::{
 use crate::config::{suews_config_default_from_fortran, SuewsConfig};
 use crate::core::NSURF;
 use crate::field_renames::{normalize_field_names, FIELD_RENAMES};
+use crate::run_period::{parse_run_period, RunPeriod};
 use crate::sim::SiteScalars;
 use crate::stebbs_prm::{stebbs_prm_from_map, stebbs_prm_to_map};
 use crate::suews_site::{suews_site_default_from_fortran, SuewsSite};
@@ -88,6 +89,10 @@ pub struct RunConfig {
     // In-memory runs return buffers and need no output destination. File runs
     // require this field before invoking the kernel.
     pub output_dir: Option<PathBuf>,
+    // In-memory buffer runs receive caller-selected forcing chunks and keep an
+    // unbounded period here. File runs parse and enforce `model.control.start_time`
+    // and `model.control.end_time` on the forcing clock before kernel evolution.
+    pub run_period: RunPeriod,
     pub nlayer: i32,
     pub ndepth: i32,
 }
@@ -4955,6 +4960,43 @@ fn read_forcing_timestamp_reference(root: &Value) -> Result<ForcingTimestampRefe
     }
 }
 
+fn parse_optional_run_bound(root: &Value, path: &[&str]) -> Result<Option<String>, String> {
+    let shown = yaml_path_display("", path);
+    match get_path(root, path) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.clone())),
+        Some(Value::Mapping(map)) => {
+            if let Some(inner) = map.get("value") {
+                if map
+                    .keys()
+                    .all(|key| matches!(key.as_str(), Some("value" | "ref")))
+                {
+                    return match inner {
+                        Value::String(s) => Ok(Some(s.clone())),
+                        other => Err(format!(
+                            "`{shown}` is {}; it must be a date or timestamp string (or null)",
+                            yaml_kind(other)
+                        )),
+                    };
+                }
+            }
+            Err(format!(
+                "`{shown}` is a mapping; it must be a date or timestamp string (or null)"
+            ))
+        }
+        Some(other) => Err(format!(
+            "`{shown}` is {}; it must be a date or timestamp string (or null)",
+            yaml_kind(other)
+        )),
+    }
+}
+
+fn load_file_run_period(root: &Value) -> Result<RunPeriod, String> {
+    let start = parse_optional_run_bound(root, &["model", "control", "start_time"])?;
+    let end = parse_optional_run_bound(root, &["model", "control", "end_time"])?;
+    parse_run_period(start.as_deref(), end.as_deref())
+}
+
 pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String> {
     // Accept Python-side snake_case spellings by folding every renamed key
     // back to the legacy fused spelling the parser below still indexes by.
@@ -5045,6 +5087,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
             .map(PathBuf::from)
             .unwrap_or_default(),
         output_dir,
+        run_period: RunPeriod::unbounded(),
         nlayer,
         ndepth,
     })
@@ -5063,6 +5106,7 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
         "",
     )?);
     let mut run_cfg = load_run_config_from_value(&mut root)?;
+    run_cfg.run_period = load_file_run_period(&root)?;
 
     let forcing_rel = read_forcing_rel(&root).ok_or_else(|| {
         if forcing_file_is_null(&root) {
@@ -5247,6 +5291,74 @@ mod tests {
         assert!(!dir.path().join("specified").exists());
         assert!(!absolute.exists());
         assert!(!dir.path().join("legacy").exists());
+    }
+
+    #[test]
+    fn buffer_loaders_keep_unbounded_period_while_file_loader_enforces_bounds() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("forcing.txt"), "").unwrap();
+        let path = dir.path().join("resolved.yml");
+
+        // Valid bare, wrapped, one-sided and null bounds load on the file path.
+        for (start, end, expect_start, expect_end) in [
+            (
+                Some("2012-01-01"),
+                Some("2012-01-02"),
+                Some("2012-01-01 00:00:00"),
+                Some("2012-01-03 00:00:00"),
+            ),
+            (
+                Some("{value: '2012-01-01 06:05'}"),
+                Some("{value: '2012-01-02 12:00', ref: {desc: test}}"),
+                Some("2012-01-01 06:05:00"),
+                Some("2012-01-02 12:00:00"),
+            ),
+            (None, Some("null"), None, None),
+            (
+                Some("2012-02-28"),
+                Some("2012-02-29"),
+                Some("2012-02-28 00:00:00"),
+                Some("2012-03-01 00:00:00"),
+            ),
+        ] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            root["model"]["control"]["forcing"]["file"] = Value::from("forcing.txt");
+            let control = root["model"]["control"].as_mapping_mut().unwrap();
+            control.remove("start_time");
+            control.remove("end_time");
+            if let Some(s) = start {
+                control.insert(Value::from("start_time"), serde_yaml::from_str(s).unwrap());
+            }
+            if let Some(e) = end {
+                control.insert(Value::from("end_time"), serde_yaml::from_str(e).unwrap());
+            }
+            let yaml = serde_yaml::to_string(&root).unwrap();
+            fs::write(&path, &yaml).unwrap();
+
+            assert!(load_run_config_from_str(&yaml).unwrap().run_period.is_unbounded());
+            assert!(load_run_config_from_value(&mut root.clone()).unwrap().run_period.is_unbounded());
+            let loaded = load_run_config(&path).unwrap();
+            assert_eq!(
+                loaded.run_period.start.map(|t| t.to_string()).as_deref(),
+                expect_start
+            );
+            assert_eq!(
+                loaded.run_period.end.map(|t| t.to_string()).as_deref(),
+                expect_end
+            );
+        }
+
+        // Non-ISO or reversed strings do not break direct-buffer loaders, while
+        // the file loader rejects them with field-specific diagnostics.
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        root["model"]["control"]["forcing"]["file"] = Value::from("forcing.txt");
+        root["model"]["control"]["start_time"] = Value::from("2012/01/02");
+        root["model"]["control"]["end_time"] = Value::from("2012/01/01");
+        let yaml = serde_yaml::to_string(&root).unwrap();
+        fs::write(&path, &yaml).unwrap();
+        assert!(load_run_config_from_str(&yaml).unwrap().run_period.is_unbounded());
+        let err = load_run_config(&path).unwrap_err();
+        assert!(err.contains("model.control.start_time"), "{err}");
     }
 
     fn get_path_mut<'a>(root: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> {

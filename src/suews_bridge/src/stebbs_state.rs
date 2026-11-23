@@ -1,6 +1,5 @@
 use crate::codec::{
-    field_index, require_field_dims, validate_flat_len, PayloadDims, StateCodec, TypeSchema,
-    ValuesPayloadWithDims,
+    field_index, require_field_dims, validate_flat_len, PayloadDims, ValuesPayloadWithDims,
 };
 use crate::error::BridgeError;
 use crate::ffi;
@@ -1247,7 +1246,28 @@ impl StebbsState {
     }
 
     pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
-        Self::from_flat_with_bldg_nlayer(flat, 0)
+        if flat.len() < STEBBS_STATE_BASE_FLAT_LEN {
+            return Err(BridgeError::BadState);
+        }
+        let buildings_count = parse_buildings_count(flat[STEBBS_STATE_BASE_FLAT_LEN - 2])?;
+        let bldg_nlayer = if buildings_count == 0 {
+            0
+        } else {
+            let rem = flat.len() - STEBBS_STATE_BASE_FLAT_LEN;
+            if !rem.is_multiple_of(buildings_count) {
+                return Err(BridgeError::BadState);
+            }
+            let per_bldg = rem / buildings_count;
+            if per_bldg < STEBBS_BLDG_BASE_FLAT_LEN {
+                return Err(BridgeError::BadState);
+            }
+            let layer_slots = per_bldg - STEBBS_BLDG_BASE_FLAT_LEN;
+            if !layer_slots.is_multiple_of(2) {
+                return Err(BridgeError::BadState);
+            }
+            layer_slots / 2
+        };
+        Self::from_flat_with_bldg_nlayer(flat, bldg_nlayer)
     }
 
     pub fn from_flat_with_bldg_nlayer(
@@ -1462,25 +1482,6 @@ impl StebbsState {
     pub fn to_flat(&self) -> Vec<f64> {
         self.to_flat_checked()
             .expect("StebbsState has inconsistent buildings/bldg_nlayer layout")
-    }
-}
-
-impl StateCodec for StebbsState {
-    fn schema() -> TypeSchema {
-        TypeSchema {
-            type_name: "STEBBS_STATE".to_string(),
-            schema_version: STEBBS_STATE_SCHEMA_VERSION,
-            flat_len: STEBBS_STATE_BASE_FLAT_LEN,
-            field_names: stebbs_state_field_names(),
-        }
-    }
-
-    fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
-        StebbsState::from_flat(flat)
-    }
-
-    fn to_flat(&self) -> Vec<f64> {
-        StebbsState::to_flat(self)
     }
 }
 
@@ -1882,16 +1883,71 @@ pub fn stebbs_state_from_values_payload(
 }
 
 pub fn stebbs_state_from_map(values: &BTreeMap<String, f64>) -> Result<StebbsState, BridgeError> {
-    let default_state = stebbs_state_default_from_fortran()?;
-    let names = stebbs_state_field_names();
-    let mut flat = default_state.to_flat();
+    let mut default_state = stebbs_state_default_from_fortran()?;
+    let buildings_count = match values.get("buildings_count") {
+        Some(&raw) => parse_buildings_count(raw)?,
+        None => 0,
+    };
+    if buildings_count > values.len() {
+        return Err(BridgeError::BadState);
+    }
+    let mut seen_buildings = std::collections::BTreeSet::new();
+    let mut bldg_nlayer = 0_usize;
+    for key in values.keys() {
+        if let Some(rest) = key.strip_prefix("buildings.") {
+            if buildings_count == 0 {
+                return Err(BridgeError::BadState);
+            }
+            let mut parts = rest.split('.');
+            let Some(bldg_idx_str) = parts.next() else {
+                return Err(BridgeError::BadState);
+            };
+            let Ok(bldg_idx) = bldg_idx_str.parse::<usize>() else {
+                return Err(BridgeError::BadState);
+            };
+            if bldg_idx == 0 || bldg_idx > buildings_count {
+                return Err(BridgeError::BadState);
+            }
+            seen_buildings.insert(bldg_idx);
+            let field = parts.next();
+            let layer = parts.next();
+            if matches!(field, Some("textwall_c" | "textroof_c")) && parts.next().is_none() {
+                if let Some(layer_str) = layer {
+                    if let Ok(layer_idx) = layer_str.parse::<usize>() {
+                        if layer_idx == 0 || layer_idx > values.len() {
+                            return Err(BridgeError::BadState);
+                        }
+                        bldg_nlayer = bldg_nlayer.max(layer_idx);
+                    }
+                }
+            }
+        }
+    }
+    if buildings_count > 0 && seen_buildings.len() != buildings_count {
+        return Err(BridgeError::BadState);
+    }
+    match buildings_count.checked_mul(bldg_nlayer) {
+        Some(total_layers) if total_layers <= values.len() => {}
+        _ => return Err(BridgeError::BadState),
+    }
+    let _expected_len = stebbs_state_expected_flat_len(buildings_count, bldg_nlayer)?;
+    default_state.bldg_nlayer = if buildings_count == 0 { 0 } else { bldg_nlayer };
+    default_state.buildings = (0..buildings_count)
+        .map(|_| StebbsBldg {
+            textwall_c: vec![0.0; default_state.bldg_nlayer],
+            textroof_c: vec![0.0; default_state.bldg_nlayer],
+            ..StebbsBldg::default()
+        })
+        .collect();
+    let names = stebbs_state_field_names_with_dims(buildings_count, default_state.bldg_nlayer);
+    let mut flat = default_state.to_flat_checked()?;
     for (key, value) in values {
         let Some(idx) = field_index(&names, key) else {
             return Err(BridgeError::BadState);
         };
         flat[idx] = *value;
     }
-    StebbsState::from_flat(&flat)
+    StebbsState::from_flat_with_bldg_nlayer(&flat, default_state.bldg_nlayer)
 }
 
 pub fn stebbs_state_default_from_fortran() -> Result<StebbsState, BridgeError> {
@@ -2209,5 +2265,69 @@ mod tests {
         let recovered = StebbsState::from_flat_with_bldg_nlayer(&rt, 3)
             .expect("two-building decode should succeed");
         assert_eq!(recovered, state);
+    }
+
+    #[test]
+    fn populated_buildings_roundtrip_ordered_values_and_map() {
+        let mut state =
+            stebbs_state_default_from_fortran().expect("default state should be available");
+        state.bldg_nlayer = 3;
+        state.buildings = vec![sample_building(0.25, 3), sample_building(1.75, 3)];
+
+        let ordered = stebbs_state_to_ordered_values(&state);
+        assert_eq!(
+            ordered.len(),
+            stebbs_state_expected_flat_len(2, 3).expect("expected len")
+        );
+        let from_ordered = stebbs_state_from_ordered_values(&ordered)
+            .expect("ordered values with populated 3-layer buildings should decode");
+        assert_eq!(from_ordered, state);
+
+        let mapped = stebbs_state_to_map(&state);
+        assert_eq!(mapped.len(), ordered.len());
+        let from_mapped = stebbs_state_from_map(&mapped)
+            .expect("map with populated 3-layer buildings should decode");
+        assert_eq!(from_mapped, state);
+    }
+
+    #[test]
+    fn to_flat_checked_rejects_inconsistent_building_layer_len() {
+        let mut bad_bldg = sample_building(0.0, 3);
+        bad_bldg.textwall_c.pop();
+        let state = StebbsState {
+            bldg_nlayer: 3,
+            buildings: vec![bad_bldg],
+            ..StebbsState::default()
+        };
+        assert_eq!(state.to_flat_checked(), Err(BridgeError::BadState));
+    }
+
+    #[test]
+    fn from_map_rejects_unbounded_building_or_layer_dimensions() {
+        let mut huge_count = BTreeMap::new();
+        huge_count.insert("buildings_count".to_string(), i32::MAX as f64);
+        assert_eq!(stebbs_state_from_map(&huge_count), Err(BridgeError::BadState));
+
+        let mut missing_bldg_keys = BTreeMap::new();
+        missing_bldg_keys.insert("buildings_count".to_string(), 2.0);
+        missing_bldg_keys.insert("buildings.1.id_lbm".to_string(), 1.0);
+        assert_eq!(
+            stebbs_state_from_map(&missing_bldg_keys),
+            Err(BridgeError::BadState)
+        );
+
+        let mut huge_layer = BTreeMap::new();
+        huge_layer.insert("buildings_count".to_string(), 1.0);
+        huge_layer.insert("buildings.1.textwall_c.1000000".to_string(), 20.0);
+        assert_eq!(stebbs_state_from_map(&huge_layer), Err(BridgeError::BadState));
+
+        let mut product_exceeds_entries = BTreeMap::new();
+        product_exceeds_entries.insert("buildings_count".to_string(), 2.0);
+        product_exceeds_entries.insert("buildings.1.textwall_c.2".to_string(), 20.0);
+        product_exceeds_entries.insert("buildings.2.id_lbm".to_string(), 1.0);
+        assert_eq!(
+            stebbs_state_from_map(&product_exceeds_entries),
+            Err(BridgeError::BadState)
+        );
     }
 }

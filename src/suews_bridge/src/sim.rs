@@ -493,7 +493,8 @@ fn encode_state_members(state: &SuewsState) -> Result<MemberBuffers, BridgeError
         STATE_MEMBER_ROUGHNESS_STATE,
         &state.roughness_state.to_flat(),
     )?;
-    out.push_member(STATE_MEMBER_STEBBS_STATE, &state.stebbs_state.to_flat())?;
+    let stebbs_flat = state.stebbs_state.to_flat_checked()?;
+    out.push_member(STATE_MEMBER_STEBBS_STATE, &stebbs_flat)?;
     out.push_member(STATE_MEMBER_NHOOD_STATE, &state.nhood_state.to_flat())?;
     Ok(out)
 }

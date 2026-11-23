@@ -367,6 +367,18 @@ fn decode_kernel_warnings(
     }
 }
 
+/// Test-only access to the production diagnostic decoder for the native witness.
+#[cfg(feature = "capi-observer")]
+pub fn observe_kernel_warnings(
+    total: i32,
+    stored: i32,
+    timer: &[i32],
+    text: &[c_char],
+    text_len: usize,
+) -> KernelWarnings {
+    decode_kernel_warnings(total, stored, timer, text, text_len)
+}
+
 #[derive(Debug, Clone)]
 struct MemberBuffers {
     flat: Vec<f64>,
@@ -529,7 +541,8 @@ pub fn encode_state_members_flat(state: &SuewsState) -> Result<(Vec<f64>, Vec<i3
     Ok((buf.flat, buf.toc))
 }
 
-fn decode_state_members(
+/// Decode the aggregate return buffer using the same member offsets as the input state.
+pub fn decode_state_members(
     state_template: &SuewsState,
     state_flat: &[f64],
     state_toc: &[i32],

@@ -182,7 +182,10 @@ pub use phenology::*;
 pub use roughness::*;
 pub use run_period::*;
 #[cfg(feature = "capi-observer")]
-pub use sim::{encode_site_members_flat, encode_site_scalars_flat, encode_state_members_flat};
+pub use sim::{
+    decode_state_members, encode_site_members_flat, encode_site_scalars_flat,
+    encode_state_members_flat, observe_kernel_warnings,
+};
 #[cfg(feature = "physics")]
 pub use sim::{
     run_from_config_str_and_forcing, run_from_config_str_and_forcing_into,

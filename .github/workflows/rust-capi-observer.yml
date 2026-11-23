@@ -1,10 +1,7 @@
 name: Rust C-API field observer
 
-# Verify that the generated test-only Fortran C-API field-binding observer stays
-# current with canonical kernel TYPE declarations and passes all 38 observer
-# tests (30 direct *_unpack routines, 4 driver aggregate unpackers, manifest
-# coverage, nested-type codec checks, and negative bounds; covering all 49
-# bridged types in bridge-manifest.json; gh#2096).
+# Keep generated observers current with the Fortran TYPE declarations. Run the
+# field-binding, manifest, codec, bounds and reverse-checkpoint checks (gh#2096).
 #
 # Kept separate from rust-test.yml so the observer compiles and links ONLY under
 # the opt-in `capi-observer` Cargo feature and never enters shipped wheel or
@@ -19,6 +16,10 @@ on:
       - 'src/suews/Makefile'
       - 'src/suews/Makefile.deps'
       - 'src/suews/Makefile.gfortran'
+      - 'test/fixtures/bridge/sample_resolved.yml'
+      - 'test/fixtures/bridge/stebbs_resolved.yml'
+      - 'src/supy/data_model/output/version.py'
+      - 'src/supy/data_model/output/artefacts/*/catalogue.json'
       - 'scripts/suews/gen_capi_field_observer.py'
       - '.github/workflows/rust-capi-observer.yml'
   workflow_call:
@@ -67,17 +68,17 @@ jobs:
       - name: Build SUEWS Fortran libraries
         run: make -C src/suews all -j"$(nproc)"
 
-      - name: Run C-API field observer tests
+      - name: Run C-API field and snapshot observer tests
         run: |
           set -eu
           if ! cargo test \
                 --manifest-path src/suews_bridge/Cargo.toml \
                 --features physics,capi-observer \
-                --test capi_field_observer; then
-            echo "::error::C-API field-binding observer tests failed in src/suews_bridge/."
+                --test capi_field_observer --test snapshot_native; then
+            echo "::error::C-API field or snapshot observer tests failed in src/suews_bridge/."
             echo "Reproduce locally:"
             echo "    python3 scripts/suews/gen_capi_field_observer.py --check"
             echo "    make -C src/suews all"
-            echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer"
+            echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer --test snapshot_native"
             exit 1
           fi

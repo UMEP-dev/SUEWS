@@ -219,6 +219,40 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev16_vegetation_senescence:
+
+Upgrading to Schema 2026.6.dev16
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Check the initial senescence degree days (``sdd_id``, in K d) under
+``sites[].initial_states.evetr``, ``dectr`` and ``grass``. Earlier SuPy
+versions could accept ``.nan``, ``.inf`` or ``-.inf`` and run with an
+initial zero. Migration now identifies the site and vegetation type for
+each invalid field. Recover the signed value for that site, vegetation
+type and start date from its initial-condition or restart record. If the
+intended initial value is zero, either supply ``0`` or omit that field.
+When the initial value is unknown, obtain it before migrating the file.
+
+For example, ``sites[0] (gridiv=27).initial_states.dectr.sdd_id`` identifies
+the deciduous trees on grid 27. A finite scalar or a mapping such as
+``{value: -450, ref: {desc: "archived start state"}}`` retains its value and
+reference. This example describes a particular initial condition. Choose
+the value for your own start date and vegetation. Water has no ``sdd_id``.
+
+Keep a copy of the old input and check the migration before saving it:
+
+.. code-block:: console
+
+   suews schema migrate site.yml --target-version 2026.6.dev16 --dry-run
+   suews schema migrate site.yml --target-version 2026.6.dev16
+
+The second command writes ``site.migrated.yml`` beside the original. An
+invalid value stops both commands. Correct the named field in a working
+copy and repeat the check. A successful migration preserves omission,
+explicit zero and signed finite values. To reproduce an earlier run that
+used a non-finite input, retain its original software version and input
+alongside any corrected run.
+
 .. _schema_dev15_drainage_coefficients:
 
 Upgrading to Schema 2026.6.dev15

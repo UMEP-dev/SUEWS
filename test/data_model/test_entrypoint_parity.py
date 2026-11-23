@@ -2124,66 +2124,38 @@ class TestDfStateEngineYamlParityRatchet:
             )
 
     def test_sdd_id_nan_and_float_df_state_none_to_nan_restoration_parity(
-        self, compact_valid_dict, short_sample_forcing, tmp_path
+        self, compact_valid_dict, tmp_path
     ):
-        """Pin float ``df_state`` ``None -> NaN -> null`` export gap and native rejection.
+        """Both YAML ``.nan`` and float ``df_state`` ``None -> NaN`` on ``sdd_id`` are rejected.
 
         Refs #2001, #2002, #2099:
-        YAML ``{value: .nan}`` and float-DataFrame ``None`` assignment (coerced
-        by pandas to ``NaN`` before ``from_df_state()``) still bypass Python
-        null rejection and serialise ``sdd_id`` as ``null`` in engine YAML
-        (#2001), but the native Rust bridge (#2002) now rejects that ``null``
-        at ``sim.run()`` instead of silently defaulting ``sdd_id`` to ``0.0``.
+        Schema ``2026.6.dev16`` rejects non-finite ``sdd_id`` at both
+        ``SUEWSConfig.from_yaml()`` and ``SUEWSConfig.from_df_state()`` so
+        neither YAML ``{value: .nan}`` nor pandas float ``None -> NaN``
+        coercion can serialise ``null`` into engine YAML or silently zero
+        senescence.
         """
-        df_day = short_sample_forcing(288)
-        end_date = df_day.index[-1]
-
         zero_dict = copy.deepcopy(compact_valid_dict)
         for surf in VEG_SURFACES:
             zero_dict["sites"][0]["initial_states"][surf]["sdd_id"] = {"value": 0.0}
         cfg_zero = SUEWSConfig.from_dict(zero_dict)
         sim_zero = SUEWSSimulation().update_config(cfg_zero, auto_load_forcing=False)
 
-        # 1. Direct YAML {value: .nan} exports null in engine YAML (#2001),
-        #    and the native bridge rejects it at run() (#2002).
+        # 1. Direct YAML {value: .nan} on dectr.sdd_id is rejected at from_yaml()
         nan_dict = copy.deepcopy(zero_dict)
         nan_dict["sites"][0]["initial_states"]["dectr"]["sdd_id"] = {
             "value": float("nan")
         }
         nan_yaml = _write_yaml(tmp_path / "sdd_nan.yml", nan_dict)
-        cfg_nan = SUEWSConfig.from_yaml(str(nan_yaml))
-        engine_nan = _normalise_engine_dict(config_to_engine_yaml(cfg_nan))
-        assert (
-            _get_yaml_path(engine_nan, "sites[0].initial_states.dectr.sdd_id") is None
-        )
-        sim_nan = SUEWSSimulation().update_config(cfg_nan, auto_load_forcing=False)
-        sim_nan.update_forcing(df_day)
-        with pytest.raises(
-            RuntimeError,
-            match=r"sites\[gridiv=1\]\.initial_states\.dectr\.sdd_id.*null",
-        ):
-            sim_nan.run(end_date=end_date)
+        with pytest.raises(ValueError, match=r"(?s)dectr\.sdd_id.*finite"):
+            SUEWSConfig.from_yaml(str(nan_yaml))
 
-        # 2. Float df_state None assignment -> NaN -> from_df_state() exports
-        #    null (#2001), and the native bridge rejects it at run() (#2002).
+        # 2. Float df_state None assignment -> NaN is rejected at from_df_state()
         df_state = sim_zero.state_init.copy()
         df_state.loc[df_state.index[0], ("sdd_id", "(1,)")] = None
         assert pd.isna(df_state.loc[df_state.index[0], ("sdd_id", "(1,)")])
-        cfg_from_df_none = SUEWSConfig.from_df_state(df_state)
-        engine_from_df = _normalise_engine_dict(config_to_engine_yaml(cfg_from_df_none))
-        assert (
-            _get_yaml_path(engine_from_df, "sites[0].initial_states.dectr.sdd_id")
-            is None
-        )
-        sim_from_df = SUEWSSimulation().update_config(
-            cfg_from_df_none, auto_load_forcing=False
-        )
-        sim_from_df.update_forcing(df_day)
-        with pytest.raises(
-            RuntimeError,
-            match=r"sites\[gridiv=1\]\.initial_states\.dectr\.sdd_id.*null",
-        ):
-            sim_from_df.run(end_date=end_date)
+        with pytest.raises(ValueError, match=r"(?s)dectr\.sdd_id.*finite"):
+            SUEWSConfig.from_df_state(df_state)
 
     @pytest.mark.parametrize("method", [6, 8], ids=["dyohm_6", "dyohm_bldg_8"])
     @pytest.mark.parametrize("wrapped", [True, False], ids=["wrapped", "bare"])

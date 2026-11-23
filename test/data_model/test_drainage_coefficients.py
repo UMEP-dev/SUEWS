@@ -10,6 +10,7 @@ import yaml
 
 from supy import SUEWSSimulation
 from supy._run_rust import config_to_engine_yaml
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.configuration.publisher import generate_json_schema
 from supy.data_model.core.config import SUEWSConfig
 from supy.util.converter.yaml_upgrade import (
@@ -204,7 +205,6 @@ def test_partial_update_revalidates_coefficients(field):
 def test_registered_migration_keeps_source_and_checks_coefficients(
     data, tmp_path, missing
 ):
-    from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
     from supy.util.converter.yaml_upgrade import upgrade_yaml
 
     data["schema_version"] = "2026.6.dev11"
@@ -724,7 +724,7 @@ def test_public_commands_compose_water_radiation_then_drainage(
     else:
         assert result.exit_code == 0, result.output
         migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
-        assert migrated["schema_version"] == "2026.6.dev15"
+        assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
         water = migrated["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]
         assert "to_soilstore" not in water
         assert "qn_surfs" not in migrated["sites"][0]["initial_states"]
@@ -743,6 +743,7 @@ def test_schema_export_keeps_water_radiation_and_drainage_version_boundaries(
         ("2026.6.dev13", True, True, False),
         ("2026.6.dev14", True, True, False),
         ("2026.6.dev15", True, True, True),
+        ("2026.6.dev16", True, True, True),
     ):
         schema = generate_json_schema(version, include_internal=include_internal)
         assert schema["version"] == schema["examples"][0]["schema_version"] == version

@@ -1,10 +1,8 @@
 {
   "description": "Per-function counts of legacy optional YAML readers in src/suews_bridge/src/yaml_config.rs; see scripts/lint/check_rust_optional_reads.py. Counts may only go down.",
   "totals": {
-    "read_i32": 15,
-    "read_numeric": 123,
-    "read_numeric_sequence": 9,
-    "read_sized_numeric_sequence": 9
+    "read_i32": 7,
+    "read_numeric": 93
   },
   "functions": {
     "apply_anthro_emis_overrides": {
@@ -21,11 +19,6 @@
     "apply_drainage_overrides": {
       "read_numeric": 6
     },
-    "apply_ehc_overrides": {
-      "read_numeric": 9,
-      "read_numeric_sequence": 3,
-      "read_sized_numeric_sequence": 9
-    },
     "apply_irrigation_overrides": {
       "read_i32": 2,
       "read_numeric": 7
@@ -37,20 +30,8 @@
     "apply_ohm_overrides": {
       "read_numeric": 9
     },
-    "apply_site_overrides": {
-      "read_numeric": 2
-    },
     "apply_snow_overrides": {
       "read_numeric": 17
-    },
-    "apply_spartacus_overrides": {
-      "read_i32": 6,
-      "read_numeric": 11
-    },
-    "apply_vertical_layers_overrides": {
-      "read_i32": 2,
-      "read_numeric": 8,
-      "read_numeric_sequence": 6
     },
     "apply_waterdist_overrides": {
       "read_numeric": 10

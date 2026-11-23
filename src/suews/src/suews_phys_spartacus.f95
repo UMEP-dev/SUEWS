@@ -764,9 +764,9 @@ CONTAINS
       sw_spectral_props%ground_albedo = alb_no_tree_bldg ! albedo excluding buildings and trees
       ! Only set roof and wall albedo if building surface fraction is present
       IF (config%do_urban) THEN
-         sw_spectral_props%roof_albedo = roof_albedo(nspec, ncol) ! albedo of buildings
-         sw_spectral_props%wall_albedo = wall_albedo(nspec, ncol) ! albedo of buildings
-         sw_spectral_props%wall_specular_frac = wall_specular_frac(nspec, ncol)
+         sw_spectral_props%roof_albedo(1:nspec, 1:nlayer) = roof_albedo(1:nspec, 1:nlayer) ! albedo of buildings
+         sw_spectral_props%wall_albedo(1:nspec, 1:nlayer) = wall_albedo(1:nspec, 1:nlayer) ! albedo of buildings
+         sw_spectral_props%wall_specular_frac(1:nspec, 1:nlayer) = wall_specular_frac(1:nspec, 1:nlayer)
       END IF
       sw_spectral_props%ground_albedo_dir = sw_spectral_props%ground_albedo
       IF (config%do_urban) THEN
@@ -775,7 +775,8 @@ CONTAINS
       IF (config%use_sw_direct_albedo) THEN
          sw_spectral_props%ground_albedo_dir = alb_no_tree_bldg*ground_albedo_dir_mult_fact
          IF (config%do_urban) THEN
-            sw_spectral_props%roof_albedo_dir = roof_albedo(nspec, ncol)*roof_albedo_dir_mult_fact(nspec, ncol)
+            sw_spectral_props%roof_albedo_dir(1:nspec, 1:nlayer) = &
+               roof_albedo(1:nspec, 1:nlayer)*roof_albedo_dir_mult_fact(1:nspec, 1:nlayer)
          END IF
       END IF
 
@@ -813,8 +814,8 @@ CONTAINS
       END IF
       lw_spectral_props%ground_emissivity = emis_no_tree_bldg ! emissivity excluding buildings and trees
       IF (config%do_urban) THEN
-         lw_spectral_props%roof_emissivity = roof_emissivity(nspec, ncol) ! emissivity of buildings
-         lw_spectral_props%wall_emissivity = wall_emissivity(nspec, ncol) ! emissivity of buildings
+         lw_spectral_props%roof_emissivity(1:nspec, 1:nlayer) = roof_emissivity(1:nspec, 1:nlayer) ! emissivity of buildings
+         lw_spectral_props%wall_emissivity(1:nspec, 1:nlayer) = wall_emissivity(1:nspec, 1:nlayer) ! emissivity of buildings
       END IF
 
       ! print *, 'roof_emissivity in suews-su ', roof_emissivity(nspec,:)

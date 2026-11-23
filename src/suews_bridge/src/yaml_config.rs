@@ -401,16 +401,20 @@ fn require_mapping<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a V
     }
 }
 
-/// Reject a non-mapping parent node when an optional sub-block is present.
+/// Reject a supplied non-null parent block that is not a YAML mapping so
+/// malformed parent blocks cannot hide behind `get_path(...) == None` on
+/// inactive option branches.
 fn validate_optional_mapping(root: &Value, path: &[&str], at: &str) -> Result<(), String> {
-    match get_path(root, path) {
-        None | Some(Value::Null) | Some(Value::Mapping(_)) => Ok(()),
-        Some(other) => Err(format!(
-            "`{}` is {}; it must be a mapping",
-            yaml_path_display(at, path),
-            yaml_kind(other)
-        )),
+    if let Some(value) = get_path(root, path).and_then(given_value) {
+        if !value.is_null() && !value.is_mapping() {
+            return Err(format!(
+                "`{}` is {}; it must be a mapping",
+                yaml_path_display(at, path),
+                yaml_kind(value)
+            ));
+        }
     }
+    Ok(())
 }
 
 /// Read a finite numeric field when `required` is true; when `required` is
@@ -434,6 +438,8 @@ fn require_if_active_numeric(
 
 /// Read a required surface area fraction (`0.0 <= sfr <= 1.0`).
 fn require_surface_sfr(site_root: &Value, surface_name: &str, at: &str) -> Result<f64, String> {
+    validate_optional_mapping(site_root, &["properties", "land_cover"], at)?;
+    validate_optional_mapping(site_root, &["properties", "land_cover", surface_name], at)?;
     let path = ["properties", "land_cover", surface_name, "sfr"];
     let v = require_numeric(site_root, &path, at)?;
     if !(0.0..=1.0).contains(&v) {
@@ -821,8 +827,14 @@ fn apply_hourly_day_profile(
     target: &mut [f64; 24],
     day_value: &Value,
     path_display: &str,
+    required: bool,
 ) -> Result<(), String> {
     if matches!(day_value, Value::Null) {
+        if required {
+            return Err(format!(
+                "`{path_display}` is null; it must be a mapping of hour `1`-`24` to finite numbers."
+            ));
+        }
         return Ok(());
     }
     let Value::Mapping(day_map) = day_value else {
@@ -858,7 +870,12 @@ fn apply_hourly_day_profile(
                 }
             },
             Some(Value::Null) | None => {
-                // Preserve existing null-slot pass-through (hourly-profile-slot-bare-null, #2001).
+                if required {
+                    return Err(format!(
+                        "`{path_display}.{hour}` is null; it must be a finite number."
+                    ));
+                }
+                // Preserve existing null-slot pass-through when inactive or legacy (#2001).
             }
             Some(other) => {
                 return Err(format!(
@@ -896,26 +913,71 @@ fn apply_hourly_profile_overrides(
     site_at: &str,
     working: &mut [f64; 24],
     holiday: &mut [f64; 24],
+    required: bool,
 ) -> Result<(), String> {
+    let profile_display = yaml_path_display(site_at, profile_path);
     let Some(profile_root) = get_path(site_root, profile_path) else {
+        if required {
+            return Err(format!(
+                "`{profile_display}` is missing; it must be a mapping with `working_day` and `holiday`."
+            ));
+        }
         return Ok(());
     };
     if matches!(profile_root, Value::Null) {
+        if required {
+            return Err(format!(
+                "`{profile_display}` is null; it must be a mapping with `working_day` and `holiday`."
+            ));
+        }
         return Ok(());
     }
     let profile = get_path(profile_root, &["value"]).unwrap_or(profile_root);
-    let profile_display = yaml_path_display(site_at, profile_path);
+    if matches!(profile, Value::Null) {
+        if required {
+            return Err(format!(
+                "`{profile_display}` is null; it must be a mapping with `working_day` and `holiday`."
+            ));
+        }
+        return Ok(());
+    }
     if !matches!(profile, Value::Mapping(_)) {
         return Err(format!(
             "`{profile_display}` is {}; it must be a mapping with `working_day` and `holiday`.",
             yaml_kind(profile)
         ));
     }
-    if let Some(wd) = get_path(profile, &["working_day"]) {
-        apply_hourly_day_profile(working, wd, &format!("{profile_display}.working_day"))?;
+    match get_path(profile, &["working_day"]) {
+        Some(wd) => {
+            apply_hourly_day_profile(
+                working,
+                wd,
+                &format!("{profile_display}.working_day"),
+                required,
+            )?;
+        }
+        None if required => {
+            return Err(format!(
+                "`{profile_display}.working_day` is missing; it must be a mapping of hour `1`-`24` to finite numbers."
+            ));
+        }
+        None => {}
     }
-    if let Some(hol) = get_path(profile, &["holiday"]) {
-        apply_hourly_day_profile(holiday, hol, &format!("{profile_display}.holiday"))?;
+    match get_path(profile, &["holiday"]) {
+        Some(hol) => {
+            apply_hourly_day_profile(
+                holiday,
+                hol,
+                &format!("{profile_display}.holiday"),
+                required,
+            )?;
+        }
+        None if required => {
+            return Err(format!(
+                "`{profile_display}.holiday` is missing; it must be a mapping of hour `1`-`24` to finite numbers."
+            ));
+        }
+        None => {}
     }
     Ok(())
 }
@@ -1731,70 +1793,226 @@ fn read_lumps(site_root: &Value) -> Result<crate::lumps::LumpsPrm, String> {
     })
 }
 
-fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "crwmax"]) {
+/// Integer counterpart of `require_if_active_numeric`.
+fn require_if_active_i32(
+    root: &Value,
+    path: &[&str],
+    at: &str,
+    required: bool,
+) -> Result<Option<i32>, String> {
+    if required
+        || get_path(root, path)
+            .and_then(given_value)
+            .is_some_and(|v| !v.is_null())
+    {
+        require_i32(root, path, at).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+/// Read snow parameters for one site (`properties.snow.*` and per-surface
+/// `properties.land_cover.<surface>.snowpack_limit`).
+///
+/// Option-gated per BR-03 against `suews_ctrl_driver.f95` (`SUEWS_cal_Main`
+/// inactive-snow clearing, `SUEWS_cal_Qn`, and `SUEWS_cal_snow`),
+/// `suews_phys_narp.f95::NARP`, and `suews_phys_snow.f95`:
+/// - When `SnowUse == 0`: `SUEWS_cal_Main` clears `snow_pack` and all other
+///   inactive snow states before saving iteration snapshots (`gh#2010`), so
+///   `update_snow_albedo` sees zero snowpack and does not consume
+///   `tau_cold_snow`, `tau_melting_snow`, `snow_albedo_max`, or
+///   `snow_albedo_min`; `SUEWS_cal_snow` is never called; and `SUEWS_cal_Qn`
+///   zeroes `SnowFrac` before `NARP` (so `narp_emissivity_snow` is unread).
+///   All snow scalars and `snowpack_limit` are therefore inactive.
+/// - When `SnowUse != 0`: all snow core scalars are required,
+///   `snow_profile_24hr` (complete finite 24-hour `working_day` and `holiday`
+///   profiles) is required whenever at least one non-water surface has
+///   `sfr > 0` (`SnowCalc` takes a separate water branch and evaluates
+///   `SnowProf_24hr(it, iu) == 1 .AND. is < 3` exclusively on non-water
+///   surfaces), `snow_depth_limit_paved` and `snow_depth_limit_building` are
+///   required when `paved.sfr > 0` and `bldgs.sfr > 0` respectively
+///   (`suews_phys_snow.f95::snow_removal`), and `snowpack_limit` is required on
+///   active non-water surfaces (`sfr > 0`, skipping `water`).
+/// - Explicit non-null values and parent mappings are still validated when
+///   inactive so malformed input never passes silently (#2002).
+fn apply_snow_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    snow_use: i32,
+) -> Result<(), String> {
+    let site_at = site_yaml_at(site_root);
+    validate_optional_mapping(site_root, &["properties", "snow"], &site_at)?;
+
+    let snow_active = snow_use != 0;
+
+    // When snow is active, validate every non-water surface fraction before
+    // evaluating sfr-gated snow limits so unresolved sfr cannot spoof absence.
+    let mut non_water_sfr = [0.0_f64; 7];
+    if snow_active {
+        for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
+            if surface_name != "water" {
+                non_water_sfr[surface_idx] =
+                    require_surface_sfr(site_root, surface_name, &site_at)?;
+            }
+        }
+    }
+    let paved_snow_active = snow_active && non_water_sfr[0] > 0.0;
+    let bldg_snow_active = snow_active && non_water_sfr[1] > 0.0;
+    let non_water_snow_active = snow_active && non_water_sfr[..6].iter().any(|&s| s > 0.0);
+
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "crwmax"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.water_holding_capacity_max = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "crwmin"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "crwmin"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.water_holding_capacity_min = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "narp_emis_snow"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "narp_emis_snow"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.narp_emissivity_snow = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "preciplimit"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "preciplimit"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.precip_limit = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "preciplimitalb"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "preciplimitalb"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.precip_limit_albedo = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowalbmax"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "snowalbmax"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.snow_albedo_max = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowalbmin"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "snowalbmin"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.snow_albedo_min = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowdensmax"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "snowdensmax"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.snow_density_max = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowdensmin"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "snowdensmin"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.snow_density_min = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowlimbldg"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "snowlimbldg"],
+        &site_at,
+        bldg_snow_active,
+    )? {
         site.snow.snow_limit_building = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowlimpaved"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "snowlimpaved"],
+        &site_at,
+        paved_snow_active,
+    )? {
         site.snow.snow_limit_paved = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_a"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "tau_a"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.tau_cold_snow = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_f"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "tau_f"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.tau_melting_snow = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_r"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "tau_r"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.tau_refreezing_snow = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "tempmeltfact"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "tempmeltfact"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.temp_melt_factor = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "snow", "radmeltfact"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &["properties", "snow", "radmeltfact"],
+        &site_at,
+        snow_active,
+    )? {
         site.snow.rad_melt_factor = v;
     }
 
-    let site_at = site_yaml_at(site_root);
     apply_hourly_profile_overrides(
         site_root,
         &["properties", "snow", "snowprof_24hr"],
         &site_at,
         &mut site.snow.snowprof_24hr_working,
         &mut site.snow.snowprof_24hr_holiday,
+        non_water_snow_active,
     )?;
 
+    validate_optional_mapping(site_root, &["properties", "land_cover"], &site_at)?;
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
-        if let Some(v) = read_numeric(
+        validate_optional_mapping(
+            site_root,
+            &["properties", "land_cover", surface_name],
+            &site_at,
+        )?;
+        let snowpack_limit_required =
+            snow_active && surface_name != "water" && non_water_sfr[surface_idx] > 0.0;
+        if let Some(v) = require_if_active_numeric(
             site_root,
             &["properties", "land_cover", surface_name, "snowpacklimit"],
-        ) {
+            &site_at,
+            snowpack_limit_required,
+        )? {
             site.snow.snowpack_limit[surface_idx] = v;
         }
     }
@@ -1908,6 +2126,7 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
             &site_at,
             working,
             holiday,
+            false,
         )?;
     }
     Ok(())
@@ -2240,79 +2459,208 @@ fn apply_conductance_overrides(
     Ok(())
 }
 
-fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
+/// Read anthropogenic heat and CO2 parameters for one site
+/// (`properties.anthropogenic_emissions.*`).
+///
+/// Option-gated per BR-03 against `suews_util_time.f95::SUEWS_cal_DLS`,
+/// `suews_phys_dailystate.f95::update_DailyState_Day`,
+/// `suews_ctrl_driver.f95::SUEWS_cal_AnthropogenicEmission`, and
+/// `suews_phys_anthro.f95::AnthropogenicEmissions`:
+/// - `startdls` and `enddls` are an explicit pair: both omitted/null represents
+///   no daylight saving (`0`, `0`, matching `AnthropogenicEmissions`'s `ge=1`
+///   schema where `None` disables DLS); supplying only one or a non-integer
+///   value is rejected cleanly.
+/// - `heat.baset_heating` and `heat.baset_cooling` are read unconditionally on
+///   every timestep by `update_DailyState_Day` (for `HDD_id(1)` / `HDD_id(2)`),
+///   so both `working_day` and `holiday` are always required regardless of
+///   `EmissionsMethod`.
+/// - When `EmissionsMethod == 0`, `AnthropogenicEmissions` is never called, so
+///   all other `heat.*` and `co2.*` fields are inactive.
+/// - When `EmissionsMethod != 0` (`sub = EmissionsMethod % 10` in `1..=6`):
+///   - `popdensdaytime`, `popdensnighttime`, and `qf0_beu` are required across
+///     all modelled methods (`1..=6`, `11..=46`).
+///   - Heat basis: `qf_a`/`qf_b`/`qf_c` are required for J11 (`sub` in
+///     `{2, 5}`); `ah_min`/`ah_slope_heating` for L11 and L11_UPDATED (`sub` in
+///     `{1, 3, 4, 6}`); `ah_slope_cooling` for L11_UPDATED (`sub` in `{3, 6}`).
+///   - `AnthropogenicEmissions` (`suews_phys_anthro.f95`) unconditionally
+///     computes metabolism (`MinQFMetab`, `MaxQFMetab`, `MinFCMetab`,
+///     `MaxFCMetab`), building CO2 (`EF_umolCO2perJ`, `FrFossilFuel_Heat`,
+///     `FrFossilFuel_NonHeat`), and vehicle CO2 (`EnEF_v_Jkm` — including
+///     dividing `QF_traff / EnEF_v_Jkm` on `sub` in `1..=3` — and `FcEF_v_kgkm`)
+///     for every `EmissionsMethod != 0` before the driver zeroes `Fc_*` for
+///     `1..=6`, and `QF_metab` also feeds the `ErrorHint(69)` check on
+///     `sub` in `1..=3`. All nine `co2.*` parameters are therefore required
+///     whenever `EmissionsMethod != 0`.
+///   - Hourly profiles: `AnthropogenicEmissions` unconditionally reads all four
+///     24-hour profiles (`heat.ahprof_24hr`, `heat.popprof_24hr`,
+///     `co2.profile_traffic_24hr`, `co2.profile_human_activity_24hr`) whenever
+///     `EmissionsMethod != 0`, so all four require complete finite `working_day`
+///     and `holiday` mappings when active.
+///   - Detailed methods (`sub` in `{4, 5, 6}`): additionally require
+///     `co2.traffic_rate` and `co2.type_traffic_rate` (unused on `sub` in
+///     `{1, 2, 3}`).
+/// - Explicit non-null values and parent mappings are still validated when
+///   inactive so malformed input never passes silently (#2002).
+fn apply_anthro_emis_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    emissions_method: i32,
+) -> Result<(), String> {
     let base = ["properties", "anthropogenic_emissions"];
+    let site_at = site_yaml_at(site_root);
+    validate_optional_mapping(site_root, &base, &site_at)?;
+    validate_optional_mapping(site_root, &[base[0], base[1], "heat"], &site_at)?;
+    validate_optional_mapping(site_root, &[base[0], base[1], "co2"], &site_at)?;
 
-    // --- top-level scalars ---
-    if let Some(v) = read_i32(site_root, &[base[0], base[1], "startdls"]) {
-        site.anthroemis.startdls = v;
-    }
-    if let Some(v) = read_i32(site_root, &[base[0], base[1], "enddls"]) {
-        site.anthroemis.enddls = v;
+    let anthro_on = emissions_method != 0;
+    let sub = emissions_method % 10;
+    let j11_method = anthro_on && matches!(sub, 2 | 5);
+    let l11_or_updated = anthro_on && matches!(sub, 1 | 3 | 4 | 6);
+    let l11_updated = anthro_on && matches!(sub, 3 | 6);
+    let detailed_method = anthro_on && matches!(sub, 4..=6);
+
+    // --- top-level DLS pair ---
+    let startdls =
+        require_if_active_i32(site_root, &[base[0], base[1], "startdls"], &site_at, false)?;
+    let enddls = require_if_active_i32(site_root, &[base[0], base[1], "enddls"], &site_at, false)?;
+    match (startdls, enddls) {
+        (Some(start), Some(end)) => {
+            site.anthroemis.startdls = start;
+            site.anthroemis.enddls = end;
+        }
+        (Some(_), None) => {
+            return Err(format!(
+                "`{}` is missing or null while `{}` is set; provide both `startdls` and `enddls` or omit both when daylight saving is unused",
+                yaml_path_display(&site_at, &[base[0], base[1], "enddls"]),
+                yaml_path_display(&site_at, &[base[0], base[1], "startdls"]),
+            ));
+        }
+        (None, Some(_)) => {
+            return Err(format!(
+                "`{}` is missing or null while `{}` is set; provide both `startdls` and `enddls` or omit both when daylight saving is unused",
+                yaml_path_display(&site_at, &[base[0], base[1], "startdls"]),
+                yaml_path_display(&site_at, &[base[0], base[1], "enddls"]),
+            ));
+        }
+        (None, None) => {}
     }
 
     // --- heat sub-section ---
-    macro_rules! wd_hol {
-        ($yaml_name:expr, $field_wd:expr, $field_hol:expr) => {
-            if let Some(v) = read_numeric(
-                site_root,
-                &[base[0], base[1], "heat", $yaml_name, "working_day"],
-            ) {
-                $field_wd = v;
-            }
-            if let Some(v) = read_numeric(
-                site_root,
-                &[base[0], base[1], "heat", $yaml_name, "holiday"],
-            ) {
-                $field_hol = v;
-            }
-        };
-    }
+    let read_day_profile = |section: &str,
+                            yaml_name: &str,
+                            required: bool,
+                            wd: &mut f64,
+                            hol: &mut f64|
+     -> Result<(), String> {
+        validate_optional_mapping(site_root, &[base[0], base[1], section, yaml_name], &site_at)?;
+        if let Some(v) = require_if_active_numeric(
+            site_root,
+            &[base[0], base[1], section, yaml_name, "working_day"],
+            &site_at,
+            required,
+        )? {
+            *wd = v;
+        }
+        if let Some(v) = require_if_active_numeric(
+            site_root,
+            &[base[0], base[1], section, yaml_name, "holiday"],
+            &site_at,
+            required,
+        )? {
+            *hol = v;
+        }
+        Ok(())
+    };
 
     let h = &mut site.anthroemis.anthroheat;
-    wd_hol!("qf0_beu", h.qf0_beu_working, h.qf0_beu_holiday);
-    wd_hol!("qf_a", h.qf_a_working, h.qf_a_holiday);
-    wd_hol!("qf_b", h.qf_b_working, h.qf_b_holiday);
-    wd_hol!("qf_c", h.qf_c_working, h.qf_c_holiday);
-    wd_hol!(
+    read_day_profile(
+        "heat",
+        "qf0_beu",
+        anthro_on,
+        &mut h.qf0_beu_working,
+        &mut h.qf0_beu_holiday,
+    )?;
+    read_day_profile(
+        "heat",
+        "qf_a",
+        j11_method,
+        &mut h.qf_a_working,
+        &mut h.qf_a_holiday,
+    )?;
+    read_day_profile(
+        "heat",
+        "qf_b",
+        j11_method,
+        &mut h.qf_b_working,
+        &mut h.qf_b_holiday,
+    )?;
+    read_day_profile(
+        "heat",
+        "qf_c",
+        j11_method,
+        &mut h.qf_c_working,
+        &mut h.qf_c_holiday,
+    )?;
+    read_day_profile(
+        "heat",
         "baset_cooling",
-        h.baset_cooling_working,
-        h.baset_cooling_holiday
-    );
-    wd_hol!(
+        true,
+        &mut h.baset_cooling_working,
+        &mut h.baset_cooling_holiday,
+    )?;
+    read_day_profile(
+        "heat",
         "baset_heating",
-        h.baset_heating_working,
-        h.baset_heating_holiday
-    );
-    wd_hol!("ah_min", h.ah_min_working, h.ah_min_holiday);
-    wd_hol!(
+        true,
+        &mut h.baset_heating_working,
+        &mut h.baset_heating_holiday,
+    )?;
+    read_day_profile(
+        "heat",
+        "ah_min",
+        l11_or_updated,
+        &mut h.ah_min_working,
+        &mut h.ah_min_holiday,
+    )?;
+    read_day_profile(
+        "heat",
         "ah_slope_cooling",
-        h.ah_slope_cooling_working,
-        h.ah_slope_cooling_holiday
-    );
-    wd_hol!(
+        l11_updated,
+        &mut h.ah_slope_cooling_working,
+        &mut h.ah_slope_cooling_holiday,
+    )?;
+    read_day_profile(
+        "heat",
         "ah_slope_heating",
-        h.ah_slope_heating_working,
-        h.ah_slope_heating_holiday
-    );
-    wd_hol!(
+        l11_or_updated,
+        &mut h.ah_slope_heating_working,
+        &mut h.ah_slope_heating_holiday,
+    )?;
+    read_day_profile(
+        "heat",
         "popdensdaytime",
-        h.popdensdaytime_working,
-        h.popdensdaytime_holiday
-    );
+        anthro_on,
+        &mut h.popdensdaytime_working,
+        &mut h.popdensdaytime_holiday,
+    )?;
 
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "heat", "popdensnighttime"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &[base[0], base[1], "heat", "popdensnighttime"],
+        &site_at,
+        anthro_on,
+    )? {
         h.popdensnighttime = v;
     }
 
     // 24-hour profiles under heat
-    let site_at = site_yaml_at(site_root);
     apply_hourly_profile_overrides(
         site_root,
         &[base[0], base[1], "heat", "ahprof_24hr"],
         &site_at,
         &mut h.ahprof_24hr_working,
         &mut h.ahprof_24hr_holiday,
+        anthro_on,
     )?;
     apply_hourly_profile_overrides(
         site_root,
@@ -2320,62 +2668,95 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) -> Resul
         &site_at,
         &mut h.popprof_24hr_working,
         &mut h.popprof_24hr_holiday,
+        anthro_on,
     )?;
 
     // --- co2 sub-section ---
     let e = &mut site.anthroemis;
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "ef_umolco2perj"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &[base[0], base[1], "co2", "ef_umolco2perj"],
+        &site_at,
+        anthro_on,
+    )? {
         e.ef_umolco2perj = v;
     }
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "enef_v_jkm"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &[base[0], base[1], "co2", "enef_v_jkm"],
+        &site_at,
+        anthro_on,
+    )? {
         e.enef_v_jkm = v;
     }
-    if let Some(v) = read_numeric(
-        site_root,
-        &[base[0], base[1], "co2", "fcef_v_kgkm", "working_day"],
-    ) {
-        e.fcef_v_kgkm[0] = v;
+    {
+        let mut wd = e.fcef_v_kgkm[0];
+        let mut hol = e.fcef_v_kgkm[1];
+        read_day_profile("co2", "fcef_v_kgkm", anthro_on, &mut wd, &mut hol)?;
+        e.fcef_v_kgkm[0] = wd;
+        e.fcef_v_kgkm[1] = hol;
     }
-    if let Some(v) = read_numeric(
+    if let Some(v) = require_if_active_numeric(
         site_root,
-        &[base[0], base[1], "co2", "fcef_v_kgkm", "holiday"],
-    ) {
-        e.fcef_v_kgkm[1] = v;
-    }
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "frfossilfuel_heat"]) {
+        &[base[0], base[1], "co2", "frfossilfuel_heat"],
+        &site_at,
+        anthro_on,
+    )? {
         e.frfossilfuel_heat = v;
     }
-    if let Some(v) = read_numeric(
+    if let Some(v) = require_if_active_numeric(
         site_root,
         &[base[0], base[1], "co2", "frfossilfuel_nonheat"],
-    ) {
+        &site_at,
+        anthro_on,
+    )? {
         e.frfossilfuel_nonheat = v;
     }
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "maxfcmetab"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &[base[0], base[1], "co2", "maxfcmetab"],
+        &site_at,
+        anthro_on,
+    )? {
         e.maxfcmetab = v;
     }
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "maxqfmetab"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &[base[0], base[1], "co2", "maxqfmetab"],
+        &site_at,
+        anthro_on,
+    )? {
         e.maxqfmetab = v;
     }
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "minfcmetab"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &[base[0], base[1], "co2", "minfcmetab"],
+        &site_at,
+        anthro_on,
+    )? {
         e.minfcmetab = v;
     }
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "minqfmetab"]) {
+    if let Some(v) = require_if_active_numeric(
+        site_root,
+        &[base[0], base[1], "co2", "minqfmetab"],
+        &site_at,
+        anthro_on,
+    )? {
         e.minqfmetab = v;
     }
-    if let Some(v) = read_numeric(
+    read_day_profile(
+        "co2",
+        "trafficrate",
+        detailed_method,
+        &mut e.trafficrate_working,
+        &mut e.trafficrate_holiday,
+    )?;
+    if let Some(v) = require_if_active_numeric(
         site_root,
-        &[base[0], base[1], "co2", "trafficrate", "working_day"],
-    ) {
-        e.trafficrate_working = v;
-    }
-    if let Some(v) = read_numeric(
-        site_root,
-        &[base[0], base[1], "co2", "trafficrate", "holiday"],
-    ) {
-        e.trafficrate_holiday = v;
-    }
-    if let Some(v) = read_numeric(site_root, &[base[0], base[1], "co2", "trafficunits"]) {
+        &[base[0], base[1], "co2", "trafficunits"],
+        &site_at,
+        detailed_method,
+    )? {
         e.trafficunits = v;
     }
 
@@ -2385,6 +2766,7 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) -> Resul
         &site_at,
         &mut e.traffprof_24hr_working,
         &mut e.traffprof_24hr_holiday,
+        anthro_on,
     )?;
     apply_hourly_profile_overrides(
         site_root,
@@ -2392,6 +2774,7 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) -> Resul
         &site_at,
         &mut e.humactivity_24hr_working,
         &mut e.humactivity_24hr_holiday,
+        anthro_on,
     )?;
     Ok(())
 }
@@ -3071,7 +3454,7 @@ fn apply_site_overrides(
     )?;
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root, config, sfr_surf)?;
-    apply_snow_overrides(site, site_root)?;
+    apply_snow_overrides(site, site_root, config.snow_use)?;
     apply_irrigation_overrides(site, site_root)?;
     apply_vertical_layers_overrides(
         site,
@@ -3080,7 +3463,7 @@ fn apply_site_overrides(
         spartacus_on,
         use_sw_direct_albedo,
     )?;
-    apply_anthro_emis_overrides(site, site_root)?;
+    apply_anthro_emis_overrides(site, site_root, config.emissions_method)?;
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
     apply_ehc_overrides(
@@ -8342,6 +8725,678 @@ mod tests {
                 err.contains("sites[gridiv=1].properties.vertical_layers.veg_ext"),
                 "malformed inactive veg_ext={bad}: {err}"
             );
+        }
+    }
+
+    #[test]
+    fn snow_overrides_enforce_option_gated_requirements() {
+        let snow_core_keys = [
+            "water_holding_capacity_max",
+            "water_holding_capacity_min",
+            "narp_emissivity_snow",
+            "temperature_rain_snow_threshold",
+            "precipitation_threshold_albedo_reset",
+            "snow_albedo_max",
+            "snow_albedo_min",
+            "snow_density_max",
+            "snow_density_min",
+            "tau_cold_snow",
+            "tau_melting_snow",
+            "tau_refreezing_snow",
+            "temperature_melt_factor",
+            "radiation_melt_factor",
+        ];
+
+        // SnowUse == 0 with zero initial snowpack: all snow scalars and snowpack_limit
+        // may be omitted, while malformed non-null values and malformed parent mappings fail.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let snow = get_path_mut(site, &["properties", "snow"]).unwrap();
+            for key in snow_core_keys
+                .iter()
+                .chain(["snow_depth_limit_building", "snow_depth_limit_paved"].iter())
+            {
+                remove_key(snow, key);
+            }
+            for surface in [
+                "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+            ] {
+                let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
+                remove_key(lc, "snowpack_limit");
+            }
+            load_run_config_from_value(&mut root)
+                .expect("snow_use=0 with zero initial snowpack allows omitting snow scalars");
+
+            let mut bad_scalar: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(
+                first_site_mut(&mut bad_scalar).unwrap(),
+                &["properties", "snow", "tau_cold_snow"],
+            )
+            .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+            let err = load_run_config_from_value(&mut bad_scalar)
+                .expect_err("malformed inactive snow scalar must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.snow.tau_cold_snow`"),
+                "{err}"
+            );
+
+            let mut bad_parent: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(
+                first_site_mut(&mut bad_parent).unwrap(),
+                &["properties", "snow"],
+            )
+            .unwrap() = serde_yaml::from_str("\"not-a-mapping\"").unwrap();
+            let err = load_run_config_from_value(&mut bad_parent)
+                .expect_err("malformed inactive properties.snow parent block must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.snow`")
+                    && err.contains("must be a mapping"),
+                "{err}"
+            );
+        }
+
+        // SnowUse == 0 with positive initial snowpack: suews_ctrl_driver.f95 clears
+        // inactive snow states before saving snapshots (gh#2010), so update_snow_albedo
+        // sees zero snowpack and all snow scalars remain inactive.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            *get_path_mut(site, &["initial_states", "paved", "snowpack"]).unwrap() =
+                serde_yaml::from_str("{value: 5.0}").unwrap();
+            let snow = get_path_mut(site, &["properties", "snow"]).unwrap();
+            for key in [
+                "tau_cold_snow",
+                "tau_melting_snow",
+                "snow_albedo_max",
+                "snow_albedo_min",
+            ] {
+                remove_key(snow, key);
+            }
+            load_run_config_from_value(&mut root).expect(
+                "snow_use=0 with positive initial snowpack allows omitting snow albedo decay keys",
+            );
+        }
+
+        // Helper: enable snow_use = 1 on sample_resolved fixture.
+        let with_snow_on = || -> Value {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "snow_use"]).unwrap() =
+                serde_yaml::from_str("{value: 1}").unwrap();
+            root
+        };
+
+        // SnowUse == 1 requires every core snow scalar, active paved/bldgs depth limits,
+        // and snowpack_limit on active non-water surfaces (reporting canonical paths).
+        for key in snow_core_keys
+            .iter()
+            .chain(["snow_depth_limit_building", "snow_depth_limit_paved"].iter())
+        {
+            let mut root = with_snow_on();
+            let snow =
+                get_path_mut(first_site_mut(&mut root).unwrap(), &["properties", "snow"]).unwrap();
+            remove_key(snow, key);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("snow_use=1 must require active snow scalar");
+            assert!(
+                err.contains(&format!("`sites[gridiv=1].properties.snow.{key}`")),
+                "{key}: {err}"
+            );
+        }
+        {
+            let mut root = with_snow_on();
+            let grass = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass"],
+            )
+            .unwrap();
+            remove_key(grass, "snowpack_limit");
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("snow_use=1 must require snowpack_limit on active grass");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.snowpack_limit`"),
+                "{err}"
+            );
+        }
+
+        // SnowUse == 1 permits omitting snowpack_limit on water and on sfr == 0 surfaces
+        // (and depth limits when paved/bldgs sfr == 0), while rejecting missing/null sfr.
+        {
+            let mut root = with_snow_on();
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            *get_path_mut(site, &["properties", "land_cover", "paved", "sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 0.0}").unwrap();
+            *get_path_mut(site, &["properties", "land_cover", "bldgs", "sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 0.0}").unwrap();
+            *get_path_mut(site, &["properties", "land_cover", "evetr", "sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 0.0}").unwrap();
+            remove_key(
+                get_path_mut(site, &["properties", "snow"]).unwrap(),
+                "snow_depth_limit_paved",
+            );
+            remove_key(
+                get_path_mut(site, &["properties", "snow"]).unwrap(),
+                "snow_depth_limit_building",
+            );
+            for surface in ["paved", "bldgs", "evetr", "water"] {
+                remove_key(
+                    get_path_mut(site, &["properties", "land_cover", surface]).unwrap(),
+                    "snowpack_limit",
+                );
+            }
+            let mut veg_only_missing_prof = root.clone();
+            load_run_config_from_value(&mut root)
+                .expect("snow_use=1 allows omitting water and sfr=0 snow limits");
+
+            // Even with paved.sfr=bldgs.sfr=0, SnowCalc still evaluates SnowProf_24hr(it, iu)
+            // on active vegetated/bsoil surfaces, so snow_profile_24hr remains required.
+            remove_key(
+                get_path_mut(
+                    first_site_mut(&mut veg_only_missing_prof).unwrap(),
+                    &["properties", "snow"],
+                )
+                .unwrap(),
+                "snow_profile_24hr",
+            );
+            let err = load_run_config_from_value(&mut veg_only_missing_prof).expect_err(
+                "snow_use=1 with paved/bldgs sfr=0 must still require snow_profile_24hr",
+            );
+            assert!(
+                err.contains("`sites[gridiv=1].properties.snow.snow_profile_24hr`"),
+                "{err}"
+            );
+
+            // Water-only site with snow_use=1: SnowCalc takes the water branch and
+            // never evaluates SnowProf_24hr, so omitting snow_profile_24hr succeeds.
+            let mut water_only = with_snow_on();
+            let site_w = first_site_mut(&mut water_only).unwrap();
+            for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"] {
+                *get_path_mut(site_w, &["properties", "land_cover", surface, "sfr"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.0}").unwrap();
+                remove_key(
+                    get_path_mut(site_w, &["properties", "land_cover", surface]).unwrap(),
+                    "snowpack_limit",
+                );
+            }
+            *get_path_mut(site_w, &["properties", "land_cover", "water", "sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 1.0}").unwrap();
+            remove_key(
+                get_path_mut(site_w, &["properties", "land_cover", "water"]).unwrap(),
+                "snowpack_limit",
+            );
+            let snow_w = get_path_mut(site_w, &["properties", "snow"]).unwrap();
+            remove_key(snow_w, "snow_depth_limit_paved");
+            remove_key(snow_w, "snow_depth_limit_building");
+            remove_key(snow_w, "snow_profile_24hr");
+            load_run_config_from_value(&mut water_only)
+                .expect("water-only snow_use=1 allows omitting snow_profile_24hr and limits");
+
+            // Active snow_use=1 requires complete finite snow_profile_24hr.
+            let mut missing_prof = with_snow_on();
+            remove_key(
+                get_path_mut(
+                    first_site_mut(&mut missing_prof).unwrap(),
+                    &["properties", "snow"],
+                )
+                .unwrap(),
+                "snow_profile_24hr",
+            );
+            let err = load_run_config_from_value(&mut missing_prof)
+                .expect_err("snow_use=1 must require snow_profile_24hr");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.snow.snow_profile_24hr`"),
+                "{err}"
+            );
+
+            let mut null_slot = with_snow_on();
+            let wd = get_path_mut(
+                first_site_mut(&mut null_slot).unwrap(),
+                &["properties", "snow", "snow_profile_24hr", "working_day"],
+            )
+            .unwrap();
+            let Value::Mapping(wd_map) = wd else {
+                panic!("working_day should be a mapping");
+            };
+            wd_map.insert(Value::String("5".to_string()), Value::Null);
+            let err = load_run_config_from_value(&mut null_slot)
+                .expect_err("active snow_profile_24hr must reject null hour slot");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.snow.snow_profile_24hr.working_day.5`"),
+                "{err}"
+            );
+
+            let mut missing_sfr = with_snow_on();
+            let grass = get_path_mut(
+                first_site_mut(&mut missing_sfr).unwrap(),
+                &["properties", "land_cover", "grass"],
+            )
+            .unwrap();
+            remove_key(grass, "sfr");
+            remove_key(grass, "snowpack_limit");
+            let err = load_run_config_from_value(&mut missing_sfr).expect_err(
+                "snow_use=1 must reject missing sfr rather than skipping snowpack_limit",
+            );
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.sfr`"),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn anthro_emis_overrides_enforce_option_gated_requirements() {
+        let with_emissions = |code: i32| -> Value {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {code}}}")).unwrap();
+            root
+        };
+
+        // DLS pair: both omitted succeeds (no DLS); half-specified or non-integer fails.
+        {
+            let mut root = with_emissions(2);
+            let ae = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "anthropogenic_emissions"],
+            )
+            .unwrap();
+            remove_key(ae, "startdls");
+            remove_key(ae, "enddls");
+            let cfg = load_run_config_from_value(&mut root)
+                .expect("omitting both startdls and enddls disables DLS cleanly");
+            assert_eq!(cfg.site.anthroemis.startdls, 0);
+            assert_eq!(cfg.site.anthroemis.enddls, 0);
+
+            let mut half = with_emissions(2);
+            remove_key(
+                get_path_mut(
+                    first_site_mut(&mut half).unwrap(),
+                    &["properties", "anthropogenic_emissions"],
+                )
+                .unwrap(),
+                "enddls",
+            );
+            let err = load_run_config_from_value(&mut half)
+                .expect_err("setting startdls without enddls must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.anthropogenic_emissions.enddls`"),
+                "{err}"
+            );
+
+            let mut non_int = with_emissions(2);
+            *get_path_mut(
+                first_site_mut(&mut non_int).unwrap(),
+                &["properties", "anthropogenic_emissions", "startdls"],
+            )
+            .unwrap() = serde_yaml::from_str("{value: 86.5}").unwrap();
+            let err = load_run_config_from_value(&mut non_int)
+                .expect_err("non-integer startdls must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.anthropogenic_emissions.startdls`")
+                    && err.contains("must be an integer"),
+                "{err}"
+            );
+        }
+
+        // EmissionsMethod == 0: baset_heating and baset_cooling remain required (DailyState),
+        // while all other heat and co2 scalars may be omitted; malformed inactive values fail.
+        {
+            let mut root = with_emissions(0);
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let heat =
+                get_path_mut(site, &["properties", "anthropogenic_emissions", "heat"]).unwrap();
+            for key in [
+                "qf0_beu",
+                "qf_a",
+                "qf_b",
+                "qf_c",
+                "ah_min",
+                "ah_slope_cooling",
+                "ah_slope_heating",
+                "popdensdaytime",
+                "popdensnighttime",
+                "ahprof_24hr",
+                "popprof_24hr",
+            ] {
+                remove_key(heat, key);
+            }
+            let co2 =
+                get_path_mut(site, &["properties", "anthropogenic_emissions", "co2"]).unwrap();
+            for key in [
+                "emission_factor_co2_fuel",
+                "emission_factor_energy_vehicle",
+                "emission_factor_co2_vehicle",
+                "fraction_fossil_fuel_heating",
+                "fraction_fossil_fuel_non_heating",
+                "emission_co2_metabolism_max",
+                "emission_heat_metabolism_max",
+                "emission_co2_metabolism_min",
+                "emission_heat_metabolism_min",
+                "traffic_rate",
+                "type_traffic_rate",
+                "profile_traffic_24hr",
+                "profile_human_activity_24hr",
+            ] {
+                remove_key(co2, key);
+            }
+            load_run_config_from_value(&mut root.clone())
+                .expect("emissions=0 allows omitting heat/co2 scalars and hourly profiles other than baset_*");
+
+            remove_key(
+                get_path_mut(
+                    first_site_mut(&mut root).unwrap(),
+                    &[
+                        "properties",
+                        "anthropogenic_emissions",
+                        "heat",
+                        "baset_heating",
+                    ],
+                )
+                .unwrap(),
+                "holiday",
+            );
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("emissions=0 must still require baset_heating for DailyState");
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.anthropogenic_emissions.heat.baset_heating.holiday`"
+                ),
+                "{err}"
+            );
+
+            let mut bad_parent = with_emissions(0);
+            *get_path_mut(
+                first_site_mut(&mut bad_parent).unwrap(),
+                &["properties", "anthropogenic_emissions", "heat", "qf_a"],
+            )
+            .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+            let err = load_run_config_from_value(&mut bad_parent)
+                .expect_err("malformed inactive DayProfile parent must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.anthropogenic_emissions.heat.qf_a`")
+                    && err.contains("must be a mapping"),
+                "{err}"
+            );
+        }
+
+        // Heat basis gating: J11 (2) requires qf_a/b/c (not ah_*); L11 (1) requires
+        // ah_min/ah_slope_heating (not ah_slope_cooling or qf_*); L11_UPDATED (3)
+        // additionally requires ah_slope_cooling.
+        for (code, section, field, subkey, expected) in [
+            (
+                2,
+                "heat",
+                "qf_a",
+                Some("working_day"),
+                "heat.qf_a.working_day",
+            ),
+            (2, "heat", "popdensnighttime", None, "heat.popdensnighttime"),
+            (1, "heat", "ah_min", Some("holiday"), "heat.ah_min.holiday"),
+            (
+                1,
+                "heat",
+                "ah_slope_heating",
+                Some("working_day"),
+                "heat.ah_slope_heating.working_day",
+            ),
+            (
+                3,
+                "heat",
+                "ah_slope_cooling",
+                Some("holiday"),
+                "heat.ah_slope_cooling.holiday",
+            ),
+            (
+                4,
+                "co2",
+                "traffic_rate",
+                Some("working_day"),
+                "co2.traffic_rate.working_day",
+            ),
+            (4, "co2", "type_traffic_rate", None, "co2.type_traffic_rate"),
+            (
+                4,
+                "co2",
+                "emission_heat_metabolism_min",
+                None,
+                "co2.emission_heat_metabolism_min",
+            ),
+            (
+                4,
+                "co2",
+                "emission_factor_energy_vehicle",
+                None,
+                "co2.emission_factor_energy_vehicle",
+            ),
+            (
+                2,
+                "co2",
+                "emission_factor_energy_vehicle",
+                None,
+                "co2.emission_factor_energy_vehicle",
+            ),
+            (
+                2,
+                "co2",
+                "emission_factor_co2_fuel",
+                None,
+                "co2.emission_factor_co2_fuel",
+            ),
+            (
+                2,
+                "co2",
+                "emission_factor_co2_vehicle",
+                Some("holiday"),
+                "co2.emission_factor_co2_vehicle.holiday",
+            ),
+            (
+                2,
+                "co2",
+                "emission_heat_metabolism_min",
+                None,
+                "co2.emission_heat_metabolism_min",
+            ),
+            (
+                2,
+                "co2",
+                "emission_co2_metabolism_max",
+                None,
+                "co2.emission_co2_metabolism_max",
+            ),
+            (
+                5,
+                "co2",
+                "fraction_fossil_fuel_non_heating",
+                None,
+                "co2.fraction_fossil_fuel_non_heating",
+            ),
+            (
+                12,
+                "co2",
+                "emission_factor_co2_fuel",
+                None,
+                "co2.emission_factor_co2_fuel",
+            ),
+            (
+                12,
+                "co2",
+                "emission_factor_co2_vehicle",
+                Some("holiday"),
+                "co2.emission_factor_co2_vehicle.holiday",
+            ),
+            (
+                12,
+                "co2",
+                "fraction_fossil_fuel_heating",
+                None,
+                "co2.fraction_fossil_fuel_heating",
+            ),
+            (
+                12,
+                "co2",
+                "emission_co2_metabolism_max",
+                None,
+                "co2.emission_co2_metabolism_max",
+            ),
+            (2, "heat", "ahprof_24hr", None, "heat.ahprof_24hr"),
+            (
+                2,
+                "heat",
+                "popprof_24hr",
+                Some("working_day"),
+                "heat.popprof_24hr.working_day",
+            ),
+            (
+                2,
+                "co2",
+                "profile_traffic_24hr",
+                Some("holiday"),
+                "co2.profile_traffic_24hr.holiday",
+            ),
+            (
+                2,
+                "co2",
+                "profile_human_activity_24hr",
+                None,
+                "co2.profile_human_activity_24hr",
+            ),
+        ] {
+            let mut root = with_emissions(code);
+            let target = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "anthropogenic_emissions", section],
+            )
+            .unwrap();
+            if let Some(sub) = subkey {
+                remove_key(get_path_mut(target, &[field]).unwrap(), sub);
+            } else {
+                remove_key(target, field);
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("omitted active anthropogenic emissions field must fail");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.anthropogenic_emissions.{expected}`"
+                )),
+                "em={code} {expected}: {err}"
+            );
+        }
+
+        // Active anthro hourly profiles must reject null day mappings and null hour slots.
+        {
+            let mut null_day = with_emissions(2);
+            *get_path_mut(
+                first_site_mut(&mut null_day).unwrap(),
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "heat",
+                    "ahprof_24hr",
+                    "holiday",
+                ],
+            )
+            .unwrap() = Value::Null;
+            let err = load_run_config_from_value(&mut null_day)
+                .expect_err("active ahprof_24hr must reject null holiday mapping");
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.anthropogenic_emissions.heat.ahprof_24hr.holiday`"
+                ),
+                "{err}"
+            );
+
+            let mut null_slot = with_emissions(2);
+            let wd = get_path_mut(
+                first_site_mut(&mut null_slot).unwrap(),
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "co2",
+                    "profile_human_activity_24hr",
+                    "working_day",
+                ],
+            )
+            .unwrap();
+            let Value::Mapping(wd_map) = wd else {
+                panic!("working_day should be a mapping");
+            };
+            wd_map.insert(Value::String("12".to_string()), Value::Null);
+            let err = load_run_config_from_value(&mut null_slot)
+                .expect_err("active profile_human_activity_24hr must reject null hour slot");
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.anthropogenic_emissions.co2.profile_human_activity_24hr.working_day.12`"
+                ),
+                "{err}"
+            );
+        }
+
+        // J11 non-detailed (emissions=2) permits omitting L11 slopes and detailed traffic
+        // fields (traffic_rate / type_traffic_rate), while still requiring the co2 scalars
+        // consumed by AnthropogenicEmissions.
+        {
+            let mut root = with_emissions(2);
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let heat =
+                get_path_mut(site, &["properties", "anthropogenic_emissions", "heat"]).unwrap();
+            for key in ["ah_min", "ah_slope_heating", "ah_slope_cooling"] {
+                remove_key(heat, key);
+            }
+            let co2 =
+                get_path_mut(site, &["properties", "anthropogenic_emissions", "co2"]).unwrap();
+            for key in ["traffic_rate", "type_traffic_rate"] {
+                remove_key(co2, key);
+            }
+            load_run_config_from_value(&mut root)
+                .expect("emissions=2 does not require L11 slopes or detailed traffic fields");
+        }
+
+        // L11 (emissions=1) does not read qf_a/b/c, ah_slope_cooling, or detailed traffic
+        // fields; detailed J11 (emissions=5) does not read L11 ah_*; CO2 method 12 does not
+        // read detailed traffic_rate / type_traffic_rate.
+        {
+            let mut root = with_emissions(1);
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let heat =
+                get_path_mut(site, &["properties", "anthropogenic_emissions", "heat"]).unwrap();
+            for key in ["qf_a", "qf_b", "qf_c", "ah_slope_cooling"] {
+                remove_key(heat, key);
+            }
+            let co2 =
+                get_path_mut(site, &["properties", "anthropogenic_emissions", "co2"]).unwrap();
+            remove_key(co2, "traffic_rate");
+            remove_key(co2, "type_traffic_rate");
+            load_run_config_from_value(&mut root)
+                .expect("emissions=1 does not read qf_a/b/c, ah_slope_cooling, or traffic fields");
+
+            let mut root_m5 = with_emissions(5);
+            let heat_m5 = get_path_mut(
+                first_site_mut(&mut root_m5).unwrap(),
+                &["properties", "anthropogenic_emissions", "heat"],
+            )
+            .unwrap();
+            for key in ["ah_min", "ah_slope_heating", "ah_slope_cooling"] {
+                remove_key(heat_m5, key);
+            }
+            load_run_config_from_value(&mut root_m5)
+                .expect("emissions=5 does not read L11 ah_* fields");
+
+            let mut root_co2 = with_emissions(12);
+            let co2 = get_path_mut(
+                first_site_mut(&mut root_co2).unwrap(),
+                &["properties", "anthropogenic_emissions", "co2"],
+            )
+            .unwrap();
+            remove_key(co2, "traffic_rate");
+            remove_key(co2, "type_traffic_rate");
+            load_run_config_from_value(&mut root_co2)
+                .expect("emissions=12 does not read detailed traffic_rate or type_traffic_rate");
         }
     }
 }

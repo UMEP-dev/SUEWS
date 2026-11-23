@@ -289,12 +289,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "O"
-      id: "stebbs_state.buildings"
-    contract: "C-STEBBS-RESTART"
-    issue: 2107
-    classification: "defect"
-  - selector:
-      ledger: "O"
       id_prefix: "heat_state.ehc_iter_"
     contract: "C-CAPI"
     issue: 2083
@@ -391,12 +385,6 @@ mappings:
   - selector:
       ledger: "X"
       id: "test/physics/test_continuation_matrix.py::test_continuation_matrix::1"
-    contract: "C-STEBBS-RESTART"
-    issue: 2107
-    classification: "defect"
-  - selector:
-      ledger: "X"
-      id: "test/physics/test_continuation_matrix.py::test_continuation_matrix::2"
     contract: "C-EHC-RESTART"
     issue: 2108
     classification: "defect"

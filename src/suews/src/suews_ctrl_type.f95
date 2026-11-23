@@ -602,6 +602,7 @@ CONTAINS
 
       CALL self%hydroState%DEALLOCATE()
       CALL self%heatState%DEALLOCATE()
+      CALL self%stebbsState%DEALLOCATE()
 
    END SUBROUTINE deallocSUEWSState_c
 
@@ -780,6 +781,10 @@ CONTAINS
 
       IF (.NOT. self%stebbsState%iter_safe) THEN
          self%stebbsState = ref_state%stebbsState
+         ! Keep stebbs_bldg_init synchronised with stebbsState%buildings(:) across
+         ! inner-iteration rollbacks so a Pass-1 initialisation cannot leave
+         ! stebbs_bldg_init = 1 while buildings(:) is rolled back (flagState%iter_safe is .TRUE.).
+         self%flagState%stebbs_bldg_init = ref_state%flagState%stebbs_bldg_init
       END IF
 
       IF (.NOT. self%nhoodState%iter_safe) THEN

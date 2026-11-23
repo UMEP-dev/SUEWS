@@ -1627,6 +1627,8 @@ class TestDfStateEngineYamlParityRatchet:
 
         valid_gap_statuses = {
             "native_zero_fallback",
+            "native_required_unconditionally",
+            "native_required_when_active_zero_when_inactive",
             "ehc_empty_when_nlayer0_zero_when_allocated",
             "unread_by_native",
         }
@@ -1735,6 +1737,10 @@ class TestDfStateEngineYamlParityRatchet:
         })
         for inactive in ("dectr", "grass", "bsoil", "water"):
             lc[inactive]["sfr"] = {"value": 0.0}
+        # Fortran `update_gddlai` reads LAI parameters unconditionally across all three
+        # vegetated surfaces regardless of `sfr`, enforced by `apply_lai_overrides` (#2002).
+        for inactive_veg in ("dectr", "grass"):
+            lc[inactive_veg]["lai"] = copy.deepcopy(sample_lc[inactive_veg]["lai"])
         return base
 
     @pytest.mark.medium

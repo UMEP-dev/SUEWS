@@ -401,38 +401,56 @@ fn require_mapping<'a>(root: &'a Value, path: &[&str], at: &str) -> Result<&'a V
     }
 }
 
-/// Reject a supplied non-null parent block that is not a YAML mapping so
-/// malformed parent blocks cannot hide behind `get_path(...) == None` on
-/// inactive option branches.
+/// Reject a supplied non-null parent block that is not a plain YAML mapping
+/// (e.g. `ohm_coef: "bad"`, `ohm_coef: {summer_dry: "bad"}`, `lai_power: [1, 2]`,
+/// or a non-null `{value: ...}` wrapper on a structural parent), so malformed
+/// parent blocks cannot hide behind `get_path(...) == None` on inactive option
+/// branches.
 fn validate_optional_mapping(root: &Value, path: &[&str], at: &str) -> Result<(), String> {
-    if let Some(value) = get_path(root, path).and_then(given_value) {
-        if !value.is_null() && !value.is_mapping() {
-            return Err(format!(
-                "`{}` is {}; it must be a mapping",
-                yaml_path_display(at, path),
-                yaml_kind(value)
-            ));
+    if let Some(raw) = get_path(root, path) {
+        if raw.is_null() {
+            return Ok(());
         }
+        if let Some(map) = raw.as_mapping() {
+            if let Some(inner) = map.get(Value::String("value".to_string())) {
+                if inner.is_null() {
+                    return Ok(());
+                }
+                return Err(format!(
+                    "`{}` must be a plain mapping, not a `{{value: ...}}` wrapper",
+                    yaml_path_display(at, path),
+                ));
+            }
+            return Ok(());
+        }
+        return Err(format!(
+            "`{}` is {}; it must be a mapping",
+            yaml_path_display(at, path),
+            yaml_kind(raw)
+        ));
     }
     Ok(())
 }
 
-/// Read a finite numeric field when `required` is true; when `required` is
-/// false, permit absent/null (returning `Ok(None)`) while still validating any
-/// supplied non-null value as a finite number so malformed inputs fail cleanly.
+/// Read a finite numeric field that is required when `required` is true.
+/// When inactive (`!required`), an omitted or explicit `null` value returns
+/// `Ok(None)` so the caller keeps the inactive Fortran default, while any
+/// explicit non-null value is still validated via `require_numeric` so
+/// malformed input never passes silently (BR-02 / BR-03).
 fn require_if_active_numeric(
     root: &Value,
     path: &[&str],
     at: &str,
     required: bool,
 ) -> Result<Option<f64>, String> {
-    if required {
+    if required
+        || get_path(root, path)
+            .and_then(given_value)
+            .is_some_and(|v| !v.is_null())
+    {
         require_numeric(root, path, at).map(Some)
     } else {
-        match get_path(root, path).and_then(given_value) {
-            None | Some(Value::Null) => Ok(None),
-            Some(_) => require_numeric(root, path, at).map(Some),
-        }
+        Ok(None)
     }
 }
 
@@ -451,6 +469,29 @@ fn require_surface_sfr(site_root: &Value, surface_name: &str, at: &str) -> Resul
     Ok(v)
 }
 
+/// Read a surface AnOHM parameter that accepts either its canonical data-model
+/// key (`ch_anohm`, `rho_cp_anohm`, `k_anohm`) or legacy fused spelling
+/// (`chanohm`, `cpanohm`, `kkanohm`), rejecting simultaneous duplicates and
+/// reporting missing required values under the canonical key.
+fn require_anohm_field(
+    lc_root: &Value,
+    canonical: &str,
+    legacy: &str,
+    at: &str,
+    required: bool,
+) -> Result<Option<f64>, String> {
+    let has_canonical = get_path(lc_root, &[canonical]).is_some();
+    let has_legacy = get_path(lc_root, &[legacy]).is_some();
+    if has_canonical && has_legacy {
+        let canonical_path = yaml_path_display(at, &[canonical]);
+        let legacy_path = yaml_path_display(at, &[legacy]);
+        return Err(format!(
+            "both `{canonical_path}` and legacy `{legacy_path}` are set; keep only `{canonical_path}`"
+        ));
+    }
+    let key = if has_legacy { legacy } else { canonical };
+    require_if_active_numeric(lc_root, &[key], at, required)
+}
 /// Read a required string, accepting a scalar or a `value` wrapper.
 #[cfg_attr(not(test), allow(dead_code))]
 fn require_string(root: &Value, path: &[&str], at: &str) -> Result<String, String> {
@@ -1133,32 +1174,74 @@ fn set_ohm_coef_for_season(target: &mut crate::ohm_coef_lc::OhmCoefLc, season: &
     }
 }
 
-fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) -> Result<(), String> {
-    if let Some(v) =
-        read_numeric(lc_root, &["chanohm"]).or_else(|| read_numeric(lc_root, &["ch_anohm"]))
-    {
+/// Read OHM and AnOHM parameters for one land cover.
+///
+/// Option-gated per BR-03 against `suews_ctrl_driver.f95::SUEWS_cal_Qs`,
+/// `suews_phys_ohm.f95::OHM` / `OHM_coef_cal` / `OHM_coef_surface`, and
+/// `suews_phys_anohm.f95::AnOHM`:
+/// - `ch_anohm`, `rho_cp_anohm`, `k_anohm` (and legacy `chanohm`, `cpanohm`,
+///   `kkanohm`) are required on every surface when `StorageHeatMethod == 3`
+///   (`AnOHM` loops over `1..nsurf`).
+/// - `OHM` is called for `StorageHeatMethod` in `{1, 3, 6, 7, 8}` and
+///   unconditionally calls `OHM_coef_cal` across all `1..nsurf` surfaces
+///   regardless of `sfr`. Consequently, `ohm_threshold_summer_winter` is
+///   required on all 7 surfaces, and `ohm_threshold_wet_dry` is required on
+///   soil-wetness surfaces (`evetr`, `dectr`, `grass`, `bsoil`; skipped for
+///   `paved`, `bldgs`, `water`) only when `soil_store_capacity > 0.0`
+///   (matching `SoilStoreCap(is) > 0.0D0` in `OHM_coef_surface`) under
+///   `StorageHeatMethod` in `{1, 3, 6, 7, 8}`.
+/// - Static `ohm_coef` (all 12 season/coefficient entries) is required on all
+///   7 surfaces under `StorageHeatMethod` in `{1, 3, 8}` (`6` and `7` overwrite
+///   `OHM_coef(1..7, :, :)` with DyOHM/zero values before calling `OHM_coef_cal`,
+///   and `0` / `5` never call `OHM`).
+/// - Explicit non-null values are still validated when inactive so malformed
+///   input never passes silently (#2002).
+fn apply_ohm_overrides(
+    ohm: &mut crate::ohm_prm::OhmPrm,
+    lc_root: &Value,
+    at: &str,
+    surface_name: &str,
+    storage_heat_method: i32,
+    soil_store_capacity: f64,
+) -> Result<(), String> {
+    let anohm_required = storage_heat_method == 3;
+    let ohm_thresh_required = matches!(storage_heat_method, 1 | 3 | 6 | 7 | 8);
+    let wet_dry_thresh_required = ohm_thresh_required
+        && matches!(surface_name, "evetr" | "dectr" | "grass" | "bsoil")
+        && soil_store_capacity > 0.0;
+    let static_coef_required = matches!(storage_heat_method, 1 | 3 | 8);
+
+    if let Some(v) = require_anohm_field(lc_root, "ch_anohm", "chanohm", at, anohm_required)? {
         ohm.chanohm = v;
     }
-    if let Some(v) =
-        read_numeric(lc_root, &["cpanohm"]).or_else(|| read_numeric(lc_root, &["rho_cp_anohm"]))
-    {
+    if let Some(v) = require_anohm_field(lc_root, "rho_cp_anohm", "cpanohm", at, anohm_required)? {
         ohm.cpanohm = v;
     }
-    if let Some(v) =
-        read_numeric(lc_root, &["kkanohm"]).or_else(|| read_numeric(lc_root, &["k_anohm"]))
-    {
+    if let Some(v) = require_anohm_field(lc_root, "k_anohm", "kkanohm", at, anohm_required)? {
         ohm.kkanohm = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["ohm_threshsw"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["ohm_threshsw"], at, ohm_thresh_required)?
+    {
         ohm.ohm_threshold_summer_winter = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["ohm_threshwd"]) {
+    if let Some(v) =
+        require_if_active_numeric(lc_root, &["ohm_threshwd"], at, wet_dry_thresh_required)?
+    {
         ohm.ohm_threshold_wet_dry = v;
     }
 
+    validate_optional_mapping(lc_root, &["ohm_coef"], at)?;
+    for season in OHM_SEASONS {
+        validate_optional_mapping(lc_root, &["ohm_coef", season], at)?;
+    }
     for (coef_index, coef_key) in [(0_usize, "a1"), (1_usize, "a2"), (2_usize, "a3")] {
         for season in OHM_SEASONS {
-            if let Some(v) = read_numeric(lc_root, &["ohm_coef", season, coef_key]) {
+            if let Some(v) = require_if_active_numeric(
+                lc_root,
+                &["ohm_coef", season, coef_key],
+                at,
+                static_coef_required,
+            )? {
                 set_ohm_coef_for_season(&mut ohm.ohm_coef_lc[coef_index], season, v);
             }
         }
@@ -1245,96 +1328,169 @@ fn apply_waterdist_overrides(
 
 /// Read LAI parameters for one vegetated land cover (`evetr`, `dectr`, `grass`).
 ///
-/// Active vegetated surfaces (`sfr > 0.0`) divide by `lai_max` in biogenic
-/// photosynthesis (`suews_phys_biogenco2.f95`) and canopy conductance
-/// (`suews_phys_resist.f95`), so `lai.lai_max` must be supplied as a finite
-/// positive number (`> 0.0`) naming the canonical YAML path on failure
-/// (#2149, #2083). Inactive vegetated surfaces (`sfr == 0.0`) keep `0.0` when
-/// omitted or null and permit explicit `lai_max == 0.0`, while malformed
-/// non-null values still fail cleanly.
+/// Option-gated per BR-03 against `suews_phys_lai.f95::update_gddlai` and
+/// `suews_phys_dailystate.f95::update_Veg`:
+/// - `update_gddlai` loops over all three vegetation slots (`1..NVegSurf`)
+///   regardless of `sfr` and runs degree-day accumulation even when
+///   `laimethod == 0`, so `base_temperature`, `gdd_full`,
+///   `base_temperature_senescence`, and `sdd_full` are required for all three
+///   vegetated surfaces.
+/// - `update_Veg` reads `lai_min` and `lai_max` for all three vegetation slots
+///   whenever daily LAI changes (without an `sfr` guard), and `calculate_lai`
+///   reads both for all three slots when `laimethod != 0`, so `lai_min` and
+///   `lai_max` are required for all three vegetated surfaces. Active vegetated
+///   surfaces (`sfr > 0.0`) additionally require `lai_max > 0.0` (#2149, #2083)
+///   while explicit `lai_max == 0.0` on `sfr == 0.0` remains permitted.
+/// - `lai_power` (all four entries) and integer `lai_type` are only read inside
+///   `calculate_lai` when `laimethod != 0`, across all three vegetated surfaces
+///   regardless of `sfr`; they may be omitted/null only when `laimethod == 0`,
+///   while explicit non-null malformed values still fail cleanly (#2002).
 fn apply_lai_overrides(
     lai: &mut crate::lai::LaiPrm,
     lc_root: &Value,
     at: &str,
     sfr: f64,
+    lai_method: i32,
 ) -> Result<(), String> {
-    if let Some(v) = read_numeric(lc_root, &["lai", "baset"]) {
-        lai.base_temperature = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["lai", "gddfull"]) {
-        lai.gdd_full = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["lai", "basete"]) {
-        lai.base_temperature_senescence = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["lai", "sddfull"]) {
-        lai.sdd_full = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["lai", "laimin"]) {
-        lai.lai_min = v;
-    }
     let active = sfr.is_finite() && sfr > 0.0;
-    if active {
-        let v = require_numeric(lc_root, &["lai", "laimax"], at)?;
-        if v <= 0.0 {
-            return Err(format!(
-                "`{}` must be positive (> 0) when surface fraction is positive (sfr={sfr}), \
-                 got {v}; supply a positive lai_max (in m2 m-2) or set sfr to 0 if this \
-                 vegetation type is absent",
-                yaml_path_display(at, &["lai", "laimax"]),
-            ));
-        }
-        lai.lai_max = v;
-    } else if get_path(lc_root, &["lai", "laimax"])
-        .and_then(given_value)
-        .is_some_and(|v| !v.is_null())
-    {
-        lai.lai_max = require_numeric(lc_root, &["lai", "laimax"], at)?;
+    let phenology_required = lai_method != 0;
+
+    validate_optional_mapping(lc_root, &["lai"], at)?;
+    validate_optional_mapping(lc_root, &["lai", "laipower"], at)?;
+
+    lai.base_temperature = require_numeric(lc_root, &["lai", "baset"], at)?;
+    lai.gdd_full = require_numeric(lc_root, &["lai", "gddfull"], at)?;
+    lai.base_temperature_senescence = require_numeric(lc_root, &["lai", "basete"], at)?;
+    lai.sdd_full = require_numeric(lc_root, &["lai", "sddfull"], at)?;
+    lai.lai_min = require_numeric(lc_root, &["lai", "laimin"], at)?;
+    let lai_max = require_numeric(lc_root, &["lai", "laimax"], at)?;
+    if active && lai_max <= 0.0 {
+        return Err(format!(
+            "`{}` must be positive (> 0) when surface fraction is positive (sfr={sfr}), \
+             got {lai_max}; supply a positive lai_max (in m2 m-2) or set sfr to 0 if this \
+             vegetation type is absent",
+            yaml_path_display(at, &["lai", "laimax"]),
+        ));
     }
-    if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "growth_lai"]) {
+    lai.lai_max = lai_max;
+    if let Some(v) = require_if_active_numeric(
+        lc_root,
+        &["lai", "laipower", "growth_lai"],
+        at,
+        phenology_required,
+    )? {
         lai.lai_power[0] = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "growth_gdd"]) {
+    if let Some(v) = require_if_active_numeric(
+        lc_root,
+        &["lai", "laipower", "growth_gdd"],
+        at,
+        phenology_required,
+    )? {
         lai.lai_power[1] = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "senescence_lai"]) {
+    if let Some(v) = require_if_active_numeric(
+        lc_root,
+        &["lai", "laipower", "senescence_lai"],
+        at,
+        phenology_required,
+    )? {
         lai.lai_power[2] = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "senescence_sdd"]) {
+    if let Some(v) = require_if_active_numeric(
+        lc_root,
+        &["lai", "laipower", "senescence_sdd"],
+        at,
+        phenology_required,
+    )? {
         lai.lai_power[3] = v;
     }
-    if let Some(v) = read_i32(lc_root, &["lai", "laitype"]) {
+    if let Some(v) = require_if_active_i32(lc_root, &["lai", "laitype"], at, phenology_required)? {
         lai.lai_type = v;
     }
     Ok(())
 }
 
+/// Read biogenic CO2 parameters for one vegetated land cover (`evetr`, `dectr`, `grass`).
+///
+/// Option-gated per BR-03 against `suews_ctrl_driver.f95::SUEWS_cal_BiogenCO2`
+/// and `suews_phys_biogenco2.f95::CO2_biogen`:
+/// - `EmissionsMethod < 11`: `CO2_biogen` is never called; all eight fields
+///   are inactive.
+/// - `11..=16` (rectangular hyperbola): requires `beta_bio_co2` and
+///   `alpha_bio_co2` on active surfaces (`sfr > 0.0`; `sfr == 0` hits `CYCLE`).
+/// - `21..=26` (local Bellucco 2017): requires `beta_bio_co2`, `alpha_bio_co2`,
+///   and `theta_bio_co2` on active surfaces (`sfr > 0.0`; `sfr == 0` hits `CYCLE`).
+/// - `31..=36` (general Bellucco 2017): when total vegetation fraction
+///   `veg_frac_sum > 0.0`, requires `beta_bio_co2`, `alpha_bio_co2`, and
+///   `theta_bio_co2` on all three vegetated surfaces, plus `beta_enh_bioco2`
+///   and `alpha_enh_bioco2` on `evetr` (`ivConif`).
+/// - `41..=46` (conductance): `CO2_biogen` loops `ivConif..ivGrass` without an
+///   `sfr == 0` skip, so `beta_bio_co2` is required on all three vegetated
+///   surfaces.
+/// - Respiration (`resp_a`, `resp_b`, `min_res_bioco2`): for all
+///   `EmissionsMethod >= 11`, required when `veg_frac_sum > REAL(0.01)` and
+///   `sfr > REAL(0.005)` (matching Fortran's promoted single-precision literals
+///   `0.01` and `0.005` in `suews_phys_biogenco2.f95`).
+/// - Explicit non-null values are still validated when inactive so malformed
+///   input never passes silently (#2002).
 fn apply_bioco2_overrides(
     bioco2: &mut crate::bioco2::BioCo2Prm,
     lc_root: &Value,
+    at: &str,
+    surface_name: &str,
+    sfr: f64,
+    veg_frac_sum: f64,
+    emissions_method: i32,
 ) -> Result<(), String> {
-    if let Some(v) = read_numeric(lc_root, &["beta_bioco2"]) {
+    // Match Fortran default-REAL literals (`0.01`, `0.005`) promoted to f64 in
+    // `suews_phys_biogenco2.f95::CO2_biogen` so exact boundary values (`0.01`,
+    // `0.005`) do not slip past validation while Fortran enters respiration.
+    const BIO_CO2_VEG_SUM_THRESHOLD: f64 = 0.01_f32 as f64;
+    const BIO_CO2_SURF_THRESHOLD: f64 = 0.005_f32 as f64;
+
+    let bioco2_on = emissions_method >= 11;
+    let family = emissions_method / 10;
+    let surface_active = sfr != 0.0;
+    let any_veg_active = veg_frac_sum != 0.0;
+
+    let beta_required = bioco2_on
+        && ((matches!(family, 1 | 2) && surface_active)
+            || (family == 3 && any_veg_active)
+            || family == 4);
+    let alpha_required = bioco2_on
+        && ((matches!(family, 1 | 2) && surface_active) || (family == 3 && any_veg_active));
+    let theta_required =
+        bioco2_on && ((family == 2 && surface_active) || (family == 3 && any_veg_active));
+    let enh_required = bioco2_on && family == 3 && any_veg_active && surface_name == "evetr";
+    let resp_required = bioco2_on
+        && veg_frac_sum.is_finite()
+        && veg_frac_sum > BIO_CO2_VEG_SUM_THRESHOLD
+        && sfr.is_finite()
+        && sfr > BIO_CO2_SURF_THRESHOLD;
+
+    if let Some(v) = require_if_active_numeric(lc_root, &["beta_bioco2"], at, beta_required)? {
         bioco2.beta_bio_co2 = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["beta_enh_bioco2"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["beta_enh_bioco2"], at, enh_required)? {
         bioco2.beta_enh_bioco2 = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["alpha_bioco2"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["alpha_bioco2"], at, alpha_required)? {
         bioco2.alpha_bio_co2 = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["alpha_enh_bioco2"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["alpha_enh_bioco2"], at, enh_required)? {
         bioco2.alpha_enh_bioco2 = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["resp_a"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["resp_a"], at, resp_required)? {
         bioco2.resp_a = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["resp_b"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["resp_b"], at, resp_required)? {
         bioco2.resp_b = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["theta_bioco2"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["theta_bioco2"], at, theta_required)? {
         bioco2.theta_bio_co2 = v;
     }
-    if let Some(v) = read_numeric(lc_root, &["min_res_bioco2"]) {
+    if let Some(v) = require_if_active_numeric(lc_root, &["min_res_bioco2"], at, resp_required)? {
         bioco2.min_res_bioco2 = v;
     }
     Ok(())
@@ -2183,10 +2339,14 @@ fn apply_land_cover_overrides(
     let bsoil_sfr = sfr_surf[5];
     let water_sfr = sfr_surf[6];
     let paved_sfr = sfr_surf[0];
+    let veg_frac_sum = evetr_sfr + dectr_sfr + grass_sfr;
     let emis_paved_bldg = emis_all || bldg_sfr > 0.0;
     let irrfrac_active = config.water_use_method == 0;
     let fai_provided = config.fai_method == 0;
     let snow_off = config.snow_use == 0;
+    let storage_heat_method = config.storage_heat_method;
+    let emissions_method = config.emissions_method;
+    let lai_method = config.lai_method;
 
     {
         let lc_root = require_mapping(site_root, &["properties", "land_cover", "paved"], &site_at)?;
@@ -2206,8 +2366,15 @@ fn apply_land_cover_overrides(
         if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_paved.irrfracpaved = v;
         }
-        apply_ohm_overrides(&mut site.lc_paved.ohm, lc_root)?;
         apply_soil_overrides(&mut site.lc_paved.soil, lc_root, &at, paved_sfr > 0.0)?;
+        apply_ohm_overrides(
+            &mut site.lc_paved.ohm,
+            lc_root,
+            &at,
+            "paved",
+            storage_heat_method,
+            site.lc_paved.soil.soil_store_capacity,
+        )?;
         apply_waterdist_overrides(&mut site.lc_paved.waterdist, lc_root)?;
     }
 
@@ -2237,8 +2404,15 @@ fn apply_land_cover_overrides(
         if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_bldg.irrfracbldgs = v;
         }
-        apply_ohm_overrides(&mut site.lc_bldg.ohm, lc_root)?;
         apply_soil_overrides(&mut site.lc_bldg.soil, lc_root, &at, bldg_sfr > 0.0)?;
+        apply_ohm_overrides(
+            &mut site.lc_bldg.ohm,
+            lc_root,
+            &at,
+            "bldgs",
+            storage_heat_method,
+            site.lc_bldg.soil.soil_store_capacity,
+        )?;
         apply_waterdist_overrides(&mut site.lc_bldg.waterdist, lc_root)?;
     }
 
@@ -2278,10 +2452,25 @@ fn apply_land_cover_overrides(
         {
             site.lc_evetr.max_conductance = v;
         }
-        apply_ohm_overrides(&mut site.lc_evetr.ohm, lc_root)?;
         apply_soil_overrides(&mut site.lc_evetr.soil, lc_root, &at, evetr_sfr > 0.0)?;
-        apply_bioco2_overrides(&mut site.lc_evetr.bioco2, lc_root)?;
-        apply_lai_overrides(&mut site.lc_evetr.lai, lc_root, &at, evetr_sfr)?;
+        apply_ohm_overrides(
+            &mut site.lc_evetr.ohm,
+            lc_root,
+            &at,
+            "evetr",
+            storage_heat_method,
+            site.lc_evetr.soil.soil_store_capacity,
+        )?;
+        apply_bioco2_overrides(
+            &mut site.lc_evetr.bioco2,
+            lc_root,
+            &at,
+            "evetr",
+            evetr_sfr,
+            veg_frac_sum,
+            emissions_method,
+        )?;
+        apply_lai_overrides(&mut site.lc_evetr.lai, lc_root, &at, evetr_sfr, lai_method)?;
         apply_waterdist_overrides(&mut site.lc_evetr.waterdist, lc_root)?;
     }
 
@@ -2325,10 +2514,25 @@ fn apply_land_cover_overrides(
         {
             site.lc_dectr.max_conductance = v;
         }
-        apply_ohm_overrides(&mut site.lc_dectr.ohm, lc_root)?;
         apply_soil_overrides(&mut site.lc_dectr.soil, lc_root, &at, dectr_sfr > 0.0)?;
-        apply_bioco2_overrides(&mut site.lc_dectr.bioco2, lc_root)?;
-        apply_lai_overrides(&mut site.lc_dectr.lai, lc_root, &at, dectr_sfr)?;
+        apply_ohm_overrides(
+            &mut site.lc_dectr.ohm,
+            lc_root,
+            &at,
+            "dectr",
+            storage_heat_method,
+            site.lc_dectr.soil.soil_store_capacity,
+        )?;
+        apply_bioco2_overrides(
+            &mut site.lc_dectr.bioco2,
+            lc_root,
+            &at,
+            "dectr",
+            dectr_sfr,
+            veg_frac_sum,
+            emissions_method,
+        )?;
+        apply_lai_overrides(&mut site.lc_dectr.lai, lc_root, &at, dectr_sfr, lai_method)?;
         apply_waterdist_overrides(&mut site.lc_dectr.waterdist, lc_root)?;
     }
 
@@ -2357,10 +2561,25 @@ fn apply_land_cover_overrides(
         {
             site.lc_grass.max_conductance = v;
         }
-        apply_ohm_overrides(&mut site.lc_grass.ohm, lc_root)?;
         apply_soil_overrides(&mut site.lc_grass.soil, lc_root, &at, grass_sfr > 0.0)?;
-        apply_bioco2_overrides(&mut site.lc_grass.bioco2, lc_root)?;
-        apply_lai_overrides(&mut site.lc_grass.lai, lc_root, &at, grass_sfr)?;
+        apply_ohm_overrides(
+            &mut site.lc_grass.ohm,
+            lc_root,
+            &at,
+            "grass",
+            storage_heat_method,
+            site.lc_grass.soil.soil_store_capacity,
+        )?;
+        apply_bioco2_overrides(
+            &mut site.lc_grass.bioco2,
+            lc_root,
+            &at,
+            "grass",
+            grass_sfr,
+            veg_frac_sum,
+            emissions_method,
+        )?;
+        apply_lai_overrides(&mut site.lc_grass.lai, lc_root, &at, grass_sfr, lai_method)?;
         apply_waterdist_overrides(&mut site.lc_grass.waterdist, lc_root)?;
     }
 
@@ -2382,8 +2601,15 @@ fn apply_land_cover_overrides(
         if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_bsoil.irrfracbsoil = v;
         }
-        apply_ohm_overrides(&mut site.lc_bsoil.ohm, lc_root)?;
         apply_soil_overrides(&mut site.lc_bsoil.soil, lc_root, &at, bsoil_sfr > 0.0)?;
+        apply_ohm_overrides(
+            &mut site.lc_bsoil.ohm,
+            lc_root,
+            &at,
+            "bsoil",
+            storage_heat_method,
+            site.lc_bsoil.soil.soil_store_capacity,
+        )?;
         apply_waterdist_overrides(&mut site.lc_bsoil.waterdist, lc_root)?;
     }
 
@@ -2406,8 +2632,15 @@ fn apply_land_cover_overrides(
         if let Some(v) = require_if_active_numeric(lc_root, &["irrfrac"], &at, irrfrac_active)? {
             site.lc_water.irrfracwater = v;
         }
-        apply_ohm_overrides(&mut site.lc_water.ohm, lc_root)?;
         apply_soil_overrides(&mut site.lc_water.soil, lc_root, &at, false)?;
+        apply_ohm_overrides(
+            &mut site.lc_water.ohm,
+            lc_root,
+            &at,
+            "water",
+            storage_heat_method,
+            site.lc_water.soil.soil_store_capacity,
+        )?;
     }
     Ok(())
 }
@@ -7501,11 +7734,13 @@ mod tests {
 
     #[test]
     fn inactive_or_positive_lai_max_accepted_for_vegetated_surfaces() {
-        // Inactive vegetated surfaces (sfr == 0) may carry lai_max == 0 or omit lai_max (#2149).
+        // Inactive vegetated surfaces (sfr == 0) may carry explicit lai_max == 0 (#2149),
+        // while omitting lai_max is rejected cleanly under BR-02 (#2002) because
+        // update_gddlai / update_Veg read all three vegetation slots without an sfr guard.
         let mut root: Value =
             serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
         let site = first_site_mut(&mut root).expect("fixture has site");
-        for surface in ["evetr", "dectr"] {
+        for surface in ["evetr", "dectr", "grass"] {
             let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
             *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
             *get_path_mut(lc, &["lai", "lai_min"]).unwrap() =
@@ -7513,16 +7748,24 @@ mod tests {
             *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                 serde_yaml::from_str("{value: 0.0}").unwrap();
         }
-        // Omitted lai_max on inactive grass keeps 0.0 cleanly.
-        let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
-        *get_path_mut(grass, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
-        remove_key(get_path_mut(grass, &["lai"]).unwrap(), "lai_max");
-
-        let run_cfg = load_run_config_from_value(&mut root)
-            .expect("inactive vegetated surfaces with zero or omitted lai_max must parse");
+        let run_cfg = load_run_config_from_value(&mut root.clone())
+            .expect("inactive vegetated surfaces with explicit zero lai_max must parse");
         assert_eq!(run_cfg.site.lc_evetr.lai.lai_max, 0.0);
         assert_eq!(run_cfg.site.lc_dectr.lai.lai_max, 0.0);
         assert_eq!(run_cfg.site.lc_grass.lai.lai_max, 0.0);
+
+        let grass = get_path_mut(
+            first_site_mut(&mut root).unwrap(),
+            &["properties", "land_cover", "grass"],
+        )
+        .unwrap();
+        remove_key(get_path_mut(grass, &["lai"]).unwrap(), "lai_max");
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("omitted lai_max on inactive grass must be rejected");
+        assert!(
+            err.contains("`sites[gridiv=1].properties.land_cover.grass.lai.lai_max`"),
+            "{err}"
+        );
 
         // Active vegetated surfaces with small positive lai_max (> 0) remain accepted.
         let mut root_pos: Value =
@@ -9397,6 +9640,879 @@ mod tests {
             remove_key(co2, "type_traffic_rate");
             load_run_config_from_value(&mut root_co2)
                 .expect("emissions=12 does not read detailed traffic_rate or type_traffic_rate");
+        }
+    }
+
+    #[test]
+    fn ohm_overrides_enforce_option_gated_requirements() {
+        // Under StorageHeatMethod = 1 (OHM), active surfaces require static OHM
+        // fields; active soil-wetness surfaces also require ohm_threshold_wet_dry,
+        // while paved/bldgs/water allow ohm_threshold_wet_dry to be omitted/null.
+        for (surface, key, canonical) in [
+            (
+                "paved",
+                "ohm_threshold_summer_winter",
+                "ohm_threshold_summer_winter",
+            ),
+            (
+                "grass",
+                "ohm_threshold_summer_winter",
+                "ohm_threshold_summer_winter",
+            ),
+            ("grass", "ohm_threshold_wet_dry", "ohm_threshold_wet_dry"),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
+            *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.1}").unwrap();
+            remove_key(lc, key);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("omitted active static OHM threshold must be rejected");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.{surface}.{canonical}`"
+                )),
+                "{surface}.{key}: {err}"
+            );
+        }
+
+        // Omitting any of the 12 ohm_coef entries on an active surface under OHM fails.
+        for (season, coef_key) in [("summer_dry", "a1"), ("winter_wet", "a3")] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let season_map = get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "ohm_coef", season],
+            )
+            .unwrap();
+            remove_key(season_map, coef_key);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("omitted active ohm_coef entry must be rejected");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.paved.ohm_coef.{season}.{coef_key}`"
+                )),
+                "{season}.{coef_key}: {err}"
+            );
+        }
+
+        // Paved/bldgs/water do not read ohm_threshold_wet_dry in OHM_coef_surface,
+        // so omitting it succeeds; malformed non-null still fails cleanly.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            for surface in ["paved", "bldgs", "water"] {
+                let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
+                remove_key(lc, "ohm_threshold_wet_dry");
+            }
+            load_run_config_from_value(&mut root)
+                .expect("paved/bldgs/water may omit ohm_threshold_wet_dry");
+
+            let mut bad_root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut bad_root).expect("fixture has site");
+            *get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "ohm_threshold_wet_dry"],
+            )
+            .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+            let err = load_run_config_from_value(&mut bad_root)
+                .expect_err("malformed inactive ohm_threshold_wet_dry must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.paved.ohm_threshold_wet_dry`"),
+                "{err}"
+            );
+        }
+
+        // Soil-wetness surfaces skip ohm_threshold_wet_dry in OHM_coef_surface when
+        // SoilStoreCap(is) <= 0 (including omitted inactive soil parameters), so
+        // omitted/null ohm_threshold_wet_dry succeeds while malformed values still fail.
+        for omit_capacity in [true, false] {
+            for omit_thresh in [true, false] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+                let site = first_site_mut(&mut root).expect("fixture has site");
+                let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"]).unwrap();
+                *get_path_mut(evetr, &["sfr"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.0}").unwrap();
+                if omit_capacity {
+                    remove_key(evetr, "soil_store_capacity");
+                } else {
+                    *get_path_mut(evetr, &["soil_store_capacity"]).unwrap() =
+                        serde_yaml::from_str("{value: 0.0}").unwrap();
+                }
+                if omit_thresh {
+                    remove_key(evetr, "ohm_threshold_wet_dry");
+                } else {
+                    *get_path_mut(evetr, &["ohm_threshold_wet_dry"]).unwrap() =
+                        serde_yaml::from_str("{value: null}").unwrap();
+                }
+                load_run_config_from_value(&mut root)
+                    .expect("zero-capacity soil surface may omit or null ohm_threshold_wet_dry");
+            }
+            let mut bad_root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut bad_root).expect("fixture has site");
+            let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"]).unwrap();
+            *get_path_mut(evetr, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+            if omit_capacity {
+                remove_key(evetr, "soil_store_capacity");
+            } else {
+                *get_path_mut(evetr, &["soil_store_capacity"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.0}").unwrap();
+            }
+            *get_path_mut(evetr, &["ohm_threshold_wet_dry"]).unwrap() =
+                serde_yaml::from_str(".nan").unwrap();
+            let err = load_run_config_from_value(&mut bad_root).expect_err(
+                "non-finite ohm_threshold_wet_dry must fail even with zero soil capacity",
+            );
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.evetr.ohm_threshold_wet_dry`"),
+                "{err}"
+            );
+        }
+
+        // Under StorageHeatMethod = 1, OHM_coef_cal loops over all 7 surfaces
+        // regardless of sfr, so even sfr == 0 (evetr with positive soil_store_capacity)
+        // requires thresholds and static ohm_coef entries.
+        for (key, canonical) in [
+            ("ohm_threshold_summer_winter", "ohm_threshold_summer_winter"),
+            ("ohm_threshold_wet_dry", "ohm_threshold_wet_dry"),
+            ("ohm_coef", "ohm_coef.summer_dry.a1"),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"]).unwrap();
+            *get_path_mut(evetr, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+            remove_key(evetr, key);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("StorageHeatMethod=1 must require OHM fields even when sfr=0");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.evetr.{canonical}`"
+                )),
+                "evetr.{key}: {err}"
+            );
+        }
+
+        // Under StorageHeatMethod = 6 (full DyOHM), OHM overwrites OHM_coef(1..7)
+        // before calling OHM_coef_cal, so ohm_coef and AnOHM fields may be omitted,
+        // while ohm_threshold_summer_winter (all 7 surfaces) and
+        // ohm_threshold_wet_dry (evetr/dectr/grass/bsoil) are still read and required.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 6}").unwrap();
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            for surface in [
+                "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+            ] {
+                let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
+                for key in ["ch_anohm", "rho_cp_anohm", "k_anohm", "ohm_coef"] {
+                    remove_key(lc, key);
+                }
+            }
+            load_run_config_from_value(&mut root.clone())
+                .expect("StorageHeatMethod=6 may omit static ohm_coef and AnOHM fields");
+
+            remove_key(
+                get_path_mut(
+                    first_site_mut(&mut root).unwrap(),
+                    &["properties", "land_cover", "evetr"],
+                )
+                .unwrap(),
+                "ohm_threshold_summer_winter",
+            );
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("StorageHeatMethod=6 must still require ohm_threshold_summer_winter");
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.land_cover.evetr.ohm_threshold_summer_winter`"
+                ),
+                "{err}"
+            );
+        }
+
+        // Under StorageHeatMethod = 0 (observed QS) or 5 (EHC), OHM and AnOHM
+        // are never called, so all OHM and AnOHM fields may be omitted.
+        for method in [0, 5] {
+            let mut root_off: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root_off, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {method}}}")).unwrap();
+            let site = first_site_mut(&mut root_off).expect("fixture has site");
+            let paved = get_path_mut(site, &["properties", "land_cover", "paved"]).unwrap();
+            for key in [
+                "ch_anohm",
+                "rho_cp_anohm",
+                "k_anohm",
+                "ohm_threshold_summer_winter",
+                "ohm_threshold_wet_dry",
+                "ohm_coef",
+            ] {
+                remove_key(paved, key);
+            }
+            load_run_config_from_value(&mut root_off)
+                .expect("StorageHeatMethod=0/5 may omit static OHM and AnOHM fields");
+        }
+
+        // StorageHeatMethod = 3 (AnOHM) requires ch_anohm, rho_cp_anohm, k_anohm
+        // on every surface (even sfr == 0), naming canonical keys on absence, and
+        // rejects simultaneous canonical + legacy spellings.
+        for (canonical, legacy) in [
+            ("ch_anohm", "chanohm"),
+            ("rho_cp_anohm", "cpanohm"),
+            ("k_anohm", "kkanohm"),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 3}").unwrap();
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"]).unwrap();
+            *get_path_mut(evetr, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+            remove_key(evetr, canonical);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("StorageHeatMethod=3 must require AnOHM fields even when sfr=0");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.evetr.{canonical}`"
+                )),
+                "{canonical}: {err}"
+            );
+
+            // Simultaneous canonical + legacy spelling is rejected cleanly.
+            let mut dup: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut dup).expect("fixture has site");
+            let paved = get_path_mut(site, &["properties", "land_cover", "paved"]).unwrap();
+            if let Value::Mapping(map) = paved {
+                map.insert(
+                    Value::String(legacy.to_string()),
+                    serde_yaml::from_str("{value: 1.0}").unwrap(),
+                );
+            }
+            let err = load_run_config_from_value(&mut dup)
+                .expect_err("duplicate canonical + legacy AnOHM key must be rejected");
+            assert!(
+                err.contains(canonical) && err.contains(legacy),
+                "{canonical}/{legacy}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn lai_overrides_enforce_option_gated_requirements() {
+        // Modelled LAI (laimethod = 1, default) on active grass requires every
+        // phenology field and reports canonical data-model paths on absence/malformed.
+        for (path, expected_display) in [
+            (vec!["base_temperature"], "lai.base_temperature"),
+            (vec!["gdd_full"], "lai.gdd_full"),
+            (
+                vec!["base_temperature_senescence"],
+                "lai.base_temperature_senescence",
+            ),
+            (vec!["sdd_full"], "lai.sdd_full"),
+            (vec!["lai_min"], "lai.lai_min"),
+            (vec!["lai_power", "growth_lai"], "lai.lai_power.growth_lai"),
+            (vec!["lai_power", "growth_gdd"], "lai.lai_power.growth_gdd"),
+            (
+                vec!["lai_power", "senescence_lai"],
+                "lai.lai_power.senescence_lai",
+            ),
+            (
+                vec!["lai_power", "senescence_sdd"],
+                "lai.lai_power.senescence_sdd",
+            ),
+            (vec!["lai_type"], "lai.lai_type"),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let grass_lai =
+                get_path_mut(site, &["properties", "land_cover", "grass", "lai"]).unwrap();
+            if path.len() == 1 {
+                remove_key(grass_lai, path[0]);
+            } else {
+                let sub = get_path_mut(grass_lai, &[path[0]]).unwrap();
+                remove_key(sub, path[1]);
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("omitted active modelled LAI parameter must be rejected");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.grass.{expected_display}`"
+                )),
+                "{expected_display}: {err}"
+            );
+        }
+
+        // Non-integer lai_type is rejected by require_i32.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            *get_path_mut(
+                site,
+                &["properties", "land_cover", "grass", "lai", "lai_type"],
+            )
+            .unwrap() = serde_yaml::from_str("{value: 1.5}").unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("non-integer lai_type must be rejected");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.lai.lai_type`")
+                    && err.contains("must be an integer"),
+                "{err}"
+            );
+        }
+
+        // Observed LAI (laimethod = 0) skips calculate_lai, so lai_power and
+        // lai_type may be omitted/null (while explicit malformed values still
+        // fail), whereas degree-day fields and lai_min/lai_max remain required
+        // across all three vegetation slots (even when sfr == 0).
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let physics = get_path_mut(&mut root, &["model", "physics"]).unwrap();
+            if let Value::Mapping(map) = physics {
+                map.insert(
+                    Value::String("laimethod".to_string()),
+                    serde_yaml::from_str("{value: 0}").unwrap(),
+                );
+            }
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            for surface in ["evetr", "dectr", "grass"] {
+                let lc_lai =
+                    get_path_mut(site, &["properties", "land_cover", surface, "lai"]).unwrap();
+                remove_key(lc_lai, "lai_power");
+                remove_key(lc_lai, "lai_type");
+            }
+            load_run_config_from_value(&mut root.clone())
+                .expect("laimethod=0 allows omitted lai_power and lai_type");
+
+            for required_key in [
+                "base_temperature",
+                "gdd_full",
+                "base_temperature_senescence",
+                "sdd_full",
+                "lai_min",
+                "lai_max",
+            ] {
+                let mut missing = root.clone();
+                let evetr = get_path_mut(
+                    first_site_mut(&mut missing).unwrap(),
+                    &["properties", "land_cover", "evetr"],
+                )
+                .unwrap();
+                *get_path_mut(evetr, &["sfr"]).unwrap() =
+                    serde_yaml::from_str("{value: 0.0}").unwrap();
+                remove_key(get_path_mut(evetr, &["lai"]).unwrap(), required_key);
+                let err = load_run_config_from_value(&mut missing).expect_err(
+                    "laimethod=0 must still require degree-day and envelope fields even when sfr=0",
+                );
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.evetr.lai.{required_key}`"
+                    )),
+                    "laimethod=0 evetr.{required_key}: {err}"
+                );
+            }
+
+            // Explicit malformed lai_type under laimethod=0 must still fail cleanly.
+            let mut bad = root;
+            let grass_lai = get_path_mut(
+                first_site_mut(&mut bad).unwrap(),
+                &["properties", "land_cover", "grass", "lai"],
+            )
+            .unwrap();
+            if let Value::Mapping(map) = grass_lai {
+                map.insert(
+                    Value::String("lai_type".to_string()),
+                    serde_yaml::from_str("\"bad\"").unwrap(),
+                );
+            }
+            let err = load_run_config_from_value(&mut bad)
+                .expect_err("malformed inactive lai_type under laimethod=0 must be rejected");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.lai.lai_type`"),
+                "{err}"
+            );
+        }
+
+        // Under laimethod = 1, even an sfr == 0 surface (evetr) runs through
+        // update_gddlai's calculate_lai loop, so lai_power and lai_type are required.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"]).unwrap();
+            *get_path_mut(evetr, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+            remove_key(get_path_mut(evetr, &["lai"]).unwrap(), "lai_type");
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("laimethod=1 must require lai_type even when sfr=0");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.evetr.lai.lai_type`"),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn bioco2_overrides_enforce_option_gated_requirements() {
+        let all_bioco2_keys = [
+            "beta_bio_co2",
+            "beta_enh_bioco2",
+            "alpha_bio_co2",
+            "alpha_enh_bioco2",
+            "resp_a",
+            "resp_b",
+            "theta_bio_co2",
+            "min_res_bioco2",
+        ];
+
+        // EmissionsMethod < 11 (default = 2): all 8 biogenic CO2 keys may be omitted
+        // on active vegetation, while malformed non-null values still fail cleanly.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            for surface in ["evetr", "dectr", "grass"] {
+                let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
+                for key in all_bioco2_keys {
+                    remove_key(lc, key);
+                }
+            }
+            load_run_config_from_value(&mut root)
+                .expect("EmissionsMethod=2 allows omitting all biogenic CO2 fields");
+
+            let mut bad: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut bad).expect("fixture has site");
+            *get_path_mut(site, &["properties", "land_cover", "grass", "resp_a"]).unwrap() =
+                serde_yaml::from_str("\"bad\"").unwrap();
+            let err = load_run_config_from_value(&mut bad)
+                .expect_err("malformed inactive biogenic CO2 field must be rejected");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.resp_a`"),
+                "{err}"
+            );
+        }
+
+        // Helper: set emissions code on sample_resolved fixture (dectr=0.02, grass=0.03,
+        // evetr=0.0, veg_frac_sum=0.05 > 0.01).
+        let with_emissions = |code: i32| -> Value {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str(&format!("{{value: {code}}}")).unwrap();
+            root
+        };
+
+        // Family 1 (12): active grass requires beta_bio_co2, alpha_bio_co2, and
+        // respiration fields, while theta_bio_co2 / *_enh_bioco2 remain optional.
+        for key in [
+            "beta_bio_co2",
+            "alpha_bio_co2",
+            "resp_a",
+            "resp_b",
+            "min_res_bioco2",
+        ] {
+            let mut root = with_emissions(12);
+            let grass = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass"],
+            )
+            .unwrap();
+            remove_key(grass, key);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("family 1 must require active beta/alpha/respiration fields");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.grass.{key}`"
+                )),
+                "em=12 missing {key}: {err}"
+            );
+        }
+        {
+            let mut root = with_emissions(12);
+            let grass = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass"],
+            )
+            .unwrap();
+            for key in ["theta_bio_co2", "beta_enh_bioco2", "alpha_enh_bioco2"] {
+                remove_key(grass, key);
+            }
+            load_run_config_from_value(&mut root)
+                .expect("family 1 does not read theta_bio_co2 or *_enh_bioco2");
+        }
+
+        // Family 2 (22): additionally requires theta_bio_co2 on active vegetation.
+        {
+            let mut root = with_emissions(22);
+            let grass = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass"],
+            )
+            .unwrap();
+            remove_key(grass, "theta_bio_co2");
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("family 2 must require theta_bio_co2 on active vegetation");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.theta_bio_co2`"),
+                "{err}"
+            );
+        }
+
+        // Family 3 (32): when veg_frac_sum > 0, requires beta/alpha/theta across all
+        // three veg slots (including evetr with sfr == 0) plus *_enh_bioco2 on evetr;
+        // *_enh_bioco2 on grass/dectr are not read.
+        for key in [
+            "beta_bio_co2",
+            "alpha_bio_co2",
+            "theta_bio_co2",
+            "beta_enh_bioco2",
+            "alpha_enh_bioco2",
+        ] {
+            let mut root = with_emissions(32);
+            let evetr = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "evetr"],
+            )
+            .unwrap();
+            remove_key(evetr, key);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("family 3 with veg_frac_sum > 0 must require evetr general-model keys");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.evetr.{key}`"
+                )),
+                "em=32 missing evetr.{key}: {err}"
+            );
+        }
+        {
+            let mut root = with_emissions(32);
+            let grass = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass"],
+            )
+            .unwrap();
+            remove_key(grass, "beta_enh_bioco2");
+            remove_key(grass, "alpha_enh_bioco2");
+            load_run_config_from_value(&mut root)
+                .expect("family 3 reads *_enh_bioco2 from evetr only");
+        }
+
+        // Family 4 (42): requires beta_bio_co2 across all three vegetation slots
+        // (including sfr == 0 because CO2_biogen loops ivConif..ivGrass without
+        // skipping zero-fraction slots); alpha/theta/*_enh remain optional.
+        {
+            let mut root = with_emissions(42);
+            let grass = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass"],
+            )
+            .unwrap();
+            for key in [
+                "alpha_bio_co2",
+                "theta_bio_co2",
+                "beta_enh_bioco2",
+                "alpha_enh_bioco2",
+            ] {
+                remove_key(grass, key);
+            }
+            load_run_config_from_value(&mut root.clone())
+                .expect("family 4 does not read alpha, theta, or *_enh");
+
+            let mut missing_evetr = root.clone();
+            let evetr = get_path_mut(
+                first_site_mut(&mut missing_evetr).unwrap(),
+                &["properties", "land_cover", "evetr"],
+            )
+            .unwrap();
+            *get_path_mut(evetr, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.0}").unwrap();
+            remove_key(evetr, "beta_bio_co2");
+            let err = load_run_config_from_value(&mut missing_evetr)
+                .expect_err("family 4 must require beta_bio_co2 even when sfr == 0");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.evetr.beta_bio_co2`"),
+                "{err}"
+            );
+
+            remove_key(
+                get_path_mut(
+                    first_site_mut(&mut root).unwrap(),
+                    &["properties", "land_cover", "grass"],
+                )
+                .unwrap(),
+                "beta_bio_co2",
+            );
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("family 4 must require beta_bio_co2 on active vegetation");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.beta_bio_co2`"),
+                "{err}"
+            );
+        }
+
+        // Exact Fortran default-REAL respiration boundary (veg_frac_sum == 0.01,
+        // sfr == 0.005): because Fortran's `0.01` and `0.005` literals promote from
+        // f32 to f64 values strictly less than 0.01_f64 / 0.005_f64, the kernel
+        // DOES enter respiration here, so resp_a/resp_b/min_res_bioco2 are required.
+        for resp_key in ["resp_a", "resp_b", "min_res_bioco2"] {
+            let mut root = with_emissions(12);
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            *get_path_mut(site, &["properties", "land_cover", "evetr", "sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 0.0}").unwrap();
+            *get_path_mut(site, &["properties", "land_cover", "dectr", "sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 0.005}").unwrap();
+            *get_path_mut(site, &["properties", "land_cover", "grass", "sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 0.005}").unwrap();
+            let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
+            remove_key(grass, resp_key);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("exact boundary veg_frac_sum=0.01, sfr=0.005 must require respiration");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.grass.{resp_key}`"
+                )),
+                "boundary {resp_key}: {err}"
+            );
+        }
+
+        // Strictly below Fortran default-REAL respiration threshold (sfr = 0.0049):
+        // respiration keys are not read.
+        {
+            let mut root = with_emissions(12);
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
+            *get_path_mut(grass, &["sfr"]).unwrap() =
+                serde_yaml::from_str("{value: 0.0049}").unwrap();
+            for key in ["resp_a", "resp_b", "min_res_bioco2"] {
+                remove_key(grass, key);
+            }
+            load_run_config_from_value(&mut root).expect(
+                "surface strictly below f32 0.005 threshold does not read respiration keys",
+            );
+        }
+
+        // Omitted, null, wrapped-null, negative, > 1.0, or non-finite vegetation
+        // sfr cannot bypass BioCO2 presence gates (emissions=12, 22, or 32).
+        for (emissions, bad_sfr) in [
+            (12, None),
+            (12, Some("null")),
+            (12, Some("{value: null}")),
+            (22, None),
+            (22, Some("{value: null}")),
+            (12, Some("{value: -0.1}")),
+            (12, Some("{value: .nan}")),
+            (32, Some("{value: -0.05}")),
+            (32, Some("{value: 1.2}")),
+        ] {
+            let mut root = with_emissions(emissions);
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
+            match bad_sfr {
+                None => remove_key(grass, "sfr"),
+                Some(raw) => {
+                    *get_path_mut(grass, &["sfr"]).unwrap() = serde_yaml::from_str(raw).unwrap();
+                }
+            }
+            for key in [
+                "beta_bio_co2",
+                "alpha_bio_co2",
+                "theta_bio_co2",
+                "resp_a",
+                "resp_b",
+                "min_res_bioco2",
+            ] {
+                remove_key(grass, key);
+            }
+            let err = load_run_config_from_value(&mut root).expect_err(
+                "missing or invalid vegetation sfr must be rejected before BioCO2 gating",
+            );
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.sfr`"),
+                "em={emissions} sfr={bad_sfr:?}: {err}"
+            );
+        }
+
+        // Deleting all three vegetation sfr keys under family 3 (32) with omitted
+        // BioCO2 parameters must fail rather than inferring veg_frac_sum == 0.
+        {
+            let mut root = with_emissions(32);
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            for surface in ["evetr", "dectr", "grass"] {
+                let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
+                remove_key(lc, "sfr");
+                for key in all_bioco2_keys {
+                    remove_key(lc, key);
+                }
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("omitting all vegetation sfr keys under em=32 must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.evetr.sfr`"),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn deleted_surface_blocks_and_malformed_inactive_parents_are_rejected() {
+        // Deleting an entire surface block (including zero-fraction evetr) must not
+        // bypass mandatory surface-block, OHM, sfr, or LAI checks.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let lc_map = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover"],
+            )
+            .unwrap();
+            remove_key(lc_map, "evetr");
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("deleting entire land_cover.evetr block under OHM must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.evetr`")
+                    && err.contains("is missing"),
+                "{err}"
+            );
+        }
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 0}").unwrap();
+            let lc_map = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover"],
+            )
+            .unwrap();
+            remove_key(lc_map, "evetr");
+            let err = load_run_config_from_value(&mut root).expect_err(
+                "deleting entire land_cover.evetr block under storage_heat=0 must fail",
+            );
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.evetr`")
+                    && err.contains("is missing"),
+                "{err}"
+            );
+        }
+
+        // Malformed inactive parent blocks (scalar/list at ohm_coef, season, or
+        // lai_power) must be rejected cleanly rather than silently skipped.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 0}").unwrap();
+            *get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "paved", "ohm_coef"],
+            )
+            .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("malformed inactive ohm_coef parent block must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.paved.ohm_coef`")
+                    && err.contains("must be a mapping"),
+                "{err}"
+            );
+        }
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 0}").unwrap();
+            *get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &[
+                    "properties",
+                    "land_cover",
+                    "paved",
+                    "ohm_coef",
+                    "summer_dry",
+                ],
+            )
+            .unwrap() = serde_yaml::from_str("[1, 2]").unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("malformed inactive ohm_coef season block must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.paved.ohm_coef.summer_dry`")
+                    && err.contains("must be a mapping"),
+                "{err}"
+            );
+        }
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let physics = get_path_mut(&mut root, &["model", "physics"]).unwrap();
+            if let Value::Mapping(map) = physics {
+                map.insert(
+                    Value::String("laimethod".to_string()),
+                    serde_yaml::from_str("{value: 0}").unwrap(),
+                );
+            }
+            *get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass", "lai", "lai_power"],
+            )
+            .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("malformed inactive lai_power parent block must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.lai.lai_power`")
+                    && err.contains("must be a mapping"),
+                "{err}"
+            );
+        }
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+                serde_yaml::from_str("{value: 0}").unwrap();
+            *get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "paved", "ohm_coef"],
+            )
+            .unwrap() = serde_yaml::from_str("{value: {summer_dry: \"bad\"}}").unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("wrapped inactive ohm_coef structural parent must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.paved.ohm_coef`")
+                    && err.contains("must be a plain mapping"),
+                "{err}"
+            );
+        }
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let physics = get_path_mut(&mut root, &["model", "physics"]).unwrap();
+            if let Value::Mapping(map) = physics {
+                map.remove(Value::String("laimethod".to_string()));
+                map.insert(
+                    Value::String("leaf_area_index".to_string()),
+                    serde_yaml::from_str("{value: 0}").unwrap(),
+                );
+            }
+            *get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "grass", "lai", "lai_power"],
+            )
+            .unwrap() = serde_yaml::from_str("{value: {growth_lai: .nan}}").unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("wrapped inactive lai_power structural parent must fail");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.grass.lai.lai_power`")
+                    && err.contains("must be a plain mapping"),
+                "{err}"
+            );
         }
     }
 }

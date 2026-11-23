@@ -1,41 +1,45 @@
 {
   "schema_version": 2,
-  "description": "Shrinking parity ratchet pinning remaining to_df_state() vs config_to_engine_yaml() shadow-default divergences on sparse configs (gh#2099), paired with observed native SuewsSite receiver semantics (distinguishing native_zero_fallback, ehc_empty_when_nlayer0_zero_when_allocated, unread_by_native, and retired #2077 active-required soil groups).",
+  "description": "Shrinking parity ratchet pinning remaining to_df_state() vs config_to_engine_yaml() shadow-default divergences on sparse configs (gh#2099), paired with observed native SuewsSite receiver semantics (distinguishing native_zero_fallback, native_required_unconditionally, native_required_when_active_zero_when_inactive, ehc_empty_when_nlayer0_zero_when_allocated, unread_by_native, and retired #2077 active-required soil groups).",
   "native_receiver_accounting": {
     "alpha_bioco2": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_when_active_zero_when_inactive",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.alpha_bio_co2",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "baset": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_unconditionally",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.base_temperature",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "basete": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_unconditionally",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.base_temperature_senescence",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "beta_bioco2": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_when_active_zero_when_inactive",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.beta_bio_co2",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "bldgh": {
@@ -147,12 +151,13 @@
       ]
     },
     "gddfull": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_unconditionally",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.gdd_full",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "k_roof": {
@@ -183,21 +188,23 @@
       ]
     },
     "laimax": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_unconditionally",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.lai_max",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "laipower": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_when_active_zero_when_inactive",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.lai_power[0..4]",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "preciplimit": {
@@ -210,21 +217,23 @@
       ]
     },
     "resp_a": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_when_active_zero_when_inactive",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.resp_a",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "resp_b": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_when_active_zero_when_inactive",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.resp_b",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "sathydraulicconduct": {
@@ -239,12 +248,13 @@
       ]
     },
     "sddfull": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_unconditionally",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.lai.sdd_full",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     },
     "snowdensmax": {
@@ -314,12 +324,13 @@
       ]
     },
     "theta_bioco2": {
-      "native_receiver": "native_zero_fallback",
+      "native_receiver": "native_required_when_active_zero_when_inactive",
       "native_member": "SuewsSite.lc_{evetr,dectr,grass}.bioco2.theta_bio_co2",
       "observed_by": [
         "src/suews_bridge/tests/layer3_sparse_receiver_parity.rs",
         "src/suews_bridge/tests/yaml_jacobian.rs",
-        "src/suews_bridge/tests/capi_field_observer.rs"
+        "src/suews_bridge/tests/capi_field_observer.rs",
+        "test/io_tests/test_engine_bioco2_ohm_lai_guards.py"
       ]
     }
   },
@@ -866,7 +877,7 @@
       "df_value": 0.6,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -877,7 +888,7 @@
       "df_value": 0.8,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -888,7 +899,7 @@
       "df_value": 1.0,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -899,7 +910,7 @@
       "df_value": 1.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -910,7 +921,7 @@
       "df_value": 1.2,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -921,7 +932,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -932,7 +943,7 @@
       "df_value": 100.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -943,7 +954,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -954,7 +965,7 @@
       "df_value": 100.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -965,7 +976,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -976,7 +987,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -987,7 +998,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -998,7 +1009,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1009,7 +1020,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1020,7 +1031,7 @@
       "df_value": 0.6,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1031,7 +1042,7 @@
       "df_value": 0.8,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1042,7 +1053,7 @@
       "df_value": 1.0,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1053,7 +1064,7 @@
       "df_value": 1.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1064,7 +1075,7 @@
       "df_value": 1.2,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1075,7 +1086,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1086,7 +1097,7 @@
       "df_value": 100.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1097,7 +1108,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1108,7 +1119,7 @@
       "df_value": 100.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1119,7 +1130,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1130,7 +1141,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1141,7 +1152,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1152,7 +1163,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1163,7 +1174,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1174,7 +1185,7 @@
       "df_value": 0.6,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1185,7 +1196,7 @@
       "df_value": 0.8,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1196,7 +1207,7 @@
       "df_value": 1.0,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1207,7 +1218,7 @@
       "df_value": 1.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1218,7 +1229,7 @@
       "df_value": 1.2,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1229,7 +1240,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1240,7 +1251,7 @@
       "df_value": 100.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1251,7 +1262,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1262,7 +1273,7 @@
       "df_value": 100.0,
       "yaml_value": null,
       "owner_issue": "#2001",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1273,7 +1284,7 @@
       "df_value": 10.0,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_unconditionally"
     },
     {
       "df_col": [
@@ -1284,7 +1295,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1295,7 +1306,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1306,7 +1317,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [
@@ -1317,7 +1328,7 @@
       "df_value": 0.1,
       "yaml_value": null,
       "owner_issue": "#2101",
-      "native_receiver": "native_zero_fallback"
+      "native_receiver": "native_required_when_active_zero_when_inactive"
     },
     {
       "df_col": [

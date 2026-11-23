@@ -7,8 +7,10 @@
 //!
 //! 1. Supplied non-default values arrive verbatim on the expected `SuewsSite` members
 //!    without dropping, swapping, or falling back to legacy `df_state` shadow defaults.
-//! 2. Omitted active/inactive scalar and array fields land on their real observed native
-//!    fallback (`0.0` via `Default::default()`), verified in both asymmetry orientations.
+//! 2. Omitted inactive or not-yet-migrated scalar and array fields land on their real
+//!    observed native fallback (`0.0` via `Default::default()`), while unconditionally
+//!    required LAI scalars and active `lai_power` / active BioCO2 parameters are rejected
+//!    when omitted (#2002).
 //! 3. EHC vectors (`k`/`cp`/`dz` for `surf`/`roof`/`wall` and `soil_storecap_{roof,wall}`)
 //!    allocate to observed `0.0` when `nlayer > 0` (even under OHM `storage_heat=1`) and
 //!    receive exact asymmetric values vs `0.0` omissions under EHC (`storage_heat=5`), while
@@ -107,19 +109,10 @@ fn strip_veg_shadow_defaults(lc: &mut Mapping, surface: &str) {
     ] {
         remove_key(surf, key);
     }
-    if let Some(lai_val) = surf.get_mut(Value::String("lai".to_string())) {
-        let lai = lai_val.as_mapping_mut().expect("lai mapping");
-        for key in [
-            "base_temperature",
-            "base_temperature_senescence",
-            "gdd_full",
-            "sdd_full",
-            "lai_max",
-            "lai_power",
-        ] {
-            remove_key(lai, key);
-        }
-    }
+    // Core LAI parameters are unconditionally required across all three vegetated surfaces
+    // (Fortran `update_gddlai` reads all three without checking `sfr`), and `lai_power` is
+    // required whenever `leaf_area_index != 0` (#2002), so keep LAI populated on baseline
+    // fixtures and assert strict rejection separately below.
 }
 
 fn set_veg_shadow_values(
@@ -356,30 +349,79 @@ fn test_sparse_asymmetric_ohm_receiver_parity() {
     );
     assert_close(site.snow.precip_limit, 1.75, "snow.preciplimit");
 
-    // 3. Omitted dectr, grass, snow density, and inactive bsoil soil receive observed 0.0
-    //    (NOT the df_state shadow defaults 0.8/0.6/1.2/1.0/1.1/10.0/100.0/0.1/15.0/100/400/150).
-    for (label, bioco2, lai) in [
-        ("dectr", &site.lc_dectr.bioco2, &site.lc_dectr.lai),
-        ("grass", &site.lc_grass.bioco2, &site.lc_grass.lai),
+    // 3. Omitted inactive BioCO2, tree geometry, snow density, and inactive bsoil soil
+    //    receive observed 0.0 (NOT df_state shadow defaults); omitted required LAI fields
+    //    are rejected even when `sfr == 0` (`update_gddlai` reads all 3 veg surfaces), while
+    //    omitted `lai_power` lands on `0.0` only when `leaf_area_index == 0`.
+    for (label, bioco2) in [
+        ("dectr", &site.lc_dectr.bioco2),
+        ("grass", &site.lc_grass.bioco2),
     ] {
         assert_close(bioco2.alpha_bio_co2, 0.0, &format!("{label}.alpha_bio_co2"));
         assert_close(bioco2.beta_bio_co2, 0.0, &format!("{label}.beta_bio_co2"));
         assert_close(bioco2.theta_bio_co2, 0.0, &format!("{label}.theta_bio_co2"));
         assert_close(bioco2.resp_a, 0.0, &format!("{label}.resp_a"));
         assert_close(bioco2.resp_b, 0.0, &format!("{label}.resp_b"));
-        assert_close(lai.base_temperature, 0.0, &format!("{label}.baset"));
-        assert_close(
-            lai.base_temperature_senescence,
-            0.0,
-            &format!("{label}.basete"),
+    }
+    for key in [
+        "base_temperature",
+        "base_temperature_senescence",
+        "gdd_full",
+        "sdd_full",
+        "lai_max",
+        "lai_power",
+    ] {
+        let mut missing_lai = build_sparse_ohm_asymmetric_yaml();
+        let site_mut = first_site_mut(&mut missing_lai);
+        let dectr_lai = mapping_at_mut(site_mut, &["properties", "land_cover", "dectr", "lai"]);
+        remove_key(dectr_lai, key);
+        let err = load_run_config_from_value(&mut missing_lai).expect_err(&format!(
+            "omitted dectr.lai.{key} must be rejected when leaf_area_index != 0"
+        ));
+        assert!(
+            err.contains("dectr.lai"),
+            "unexpected error for omitted dectr.lai.{key}: {err}"
         );
-        assert_close(lai.gdd_full, 0.0, &format!("{label}.gddfull"));
-        assert_close(lai.sdd_full, 0.0, &format!("{label}.sddfull"));
-        assert_close(lai.lai_max, 0.0, &format!("{label}.laimax"));
+    }
+    {
+        let mut inactive_laipower = build_sparse_ohm_asymmetric_yaml();
+        let physics = mapping_at_mut(&mut inactive_laipower, &["model", "physics"]);
+        remove_key(physics, "laimethod");
+        let mut wrapped_zero = Mapping::new();
+        wrapped_zero.insert(Value::String("value".to_string()), Value::from(0));
+        physics.insert(
+            Value::String("leaf_area_index".to_string()),
+            Value::Mapping(wrapped_zero),
+        );
+        let site_mut = first_site_mut(&mut inactive_laipower);
+        let dectr_lai = mapping_at_mut(site_mut, &["properties", "land_cover", "dectr", "lai"]);
+        remove_key(dectr_lai, "lai_power");
+        let cfg_laim0 = load_run_config_from_value(&mut inactive_laipower)
+            .expect("omitted lai_power must load cleanly when leaf_area_index == 0");
         assert_slice_close(
-            &lai.lai_power,
-            &[0.0, 0.0, 0.0, 0.0],
-            &format!("{label}.laipower"),
+            &cfg_laim0.site.lc_dectr.lai.lai_power,
+            &[0.0; 4],
+            "dectr.laipower inactive (leaf_area_index=0)",
+        );
+    }
+    {
+        let mut active_bioco2_missing = build_sparse_ohm_asymmetric_yaml();
+        let physics = mapping_at_mut(&mut active_bioco2_missing, &["model", "physics"]);
+        remove_key(physics, "emissionsmethod");
+        let mut wrapped_em12 = Mapping::new();
+        wrapped_em12.insert(Value::String("value".to_string()), Value::from(12));
+        physics.insert(
+            Value::String("emissions".to_string()),
+            Value::Mapping(wrapped_em12),
+        );
+        let site_mut = first_site_mut(&mut active_bioco2_missing);
+        let evetr = mapping_at_mut(site_mut, &["properties", "land_cover", "evetr"]);
+        remove_key(evetr, "alpha_bio_co2");
+        let err = load_run_config_from_value(&mut active_bioco2_missing)
+            .expect_err("omitted active evetr.alpha_bio_co2 must be rejected for emissions=12");
+        assert!(
+            err.contains("evetr.alpha_bio_co2"),
+            "unexpected error for omitted active evetr.alpha_bio_co2: {err}"
         );
     }
     assert_close(site.lc_dectr.height_deciduous_tree, 0.0, "dectr.dectreeh");
@@ -604,17 +646,7 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
             [0.31, 0.32, 0.33, 0.34],
         );
         strip_veg_shadow_defaults(lc, "evetr");
-        // Grass is active in this fixture, and active vegetation must keep a positive
-        // lai_max (#2149), so restore the sample's value after stripping; the omitted-LAI
-        // receiver path is still exercised on inactive evetr.
-        let grass_lai_max = lc["grass"]["lai"]["lai_max"].clone();
         strip_veg_shadow_defaults(lc, "grass");
-        mapping_at_mut(
-            lc.get_mut(Value::String("grass".to_string()))
-                .expect("grass"),
-            &["lai"],
-        )
-        .insert(Value::String("lai_max".to_string()), grass_lai_max);
     }
 
     // Active facet-resolved EHC (#2002): omitting surface or facet thermal_layers
@@ -747,12 +779,6 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         received.lc_evetr.bioco2.alpha_bio_co2,
         0.0,
         "evetr.alpha_bio_co2 omitted",
-    );
-    assert_close(received.lc_evetr.lai.lai_max, 0.0, "evetr.laimax omitted");
-    assert_slice_close(
-        &received.lc_evetr.lai.lai_power,
-        &[0.0; 4],
-        "evetr.laipower omitted",
     );
     assert_close(
         received.lc_evetr.height_evergreen_tree,

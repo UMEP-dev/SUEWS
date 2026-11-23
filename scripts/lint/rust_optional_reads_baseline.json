@@ -1,13 +1,10 @@
 {
   "description": "Per-function counts of legacy optional YAML readers in src/suews_bridge/src/yaml_config.rs; see scripts/lint/check_rust_optional_reads.py. Counts may only go down.",
   "totals": {
-    "read_i32": 5,
-    "read_numeric": 60
+    "read_i32": 4,
+    "read_numeric": 34
   },
   "functions": {
-    "apply_bioco2_overrides": {
-      "read_numeric": 8
-    },
     "apply_conductance_overrides": {
       "read_i32": 2,
       "read_numeric": 11
@@ -18,13 +15,6 @@
     "apply_irrigation_overrides": {
       "read_i32": 2,
       "read_numeric": 7
-    },
-    "apply_lai_overrides": {
-      "read_i32": 1,
-      "read_numeric": 9
-    },
-    "apply_ohm_overrides": {
-      "read_numeric": 9
     },
     "apply_waterdist_overrides": {
       "read_numeric": 10

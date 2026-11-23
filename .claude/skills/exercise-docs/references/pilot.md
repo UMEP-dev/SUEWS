@@ -28,8 +28,12 @@ execution environment, and diagnose using only its source and new run record.
 Follow SKILL.md's correction bound. Freeze the findings before the coordinator
 opens #2179 for the acceptance comparison. Record the issue version retrieved,
 page and installed software identities of both runs, and each match, miss or
-additional finding. A fix since the old run is a revision difference, not a
-reason to fabricate the historical failure or change the install line.
+additional finding. In that post-freeze acceptance comparison (never during
+blind compilation, comparison or diagnosis), if repository history shows a later
+fix treating a case as a page defect, record that fix as evidence against
+dismissing the failure as a coordinator declared-input setup error. A fix since
+the old run is a revision difference, not a reason to fabricate the historical
+failure or change the install line.
 [procedure: Principle 1]
 
 For the transition guide, check each proposed finding against its quoted source,

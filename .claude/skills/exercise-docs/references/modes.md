@@ -35,9 +35,8 @@ cache key matches; a cache hit does not reuse execution results. Check current
 head sources again before handing off. Any page or dependency hash change makes
 that page's report stale and requires a fresh run. [procedure: Principle 1]
 
-The second independent compile is the standing rule in PR mode as well, per the
-software maintainer's post-pilot decision in `SKILL.md` (section 3).
-[decision: Ting Sun, software maintainer, 2026-11-22]
+The second independent compile is the standing rule in PR mode as well; the
+recorded decision lives in `SKILL.md` (section 3). [procedure: Principle 2]
 
 Read baseline entries at the pinned PR base, not the proposed updates in the PR.
 Match by stable finding ID and evidence of the same failing promise/behaviour,

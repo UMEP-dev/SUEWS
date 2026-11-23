@@ -19,6 +19,13 @@ post findings, create issues or PRs, or push as part of this skill. The software
 maintainer decides which findings become issues; hand off repairs as separate
 work. Respect narrower authorisation for the invocation. [procedure: Principle 3]
 
+Roles: the **coordinator** orchestrates the run (pinning revisions, preparing
+classification declarations, declared-input manifests and untouched briefs,
+dispatching execution and holding known-answer material such as
+`references/pilot.md`), while separate **compiler**, **comparator** and
+**diagnostician** agents compile the page, compare blind first attempts and run
+records, and attribute failures. [procedure: Principle 1]
+
 ## 1. Select and pin
 
 Accept page paths or labels, CLI commands or qualified Python objects, and a
@@ -30,7 +37,8 @@ separate; a page revision does not prove which package was installed.
 
 Select only `:doc-source: hand-written` pages. `docs/source/_ext/doc_source.py`
 (delivered by #2181 for #2162) enforces `:doc-source:` labels on revisions where
-it exists. [fact: git ls-files --error-unmatch docs/source/_ext/doc_source.py]
+it exists.
+[fact: git grep -n "raise SphinxError" docs/source/_ext/doc_source.py && git log --diff-filter=A -- docs/source/_ext/doc_source.py]
 When a page has no `:doc-source:` label, distinguish two cases: [procedure: Principle 1]
 
 - At a revision where `docs/source/_ext/doc_source.py` exists (`git cat-file -e
@@ -141,7 +149,7 @@ families (for example Opus in a separate session or subagent, and Codex) in
 separate contexts. Following the 22 Nov 2026 pilot, where each compiler found
 true findings the other missed, this second independent compile is the standing
 rule across all modes; do not silently waive it or invent a sampling rate.
-[decision: Ting Sun, software maintainer, 2026-11-22]
+[decision: software maintainer, 2026-11-22]
 
 Neither compiler sees the other's output, run results, suspected findings, the
 known-answer report or `references/pilot.md` (which is coordinator-only). Give
@@ -161,7 +169,7 @@ substitute it for the blind first attempt in the independent comparison.
 [procedure: Principle 1]
 
 Assign comparison to a **comparator**: a fresh agent that has not compiled the
-page (and has not read `references/pilot.md` during blind evaluation). Give the
+page and has not read `references/pilot.md`. Give the
 comparator the coordinator's untouched briefs, the pinned page and declared-input
 provenance, both frozen blind first-attempt compiles, and (after execution) both
 machine run records. The comparator compares step lists and assertion sets --
@@ -192,43 +200,46 @@ next command. A failed attempt ends before diagnosis and any recompilation.
 Find a remote build route in the repository's contributor or CI documentation
 if documented there; otherwise the route is site-specific. The repository root
 contains `meson.build`. [fact: test -f meson.build && git ls-files --error-unmatch meson.build]
-Because no remote helper script is tracked in this repository, verify before
-dispatching a remote run that the synced directory satisfies the chosen remote
-runner's root check -- in particular that `meson.build` is present in the synced
-folder (for example `test -f meson.build`) rather than syncing a bare scratch
-directory without the repository build root. Record the selected route, pre-sync
-root check and commands in the run record. [procedure: Principle 1]
+Before dispatching a remote run, verify that the synced directory satisfies the
+chosen remote runner's root check -- in particular that `meson.build` is present
+in the synced folder (for example `test -f meson.build`) rather than syncing a
+bare scratch directory without the repository build root. Record the selected
+route, pre-sync root check and commands in the run record. [procedure: Principle 1]
 
 Start every journey attempt with a new virtual environment, empty home and empty
 work directory. Disable inherited user packages, editable checkouts and import
 paths. Keep the evidence directory outside the reader's work/home; record the
-preparation commands, Python/platform and isolation checks. Redirect any literal
-shared or host-global paths referenced by page instructions (such as
-`/tmp/suews_debug` or other `/tmp/...` paths) into the run's own sandbox
-directory (for example via `TMPDIR` or path-scoped sandbox mapping, without
-rewriting the page command as if it were verbatim); record every redirection in
-`mechanics` and include the redirected directory in per-step file inventories so
-concurrent or repeated runs cannot collide. [procedure: Principle 1]
+preparation commands, Python/platform and isolation checks. Where a page
+instruction names a literal shared or host-global path (such as
+`/tmp/suews_debug`), either replace it with a per-run path through a disclosed
+substitution decided at compile time and recorded as a `mechanics` entry (as
+`record-format.md` requires for precompiled mechanics, without presenting the
+substituted command as verbatim) or isolate it with a per-run mount/namespace;
+include the per-run path in per-step file inventories so concurrent or repeated
+runs cannot collide. [procedure: Principle 1]
 
 Exercise a page at repository revision `R` against SUEWS built from that same
-revision `R` (the primary `page-revision-build` route). Record the page's own
-install line, or the install instruction the guide directs its reader to use,
-cited verbatim, as a separate route (`reader-install-line`) -- executed in its
-own fresh environment when run, or listed in untested scope if skipped. If no
-install route is documented, report the missing prerequisite. Do not preinstall
-an unrelated SUEWS package or substitute a known working wheel for either route.
-[decision: Ting Sun, software maintainer, 2026-11-22]
+revision `R` (the primary `page-revision-build` route: a non-editable install
+from the tree at revision `R` through the remote route into the fresh virtual
+environment). Record the page's own install line, or the install instruction the
+guide directs its reader to use, cited verbatim, as a separate route
+(`reader-install-line`) -- executed in its own fresh environment when run, or
+listed in untested scope if skipped. If no install route is documented, report
+the missing prerequisite. Do not preinstall an unrelated SUEWS package or
+substitute a known working wheel for either route.
+[decision: software maintainer, 2026-11-22]
 
 Record the route (`page-revision-build` or `reader-install-line`), the revision
 built from or install command run, actual package/dependency versions,
-distribution hashes where available, inputs and installation output. Keep the
-two routes' records separate so a packaging break in a published release is never
-conflated with a defect at the page's revision. Do not claim the page revision is
-the software revision without evidence. Identical scripts give identical
-decisions for the same inputs; changing package indexes, data, platform or
-external services can change outcomes. Preserve resolved inputs for comparison
-and report such drift without silently pinning or rewriting the page's install
-command. [procedure: Principle 1]
+distribution hashes where available,
+inputs and installation output. Do not claim the page revision is the software
+revision without evidence. Identical scripts give identical decisions for the
+same inputs; changing package indexes, data, platform or external services can
+change outcomes. Preserve resolved inputs for comparison and report such drift
+without silently pinning or rewriting the page's install command.
+Keep the two routes' records separate so a packaging break in a published
+release is never conflated with a defect at the page's revision.
+[procedure: Principle 1]
 
 Run the frozen script mechanically using the persistent Python process, fresh
 shells and per-step inventories defined in record-format.md (Execution mechanics).
@@ -255,26 +266,21 @@ Attribute each failure with evidence to one of three causes:
 
 Record the failed observation, competing causes, attribution evidence and next
 discriminating step. Keep infrastructure/setup blockers separate; do not force
-an unavailable service into a page or software defect. When the comparator or
-diagnostician judges whether a failure is an input artefact rather than a page
-defect, classify it as an input artefact only when evidence shows that the
+an unavailable service into a page or software defect. Treat a failure caused by
+a wrongly chosen or wrongly assembled declared input as a coordinator setup
+error recorded under the infrastructure/setup blockers record, not as a fourth
+finding cause: record it as a setup error only when evidence shows that the
 declared input does not match what the quoted page text assumes (citing both the
-quoted assumption and the mismatching property of the declared input); do not
-dismiss a failure as an input artefact merely because a different input might
-have passed. Where repository history is inspected (such as in a negative-control
-check or retrospective audit), a later fix in the history that treats the same
-case as a page defect is evidence against classifying the failure as an input
-artefact. [procedure: Principle 1]
+quoted assumption and the mismatching property of the declared input), and never
+dismiss a failure as a setup error merely because a different input might have
+passed. [procedure: Principle 1]
 
-A corrective compile made after a compiler has seen its own first run or failure
-feedback is a new immutable non-blind attempt (`blind: false`) under its key,
-not an edit to cached evidence and never a replacement for the blind first
-attempt. Keep the blind first-attempt comparison untouched; compare each
-corrective recompile's steps/assertions separately against the other compiler's
-current compile; a new third independent compile is not required. Disclose
-feedback exposure; never call a post-run or feedback-informed compile blind. Stop
-early on a recurring finding signature per `.claude/rules/review-convergence.md`.
-[procedure: Principle 1]
+A corrective compile is a new immutable attempt under its key, not an edit to
+cached evidence; it is non-blind per section 3 and kept separate from the blind
+first-attempt comparison. Compare each corrective recompile's steps/assertions
+against the other compiler's current compile; a new third independent compile is
+not required. Disclose feedback exposure. Stop early on a recurring finding
+signature per `.claude/rules/review-convergence.md`. [procedure: Principle 1]
 
 For scientific thresholds or unresolved intended behaviour, use the owner and
 fallback routes in `MAINTAINERS.md`. Record the question, evidence and decision

@@ -977,6 +977,86 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "    return test_case\n",
             ["test/test_branch.py::outer.test_case::1"],
         ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    ef = lambda fn: fn\n"
+            "    @ef\n"
+            "    def test_ok(self):\n"
+            "        pass\n",
+            [],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    @ef\n"
+            "    def test_before(self):\n"
+            "        pass\n"
+            "    ef = lambda fn: fn\n"
+            "    @ef\n"
+            "    def test_after(self):\n"
+            "        pass\n",
+            ["test/test_branch.py::C.test_before::1"],
+        ),
+        (
+            "import unittest\n"
+            "class C:\n"
+            "    ef = unittest.expectedFailure\n"
+            "    ef = lambda fn: fn\n"
+            "    @ef\n"
+            "    def test_monotone(self):\n"
+            "        pass\n",
+            ["test/test_branch.py::C.test_monotone::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    def ef(fn):\n"
+            "        return fn\n"
+            "    @ef\n"
+            "    def test_ok(self):\n"
+            "        pass\n"
+            "    def method(self):\n"
+            "        @ef\n"
+            "        def helper():\n"
+            "            pass\n"
+            "        return helper\n",
+            ["test/test_branch.py::C.method.helper::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    if cond:\n"
+            "        ef = lambda fn: fn\n"
+            "        @ef\n"
+            "        def test_in_branch(self):\n"
+            "            pass\n"
+            "    @ef\n"
+            "    def test_after_if(self):\n"
+            "        pass\n",
+            ["test/test_branch.py::C.test_after_if::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    x = cond and (ef := lambda fn: fn)\n"
+            "    @ef\n"
+            "    def test_after_short_circuit(self):\n"
+            "        pass\n",
+            ["test/test_branch.py::C.test_after_short_circuit::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    import unittest as ef\n"
+            "    @ef\n"
+            "    def test_module_obj(self):\n"
+            "        pass\n"
+            "    @ef.expectedFailure\n"
+            "    def test_attr(self):\n"
+            "        pass\n",
+            ["test/test_branch.py::C.test_attr::1"],
+        ),
     ],
 )
 def test_unittest_expected_failure_branch_merge_and_deferred_lookup(
@@ -1463,6 +1543,18 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             "outer()\n",
             "unsupported mutation of constant LEDGER",
         ),
+        (
+            'LEDGER = {"v": []}\nLEDGER.keys().mapping["v"].append(1)\n',
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            'LEDGER = {"v": []}\nks = LEDGER.keys()\nks.mapping["v"].append(1)\n',
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            'LEDGER = {"v": []}\ndef leak():\n    return LEDGER.keys()\n',
+            "unsupported escape of constant LEDGER",
+        ),
     ],
 )
 def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
@@ -1471,6 +1563,22 @@ def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
     (tmp_path / "ledger.py").write_text(source, encoding="utf-8")
     with pytest.raises(ValueError, match=match):
         checker._python_values(tmp_path, "ledger.py", ("LEDGER",))
+
+
+def test_python_ledger_keys_iteration_allowed_with_mutable_values(tmp_path):
+    (tmp_path / "ledger.py").write_text(
+        'LEDGER = {"v": []}\n'
+        "def list_keys():\n"
+        "    out = [k for k in LEDGER.keys()]\n"
+        "    for k in LEDGER.keys():\n"
+        "        out.append(k)\n"
+        '    _ = (len(LEDGER.keys()), set(LEDGER.keys()), LEDGER.keys().isdisjoint({"x"}))\n'
+        "    return list(LEDGER.keys()) + sorted(LEDGER.keys()) + out\n",
+        encoding="utf-8",
+    )
+    assert checker._python_values(tmp_path, "ledger.py", ("LEDGER",)) == {
+        "LEDGER": {"v": []}
+    }
 
 
 def test_python_ledger_postponed_annotations_are_not_treated_as_mutations(tmp_path):

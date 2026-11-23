@@ -11,7 +11,7 @@ checks validate syntax only. Report mode returns zero even with findings.
 import argparse
 import ast
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import re
@@ -61,7 +61,6 @@ _SAFE_SCALAR_METHODS = frozenset({
     "isdisjoint",
     "issubset",
     "issuperset",
-    "keys",
 })
 _SAFE_ELEMENT_METHODS = frozenset({
     "copy",
@@ -1475,6 +1474,8 @@ class _ConstantMutationChecker:
         method = call.func.attr
         if method in _SAFE_SCALAR_METHODS:
             return None
+        if method == "keys":
+            return (recv_taint[0], False) if recv_taint[1] else None
         if method in _SAFE_ELEMENT_METHODS:
             if method == "get" and len(pos_taints) >= 2:
                 return _merge_taint(
@@ -1805,6 +1806,9 @@ class _UnitScope:
     enclosing_env: _UnitEnv | None = None
     nonlocal_owners: dict[str, _UnitEnv] | None = None
     walrus_env: _UnitEnv | None = None
+    class_own_env: _UnitEnv | None = None
+    walrus_class_own_env: _UnitEnv | None = None
+    can_shadow: bool = True
 
 
 class _UnittestExpectedFailureFinder:
@@ -1831,9 +1835,32 @@ class _UnittestExpectedFailureFinder:
     def _add_kinds(mapping: _UnitEnv, name: str, kinds: set[str]) -> None:
         mapping.setdefault(name, set()).update(kinds)
 
+    def _bind_class_local(
+        self, name: str, kinds: set[str], env: _UnitEnv, scope: _UnitScope
+    ) -> None:
+        assert scope.class_own_env is not None
+        if kinds:
+            self._add_kinds(scope.class_own_env, name, kinds)
+            if scope.can_shadow:
+                env[name] = set(scope.class_own_env[name])
+            else:
+                self._add_kinds(env, name, kinds)
+        elif scope.can_shadow:
+            if name in scope.class_own_env:
+                env[name] = set(scope.class_own_env[name])
+            else:
+                env.pop(name, None)
+
     def _bind_name(
         self, name: str, kinds: set[str], env: _UnitEnv, scope: _UnitScope
     ) -> None:
+        if (
+            scope.class_own_env is not None
+            and name not in scope.global_names
+            and name not in scope.nonlocal_names
+        ):
+            self._bind_class_local(name, kinds, env, scope)
+            return
         if not kinds:
             return
         self._add_kinds(env, name, kinds)
@@ -1850,11 +1877,29 @@ class _UnittestExpectedFailureFinder:
             elif scope.enclosing_env is not None:
                 self._add_kinds(scope.enclosing_env, name, kinds)
 
+    def _sync_class_env(self, env: _UnitEnv, scope: _UnitScope) -> None:
+        if scope.class_own_env is not None:
+            _update_unittest_env(env, scope.class_own_env)
+        for name in scope.global_names:
+            if name in self.module_env:
+                self._add_kinds(env, name, self.module_env[name])
+        owners = scope.nonlocal_owners or {}
+        for name in scope.nonlocal_names:
+            owner = owners.get(name)
+            if owner is not None and name in owner:
+                self._add_kinds(env, name, owner[name])
+
+    def _build_class_env(self, inherited_env: _UnitEnv, scope: _UnitScope) -> _UnitEnv:
+        class_env = _copy_unittest_env(inherited_env)
+        self._sync_class_env(class_env, scope)
+        return class_env
+
     def _snapshot_unit_envs(
         self, env: _UnitEnv, scope: _UnitScope
     ) -> dict[int, _UnitEnv]:
+        primary = scope.class_own_env if scope.class_own_env is not None else env
         tracked: dict[int, _UnitEnv] = {
-            id(env): _copy_unittest_env(env),
+            id(primary): _copy_unittest_env(primary),
             id(self.module_env): _copy_unittest_env(self.module_env),
         }
         if scope.enclosing_env is not None:
@@ -1870,13 +1915,22 @@ class _UnittestExpectedFailureFinder:
         return self.sites
 
     def _walk_scope(
-        self, stmts: list[ast.stmt], env: _UnitEnv, scope: _UnitScope
+        self,
+        stmts: list[ast.stmt],
+        env: _UnitEnv,
+        scope: _UnitScope,
+        inherited_env: _UnitEnv | None = None,
     ) -> None:
         while True:
             before = self._snapshot_unit_envs(env, scope)
             before_sites = len(self.sites)
+            pass_env = (
+                self._build_class_env(inherited_env, scope)
+                if inherited_env is not None
+                else env
+            )
             for stmt in stmts:
-                self._walk_stmt(stmt, env, scope)
+                self._walk_stmt(stmt, pass_env, scope)
             if (
                 self._snapshot_unit_envs(env, scope) == before
                 and len(self.sites) == before_sites
@@ -1925,6 +1979,7 @@ class _UnittestExpectedFailureFinder:
             enclosing_env=scope.enclosing_env,
             nonlocal_owners=scope.nonlocal_owners,
             walrus_env=target_walrus,
+            walrus_class_own_env=scope.walrus_class_own_env or scope.class_own_env,
         )
         while True:
             before_comp = _copy_unittest_env(comp_env)
@@ -1973,6 +2028,25 @@ class _UnittestExpectedFailureFinder:
             if lam_env == before_lam and len(self.sites) == before_sites:
                 break
 
+    def _scan_short_circuit_expr(
+        self,
+        expr: ast.IfExp | ast.BoolOp | ast.Compare,
+        env: _UnitEnv,
+        scope: _UnitScope,
+    ) -> None:
+        no_shadow = replace(scope, can_shadow=False)
+        if isinstance(expr, ast.IfExp):
+            self._scan_expr(expr.test, env, scope)
+            self._scan_expr(expr.body, env, no_shadow)
+            self._scan_expr(expr.orelse, env, no_shadow)
+        elif isinstance(expr, ast.BoolOp):
+            for index, value in enumerate(expr.values):
+                self._scan_expr(value, env, scope if index == 0 else no_shadow)
+        else:
+            self._scan_expr(expr.left, env, scope)
+            for index, comp in enumerate(expr.comparators):
+                self._scan_expr(comp, env, scope if index == 0 else no_shadow)
+
     def _scan_expr(self, expr: ast.AST, env: _UnitEnv, scope: _UnitScope) -> None:
         if isinstance(expr, ast.Call):
             self._scan_expr(expr.func, env, scope)
@@ -1987,13 +2061,24 @@ class _UnittestExpectedFailureFinder:
             kinds = _classify_unittest_expr(expr.value, env)
             self._bind_name(expr.target.id, kinds, env, scope)
             if scope.walrus_env is not None:
-                self._bind_name(expr.target.id, kinds, scope.walrus_env, scope)
+                walrus_scope = replace(
+                    scope,
+                    class_own_env=scope.walrus_class_own_env,
+                    can_shadow=False,
+                )
+                self._bind_name(expr.target.id, kinds, scope.walrus_env, walrus_scope)
         elif isinstance(expr, ast.Lambda):
             self._scan_lambda(expr, env, scope)
         elif isinstance(
             expr, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
         ):
             self._scan_comprehension(expr, env, scope)
+        elif (
+            isinstance(expr, (ast.IfExp, ast.BoolOp, ast.Compare))
+            and scope.class_own_env is not None
+            and scope.can_shadow
+        ):
+            self._scan_short_circuit_expr(expr, env, scope)
         else:
             for child in ast.iter_child_nodes(expr):
                 self._scan_expr(child, env, scope)
@@ -2029,37 +2114,34 @@ class _UnittestExpectedFailureFinder:
             elif alias.name == "unittest.case":
                 kind = "unittest_case" if alias.asname else "unittest"
                 self._bind_name(bound, {kind}, env, scope)
+            else:
+                self._bind_name(bound, set(), env, scope)
 
     def _handle_import_from(
         self, stmt: ast.ImportFrom, env: _UnitEnv, scope: _UnitScope
     ) -> None:
-        if stmt.level != 0:
-            return
-        if stmt.module == "unittest":
-            for alias in stmt.names:
-                if alias.name == "expectedFailure":
-                    self._bind_name(
-                        alias.asname or "expectedFailure",
-                        {"expected_failure"},
-                        env,
-                        scope,
-                    )
-                elif alias.name == "case":
-                    self._bind_name(
-                        alias.asname or "case", {"unittest_case"}, env, scope
-                    )
-                elif alias.name == "*":
+        for alias in stmt.names:
+            if alias.name == "*":
+                if stmt.level == 0 and stmt.module == "unittest":
                     self._bind_name("expectedFailure", {"expected_failure"}, env, scope)
                     self._bind_name("case", {"unittest_case"}, env, scope)
-        elif stmt.module == "unittest.case":
-            for alias in stmt.names:
-                if alias.name in {"expectedFailure", "*"}:
-                    self._bind_name(
-                        alias.asname or "expectedFailure",
-                        {"expected_failure"},
-                        env,
-                        scope,
-                    )
+                elif stmt.level == 0 and stmt.module == "unittest.case":
+                    self._bind_name("expectedFailure", {"expected_failure"}, env, scope)
+                continue
+            bound = alias.asname or alias.name
+            kinds: set[str] = set()
+            if stmt.level == 0 and stmt.module == "unittest":
+                if alias.name == "expectedFailure":
+                    kinds = {"expected_failure"}
+                elif alias.name == "case":
+                    kinds = {"unittest_case"}
+            elif (
+                stmt.level == 0
+                and stmt.module == "unittest.case"
+                and alias.name == "expectedFailure"
+            ):
+                kinds = {"expected_failure"}
+            self._bind_name(bound, kinds, env, scope)
 
     def _handle_assign(
         self, stmt: ast.Assign, env: _UnitEnv, scope: _UnitScope
@@ -2139,6 +2221,7 @@ class _UnittestExpectedFailureFinder:
             nonlocal_owners=child_owners,
         )
         self._walk_scope(stmt.body, child_env, child_scope)
+        self._bind_name(stmt.name, set(), env, scope)
 
     def _handle_class_def(
         self, stmt: ast.ClassDef, env: _UnitEnv, scope: _UnitScope
@@ -2151,16 +2234,12 @@ class _UnittestExpectedFailureFinder:
         _, _, global_names, nonlocal_names = _collect_scope_bindings(stmt.body)
         outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
         parent_owners = dict(scope.nonlocal_owners or {})
-        class_env: _UnitEnv = {
-            k: set(v) for k, v in outer_non_class.items() if k not in global_names
+        inherited_env: _UnitEnv = {
+            k: set(v)
+            for k, v in outer_non_class.items()
+            if k not in global_names and k not in nonlocal_names
         }
-        for name in nonlocal_names:
-            owner = parent_owners.get(name)
-            if owner is not None and name in owner:
-                class_env.setdefault(name, set()).update(owner[name])
-        for name in global_names:
-            if name in self.module_env:
-                class_env.setdefault(name, set()).update(self.module_env[name])
+        class_own_env: _UnitEnv = {}
         class_scope = _UnitScope(
             scope_kind="class",
             non_class_env=outer_non_class,
@@ -2168,45 +2247,97 @@ class _UnittestExpectedFailureFinder:
             nonlocal_names=frozenset(nonlocal_names),
             enclosing_env=outer_non_class,
             nonlocal_owners=parent_owners,
+            class_own_env=class_own_env,
         )
-        self._walk_scope(stmt.body, class_env, class_scope)
+        self._walk_scope(
+            stmt.body, class_own_env, class_scope, inherited_env=inherited_env
+        )
+        self._bind_name(stmt.name, set(), env, scope)
 
-    def _walk_try_or_match(
+    def _walk_branch(
+        self, stmts: list[ast.stmt], env: _UnitEnv, scope: _UnitScope
+    ) -> _UnitEnv:
+        branch_env = _copy_unittest_env(env) if scope.class_own_env is not None else env
+        for sub in stmts:
+            self._walk_stmt(sub, branch_env, scope)
+        return branch_env
+
+    def _walk_if_stmt(self, stmt: ast.If, env: _UnitEnv, scope: _UnitScope) -> None:
+        self._scan_expr(stmt.test, env, scope)
+        body_env = self._walk_branch(stmt.body, env, scope)
+        else_env = self._walk_branch(stmt.orelse, env, scope)
+        if scope.class_own_env is not None:
+            if stmt.orelse:
+                for name in list(env):
+                    if name not in body_env and name not in else_env:
+                        env.pop(name, None)
+            self._sync_class_env(env, scope)
+
+    def _walk_for_stmt(
+        self, stmt: ast.For | ast.AsyncFor, env: _UnitEnv, scope: _UnitScope
+    ) -> None:
+        self._scan_expr(stmt.iter, env, scope)
+        body_env = _copy_unittest_env(env) if scope.class_own_env is not None else env
+        self._bind_target(stmt.target, set(), body_env, scope)
+        for sub in stmt.body:
+            self._walk_stmt(sub, body_env, scope)
+        self._walk_branch(stmt.orelse, env, scope)
+        if scope.class_own_env is not None:
+            self._sync_class_env(env, scope)
+
+    def _walk_try_stmt(
         self,
-        stmt: ast.Try | ast.TryStar | ast.Match,
+        stmt: ast.Try | ast.TryStar,
         env: _UnitEnv,
         scope: _UnitScope,
     ) -> None:
-        if isinstance(stmt, (ast.Try, ast.TryStar)):
-            for sub in stmt.body:
-                self._walk_stmt(sub, env, scope)
-            for handler in stmt.handlers:
-                if handler.type is not None:
-                    self._scan_expr(handler.type, env, scope)
-                for sub in handler.body:
-                    self._walk_stmt(sub, env, scope)
-            for sub in (*stmt.orelse, *stmt.finalbody):
-                self._walk_stmt(sub, env, scope)
-        else:
-            self._scan_expr(stmt.subject, env, scope)
-            for case in stmt.cases:
-                if case.guard is not None:
-                    self._scan_expr(case.guard, env, scope)
-                for sub in case.body:
-                    self._walk_stmt(sub, env, scope)
+        body_env = self._walk_branch(stmt.body, env, scope)
+        no_shadow = replace(scope, can_shadow=False)
+        for handler in stmt.handlers:
+            if handler.type is not None:
+                self._scan_expr(handler.type, env, no_shadow)
+            h_env = _copy_unittest_env(env) if scope.class_own_env is not None else env
+            if handler.name:
+                self._bind_name(handler.name, set(), h_env, scope)
+            for sub in handler.body:
+                self._walk_stmt(sub, h_env, scope)
+        self._walk_branch(stmt.orelse, body_env, scope)
+        if scope.class_own_env is not None:
+            self._sync_class_env(env, scope)
+        for sub in stmt.finalbody:
+            self._walk_stmt(sub, env, scope)
+
+    def _walk_match_stmt(
+        self, stmt: ast.Match, env: _UnitEnv, scope: _UnitScope
+    ) -> None:
+        self._scan_expr(stmt.subject, env, scope)
+        no_shadow = replace(scope, can_shadow=False)
+        for case in stmt.cases:
+            c_env = _copy_unittest_env(env) if scope.class_own_env is not None else env
+            names: set[str] = set()
+            _collect_pattern_names(case.pattern, names)
+            for name in names:
+                self._bind_name(name, set(), c_env, scope)
+            if case.guard is not None:
+                self._scan_expr(case.guard, c_env, no_shadow)
+            for sub in case.body:
+                self._walk_stmt(sub, c_env, scope)
+        if scope.class_own_env is not None:
+            self._sync_class_env(env, scope)
 
     def _walk_compound_stmt(
         self, stmt: ast.stmt, env: _UnitEnv, scope: _UnitScope
     ) -> None:
-        if isinstance(stmt, (ast.If, ast.While)):
+        if isinstance(stmt, ast.If):
+            self._walk_if_stmt(stmt, env, scope)
+        elif isinstance(stmt, ast.While):
             self._scan_expr(stmt.test, env, scope)
-            for sub in (*stmt.body, *stmt.orelse):
-                self._walk_stmt(sub, env, scope)
+            self._walk_branch(stmt.body, env, scope)
+            self._walk_branch(stmt.orelse, env, scope)
+            if scope.class_own_env is not None:
+                self._sync_class_env(env, scope)
         elif isinstance(stmt, (ast.For, ast.AsyncFor)):
-            self._scan_expr(stmt.iter, env, scope)
-            self._bind_target(stmt.target, set(), env, scope)
-            for sub in (*stmt.body, *stmt.orelse):
-                self._walk_stmt(sub, env, scope)
+            self._walk_for_stmt(stmt, env, scope)
         elif isinstance(stmt, (ast.With, ast.AsyncWith)):
             for item in stmt.items:
                 self._scan_expr(item.context_expr, env, scope)
@@ -2214,8 +2345,14 @@ class _UnittestExpectedFailureFinder:
                     self._bind_target(item.optional_vars, set(), env, scope)
             for sub in stmt.body:
                 self._walk_stmt(sub, env, scope)
-        elif isinstance(stmt, (ast.Try, ast.TryStar, ast.Match)):
-            self._walk_try_or_match(stmt, env, scope)
+        elif isinstance(stmt, (ast.Try, ast.TryStar)):
+            self._walk_try_stmt(stmt, env, scope)
+        elif isinstance(stmt, ast.Match):
+            self._walk_match_stmt(stmt, env, scope)
+        elif isinstance(stmt, ast.Assert):
+            self._scan_expr(stmt.test, env, scope)
+            if stmt.msg is not None:
+                self._scan_expr(stmt.msg, env, replace(scope, can_shadow=False))
         else:
             for child in ast.iter_child_nodes(stmt):
                 self._scan_expr(child, env, scope)

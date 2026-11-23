@@ -28,15 +28,16 @@ and deletions separately; a deleted page cannot be exercised. A lost label is a
 finding, not permission to drop a page. Preserve the selected page list and why
 each page is selected. [procedure: Principle 1]
 
-Compile and execute using the common skill procedure, including two independent
-compiles during the pilot. Reuse each independent compile only if its own cache
-key matches; a cache hit does not reuse execution results. Check current head
-sources again before handing off. Any page or dependency hash change makes that
-page's report stale and requires a fresh run. [procedure: Principle 1]
+Compile and execute using the common skill procedure, including the standing two
+independent compiles compared on their blind first attempts by a fresh comparator
+(see `SKILL.md`, section 3). Reuse each independent blind compile only if its own
+cache key matches; a cache hit does not reuse execution results. Check current
+head sources again before handing off. Any page or dependency hash change makes
+that page's report stale and requires a fresh run. [procedure: Principle 1]
 
-The second independent compile remains required in PR mode after the pilot as
-well, until the software maintainer decides otherwise from pilot evidence.
-[decision: software maintainer, 2026-11-21]
+The second independent compile is the standing rule in PR mode as well, per the
+software maintainer's post-pilot decision in `SKILL.md` (section 3).
+[decision: Ting Sun, software maintainer, 2026-11-22]
 
 Read baseline entries at the pinned PR base, not the proposed updates in the PR.
 Match by stable finding ID and evidence of the same failing promise/behaviour,

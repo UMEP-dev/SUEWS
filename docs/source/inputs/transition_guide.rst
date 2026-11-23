@@ -204,6 +204,8 @@ give a different water input. Surface-specific ``wuh_<surface>`` columns are
 also non-negative depths in mm per forcing interval and override bulk ``Wuh``
 for that surface.
 
+.. _yaml_schema_migrations:
+
 YAML Schema Migrations
 ----------------------
 
@@ -214,6 +216,14 @@ combined legacy+schema upgrades) and ``suews schema migrate`` (for
 schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.
+
+By default, ``suews schema migrate`` upgrades to the current schema.
+Among CalVer schemas, explicit ``--target-version`` values are supported
+only for ``2026.4`` (from ``2025.12`` or ``2026.1``), ``2026.6.dev8``
+and later (from any older schema), and the current schema. Earlier
+historical labels such as ``2026.1``, ``2026.5`` and ``2026.6.dev1`` to
+``2026.6.dev7`` have no migration route from older schemas; if you need
+a configuration for an exact older release, use that release of SUEWS.
 
 The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
@@ -912,11 +922,13 @@ applies the union of every dev-cycle delta. Upgrading from ``2026.4``
   / ``modelled``; the ``provided``, ``use_provided`` and
   ``simple_scheme`` aliases are retired.
 
-Run the migrator to bring an existing YAML onto the new shape:
+Run the migrator without ``--target-version`` to apply these changes and
+continue through to the current schema (see :ref:`yaml_schema_migrations`
+for supported explicit targets):
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.5
+   suews schema migrate your_config.yml
 
 For a combined legacy-table-plus-schema upgrade, use ``suews convert``,
 which runs the table conversion first and then walks the schema chain
@@ -957,10 +969,10 @@ Run:
 
    suews schema migrate your_config.yml --target-version 2026.4
 
-The migrator accepts any registered intermediate (for example
-``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
-further to the 2026.5 schema, use
-``--target-version 2026.5`` (or omit the flag to reach the latest).
+The migrator accepts ``2025.12`` or ``2026.1`` and walks the chain to
+the ``2026.4`` schema. To upgrade further to the current schema, omit
+``--target-version`` (see :ref:`yaml_schema_migrations` for supported
+explicit targets).
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -981,13 +993,16 @@ Landed with the STEBBS clean-up (#879). If you are moving from the
   hot water (#1038). Existing configs that omit them continue to
   work; the profiles default to previous scalar behaviour.
 
-If you are targeting 2026.1.28 exactly:
+To apply these changes together with the later schema updates in one
+pass, run the migrator without ``--target-version``:
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.1
+   suews schema migrate your_config.yml
 
-Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
+If you need a configuration targeting SUEWS 2026.1.28, use that release
+of SUEWS (see :ref:`yaml_schema_migrations` for supported explicit
+targets).
 
 Preserving Your Values Through Renames
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -4092,6 +4092,28 @@ fn nan_poison_completeness_across_all_six_anchors() {
         "sites[0].properties.anthropogenic_emissions.heat.ahprof_24hr.working_day.13".to_string(),
     ));
 
+    // 3h. Site scalars and land-cover parameters (#1991, #2002): strict readers
+    //     reject non-finite values on active paths.
+    for key in [
+        "sites[0].properties.z0m_in",
+        "sites[0].properties.zdm_in",
+        "sites[0].properties.pipecapacity",
+        "sites[0].properties.n_buildings",
+        "sites[0].properties.h_std",
+        "sites[0].properties.land_cover.paved.sfr",
+        "sites[0].properties.land_cover.paved.emis",
+        "sites[0].properties.land_cover.bldgs.bldgh",
+        "sites[0].properties.land_cover.bldgs.faibldg",
+        "sites[0].properties.land_cover.evetr.alb_min",
+        "sites[0].properties.land_cover.dectr.porosity_min_deciduous",
+        "sites[0].properties.land_cover.grass.wet_threshold",
+        "sites[0].properties.land_cover.grass.irrigation_fraction",
+        "sites[0].properties.land_cover.grass.max_conductance",
+    ] {
+        strict_jobs.push((0, key.to_string()));
+    }
+    strict_jobs.push((3, "sites[0].properties.lambda_c".to_string()));
+
     // Execute all strict NaN rejection checks in parallel.
     strict_jobs.par_iter().for_each(|(anchor_idx, key)| {
         let (label, ref root, ref idx) = stripped_anchors[*anchor_idx];

@@ -1181,6 +1181,12 @@ fn prepare_checkpoint_input(
     // A saved state owns its envelope profile, even if its elapsed timer was
     // reset externally. The configuration-start option must never replace it.
     run_cfg.config.control_ehc_initial_profile = false;
+    // `iter_safe` describes the OHM state type, not the model state: OHM, AnOHM
+    // and DyOHM histories must be reset on every inner surface-temperature
+    // pass. Checkpoints written before that was fixed carry `iter_safe = true`,
+    // which would silently switch the reset off on resume, so the stored flag
+    // is ignored here.
+    run_cfg.state.ohm_state.iter_safe = false;
 
     // Set timer fields from the first forcing row.
     let first_row = &forcing_block[..MET_FORCING_COLS];

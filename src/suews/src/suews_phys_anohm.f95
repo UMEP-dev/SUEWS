@@ -138,6 +138,8 @@ CONTAINS
 
       !   Calculate radiation part ------------------------------------------------------------
       qs = -999 !qs  = Net storage heat flux  [W m-2]
+      qn_av_next = qn_av_prev
+      dqndt_next = dqndt_prev
       IF (qn1 > -999) THEN !qn1 = Net all-wave radiation [W m-2]
 
          ! Store instantaneous qn1 values for previous hour (qn1_store) and average (qn1_av)
@@ -145,8 +147,9 @@ CONTAINS
          CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
                               qn_av_next, dqndt_next)
 
-         ! Calculate net storage heat flux
-         CALL OHM_QS_cal(qn1, dqndt_prev, a1, a2, a3, qs)
+         ! Calculate net storage heat flux (use updated dqndt_next, matching OHM;
+         ! previously relied on aliased dqndt_prev == dqndt_next)
+         CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
 
       ELSE
          CALL ErrorHint(21, 'SUEWS_AnOHM.f95: bad value for qn found during qs calculation.', qn1, NotUsed, notUsedI, modState)

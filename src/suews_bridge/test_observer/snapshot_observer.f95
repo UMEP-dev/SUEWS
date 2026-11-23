@@ -1250,7 +1250,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(KIND(1D0)) :: w_f_pass_prev, zl_pass_start, w_f_pass_start
-      INTEGER :: nl
+      INTEGER :: nl, timer_dt_since_start_prev_start, timer_new_day_start
 
       status = 0_c_int
       tmr = timer_in
@@ -1292,6 +1292,8 @@ CONTAINS
       END IF
 
       st_tstepstart = oracle_state
+      timer_dt_since_start_prev_start = tmr%dt_since_start_prev
+      timer_new_day_start = tmr%new_day
 
       oracle_state%snowState%swe = 0.0D0
       oracle_state%snowState%mwh = 0.0D0
@@ -1351,6 +1353,10 @@ CONTAINS
          IF (((.NOT. oracle_state%flagState%flag_converge) .AND. oracle_state%flagState%i_iter > 1) .OR. &
              (oracle_state%flagState%flag_converge .AND. oracle_state%flagState%i_iter == 2)) THEN
             CALL oracle_state%check_and_reset_states(st_tstepstart)
+            IF (.NOT. oracle_state%ohmState%iter_safe) THEN
+               tmr%dt_since_start_prev = timer_dt_since_start_prev_start
+               tmr%new_day = timer_new_day_start
+            END IF
             IF (config_in%StorageHeatMethod == 5) THEN
                CALL reset_ehc_heat_state_for_tsurf_iteration( &
                   oracle_state%heatState, st_tstepstart%heatState)

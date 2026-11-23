@@ -252,8 +252,9 @@ Temporal Information
    local standard time by default, or UTC when ``timestamp_reference: utc``.
    It indicates the **ending timestamp** of each period.
 
-   For example, for hourly data, ``2021-09-12 13:00`` indicates a record for the period
-   between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
+   For example, the hourly record labelled ``2021-09-12 13:00`` includes
+   model steps ending after 12:00 and up to and including 13:00.
+   See :ref:`timestamp_convention`.
 
    **Exception for DailyState**: Its daily boundary follows the same forcing/main
    clock. When resampled to daily frequency, DailyState uses day-start labelling

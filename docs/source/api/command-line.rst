@@ -97,6 +97,18 @@ with the field path ``model.physics.storage_heat`` instead of silently falling
 back to ``0`` (observed storage heat). Source configurations still default to
 ``1`` (``ohm`` / ``OHM_WITHOUT_QF``) through the data model.
 
+Resolved physics input also requires explicit values for the four aerodynamic
+selectors ``model.physics.roughness_length_momentum``,
+``model.physics.roughness_length_heat``, ``model.physics.roughness_sublayer``
+and ``model.physics.roughness_sublayer_level`` (an integer, ``value`` wrapper or
+registered readable name). All four values are required, including
+``roughness_sublayer_level`` under MOST (``roughness_sublayer=0``). For missing,
+null, non-finite or malformed numeric values, the error identifies the full
+field path. For an unrecognised scheme name, the error identifies the selector
+and the name supplied. Source YAML continues to receive the data
+model defaults (``2``/``variable``, ``2``/``kawai``, ``2``/``variable`` and
+``0``/``none``).
+
 If you kept a resolved file from an earlier release, run the original source
 configuration with ``suews run source.yml``. To save a new resolved file for
 ``suews-engine``, use the current SuPy installation and keep the new file

@@ -283,6 +283,14 @@ with `lng` and retain the intended longitude value. Zero coordinates, altitude
 and UTC offset remain valid. The public data model supplies the source defaults
 when exporting a configuration through `supy._run_rust.config_to_engine_yaml`.
 
+Resolved physics input also requires explicit integer values (bare, `{value: N}`
+or registered readable names) for the four unconditional aerodynamic selectors:
+`model.physics.roughness_length_momentum`, `model.physics.roughness_length_heat`,
+`model.physics.roughness_sublayer` and `model.physics.roughness_sublayer_level`.
+Missing, null, non-finite or malformed values fail before execution instead of
+falling back to zero. Source YAML defaults (`variable`, `kawai`, `variable`,
+`none`) remain owned by the data model.
+
 To build a runnable engine (needs the SUEWS physics library, e.g. `make dev`):
 
 ```bash

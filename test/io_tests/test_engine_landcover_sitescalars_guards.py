@@ -97,14 +97,19 @@ def _read_ipc_table(path: Path) -> pd.DataFrame:
 
 @pytest.fixture(scope="module")
 def sample_bridge_inputs():
-    """Return a clean sample config dict and 12-step forcing payload."""
+    """Return a clean sample config dict and 12-step forcing payloads (default and observed QN)."""
     sim = SUEWSSimulation.from_sample_data()
     df_forcing = sim.forcing.df.iloc[:12].copy()
+    df_forcing_obs_qn = df_forcing.copy()
+    df_forcing_obs_qn["qn"] = 50.0
     raw_dict = sim.config.model_dump(exclude_none=True, mode="json")
     forcing_flat = (
         _run_rust._prepare_forcing_block(df_forcing).ravel(order="C").tolist()
     )
-    return raw_dict, forcing_flat, len(df_forcing)
+    forcing_obs_qn_flat = (
+        _run_rust._prepare_forcing_block(df_forcing_obs_qn).ravel(order="C").tolist()
+    )
+    return raw_dict, forcing_flat, forcing_obs_qn_flat, len(df_forcing)
 
 
 def _run_native(
@@ -146,6 +151,7 @@ def test_default_emission_parity_via_suews_config_and_engine(tmp_path):
     for surf in _VEG_SURFACES:
         for key in ("alb_min", "alb_max", "max_conductance"):
             lc[surf].pop(key, None)
+        site["initial_states"][surf]["alb_id"] = {"value": 0.25}
     for key in (
         "porosity_min_deciduous",
         "porosity_max_deciduous",
@@ -473,7 +479,7 @@ def test_active_site_scalar_and_landcover_rejections(
     expected_path,
 ):
     """Native kernel rejects missing active or malformed inactive scalars with canonical paths."""
-    base_cfg, forcing_flat, count = sample_bridge_inputs
+    base_cfg, forcing_flat, _, count = sample_bridge_inputs
     cfg = deepcopy(base_cfg)
     phys = cfg["model"]["physics"]
     for key, val in physics_overrides.items():
@@ -500,7 +506,7 @@ def test_active_site_scalar_and_landcover_rejections(
 
 def test_inactive_paved_only_omission_is_bit_identical(sample_bridge_inputs):
     """Omitting all inactive scalars on a paved-only observed-radiation run matches exactly."""
-    base_cfg, forcing_flat, count = sample_bridge_inputs
+    base_cfg, _, forcing_obs_qn_flat, count = sample_bridge_inputs
     cfg_kept = deepcopy(base_cfg)
     phys = cfg_kept["model"]["physics"]
     phys["net_radiation"] = {"value": 0}
@@ -558,14 +564,14 @@ def test_inactive_paved_only_omission_is_bit_identical(sample_bridge_inputs):
     for surf in _VEG_SURFACES:
         o_lc[surf].pop("max_conductance", None)
 
-    df_kept = _run_native(cfg_kept, forcing_flat, count)
-    df_omitted = _run_native(cfg_omitted, forcing_flat, count)
+    df_kept = _run_native(cfg_kept, forcing_obs_qn_flat, count)
+    df_omitted = _run_native(cfg_omitted, forcing_obs_qn_flat, count)
     pd.testing.assert_frame_equal(df_omitted, df_kept, check_exact=True)
 
 
 def test_inactive_roughness_in_and_tree_fields_are_bit_identical(sample_bridge_inputs):
     """Omitting z0m_in/zdm_in under forced RSL and absent-tree heights/FAIs matches exactly."""
-    base_cfg, forcing_flat, count = sample_bridge_inputs
+    base_cfg, forcing_flat, _, count = sample_bridge_inputs
     cfg_kept = deepcopy(base_cfg)
     phys = cfg_kept["model"]["physics"]
     phys["roughness_length_momentum"] = {"value": 2}
@@ -613,7 +619,7 @@ def test_inactive_roughness_in_and_tree_fields_are_bit_identical(sample_bridge_i
 
 def test_inactive_water_only_snow_omission_is_bit_identical(sample_bridge_inputs):
     """Water-only snow run omitting pipecapacity, runofftowater, and non-water wet_threshold matches."""
-    base_cfg, forcing_flat, count = sample_bridge_inputs
+    base_cfg, forcing_flat, _, count = sample_bridge_inputs
     cfg_kept = deepcopy(base_cfg)
     phys = cfg_kept["model"]["physics"]
     phys["snow_use"] = {"value": 1}
@@ -657,7 +663,7 @@ def test_explicit_null_irrigation_fraction_rejected_when_modelled_and_allowed_wh
     sample_bridge_inputs, null_value
 ):
     """Explicit null irrigation_fraction (#2101 gap) fails loudly when modelled, passes when observed."""
-    base_cfg, forcing_flat, count = sample_bridge_inputs
+    base_cfg, forcing_flat, _, count = sample_bridge_inputs
 
     # Active modelled irrigation (water_use=0): explicit null dropped by exclude_none
     # is caught by the strict Rust bridge instead of silently substituting 0.0.

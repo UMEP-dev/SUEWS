@@ -54,8 +54,7 @@ def api_cells(
             continue
         count = (
             shard_count
-            if (shard_python == "all" or python == shard_python)
-            and tier not in UNSHARDED_TIERS
+            if shard_python in {"all", python} and tier not in UNSHARDED_TIERS
             else 1
         )
         cells.extend(

@@ -41,7 +41,7 @@ def test_draft_tiers_are_never_sharded(tier: str) -> None:
     """An empty shard would exit pytest with code 5 and must stay inside the wheel job (#2284)."""
     for shard_python in ("cp312", "all"):
         cells = api_cells(["cp312", "cp315"], tier, shard_python, 4, False, "cp312")
-        assert all(c["shard"] == "" for c in cells)
+        assert all(not c["shard"] for c in cells)
     assert physics_shards(True, tier, 2) == [""]
     assert effective_split_tests(True, tier) is False
 

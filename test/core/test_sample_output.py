@@ -23,6 +23,7 @@ physics validation.
 """
 
 import functools
+import json
 import os
 from pathlib import Path
 import platform
@@ -55,6 +56,7 @@ from sample_output_io import (  # noqa: E402
     REFERENCE_FLOAT_FORMAT,
     column_names_sha256,
     read_reference_provenance,
+    reference_file_digest,
     shard_identities,
 )
 
@@ -1323,6 +1325,21 @@ class TestSTEBBSOutput(TestCase):
         )
         config_path = stebbs_test_dir / "sample_config.yml"
         reference_output_path = stebbs_test_dir / "sample_output_stebbs.csv"
+
+        provenance = json.loads(
+            (stebbs_test_dir / "provenance.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            provenance["files"],
+            {
+                name: reference_file_digest(stebbs_test_dir / name)[0]
+                for name in (
+                    config_path.name,
+                    "test_2017_data_15_mp.txt",
+                    reference_output_path.name,
+                )
+            },
+        )
 
         print(f"\nLoading STEBBS test configuration from: {config_path}")
 

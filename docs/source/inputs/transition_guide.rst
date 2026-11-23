@@ -116,7 +116,7 @@ Converting between legacy table versions without creating YAML is not a command-
        toVer="2024a",
    )
 
-``fromDir`` must contain ``RunControl.nml``; the converter reads ``FileInputPath`` from it (resolved relative to ``fromDir``, or used directly if absolute) to locate the source table and namelist files. In ``toDir``, the converter writes the converted ``RunControl.nml`` at the root, creates the ``FileInputPath`` and ``FileOutputPath`` directories resolved from ``toDir`` (for example, ``Input/`` and ``Output/`` when those paths are relative), and places the converted table files and other ``*.nml`` files (including ``SUEWS_SPARTACUS.nml`` and ``GridLayout*.nml`` for ``2024a`` and later) inside that ``FileInputPath`` directory. See :doc:`/api/converter` for the full signature.
+``fromDir`` is the run directory containing ``RunControl.nml``; the source tables are read from the folder its ``FileInputPath`` points to. ``toDir`` receives the converted ``RunControl.nml`` at its root, with the converted tables and namelists in its ``FileInputPath`` folder and an empty ``FileOutputPath`` folder beside it. Forcing files are not copied, so copy them across yourself. Keep ``FileInputPath`` relative: with an absolute path the converter writes the converted tables and namelists into that same folder, replacing the originals. See :doc:`/api/converter` for the full signature.
 
 Example 5: Debugging Conversion Issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

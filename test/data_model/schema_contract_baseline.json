@@ -35,11 +35,11 @@
       "reason": "Optional dry fine-earth bulk density used only when converting gravimetric soil observations."
     },
     "debt_soil_non_water": {
-      "owner_issue": "#2077",
+      "owner_issue": "#2076",
       "reason": "Remaining non-water surface soil parameter without default or DOC_REQUIRED_WHEN entry (soil_density plus intermediate NonVegetatedSurfaceProperties/VegetatedSurfaceProperties mixins after PR #2080 graduated the 28 active soil fields)."
     },
     "debt_soil_water": {
-      "owner_issue": "#2077",
+      "owner_issue": "#2076",
       "reason": "Inherited SurfaceProperties soil parameter unused by water surface; needs exclusion or dedicated contract."
     },
     "debt_building_layer_soil": {
@@ -47,11 +47,11 @@
       "reason": "BuildingLayer soil_store_capacity has no default and no validator rule."
     },
     "debt_biogenic_co2": {
-      "owner_issue": "#2001",
+      "owner_issue": "#1991",
       "reason": "Biogenic CO2 parameter used under biogenic emissions methods (11-46), not yet in DOC_REQUIRED_WHEN."
     },
     "debt_anthro_co2": {
-      "owner_issue": "#2001",
+      "owner_issue": "#1991",
       "reason": "Anthropogenic CO2 parameter used under detailed CO2 emissions methods, not yet in DOC_REQUIRED_WHEN."
     },
     "debt_irrigation_no_default": {
@@ -59,7 +59,7 @@
       "reason": "Irrigation parameter with default=None and no validator contract."
     },
     "debt_lai_power": {
-      "owner_issue": "#2002",
+      "owner_issue": "#2076",
       "reason": "LAI power coefficient used when laimethod=1 (MODELLED), not yet in DOC_REQUIRED_WHEN."
     },
     "debt_ohm_coefficients": {
@@ -67,7 +67,7 @@
       "reason": "OHM coefficient with default=None and no validator rule."
     },
     "debt_snow_no_default": {
-      "owner_issue": "#2002",
+      "owner_issue": "#1982",
       "reason": "Snow parameter used when snow_use=1, not yet in DOC_REQUIRED_WHEN."
     },
     "debt_storage_drain_no_default": {
@@ -90,19 +90,19 @@
       "reason": "Optional nested sub-model or temporal profile that may be None when its governing physics option is inactive."
     },
     "debt_opt_stebbs_archetype": {
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "reason": "STEBBS archetype numeric field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_stebbs_props": {
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "reason": "STEBBS numeric/enum field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_surface_thresholds": {
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "reason": "Surface/snow threshold parameter typed Optional[FlexibleRefValue] with non-None default; explicit null bypasses DataModelBase null rejection."
     },
     "debt_opt_bioco2_enh": {
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "reason": "Biogenic CO2 enhancement parameter typed Optional[FlexibleRefValue] with non-None default without active-method null guard."
     },
     "debt_opt_surface_init_temp": {
@@ -114,7 +114,7 @@
       "reason": "BuildingLayer optical property typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_plain_scalars": {
-      "owner_issue": "#2101",
+      "owner_issue": "#1991",
       "reason": "Plain Optional scalar/metadata field carrying a non-None default (profiles, archetype_name, legacy Conductance.ref placeholder)."
     }
   },

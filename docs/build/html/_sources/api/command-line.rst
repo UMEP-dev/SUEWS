@@ -184,12 +184,15 @@ Show a compact, read-only overview of a YAML configuration: per-site coordinates
 suews summarise
 ~~~~~~~~~~~~~~~
 
-Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory.
+Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory. For multi-group Parquet outputs, each ``(group, variable)`` series is preserved independently and labelled with its group in both text and JSON output.
 
 .. code-block:: bash
 
     suews summarise path/to/run_dir
     suews summarise path/to/run_dir --variables QH,QE,QN
+    suews summarise path/to/run_dir --variables SUEWS.QS,ESTM.QS
+
+Use bare variable names (such as ``QH`` or ``Kdown``) for unambiguous selections, or ``<group>.<variable>`` (such as ``SUEWS.QS`` or ``ESTM.QS``) to request a specific group when a name recurs across groups. Passing a bare colliding name summarises every matching group and records an advisory note showing the qualified names.
 
 suews compare
 ~~~~~~~~~~~~~

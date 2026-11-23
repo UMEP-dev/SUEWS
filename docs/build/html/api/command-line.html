@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-23T03:05:40+00:00" />
-    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.23.dev28 documentation</title>
+    <meta property="article:modified_time" content="2026-11-23T11:33:30+00:00" />
+    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.23.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=c372278c"></script>
+    <script src="../_static/documentation_options.js?v=d3f4b683"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6.3.7.9. supy.util.AttributionResult" href="_autosummary/supy.util.AttributionResult.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev28" />
+  <meta name="docsearch:version" content="2026.11.23.dev32" />
     <meta name="docbuild:last-update" content="2026-11-23"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev28, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d726efaa3eb37496f95a6af518154b49abc2c6d" style="color: #31708f;">4d726ef</a>).
+        (2026.11.23.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b41ffa55b1ec9fcb9f83387a8249230cab3fd434" style="color: #31708f;">b41ffa5</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev28 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev28 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev32 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -797,11 +797,13 @@ suews<span class="w"> </span>inspect<span class="w"> </span>config.yml<span clas
 </section>
 <section id="suews-summarise">
 <h3><span class="section-number">6.4.1.6. </span>suews summarise<a class="headerlink" href="#suews-summarise" title="Link to this heading">#</a></h3>
-<p>Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory.</p>
+<p>Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory. For multi-group Parquet outputs, each <code class="docutils literal notranslate"><span class="pre">(group,</span> <span class="pre">variable)</span></code> series is preserved independently and labelled with its group in both text and JSON output.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir
 suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir<span class="w"> </span>--variables<span class="w"> </span>QH,QE,QN
+suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir<span class="w"> </span>--variables<span class="w"> </span>SUEWS.QS,ESTM.QS
 </pre></div>
 </div>
+<p>Use bare variable names (such as <code class="docutils literal notranslate"><span class="pre">QH</span></code> or <code class="docutils literal notranslate"><span class="pre">Kdown</span></code>) for unambiguous selections, or <code class="docutils literal notranslate"><span class="pre">&lt;group&gt;.&lt;variable&gt;</span></code> (such as <code class="docutils literal notranslate"><span class="pre">SUEWS.QS</span></code> or <code class="docutils literal notranslate"><span class="pre">ESTM.QS</span></code>) to request a specific group when a name recurs across groups. Passing a bare colliding name summarises every matching group and records an advisory note showing the qualified names.</p>
 </section>
 <section id="suews-compare">
 <h3><span class="section-number">6.4.1.7. </span>suews compare<a class="headerlink" href="#suews-compare" title="Link to this heading">#</a></h3>
@@ -953,8 +955,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev28 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d726efaa3eb37496f95a6af518154b49abc2c6d">4d726ef</a> |
+  <p>Version: 2026.11.23.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b41ffa55b1ec9fcb9f83387a8249230cab3fd434">b41ffa5</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

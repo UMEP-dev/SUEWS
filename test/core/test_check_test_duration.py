@@ -532,7 +532,8 @@ def test_build_baseline_normalises_mixed_speed_rotating_shards_per_artefact(
     recovers the exact 1x baseline total and catches the +20% slowdown.
     """
     api_nodes = [f"test/core/test_rot_{i:02d}.py::test_a" for i in range(48)]
-    base_cost = 2.0  # true 1x lane total = 48 * 2.0 = 96.0 s
+    phys_nodes = [f"test/physics/test_rot_p_{i:02d}.py::test_p" for i in range(10)]
+    base_cost = 2.0  # true 1x api lane total = 48 * 2.0 = 96.0 s
 
     run_dirs: list[Path] = []
     for run_idx in range(1, 5):
@@ -552,10 +553,15 @@ def test_build_baseline_normalises_mixed_speed_rotating_shards_per_artefact(
                 / f"api-cp312-manylinux-x86_64-shard-{shard_idx}-of-4.json",
                 recs,
             )
+        _write_artefact(
+            run_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+            [_record(nid, call=3.0, markers=("physics",)) for nid in phys_nodes],
+        )
 
     baseline = guard.build_baseline(run_dirs)
     assert baseline.lanes["api"].total_cpu_seconds == pytest.approx(96.0)
     assert baseline.lanes["api"].measured_test_count == 48
+    assert baseline.lanes["physics"].total_cpu_seconds == pytest.approx(30.0)
 
     # Now evaluate a new 4-shard run with a genuine +20% slowdown (+19.2 s in a changed file).
     eval_shards: list[guard.ArtefactTests] = []
@@ -765,7 +771,7 @@ def test_newline_bearing_node_id_cannot_forge_workflow_commands(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Control chars in untrusted node IDs are sanitised and guarded by stop-commands."""
-    baseline = _api_only_baseline()
+    baseline = _synthetic_baseline()
     baseline_path = tmp_path / "baseline.json"
     guard.write_baseline(baseline, baseline_path)
 
@@ -775,13 +781,21 @@ def test_newline_bearing_node_id_cannot_forge_workflow_commands(
         for nid, cpu in baseline.lanes["api"].reference_tests.items()
     ]
     records.append(_record(forged_node, call=25.0, markers=("api",)))
-    artefact_path = _write_artefact(
-        tmp_path / "api" / "api-cp312-manylinux-x86_64.json", records
+    metrics_dir = tmp_path / "metrics"
+    _write_artefact(
+        metrics_dir / "api" / "api-cp312-manylinux-x86_64.json", records
+    )
+    _write_artefact(
+        metrics_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [
+            _record(nid, call=cpu, markers=("physics",))
+            for nid, cpu in baseline.lanes["physics"].reference_tests.items()
+        ],
     )
 
     # Without --annotations: no output line may start with `::`.
     rc_plain = guard.main([
-        str(artefact_path),
+        str(metrics_dir),
         "--baseline",
         str(baseline_path),
         "--test-file",
@@ -796,7 +810,7 @@ def test_newline_bearing_node_id_cannot_forge_workflow_commands(
     # With --annotations: plain text is wrapped in ::stop-commands::<tok> ... ::<tok>::,
     # and the only other `::` lines are the intended ::warning annotations.
     rc_ann = guard.main([
-        str(artefact_path),
+        str(metrics_dir),
         "--baseline",
         str(baseline_path),
         "--test-file",
@@ -826,6 +840,531 @@ def test_newline_bearing_node_id_cannot_forge_workflow_commands(
 
 
 @pytest.mark.smoke
+@pytest.mark.core
+def test_sharded_physics_with_unsuffixed_wheel_metadata_and_missing_shard_detection(
+    tmp_path: Path,
+) -> None:
+    """Wildcard physics download isolates wheel bookkeeping from 2 physics shards and catches any missing shard."""
+    api_nodes = [f"test/core/test_a_{i:02d}.py::test_a" for i in range(40)]
+    phys_nodes = [f"test/physics/test_p_{i:02d}.py::test_p" for i in range(24)]
+    baseline = guard.DurationBaseline(
+        schema_version=guard.BASELINE_SCHEMA_VERSION,
+        phase="call",
+        min_reference_seconds=1.0,
+        max_references_per_lane=200,
+        generated_from_runs=("1001",),
+        lanes={
+            "api": guard.LaneBaseline(
+                "api", 80.0, len(api_nodes), dict.fromkeys(api_nodes, 2.0)
+            ),
+            "physics": guard.LaneBaseline(
+                "physics", 72.0, len(phys_nodes), dict.fromkeys(phys_nodes, 3.0)
+            ),
+        },
+    )
+
+    def _build_tree(root: Path, *, include_phys_shards: tuple[int, ...]) -> None:
+        # 4 API shards in separate subdirectories.
+        for s in range(1, 5):
+            recs = [
+                _record(nid, call=2.0, markers=("api",))
+                for nid in api_nodes
+                if _shard_of(nid, 4) == s
+            ]
+            _write_artefact(
+                root
+                / "api"
+                / f"ci-metrics-api-cp312-manylinux-x86_64-shard-{s}-of-4"
+                / f"api-cp312-manylinux-x86_64-shard-{s}-of-4.json",
+                recs,
+            )
+        # Unsuffixed wheel-job bookkeeping artefact (contains NO pytest records).
+        wheel_dir = root / "physics" / "ci-metrics-physics-cp312-manylinux-x86_64"
+        wheel_dir.mkdir(parents=True, exist_ok=True)
+        (wheel_dir / "physics-cp312-manylinux-x86_64-wheel-job.json").write_text(
+            json.dumps({"schema_version": 1, "kind": "wheel-job-ci-metrics"}),
+            encoding="utf-8",
+        )
+        (wheel_dir / "physics-cp312-manylinux-x86_64-phases.json").write_text(
+            json.dumps({"schema_version": 1, "phases": {}}), encoding="utf-8"
+        )
+        # Sharded physics pytest artefacts in separate subdirectories.
+        for s in include_phys_shards:
+            recs = [
+                _record(nid, call=3.0, markers=("physics",))
+                for nid in phys_nodes
+                if _shard_of(nid, 2) == s
+            ]
+            _write_artefact(
+                root
+                / "physics"
+                / f"ci-metrics-physics-cp312-manylinux-x86_64-shard-{s}-of-2"
+                / f"physics-cp312-manylinux-x86_64-shard-{s}-of-2-pytest.json",
+                recs,
+            )
+
+    full_tree = tmp_path / "full"
+    _build_tree(full_tree, include_phys_shards=(1, 2))
+    full_report = guard.check_durations(
+        guard.load_artefacts([full_tree]), baseline, changed_test_files=[]
+    )
+    assert full_report.ok is True
+    assert full_report.complete is True
+    assert full_report.lanes["physics"].status == "ok"
+    assert len(full_report.lanes["physics"].artefacts) == 2
+
+    # Removing either physics shard marks the comparison incomplete.
+    for kept, missing_idx in (((1,), 2), ((2,), 1)):
+        partial_tree = tmp_path / f"missing_shard_{missing_idx}"
+        _build_tree(partial_tree, include_phys_shards=kept)
+        partial_report = guard.check_durations(
+            guard.load_artefacts([partial_tree]), baseline, changed_test_files=[]
+        )
+        assert partial_report.ok is False
+        assert partial_report.complete is False
+        assert partial_report.lanes["physics"].status == "unavailable"
+        assert partial_report.lanes["physics"].reason_code == "missing_shards"
+        assert f"missing shard(s) {missing_idx} of 2" in (
+            partial_report.lanes["physics"].reason or ""
+        )
+
+    # Only the unsuffixed wheel metadata present -> physics is missing, never clean.
+    wheel_only_tree = tmp_path / "wheel_only"
+    _build_tree(wheel_only_tree, include_phys_shards=())
+    wheel_only_report = guard.check_durations(
+        guard.load_artefacts([wheel_only_tree]), baseline, changed_test_files=[]
+    )
+    assert wheel_only_report.ok is False
+    assert wheel_only_report.complete is False
+    assert wheel_only_report.lanes["physics"].status == "missing"
+    assert wheel_only_report.lanes["physics"].reason_code == "no_artefacts"
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_baseline_builder_and_loader_require_complete_api_and_physics_lanes(
+    tmp_path: Path,
+) -> None:
+    """Baseline refresh and loader reject runs or files missing either required lane."""
+    api_nodes = [f"test/core/test_b_{i:02d}.py::test_a" for i in range(10)]
+    phys_nodes = [f"test/physics/test_b_{i:02d}.py::test_p" for i in range(10)]
+
+    run_complete = tmp_path / "run_complete"
+    _write_artefact(
+        run_complete / "api" / "api-cp312-manylinux-x86_64.json",
+        [_record(nid, call=2.0, markers=("api",)) for nid in api_nodes],
+    )
+    _write_artefact(
+        run_complete / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [_record(nid, call=3.0, markers=("physics",)) for nid in phys_nodes],
+    )
+
+    run_api_only = tmp_path / "run_api_only"
+    _write_artefact(
+        run_api_only / "api" / "api-cp312-manylinux-x86_64.json",
+        [_record(nid, call=2.0, markers=("api",)) for nid in api_nodes],
+    )
+    # Only wheel bookkeeping under physics, no pytest shard JSONs.
+    (run_api_only / "physics").mkdir(parents=True, exist_ok=True)
+    (run_api_only / "physics" / "physics-cp312-manylinux-x86_64-wheel-job.json").write_text(
+        json.dumps({"schema_version": 1, "kind": "wheel-job-ci-metrics"}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="missing measured artefacts for required lane"):
+        guard.build_baseline([run_api_only])
+
+    with pytest.raises(ValueError, match="missing measured artefacts for required lane"):
+        guard.build_baseline([run_complete, run_api_only])
+
+    # Loader rejects a baseline missing either api or physics.
+    for drop_lane in ("physics", "api"):
+        bad_base = guard.baseline_to_dict(_synthetic_baseline())
+        del bad_base["lanes"][drop_lane]
+        bad_path = tmp_path / f"missing_{drop_lane}.json"
+        bad_path.write_text(json.dumps(bad_base), encoding="utf-8")
+        with pytest.raises(ValueError, match=f"missing required lane.*{drop_lane}"):
+            guard.load_baseline(bad_path)
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_malformed_filenames_cannot_inject_workflow_commands_or_comment_markers(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Newlines or HTML comment markers in PR artefact filenames are sanitised on error and report paths."""
+    baseline_path = tmp_path / "baseline.json"
+    guard.write_baseline(_synthetic_baseline(), baseline_path)
+
+    # 1. Unsupported-schema error path with newline + workflow command in filename.
+    bad_schema_dir = tmp_path / "bad_schema"
+    bad_schema_dir.mkdir()
+    evil_schema_file = bad_schema_dir / "api\n::error title=forged::pwned.json"
+    evil_schema_file.write_text(
+        json.dumps({"schema_version": 99, "tests": [_record("t.py::t", call=1.0)]}),
+        encoding="utf-8",
+    )
+    rc = guard.main([
+        str(bad_schema_dir),
+        "--baseline",
+        str(baseline_path),
+        "--annotations",
+    ])
+    out_lines = capsys.readouterr().out.splitlines()
+    assert rc == 2
+    assert not any(line.lstrip().startswith("::error") for line in out_lines), out_lines
+    assert any(line.startswith("::stop-commands::") for line in out_lines), out_lines
+
+    # 2. Incomplete-lane artefact filename carrying newline + sticky-comment delimiter + Markdown link.
+    evil_dir = tmp_path / "evil_incomplete" / "api"
+    evil_dir.mkdir(parents=True)
+    evil_file = (
+        evil_dir / "api\n<!-- duration-guard:end -->[click](https://evil.test).json"
+    )
+    _write_artefact(evil_file, [_record("test/core/test_x.py::test_1", call=2.0)])
+    out_json = tmp_path / "evil_report.json"
+    out_md = tmp_path / "evil_report.md"
+    rc2 = guard.main([
+        str(tmp_path / "evil_incomplete"),
+        "--baseline",
+        str(baseline_path),
+        "--no-changed-test-files",
+        "--json",
+        str(out_json),
+        "--markdown",
+        str(out_md),
+        "--annotations",
+    ])
+    out2_lines = capsys.readouterr().out.splitlines()
+    assert rc2 == 1
+    assert not any(line.lstrip().startswith("::error") for line in out2_lines)
+    md_text = out_md.read_text(encoding="utf-8")
+    assert "<!-- duration-guard:end -->" not in md_text
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    api_lane = payload["lanes"]["api"]
+    assert api_lane["status"] == "unavailable"
+    assert api_lane["reason_code"] in {"low_coverage", "insufficient_references"}
+    assert "<!--" not in (api_lane["reason"] or "")
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_malformed_shard_totals_and_duplicate_shards_are_rejected_boundedly(
+    tmp_path: Path,
+) -> None:
+    """Huge shard totals, malformed shard labels, and duplicate shard indices fail cleanly with bounded work."""
+    baseline = _synthetic_baseline()
+    baseline_path = tmp_path / "baseline.json"
+    guard.write_baseline(baseline, baseline_path)
+    api_items = [
+        (nid, cpu, ("api",))
+        for nid, cpu in baseline.lanes["api"].reference_tests.items()
+    ]
+    phys_items = [
+        (nid, cpu, ("physics",))
+        for nid, cpu in baseline.lanes["physics"].reference_tests.items()
+    ]
+    phys = _artefact_from_costs(
+        "physics-cp312-manylinux-x86_64-pytest.json", "physics", phys_items
+    )
+
+    for bad_name in (
+        "api-cp312-manylinux-x86_64-shard-1-of-999999999.json",
+        "api-cp312-manylinux-x86_64-shard-1-of-999999999999999999999999999999.json",
+        "api-cp312-manylinux-x86_64-shard-x-of-2.json",
+        "api-cp312-manylinux-x86_64-shard--1-of-2.json",
+        "api-cp312-manylinux-x86_64-shard-1-of.json",
+        "api-cp312-manylinux-x86_64-shard-x-of-2-shard-1-of-1.json",
+        "api-cp312-manylinux-x86_64-shard-1-of-2-shard-2-of-2.json",
+        "api-cp312-manylinux-x86_64-shard-shard-1-of-1.json",
+        "api-cp312-manylinux-x86_64_shard_shard_1_of_1.json",
+    ):
+        report = guard.check_durations(
+            [_artefact_from_costs(bad_name, "api", api_items), phys],
+            baseline,
+            changed_test_files=[],
+        )
+        assert report.ok is False, bad_name
+        assert report.complete is False, bad_name
+        assert report.lanes["api"].status == "unavailable", bad_name
+        assert report.lanes["api"].reason_code == "invalid_shard_id", bad_name
+
+    # Contradictory parent-directory vs filename shard labels are also rejected.
+    mismatch_dir = tmp_path / "mismatch_parent_stem"
+    _write_artefact(
+        mismatch_dir
+        / "api"
+        / "ci-metrics-api-cp312-manylinux-x86_64-shard-2-of-2"
+        / "api-cp312-manylinux-x86_64-shard-1-of-2.json",
+        [_record(nid, call=cpu, markers=("api",)) for nid, cpu, _ in api_items],
+    )
+    _write_artefact(
+        mismatch_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [_record(nid, call=cpu, markers=("physics",)) for nid, cpu, _ in phys_items],
+    )
+    mismatch_json = tmp_path / "mismatch_report.json"
+    assert (
+        guard.main([
+            str(mismatch_dir),
+            "--baseline",
+            str(baseline_path),
+            "--no-changed-test-files",
+            "--json",
+            str(mismatch_json),
+        ])
+        == 1
+    )
+    mismatch_payload = json.loads(mismatch_json.read_text(encoding="utf-8"))
+    assert mismatch_payload["lanes"]["api"]["status"] == "unavailable"
+    assert mismatch_payload["lanes"]["api"]["reason_code"] == "invalid_shard_id"
+    with pytest.raises(ValueError, match="invalid shard identifier"):
+        guard.build_baseline([mismatch_dir])
+
+    # Malformed shard labels are also rejected through CLI evaluation and baseline regeneration.
+    for idx, bad_label in enumerate(("shard-x-of-2", "shard--1-of-2", "shard-1-of")):
+        run_dir = tmp_path / f"bad_shard_run_{idx}"
+        _write_artefact(
+            run_dir / "api" / f"api-cp312-manylinux-x86_64-{bad_label}.json",
+            [_record(nid, call=cpu, markers=("api",)) for nid, cpu, _ in api_items],
+        )
+        _write_artefact(
+            run_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+            [
+                _record(nid, call=cpu, markers=("physics",))
+                for nid, cpu, _ in phys_items
+            ],
+        )
+        out_json = tmp_path / f"bad_shard_report_{idx}.json"
+        rc = guard.main([
+            str(run_dir),
+            "--baseline",
+            str(baseline_path),
+            "--no-changed-test-files",
+            "--json",
+            str(out_json),
+        ])
+        assert rc == 1, bad_label
+        payload = json.loads(out_json.read_text(encoding="utf-8"))
+        assert payload["complete"] is False, bad_label
+        assert payload["lanes"]["api"]["status"] == "unavailable", bad_label
+        assert payload["lanes"]["api"]["reason_code"] == "invalid_shard_id", bad_label
+
+        with pytest.raises(ValueError, match="invalid shard identifier"):
+            guard.build_baseline([run_dir])
+
+    # Duplicate shard indices (two shard-1-of-2 files, or [1, 1, 2] of 2).
+    half = len(api_items) // 2
+    dup_report = guard.check_durations(
+        [
+            _artefact_from_costs(
+                "api-cp312-manylinux-x86_64-shard-1-of-2.json", "api", api_items[:half]
+            ),
+            _artefact_from_costs(
+                "api-cp312-manylinux-x86_64-shard-1-of-2-copy.json",
+                "api",
+                api_items[:half],
+            ),
+            _artefact_from_costs(
+                "api-cp312-manylinux-x86_64-shard-2-of-2.json", "api", api_items[half:]
+            ),
+            phys,
+        ],
+        baseline,
+        changed_test_files=[],
+    )
+    assert dup_report.ok is False
+    assert dup_report.complete is False
+    assert dup_report.lanes["api"].status == "unavailable"
+    assert dup_report.lanes["api"].reason_code == "duplicate_shard_id"
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+@pytest.mark.parametrize(
+    "bad_value", ["NaN", "Infinity", "-Infinity", "-1.5", "1" + "0" * 400]
+)
+def test_non_finite_and_negative_cpu_measurements_mark_lane_unavailable_and_emit_strict_json(
+    tmp_path: Path, bad_value: str
+) -> None:
+    """NaN, Inf, negative, and overflowing integer CPU timings never pass as ok and always write strict JSON."""
+    baseline = _synthetic_baseline()
+    baseline_path = tmp_path / "baseline.json"
+    guard.write_baseline(baseline, baseline_path)
+
+    case_slug = "overflow_int" if len(bad_value) > 20 else bad_value
+    metrics_dir = tmp_path / f"case_{case_slug}"
+    api_records = [
+        _record(nid, call=cpu, markers=("api",))
+        for nid, cpu in baseline.lanes["api"].reference_tests.items()
+    ]
+    api_path = metrics_dir / "api" / "api-cp312-manylinux-x86_64.json"
+    api_path.parent.mkdir(parents=True, exist_ok=True)
+    # Inject raw JSON numeric token (including non-standard NaN / Infinity / 10^400).
+    raw_json = json.dumps({"schema_version": 2, "tests": api_records})
+    raw_json = raw_json.replace('"call": 2.0', f'"call": {bad_value}', 1)
+    api_path.write_text(raw_json, encoding="utf-8")
+
+    _write_artefact(
+        metrics_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [
+            _record(nid, call=cpu, markers=("physics",))
+            for nid, cpu in baseline.lanes["physics"].reference_tests.items()
+        ],
+    )
+
+    out_json = tmp_path / f"report_{case_slug}.json"
+    rc = guard.main([
+        str(metrics_dir),
+        "--baseline",
+        str(baseline_path),
+        "--no-changed-test-files",
+        "--json",
+        str(out_json),
+    ])
+    assert rc == 1
+    raw_out = out_json.read_text(encoding="utf-8")
+    assert "NaN" not in raw_out
+    assert "Infinity" not in raw_out
+    payload = json.loads(raw_out)
+    assert payload["ok"] is False
+    assert payload["complete"] is False
+    assert payload["lanes"]["api"]["status"] == "unavailable"
+    assert payload["lanes"]["api"]["reason_code"] == "invalid_measurements"
+    assert payload["lanes"]["api"]["scaled_total_seconds"] is None
+    assert payload["lanes"]["physics"]["status"] == "ok"
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_derived_arithmetic_overflow_in_evaluation_and_baseline_is_handled_cleanly(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Finite inputs whose derived percentage or aggregate overflows never crash JSON serialisation."""
+    # 1. Evaluation overflow: finite baseline total (5.0), finite 1e308 measurement ->
+    #    finite delta_ratio (~2e307) whose delta_percent (* 100) overflows to inf.
+    api_refs = {f"test/core/test_ov_{i:02d}.py::test_r": 1.0 for i in range(5)}
+    phys_refs = {f"test/physics/test_ov_{i:02d}.py::test_p": 1.0 for i in range(5)}
+    small_base = guard.DurationBaseline(
+        schema_version=guard.BASELINE_SCHEMA_VERSION,
+        phase="call",
+        min_reference_seconds=1.0,
+        max_references_per_lane=200,
+        generated_from_runs=("1001",),
+        lanes={
+            "api": guard.LaneBaseline("api", 5.0, 5, api_refs),
+            "physics": guard.LaneBaseline("physics", 5.0, 5, phys_refs),
+        },
+    )
+    baseline_path = tmp_path / "small_baseline.json"
+    guard.write_baseline(small_base, baseline_path)
+
+    eval_dir = tmp_path / "eval_overflow"
+    api_recs = [_record(nid, call=1.0, markers=("api",)) for nid in api_refs]
+    api_recs.append(_record("test/core/test_huge.py::test_huge", call=1e308, markers=("api",)))
+    _write_artefact(eval_dir / "api" / "api-cp312-manylinux-x86_64.json", api_recs)
+    _write_artefact(
+        eval_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [_record(nid, call=1.0, markers=("physics",)) for nid in phys_refs],
+    )
+    out_json = tmp_path / "overflow_eval.json"
+    rc = guard.main([
+        str(eval_dir),
+        "--baseline",
+        str(baseline_path),
+        "--no-changed-test-files",
+        "--json",
+        str(out_json),
+    ])
+    assert rc == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["complete"] is False
+    assert payload["lanes"]["api"]["status"] == "unavailable"
+    assert payload["lanes"]["api"]["reason_code"] == "invalid_measurements"
+    assert payload["lanes"]["physics"]["status"] == "ok"
+
+    # 2. Baseline generation overflow: two finite 1e308 measurements sum to inf.
+    gen_dir = tmp_path / "gen_overflow"
+    gen_api = [_record(nid, call=1.0, markers=("api",)) for nid in api_refs]
+    gen_api.extend([
+        _record("test/core/test_big1.py::test_a", call=1e308, markers=("api",)),
+        _record("test/core/test_big2.py::test_b", call=1e308, markers=("api",)),
+    ])
+    _write_artefact(gen_dir / "api" / "api-cp312-manylinux-x86_64.json", gen_api)
+    _write_artefact(
+        gen_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [_record(nid, call=1.0, markers=("physics",)) for nid in phys_refs],
+    )
+    out_base = tmp_path / "overflow_baseline.json"
+    capsys.readouterr()
+    rc_gen = guard.main([
+        "--write-baseline",
+        "--baseline",
+        str(out_base),
+        str(gen_dir),
+    ])
+    assert rc_gen == 2
+    assert not out_base.exists()
+    assert "[X]" in capsys.readouterr().out
+
+    # 3. Huge baseline measured_test_count (10^400) is rejected cleanly by load_baseline.
+    huge_base = guard.baseline_to_dict(small_base)
+    huge_base["lanes"]["api"]["measured_test_count"] = 10**400
+    huge_base_path = tmp_path / "huge_count_baseline.json"
+    huge_base_path.write_text(json.dumps(huge_base), encoding="utf-8")
+    with pytest.raises(ValueError, match="measured_test_count"):
+        guard.load_baseline(huge_base_path)
+
+    # 4. Malformed supplied session metadata (string exit_code, negative node_count, negative outcome)
+    #    marks the lane unavailable in evaluation and is rejected by build_baseline.
+    for case_name, extra_meta in (
+        ("str_exit", {"result": {"exit_code": "2"}}),
+        ("neg_collected", {"inventory": {"node_count": -1}}),
+        ("neg_outcome", {"result": {"exit_code": 0, "outcomes": {"passed": -3}}}),
+    ):
+        meta_dir = tmp_path / f"meta_{case_name}"
+        api_p = meta_dir / "api" / "api-cp312-manylinux-x86_64.json"
+        api_p.parent.mkdir(parents=True, exist_ok=True)
+        api_p.write_text(
+            json.dumps({
+                "schema_version": 2,
+                "tests": [_record(nid, call=1.0, markers=("api",)) for nid in api_refs],
+                **extra_meta,
+            }),
+            encoding="utf-8",
+        )
+        _write_artefact(
+            meta_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+            [_record(nid, call=1.0, markers=("physics",)) for nid in phys_refs],
+        )
+        meta_json = tmp_path / f"meta_{case_name}.json"
+        assert (
+            guard.main([
+                str(meta_dir),
+                "--baseline",
+                str(baseline_path),
+                "--no-changed-test-files",
+                "--json",
+                str(meta_json),
+            ])
+            == 1
+        ), case_name
+        meta_payload = json.loads(meta_json.read_text(encoding="utf-8"))
+        assert meta_payload["lanes"]["api"]["status"] == "unavailable", case_name
+        assert meta_payload["lanes"]["api"]["reason_code"] == "invalid_session_metadata", (
+            case_name
+        )
+        with pytest.raises(ValueError, match="malformed session metadata"):
+            guard.build_baseline([meta_dir])
+
+    # 5. Overflowing max_regression (1e308 * 100 = inf) is rejected; max_regression = 0.0 is accepted.
+    with pytest.raises(ValueError, match="max_regression"):
+        guard.check_durations([], small_base, max_regression=1e308)
+    zero_thresh = guard.check_durations([], small_base, max_regression=0.0)
+    assert zero_thresh.max_regression == 0.0
+
+
+@pytest.mark.smoke
 def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> None:
     """Committed baseline is valid; CI job is report-only, standard-PR-only, and path-filtered."""
     baseline_path = REPO_ROOT / "scripts/lint/test_duration_baseline.json"
@@ -836,12 +1375,16 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
         assert lb.total_cpu_seconds > 0.0, lane
         assert len(lb.reference_tests) >= 50, lane
 
+    # Documented baseline refresh uses wildcard for both API and physics.
+    assert '-p "ci-metrics-physics-cp312-manylinux-x86_64*"' in (guard.__doc__ or "")
+
     workflow = yaml.safe_load(
         (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
             encoding="utf-8"
         )
     )
     job = workflow["jobs"]["test_duration_guard"]
+    cost_job = workflow["jobs"]["cost_markers_pr"]
     # Report-only and never wired into pr-gate or report_scheduled_run.
     assert job["continue-on-error"] is True
     assert "test_duration_guard" not in workflow["jobs"]["pr-gate"]["needs"]
@@ -849,6 +1392,10 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
         "test_duration_guard"
         not in workflow["jobs"]["report_scheduled_run"]["needs"]
     )
+    # Sticky-comment writers are strictly serialised: post-ci-summary -> cost_markers_pr -> test_duration_guard.
+    assert "post-ci-summary" in cost_job["needs"]
+    assert "post-ci-summary" in job["needs"]
+    assert "cost_markers_pr" in job["needs"]
     # Standard PR tier only (not smoke/core/cfg/physics-full/merge_group/schedule).
     assert "github.event_name == 'pull_request'" in job["if"]
     assert "needs.determine_matrix.outputs.test_tier == 'standard'" in job["if"]
@@ -864,13 +1411,23 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
         in checkout["with"]["sparse-checkout"]
     )
 
-    # Downloads both unsharded and N-sharded Linux cp312 API artefacts.
+    # Downloads both unsharded and N-sharded Linux cp312 API and physics artefacts into separate subdirectories.
     api_dl = next(
         s
         for s in job["steps"]
         if s.get("name") == "Download the Linux cp312 api metrics"
     )
     assert api_dl["with"]["pattern"] == "ci-metrics-api-cp312-manylinux-x86_64*"
+    assert not api_dl["with"].get("merge-multiple")
+
+    phys_dl = next(
+        s
+        for s in job["steps"]
+        if s.get("name") == "Download the Linux cp312 physics metrics"
+    )
+    assert phys_dl["with"]["pattern"] == "ci-metrics-physics-cp312-manylinux-x86_64*"
+    assert "name" not in phys_dl["with"]
+    assert not phys_dl["with"].get("merge-multiple")
 
     # PR test-file list is passed via env + jq, never interpolated into the command.
     check_step = next(

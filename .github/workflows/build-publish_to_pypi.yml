@@ -830,11 +830,12 @@ jobs:
   # says the result is in the job summary.
   cost_markers_pr:
     name: Cost markers of changed tests
-    needs: [detect-changes, determine_matrix, build_wheels]
+    needs: [detect-changes, determine_matrix, post-ci-summary, build_wheels]
     if: |
       always() &&
       github.event_name == 'pull_request' &&
       needs.detect-changes.outputs.tests-changed == 'true' &&
+      (needs.post-ci-summary.result == 'success' || needs.post-ci-summary.result == 'failure' || needs.post-ci-summary.result == 'skipped') &&
       (needs.build_wheels.result == 'success' || needs.build_wheels.result == 'failure')
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -920,23 +921,25 @@ jobs:
 
   # Pull requests (standard tier only): report-only guard that checks whether
   # the PR makes the Linux cp312 API or physics test lanes slower by more than
-  # 10% after per-artefact runner normalisation against the committed baseline
+  # 10% relative to the unchanged reference cohort in the committed baseline
   # (`scripts/lint/test_duration_baseline.json`), or leaves new/changed tests
   # over the repository's cost-marker thresholds without the matching marker.
-  # It downloads both unsharded and N-sharded API artefacts (aggregating across
-  # shards after per-shard runner normalisation), emits warning annotations and
-  # a job summary, and adds an advisory section to the CI summary comment.
-  # It never gates: continue-on-error is true on the job and steps, and neither
-  # pr-gate nor report_scheduled_run depends on it. Waiting on cost_markers_pr
-  # (with always()) prevents concurrent updates to the sticky PR comment.
+  # It downloads both unsharded and N-sharded API and physics artefacts into
+  # separate subdirectories (aggregating across shards after per-shard scaling),
+  # emits warning annotations and a job summary, and adds an advisory section to
+  # the CI summary comment. It never gates: continue-on-error is true on the job
+  # and steps, and neither pr-gate nor report_scheduled_run depends on it.
+  # Ordering post-ci-summary -> cost_markers_pr -> test_duration_guard (with
+  # always()) prevents concurrent updates to the sticky PR comment.
   test_duration_guard:
     name: Test duration guard (Linux cp312)
-    needs: [detect-changes, determine_matrix, build_wheels, cost_markers_pr]
+    needs: [detect-changes, determine_matrix, post-ci-summary, build_wheels, cost_markers_pr]
     if: |
       always() &&
       github.event_name == 'pull_request' &&
       needs.determine_matrix.result == 'success' &&
       needs.determine_matrix.outputs.test_tier == 'standard' &&
+      (needs.post-ci-summary.result == 'success' || needs.post-ci-summary.result == 'failure' || needs.post-ci-summary.result == 'skipped') &&
       (needs.build_wheels.result == 'success' || needs.build_wheels.result == 'failure') &&
       (needs.cost_markers_pr.result == 'success' || needs.cost_markers_pr.result == 'failure' || needs.cost_markers_pr.result == 'skipped')
     runs-on: ubuntu-latest
@@ -971,11 +974,14 @@ jobs:
           pattern: ci-metrics-api-cp312-manylinux-x86_64*
           path: ci-metrics/api
 
+      # Pattern matches both an unsharded Linux cp312 physics artefact and any
+      # sharded artefacts (`...-shard-K-of-N`) into separate subdirectories,
+      # isolating unsuffixed wheel-job metadata from the pytest shard JSONs.
       - name: Download the Linux cp312 physics metrics
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ci-metrics-physics-cp312-manylinux-x86_64
+          pattern: ci-metrics-physics-cp312-manylinux-x86_64*
           path: ci-metrics/physics
 
       - name: Check runner-normalised test durations against baseline

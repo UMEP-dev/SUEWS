@@ -5,22 +5,24 @@ GitHub-hosted Linux runners are bimodal (roughly 1.57x on the API lane and up
 to ~1.95x on the physics lane for the same commit), so raw lane totals cannot
 detect a +10% slowdown without flooding pull requests with false positives.
 
-This script normalises each metrics artefact independently by comparing
-unchanged reference tests against a committed baseline
-(``scripts/lint/test_duration_baseline.json``).  Normalising per artefact
-handles both mixed fast/slow runners between the API and physics jobs and
-mixed runners across API shards (2-way or 4-way SHA-256 sharding via
-``scripts/suews/pytest_shard.py``).  After normalisation, shards of the same
-lane are aggregated so each test is judged once, whichever shard ran it.
+This script scales each metrics artefact independently relative to unchanged
+reference tests in a committed baseline
+(``scripts/lint/test_duration_baseline.json``).  Scaling per artefact cancels
+bimodal runner speed differences across both API and physics shards (2-way or
+4-way SHA-256 sharding via ``scripts/suews/pytest_shard.py``) and reports cost
+relative to that reference cohort (note: a uniform slowdown affecting every
+reference test equally is absorbed into the cohort factor).  After scaling,
+shards of the same lane are aggregated so each test is judged once, whichever
+shard ran it.
 
 Two conditions are reported (both advisory; CI runs this job with
 ``continue-on-error`` and never adds it to ``pr-gate``):
 
-1. Any new or changed test whose runner-normalised ``call``-phase CPU seconds
+1. Any new or changed test whose cohort-normalised ``call``-phase CPU seconds
    exceed the repository's cost-marker threshold without the matching marker
    (reusing ``MEDIUM_CPU_SECONDS``, ``SLOW_CPU_SECONDS``, and ``BAND`` from
    ``scripts/lint/check_cost_markers.py``; see ``.claude/rules/tests/patterns.md``).
-2. Any lane whose runner-normalised ``call``-phase CPU total exceeds the
+2. Any lane whose cohort-normalised ``call``-phase CPU total exceeds the
    committed baseline by more than ``--max-regression`` (default 10%).
 
 Regenerating the baseline
@@ -28,13 +30,14 @@ Regenerating the baseline
 Regenerate ``scripts/lint/test_duration_baseline.json`` after deliberate suite
 growth (e.g. a new test module) or after hotspot speed-ups land on ``master``
 so the reference stays close to current ``master`` behaviour.  Download the
-Linux cp312 API and physics artefacts from 6 or more recent green ``standard``
+Linux cp312 API and physics artefacts (using wildcards so sharded artefacts are
+placed in separate subdirectories) from 6 or more recent green ``standard``
 runs and pass their run directories to ``--write-baseline``::
 
     for id in <run_id_1> <run_id_2> ...; do
       mkdir -p ".context/runs/$id/api" ".context/runs/$id/physics"
       gh run download "$id" -p "ci-metrics-api-cp312-manylinux-x86_64*" -D ".context/runs/$id/api"
-      gh run download "$id" -n "ci-metrics-physics-cp312-manylinux-x86_64" -D ".context/runs/$id/physics"
+      gh run download "$id" -p "ci-metrics-physics-cp312-manylinux-x86_64*" -D ".context/runs/$id/physics"
     done
     python scripts/lint/check_test_duration.py --write-baseline .context/runs/*
 
@@ -49,9 +52,10 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import secrets
@@ -75,14 +79,20 @@ DEFAULT_MIN_REFERENCE_SECONDS = 1.0
 DEFAULT_MAX_REFERENCES_PER_LANE = 200
 DEFAULT_MIN_REFERENCE_MATCHES = 5
 DEFAULT_MIN_COVERAGE_RATIO = 0.90
+MAX_SHARD_TOTAL = 64
+MAX_REPORTED_MISSING_SHARDS = 10
+MAX_MEASURED_TEST_COUNT = 1_000_000_000
+_INVALID_SHARD = (-1, -1)
+_MAX_DISPLAY_FILENAME = 120
 UNDERMARKED_KINDS = frozenset({"unmarked-over-medium", "medium-over-slow"})
 INCOMPLETE_LANE_STATUSES = frozenset({"missing", "unavailable"})
 TOP_CONTRIBUTORS_LIMIT = 10
 _TOKEN_SPLIT_RE = re.compile(r"[^a-z0-9]+")
 _SHARD_NAME_RE = re.compile(
-    r"(?:^|[-_])shard[-_](\d+)[-_]of[-_](\d+)(?:$|[-_.])",
+    r"(?<![a-z0-9])shard[-_](\d+)[-_]of[-_](\d+)(?![a-z0-9])",
     re.IGNORECASE,
 )
+_SHARD_MARKER_RE = re.compile(r"(?<![a-z0-9])shard(?![a-z0-9])", re.IGNORECASE)
 _COMPLETE_EXIT_CODES = frozenset({0, 1})
 _VALID_OUTCOMES = frozenset({"passed", "failed", "skipped", "xfailed", "xpassed"})
 
@@ -120,6 +130,8 @@ class ArtefactTests:
     exit_code: int | None = None
     collected_count: int | None = None
     recorded_outcome_count: int | None = None
+    invalid_measurement_count: int = 0
+    session_metadata_invalid: bool = False
 
 
 @dataclass(frozen=True)
@@ -171,6 +183,8 @@ class LaneResult:
     top_changed_tests: tuple[TestDelta, ...] = ()
     top_reference_increases: tuple[TestDelta, ...] = ()
     reason: str | None = None
+    reason_code: str | None = None
+    reason_details: dict[str, Any] = field(default_factory=dict)
 
     def factor_summary(self) -> str:
         """Render the per-artefact runner speed factor(s) as a compact string."""
@@ -348,6 +362,8 @@ class DurationReport:
                         for td in res.top_reference_increases
                     ],
                     "reason": res.reason,
+                    "reason_code": res.reason_code,
+                    "reason_details": dict(res.reason_details),
                 }
                 for lane, res in self.lanes.items()
             },
@@ -421,7 +437,7 @@ class DurationReport:
                 "within threshold and no under-marked changed tests."
             )
         missing_summary = "; ".join(
-            f"`{res.lane}` ({res.status}: {_sanitise_identifier(res.reason or res.status)})"
+            f"`{res.lane}` ({res.status}: {_sanitise_markdown_prose(res.reason or res.status)})"
             for res in self.incomplete_lanes
         )
         if self.status == "incomplete":
@@ -474,7 +490,7 @@ class DurationReport:
         if self.incomplete_lanes:
             lines.append("")
             for res in self.incomplete_lanes:
-                reason = _sanitise_identifier(res.reason or res.status)
+                reason = _sanitise_markdown_prose(res.reason or res.status)
                 lines.append(f"- `{res.lane}` ({res.status}): {reason}")
 
         if self.marker_warnings:
@@ -576,6 +592,16 @@ class DurationReport:
         return commands
 
 
+def _neutralise_html_comments(text: str) -> str:
+    """Break any HTML comment delimiters so untrusted text cannot split marker blocks."""
+    out = str(text)
+    while True:
+        updated = out.replace("<!--", "&lt;!--").replace("-->", "--&gt;")
+        if updated == out:
+            return out
+        out = updated
+
+
 def _sanitise_identifier(text: str) -> str:
     """Replace control/non-ASCII characters and neutralise leading ``::``."""
     cleaned = "".join(ch if 0x20 <= ord(ch) <= 0x7E else " " for ch in str(text))
@@ -586,9 +612,62 @@ def _sanitise_identifier(text: str) -> str:
     return cleaned
 
 
+def _sanitise_filename(name: str) -> str:
+    """Sanitise an artefact filename for safe inclusion in diagnostics."""
+    cleaned = " ".join(_sanitise_identifier(name).split())
+    cleaned = _neutralise_html_comments(cleaned)
+    cleaned = cleaned.replace("<", "&lt;").replace(">", "&gt;")
+    for ch in ("`", "[", "]", "*", "_", "~", "|"):
+        cleaned = cleaned.replace(ch, "")
+    if len(cleaned) > _MAX_DISPLAY_FILENAME:
+        cleaned = cleaned[: _MAX_DISPLAY_FILENAME - 3] + "..."
+    return cleaned or "<unnamed>"
+
+
 def _sanitise_markdown_code(text: str) -> str:
     """Sanitise untrusted text for safe placement inside a Markdown table code span."""
-    return _sanitise_identifier(text).replace("`", "'").replace("|", "/")
+    return (
+        _neutralise_html_comments(_sanitise_identifier(text))
+        .replace("`", "'")
+        .replace("|", "/")
+    )
+
+
+def _sanitise_markdown_prose(text: str) -> str:
+    """Sanitise untrusted text for safe placement in Markdown prose."""
+    cleaned = _neutralise_html_comments(_sanitise_identifier(text))
+    return cleaned.replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _parse_nonneg_finite(value: Any) -> float | None:
+    """Parse a finite non-negative float, returning None for malformed/NaN/Inf/negative/overflow."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    try:
+        parsed = float(value)
+    except (OverflowError, ValueError, TypeError):
+        return None
+    if not math.isfinite(parsed) or parsed < 0.0:
+        return None
+    return parsed
+
+
+def _parse_positive_finite(value: Any) -> float | None:
+    """Parse a finite positive float, returning None for malformed/NaN/Inf/<=0/overflow."""
+    parsed = _parse_nonneg_finite(value)
+    if parsed is None or parsed <= 0.0:
+        return None
+    return parsed
+
+
+def _is_finite_nonneg(value: Any) -> bool:
+    """Return True when ``value`` is a finite, non-negative real number (not bool)."""
+    return _parse_nonneg_finite(value) is not None
+
+
+def _is_finite_positive(value: Any) -> bool:
+    """Return True when ``value`` is a finite, strictly positive real number (not bool)."""
+    return _parse_positive_finite(value) is not None
 
 
 def _format_signed_pct(ratio: float) -> str:
@@ -615,52 +694,105 @@ def _tokens(text: str) -> set[str]:
 
 
 def parse_shard_from_name(name: str) -> tuple[int, int] | None:
-    """Extract ``(index, total)`` from a ``-shard-K-of-N`` artefact name, or None."""
-    match = _SHARD_NAME_RE.search(name)
-    if match is None:
+    """Extract ``(index, total)`` from a ``-shard-K-of-N`` artefact name, or None.
+
+    Any name carrying multiple ``shard`` tokens, malformed shard labels (e.g.
+    ``shard-x-of-2``, ``shard--1-of-2``, ``shard-1-of``, or a malformed token
+    beside a valid one), or oversized digit strings returns ``_INVALID_SHARD``
+    so callers reject it rather than treating it as unsharded or accepting an
+    ambiguous substring.
+    """
+    markers = list(_SHARD_MARKER_RE.finditer(name))
+    if not markers:
         return None
-    return int(match.group(1)), int(match.group(2))
+    matches = list(_SHARD_NAME_RE.finditer(name))
+    if len(markers) != 1 or len(matches) != 1 or markers[0].start() != matches[0].start():
+        return _INVALID_SHARD
+    match = matches[0]
+    idx_str, total_str = match.group(1), match.group(2)
+    if len(idx_str) > 9 or len(total_str) > 9:
+        return _INVALID_SHARD
+    return int(idx_str), int(total_str)
 
 
 def _parse_shard_from_path(path: Path) -> tuple[int, int] | None:
-    """Extract ``(index, total)`` from an artefact's filename or parent directory."""
-    for candidate in (path.stem, path.parent.name):
-        parsed = parse_shard_from_name(candidate)
-        if parsed is not None:
-            return parsed
-    return None
+    """Extract ``(index, total)`` from an artefact's filename and parent directory.
+
+    When both carry shard labels they must agree; any malformed or
+    contradictory label returns ``_INVALID_SHARD``.
+    """
+    stem_shard = parse_shard_from_name(path.stem)
+    parent_shard = parse_shard_from_name(path.parent.name)
+    if stem_shard == _INVALID_SHARD or parent_shard == _INVALID_SHARD:
+        return _INVALID_SHARD
+    if stem_shard is not None and parent_shard is not None:
+        if stem_shard != parent_shard:
+            return _INVALID_SHARD
+        return stem_shard
+    return stem_shard if stem_shard is not None else parent_shard
 
 
 def _session_metadata(
     metrics: dict[str, Any],
     tests: Sequence[cost_markers.TestCost],
-) -> tuple[int | None, int | None, int | None]:
-    """Read optional pytest exit code, collected count, and recorded outcome count."""
+) -> tuple[int | None, int | None, int | None, bool]:
+    """Read optional pytest exit code, collected count, recorded outcome count, and validity flag."""
     result = metrics.get("result")
     exit_code: int | None = None
     recorded_count: int | None = None
-    if isinstance(result, dict):
-        raw_exit = result.get("exit_code")
-        if isinstance(raw_exit, int) and not isinstance(raw_exit, bool):
-            exit_code = raw_exit
-        outcomes = result.get("outcomes")
-        if isinstance(outcomes, dict):
-            recorded_count = sum(
-                int(val)
-                for val in outcomes.values()
-                if isinstance(val, int) and not isinstance(val, bool)
-            )
+    invalid = False
+    if result is not None:
+        if not isinstance(result, dict):
+            invalid = True
+        else:
+            raw_exit = result.get("exit_code")
+            if raw_exit is not None:
+                if isinstance(raw_exit, int) and not isinstance(raw_exit, bool):
+                    exit_code = raw_exit
+                else:
+                    invalid = True
+            outcomes = result.get("outcomes")
+            if outcomes is not None:
+                if not isinstance(outcomes, dict):
+                    invalid = True
+                else:
+                    total_outcomes = 0
+                    for val in outcomes.values():
+                        if (
+                            not isinstance(val, int)
+                            or isinstance(val, bool)
+                            or val < 0
+                            or val > MAX_MEASURED_TEST_COUNT
+                        ):
+                            invalid = True
+                            break
+                        total_outcomes += val
+                        if total_outcomes > MAX_MEASURED_TEST_COUNT:
+                            invalid = True
+                            break
+                    if not invalid:
+                        recorded_count = total_outcomes
 
     inventory = metrics.get("inventory")
     collected_count: int | None = None
-    if isinstance(inventory, dict):
-        raw_collected = inventory.get("node_count")
-        if isinstance(raw_collected, int) and not isinstance(raw_collected, bool):
-            collected_count = raw_collected
+    if inventory is not None:
+        if not isinstance(inventory, dict):
+            invalid = True
+        else:
+            raw_collected = inventory.get("node_count")
+            if raw_collected is not None:
+                if (
+                    isinstance(raw_collected, int)
+                    and not isinstance(raw_collected, bool)
+                    and 0 <= raw_collected <= MAX_MEASURED_TEST_COUNT
+                ):
+                    collected_count = raw_collected
+                else:
+                    invalid = True
 
-    if recorded_count is None and collected_count is not None:
+    if not invalid and recorded_count is None and collected_count is not None:
         recorded_count = sum(1 for test in tests if test.outcome in _VALID_OUTCOMES)
-    return exit_code, collected_count, recorded_count
+    return exit_code, collected_count, recorded_count, invalid
 
 
 def infer_lane(
@@ -720,14 +852,47 @@ def load_artefacts(
                 skipped.append(path.as_posix())
             continue
         tests: list[cost_markers.TestCost] = []
+        invalid_measurements = 0
         for record in metrics["tests"]:
-            reasons = record.get("marker_reasons") or {}
+            if not isinstance(record, dict):
+                invalid_measurements += 1
+                continue
+            node_id = record.get("node_id")
+            cpu_map = record.get("cpu_seconds")
+            wall_map = record.get("wall_seconds")
+            if (
+                not isinstance(node_id, str)
+                or not node_id
+                or not isinstance(cpu_map, dict)
+                or not isinstance(wall_map, dict)
+                or phase not in cpu_map
+                or phase not in wall_map
+            ):
+                invalid_measurements += 1
+                continue
+            cpu_val = _parse_nonneg_finite(cpu_map.get(phase))
+            wall_val = _parse_nonneg_finite(wall_map.get(phase))
+            if cpu_val is None or wall_val is None:
+                invalid_measurements += 1
+                continue
+            raw_markers = record.get("markers", [])
+            if not isinstance(raw_markers, list):
+                invalid_measurements += 1
+                continue
+            raw_reasons = record.get("marker_reasons")
+            if raw_reasons is None:
+                reasons: dict[str, Any] = {}
+            elif isinstance(raw_reasons, dict):
+                reasons = raw_reasons
+            else:
+                invalid_measurements += 1
+                continue
             tests.append(
                 cost_markers.TestCost(
-                    node_id=str(record["node_id"]),
-                    markers=tuple(sorted(str(m) for m in record.get("markers", []))),
-                    cpu_seconds=float(record["cpu_seconds"][phase]),
-                    wall_seconds=float(record["wall_seconds"][phase]),
+                    node_id=node_id,
+                    markers=tuple(sorted(str(m) for m in raw_markers)),
+                    cpu_seconds=cpu_val,
+                    wall_seconds=wall_val,
                     source=path.name,
                     outcome=str(record.get("outcome")),
                     marker_reasons=tuple(
@@ -740,7 +905,9 @@ def load_artefacts(
             if skipped is not None:
                 skipped.append(path.as_posix())
             continue
-        exit_code, collected_count, recorded_count = _session_metadata(metrics, tests)
+        exit_code, collected_count, recorded_count, meta_invalid = _session_metadata(
+            metrics, tests
+        )
         artefacts.append(
             ArtefactTests(
                 source=path.name,
@@ -750,6 +917,8 @@ def load_artefacts(
                 exit_code=exit_code,
                 collected_count=collected_count,
                 recorded_outcome_count=recorded_count,
+                invalid_measurement_count=invalid_measurements,
+                session_metadata_invalid=meta_invalid,
             )
         )
     return artefacts
@@ -757,52 +926,81 @@ def load_artefacts(
 
 def load_baseline(path: Path) -> DurationBaseline:
     """Read and validate a committed duration baseline JSON file."""
+    safe_path = _sanitise_identifier(path.as_posix())
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError(f"{path.as_posix()}: baseline root must be a JSON object")
+        raise ValueError(f"{safe_path}: baseline root must be a JSON object")
     version = payload.get("schema_version")
-    if version != BASELINE_SCHEMA_VERSION:
+    if version != BASELINE_SCHEMA_VERSION or isinstance(version, bool):
         raise ValueError(
-            f"{path.as_posix()}: unsupported baseline schema {version!r} "
+            f"{safe_path}: unsupported baseline schema {version!r} "
             f"(expected {BASELINE_SCHEMA_VERSION})"
         )
     raw_lanes = payload.get("lanes")
     if not isinstance(raw_lanes, dict) or not raw_lanes:
-        raise ValueError(f"{path.as_posix()}: baseline must define at least one lane")
+        raise ValueError(f"{safe_path}: baseline must define required lanes")
+    missing_lanes = [lane for lane in LANES if lane not in raw_lanes]
+    if missing_lanes:
+        raise ValueError(
+            f"{safe_path}: baseline is missing required lane(s): "
+            f"{', '.join(missing_lanes)}"
+        )
     lanes: dict[str, LaneBaseline] = {}
     for lane_name, lane_data in raw_lanes.items():
         if not isinstance(lane_data, dict):
-            raise ValueError(f"{path.as_posix()}: lane {lane_name!r} must be an object")
-        total = float(lane_data["total_cpu_seconds"])
-        if total <= 0.0:
+            raise ValueError(f"{safe_path}: lane {lane_name!r} must be an object")
+        total = _parse_positive_finite(lane_data.get("total_cpu_seconds"))
+        if total is None:
             raise ValueError(
-                f"{path.as_posix()}: lane {lane_name!r} total_cpu_seconds must be positive"
+                f"{safe_path}: lane {lane_name!r} total_cpu_seconds must be a finite positive number"
+            )
+        raw_measured_count = lane_data.get("measured_test_count", 0)
+        if (
+            not isinstance(raw_measured_count, int)
+            or isinstance(raw_measured_count, bool)
+            or raw_measured_count < 0
+            or raw_measured_count > MAX_MEASURED_TEST_COUNT
+        ):
+            raise ValueError(
+                f"{safe_path}: lane {lane_name!r} measured_test_count must be an integer "
+                f"in [0, {MAX_MEASURED_TEST_COUNT}]"
             )
         refs_raw = lane_data.get("reference_tests")
         if not isinstance(refs_raw, dict) or not refs_raw:
             raise ValueError(
-                f"{path.as_posix()}: lane {lane_name!r} must define reference_tests"
+                f"{safe_path}: lane {lane_name!r} must define reference_tests"
             )
-        refs = {str(nid): float(val) for nid, val in refs_raw.items()}
-        if any(val <= 0.0 for val in refs.values()):
-            raise ValueError(
-                f"{path.as_posix()}: lane {lane_name!r} reference_tests must be positive"
-            )
+        refs: dict[str, float] = {}
+        for nid, val in refs_raw.items():
+            parsed = _parse_positive_finite(val)
+            if parsed is None:
+                raise ValueError(
+                    f"{safe_path}: lane {lane_name!r} reference_tests must be finite positive numbers"
+                )
+            refs[str(nid)] = parsed
         lanes[str(lane_name)] = LaneBaseline(
             lane=str(lane_name),
             total_cpu_seconds=total,
-            measured_test_count=int(lane_data.get("measured_test_count", 0)),
+            measured_test_count=raw_measured_count,
             reference_tests=refs,
+        )
+    min_ref = _parse_positive_finite(
+        payload.get("min_reference_seconds", DEFAULT_MIN_REFERENCE_SECONDS)
+    )
+    if min_ref is None:
+        raise ValueError(
+            f"{safe_path}: min_reference_seconds must be a finite positive number"
+        )
+    max_refs = payload.get("max_references_per_lane", DEFAULT_MAX_REFERENCES_PER_LANE)
+    if not isinstance(max_refs, int) or isinstance(max_refs, bool) or max_refs < 1:
+        raise ValueError(
+            f"{safe_path}: max_references_per_lane must be a positive integer"
         )
     return DurationBaseline(
         schema_version=BASELINE_SCHEMA_VERSION,
         phase=str(payload.get("phase", cost_markers.DEFAULT_PHASE)),
-        min_reference_seconds=float(
-            payload.get("min_reference_seconds", DEFAULT_MIN_REFERENCE_SECONDS)
-        ),
-        max_references_per_lane=int(
-            payload.get("max_references_per_lane", DEFAULT_MAX_REFERENCES_PER_LANE)
-        ),
+        min_reference_seconds=min_ref,
+        max_references_per_lane=max_refs,
         generated_from_runs=tuple(
             str(item) for item in payload.get("generated_from_runs", [])
         ),
@@ -838,18 +1036,49 @@ def _select_reference_nodes(
     return sorted(hashed[:max_references_per_lane])
 
 
+def _check_measurement_validity(
+    lane_artefacts: Sequence[ArtefactTests],
+) -> tuple[str, dict[str, Any], str] | None:
+    """Return a structured reason if any artefact contains non-finite or negative timings."""
+    bad_sources: list[str] = []
+    for artefact in lane_artefacts:
+        has_bad_test = any(
+            not _is_finite_nonneg(test.cpu_seconds)
+            or not _is_finite_nonneg(test.wall_seconds)
+            for test in artefact.tests
+        )
+        if artefact.invalid_measurement_count > 0 or has_bad_test:
+            bad_sources.append(_sanitise_filename(artefact.source))
+    if not bad_sources:
+        return None
+    return (
+        "invalid_measurements",
+        {"artefact_count": len(bad_sources)},
+        f"invalid or non-finite CPU measurements in {len(bad_sources)} artefact(s)",
+    )
+
+
 def _check_session_completeness(
     lane_artefacts: Sequence[ArtefactTests],
-) -> str | None:
-    """Return a reason string if any artefact records an incomplete pytest session."""
+) -> tuple[str, dict[str, Any], str] | None:
+    """Return a structured reason if any artefact records an incomplete pytest session."""
     for artefact in lane_artefacts:
+        safe_src = _sanitise_filename(artefact.source)
+        if artefact.session_metadata_invalid:
+            return (
+                "invalid_session_metadata",
+                {},
+                f"malformed session metadata in {safe_src}",
+            )
         if (
             artefact.exit_code is not None
             and artefact.exit_code not in _COMPLETE_EXIT_CODES
         ):
             return (
-                f"incomplete session in {artefact.source} "
-                f"(pytest exit_code={artefact.exit_code})"
+                "incomplete_session_exit_code",
+                {"exit_code": artefact.exit_code},
+                f"incomplete session in {safe_src} "
+                f"(pytest exit_code={artefact.exit_code})",
             )
         if (
             artefact.collected_count is not None
@@ -858,17 +1087,22 @@ def _check_session_completeness(
             and artefact.recorded_outcome_count < artefact.collected_count
         ):
             return (
-                f"incomplete session in {artefact.source} "
+                "incomplete_session_outcomes",
+                {
+                    "recorded_outcome_count": artefact.recorded_outcome_count,
+                    "collected_count": artefact.collected_count,
+                },
+                f"incomplete session in {safe_src} "
                 f"({artefact.recorded_outcome_count}/{artefact.collected_count} "
-                "collected tests recorded)"
+                "collected tests recorded)",
             )
     return None
 
 
 def _check_shard_completeness(
     lane_artefacts: Sequence[ArtefactTests],
-) -> str | None:
-    """Return a reason string if sharded artefacts are missing shards or inconsistent."""
+) -> tuple[str, dict[str, Any], str] | None:
+    """Return a structured reason if sharded artefacts are missing shards or inconsistent."""
     specs = [
         (art.source, art.shard or parse_shard_from_name(art.source))
         for art in lane_artefacts
@@ -877,31 +1111,72 @@ def _check_shard_completeness(
     if not sharded:
         return None
     if len(sharded) != len(specs):
-        return "mixed sharded and unsharded artefacts in lane"
+        return (
+            "mixed_sharded_and_unsharded",
+            {},
+            "mixed sharded and unsharded artefacts in lane",
+        )
+    invalid: list[tuple[str, int, int]] = []
     for src, (index, total) in sharded:
-        if total < 1 or not 1 <= index <= total:
-            return f"invalid shard identifier {index}-of-{total} in {src}"
+        if total < 1 or total > MAX_SHARD_TOTAL or not 1 <= index <= total:
+            invalid.append((_sanitise_filename(src), index, total))
+    if invalid:
+        first_src, first_idx, first_total = invalid[0]
+        return (
+            "invalid_shard_id",
+            {"invalid_count": len(invalid)},
+            f"invalid shard identifier {first_idx}-of-{first_total} in {first_src}",
+        )
     totals = {total for _, (_, total) in sharded}
     if len(totals) > 1:
+        sorted_totals = sorted(totals)
         return (
-            f"inconsistent shard totals ({', '.join(str(t) for t in sorted(totals))})"
+            "inconsistent_shard_totals",
+            {"totals": sorted_totals},
+            f"inconsistent shard totals ({', '.join(str(t) for t in sorted_totals)})",
         )
     expected_total = next(iter(totals))
     present = {index for _, (index, _) in sharded}
-    missing = sorted(set(range(1, expected_total + 1)) - present)
-    if missing:
-        missing_str = ", ".join(str(idx) for idx in missing)
+    if len(present) != len(sharded):
         return (
+            "duplicate_shard_id",
+            {
+                "artefact_count": len(sharded),
+                "distinct_count": len(present),
+                "expected_total": expected_total,
+            },
+            f"duplicate shard identifier(s) (found {len(sharded)} artefacts for "
+            f"{len(present)} distinct of {expected_total})",
+        )
+    if len(present) != expected_total:
+        missing_count = expected_total - len(present)
+        missing_sample: list[int] = []
+        for idx in range(1, expected_total + 1):
+            if idx not in present:
+                missing_sample.append(idx)
+                if len(missing_sample) >= MAX_REPORTED_MISSING_SHARDS:
+                    break
+        missing_str = ", ".join(str(idx) for idx in missing_sample)
+        if missing_count > len(missing_sample):
+            missing_str += f", ... (+{missing_count - len(missing_sample)} more)"
+        return (
+            "missing_shards",
+            {
+                "expected_total": expected_total,
+                "present_count": len(present),
+                "missing_count": missing_count,
+                "missing_shards": missing_sample,
+            },
             f"incomplete shard set: missing shard(s) {missing_str} of "
-            f"{expected_total} (found {len(present)}/{expected_total})"
+            f"{expected_total} (found {len(present)}/{expected_total})",
         )
     return None
 
 
 def _check_artefact_and_shard_completeness(
     lane_artefacts: Sequence[ArtefactTests],
-) -> str | None:
-    """Return a reason string if any artefact session or shard set is incomplete."""
+) -> tuple[str, dict[str, Any], str] | None:
+    """Return a structured reason if any artefact session or shard set is incomplete."""
     return _check_session_completeness(lane_artefacts) or _check_shard_completeness(
         lane_artefacts
     )
@@ -923,9 +1198,12 @@ def _build_lane_baseline(
     """
     per_run_raw: list[dict[str, float]] = []
     for run_artefacts in run_artefacts_list:
+        invalid = _check_measurement_validity(run_artefacts)
+        if invalid is not None:
+            raise ValueError(f"lane {lane!r}: {invalid[2]}")
         incomplete = _check_artefact_and_shard_completeness(run_artefacts)
         if incomplete is not None:
-            raise ValueError(f"lane {lane!r}: {incomplete}")
+            raise ValueError(f"lane {lane!r}: {incomplete[2]}")
         deduped_raw = cost_markers.largest_per_node(
             test for art in run_artefacts for test in art.tests if test.measured
         )
@@ -964,17 +1242,30 @@ def _build_lane_baseline(
             )
             if scale.runner_factor is None:
                 raise ValueError(
-                    f"lane {lane!r}: too few reference matches in {artefact.source} "
+                    f"lane {lane!r}: too few reference matches in "
+                    f"{_sanitise_filename(artefact.source)} "
                     f"({scale.matched_references}/{min_reference_matches})"
                 )
             scaled_run.extend(scaled)
         deduped_scaled = _dedupe_scaled(scaled_run)
-        scaled_totals.append(sum(item.scaled_cpu_seconds for item in deduped_scaled))
+        run_total = sum(item.scaled_cpu_seconds for item in deduped_scaled)
+        if not _is_finite_positive(run_total):
+            raise ValueError(
+                f"lane {lane!r}: aggregated normalised CPU total is non-finite or non-positive"
+            )
+        scaled_totals.append(run_total)
         measured_counts.append(len(deduped_scaled))
 
+    median_total = round(statistics.median(scaled_totals), 2)
+    if not _is_finite_positive(median_total) or any(
+        not _is_finite_positive(val) for val in reference_tests.values()
+    ):
+        raise ValueError(
+            f"lane {lane!r}: computed baseline contains non-finite or non-positive values"
+        )
     return LaneBaseline(
         lane=lane,
-        total_cpu_seconds=round(statistics.median(scaled_totals), 2),
+        total_cpu_seconds=median_total,
         measured_test_count=int(round(statistics.median(measured_counts))),
         reference_tests=reference_tests,
     )
@@ -990,15 +1281,16 @@ def build_baseline(
 ) -> DurationBaseline:
     """Build a duration baseline from one or more run artefact directories.
 
-    Each entry in ``run_paths`` represents one CI run (and may contain
-    unsharded or sharded API artefacts alongside physics artefacts).  Only the
-    basename of each directory is recorded in ``generated_from_runs`` so local
-    filesystem paths never enter the committed baseline.
+    Each entry in ``run_paths`` represents one CI run and must provide
+    complete, measured artefacts for every required lane in ``LANES`` (both
+    ``api`` and ``physics``).  Only the basename of each directory is recorded
+    in ``generated_from_runs`` so local filesystem paths never enter the
+    committed baseline.
     """
     if not run_paths:
         raise ValueError("at least one run directory is required to build a baseline")
-    if min_reference_seconds <= 0.0:
-        raise ValueError("min_reference_seconds must be positive")
+    if not _is_finite_positive(min_reference_seconds):
+        raise ValueError("min_reference_seconds must be a finite positive number")
     if max_references_per_lane < 1:
         raise ValueError("max_references_per_lane must be at least 1")
     if min_reference_matches < 1:
@@ -1008,29 +1300,36 @@ def build_baseline(
     run_labels: list[str] = []
 
     for run_path in run_paths:
+        run_label = _sanitise_filename(run_path.name)
         run_labels.append(run_path.name)
         artefacts = load_artefacts([run_path], phase=phase)
-        by_lane: dict[str, list[ArtefactTests]] = {}
+        by_lane: dict[str, list[ArtefactTests]] = {lane: [] for lane in LANES}
         for artefact in artefacts:
-            if artefact.lane in per_lane_runs:
-                by_lane.setdefault(artefact.lane, []).append(artefact)
-        for lane, lane_arts in by_lane.items():
-            if any(test.measured for art in lane_arts for test in art.tests):
-                per_lane_runs[lane].append(lane_arts)
+            if artefact.lane in by_lane:
+                by_lane[artefact.lane].append(artefact)
+        missing_lanes = [
+            lane
+            for lane in LANES
+            if not any(test.measured for art in by_lane[lane] for test in art.tests)
+        ]
+        if missing_lanes:
+            raise ValueError(
+                f"run {run_label!r} is missing measured artefacts for required "
+                f"lane(s): {', '.join(missing_lanes)}"
+            )
+        for lane in LANES:
+            per_lane_runs[lane].append(by_lane[lane])
 
     lane_baselines = {
         lane: _build_lane_baseline(
             lane,
-            runs,
+            per_lane_runs[lane],
             min_reference_seconds=min_reference_seconds,
             max_references_per_lane=max_references_per_lane,
             min_reference_matches=min_reference_matches,
         )
-        for lane, runs in per_lane_runs.items()
-        if runs
+        for lane in LANES
     }
-    if not lane_baselines:
-        raise ValueError("no API or physics metrics artefacts found in the given runs")
 
     return DurationBaseline(
         schema_version=BASELINE_SCHEMA_VERSION,
@@ -1071,7 +1370,13 @@ def write_baseline(baseline: DurationBaseline, path: Path) -> None:
     """Write ``baseline`` as UTF-8, ASCII-only formatted JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(baseline_to_dict(baseline), indent=2, ensure_ascii=True) + "\n",
+        json.dumps(
+            baseline_to_dict(baseline),
+            indent=2,
+            ensure_ascii=True,
+            allow_nan=False,
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -1090,11 +1395,15 @@ def _scale_artefact(
     ratios: list[float] = []
     for test in measured:
         base_cpu = lane_baseline.reference_tests.get(test.node_id)
-        if base_cpu is None or base_cpu <= 0.0 or test.cpu_seconds <= 0.0:
+        if not _is_finite_positive(base_cpu) or not _is_finite_positive(
+            test.cpu_seconds
+        ):
             continue
         if cost_markers.node_file(test.node_id) in changed_files:
             continue
-        ratios.append(test.cpu_seconds / base_cpu)
+        ratio = test.cpu_seconds / base_cpu
+        if _is_finite_positive(ratio):
+            ratios.append(ratio)
 
     if len(ratios) < min_reference_matches:
         scale = ArtefactScale(
@@ -1107,6 +1416,45 @@ def _scale_artefact(
         return scale, [], unmeasured
 
     factor = statistics.median(ratios)
+    if not _is_finite_positive(factor):
+        scale = ArtefactScale(
+            source=artefact.source,
+            lane=artefact.lane,
+            measured_count=len(measured),
+            matched_references=len(ratios),
+            runner_factor=None,
+        )
+        return scale, [], unmeasured
+
+    scaled: list[ScaledTest] = []
+    for test in measured:
+        if not _is_finite_nonneg(test.cpu_seconds):
+            scale = ArtefactScale(
+                source=artefact.source,
+                lane=artefact.lane,
+                measured_count=len(measured),
+                matched_references=len(ratios),
+                runner_factor=None,
+            )
+            return scale, [], unmeasured
+        scaled_cpu = test.cpu_seconds / factor
+        if not _is_finite_nonneg(scaled_cpu):
+            scale = ArtefactScale(
+                source=artefact.source,
+                lane=artefact.lane,
+                measured_count=len(measured),
+                matched_references=len(ratios),
+                runner_factor=None,
+            )
+            return scale, [], unmeasured
+        scaled.append(
+            ScaledTest(
+                test=test,
+                lane=artefact.lane,
+                runner_factor=factor,
+                scaled_cpu_seconds=scaled_cpu,
+            )
+        )
     scale = ArtefactScale(
         source=artefact.source,
         lane=artefact.lane,
@@ -1114,15 +1462,6 @@ def _scale_artefact(
         matched_references=len(ratios),
         runner_factor=factor,
     )
-    scaled = [
-        ScaledTest(
-            test=test,
-            lane=artefact.lane,
-            runner_factor=factor,
-            scaled_cpu_seconds=test.cpu_seconds / factor,
-        )
-        for test in measured
-    ]
     return scale, scaled, unmeasured
 
 
@@ -1147,6 +1486,26 @@ def _evaluate_lane(
     min_coverage_ratio: float,
 ) -> tuple[LaneResult, list[ScaledTest]]:
     """Normalise every artefact in ``lane``, aggregate across shards, and judge total."""
+    if not _is_finite_positive(lane_baseline.total_cpu_seconds):
+        return (
+            LaneResult(
+                lane=lane,
+                status="unavailable",
+                baseline_total_seconds=0.0,
+                raw_total_seconds=0.0,
+                scaled_total_seconds=None,
+                delta_ratio=None,
+                regressed=False,
+                measured_count=0,
+                unmeasured_count=0,
+                artefacts=(),
+                reason="invalid or non-finite baseline values",
+                reason_code="invalid_baseline",
+                reason_details={},
+            ),
+            [],
+        )
+
     if not lane_artefacts:
         return (
             LaneResult(
@@ -1161,6 +1520,41 @@ def _evaluate_lane(
                 unmeasured_count=0,
                 artefacts=(),
                 reason="no metrics artefacts found for lane",
+                reason_code="no_artefacts",
+                reason_details={},
+            ),
+            [],
+        )
+
+    invalid_measurements = _check_measurement_validity(lane_artefacts)
+    if invalid_measurements is not None:
+        code, details, reason = invalid_measurements
+        valid_raw: dict[str, float] = {}
+        unmeasured_total = 0
+        for artefact in lane_artefacts:
+            for test in artefact.tests:
+                if test.measured and _is_finite_nonneg(test.cpu_seconds):
+                    prev = valid_raw.get(test.node_id)
+                    if prev is None or test.cpu_seconds > prev:
+                        valid_raw[test.node_id] = test.cpu_seconds
+                elif not test.measured:
+                    unmeasured_total += 1
+        raw_sum = sum(valid_raw.values())
+        return (
+            LaneResult(
+                lane=lane,
+                status="unavailable",
+                baseline_total_seconds=lane_baseline.total_cpu_seconds,
+                raw_total_seconds=raw_sum if math.isfinite(raw_sum) else 0.0,
+                scaled_total_seconds=None,
+                delta_ratio=None,
+                regressed=False,
+                measured_count=len(valid_raw),
+                unmeasured_count=unmeasured_total,
+                artefacts=(),
+                reason=reason,
+                reason_code=code,
+                reason_details=details,
             ),
             [],
         )
@@ -1187,10 +1581,30 @@ def _evaluate_lane(
         unmeasured_total += unmeasured
 
     raw_total = sum(raw_by_node.values())
+    if not _is_finite_nonneg(raw_total):
+        return (
+            LaneResult(
+                lane=lane,
+                status="unavailable",
+                baseline_total_seconds=lane_baseline.total_cpu_seconds,
+                raw_total_seconds=0.0,
+                scaled_total_seconds=None,
+                delta_ratio=None,
+                regressed=False,
+                measured_count=len(raw_by_node),
+                unmeasured_count=unmeasured_total,
+                artefacts=tuple(artefact_scales),
+                reason="invalid or non-finite CPU measurements in lane total",
+                reason_code="invalid_measurements",
+                reason_details={"artefact_count": len(lane_artefacts)},
+            ),
+            [],
+        )
     measured_count = len(raw_by_node)
 
-    incomplete_reason = _check_artefact_and_shard_completeness(lane_artefacts)
-    if incomplete_reason is not None:
+    incomplete = _check_artefact_and_shard_completeness(lane_artefacts)
+    if incomplete is not None:
+        code, details, reason = incomplete
         return (
             LaneResult(
                 lane=lane,
@@ -1203,7 +1617,9 @@ def _evaluate_lane(
                 measured_count=measured_count,
                 unmeasured_count=unmeasured_total,
                 artefacts=tuple(artefact_scales),
-                reason=incomplete_reason,
+                reason=reason,
+                reason_code=code,
+                reason_details=details,
             ),
             _dedupe_scaled(scaled_all),
         )
@@ -1213,6 +1629,7 @@ def _evaluate_lane(
         and min_coverage_ratio > 0.0
         and measured_count < lane_baseline.measured_test_count * min_coverage_ratio
     ):
+        pct = round(min_coverage_ratio * 100.0, 2)
         return (
             LaneResult(
                 lane=lane,
@@ -1230,6 +1647,12 @@ def _evaluate_lane(
                     f"below {min_coverage_ratio * 100:g}% of baseline "
                     f"({lane_baseline.measured_test_count})"
                 ),
+                reason_code="low_coverage",
+                reason_details={
+                    "measured_count": measured_count,
+                    "baseline_measured_count": lane_baseline.measured_test_count,
+                    "min_coverage_percent": pct,
+                },
             ),
             _dedupe_scaled(scaled_all),
         )
@@ -1237,7 +1660,8 @@ def _evaluate_lane(
     missing_factors = [art for art in artefact_scales if art.runner_factor is None]
     if missing_factors:
         detail = ", ".join(
-            f"{art.source} ({art.matched_references}/{min_reference_matches})"
+            f"{_sanitise_filename(art.source)} "
+            f"({art.matched_references}/{min_reference_matches})"
             for art in missing_factors
         )
         return (
@@ -1253,15 +1677,58 @@ def _evaluate_lane(
                 unmeasured_count=unmeasured_total,
                 artefacts=tuple(artefact_scales),
                 reason=f"too few unchanged reference matches in {detail}",
+                reason_code="insufficient_references",
+                reason_details={
+                    "artefact_count": len(missing_factors),
+                    "min_reference_matches": min_reference_matches,
+                },
             ),
             _dedupe_scaled(scaled_all),
         )
 
     deduped = _dedupe_scaled(scaled_all)
     scaled_total = sum(item.scaled_cpu_seconds for item in deduped)
+    if not _is_finite_nonneg(scaled_total):
+        return (
+            LaneResult(
+                lane=lane,
+                status="unavailable",
+                baseline_total_seconds=lane_baseline.total_cpu_seconds,
+                raw_total_seconds=raw_total,
+                scaled_total_seconds=None,
+                delta_ratio=None,
+                regressed=False,
+                measured_count=measured_count,
+                unmeasured_count=unmeasured_total,
+                artefacts=tuple(artefact_scales),
+                reason="invalid or non-finite scaled CPU total",
+                reason_code="invalid_measurements",
+                reason_details={"artefact_count": len(lane_artefacts)},
+            ),
+            [],
+        )
     delta_ratio = (
         scaled_total - lane_baseline.total_cpu_seconds
     ) / lane_baseline.total_cpu_seconds
+    if not (math.isfinite(delta_ratio) and math.isfinite(delta_ratio * 100.0)):
+        return (
+            LaneResult(
+                lane=lane,
+                status="unavailable",
+                baseline_total_seconds=lane_baseline.total_cpu_seconds,
+                raw_total_seconds=raw_total,
+                scaled_total_seconds=None,
+                delta_ratio=None,
+                regressed=False,
+                measured_count=measured_count,
+                unmeasured_count=unmeasured_total,
+                artefacts=tuple(artefact_scales),
+                reason="invalid or non-finite lane delta ratio",
+                reason_code="invalid_measurements",
+                reason_details={"artefact_count": len(lane_artefacts)},
+            ),
+            [],
+        )
     regressed = delta_ratio > max_regression
 
     changed_deltas = [
@@ -1362,16 +1829,27 @@ def check_durations(
     DurationReport
         Aggregated duration-guard findings across lanes and changed tests.
     """
-    if max_regression < 0.0:
-        raise ValueError("max_regression must be non-negative")
-    if not medium_seconds < slow_seconds:
-        raise ValueError("the medium threshold must be below the slow threshold")
-    if band < 1.0:
-        raise ValueError("the band must be at least 1")
+    if not (
+        _is_finite_nonneg(max_regression)
+        and math.isfinite(float(max_regression) * 100.0)
+    ):
+        raise ValueError(
+            "max_regression must be a finite non-negative number with finite percentage"
+        )
+    if not (
+        _is_finite_positive(medium_seconds)
+        and _is_finite_positive(slow_seconds)
+        and medium_seconds < slow_seconds
+    ):
+        raise ValueError(
+            "medium_seconds and slow_seconds must be finite positive numbers with medium < slow"
+        )
+    if not (_is_finite_positive(band) and band >= 1.0):
+        raise ValueError("the band must be a finite number at least 1")
     if min_reference_matches < 1:
         raise ValueError("min_reference_matches must be at least 1")
-    if not 0.0 <= min_coverage_ratio <= 1.0:
-        raise ValueError("min_coverage_ratio must lie in [0, 1]")
+    if not (_is_finite_nonneg(min_coverage_ratio) and min_coverage_ratio <= 1.0):
+        raise ValueError("min_coverage_ratio must be a finite number in [0, 1]")
 
     artefact_list = list(artefacts)
     restricted_to: tuple[str, ...] | None = None
@@ -1617,6 +2095,18 @@ def _emit_cli_output(
             print(command)
 
 
+def _emit_cli_error(prefix: str, exc: BaseException, *, emit_annotations: bool) -> None:
+    """Print a sanitised error line, guarded by ``::stop-commands::`` when emitting annotations."""
+    stop_token = (
+        f"end-duration-guard-{secrets.token_hex(12)}" if emit_annotations else None
+    )
+    if stop_token is not None:
+        print(f"::stop-commands::{stop_token}")
+    print(f"[X] {prefix}{_sanitise_identifier(str(exc))}")
+    if stop_token is not None:
+        print(f"::{stop_token}::")
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI to check or regenerate test-duration baselines."""
     args = _parse_args(argv)
@@ -1628,31 +2118,33 @@ def main(argv: list[str] | None = None) -> int:
                 max_references_per_lane=args.max_references,
                 min_reference_matches=args.min_reference_matches,
             )
+            write_baseline(baseline, args.baseline)
         except (OSError, ValueError, cost_markers.UnsupportedMetricsSchema) as exc:
-            print(f"[X] {exc}")
+            _emit_cli_error("", exc, emit_annotations=args.annotations)
             return 2
-        write_baseline(baseline, args.baseline)
         summary = ", ".join(
             f"{lane}: {lb.total_cpu_seconds:.1f} s ({len(lb.reference_tests)} refs)"
             for lane, lb in baseline.lanes.items()
         )
         print(
-            f"[OK] wrote {args.baseline.as_posix()} from {len(baseline.generated_from_runs)} "
-            f"run(s): {summary}"
+            f"[OK] wrote {_sanitise_identifier(args.baseline.as_posix())} from "
+            f"{len(baseline.generated_from_runs)} run(s): {summary}"
         )
         return 0
 
     try:
         baseline = load_baseline(args.baseline)
     except (OSError, ValueError) as exc:
-        print(f"[X] failed to load baseline: {exc}")
+        _emit_cli_error(
+            "failed to load baseline: ", exc, emit_annotations=args.annotations
+        )
         return 2
 
     skipped: list[str] = []
     try:
         artefacts = load_artefacts(args.paths, phase=baseline.phase, skipped=skipped)
     except cost_markers.UnsupportedMetricsSchema as exc:
-        print(f"[X] {exc}")
+        _emit_cli_error("", exc, emit_annotations=args.annotations)
         return 2
 
     changed_test_files: list[str] | None
@@ -1682,7 +2174,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.json_path:
         args.json_path.parent.mkdir(parents=True, exist_ok=True)
         args.json_path.write_text(
-            json.dumps(report.to_dict(), indent=2, ensure_ascii=True) + "\n",
+            json.dumps(
+                report.to_dict(), indent=2, ensure_ascii=True, allow_nan=False
+            )
+            + "\n",
             encoding="utf-8",
         )
     return 0 if report.ok else 1

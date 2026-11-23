@@ -260,6 +260,16 @@ class UnsupportedMetricsSchema(ValueError):
     """An artefact carries per-test records under a schema this lint does not read."""
 
 
+def _sanitise_diagnostic(text: str) -> str:
+    """Keep diagnostic fragments on one printable ASCII line without leading `::`."""
+    cleaned = "".join(ch if 0x20 <= ord(ch) <= 0x7E else " " for ch in str(text))
+    stripped = cleaned.lstrip()
+    if stripped.startswith("::"):
+        prefix_len = len(cleaned) - len(stripped)
+        cleaned = cleaned[:prefix_len] + ": :" + stripped[2:]
+    return cleaned
+
+
 def _pytest_payload(payload: Any, path: Path) -> dict[str, Any] | None:
     """Return the pytest metrics inside an artefact, or None if it is not one.
 
@@ -280,8 +290,10 @@ def _pytest_payload(payload: Any, path: Path) -> dict[str, Any] | None:
         return None
     version = payload.get("schema_version")
     if version != METRICS_SCHEMA_VERSION:
+        safe_path = _sanitise_diagnostic(path.as_posix())
+        safe_version = _sanitise_diagnostic(repr(version))
         raise UnsupportedMetricsSchema(
-            f"{path.as_posix()}: metrics schema {version!r} not supported by this lint "
+            f"{safe_path}: metrics schema {safe_version} not supported by this lint "
             f"(expects {METRICS_SCHEMA_VERSION}); update METRICS_SCHEMA_VERSION and the "
             "record reader together"
         )

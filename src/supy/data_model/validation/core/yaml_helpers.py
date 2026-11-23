@@ -162,6 +162,41 @@ def get_value_safe(param_dict, param_key, default=None):
         return param  # Plain format: 1
 
 
+def get_ref_or_bare(container, key: str, default=None):
+    """Read ``container[key]`` whether stored as ``{"value": x, ...}`` or bare ``x``.
+
+    Returns ``default`` when ``container`` is not a mapping, ``key`` is absent,
+    or the entry is a mapping without a ``"value"`` key (such as ``{}`` or a
+    ref-only dict).
+    """
+    if not isinstance(container, Mapping) or key not in container:
+        return default
+    entry = container[key]
+    if isinstance(entry, Mapping):
+        return entry.get("value", default)
+    return entry
+
+
+def set_ref_or_bare(container: dict, key: str, new_value) -> None:
+    """Update ``container[key]`` while preserving RefValue metadata or bare format.
+
+    - Existing ``dict`` entries (e.g. ``{"value": old, "ref": ...}``) have their
+      ``"value"`` field updated in place so ``"ref"`` metadata is preserved.
+    - Existing non-mapping entries (bare scalars, lists, or ``None``) remain bare.
+    - Absent keys are inserted as ``{"value": new_value}``.
+    """
+    if key in container:
+        existing = container[key]
+        if isinstance(existing, dict):
+            existing["value"] = new_value
+        elif isinstance(existing, Mapping):
+            container[key] = {**existing, "value": new_value}
+        else:
+            container[key] = new_value
+    else:
+        container[key] = {"value": new_value}
+
+
 _STEBBS_MISSING = object()
 _STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
 _STEBBS_NESTED_KEYS = frozenset(

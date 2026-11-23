@@ -2,7 +2,7 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-from ...core.yaml_helpers import get_value_safe, read_physics_key
+from ...core.yaml_helpers import get_ref_or_bare, get_value_safe, read_physics_key
 from collections.abc import Mapping
 import calendar
 from typing import Dict, List, Optional, Union, Any
@@ -121,6 +121,10 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
                         missing_params.append(current_path)
                 else:
                     _check_recursively(value, current_path)
+            elif value in (None, "") or (
+                isinstance(value, list) and any(v in (None, "") for v in value)
+            ):
+                missing_params.append(current_path)
 
     _check_recursively(surface_props)
     return missing_params
@@ -185,7 +189,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
 
         for surface_type, surface_props in land_cover.items():
             if isinstance(surface_props, Mapping):
-                sfr_value = surface_props.get("sfr", {}).get("value")
+                sfr_value = get_ref_or_bare(surface_props, "sfr")
                 if sfr_value is not None:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))

@@ -3667,7 +3667,12 @@ fn leaf_path_index(root: &Value) -> BTreeMap<String, Vec<Step>> {
         .collect()
 }
 
-fn assert_nan_rejected(label: &str, base: &Value, index: &BTreeMap<String, Vec<Step>>, key: &str) {
+fn assert_nan_rejected(
+    label: &str,
+    base: &Value,
+    index: &BTreeMap<String, Vec<Step>>,
+    key: &str,
+) -> String {
     let path = index
         .get(key)
         .unwrap_or_else(|| panic!("{label}: strict NaN target key `{key}` missing from anchor"));
@@ -3683,6 +3688,7 @@ fn assert_nan_rejected(label: &str, base: &Value, index: &BTreeMap<String, Vec<S
         !err.is_empty(),
         "{label}: rejection error for `{key}` must not be empty"
     );
+    err
 }
 
 fn assert_nan_propagates_to_slot(
@@ -3802,6 +3808,48 @@ fn longitude_alias_checks_are_scoped_to_site_properties() {
                 .expect_err("resolved site properties must use lng only");
             assert!(message.contains(".properties.lon`"), "{label}: {message}");
             assert!(message.contains(".properties.lng`"), "{label}: {message}");
+        }
+    }
+}
+
+#[test]
+fn strict_lumps_inputs_and_decoded_receiver_observer() {
+    for (label, input, _) in build_option_anchors() {
+        let root = strip_inert_yaml_raw(&input);
+        let paths = leaf_path_index(&root);
+        let intact = load_run_config_from_value(&mut root.clone()).expect(label);
+        assert!(
+            non_finite_slots(&intact).is_empty(),
+            "{label}: valid receivers"
+        );
+        for field in ["raincover", "rainmaxres", "drainrt", "veg_type"] {
+            let key = format!("sites[0].properties.lumps.{field}");
+            let error = assert_nan_rejected(label, &root, &paths, &key);
+            let location = format!(
+                "sites[gridiv={}].properties.lumps.{field}",
+                intact.site_scalars.gridiv
+            );
+            assert!(
+                error.contains(&format!("`{location}` is non-finite")),
+                "{label}: {error}"
+            );
+        }
+
+        // The receiver observer must still see a non-finite float introduced
+        // after parsing, even when no valid YAML can inject it.
+        for field in ["raincover", "rainmaxres", "drainrt"] {
+            let mut damaged = intact.clone();
+            let slot = match field {
+                "raincover" => &mut damaged.site.lumps.raincover,
+                "rainmaxres" => &mut damaged.site.lumps.rainmaxres,
+                "drainrt" => &mut damaged.site.lumps.drainrt,
+                _ => unreachable!(),
+            };
+            *slot = f64::NAN;
+            let bad = non_finite_slots(&damaged);
+            assert_eq!(bad.len(), 1, "{label}: {bad:?}");
+            assert_eq!(bad[0].0, format!("site.lumps.{field}"), "{label}");
+            assert!(bad[0].1.is_nan(), "{label}");
         }
     }
 }
@@ -4009,11 +4057,6 @@ fn nan_poison_completeness_across_all_six_anchors() {
     //    state, site_scalars, unread wrapped-array depth, and long profiles)
     //    surfaces verbatim as `f64::NAN` in `non_finite_slots`.
     let propagation_cases: &[(usize, &str, &str)] = &[
-        (
-            0,
-            "sites[0].properties.lumps.raincover",
-            "site.lumps.raincover",
-        ),
         (
             0,
             "sites[0].initial_states.paved.soilstore",

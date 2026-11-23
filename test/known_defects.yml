@@ -55,12 +55,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
-      function: "apply_lumps_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_ohm_overrides"
     contract: "C-STRICT"
     issue: 1991

@@ -29,6 +29,10 @@ API_TIERS: dict[str, str] = {
     "standard": "api and (core or not slow) and not qgis",
     "physics-full": "api and (core or not slow) and not qgis",
     "all": "api",
+    # The newer Python bookend on a ready pull request (22 Nov 2026): every
+    # core api test, slow ones included, plus smoke; the non-core api tests
+    # on that Python wait for the nightly. The build Python runs the full tier.
+    "core-bookend": "api and (smoke or core) and not qgis",
 }
 
 # Tiers that run every core test of both axes. Only these are mergeable
@@ -48,6 +52,22 @@ def tier_expression(kind: str, tier: str) -> str:
         raise ValueError(f"unknown test tier {tier!r}") from None
 
 
+def main(argv: list[str] | None = None) -> int:
+    """Print the marker expression for ``KIND TIER`` (used by the physics shard jobs)."""
+    import sys
+
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) != 2:
+        print("usage: ci_tiers.py physics|api TIER", file=sys.stderr)
+        return 2
+    try:
+        print(tier_expression(args[0], args[1]))
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    return 0
+
+
 def matches(expression: str, markers: Iterable[str]) -> bool:
     """Evaluate a pytest ``-m`` expression against a test's marker names."""
     from _pytest.mark.expression import Expression
@@ -56,3 +76,7 @@ def matches(expression: str, markers: Iterable[str]) -> bool:
     return Expression.compile(expression).evaluate(
         lambda name, /, **_kwargs: name in names
     )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -830,6 +830,49 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "ef: ef(test_case) = unittest.expectedFailure\n",
             ["test/test_branch.py::<module>::1"],
         ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class Outer:\n"
+            "    ef = lambda fn: fn\n"
+            "    class Inner:\n"
+            "        @ef\n"
+            "        def test_case(self):\n"
+            "            pass\n",
+            ["test/test_branch.py::Outer.Inner.test_case::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "def wrap(fn, mark=ef, unused=(ef := None)):\n"
+            "    return mark(fn)\n"
+            "def test_case():\n"
+            "    pass\n"
+            "wrap(test_case)\n",
+            ["test/test_branch.py::wrap::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "0 > 1 > (ef := None)\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "assert True, (ef := None)\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "marker = lambda fn: fn\n"
+            "def test_case():\n"
+            "    pass\n"
+            "[(marker(test_case), (marker := unittest.expectedFailure)) for _ in range(2)]\n",
+            ["test/test_branch.py::<module>::1"],
+        ),
     ],
 )
 def test_unittest_expected_failure_branch_merge_and_deferred_lookup(

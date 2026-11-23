@@ -932,8 +932,8 @@ class _ConstantMutationChecker:
         class_bound, class_funcs, global_names, nonlocal_names = (
             _collect_scope_bindings(stmt.body)
         )
-        class_env = dict(env)
         outer_env, outer_bound, outer_funcs = self._child_enclosing_scope(env, ctx)
+        class_env = dict(outer_env)
         class_ctx = _ScopeCtx(
             local_funcs=class_funcs,
             local_bound=class_bound,
@@ -1677,22 +1677,6 @@ def _update_unittest_env(target: _UnitEnv, source: _UnitEnv) -> None:
             target.setdefault(key, set()).update(values)
 
 
-def _default_unittest_param_envs(args: ast.arguments, env: _UnitEnv) -> _UnitEnv:
-    param_envs: _UnitEnv = {}
-    positional = [*args.posonlyargs, *args.args]
-    offset = len(positional) - len(args.defaults)
-    for index, default in enumerate(args.defaults):
-        kinds = _classify_unittest_expr(default, env)
-        if kinds:
-            param_envs[positional[offset + index].arg] = kinds
-    for arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
-        if default is not None:
-            kinds = _classify_unittest_expr(default, env)
-            if kinds:
-                param_envs[arg.arg] = kinds
-    return param_envs
-
-
 def _classify_unittest_expr(expr: ast.AST, env: _UnitEnv) -> set[str]:
     if isinstance(expr, ast.Name) and isinstance(expr.ctx, ast.Load):
         return set(env.get(expr.id, ()))
@@ -1864,6 +1848,32 @@ class _UnittestExpectedFailureFinder:
                 self._seen_sinks = prev_sinks
             self._flush_deferred(child_deferred)
 
+    def _scan_comprehension_pass(
+        self,
+        expr: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
+        iter_env: _UnitEnv,
+        comp_walrus: _UnitEnv,
+        prev_comp_bound: set[str],
+    ) -> set[str]:
+        local_comp_bound = set(prev_comp_bound)
+        for index, gen in enumerate(expr.generators):
+            if index > 0:
+                self._scan_expr(gen.iter, iter_env, comp_walrus)
+            bound: set[str] = set()
+            _collect_target_names(gen.target, bound)
+            local_comp_bound |= bound
+            self._active_comp_bound = local_comp_bound
+            for name in bound:
+                iter_env.pop(name, None)
+            for cond in gen.ifs:
+                self._scan_expr(cond, iter_env, comp_walrus)
+        if isinstance(expr, ast.DictComp):
+            self._scan_expr(expr.key, iter_env, comp_walrus)
+            self._scan_expr(expr.value, iter_env, comp_walrus)
+        else:
+            self._scan_expr(expr.elt, iter_env, comp_walrus)
+        return local_comp_bound
+
     def _scan_comprehension_body(
         self,
         expr: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
@@ -1875,35 +1885,31 @@ class _UnittestExpectedFailureFinder:
         body_base = (
             self._active_non_class_env if self._active_scope_kind == "class" else env
         )
-        comp_env = _copy_unittest_env(body_base)
         target_walrus = walrus_env if walrus_env is not None else env
-        comp_walrus = _copy_unittest_env(target_walrus)
+        if not skip_first_iter:
+            self._scan_expr(expr.generators[0].iter, env, target_walrus)
+        comp_env = _copy_unittest_env(body_base)
+        comp_walrus: _UnitEnv = {}
         prev_comp_bound = self._active_comp_bound
         prev_scope_kind = self._active_scope_kind
-        local_comp_bound = set(prev_comp_bound)
         try:
-            for index, gen in enumerate(expr.generators):
-                if not (skip_first_iter and index == 0):
-                    self._scan_expr(
-                        gen.iter,
-                        env if index == 0 else comp_env,
-                        target_walrus if index == 0 else comp_walrus,
-                    )
-                if index == 0 and prev_scope_kind == "class":
-                    self._active_scope_kind = "function"
-                bound: set[str] = set()
-                _collect_target_names(gen.target, bound)
-                local_comp_bound |= bound
-                self._active_comp_bound = local_comp_bound
-                for name in bound:
-                    comp_env.pop(name, None)
-                for cond in gen.ifs:
-                    self._scan_expr(cond, comp_env, comp_walrus)
-            if isinstance(expr, ast.DictComp):
-                self._scan_expr(expr.key, comp_env, comp_walrus)
-                self._scan_expr(expr.value, comp_env, comp_walrus)
-            else:
-                self._scan_expr(expr.elt, comp_env, comp_walrus)
+            if prev_scope_kind == "class":
+                self._active_scope_kind = "function"
+            while True:
+                before_env = _copy_unittest_env(comp_env)
+                before_walrus = _copy_unittest_env(comp_walrus)
+                local_bound = self._scan_comprehension_pass(
+                    expr, _copy_unittest_env(comp_env), comp_walrus, prev_comp_bound
+                )
+                merged_walrus = _merge_unittest_envs([before_walrus, comp_walrus])
+                merged_env = _copy_unittest_env(before_env)
+                for key, values in merged_walrus.items():
+                    if key not in local_bound:
+                        merged_env.setdefault(key, set()).update(values)
+                comp_walrus = merged_walrus
+                if merged_walrus == before_walrus and merged_env == before_env:
+                    break
+                comp_env = merged_env
         finally:
             self._active_comp_bound = prev_comp_bound
             self._active_scope_kind = prev_scope_kind
@@ -1933,17 +1939,16 @@ class _UnittestExpectedFailureFinder:
                 frozenset(self._active_comp_bound),
             )
 
-    def _scan_bool_op(
-        self, expr: ast.BoolOp, env: _UnitEnv, walrus_env: _UnitEnv | None
+    def _scan_short_circuit_tail(
+        self, nodes: list[ast.expr], env: _UnitEnv, walrus_env: _UnitEnv | None
     ) -> None:
-        self._scan_expr(expr.values[0], env, walrus_env)
         cur_env = _copy_unittest_env(env)
         merged_env = _copy_unittest_env(env)
         cur_walrus = _copy_unittest_env(walrus_env) if walrus_env is not None else None
         merged_walrus = (
             _copy_unittest_env(walrus_env) if walrus_env is not None else None
         )
-        for val in expr.values[1:]:
+        for val in nodes:
             self._scan_expr(val, cur_env, cur_walrus)
             _update_unittest_env(merged_env, cur_env)
             if merged_walrus is not None and cur_walrus is not None:
@@ -1953,6 +1958,25 @@ class _UnittestExpectedFailureFinder:
         if walrus_env is not None and merged_walrus is not None:
             walrus_env.clear()
             walrus_env.update(merged_walrus)
+
+    def _scan_and_collect_defaults(
+        self, args: ast.arguments, env: _UnitEnv, walrus_env: _UnitEnv | None = None
+    ) -> _UnitEnv:
+        param_envs: _UnitEnv = {}
+        positional = [*args.posonlyargs, *args.args]
+        offset = len(positional) - len(args.defaults)
+        for index, default in enumerate(args.defaults):
+            self._scan_expr(default, env, walrus_env)
+            kinds = _classify_unittest_expr(default, env)
+            if kinds:
+                param_envs[positional[offset + index].arg] = kinds
+        for arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
+            if default is not None:
+                self._scan_expr(default, env, walrus_env)
+                kinds = _classify_unittest_expr(default, env)
+                if kinds:
+                    param_envs[arg.arg] = kinds
+        return param_envs
 
     def _scan_if_exp(
         self, expr: ast.IfExp, env: _UnitEnv, walrus_env: _UnitEnv | None
@@ -1985,8 +2009,7 @@ class _UnittestExpectedFailureFinder:
                 self._scan_expr(arg, env, walrus_env)
             for kw in expr.keywords:
                 self._scan_expr(kw.value, env, walrus_env)
-            return
-        if isinstance(expr, ast.NamedExpr):
+        elif isinstance(expr, ast.NamedExpr):
             self._scan_expr(expr.value, env, walrus_env)
             kinds = _classify_unittest_expr(expr.value, env)
             self._bind_target(expr.target, kinds, env)
@@ -1997,18 +2020,18 @@ class _UnittestExpectedFailureFinder:
                 self._active_scope_kind,
                 self._active_deferred,
             )
-            return
-        if isinstance(expr, ast.BoolOp):
-            self._scan_bool_op(expr, env, walrus_env)
-            return
-        if isinstance(expr, ast.IfExp):
+        elif isinstance(expr, ast.BoolOp):
+            self._scan_expr(expr.values[0], env, walrus_env)
+            self._scan_short_circuit_tail(expr.values[1:], env, walrus_env)
+        elif isinstance(expr, ast.Compare):
+            self._scan_expr(expr.left, env, walrus_env)
+            if expr.comparators:
+                self._scan_expr(expr.comparators[0], env, walrus_env)
+                self._scan_short_circuit_tail(expr.comparators[1:], env, walrus_env)
+        elif isinstance(expr, ast.IfExp):
             self._scan_if_exp(expr, env, walrus_env)
-            return
-        if isinstance(expr, ast.Lambda):
-            for default in (*expr.args.defaults, *expr.args.kw_defaults):
-                if default is not None:
-                    self._scan_expr(default, env, walrus_env)
-            default_envs = _default_unittest_param_envs(expr.args, env)
+        elif isinstance(expr, ast.Lambda):
+            default_envs = self._scan_and_collect_defaults(expr.args, env, walrus_env)
             def_env = (
                 self._active_non_class_env
                 if self._active_scope_kind == "class"
@@ -2021,14 +2044,13 @@ class _UnittestExpectedFailureFinder:
                 self._active_deferred,
                 frozenset(self._active_comp_bound),
             )
-            return
-        if isinstance(
+        elif isinstance(
             expr, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
         ):
             self._scan_comprehension(expr, env, walrus_env)
-            return
-        for child in ast.iter_child_nodes(expr):
-            self._scan_expr(child, env, walrus_env)
+        else:
+            for child in ast.iter_child_nodes(expr):
+                self._scan_expr(child, env, walrus_env)
 
     def _scan_decorators(self, decorators: list[ast.expr], env: _UnitEnv) -> None:
         for dec in decorators:
@@ -2121,9 +2143,7 @@ class _UnittestExpectedFailureFinder:
         deferred: _DeferredMap,
     ) -> None:
         self._scan_decorators(stmt.decorator_list, env)
-        for default in (*stmt.args.defaults, *stmt.args.kw_defaults):
-            if default is not None:
-                self._scan_expr(default, env)
+        default_envs = self._scan_and_collect_defaults(stmt.args, env)
         if not self.postponed_annotations:
             for arg in (
                 *stmt.args.posonlyargs,
@@ -2135,7 +2155,6 @@ class _UnittestExpectedFailureFinder:
                     self._scan_expr(arg.annotation, env)
             if stmt.returns is not None:
                 self._scan_expr(stmt.returns, env)
-        default_envs = _default_unittest_param_envs(stmt.args, env)
         env.pop(stmt.name, None)
         def_env = non_class_env if scope_kind == "class" else env
         self._queue_deferred(stmt, def_env, default_envs, deferred)
@@ -2154,8 +2173,8 @@ class _UnittestExpectedFailureFinder:
         for kw in stmt.keywords:
             self._scan_expr(kw.value, env)
         env.pop(stmt.name, None)
-        class_env = _copy_unittest_env(env)
         outer_non_class = non_class_env if scope_kind == "class" else env
+        class_env = _copy_unittest_env(outer_non_class)
         prev_sinks = self._seen_sinks
         self._seen_sinks = []
         try:
@@ -2353,6 +2372,10 @@ class _UnittestExpectedFailureFinder:
             self._walk_try_stmt(stmt, env, scope_kind, non_class_env, deferred)
         elif isinstance(stmt, ast.Match):
             self._walk_match_stmt(stmt, env, scope_kind, non_class_env, deferred)
+        elif isinstance(stmt, ast.Assert):
+            self._scan_expr(stmt.test, env)
+            if stmt.msg is not None:
+                self._scan_short_circuit_tail([stmt.msg], env, None)
         else:
             for child in ast.iter_child_nodes(stmt):
                 self._scan_expr(child, env)

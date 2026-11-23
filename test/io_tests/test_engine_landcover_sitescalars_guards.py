@@ -229,6 +229,22 @@ _REJECTION_CASES = [
     ),
     pytest.param(
         {},
+        {},
+        ("properties", "pipecapacity"),
+        {"value": None},
+        "sites[gridiv=1].properties.pipecapacity",
+        id="null_pipecapacity",
+    ),
+    pytest.param(
+        {},
+        {},
+        ("properties", "pipecapacity"),
+        {"value": float("nan")},
+        "sites[gridiv=1].properties.pipecapacity",
+        id="nan_pipecapacity",
+    ),
+    pytest.param(
+        {},
         {"water": 0.05},
         ("properties", "runofftowater"),
         None,
@@ -237,11 +253,59 @@ _REJECTION_CASES = [
     ),
     pytest.param(
         {},
+        {"water": 0.05},
+        ("properties", "runofftowater"),
+        {"value": None},
+        "sites[gridiv=1].properties.runofftowater",
+        id="null_runofftowater",
+    ),
+    pytest.param(
+        {},
+        {"water": 0.05},
+        ("properties", "runofftowater"),
+        {"value": float("inf")},
+        "sites[gridiv=1].properties.runofftowater",
+        id="inf_runofftowater",
+    ),
+    pytest.param(
+        {},
         {},
         ("properties", "n_buildings"),
         None,
         "sites[gridiv=1].properties.n_buildings",
         id="missing_n_buildings",
+    ),
+    pytest.param(
+        {"rsl": 2},
+        {
+            "paved": 0.32,
+            "bldgs": 0.68,
+            "evetr": 0.0,
+            "dectr": 0.0,
+            "grass": 0.0,
+            "bsoil": 0.0,
+            "water": 0.0,
+        },
+        ("properties", "n_buildings"),
+        None,
+        "sites[gridiv=1].properties.n_buildings",
+        id="missing_n_buildings_rsl2_pai_068_f32_boundary",
+    ),
+    pytest.param(
+        {"rsl": 2},
+        {
+            "paved": 0.32,
+            "bldgs": 0.68,
+            "evetr": 0.0,
+            "dectr": 0.0,
+            "grass": 0.0,
+            "bsoil": 0.0,
+            "water": 0.0,
+        },
+        ("properties", "h_std"),
+        None,
+        "sites[gridiv=1].properties.h_std",
+        id="missing_h_std_rsl2_pai_068_f32_boundary",
     ),
     pytest.param(
         {},
@@ -584,3 +648,42 @@ def test_inactive_water_only_snow_omission_is_bit_identical(sample_bridge_inputs
     df_kept = _run_native(cfg_kept, forcing_flat, count)
     df_omitted = _run_native(cfg_omitted, forcing_flat, count)
     pd.testing.assert_frame_equal(df_omitted, df_kept, check_exact=True)
+
+
+@pytest.mark.parametrize(
+    "null_value", [None, {"value": None}], ids=["bare_null", "wrapped_null"]
+)
+def test_explicit_null_irrigation_fraction_rejected_when_modelled_and_allowed_when_observed(
+    sample_bridge_inputs, null_value
+):
+    """Explicit null irrigation_fraction (#2101 gap) fails loudly when modelled, passes when observed."""
+    base_cfg, forcing_flat, count = sample_bridge_inputs
+
+    # Active modelled irrigation (water_use=0): explicit null dropped by exclude_none
+    # is caught by the strict Rust bridge instead of silently substituting 0.0.
+    raw_modelled = deepcopy(base_cfg)
+    raw_modelled["model"]["physics"]["water_use"] = {"value": 0}
+    raw_modelled["sites"][0]["properties"]["land_cover"]["grass"][
+        "irrigation_fraction"
+    ] = null_value
+    dumped_modelled = SUEWSConfig.from_dict(raw_modelled).model_dump(
+        exclude_none=True, mode="json"
+    )
+    with pytest.raises(
+        RuntimeError,
+        match=r"sites\[gridiv=1\]\.properties\.land_cover\.grass\.irrigation_fraction",
+    ):
+        _run_native(dumped_modelled, forcing_flat, count)
+
+    # Inactive observed irrigation (water_use=1): explicit null passes with bit-identical output.
+    raw_observed = deepcopy(base_cfg)
+    raw_observed["model"]["physics"]["water_use"] = {"value": 1}
+    df_kept = _run_native(raw_observed, forcing_flat, count)
+    raw_observed["sites"][0]["properties"]["land_cover"]["grass"][
+        "irrigation_fraction"
+    ] = null_value
+    dumped_observed = SUEWSConfig.from_dict(raw_observed).model_dump(
+        exclude_none=True, mode="json"
+    )
+    df_null = _run_native(dumped_observed, forcing_flat, count)
+    pd.testing.assert_frame_equal(df_null, df_kept, check_exact=True)

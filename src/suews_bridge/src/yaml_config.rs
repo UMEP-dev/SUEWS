@@ -1867,6 +1867,11 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) -> Result
 ///   `snow_use != 0` (`SnowCalc`).
 /// - `irrigation_fraction`: active across all 7 surfaces when
 ///   `water_use_method == 0` (`SUEWS_cal_WaterUse` multiplies `wu_surf * IrrFrac`).
+///   Omitting `irrigation_fraction` in Python emits `default=0.0` (#2001 parity);
+///   explicit `None`/`{value: null}` acceptance in `SurfaceProperties` is tracked
+///   separately under #2101 (`debt_opt_surface_thresholds` /
+///   `irrigation-fraction-null-active`), so rejecting missing/null here ensures
+///   active nulls fail loudly instead of silently substituting `0.0`.
 /// - `bldgh`, `height_evergreen_tree`, `height_deciduous_tree`: active when
 ///   their own surface has `sfr > 0` (`SUEWS_cal_RoughnessParameters` and
 ///   `SPARTACUS` mask zero-fraction terms, matching the Python data model).
@@ -3430,9 +3435,13 @@ fn apply_site_scalar_overrides(
     // `n_buildings` and `h_std` are consumed exclusively inside
     // `RSL_cal_prms` (`flag_RSL == .TRUE.`). Since `bldg_sfr <= PAI <= bldg_sfr
     // + evetr_sfr + dectr_sfr`, `RSLMethod == 2` can enter RSL only when the
-    // upper bound exceeds 0.1 and the lower bound is below 0.68.
+    // upper bound exceeds `0.1` and the lower bound is below `0.68` using the
+    // exact default-REAL (`f32`) literals in `suews_phys_rslprof.f95:457`
+    // (`0.68_f32 as f64 > 0.68_f64`, so `bldgs.sfr == 0.68` still enters RSL).
     let rsl_may_run = config.rsl_method == 1
-        || (config.rsl_method == 2 && (bldg_sfr + evetr_sfr + dectr_sfr) > 0.1 && bldg_sfr < 0.68);
+        || (config.rsl_method == 2
+            && (bldg_sfr + evetr_sfr + dectr_sfr) > f64::from(0.1_f32)
+            && bldg_sfr < f64::from(0.68_f32));
     if let Some(v) =
         require_if_active_numeric(site_root, &["properties", "n_buildings"], &at, rsl_may_run)?
     {
@@ -6807,7 +6816,8 @@ mod tests {
         assert_eq!(rc_water.site_scalars.sfr_surf[6], 1.0);
         assert_eq!(rc_water.site.lc_water.sfr, 1.0);
 
-        // 5. Active pipecapacity, runofftowater, n_buildings, h_std, lambda_c reject omission.
+        // 5. Active pipecapacity, runofftowater, n_buildings, h_std, lambda_c reject omission,
+        //    null, wrapped null, and non-finite values.
         for (key, setup_dyohm, set_water_sfr) in [
             ("pipecapacity", false, None),
             ("runofftowater", false, Some(0.1)),
@@ -6815,26 +6825,73 @@ mod tests {
             ("h_std", false, None),
             ("lambda_c", true, None),
         ] {
-            let mut root = base_root.clone();
-            if setup_dyohm {
-                root["model"]["physics"]["storageheatmethod"] = Value::from(6);
+            for bad_raw in [
+                None,
+                Some("null"),
+                Some("{value: null}"),
+                Some(".nan"),
+                Some(".inf"),
+            ] {
+                let mut root = base_root.clone();
+                if setup_dyohm {
+                    root["model"]["physics"]["storageheatmethod"] = Value::from(6);
+                }
+                if let Some(wsfr) = set_water_sfr {
+                    *get_path_mut(
+                        first_site_mut(&mut root).unwrap(),
+                        &["properties", "land_cover", "water", "sfr"],
+                    )
+                    .unwrap() = Value::from(wsfr);
+                }
+                let props = first_site_mut(&mut root).unwrap()["properties"]
+                    .as_mapping_mut()
+                    .unwrap();
+                props.remove(Value::String(key.to_string()));
+                if let Some(raw) = bad_raw {
+                    props.insert(
+                        Value::String(key.to_string()),
+                        serde_yaml::from_str(raw).unwrap(),
+                    );
+                }
+                let err = load_run_config_from_value(&mut root)
+                    .expect_err("active site scalar must be required");
+                assert!(
+                    err.contains(&format!("`sites[gridiv=1].properties.{key}`")),
+                    "{key} ({bad_raw:?}): {err}"
+                );
             }
-            if let Some(wsfr) = set_water_sfr {
+        }
+
+        // 5b. RSLMethod == 2 with bldgs.sfr == 0.68 and zero trees still satisfies Fortran's
+        //     default-REAL literal bound `PAI < 0.68` (`0.68_f32 as f64 > 0.68_f64`), so
+        //     n_buildings and h_std must remain required.
+        for key in ["n_buildings", "h_std"] {
+            let mut root = base_root.clone();
+            root["model"]["physics"]["rslmethod"] = Value::from(2);
+            for (surf, val) in [
+                ("paved", 0.32),
+                ("bldgs", 0.68),
+                ("evetr", 0.0),
+                ("dectr", 0.0),
+                ("grass", 0.0),
+                ("bsoil", 0.0),
+                ("water", 0.0),
+            ] {
                 *get_path_mut(
                     first_site_mut(&mut root).unwrap(),
-                    &["properties", "land_cover", "water", "sfr"],
+                    &["properties", "land_cover", surf, "sfr"],
                 )
-                .unwrap() = Value::from(wsfr);
+                .unwrap() = Value::from(val);
             }
             first_site_mut(&mut root).unwrap()["properties"]
                 .as_mapping_mut()
                 .unwrap()
                 .remove(Value::String(key.to_string()));
             let err = load_run_config_from_value(&mut root)
-                .expect_err("active site scalar must be required");
+                .expect_err("rsl=2 with bldgs.sfr=0.68 must require RSL scalars");
             assert!(
                 err.contains(&format!("`sites[gridiv=1].properties.{key}`")),
-                "{key}: {err}"
+                "rsl=2 bldgs.sfr=0.68 {key}: {err}"
             );
         }
 

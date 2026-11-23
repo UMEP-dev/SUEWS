@@ -388,11 +388,19 @@ With the corrected reader, both files give 8.416 mm and the balance closes.
 The size of the difference at another site depends on its surface fractions,
 drainage and weather.
 
-Migration removes the unused ``to_soilstore`` zero from this block. It keeps
-``to_runoff: 0.98``, ``to_grass: 0.02`` and any zero for an applicable
-destination, including a genuine zero runoff fraction. A previously valid
-paved or building block that already omitted the unused field needs no edit
-to its fractions for this correction.
+When you migrate from dev11 to dev12, check the following changes in each
+non-water surface's ``waterdist`` block. Migration removes an explicit numeric
+zero from a surface's route to itself (for example, ``grass.to_grass``), from
+``to_soilstore`` on ``paved`` and ``bldgs``, and from ``to_runoff`` on
+``evetr``, ``dectr``, ``grass`` and ``bsoil``. These rules also apply to
+wrapped zeros such as ``{value: 0.0}``. A non-zero fraction in any of these
+destinations causes migration to report the site, surface and field to correct.
+
+Migration keeps all fractions for applicable destinations, including zero.
+In the paved example above, the migrated file keeps ``to_runoff: 0.98``
+and ``to_grass: 0.02``. A paved surface with a genuine zero runoff fraction
+also keeps that zero. See :ref:`waterdist_yaml_rules` for the applicable
+destinations and the rules for zero-area surfaces.
 
 The following commands apply to an installation using schema dev12. With
 dev15 installed, follow :ref:`schema_dev15_drainage_coefficients` to check

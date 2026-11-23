@@ -24,7 +24,6 @@ from ehc_reference_io import build_sim
 pytestmark = [
     pytest.mark.physics,
     pytest.mark.contract("C-PARITY", "C-RESPONSE"),
-    pytest.mark.slow(reason="full-year comparisons with external same-build references"),
 ]
 
 

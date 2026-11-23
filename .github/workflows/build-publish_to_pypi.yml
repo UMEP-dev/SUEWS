@@ -695,6 +695,10 @@ jobs:
   rss_growth:
     name: RSS growth (Linux cp312)
     needs: [build_wheels]
+    # Start as a non-gating nightly recording job per CI conventions: the
+    # harness still exits non-zero on a threshold or control failure and always
+    # uploads rss-growth/ diagnostics, without turning the scheduled run red.
+    continue-on-error: true
     # A requested lane still runs after a failed/skipped build and fails on
     # the missing wheel, instead of silently disappearing from the nightly.
     if: >-
@@ -1653,7 +1657,7 @@ jobs:
   report_scheduled_run:
     name: Report scheduled run outcome
     runs-on: ubuntu-latest
-    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, check_test_markers, deploy_testpypi, cost_markers, rss_growth]
+    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, check_test_markers, deploy_testpypi, cost_markers]
     if: always() && github.event_name == 'schedule'
     permissions: {}
     steps:

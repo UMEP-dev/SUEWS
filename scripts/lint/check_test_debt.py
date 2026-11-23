@@ -488,13 +488,14 @@ class _ScopeCtx:
     local_funcs: dict[str, ast.FunctionDef]
     local_bound: set[str]
     enclosing_funcs: dict[
-        str, tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict]
+        str, tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict, dict]
     ]
     enclosing_bound: set[str]
     global_names: set[str]
     nonlocal_names: set[str]
     enclosing_env: dict[str, _Taint] | None
     scope_kind: str
+    nonlocal_owners: dict[str, dict[str, _Taint]]
     walrus_env: dict[str, _Taint] | None = None
 
 
@@ -534,12 +535,20 @@ class _ConstantMutationChecker:
             nonlocal_names=set(),
             enclosing_env=None,
             scope_kind="module",
+            nonlocal_owners={},
         )
         self._check_block(self.tree.body, self.module_env, ctx)
 
     def _fail(self, node: ast.AST, message: str) -> None:
         lineno = getattr(node, "lineno", 1)
         raise ValueError(f"{self.name}:{lineno}: {message}")
+
+    @staticmethod
+    def _set_taint(mapping: dict[str, _Taint], key: str, taint: _Taint) -> _Taint:
+        merged = _merge_taint(mapping.get(key), taint)
+        assert merged is not None
+        mapping[key] = merged
+        return merged
 
     def _bind_name(
         self,
@@ -548,24 +557,37 @@ class _ConstantMutationChecker:
         env: dict[str, _Taint],
         ctx: _ScopeCtx,
     ) -> None:
-        merged = _merge_taint(env.get(target), taint)
-        assert merged is not None
-        env[target] = merged
+        merged = self._set_taint(env, target, taint)
         if target in ctx.global_names:
-            self.module_env[target] = _merge_taint(self.module_env.get(target), merged)  # type: ignore[assignment]
-        if target in ctx.nonlocal_names and ctx.enclosing_env is not None:
-            ctx.enclosing_env[target] = _merge_taint(
-                ctx.enclosing_env.get(target), merged
-            )  # type: ignore[assignment]
+            self._set_taint(self.module_env, target, merged)
+        if target in ctx.nonlocal_names:
+            owner = ctx.nonlocal_owners.get(target)
+            if owner is not None:
+                self._set_taint(owner, target, merged)
+            elif ctx.enclosing_env is not None:
+                self._set_taint(ctx.enclosing_env, target, merged)
+
+    def _snapshot_taint_envs(
+        self, env: dict[str, _Taint], ctx: _ScopeCtx
+    ) -> dict[int, dict[str, _Taint]]:
+        tracked: dict[int, dict[str, _Taint]] = {
+            id(env): dict(env),
+            id(self.module_env): dict(self.module_env),
+        }
+        if ctx.enclosing_env is not None:
+            tracked[id(ctx.enclosing_env)] = dict(ctx.enclosing_env)
+        for owner in ctx.nonlocal_owners.values():
+            tracked[id(owner)] = dict(owner)
+        return tracked
 
     def _check_block(
         self, stmts: list[ast.stmt], env: dict[str, _Taint], ctx: _ScopeCtx
     ) -> None:
         while True:
-            before = dict(env)
+            before = self._snapshot_taint_envs(env, ctx)
             for stmt in stmts:
                 self._check_stmt(stmt, env, ctx)
-            if env == before:
+            if self._snapshot_taint_envs(env, ctx) == before:
                 break
 
     def _check_ann_assign(
@@ -581,7 +603,7 @@ class _ConstantMutationChecker:
             self._eval_expr(stmt.target.value, env, ctx)
         if ctx.scope_kind in {"module", "class"} and not self.postponed_annotations:
             ann_taint = self._eval_expr(stmt.annotation, env, ctx)
-            if ann_taint is not None:
+            if stmt.simple and ann_taint is not None:
                 self._fail(
                     stmt.annotation,
                     f"unsupported escape of constant {ann_taint[0]}",
@@ -855,23 +877,35 @@ class _ConstantMutationChecker:
     ) -> tuple[
         dict[str, _Taint],
         set[str],
-        dict[str, tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict]],
+        dict[str, tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict, dict]],
+        dict[str, dict[str, _Taint]],
     ]:
         if ctx.scope_kind == "class":
             return (
                 ctx.enclosing_env if ctx.enclosing_env is not None else self.module_env,
                 ctx.enclosing_bound,
                 ctx.enclosing_funcs,
+                ctx.nonlocal_owners,
             )
         enclosing_bound = ctx.enclosing_bound | ctx.local_bound
+        child_owners = dict(ctx.nonlocal_owners)
+        if ctx.scope_kind == "function":
+            for name in ctx.local_bound - ctx.global_names - ctx.nonlocal_names:
+                child_owners[name] = env
         enclosing_funcs = {
             name: entry
             for name, entry in ctx.enclosing_funcs.items()
             if name not in ctx.local_bound
         }
         for name, fn in ctx.local_funcs.items():
-            enclosing_funcs[name] = (fn, env, enclosing_bound, enclosing_funcs)
-        return env, enclosing_bound, enclosing_funcs
+            enclosing_funcs[name] = (
+                fn,
+                env,
+                enclosing_bound,
+                enclosing_funcs,
+                child_owners,
+            )
+        return env, enclosing_bound, enclosing_funcs, child_owners
 
     def _check_func_def(
         self, stmt: ast.FunctionDef | ast.AsyncFunctionDef, env, ctx: _ScopeCtx
@@ -883,9 +917,11 @@ class _ConstantMutationChecker:
         if not self.postponed_annotations:
             self._check_func_annotations(stmt.args, stmt.returns, env, ctx)
         default_taints = self._default_param_taints(stmt.args, env, ctx)
-        child_env, child_bound, child_funcs = self._child_enclosing_scope(env, ctx)
+        child_env, child_bound, child_funcs, child_owners = self._child_enclosing_scope(
+            env, ctx
+        )
         self._check_function_body(
-            stmt, default_taints, child_env, child_bound, child_funcs
+            stmt, default_taints, child_env, child_bound, child_funcs, child_owners
         )
 
     def _check_function_body(
@@ -895,8 +931,9 @@ class _ConstantMutationChecker:
         enclosing_env: dict[str, _Taint],
         enclosing_bound: set[str],
         enclosing_funcs: dict[
-            str, tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict]
+            str, tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict, dict]
         ],
+        nonlocal_owners: dict[str, dict[str, _Taint]],
     ) -> None:
         param_names = _function_param_names(func.args)
         local_bound, local_funcs, global_names, nonlocal_names = (
@@ -918,6 +955,10 @@ class _ConstantMutationChecker:
                 or (key in self.dependencies and key not in param_names)
             ):
                 func_env[key] = value
+        for key in nonlocal_names:
+            owner = nonlocal_owners.get(key)
+            if owner is not None and key in owner:
+                func_env[key] = _merge_taint(func_env.get(key), owner[key])  # type: ignore[assignment]
         for key in global_names:
             if key in self.module_env:
                 func_env[key] = _merge_taint(func_env.get(key), self.module_env[key])  # type: ignore[assignment]
@@ -936,6 +977,7 @@ class _ConstantMutationChecker:
             nonlocal_names=nonlocal_names,
             enclosing_env=enclosing_env,
             scope_kind="function",
+            nonlocal_owners=nonlocal_owners,
         )
         self._check_block(func.body, func_env, body_ctx)
 
@@ -955,8 +997,19 @@ class _ConstantMutationChecker:
         class_bound, class_funcs, global_names, nonlocal_names = (
             _collect_scope_bindings(stmt.body)
         )
-        outer_env, outer_bound, outer_funcs = self._child_enclosing_scope(env, ctx)
-        class_env = dict(outer_env)
+        outer_env, outer_bound, outer_funcs, outer_owners = self._child_enclosing_scope(
+            env, ctx
+        )
+        class_env = {
+            key: value for key, value in outer_env.items() if key not in global_names
+        }
+        for key in nonlocal_names:
+            owner = outer_owners.get(key)
+            if owner is not None and key in owner:
+                class_env[key] = _merge_taint(class_env.get(key), owner[key])  # type: ignore[assignment]
+        for key in global_names:
+            if key in self.module_env:
+                class_env[key] = _merge_taint(class_env.get(key), self.module_env[key])  # type: ignore[assignment]
         class_ctx = _ScopeCtx(
             local_funcs=class_funcs,
             local_bound=class_bound,
@@ -966,6 +1019,7 @@ class _ConstantMutationChecker:
             nonlocal_names=nonlocal_names,
             enclosing_env=outer_env,
             scope_kind="class",
+            nonlocal_owners=outer_owners,
         )
         self._check_block(stmt.body, class_env, class_ctx)
 
@@ -1042,7 +1096,9 @@ class _ConstantMutationChecker:
             if key not in lam_bound or key in self.dependencies
         }
         lam_env.update(default_taints)
-        outer_env, outer_bound, outer_funcs = self._child_enclosing_scope(env, ctx)
+        outer_env, outer_bound, outer_funcs, outer_owners = self._child_enclosing_scope(
+            env, ctx
+        )
         lam_ctx = _ScopeCtx(
             local_funcs={},
             local_bound=lam_bound,
@@ -1052,6 +1108,7 @@ class _ConstantMutationChecker:
             nonlocal_names=set(),
             enclosing_env=outer_env,
             scope_kind="function",
+            nonlocal_owners=outer_owners,
         )
         body_taint = self._eval_expr(node.body, lam_env, lam_ctx)
         if body_taint is not None:
@@ -1100,7 +1157,9 @@ class _ConstantMutationChecker:
         return result
 
     def _eval_comprehension(self, node, env, ctx: _ScopeCtx) -> _Taint | None:
-        outer_env, outer_bound, outer_funcs = self._child_enclosing_scope(env, ctx)
+        outer_env, outer_bound, outer_funcs, outer_owners = self._child_enclosing_scope(
+            env, ctx
+        )
         comp_env = dict(outer_env if ctx.scope_kind == "class" else env)
         walrus_target = ctx.walrus_env if ctx.walrus_env is not None else env
         comp_targets: set[str] = set()
@@ -1125,6 +1184,7 @@ class _ConstantMutationChecker:
                 nonlocal_names=ctx.nonlocal_names,
                 enclosing_env=outer_env,
                 scope_kind="function",
+                nonlocal_owners=outer_owners,
                 walrus_env=walrus_target,
             )
             self._check_target(gen.target, elem_taint, comp_env, comp_ctx, False)
@@ -1339,10 +1399,17 @@ class _ConstantMutationChecker:
             )
         resolved = self._resolve_callable(fname, env, ctx)
         if resolved is not None:
-            target_func, target_env, target_bound, target_funcs = resolved
+            target_func, target_env, target_bound, target_funcs, target_owners = (
+                resolved
+            )
             param_taints = _bind_call_taints(target_func, call, pos_taints, kw_taints)
             self._check_function_body(
-                target_func, param_taints, target_env, target_bound, target_funcs
+                target_func,
+                param_taints,
+                target_env,
+                target_bound,
+                target_funcs,
+                target_owners,
             )
             return None
         self._fail(call, f"unsupported escape of constant {all_taints[0][0]}")
@@ -1350,14 +1417,18 @@ class _ConstantMutationChecker:
 
     def _resolve_callable(
         self, fname: str, env: dict[str, _Taint], ctx: _ScopeCtx
-    ) -> tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict] | None:
+    ) -> tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict, dict] | None:
         if fname in ctx.global_names:
             mod_fn = self.module_funcs.get(fname)
-            return (mod_fn, self.module_env, self.module_bound, {}) if mod_fn else None
+            return (
+                (mod_fn, self.module_env, self.module_bound, {}, {}) if mod_fn else None
+            )
         local_fn = ctx.local_funcs.get(fname)
         if local_fn is not None:
-            child_env, child_bound, child_funcs = self._child_enclosing_scope(env, ctx)
-            return (local_fn, child_env, child_bound, child_funcs)
+            child_env, child_bound, child_funcs, child_owners = (
+                self._child_enclosing_scope(env, ctx)
+            )
+            return (local_fn, child_env, child_bound, child_funcs, child_owners)
         if fname not in ctx.local_bound:
             enclosing_entry = ctx.enclosing_funcs.get(fname)
             if enclosing_entry is not None:
@@ -1365,7 +1436,7 @@ class _ConstantMutationChecker:
             if fname not in ctx.enclosing_bound:
                 mod_fn = self.module_funcs.get(fname)
                 if mod_fn is not None:
-                    return (mod_fn, self.module_env, self.module_bound, {})
+                    return (mod_fn, self.module_env, self.module_bound, {}, {})
         return None
 
     def _eval_call(self, call: ast.Call, env, ctx) -> _Taint | None:
@@ -1732,6 +1803,7 @@ class _UnitScope:
     global_names: frozenset[str] = frozenset()
     nonlocal_names: frozenset[str] = frozenset()
     enclosing_env: _UnitEnv | None = None
+    nonlocal_owners: dict[str, _UnitEnv] | None = None
     walrus_env: _UnitEnv | None = None
 
 
@@ -1755,19 +1827,45 @@ class _UnittestExpectedFailureFinder:
             self._seen_sites.add(id(node))
             self.sites.append(node)
 
+    @staticmethod
+    def _add_kinds(mapping: _UnitEnv, name: str, kinds: set[str]) -> None:
+        mapping.setdefault(name, set()).update(kinds)
+
     def _bind_name(
         self, name: str, kinds: set[str], env: _UnitEnv, scope: _UnitScope
     ) -> None:
         if not kinds:
             return
-        env.setdefault(name, set()).update(kinds)
+        self._add_kinds(env, name, kinds)
         if name in scope.global_names:
-            self.module_env.setdefault(name, set()).update(kinds)
-        if name in scope.nonlocal_names and scope.enclosing_env is not None:
-            scope.enclosing_env.setdefault(name, set()).update(kinds)
+            self._add_kinds(self.module_env, name, kinds)
+        if name in scope.nonlocal_names:
+            owner = (
+                scope.nonlocal_owners.get(name)
+                if scope.nonlocal_owners is not None
+                else None
+            )
+            if owner is not None:
+                self._add_kinds(owner, name, kinds)
+            elif scope.enclosing_env is not None:
+                self._add_kinds(scope.enclosing_env, name, kinds)
+
+    def _snapshot_unit_envs(
+        self, env: _UnitEnv, scope: _UnitScope
+    ) -> dict[int, _UnitEnv]:
+        tracked: dict[int, _UnitEnv] = {
+            id(env): _copy_unittest_env(env),
+            id(self.module_env): _copy_unittest_env(self.module_env),
+        }
+        if scope.enclosing_env is not None:
+            tracked[id(scope.enclosing_env)] = _copy_unittest_env(scope.enclosing_env)
+        if scope.nonlocal_owners is not None:
+            for owner in scope.nonlocal_owners.values():
+                tracked[id(owner)] = _copy_unittest_env(owner)
+        return tracked
 
     def collect(self) -> list[ast.AST]:
-        scope = _UnitScope("module", self.module_env)
+        scope = _UnitScope("module", self.module_env, nonlocal_owners={})
         self._walk_scope(self.tree.body, self.module_env, scope)
         return self.sites
 
@@ -1775,20 +1873,12 @@ class _UnittestExpectedFailureFinder:
         self, stmts: list[ast.stmt], env: _UnitEnv, scope: _UnitScope
     ) -> None:
         while True:
-            before_env = _copy_unittest_env(env)
-            before_mod = _copy_unittest_env(self.module_env)
-            before_enc = (
-                _copy_unittest_env(scope.enclosing_env)
-                if scope.enclosing_env is not None
-                else None
-            )
+            before = self._snapshot_unit_envs(env, scope)
             before_sites = len(self.sites)
             for stmt in stmts:
                 self._walk_stmt(stmt, env, scope)
             if (
-                env == before_env
-                and self.module_env == before_mod
-                and (before_enc is None or scope.enclosing_env == before_enc)
+                self._snapshot_unit_envs(env, scope) == before
                 and len(self.sites) == before_sites
             ):
                 break
@@ -1833,6 +1923,7 @@ class _UnittestExpectedFailureFinder:
             global_names=scope.global_names,
             nonlocal_names=scope.nonlocal_names,
             enclosing_env=scope.enclosing_env,
+            nonlocal_owners=scope.nonlocal_owners,
             walrus_env=target_walrus,
         )
         while True:
@@ -1866,7 +1957,15 @@ class _UnittestExpectedFailureFinder:
             k: set(v) for k, v in outer_non_class.items() if k not in lam_bound
         }
         _update_unittest_env(lam_env, default_envs)
-        lam_scope = _UnitScope("function", lam_env, enclosing_env=outer_non_class)
+        lam_owners = dict(scope.nonlocal_owners or {})
+        for name in lam_bound:
+            lam_owners[name] = lam_env
+        lam_scope = _UnitScope(
+            "function",
+            lam_env,
+            enclosing_env=outer_non_class,
+            nonlocal_owners=lam_owners,
+        )
         while True:
             before_lam = _copy_unittest_env(lam_env)
             before_sites = len(self.sites)
@@ -2011,6 +2110,7 @@ class _UnittestExpectedFailureFinder:
             if stmt.returns is not None:
                 self._scan_expr(stmt.returns, env, scope)
         outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
+        parent_owners = dict(scope.nonlocal_owners or {})
         param_names = _function_param_names(stmt.args)
         local_bound, _, global_names, nonlocal_names = _collect_scope_bindings(
             stmt.body
@@ -2019,16 +2119,24 @@ class _UnittestExpectedFailureFinder:
         child_env: _UnitEnv = {
             k: set(v) for k, v in outer_non_class.items() if k not in excluded
         }
+        for name in nonlocal_names:
+            owner = parent_owners.get(name)
+            if owner is not None and name in owner:
+                child_env.setdefault(name, set()).update(owner[name])
         for name in global_names:
             if name in self.module_env:
                 child_env.setdefault(name, set()).update(self.module_env[name])
         _update_unittest_env(child_env, default_envs)
+        child_owners = dict(parent_owners)
+        for name in (local_bound | param_names) - global_names - nonlocal_names:
+            child_owners[name] = child_env
         child_scope = _UnitScope(
             scope_kind="function",
             non_class_env=child_env,
             global_names=frozenset(global_names),
             nonlocal_names=frozenset(nonlocal_names),
             enclosing_env=outer_non_class,
+            nonlocal_owners=child_owners,
         )
         self._walk_scope(stmt.body, child_env, child_scope)
 
@@ -2042,9 +2150,14 @@ class _UnittestExpectedFailureFinder:
             self._scan_expr(kw.value, env, scope)
         _, _, global_names, nonlocal_names = _collect_scope_bindings(stmt.body)
         outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
+        parent_owners = dict(scope.nonlocal_owners or {})
         class_env: _UnitEnv = {
             k: set(v) for k, v in outer_non_class.items() if k not in global_names
         }
+        for name in nonlocal_names:
+            owner = parent_owners.get(name)
+            if owner is not None and name in owner:
+                class_env.setdefault(name, set()).update(owner[name])
         for name in global_names:
             if name in self.module_env:
                 class_env.setdefault(name, set()).update(self.module_env[name])
@@ -2054,6 +2167,7 @@ class _UnittestExpectedFailureFinder:
             global_names=frozenset(global_names),
             nonlocal_names=frozenset(nonlocal_names),
             enclosing_env=outer_non_class,
+            nonlocal_owners=parent_owners,
         )
         self._walk_scope(stmt.body, class_env, class_scope)
 

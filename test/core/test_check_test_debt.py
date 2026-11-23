@@ -962,6 +962,21 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "    pass\n",
             ["test/test_branch.py::test_case::1"],
         ),
+        (
+            "def outer():\n"
+            "    mark = lambda fn: fn\n"
+            "    def middle():\n"
+            "        def inner():\n"
+            "            nonlocal mark\n"
+            "            from unittest import expectedFailure as mark\n"
+            "        inner()\n"
+            "    middle()\n"
+            "    @mark\n"
+            "    def test_case():\n"
+            "        pass\n"
+            "    return test_case\n",
+            ["test/test_branch.py::outer.test_case::1"],
+        ),
     ],
 )
 def test_unittest_expected_failure_branch_merge_and_deferred_lookup(
@@ -1249,6 +1264,7 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
         "    return len(ALIAS) + len(sorted(LEDGER, key=len)) + int(type(LEDGER) is dict)\n"
         'LEDGER[("a.f95", "x")]: str\n'
         "ordered = sorted([LEDGER], key=None)\n"
+        'BOX = {}\nBOX["x"]: LEDGER\n'
         "OTHER = {}\n"
         'OTHER[("b.f95", "y")] = "#999"\n'
         "def mutate_unrelated(table, key, issue):\n"
@@ -1421,6 +1437,31 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             "        return len(table)\n"
             "invoke(mutate)\n",
             "unsupported escape of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "alias = LEDGER\n"
+            "def outer():\n"
+            "    alias = {}\n"
+            "    class C:\n"
+            "        global alias\n"
+            '        alias["k"] = "v"\n'
+            "outer()\n",
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def outer():\n"
+            "    alias = None\n"
+            "    def middle():\n"
+            "        def inner():\n"
+            "            nonlocal alias\n"
+            "            alias = LEDGER\n"
+            "        inner()\n"
+            "    middle()\n"
+            '    alias["k"] = "v"\n'
+            "outer()\n",
+            "unsupported mutation of constant LEDGER",
         ),
     ],
 )

@@ -1057,6 +1057,27 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "        pass\n",
             ["test/test_branch.py::C.test_attr::1"],
         ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    ef = lambda fn: fn\n"
+            "    del ef\n"
+            "    @ef\n"
+            "    def test_case(self):\n"
+            "        pass\n",
+            ["test/test_branch.py::C.test_case::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "class C:\n"
+            "    ef = lambda fn: fn\n"
+            "    if cond:\n"
+            "        del ef\n"
+            "    @ef\n"
+            "    def test_case(self):\n"
+            "        pass\n",
+            ["test/test_branch.py::C.test_case::1"],
+        ),
     ],
 )
 def test_unittest_expected_failure_branch_merge_and_deferred_lookup(
@@ -1555,6 +1576,37 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             'LEDGER = {"v": []}\ndef leak():\n    return LEDGER.keys()\n',
             "unsupported escape of constant LEDGER",
         ),
+        (
+            "LEDGER = {}\n"
+            "def outer():\n"
+            "    def helper(table):\n"
+            '        table["k"] = 1\n'
+            "    class C:\n"
+            "        nonlocal helper\n"
+            "        helper(LEDGER)\n"
+            "        def helper(table):\n"
+            "            return len(table)\n"
+            "outer()\n",
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def helper(table):\n"
+            '    table["k"] = 1\n'
+            "class C:\n"
+            "    helper(LEDGER)\n"
+            "    def helper(table):\n"
+            "        return len(table)\n",
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            'LEDGER = {"v": []}\ndict(LEDGER)["v"].append(1)\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            'LEDGER = {"v": []}\n(LEDGER | {"b": 1})["v"].append(1)\n',
+            "unsupported mutation of constant LEDGER",
+        ),
     ],
 )
 def test_python_ledger_advanced_alias_helper_and_escape_cases_fail(
@@ -1569,11 +1621,12 @@ def test_python_ledger_keys_iteration_allowed_with_mutable_values(tmp_path):
     (tmp_path / "ledger.py").write_text(
         'LEDGER = {"v": []}\n'
         "def list_keys():\n"
-        "    out = [k for k in LEDGER.keys()]\n"
-        "    for k in LEDGER.keys():\n"
+        "    out = [k for k in LEDGER]\n"
+        "    for k in LEDGER:\n"
         "        out.append(k)\n"
-        '    _ = (len(LEDGER.keys()), set(LEDGER.keys()), LEDGER.keys().isdisjoint({"x"}))\n'
-        "    return list(LEDGER.keys()) + sorted(LEDGER.keys()) + out\n",
+        "    out.extend(k for k in LEDGER.keys())\n"
+        '    _ = (len(LEDGER.keys()), set(LEDGER), tuple(LEDGER), LEDGER.keys().isdisjoint({"x"}))\n'
+        '    return list(LEDGER) + sorted(LEDGER) + list(LEDGER.keys()) + list(LEDGER.copy()) + list(dict(LEDGER)) + list(LEDGER | {"b": 1}) + out\n',
         encoding="utf-8",
     )
     assert checker._python_values(tmp_path, "ledger.py", ("LEDGER",)) == {

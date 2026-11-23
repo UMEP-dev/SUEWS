@@ -15,6 +15,7 @@ from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import re
+from typing import NamedTuple
 
 import yaml
 
@@ -74,7 +75,12 @@ _SAFE_ELEMENT_METHODS = frozenset({
 })
 _DYNAMIC_EXEC_BUILTINS = frozenset({"eval", "exec"})
 _DYNAMIC_NAMESPACE_BUILTINS = frozenset({"globals", "locals", "vars"})
-_Taint = tuple[str, bool]
+
+
+class _Taint(NamedTuple):
+    root: str
+    iter_mutable: bool
+    value_mutable: bool
 
 
 def _unique_pairs(pairs):
@@ -202,12 +208,33 @@ def _has_mutable_elements(value) -> bool:
     return False
 
 
+def _deep_taint(name: str) -> _Taint:
+    return _Taint(name, True, True)
+
+
+def _dict_taint(name: str) -> _Taint:
+    return _Taint(name, False, True)
+
+
+def _root_taint(name: str, value: object) -> _Taint | None:
+    has_mutable = _has_mutable_elements(value)
+    if not (_is_mutable(value) or has_mutable):
+        return None
+    if isinstance(value, dict):
+        return _Taint(name, False, has_mutable)
+    return _Taint(name, has_mutable, has_mutable)
+
+
 def _merge_taint(first: _Taint | None, second: _Taint | None) -> _Taint | None:
     if first is None:
         return second
     if second is None:
         return first
-    return (first[0], first[1] or second[1])
+    return _Taint(
+        first.root,
+        first.iter_mutable or second.iter_mutable,
+        first.value_mutable or second.value_mutable,
+    )
 
 
 def _collect_target_names(node: ast.AST, out: set[str]) -> None:
@@ -409,6 +436,66 @@ def _function_param_names(args: ast.arguments) -> set[str]:
     return names
 
 
+def _collect_rebound_outer_names(stmts: list[ast.stmt]) -> tuple[set[str], set[str]]:
+    """Collect global and nonlocal names bound inside nested scopes."""
+    rebound_globals: set[str] = set()
+    rebound_nonlocals: set[str] = set()
+
+    def walk(block: list[ast.stmt]) -> None:
+        for stmt in block:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                sub_bound, _, sub_globals, sub_nonlocals = _collect_scope_bindings(
+                    stmt.body
+                )
+                rebound_globals.update(sub_bound & sub_globals)
+                rebound_nonlocals.update(sub_bound & sub_nonlocals)
+                walk(stmt.body)
+            else:
+                for sub_attr in ("body", "orelse", "finalbody"):
+                    sub = getattr(stmt, sub_attr, None)
+                    if isinstance(sub, list):
+                        walk(sub)
+                if isinstance(stmt, (ast.Try, ast.TryStar)):
+                    for handler in stmt.handlers:
+                        walk(handler.body)
+                elif isinstance(stmt, ast.Match):
+                    for case in stmt.cases:
+                        walk(case.body)
+
+    walk(stmts)
+    return rebound_globals, rebound_nonlocals
+
+
+def _bind_pos_taints(
+    args: ast.arguments,
+    pos_taints: list[tuple[bool, _Taint | None]],
+    add,
+) -> None:
+    positional = [*args.posonlyargs, *args.args]
+    seen_star = False
+    for index, (is_starred, taint) in enumerate(pos_taints):
+        if is_starred:
+            seen_star = True
+        if taint is None:
+            continue
+        if is_starred:
+            if taint.iter_mutable:
+                deep = _deep_taint(taint.root)
+                for param in positional:
+                    add(param.arg, deep)
+                if args.vararg is not None:
+                    add(args.vararg.arg, deep)
+        elif seen_star:
+            for param in positional:
+                add(param.arg, taint)
+            if args.vararg is not None:
+                add(args.vararg.arg, _deep_taint(taint.root))
+        elif index < len(positional):
+            add(positional[index].arg, taint)
+        elif args.vararg is not None:
+            add(args.vararg.arg, _deep_taint(taint.root))
+
+
 def _bind_call_taints(
     func_def: ast.FunctionDef,
     call: ast.Call,
@@ -417,43 +504,27 @@ def _bind_call_taints(
 ) -> dict[str, _Taint]:
     """Map tracked call arguments onto the callee's parameter names."""
     args = func_def.args
-    positional = [*args.posonlyargs, *args.args]
     kw_by_name = {arg.arg: arg.arg for arg in (*args.args, *args.kwonlyargs)}
     bound: dict[str, _Taint] = {}
 
     def add(param: str, taint: _Taint) -> None:
         bound[param] = _merge_taint(bound.get(param), taint)  # type: ignore[assignment]
 
-    seen_star = False
-    for index, (is_starred, taint) in enumerate(pos_taints):
-        if is_starred:
-            seen_star = True
-        if taint is None:
-            continue
-        if is_starred or seen_star:
-            deep_taint = (taint[0], True)
-            for param in positional:
-                add(param.arg, deep_taint)
-            if args.vararg is not None:
-                add(args.vararg.arg, deep_taint)
-        elif index < len(positional):
-            add(positional[index].arg, taint)
-        elif args.vararg is not None:
-            add(args.vararg.arg, (taint[0], True))
-
+    _bind_pos_taints(args, pos_taints, add)
     for key, taint in kw_taints:
         if taint is None:
             continue
         if key is None:
-            deep_taint = (taint[0], True)
-            for param_name in kw_by_name.values():
-                add(param_name, deep_taint)
-            if args.kwarg is not None:
-                add(args.kwarg.arg, deep_taint)
+            if taint.value_mutable:
+                deep = _deep_taint(taint.root)
+                for param_name in kw_by_name.values():
+                    add(param_name, deep)
+                if args.kwarg is not None:
+                    add(args.kwarg.arg, _dict_taint(taint.root))
         elif key in kw_by_name:
             add(key, taint)
         elif args.kwarg is not None:
-            add(args.kwarg.arg, (taint[0], True))
+            add(args.kwarg.arg, _dict_taint(taint.root))
     return bound
 
 
@@ -515,12 +586,16 @@ class _ConstantMutationChecker:
         self.initial_targets = initial_targets
         self.postponed_annotations = _has_future_annotations(tree)
         self.root_taints: dict[str, _Taint] = {
-            dep: (dep, _has_mutable_elements(value))
+            dep: taint
             for dep, value in dep_values.items()
-            if _is_mutable(value) or _has_mutable_elements(value)
+            if (taint := _root_taint(dep, value)) is not None
         }
         self.module_env: dict[str, _Taint] = dict(self.root_taints)
-        self.module_bound, self.module_funcs, _, _ = _collect_scope_bindings(tree.body)
+        self.module_bound, module_funcs, _, _ = _collect_scope_bindings(tree.body)
+        rebound_globals, _ = _collect_rebound_outer_names(tree.body)
+        self.module_funcs = {
+            k: v for k, v in module_funcs.items() if k not in rebound_globals
+        }
         self.checked_calls: set[tuple[int, tuple[tuple[str, _Taint], ...]]] = set()
 
     def check(self) -> None:
@@ -646,7 +721,7 @@ class _ConstantMutationChecker:
             seq_taint: _Taint | None = None
             for item in elem_taints:
                 if item is not None:
-                    seq_taint = _merge_taint(seq_taint, (item[0], True))
+                    seq_taint = _merge_taint(seq_taint, _deep_taint(item.root))
             for target in stmt.targets:
                 if (
                     isinstance(target, (ast.Tuple, ast.List))
@@ -675,7 +750,7 @@ class _ConstantMutationChecker:
                     stmt, f"unsupported mutation of constant {env[target.id][0]}"
                 )
             if rhs_taint is not None:
-                self._bind_name(target.id, (rhs_taint[0], True), env, ctx)
+                self._bind_name(target.id, _deep_taint(rhs_taint.root), env, ctx)
         elif isinstance(target, ast.Subscript):
             base_taint = self._eval_expr(target.value, env, ctx)
             self._eval_expr(target.slice, env, ctx)
@@ -734,7 +809,7 @@ class _ConstantMutationChecker:
         while isinstance(root, ast.Subscript):
             root = root.value
         if isinstance(root, ast.Name) and not in_class:
-            self._bind_name(root.id, (rhs_taint[0], True), env, ctx)
+            self._bind_name(root.id, _deep_taint(rhs_taint.root), env, ctx)
         else:
             self._fail(target, f"unsupported escape of constant {rhs_taint[0]}")
 
@@ -766,7 +841,11 @@ class _ConstantMutationChecker:
             if rhs_taint is not None:
                 self._fail(target, f"unsupported escape of constant {rhs_taint[0]}")
         elif isinstance(target, (ast.Tuple, ast.List)):
-            unpacked = rhs_taint if (rhs_taint and rhs_taint[1]) else None
+            unpacked = (
+                _deep_taint(rhs_taint.root)
+                if (rhs_taint and rhs_taint.iter_mutable)
+                else None
+            )
             for elt in target.elts:
                 self._check_target(elt, unpacked, env, ctx, in_class)
         elif isinstance(target, ast.Starred):
@@ -792,7 +871,7 @@ class _ConstantMutationChecker:
                 if bound_name in self.dependencies:
                     self._fail(stmt, f"unsupported mutation of constant {bound_name}")
                 if subj_taint is not None:
-                    self._bind_name(bound_name, (subj_taint[0], True), env, ctx)
+                    self._bind_name(bound_name, _deep_taint(subj_taint.root), env, ctx)
             if case.guard is not None:
                 self._eval_expr(case.guard, env, ctx)
             self._check_block(case.body, env, ctx)
@@ -803,7 +882,11 @@ class _ConstantMutationChecker:
         in_class = ctx.scope_kind == "class"
         if isinstance(stmt, (ast.For, ast.AsyncFor)):
             iter_taint = self._eval_expr(stmt.iter, env, ctx)
-            elem_taint = iter_taint if (iter_taint and iter_taint[1]) else None
+            elem_taint = (
+                _deep_taint(iter_taint.root)
+                if (iter_taint and iter_taint.iter_mutable)
+                else None
+            )
             self._check_target(stmt.target, elem_taint, env, ctx, in_class)
             self._check_block(stmt.body, env, ctx)
             self._check_block(stmt.orelse, env, ctx)
@@ -938,12 +1021,14 @@ class _ConstantMutationChecker:
         local_bound, local_funcs, global_names, nonlocal_names = (
             _collect_scope_bindings(func.body)
         )
+        _, rebound_nonlocals = _collect_rebound_outer_names(func.body)
         local_funcs = {
             k: v
             for k, v in local_funcs.items()
             if k not in param_names
             and k not in global_names
             and k not in nonlocal_names
+            and k not in rebound_nonlocals
         }
         local_bound |= param_names
         func_env: dict[str, _Taint] = {}
@@ -999,6 +1084,14 @@ class _ConstantMutationChecker:
         outer_env, outer_bound, outer_funcs, outer_owners = self._child_enclosing_scope(
             env, ctx
         )
+        class_funcs = {
+            k: v
+            for k, v in class_funcs.items()
+            if k not in global_names
+            and k not in nonlocal_names
+            and k not in outer_bound
+            and k not in self.module_bound
+        }
         class_env = {
             key: value for key, value in outer_env.items() if key not in global_names
         }
@@ -1035,7 +1128,11 @@ class _ConstantMutationChecker:
         elif isinstance(node, ast.Subscript):
             val_taint = self._eval_expr(node.value, env, ctx)
             self._eval_expr(node.slice, env, ctx)
-            result = val_taint if (val_taint and val_taint[1]) else None
+            result = (
+                _deep_taint(val_taint.root)
+                if (val_taint and val_taint.value_mutable)
+                else None
+            )
         elif isinstance(node, ast.Call):
             result = self._eval_call(node, env, ctx)
         elif isinstance(node, (ast.Tuple, ast.List, ast.Set)):
@@ -1060,12 +1157,12 @@ class _ConstantMutationChecker:
         for elt in node.elts:
             if isinstance(elt, ast.Starred):
                 taint = self._eval_expr(elt.value, env, ctx)
-                if taint is not None and taint[1]:
-                    merged = _merge_taint(merged, (taint[0], True))
+                if taint is not None and taint.iter_mutable:
+                    merged = _merge_taint(merged, _deep_taint(taint.root))
             else:
                 taint = self._eval_expr(elt, env, ctx)
                 if taint is not None:
-                    merged = _merge_taint(merged, (taint[0], True))
+                    merged = _merge_taint(merged, _deep_taint(taint.root))
         return merged
 
     def _eval_dict(self, node: ast.Dict, env, ctx) -> _Taint | None:
@@ -1073,15 +1170,15 @@ class _ConstantMutationChecker:
         for key, value in zip(node.keys, node.values, strict=True):
             if key is None:
                 taint = self._eval_expr(value, env, ctx)
-                if taint is not None and taint[1]:
-                    merged = _merge_taint(merged, (taint[0], True))
+                if taint is not None and taint.value_mutable:
+                    merged = _merge_taint(merged, _dict_taint(taint.root))
             else:
                 kt = self._eval_expr(key, env, ctx)
                 vt = self._eval_expr(value, env, ctx)
                 if kt is not None:
-                    merged = _merge_taint(merged, (kt[0], True))
+                    merged = _merge_taint(merged, _deep_taint(kt.root))
                 if vt is not None:
-                    merged = _merge_taint(merged, (vt[0], True))
+                    merged = _merge_taint(merged, _dict_taint(vt.root))
         return merged
 
     def _eval_lambda(self, node: ast.Lambda, env, ctx: _ScopeCtx) -> None:
@@ -1113,18 +1210,26 @@ class _ConstantMutationChecker:
         if body_taint is not None:
             self._fail(node, f"unsupported escape of constant {body_taint[0]}")
 
+    def _eval_binop(self, node: ast.BinOp, env, ctx: _ScopeCtx) -> _Taint | None:
+        lt = self._eval_expr(node.left, env, ctx)
+        rt = self._eval_expr(node.right, env, ctx)
+        result: _Taint | None = None
+        if isinstance(node.op, ast.BitOr):
+            if lt is not None and lt.value_mutable:
+                result = _merge_taint(result, _Taint(lt.root, lt.iter_mutable, True))
+            if rt is not None and rt.value_mutable:
+                result = _merge_taint(result, _Taint(rt.root, rt.iter_mutable, True))
+        elif isinstance(node.op, (ast.Add, ast.Sub, ast.BitAnd, ast.BitXor, ast.Mult)):
+            if lt is not None and lt.iter_mutable:
+                result = _merge_taint(result, _deep_taint(lt.root))
+            if rt is not None and rt.iter_mutable:
+                result = _merge_taint(result, _deep_taint(rt.root))
+        return result
+
     def _eval_other_expr(self, node: ast.AST, env, ctx: _ScopeCtx) -> _Taint | None:
         result: _Taint | None = None
         if isinstance(node, ast.BinOp):
-            lt = self._eval_expr(node.left, env, ctx)
-            rt = self._eval_expr(node.right, env, ctx)
-            if isinstance(
-                node.op, (ast.BitOr, ast.Add, ast.Sub, ast.BitAnd, ast.BitXor, ast.Mult)
-            ):
-                if lt is not None and lt[1]:
-                    result = (lt[0], True)
-                elif rt is not None and rt[1]:
-                    result = (rt[0], True)
+            result = self._eval_binop(node, env, ctx)
         elif isinstance(node, ast.NamedExpr):
             vt = self._eval_expr(node.value, env, ctx)
             if node.target.id in self.dependencies:
@@ -1167,7 +1272,11 @@ class _ConstantMutationChecker:
             iter_taint = self._eval_expr(
                 gen.iter, env if index == 0 else comp_env, comp_ctx
             )
-            elem_taint = iter_taint if (iter_taint and iter_taint[1]) else None
+            elem_taint = (
+                _deep_taint(iter_taint.root)
+                if (iter_taint and iter_taint.iter_mutable)
+                else None
+            )
             gen_names: set[str] = set()
             _collect_target_names(gen.target, gen_names)
             comp_targets |= gen_names
@@ -1192,10 +1301,14 @@ class _ConstantMutationChecker:
         if isinstance(node, ast.DictComp):
             kt = self._eval_expr(node.key, comp_env, comp_ctx)
             vt = self._eval_expr(node.value, comp_env, comp_ctx)
-            merged = _merge_taint(kt, vt)
-            return (merged[0], True) if merged is not None else None
+            merged: _Taint | None = None
+            if kt is not None:
+                merged = _merge_taint(merged, _deep_taint(kt.root))
+            if vt is not None:
+                merged = _merge_taint(merged, _dict_taint(vt.root))
+            return merged
         et = self._eval_expr(node.elt, comp_env, comp_ctx)
-        return (et[0], True) if et is not None else None
+        return _deep_taint(et.root) if et is not None else None
 
     def _eval_call_args(self, call: ast.Call, env, ctx):
         pos_taints: list[tuple[bool, _Taint | None]] = []
@@ -1266,11 +1379,11 @@ class _ConstantMutationChecker:
     ) -> _Taint | None:
         merged: _Taint | None = None
         for _, taint in pos_taints:
-            if taint is not None and taint[1]:
-                merged = _merge_taint(merged, (taint[0], True))
+            if taint is not None and (taint.iter_mutable or taint.value_mutable):
+                merged = _merge_taint(merged, _dict_taint(taint.root))
         for key, taint in kw_taints:
-            if taint is not None and (key is not None or taint[1]):
-                merged = _merge_taint(merged, (taint[0], True))
+            if taint is not None and (key is not None or taint.value_mutable):
+                merged = _merge_taint(merged, _dict_taint(taint.root))
         return merged
 
     @staticmethod
@@ -1282,22 +1395,22 @@ class _ConstantMutationChecker:
         merged: _Taint | None = None
         if pos_taints:
             _, first = pos_taints[0]
-            if first is not None and first[1]:
-                merged = _merge_taint(merged, (first[0], True))
+            if first is not None and first.iter_mutable:
+                merged = _merge_taint(merged, _deep_taint(first.root))
             for is_star, taint in pos_taints[1:]:
                 if taint is None:
                     continue
                 if not is_star:
                     merged = _merge_taint(merged, taint)
-                elif taint[1]:
-                    merged = _merge_taint(merged, (taint[0], True))
+                elif taint.iter_mutable:
+                    merged = _merge_taint(merged, _deep_taint(taint.root))
         for key, taint in kw_taints:
             if taint is None:
                 continue
             if fname == "sum" and key == "start":
                 merged = _merge_taint(merged, taint)
-            elif taint[1]:
-                merged = _merge_taint(merged, (taint[0], True))
+            elif key is None and taint.value_mutable:
+                merged = _merge_taint(merged, _deep_taint(taint.root))
         return merged
 
     def _eval_minmax_builtin(
@@ -1315,8 +1428,8 @@ class _ConstantMutationChecker:
                 continue
             if not is_star and direct_pos:
                 item_taint = _merge_taint(item_taint, taint)
-            elif taint[1]:
-                item_taint = _merge_taint(item_taint, (taint[0], True))
+            elif taint.iter_mutable:
+                item_taint = _merge_taint(item_taint, _deep_taint(taint.root))
         merged = item_taint
         for key, taint in kw_taints:
             if taint is None:
@@ -1324,9 +1437,9 @@ class _ConstantMutationChecker:
             if key == "default":
                 merged = _merge_taint(merged, taint)
             elif key == "key":
-                self._fail(call, f"unsupported escape of constant {taint[0]}")
-            elif taint[1]:
-                merged = _merge_taint(merged, (taint[0], True))
+                self._fail(call, f"unsupported escape of constant {taint.root}")
+            elif key is None and taint.value_mutable:
+                merged = _merge_taint(merged, _deep_taint(taint.root))
         self._check_key_callback_escape(call, item_taint, local_bound)
         return merged
 
@@ -1348,14 +1461,15 @@ class _ConstantMutationChecker:
         if fname == "iter":
             if len(pos_taints) >= 2 and pos_taints[0][1] is not None:
                 self._fail(
-                    call, f"unsupported escape of constant {pos_taints[0][1][0]}"
+                    call, f"unsupported escape of constant {pos_taints[0][1].root}"
                 )
-            deep = next((t for t in all_taints if t[1]), None)
-            return (deep[0], True) if deep is not None else None
-        deep = next((t for t in all_taints if t[1]), None)
+            deep = next((t for t in all_taints if t.iter_mutable), None)
+            return _deep_taint(deep.root) if deep is not None else None
+        deep = next((t for t in all_taints if t.iter_mutable), None)
+        deep_taint = _deep_taint(deep.root) if deep is not None else None
         if fname == "sorted":
-            self._check_key_callback_escape(call, deep, local_bound)
-        return (deep[0], True) if deep is not None else None
+            self._check_key_callback_escape(call, deep_taint, local_bound)
+        return deep_taint
 
     @staticmethod
     def _is_safe_scalar_call(fname: str, call: ast.Call) -> bool:
@@ -1418,25 +1532,25 @@ class _ConstantMutationChecker:
         self, fname: str, env: dict[str, _Taint], ctx: _ScopeCtx
     ) -> tuple[ast.FunctionDef, dict[str, _Taint], set[str], dict, dict] | None:
         if fname in ctx.global_names:
-            mod_fn = self.module_funcs.get(fname)
+            mod_fn = None if fname in ctx.local_bound else self.module_funcs.get(fname)
             return (
                 (mod_fn, self.module_env, self.module_bound, {}, {}) if mod_fn else None
             )
+        if fname in ctx.nonlocal_names:
+            return None if fname in ctx.local_bound else ctx.enclosing_funcs.get(fname)
         local_fn = ctx.local_funcs.get(fname)
         if local_fn is not None:
             child_env, child_bound, child_funcs, child_owners = (
                 self._child_enclosing_scope(env, ctx)
             )
             return (local_fn, child_env, child_bound, child_funcs, child_owners)
-        if fname not in ctx.local_bound:
-            enclosing_entry = ctx.enclosing_funcs.get(fname)
-            if enclosing_entry is not None:
-                return enclosing_entry
-            if fname not in ctx.enclosing_bound:
-                mod_fn = self.module_funcs.get(fname)
-                if mod_fn is not None:
-                    return (mod_fn, self.module_env, self.module_bound, {}, {})
-        return None
+        if fname in ctx.local_bound:
+            return None
+        enclosing_entry = ctx.enclosing_funcs.get(fname)
+        if enclosing_entry is not None:
+            return enclosing_entry
+        mod_fn = None if fname in ctx.enclosing_bound else self.module_funcs.get(fname)
+        return (mod_fn, self.module_env, self.module_bound, {}, {}) if mod_fn else None
 
     def _eval_call(self, call: ast.Call, env, ctx) -> _Taint | None:
         if isinstance(call.func, ast.Attribute):
@@ -1475,18 +1589,36 @@ class _ConstantMutationChecker:
         if method in _SAFE_SCALAR_METHODS:
             return None
         if method == "keys":
-            return (recv_taint[0], False) if recv_taint[1] else None
+            return (
+                _Taint(recv_taint.root, False, False)
+                if recv_taint.value_mutable
+                else None
+            )
         if method in _SAFE_ELEMENT_METHODS:
-            if method == "get" and len(pos_taints) >= 2:
-                return _merge_taint(
-                    recv_taint if recv_taint[1] else None, pos_taints[1][1]
-                )
-            if recv_taint[1]:
-                return recv_taint
-            deep = next((t for t in all_taints if t[1]), None)
-            return (deep[0], True) if deep is not None else None
-        self._fail(call, f"unsupported mutation of constant {recv_taint[0]}")
+            return self._eval_safe_element_method(
+                method, recv_taint, pos_taints, all_taints
+            )
+        self._fail(call, f"unsupported mutation of constant {recv_taint.root}")
         return None
+
+    @staticmethod
+    def _eval_safe_element_method(
+        method: str,
+        recv_taint: _Taint,
+        pos_taints: list[tuple[bool, _Taint | None]],
+        all_taints: list[_Taint],
+    ) -> _Taint | None:
+        if method == "copy":
+            return recv_taint if recv_taint.value_mutable else None
+        if method == "get":
+            val = _deep_taint(recv_taint.root) if recv_taint.value_mutable else None
+            return _merge_taint(val, pos_taints[1][1]) if len(pos_taints) >= 2 else val
+        if method in {"values", "items"}:
+            return _deep_taint(recv_taint.root) if recv_taint.value_mutable else None
+        if recv_taint.iter_mutable:
+            return _deep_taint(recv_taint.root)
+        deep = next((t for t in all_taints if t.iter_mutable), None)
+        return _deep_taint(deep.root) if deep is not None else None
 
 
 def _reject_constant_mutations(tree, name, dependencies, dep_values, initial_targets):
@@ -1807,6 +1939,7 @@ class _UnitScope:
     nonlocal_owners: dict[str, _UnitEnv] | None = None
     walrus_env: _UnitEnv | None = None
     class_own_env: _UnitEnv | None = None
+    inherited_env: _UnitEnv | None = None
     walrus_class_own_env: _UnitEnv | None = None
     can_shadow: bool = True
 
@@ -2248,11 +2381,28 @@ class _UnittestExpectedFailureFinder:
             enclosing_env=outer_non_class,
             nonlocal_owners=parent_owners,
             class_own_env=class_own_env,
+            inherited_env=inherited_env,
         )
         self._walk_scope(
             stmt.body, class_own_env, class_scope, inherited_env=inherited_env
         )
         self._bind_name(stmt.name, set(), env, scope)
+
+    def _delete_target(self, target: ast.AST, env: _UnitEnv, scope: _UnitScope) -> None:
+        if isinstance(target, (ast.Tuple, ast.List)):
+            for elt in target.elts:
+                self._delete_target(elt, env, scope)
+        elif isinstance(target, ast.Name):
+            if (
+                scope.class_own_env is not None
+                and scope.inherited_env is not None
+                and target.id not in scope.global_names
+                and target.id not in scope.nonlocal_names
+                and target.id in scope.inherited_env
+            ):
+                self._add_kinds(env, target.id, scope.inherited_env[target.id])
+        else:
+            self._scan_expr(target, env, scope)
 
     def _walk_branch(
         self, stmts: list[ast.stmt], env: _UnitEnv, scope: _UnitScope
@@ -2271,6 +2421,8 @@ class _UnittestExpectedFailureFinder:
                 for name in list(env):
                     if name not in body_env and name not in else_env:
                         env.pop(name, None)
+            _update_unittest_env(env, body_env)
+            _update_unittest_env(env, else_env)
             self._sync_class_env(env, scope)
 
     def _walk_for_stmt(
@@ -2281,8 +2433,10 @@ class _UnittestExpectedFailureFinder:
         self._bind_target(stmt.target, set(), body_env, scope)
         for sub in stmt.body:
             self._walk_stmt(sub, body_env, scope)
-        self._walk_branch(stmt.orelse, env, scope)
+        else_env = self._walk_branch(stmt.orelse, env, scope)
         if scope.class_own_env is not None:
+            _update_unittest_env(env, body_env)
+            _update_unittest_env(env, else_env)
             self._sync_class_env(env, scope)
 
     def _walk_try_stmt(
@@ -2293,6 +2447,7 @@ class _UnittestExpectedFailureFinder:
     ) -> None:
         body_env = self._walk_branch(stmt.body, env, scope)
         no_shadow = replace(scope, can_shadow=False)
+        handler_envs: list[_UnitEnv] = []
         for handler in stmt.handlers:
             if handler.type is not None:
                 self._scan_expr(handler.type, env, no_shadow)
@@ -2301,8 +2456,13 @@ class _UnittestExpectedFailureFinder:
                 self._bind_name(handler.name, set(), h_env, scope)
             for sub in handler.body:
                 self._walk_stmt(sub, h_env, scope)
-        self._walk_branch(stmt.orelse, body_env, scope)
+            handler_envs.append(h_env)
+        orelse_env = self._walk_branch(stmt.orelse, body_env, scope)
         if scope.class_own_env is not None:
+            _update_unittest_env(env, body_env)
+            _update_unittest_env(env, orelse_env)
+            for h_env in handler_envs:
+                _update_unittest_env(env, h_env)
             self._sync_class_env(env, scope)
         for sub in stmt.finalbody:
             self._walk_stmt(sub, env, scope)
@@ -2312,6 +2472,7 @@ class _UnittestExpectedFailureFinder:
     ) -> None:
         self._scan_expr(stmt.subject, env, scope)
         no_shadow = replace(scope, can_shadow=False)
+        case_envs: list[_UnitEnv] = []
         for case in stmt.cases:
             c_env = _copy_unittest_env(env) if scope.class_own_env is not None else env
             names: set[str] = set()
@@ -2322,7 +2483,10 @@ class _UnittestExpectedFailureFinder:
                 self._scan_expr(case.guard, c_env, no_shadow)
             for sub in case.body:
                 self._walk_stmt(sub, c_env, scope)
+            case_envs.append(c_env)
         if scope.class_own_env is not None:
+            for c_env in case_envs:
+                _update_unittest_env(env, c_env)
             self._sync_class_env(env, scope)
 
     def _walk_compound_stmt(
@@ -2332,9 +2496,11 @@ class _UnittestExpectedFailureFinder:
             self._walk_if_stmt(stmt, env, scope)
         elif isinstance(stmt, ast.While):
             self._scan_expr(stmt.test, env, scope)
-            self._walk_branch(stmt.body, env, scope)
-            self._walk_branch(stmt.orelse, env, scope)
+            body_env = self._walk_branch(stmt.body, env, scope)
+            else_env = self._walk_branch(stmt.orelse, env, scope)
             if scope.class_own_env is not None:
+                _update_unittest_env(env, body_env)
+                _update_unittest_env(env, else_env)
                 self._sync_class_env(env, scope)
         elif isinstance(stmt, (ast.For, ast.AsyncFor)):
             self._walk_for_stmt(stmt, env, scope)
@@ -2364,6 +2530,9 @@ class _UnittestExpectedFailureFinder:
             self._handle_import_from(stmt, env, scope)
         elif isinstance(stmt, ast.Assign):
             self._handle_assign(stmt, env, scope)
+        elif isinstance(stmt, ast.Delete):
+            for target in stmt.targets:
+                self._delete_target(target, env, scope)
         elif isinstance(stmt, ast.AnnAssign):
             if stmt.value is not None:
                 self._scan_expr(stmt.value, env, scope)

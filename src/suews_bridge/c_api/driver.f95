@@ -123,6 +123,23 @@ public :: unpack_timer
 public :: unpack_site_scalars
 public :: unpack_site_members
 public :: unpack_state_members
+#ifdef SUEWS_CAPI_OBSERVER
+public :: pack_timer
+public :: pack_state_to_output
+public :: pack_flag_state
+public :: pack_anthroemis_state
+public :: pack_solar_state
+public :: pack_atm_state
+public :: pack_phenology_state
+public :: pack_snow_state
+public :: pack_hydro_state
+public :: pack_heat_state
+public :: pack_roughness_state
+public :: pack_stebbs_state
+public :: pack_nhood_state
+public :: pack_kernel_warnings
+public :: suews_obs_reverse_checkpoint
+#endif
 
 contains
 
@@ -2036,6 +2053,10 @@ subroutine pack_nhood_state(s, flat, n_flat, err)
 
    err = SUEWS_CAPI_OK
 end subroutine pack_nhood_state
+
+#ifdef SUEWS_CAPI_OBSERVER
+#include "../test_observer/reverse_checkpoint_leaves.inc"
+#endif
 
 end module module_c_api_driver
 

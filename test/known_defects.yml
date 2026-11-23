@@ -357,12 +357,6 @@ mappings:
     issue: 2049
     classification: "defect"
   - selector:
-      ledger: "X"
-      id: "test/physics/test_spartacus_ground_budget.py::ground_radiation.run::1"
-    contract: "C-NATIVE-ERROR"
-    issue: 2175
-    classification: "coverage_gap"
-  - selector:
       ledger: "T1"
     contract: "C-ROUNDTRIP"
     issue: 2083

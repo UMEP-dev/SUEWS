@@ -767,6 +767,42 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "from unittest import expectedFailure as ef\n",
             ["test/test_branch.py::<module>::1"],
         ),
+        (
+            "import unittest\n"
+            "class TestCase(unittest.TestCase):\n"
+            "    try:\n"
+            "        from unittest import expectedFailure as ef\n"
+            "        raise RuntimeError\n"
+            "    except RuntimeError:\n"
+            "        @ef\n"
+            "        def test_case(self):\n"
+            "            self.fail()\n",
+            ["test/test_branch.py::TestCase.test_case::1"],
+        ),
+        (
+            "import unittest\n"
+            "list((ef := unittest.expectedFailure) for _ in [0])\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "False and (ef := None)\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "from unittest import expectedFailure as ef\n"
+            "x = 1 if True else (ef := None)\n"
+            "@ef\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
     ],
 )
 def test_unittest_expected_failure_branch_merge_and_deferred_lookup(
@@ -1052,6 +1088,7 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
         '    ALIAS[("local.f95", "l")] = "#0"\n'
         "    unused: LEDGER.clear()\n"
         "    return len(ALIAS) + len(sorted(LEDGER, key=len)) + int(type(LEDGER) is dict)\n"
+        'LEDGER[("a.f95", "x")]: str\n'
         "OTHER = {}\n"
         'OTHER[("b.f95", "y")] = "#999"\n'
         "def mutate_unrelated(table, key, issue):\n"
@@ -1187,6 +1224,18 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             'def setup(x=(len := lambda table: table.update({"k": "v"}))):\n'
             "    pass\n"
             "len(LEDGER)\n",
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            'LEDGER = {"x": 1}\ndel (LEDGER["x"],)\n',
+            "unsupported mutation of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def mutate(table):\n"
+            '    table["x"] = 1\n'
+            "f = lambda: ((len := mutate), len(LEDGER))\n"
+            "f()\n",
             "unsupported escape of constant LEDGER",
         ),
     ],

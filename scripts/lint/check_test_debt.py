@@ -552,6 +552,25 @@ class _ConstantMutationChecker:
             if env == before:
                 break
 
+    def _check_ann_assign(
+        self, stmt: ast.AnnAssign, env, ctx: _ScopeCtx, in_class: bool
+    ) -> None:
+        if ctx.scope_kind in {"module", "class"} and not self.postponed_annotations:
+            ann_taint = self._eval_expr(stmt.annotation, env, ctx)
+            if ann_taint is not None:
+                self._fail(
+                    stmt.annotation,
+                    f"unsupported escape of constant {ann_taint[0]}",
+                )
+        if stmt.value is not None:
+            rhs_taint = self._eval_expr(stmt.value, env, ctx)
+            self._check_target(stmt.target, rhs_taint, env, ctx, in_class)
+        elif isinstance(stmt.target, ast.Subscript):
+            self._eval_expr(stmt.target.value, env, ctx)
+            self._eval_expr(stmt.target.slice, env, ctx)
+        elif isinstance(stmt.target, ast.Attribute):
+            self._eval_expr(stmt.target.value, env, ctx)
+
     def _check_stmt(
         self, stmt: ast.stmt, env: dict[str, _Taint], ctx: _ScopeCtx
     ) -> None:
@@ -559,19 +578,7 @@ class _ConstantMutationChecker:
         if isinstance(stmt, ast.Assign):
             self._check_assign(stmt, env, ctx, in_class)
         elif isinstance(stmt, ast.AnnAssign):
-            if ctx.scope_kind in {"module", "class"} and not self.postponed_annotations:
-                ann_taint = self._eval_expr(stmt.annotation, env, ctx)
-                if ann_taint is not None:
-                    self._fail(
-                        stmt.annotation,
-                        f"unsupported escape of constant {ann_taint[0]}",
-                    )
-            rhs_taint = (
-                self._eval_expr(stmt.value, env, ctx)
-                if stmt.value is not None
-                else None
-            )
-            self._check_target(stmt.target, rhs_taint, env, ctx, in_class)
+            self._check_ann_assign(stmt, env, ctx, in_class)
         elif isinstance(stmt, ast.AugAssign):
             self._check_aug_assign(stmt, env, ctx)
         elif isinstance(stmt, ast.Delete):
@@ -648,25 +655,29 @@ class _ConstantMutationChecker:
             if rhs_taint is not None:
                 self._fail(stmt, f"unsupported escape of constant {rhs_taint[0]}")
 
+    def _check_delete_target(
+        self, stmt: ast.Delete, target: ast.AST, env, ctx: _ScopeCtx
+    ) -> None:
+        if isinstance(target, (ast.Tuple, ast.List)):
+            for elt in target.elts:
+                self._check_delete_target(stmt, elt, env, ctx)
+        elif isinstance(target, ast.Name) and target.id in self.dependencies:
+            self._fail(stmt, f"unsupported mutation of constant {target.id}")
+        elif isinstance(target, ast.Subscript):
+            base_taint = self._eval_expr(target.value, env, ctx)
+            self._eval_expr(target.slice, env, ctx)
+            if base_taint is not None:
+                self._fail(stmt, f"unsupported mutation of constant {base_taint[0]}")
+        elif isinstance(target, ast.Attribute):
+            base_taint = self._eval_expr(target.value, env, ctx)
+            if base_taint is not None:
+                self._fail(stmt, f"unsupported mutation of constant {base_taint[0]}")
+            if target.attr in self.dependencies:
+                self._fail(stmt, f"unsupported mutation of constant {target.attr}")
+
     def _check_delete(self, stmt: ast.Delete, env, ctx: _ScopeCtx) -> None:
         for target in stmt.targets:
-            if isinstance(target, ast.Name) and target.id in self.dependencies:
-                self._fail(stmt, f"unsupported mutation of constant {target.id}")
-            elif isinstance(target, ast.Subscript):
-                base_taint = self._eval_expr(target.value, env, ctx)
-                self._eval_expr(target.slice, env, ctx)
-                if base_taint is not None:
-                    self._fail(
-                        stmt, f"unsupported mutation of constant {base_taint[0]}"
-                    )
-            elif isinstance(target, ast.Attribute):
-                base_taint = self._eval_expr(target.value, env, ctx)
-                if base_taint is not None:
-                    self._fail(
-                        stmt, f"unsupported mutation of constant {base_taint[0]}"
-                    )
-                if target.attr in self.dependencies:
-                    self._fail(stmt, f"unsupported mutation of constant {target.attr}")
+            self._check_delete_target(stmt, target, env, ctx)
 
     def _check_subscript_target(
         self,
@@ -1006,10 +1017,12 @@ class _ConstantMutationChecker:
             if key not in param_names or key in self.dependencies
         }
         lam_env.update(default_taints)
+        lam_bound = set(param_names)
+        _walk_named_exprs(node.body, lam_bound.add)
         outer_env, outer_bound, outer_funcs = self._child_enclosing_scope(env, ctx)
         lam_ctx = _ScopeCtx(
             local_funcs={},
-            local_bound=param_names,
+            local_bound=lam_bound,
             enclosing_funcs=outer_funcs,
             enclosing_bound=outer_bound,
             global_names=set(),
@@ -1711,7 +1724,7 @@ class _UnittestExpectedFailureFinder:
         self._seen_sites: set[int] = set()
         self.module_env: _UnitEnv = {}
         self.module_seen_env: _UnitEnv = {}
-        self._seen_sinks: list[tuple[int, _UnitEnv]] = []
+        self._seen_sinks: list[_UnitEnv] = []
         self._active_deferred: _DeferredMap = {}
         self._active_scope_kind: str = "module"
         self._active_non_class_env: _UnitEnv = self.module_env
@@ -1746,11 +1759,10 @@ class _UnittestExpectedFailureFinder:
     def _propagate_to_deferred(
         self, env: _UnitEnv, scope_kind: str, deferred: _DeferredMap
     ) -> None:
+        for sink_env in self._seen_sinks:
+            _update_unittest_env(sink_env, env)
         if scope_kind == "class":
             return
-        for sink_id, sink_env in self._seen_sinks:
-            if sink_id == id(deferred):
-                _update_unittest_env(sink_env, env)
         for _, live_env, _, shadowed in deferred.values():
             for key, values in env.items():
                 if values and key not in shadowed:
@@ -1840,9 +1852,14 @@ class _UnittestExpectedFailureFinder:
                     child_env.setdefault(name, set()).update(self.module_seen_env[name])
             _update_unittest_env(child_env, default_envs)
             child_deferred: _DeferredMap = {}
-            self._walk_block(
-                node.body, child_env, "function", child_env, child_deferred
-            )
+            prev_sinks = self._seen_sinks
+            self._seen_sinks = []
+            try:
+                self._walk_block(
+                    node.body, child_env, "function", child_env, child_deferred
+                )
+            finally:
+                self._seen_sinks = prev_sinks
             self._flush_deferred(child_deferred)
 
     def _scan_comprehension_body(
@@ -1892,9 +1909,8 @@ class _UnittestExpectedFailureFinder:
         env: _UnitEnv,
         walrus_env: _UnitEnv | None,
     ) -> None:
+        self._scan_comprehension_body(expr, env, walrus_env)
         if isinstance(expr, ast.GeneratorExp):
-            target_walrus = walrus_env if walrus_env is not None else env
-            self._scan_expr(expr.generators[0].iter, env, target_walrus)
             def_env = (
                 self._active_non_class_env
                 if self._active_scope_kind == "class"
@@ -1907,8 +1923,46 @@ class _UnittestExpectedFailureFinder:
                 self._active_deferred,
                 frozenset(self._active_comp_bound),
             )
-            return
-        self._scan_comprehension_body(expr, env, walrus_env)
+
+    def _scan_bool_op(
+        self, expr: ast.BoolOp, env: _UnitEnv, walrus_env: _UnitEnv | None
+    ) -> None:
+        self._scan_expr(expr.values[0], env, walrus_env)
+        cur_env = _copy_unittest_env(env)
+        merged_env = _copy_unittest_env(env)
+        cur_walrus = _copy_unittest_env(walrus_env) if walrus_env is not None else None
+        merged_walrus = (
+            _copy_unittest_env(walrus_env) if walrus_env is not None else None
+        )
+        for val in expr.values[1:]:
+            self._scan_expr(val, cur_env, cur_walrus)
+            _update_unittest_env(merged_env, cur_env)
+            if merged_walrus is not None and cur_walrus is not None:
+                _update_unittest_env(merged_walrus, cur_walrus)
+        env.clear()
+        env.update(merged_env)
+        if walrus_env is not None and merged_walrus is not None:
+            walrus_env.clear()
+            walrus_env.update(merged_walrus)
+
+    def _scan_if_exp(
+        self, expr: ast.IfExp, env: _UnitEnv, walrus_env: _UnitEnv | None
+    ) -> None:
+        self._scan_expr(expr.test, env, walrus_env)
+        body_env, else_env = _copy_unittest_env(env), _copy_unittest_env(env)
+        body_walrus = _copy_unittest_env(walrus_env) if walrus_env is not None else None
+        else_walrus = _copy_unittest_env(walrus_env) if walrus_env is not None else None
+        self._scan_expr(expr.body, body_env, body_walrus)
+        self._scan_expr(expr.orelse, else_env, else_walrus)
+        env.clear()
+        env.update(_merge_unittest_envs([body_env, else_env]))
+        if (
+            walrus_env is not None
+            and body_walrus is not None
+            and else_walrus is not None
+        ):
+            walrus_env.clear()
+            walrus_env.update(_merge_unittest_envs([body_walrus, else_walrus]))
 
     def _scan_expr(
         self, expr: ast.AST, env: _UnitEnv, walrus_env: _UnitEnv | None = None
@@ -1934,6 +1988,12 @@ class _UnittestExpectedFailureFinder:
                 self._active_scope_kind,
                 self._active_deferred,
             )
+            return
+        if isinstance(expr, ast.BoolOp):
+            self._scan_bool_op(expr, env, walrus_env)
+            return
+        if isinstance(expr, ast.IfExp):
+            self._scan_if_exp(expr, env, walrus_env)
             return
         if isinstance(expr, ast.Lambda):
             for default in (*expr.args.defaults, *expr.args.kw_defaults):
@@ -2087,7 +2147,12 @@ class _UnittestExpectedFailureFinder:
         env.pop(stmt.name, None)
         class_env = _copy_unittest_env(env)
         outer_non_class = non_class_env if scope_kind == "class" else env
-        self._walk_block(stmt.body, class_env, "class", outer_non_class, deferred)
+        prev_sinks = self._seen_sinks
+        self._seen_sinks = []
+        try:
+            self._walk_block(stmt.body, class_env, "class", outer_non_class, deferred)
+        finally:
+            self._seen_sinks = prev_sinks
 
     def _walk_try_stmt(
         self,
@@ -2100,7 +2165,7 @@ class _UnittestExpectedFailureFinder:
         in_class = scope_kind == "class"
         body_env = _copy_unittest_env(env)
         try_seen = _copy_unittest_env(env)
-        self._seen_sinks.append((id(deferred), try_seen))
+        self._seen_sinks.append(try_seen)
         try:
             self._walk_block(
                 stmt.body,
@@ -2272,6 +2337,15 @@ class _UnittestExpectedFailureFinder:
             for child in ast.iter_child_nodes(stmt):
                 self._scan_expr(child, env)
 
+    def _handle_delete_target(self, target: ast.AST, env: _UnitEnv) -> None:
+        if isinstance(target, ast.Name):
+            env.pop(target.id, None)
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            for elt in target.elts:
+                self._handle_delete_target(elt, env)
+        else:
+            self._scan_expr(target, env)
+
     def _walk_stmt(
         self,
         stmt: ast.stmt,
@@ -2305,10 +2379,7 @@ class _UnittestExpectedFailureFinder:
             self._bind_target(stmt.target, set(), env)
         elif isinstance(stmt, ast.Delete):
             for target in stmt.targets:
-                if isinstance(target, ast.Name):
-                    env.pop(target.id, None)
-                else:
-                    self._scan_expr(target, env)
+                self._handle_delete_target(target, env)
         elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
             self._handle_func_def(stmt, env, scope_kind, non_class_env, deferred)
         elif isinstance(stmt, ast.ClassDef):

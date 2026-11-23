@@ -34,7 +34,7 @@ pytestmark = [
 _run_rust = import_module("supy._run_rust")
 
 GRAV = float(np.float32(9.80665))  # single-precision literal in the Fortran
-C2K = float(np.float32(273.15))  # single-precision literal in the Fortran
+C2K = 273.15  # defining Celsius-to-Kelvin offset [K]
 K2 = float(np.float32(0.16))  # single-precision literal in the Fortran
 ZL_RELAX = 0.3  # relax_zl factor for the first passes
 ZL_RELAX_PASSES = 10  # passes at the full factor

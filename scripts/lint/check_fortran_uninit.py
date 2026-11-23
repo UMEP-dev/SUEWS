@@ -275,6 +275,16 @@ def discover_fortran_units(repo_root: Path) -> list[FortranUnit]:
     mk_lines = _join_makefile_lines(makefile_path.read_text(encoding="utf-8"))
 
     units: list[FortranUnit] = []
+    seen_rels: set[str] = set()
+
+    # Shared physical constants have no module dependencies and are imported by
+    # bundled SPARTACUS (radiation_constants.F90 -> module_ctrl_const_physconst).
+    const_rel = "src/suews/src/suews_ctrl_const.f95"
+    const_src = repo_root / const_rel
+    if not const_src.is_file():
+        raise FileNotFoundError(f"Missing SUEWS Fortran source: {const_src}")
+    units.append(FortranUnit(rel_path=const_rel, source_path=const_src, group="suews"))
+    seen_rels.add(const_rel)
 
     spartacus_root = repo_root / "src" / "suews" / "ext_lib" / "spartacus-surface"
     for var_name, subdir in SPARTACUS_GROUPS:
@@ -288,6 +298,7 @@ def discover_fortran_units(repo_root: Path) -> list[FortranUnit]:
                 raise FileNotFoundError(f"Missing SPARTACUS source: {src}")
             rel = src.relative_to(repo_root).as_posix()
             units.append(FortranUnit(rel_path=rel, source_path=src, group="spartacus"))
+            seen_rels.add(rel)
 
     for var_name in ("UTILS", "PHYS", "DRIVER"):
         rhs = _extract_makefile_var(mk_lines, var_name)
@@ -297,13 +308,17 @@ def discover_fortran_units(repo_root: Path) -> list[FortranUnit]:
         for obj_name in objs:
             stem = obj_name[:-2]
             rel = f"src/suews/src/{stem}.f95"
+            if rel in seen_rels:
+                continue
             if rel == GENERATED_VERSION_REL:
                 units.append(FortranUnit(rel_path=rel, source_path=None, group="suews"))
+                seen_rels.add(rel)
                 continue
             src = repo_root / rel
             if not src.is_file():
                 raise FileNotFoundError(f"Missing SUEWS Fortran source: {src}")
             units.append(FortranUnit(rel_path=rel, source_path=src, group="suews"))
+            seen_rels.add(rel)
 
     capi_rels = _parse_capi_sources(build_rs_path.read_text(encoding="utf-8"))
     for capi_rel in capi_rels:

@@ -486,6 +486,8 @@ mod tests {
                     18,
                     state_out.as_mut_ptr(),
                     1,
+                    toc.as_ptr(),
+                    1,
                     output.as_mut_ptr(),
                     1,
                     1,

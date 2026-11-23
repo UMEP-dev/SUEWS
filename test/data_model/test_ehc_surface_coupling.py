@@ -84,7 +84,7 @@ def test_indoor_options_defaults_and_legacy_df_state(field, default):
 
 
 @pytest.mark.parametrize("field", ["resistance_ehc_indoor_roof", "resistance_ehc_indoor_wall"])
-@pytest.mark.parametrize("value", [-1.0, -999.0, float("nan"), float("inf")])
+@pytest.mark.parametrize("value", [-1.0, -999.0, float("nan"), float("inf"), True, False])
 def test_indoor_resistance_rejects_invalid_values(field, value):
     with pytest.raises(ValueError):
         ModelPhysics(**{field: value})

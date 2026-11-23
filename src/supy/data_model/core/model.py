@@ -33,6 +33,7 @@ from .type import (
     DataModelBase,
     FlexibleRefValue,
     Reference,
+    reject_bool_input,
     RefValue,
     df_from_col_items,
     df_from_cols,
@@ -1145,6 +1146,14 @@ class ModelPhysics(DataModelBase):
         ),
         json_schema_extra={"unit": "m2 K W-1", "depends_on": ["ehc_surface_coupling"]},
     )
+
+    @field_validator(
+        "resistance_ehc_indoor_roof", "resistance_ehc_indoor_wall", mode="before"
+    )
+    @classmethod
+    def _reject_bool_ehc_resistance(cls, value, info):
+        """Refuse booleans, which Pydantic would coerce to float resistances."""
+        return reject_bool_input(value, f"model.physics.{info.field_name}")
 
     @field_validator("resistance_ehc_indoor_roof", "resistance_ehc_indoor_wall")
     @classmethod

@@ -1662,8 +1662,12 @@ CONTAINS
          q_indoor_grid = -999.0D0
          IF (PRESENT(implicit_seb)) THEN
             implicit_seb%tsfc_surf = tsfc_surf
-            IF (ALLOCATED(implicit_seb%tsfc_roof)) implicit_seb%tsfc_roof = tsfc_roof
-            IF (ALLOCATED(implicit_seb%tsfc_wall)) implicit_seb%tsfc_wall = tsfc_wall
+            IF (ALLOCATED(implicit_seb%tsfc_roof)) THEN
+               IF (SIZE(implicit_seb%tsfc_roof) >= nlayer) implicit_seb%tsfc_roof(1:nlayer) = tsfc_roof
+            END IF
+            IF (ALLOCATED(implicit_seb%tsfc_wall)) THEN
+               IF (SIZE(implicit_seb%tsfc_wall) >= nlayer) implicit_seb%tsfc_wall(1:nlayer) = tsfc_wall
+            END IF
          END IF
          temp_out_surf = temp_in_surf
          temp_out_roof = temp_in_roof

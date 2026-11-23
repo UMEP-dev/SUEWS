@@ -104,14 +104,21 @@ class SchemaMigrator:
 
         # No migration needed if versions match
         if from_version == to_version:
-            if to_version == CURRENT_SCHEMA_VERSION:
+            if to_version in SCHEMA_VERSIONS:
+                from packaging.version import Version  # noqa: PLC0415
                 from ...util.converter.yaml_upgrade import (  # noqa: PLC0415
+                    _check_and_normalise_integer_doys,
                     validate_active_soil_depth_raw,
                     validate_vegetation_sdd_raw,
                 )
 
-                validate_active_soil_depth_raw(config)
-                validate_vegetation_sdd_raw(config)
+                target_ver = Version(to_version)
+                if target_ver >= Version("2026.6.dev11"):
+                    validate_active_soil_depth_raw(config)
+                if target_ver >= Version("2026.6.dev16"):
+                    validate_vegetation_sdd_raw(config)
+                if target_ver >= Version("2026.6.dev17"):
+                    config = _check_and_normalise_integer_doys(config)
             logger.info(f"Configuration already at schema version {to_version}")
             return config
 

@@ -219,6 +219,31 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev17_integer_doy:
+
+Upgrading to Schema 2026.6.dev17
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Day-of-year windows for irrigation
+(``sites[].properties.irrigation.ie_start``, ``ie_end``) and daylight saving
+time (``sites[].properties.anthropogenic_emissions.startdls``, ``enddls``) now
+require whole integers between ``1`` and ``366``, or ``null`` / omission when
+disabled. Earlier versions declared float fields and could silently truncate
+fractional values or turn invalid native inputs into zero.
+
+Migrating to ``2026.6.dev17`` normalises exact whole-number floats such as
+``86.0`` to ``86`` (preserving reference metadata) and leaves ``null``, empty
+mappings (``{}``), and reference-only mappings (``{ref: ...}``) as disabled
+windows. Fractional values (such as ``20.5``), explicit ``0``, booleans,
+non-finite numbers, and integers outside ``1..366`` stop migration with the
+affected site and field path so you can choose the intended calendar day
+explicitly:
+
+.. code-block:: console
+
+   suews schema migrate site.yml --target-version 2026.6.dev17 --dry-run
+   suews schema migrate site.yml --target-version 2026.6.dev17
+
 .. _schema_dev16_vegetation_senescence:
 
 Upgrading to Schema 2026.6.dev16

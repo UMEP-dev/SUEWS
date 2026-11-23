@@ -744,6 +744,7 @@ def test_schema_export_keeps_water_radiation_and_drainage_version_boundaries(
         ("2026.6.dev14", True, True, False),
         ("2026.6.dev15", True, True, True),
         ("2026.6.dev16", True, True, True),
+        ("2026.6.dev17", True, True, True),
     ):
         schema = generate_json_schema(version, include_internal=include_internal)
         assert schema["version"] == schema["examples"][0]["schema_version"] == version

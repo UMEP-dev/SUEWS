@@ -30,7 +30,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev16"`` describes the shape of the configuration
+``schema_version: "2026.6.dev17"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -43,7 +43,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev16"
+   schema_version: "2026.6.dev17"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -61,7 +61,8 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number -- ``2026.6.dev16`` comes after ``2026.6.dev15``,
+as a floating-point number -- ``2026.6.dev17`` comes after ``2026.6.dev16``,
+which comes after ``2026.6.dev15``,
 which comes after ``2026.6.dev14``,
 which comes after ``2026.6.dev13``,
 which comes after ``2026.6.dev12``,
@@ -126,7 +127,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev16 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev17 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -135,13 +136,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev16.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev17.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev16.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev17.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -191,7 +192,16 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev16** (current development version)
+**Schema 2026.6.dev17** (current development version)
+
+   Irrigation day-of-year bounds (``ie_start``, ``ie_end``) and daylight saving
+   time day-of-year bounds (``startdls``, ``enddls``) now require whole integers
+   in ``1..366`` or ``null``/omission to disable the window. Exact whole-number
+   floats such as ``86.0`` are normalised to ``86`` during migration;
+   fractional, boolean, non-finite and out-of-range values are rejected rather
+   than truncated or zeroed. See :ref:`schema_dev17_integer_doy`.
+
+**Schema 2026.6.dev16** (development)
 
    Initial senescence degree days for evergreen trees, deciduous trees and
    grass accept any finite value in K d. Omission initialises the accumulator

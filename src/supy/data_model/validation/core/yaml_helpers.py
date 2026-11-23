@@ -1295,17 +1295,22 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
     """
 
     ignore_keys = {"control", "physics"}
+    doy_keys = {"ie_start", "ie_end", "startdls", "enddls"}
 
     def recurse(obj: Any, path=()):
         if isinstance(obj, dict):
             new = {}
             for k, v in obj.items():
                 sub_path = path + (k,)
-                if v == "" and not (
+                is_ignored_model = (
                     len(sub_path) >= 2
                     and sub_path[0] == "model"
                     and sub_path[1] in ignore_keys
-                ):
+                )
+                is_doy_value = k in doy_keys or (
+                    k == "value" and len(path) >= 1 and path[-1] in doy_keys
+                )
+                if v == "" and not is_ignored_model and not is_doy_value:
                     new[k] = None
                 else:
                     new[k] = recurse(v, sub_path)
@@ -1414,20 +1419,55 @@ def precheck_site_season_adjustments(
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                 start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
 
-                if start_dls and end_dls:
-                    props["anthropogenic_emissions"]["startdls"] = {"value": start_dls}
-                    props["anthropogenic_emissions"]["enddls"] = {"value": end_dls}
-                    logger_supy.debug(
-                        f"[site #{i}] DLS: start={start_dls}, end={end_dls}"
+                anthro_emissions = props.get("anthropogenic_emissions")
+                if isinstance(anthro_emissions, dict) and start_dls and end_dls:
+                    import calendar
+
+                    from ...core.human_activity import coerce_integer_doy_scalar
+
+                    max_dls_doy = (
+                        366
+                        if (model_year is None or calendar.isleap(model_year))
+                        else 365
                     )
+
+                    def _classify_doy_entry(section: dict, key: str) -> str:
+                        if key not in section:
+                            return "absent"
+                        raw = section[key]
+                        if raw is None:
+                            return "absent"
+                        if isinstance(raw, dict):
+                            if not (set(raw.keys()) <= {"value", "ref"}):
+                                return "invalid"
+                            if raw.get("value") is None:
+                                return "absent"
+                            raw = raw["value"]
+                        try:
+                            val = coerce_integer_doy_scalar(raw, key)
+                        except ValueError:
+                            return "invalid"
+                        return "valid" if 1 <= val <= max_dls_doy else "invalid"
+
+                    s_state = _classify_doy_entry(anthro_emissions, "startdls")
+                    e_state = _classify_doy_entry(anthro_emissions, "enddls")
+                    if not (
+                        (s_state == "absent" and e_state == "absent")
+                        or s_state == "invalid"
+                        or e_state == "invalid"
+                    ):
+                        anthro_emissions["startdls"] = {"value": start_dls}
+                        anthro_emissions["enddls"] = {"value": end_dls}
+                        logger_supy.debug(
+                            f"[site #{i}] DLS: start={start_dls}, end={end_dls}"
+                        )
+                        logger_supy.info(
+                            f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values."
+                        )
 
                 if tz_offset is not None:
                     props["timezone"] = {"value": tz_offset}
                     logger_supy.debug(f"[site #{i}] Timezone set to {tz_offset}")
-
-                logger_supy.info(
-                    f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values."
-                )
             except Exception as e:
                 logger_supy.warning(
                     f"[site #{i}] DLSCheck failed: {e}. DST will not be configured automatically."

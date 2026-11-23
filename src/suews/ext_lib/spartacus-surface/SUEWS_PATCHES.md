@@ -8,7 +8,7 @@ Existing ECMWF licence notices (`LICENSE`, `NOTICE`) and Robin Hogan's attributi
 - **Vendored fork commit:** `Urban-Meteorology-Reading/spartacus-surface` commit `5c3a997b7abc8840434a709216409c91498125a1` (2021-08-03, "Merging origin/master@c21fcea5 into master@ebbe7471"), previously pinned as a Git submodule at `SUEWS-SourceCode/ext_lib/spartacus-surface` in SUEWS commit `bdbbfaef52`.
 - **SUEWS vendoring commit:** `71f853044d07477fe875bce5ffeee0dbedc2614a` (`71f853044d`, 2023-02-19, "update source code folders"), which copied all 81 vendored files verbatim from `5c3a997b7abc8840434a709216409c91498125a1` (omitting only `lib/.gitignore`).
 - **ECMWF upstream ancestor and pre-vendoring fork delta:** `ecmwf/spartacus-surface` commit `c5a6e78daaab632d4b3b7721e1d2069ec5a3402e` (2021-07-09, `ChangeLog` version `0.7.2`, merge-base with `ecmwf/spartacus-surface` `master`). Prior to vendoring into SUEWS, the Reading fork commit `5c3a997b7abc8840434a709216409c91498125a1` already diverged from `c5a6e78daaab632d4b3b7721e1d2069ec5a3402e` across 13 files (including fork-side edits under `doc/`, `radsurf/`, and `test/`, and the removal of `test/simple/test_overhang_in.nc`). Those pre-vendoring Reading-fork differences are part of the imported `71f853044d` snapshot rather than post-vendoring SUEWS commits.
-- **Reproducing the post-vendoring SUEWS delta:** run `git diff --stat 71f853044d..HEAD -- src/suews/ext_lib/spartacus-surface/`. Excluding this file (`SUEWS_PATCHES.md`), 19 vendored files carry post-vendoring SUEWS modifications across four commits (`13e8c75ba4`, `31e4d8bb1b`, `a0bc551e61`, and `f7c14cb19a`).
+- **Reproducing the post-vendoring SUEWS delta:** run `git diff --stat 71f853044d..HEAD -- src/suews/ext_lib/spartacus-surface/`. Excluding this file (`SUEWS_PATCHES.md`), 19 vendored files carry post-vendoring SUEWS modifications across five changes (`13e8c75ba4`, `31e4d8bb1b`, `a0bc551e61`, `f7c14cb19a`, and issue #2172).
 
 ## Modified files summary
 
@@ -26,8 +26,8 @@ Existing ECMWF licence notices (`LICENSE`, `NOTICE`) and Robin Hogan's attributi
 | `radsurf/radsurf_overlap.F90` | #2075 | Return after `radiation_abort` when building fraction increases with height |
 | `radsurf/radsurf_save.F90` | #2075 | Propagate `radiation_error()` across NetCDF output routines |
 | `radsurf/radsurf_simple_spectrum.F90` | #1570, #1854, #2075 | Guard canopy emission on urban/flat tiles; return after `radiation_abort` |
-| `radsurf/radsurf_urban_lw.F90` | #1570, #2075 | Store optional layer-top/base LW diagnostics; propagate `radiation_error()` |
-| `radsurf/radsurf_urban_sw.F90` | #1570, #2075 | Store optional layer-top/base SW diagnostics; propagate `radiation_error()` |
+| `radsurf/radsurf_urban_lw.F90` | #1570, #2075, #2172 | Store optional layer-top/base LW diagnostics; propagate `radiation_error()`; reset `norm_perim_air_veg` per layer |
+| `radsurf/radsurf_urban_sw.F90` | #1570, #2075, #2172 | Store optional layer-top/base SW diagnostics; propagate `radiation_error()`; reset `norm_perim_air_veg` per layer |
 | `radtool/radtool_calc_matrices_lw_eig.F90` | #1854 | Handle fully transparent LW spectral bands analytically |
 | `radtool/radtool_calc_matrices_sw_eig.F90` | #1854 | Handle fully transparent SW spectral bands without singular inverses |
 | `utilities/Makefile` | #2075 | Compile `../../../src/suews_ctrl_error_tls.c` into `libutilities.a` |
@@ -85,3 +85,23 @@ All 15 modified files under `src/suews/ext_lib/spartacus-surface/` are listed be
 
 Regression coverage lives in `test/core/test_spartacus_errors.py`, `test/physics/test_fatal_error_propagation.py`, and `test/physics/test_standalone_spartacus_errors.py` (which exercises the `spartacus_surface` executable built inside the SUEWS source tree with `src/suews/src/suews_ctrl_error_tls.c`).
 Because `utilities/radiation_io.F90`, `utilities/Makefile`, and `driver/spartacus_surface_driver.F90` bind directly to SUEWS's C TLS implementation (`src/suews/src/suews_ctrl_error_tls.c`, `suews_tls_error_*`) and error code `111`, building `spartacus-surface` outside SUEWS would require replacing or removing those TLS bindings; the `radiation_error()` early-return unwinding pattern itself can inform an upstream error-status API.
+
+### Issue #2172 (PR pending, 2026-11-22): reset `norm_perim_air_veg` per layer in urban solvers
+
+Inside the upward layer loop (`do jlay = 1, nlay`) of both urban solvers, `norm_perim` was reset to `0.0_jprb` at the start of every layer, whereas `norm_perim_air_veg` was assigned only inside `if (veg_fraction(jlay) > config%min_vegetation_fraction)`.
+When buildings extend above the vegetation canopy (`building_fraction(jlay) > config%min_building_fraction` and `veg_fraction(jlay) <= config%min_vegetation_fraction`) and `veg_contact_fraction(jlay) > 0.0_jprb` (including SUEWS's default `veg_contact_fraction_const = 0.5`), `norm_perim_air_veg` silently carried over the lower vegetated layer's air-vegetation perimeter (or read an uninitialised stack value when `jlay == 1` had no vegetation without `-finit-real=zero`).
+The solver then computed a spurious positive `norm_perim_wall_veg = min(norm_perim_air_veg * veg_contact_fraction(jlay), norm_perim_wall(1))` and transferred wall perimeter from clear air (`norm_perim_wall(1)`) into the absent vegetated region(s) (`norm_perim_wall(2:)`).
+On vegetation-free layers, `f_wall(2:, jlay)` is zeroed and only region `1` (`1:ns`) is solved in `calc_matrices_{lw,sw}_eig`:
+
+- In `radsurf/radsurf_urban_lw.F90`, clear-air wall interception (`f_wall(1, jlay)`) and wall emission into region `1` both drop, while `emiss_wall(:, jlay)` still sums `sum(norm_perim_wall)` across all regions; the unemitted wall-vegetation share disappears from the radiation field, violating canopy longwave energy conservation by several to tens of `W m-2`.
+- In `radsurf/radsurf_urban_sw.F90`, the reduced `norm_perim_wall(1)` lowers `f_wall(1, jlay)`, making above-canopy walls artificially transparent to direct and diffuse shortwave radiation.
+
+Local changes:
+
+- `radsurf/radsurf_urban_lw.F90`: initialise `norm_perim_air_veg = 0.0_jprb` alongside `norm_perim = 0.0_jprb` at the start of each layer in `spartacus_urban_lw`.
+- `radsurf/radsurf_urban_sw.F90`: initialise `norm_perim_air_veg = 0.0_jprb` alongside `norm_perim = 0.0_jprb` at the start of each layer in `spartacus_urban_sw`.
+
+Minimal upstream reproducer: construct a two-layer urban canopy with `nreg = 2` (or `3`), `building_fraction = [0.25, 0.25]`, `veg_fraction = [0.10, 0.0]`, and `veg_contact_fraction = [0.5, 0.5]` and run `spartacus_urban_lw` and `spartacus_urban_sw`.
+Without the reset, `spartacus_urban_lw` fails longwave budget closure (`LTopNet` vs ground + roofs + walls + clear air + vegetation) on layer 2, and `spartacus_urban_sw` reduces layer-2 wall interception even in a zero-albedo canopy where no upward flux leaves layer 1.
+Regression coverage in SUEWS lives in `test/physics/test_spartacus_above_canopy_perimeter.py`.
+This two-line fix has no SUEWS-specific dependencies and is ready for upstream submission to `ecmwf/spartacus-surface`.

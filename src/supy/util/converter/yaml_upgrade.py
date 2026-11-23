@@ -10,6 +10,7 @@ See gh#1301, gh#1304.
 
 from __future__ import annotations
 
+import calendar
 from collections.abc import Iterable, Mapping
 from contextlib import suppress
 from pathlib import Path
@@ -1633,13 +1634,15 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         logs.append(f"{key} -> soil_moisture; original method {method}")
     if active:
         # Validate all sites against the current schema using a throwaway copy
-        # stripped of legacy radiation, continuation-state placeholders, and
-        # pre-dev16 non-finite sdd_id values; the returned dev9 mapping stays
-        # intact for later deltas and single-pass logging.
+        # stripped of legacy radiation, continuation-state placeholders,
+        # pre-dev16 non-finite sdd_id values, and pre-dev17 non-integer DOYs;
+        # the returned dev9 mapping stays intact for later deltas and
+        # single-pass logging.
         from ...data_model.core.config import SUEWSConfig
         candidate, _ = _drop_legacy_radiation_memory_zeros(result)
         candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
         _clear_nonfinite_sdd_for_dev9_candidate(candidate)
+        _clear_noninteger_doy_for_dev9_candidate(candidate)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -2440,6 +2443,88 @@ def _clear_nonfinite_sdd_for_dev9_candidate(candidate: dict) -> None:
                         surface.pop("sdd_id")
 
 
+def _max_dls_doy_for_config(cfg: dict) -> int:
+    """Return 365 for non-leap-year start_time and 366 for leap or unknown years.
+
+    Mirrors ``SUEWSConfig.validate_dls_parameters``.
+    """
+    model = cfg.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    start_time = (
+        _unwrap_scalar(control.get("start_time")) if isinstance(control, dict) else None
+    )
+    if start_time is not None:
+        with suppress(ValueError, TypeError):
+            year = int(str(start_time)[:4])
+            if not calendar.isleap(year):
+                return 365
+    return 366
+
+
+def _clear_noninteger_doy_for_dev9_candidate(candidate: dict) -> None:
+    """Replace pre-dev17 valid DOY values on a throwaway dev9 validation copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy with the
+    current ``SUEWSConfig`` model, which enforces dev17 integer-only DOY rules.
+    Historical targets ``dev9``..``dev16`` still accepted ``float`` DOYs (with
+    ``ge=1, le=366`` already enforced on ``startdls``/``enddls`` and no bounds
+    on ``ie_start``/``ie_end``). Replace only values that were historically
+    valid before dev17 on that throwaway copy with ``1`` (preserving pair
+    invariants) so historical targets keep pre-dev17 behaviour without relaxing
+    pre-existing DLS bounds or mutating the returned config.
+    """
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    max_dls_doy = float(_max_dls_doy_for_config(candidate))
+    doy_specs = (
+        ("irrigation", "ie_start", False),
+        ("irrigation", "ie_end", False),
+        ("anthropogenic_emissions", "startdls", True),
+        ("anthropogenic_emissions", "enddls", True),
+    )
+    for site in sites:
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, field_name, has_pre_dev17_bounds in doy_specs:
+            section = props.get(section_name)
+            if not isinstance(section, dict) or field_name not in section:
+                continue
+            entry = section[field_name]
+            if isinstance(entry, dict) and not (set(entry.keys()) <= {"value", "ref"}):
+                continue
+            raw = _unwrap_scalar(entry)
+            if type(raw).__module__ == "numpy" and hasattr(raw, "item"):
+                raw = raw.item()
+            if isinstance(raw, bool):
+                # Pre-dev17 float fields accepted True (1.0) on both irrigation
+                # and DLS, and False (0.0) only on unbounded irrigation fields.
+                if not has_pre_dev17_bounds or raw is True:
+                    section[field_name] = 1
+                continue
+            if isinstance(raw, numbers.Real) or type(raw).__module__ == "numpy":
+                with suppress(TypeError, ValueError, OverflowError):
+                    fval = float(raw)
+                    if has_pre_dev17_bounds:
+                        if math.isfinite(fval) and 1.0 <= fval <= max_dls_doy and not fval.is_integer():
+                            section[field_name] = 1
+                    elif (
+                        not math.isfinite(fval)
+                        or not fval.is_integer()
+                        or not (1 <= int(fval) <= 366)
+                    ):
+                        section[field_name] = 1
+                continue
+            if isinstance(raw, str):
+                with suppress(ValueError):
+                    fval = float(raw)
+                    if not has_pre_dev17_bounds or (
+                        math.isfinite(fval) and 1.0 <= fval <= max_dls_doy
+                    ):
+                        section[field_name] = 1
+
+
 def validate_vegetation_sdd_raw(cfg: dict) -> None:
     """Report every explicitly invalid vegetation SDD without changing its source."""
     sites = cfg.get("sites")
@@ -2496,6 +2581,113 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, _target)] = _with_senescence_check(_handler)
 _HANDLERS[("2026.6.dev15", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev15_to_2026_6_dev16
 _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_senescence_check(_identity)
+
+
+def _check_and_normalise_integer_doys(cfg: dict) -> dict:
+    """Normalise whole-number float DOYs to ``int`` and refuse fractional/invalid values.
+
+    Day-of-year fields (``ie_start``, ``ie_end``, ``startdls``, ``enddls``) are
+    integers in ``1..366`` (gh#2101). Legacy whole-number floats such as
+    ``86.0`` are normalised to ``86`` without altering model semantics;
+    fractional floats (such as ``20.5``), booleans, non-finite numbers,
+    malformed strings, or out-of-range integers fail with ``YamlUpgradeError``
+    so users replace them explicitly rather than silently truncating or zeroing.
+    """
+    from ...data_model.core.human_activity import coerce_integer_doy_scalar
+
+    cfg = deepcopy(cfg)
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    max_dls_doy = _max_dls_doy_for_config(cfg)
+    doy_specs = (
+        ("irrigation", "ie_start", 366),
+        ("irrigation", "ie_end", 366),
+        ("anthropogenic_emissions", "startdls", max_dls_doy),
+        ("anthropogenic_emissions", "enddls", max_dls_doy),
+    )
+    pending_logs: list[str] = []
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, field_name, max_doy in doy_specs:
+            section = props.get(section_name)
+            if not isinstance(section, dict) or field_name not in section:
+                continue
+            entry = section[field_name]
+            path = f"sites[{index}].properties.{section_name}.{field_name}"
+            if (
+                isinstance(entry, Mapping)
+                and "value" not in entry
+                and all(key == "ref" for key in entry)
+            ):
+                # Empty or ref-only mapping (``{}`` / ``{ref: ...}``): disabled window.
+                continue
+            if isinstance(entry, Mapping) and "value" in entry:
+                raw = entry["value"]
+                wrapped = True
+            else:
+                raw = entry
+                wrapped = False
+
+            if raw is None:
+                continue
+
+            try:
+                coerced = coerce_integer_doy_scalar(raw, path)
+            except ValueError as exc:
+                raise YamlUpgradeError(
+                    f"{exc} Replace fractional or invalid day-of-year values "
+                    f"manually with an integer day of year (1..{max_doy}) before upgrading."
+                ) from exc
+
+            if not (1 <= coerced <= max_doy):
+                raise YamlUpgradeError(
+                    f"{path} has out-of-range day-of-year value {coerced}; "
+                    f"day-of-year field {field_name} requires an integer day of "
+                    f"year between 1 and {max_doy}."
+                )
+
+            if type(raw) is not int:
+                if wrapped:
+                    entry["value"] = coerced
+                else:
+                    section[field_name] = coerced
+                pending_logs.append(
+                    f"[yaml-upgrade] normalised {path}: {raw!r} -> {coerced} "
+                    "(integer day of year)"
+                )
+
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _migrate_2026_6_dev16_to_2026_6_dev17(cfg: dict) -> dict:
+    """Enforce integer day-of-year fields (1..366) for irrigation and DLS."""
+    validate_vegetation_sdd_raw(cfg)
+    return _check_and_normalise_integer_doys(cfg)
+
+
+def _with_integer_doy_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(handler, cfg, migration_context=migration_context)
+        return _check_and_normalise_integer_doys(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev16")] = _handler
+        _HANDLERS[(_source, _target)] = _with_integer_doy_delta(_handler)
+_HANDLERS[("2026.6.dev16", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev16_to_2026_6_dev17
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
 
 # ---------------------------------------------------------------------------
 # Public API

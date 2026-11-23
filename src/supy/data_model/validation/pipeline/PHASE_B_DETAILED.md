@@ -193,7 +193,7 @@ Location-dependent parameter validation (actual implemented checks):
 
 Validates irrigation timing parameters (`ie_start` and `ie_end`) for consistency and climatological appropriateness:
 
-- **Day-of-Year Range**: Must be 1-365 (non-leap) or 1-366 (leap year), or both 0/None to disable
+- **Day-of-Year Range**: Must be integer 1-365 (non-leap) or 1-366 (leap year), or both null/None to disable (0 is only the internal df_state sentinel)
 - **Consistency Check**: Both parameters must be set together or both disabled
 - **Hemisphere-Aware Seasonal Check**:
   - Northern Hemisphere (lat ≥ 23.5°): Warm season May-September (DOY 121-273)

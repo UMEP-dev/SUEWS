@@ -140,21 +140,6 @@ fn read_finite_numeric(root: &Value, path: &[&str]) -> Result<Option<f64>, &'sta
     }
 }
 
-fn read_i32(root: &Value, path: &[&str]) -> Option<i32> {
-    read_numeric(root, path).and_then(|v| {
-        if v.is_finite() {
-            let rounded = v.round();
-            if (rounded - v).abs() < 1.0e-9
-                && rounded >= i32::MIN as f64
-                && rounded <= i32::MAX as f64
-            {
-                return Some(rounded as i32);
-            }
-        }
-        None
-    })
-}
-
 /// Describe a YAML value for an error message.
 fn yaml_kind(value: &Value) -> &'static str {
     match value {
@@ -491,6 +476,51 @@ fn require_anohm_field(
     }
     let key = if has_legacy { legacy } else { canonical };
     require_if_active_numeric(lc_root, &[key], at, required)
+}
+
+/// Read an optional integer day-of-year (1..=366) at `path` below `root`.
+///
+/// Missing keys, bare `null`, wrapped `{value: null}`, and ref-only mappings
+/// (`{ref: ...}`) return `Ok(None)` so disabled irrigation/DLS windows stay
+/// inactive. Any present non-null value is validated strictly: booleans,
+/// strings, mappings, sequences, non-finite numbers, fractional floats (such
+/// as `20.5`), and out-of-range integers (`< 1` or `> 366`) return an error
+/// naming the full YAML path rather than silently falling back to `0`
+/// (gh#2101, gh#2002).
+fn require_optional_doy_i32(root: &Value, path: &[&str], at: &str) -> Result<Option<i32>, String> {
+    let Some(raw) = get_path(root, path).and_then(given_value) else {
+        return Ok(None);
+    };
+    if matches!(raw, Value::Null) {
+        return Ok(None);
+    }
+    let doy = require_i32(root, path, at).map_err(|_| {
+        let shown = yaml_path_display(at, path);
+        match raw {
+            Value::Number(n) => match n.as_f64() {
+                Some(v) if v.is_finite() && v.fract() == 0.0 => format!(
+                    "`{shown}` is {v}; it must be an integer day of year between 1 and 366"
+                ),
+                Some(v) if v.is_finite() => format!(
+                    "`{shown}` is {v}; it must be an integer day of year (1..366) without a fractional part"
+                ),
+                _ => format!(
+                    "`{shown}` is non-finite; it must be an integer day of year (1..366)"
+                ),
+            },
+            other => format!(
+                "`{shown}` is {}; it must be an integer day of year (1..366)",
+                yaml_kind(other)
+            ),
+        }
+    })?;
+    if !(1..=366).contains(&doy) {
+        return Err(format!(
+            "`{}` is {doy}; it must be an integer day of year between 1 and 366",
+            yaml_path_display(at, path)
+        ));
+    }
+    Ok(Some(doy))
 }
 /// Read a required string, accepting a scalar or a `value` wrapper.
 #[cfg_attr(not(test), allow(dead_code))]
@@ -2494,7 +2524,7 @@ fn apply_irrigation_overrides(
     let internalwateruse_active = modelled_irrigation_active || observed_water_use;
 
     // Top-level irrigation scalars: h_maintain, faut, ie_start, ie_end,
-    // internalwateruse_h. ie_start and ie_end stay on read_i32 for #2213.
+    // internalwateruse_h.
     if let Some(v) = require_if_active_numeric(
         site_root,
         &["properties", "irrigation", "h_maintain"],
@@ -2511,10 +2541,16 @@ fn apply_irrigation_overrides(
     )? {
         site.irrigation.faut = v;
     }
-    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_start"]) {
+    if let Some(v) = require_optional_doy_i32(
+        site_root,
+        &["properties", "irrigation", "ie_start"],
+        &site_at,
+    )? {
         site.irrigation.ie_start = v;
     }
-    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_end"]) {
+    if let Some(v) =
+        require_optional_doy_i32(site_root, &["properties", "irrigation", "ie_end"], &site_at)?
+    {
         site.irrigation.ie_end = v;
     }
     if let Some(v) = require_if_active_numeric(
@@ -3017,10 +3053,11 @@ fn apply_conductance_overrides(
 /// `suews_phys_dailystate.f95::update_DailyState_Day`,
 /// `suews_ctrl_driver.f95::SUEWS_cal_AnthropogenicEmission`, and
 /// `suews_phys_anthro.f95::AnthropogenicEmissions`:
-/// - `startdls` and `enddls` are an explicit pair: both omitted/null represents
-///   no daylight saving (`0`, `0`, matching `AnthropogenicEmissions`'s `ge=1`
-///   schema where `None` disables DLS); supplying only one or a non-integer
-///   value is rejected cleanly.
+/// - `startdls` and `enddls` are an explicit integer DOY (`1..=366`) pair: both
+///   omitted/null represents no daylight saving (`0`, `0`, matching
+///   `AnthropogenicEmissions`'s `ge=1` schema where `None` disables DLS);
+///   supplying only one, a non-integer value, or an out-of-range DOY is rejected
+///   cleanly.
 /// - `heat.baset_heating` and `heat.baset_cooling` are read unconditionally on
 ///   every timestep by `update_DailyState_Day` (for `HDD_id(1)` / `HDD_id(2)`),
 ///   so both `working_day` and `holiday` are always required regardless of
@@ -3071,9 +3108,8 @@ fn apply_anthro_emis_overrides(
     let detailed_method = anthro_on && matches!(sub, 4..=6);
 
     // --- top-level DLS pair ---
-    let startdls =
-        require_if_active_i32(site_root, &[base[0], base[1], "startdls"], &site_at, false)?;
-    let enddls = require_if_active_i32(site_root, &[base[0], base[1], "enddls"], &site_at, false)?;
+    let startdls = require_optional_doy_i32(site_root, &[base[0], base[1], "startdls"], &site_at)?;
+    let enddls = require_optional_doy_i32(site_root, &[base[0], base[1], "enddls"], &site_at)?;
     match (startdls, enddls) {
         (Some(start), Some(end)) => {
             site.anthroemis.startdls = start;
@@ -12102,6 +12138,135 @@ mod tests {
                 inactive_ok,
                 "inactive bsoil case {label}: {res_inactive:?}"
             );
+        }
+    }
+
+    #[test]
+    fn doy_fields_accept_valid_integers_and_null_and_reject_fractional_or_invalid() {
+        let doy_targets: &[(&[&str], &str)] = &[
+            (
+                &["properties", "irrigation", "ie_start"],
+                "properties.irrigation.ie_start",
+            ),
+            (
+                &["properties", "irrigation", "ie_end"],
+                "properties.irrigation.ie_end",
+            ),
+            (
+                &["properties", "anthropogenic_emissions", "startdls"],
+                "properties.anthropogenic_emissions.startdls",
+            ),
+            (
+                &["properties", "anthropogenic_emissions", "enddls"],
+                "properties.anthropogenic_emissions.enddls",
+            ),
+        ];
+
+        // 1. Valid integers (1, 91, 250, 366) and exact whole-number floats (1.0, 91.0)
+        //    both bare and RefValue-wrapped are accepted and mapped to exact i32 fields.
+        for &(rel_path, display_suffix) in doy_targets {
+            for (yaml_val, expected) in [
+                ("1", 1),
+                ("91", 91),
+                ("250", 250),
+                ("366", 366),
+                ("{value: 1}", 1),
+                ("{value: 91.0}", 91),
+                ("{value: 366.0}", 366),
+            ] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+                let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                *get_path_mut(site, rel_path).unwrap() = serde_yaml::from_str(yaml_val).unwrap();
+                let rc = load_run_config_from_value(&mut root).unwrap_or_else(|e| {
+                    panic!("{display_suffix}={yaml_val} must succeed, got: {e}")
+                });
+                let actual = match rel_path {
+                    ["properties", "irrigation", "ie_start"] => rc.site.irrigation.ie_start,
+                    ["properties", "irrigation", "ie_end"] => rc.site.irrigation.ie_end,
+                    ["properties", "anthropogenic_emissions", "startdls"] => {
+                        rc.site.anthroemis.startdls
+                    }
+                    ["properties", "anthropogenic_emissions", "enddls"] => {
+                        rc.site.anthroemis.enddls
+                    }
+                    _ => unreachable!(),
+                };
+                assert_eq!(actual, expected, "{display_suffix}={yaml_val}");
+            }
+
+            // 2. Null / wrapped null / ref-only / empty mapping on both halves of the
+            //    pair leaves the Fortran disabled default (0).
+            let pair_paths: &[&[&str]] = match rel_path {
+                ["properties", "irrigation", _] => &[
+                    &["properties", "irrigation", "ie_start"],
+                    &["properties", "irrigation", "ie_end"],
+                ],
+                ["properties", "anthropogenic_emissions", _] => &[
+                    &["properties", "anthropogenic_emissions", "startdls"],
+                    &["properties", "anthropogenic_emissions", "enddls"],
+                ],
+                _ => unreachable!(),
+            };
+            for null_form in ["null", "{value: null}", "{ref: {desc: disabled}}", "{}"] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+                let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                for pair_path in pair_paths {
+                    *get_path_mut(site, pair_path).unwrap() =
+                        serde_yaml::from_str(null_form).unwrap();
+                }
+                let rc = load_run_config_from_value(&mut root).unwrap_or_else(|e| {
+                    panic!("{display_suffix}={null_form} must succeed as disabled, got: {e}")
+                });
+                let actual = match rel_path {
+                    ["properties", "irrigation", "ie_start"] => rc.site.irrigation.ie_start,
+                    ["properties", "irrigation", "ie_end"] => rc.site.irrigation.ie_end,
+                    ["properties", "anthropogenic_emissions", "startdls"] => {
+                        rc.site.anthroemis.startdls
+                    }
+                    ["properties", "anthropogenic_emissions", "enddls"] => {
+                        rc.site.anthroemis.enddls
+                    }
+                    _ => unreachable!(),
+                };
+                assert_eq!(actual, 0, "{display_suffix}={null_form}");
+            }
+
+            // 3. Fractional floats, out-of-range integers, booleans, non-finite numbers,
+            //    strings, and wrong-kind YAML values fail loudly with the YAML path.
+            for (bad_yaml, expected_phrase) in [
+                ("20.5", "fractional"),
+                ("{value: 20.5}", "fractional"),
+                ("100.1", "fractional"),
+                ("1.0000000005", "fractional"),
+                ("0", "between 1 and 366"),
+                ("{value: 0}", "between 1 and 366"),
+                ("-5", "between 1 and 366"),
+                ("367", "between 1 and 366"),
+                ("{value: 367}", "between 1 and 366"),
+                ("true", "boolean"),
+                ("{value: false}", "boolean"),
+                (".nan", "non-finite"),
+                (".inf", "non-finite"),
+                ("-.inf", "non-finite"),
+                ("\"20.5\"", "string"),
+                ("\"abc\"", "string"),
+                ("[100]", "list"),
+                ("{unexpected: 100}", "mapping"),
+            ] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+                let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                *get_path_mut(site, rel_path).unwrap() = serde_yaml::from_str(bad_yaml).unwrap();
+                let err = load_run_config_from_value(&mut root).expect_err(&format!(
+                    "{display_suffix}={bad_yaml} must be rejected instead of silently zeroed"
+                ));
+                assert!(
+                    err.contains(display_suffix) && err.contains(expected_phrase),
+                    "{display_suffix}={bad_yaml}: expected path and `{expected_phrase}` in error, got: {err}"
+                );
+            }
         }
     }
 }

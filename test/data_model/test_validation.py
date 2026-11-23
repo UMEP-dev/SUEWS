@@ -4144,14 +4144,16 @@ def test_irrigation_doy_leap_year():
 
 
 def test_irrigation_doy_disabled():
-    """Test irrigation disabled configurations (None/0)."""
+    """Test irrigation disabled configurations (None) and explicit zero rejection."""
     from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Both None = valid
     assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
 
-    # Both 0 = valid
-    assert len(validate_irrigation_doy(0, 0, 51.5, 2023, "test")) == 0
+    # Explicit 0 is rejected (valid YAML DOYs are 1..366; use null/None to disable)
+    zero_results = validate_irrigation_doy(0, 0, 51.5, 2023, "test")
+    zero_errors = [r for r in zero_results if r.status == "ERROR"]
+    assert len(zero_errors) == 2
 
     # One set, one None = error
     results = validate_irrigation_doy(120, None, 51.5, 2023, "test")
@@ -4320,10 +4322,18 @@ def test_startdls_enddls_range_validation():
     assert emissions.startdls == 366
     assert emissions.enddls == 366
 
-    # Decimal values (DOY can be decimal)
-    emissions = AnthropogenicEmissions(startdls=86.5, enddls=303.75)
-    assert emissions.startdls == 86.5
-    assert emissions.enddls == 303.75
+    # Whole-number floats are accepted as integers, while fractional DOYs are rejected (#2101)
+    emissions = AnthropogenicEmissions(startdls=86.0, enddls=303.0)
+    assert emissions.startdls == 86
+    assert emissions.enddls == 303
+    assert type(emissions.startdls) is int
+    assert type(emissions.enddls) is int
+
+    with pytest.raises(ValidationError, match="integer day of year"):
+        AnthropogenicEmissions(startdls=86.5, enddls=303)
+
+    with pytest.raises(ValidationError, match="integer day of year"):
+        AnthropogenicEmissions(startdls=86, enddls=303.75)
 
 
 def test_dls_consistency_validation_in_suews_config():

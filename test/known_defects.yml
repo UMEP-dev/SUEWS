@@ -6,12 +6,6 @@
 version: 1
 mappings:
   - selector:
-      ledger: "R"
-      function: "apply_irrigation_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
       ledger: "U"
       file: "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90"
     contract: "C-RESPONSE"
@@ -313,11 +307,6 @@ mappings:
       ledger: "J2"
     contract: "C-BIND"
     issue: 2085
-    classification: "defect"
-  - selector:
-      ledger: "J3"
-    contract: "C-BIND"
-    issue: 2101
     classification: "defect"
   - selector:
       ledger: "O"

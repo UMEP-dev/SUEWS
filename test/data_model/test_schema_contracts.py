@@ -903,25 +903,29 @@ def test_water_distribution_direct_required_fields_and_whole_block_defaults(
 
 
 @pytest.mark.parametrize(
-    ("ie_start", "ie_end"),
-    [(120.0, None), (None, 240.0), (120.0, 0.0), (0.0, 240.0)],
+    ("ie_start", "ie_end", "expected_msg"),
+    [
+        (120, None, "Both ie_start and ie_end must be specified together"),
+        (None, 240, "Both ie_start and ie_end must be specified together"),
+        (120, 0, "Must be an integer day of year between 1 and 366"),
+        (0, 240, "Must be an integer day of year between 1 and 366"),
+    ],
 )
 def test_irrigation_window_phase_b_contract_and_from_yaml_controls(
-    ie_start: float | None,
-    ie_end: float | None,
+    ie_start: int | None,
+    ie_end: int | None,
+    expected_msg: str,
     compact_sample_dict: dict[str, Any],
     tmp_path: Path,
 ) -> None:
     """``IrrigationParams`` window is enforced in Phase B; valid & omitted load cleanly."""
-    # Active one-sided window -> Phase B ERROR
+    # Active one-sided window or explicit 0 sentinel -> Phase B ERROR
     results = validate_irrigation_doy(ie_start, ie_end, 51.5, 2012, "KCL")
     assert any(
-        r.status == "ERROR"
-        and "Both ie_start and ie_end must be specified together" in r.message
-        for r in results
+        r.status == "ERROR" and expected_msg in r.message for r in results
     )
 
-    # Inactive (both None or both 0) -> no Phase B ERROR and from_yaml succeeds
+    # Inactive (both None) -> no Phase B ERROR and from_yaml succeeds
     assert not any(
         r.status == "ERROR"
         for r in validate_irrigation_doy(None, None, 51.5, 2012, "KCL")
@@ -937,12 +941,12 @@ def test_irrigation_window_phase_b_contract_and_from_yaml_controls(
     # Explicit valid window -> no Phase B ERROR and from_yaml succeeds
     assert not any(
         r.status == "ERROR"
-        for r in validate_irrigation_doy(140.0, 240.0, 51.5, 2012, "KCL")
+        for r in validate_irrigation_doy(140, 240, 51.5, 2012, "KCL")
     )
     d_valid = copy.deepcopy(compact_sample_dict)
     irr_valid = d_valid["sites"][0]["properties"]["irrigation"]
-    irr_valid["ie_start"] = {"value": 140.0}
-    irr_valid["ie_end"] = {"value": 240.0}
+    irr_valid["ie_start"] = {"value": 140}
+    irr_valid["ie_end"] = {"value": 240}
     assert isinstance(_load_from_yaml(d_valid, tmp_path, "irr_valid.yml"), SUEWSConfig)
 
 

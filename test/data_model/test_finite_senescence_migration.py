@@ -10,6 +10,7 @@ import yaml
 
 from supy._run_rust import config_to_engine_yaml  # noqa: PLC2701
 from supy.cmd.suews_cli import cli
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.configuration.migration import SchemaMigrator
 from supy.data_model.configuration.publisher import generate_json_schema
 from supy.data_model.core import SUEWSConfig
@@ -81,9 +82,9 @@ def test_migration_errors_name_all_sites_and_leave_files_intact(
     runner = CliRunner()
     good = runner.invoke(cli, args, terminal_width=240)
     assert good.exit_code == 0, good.output
-    if command == "convert" or (version == DEV15 and command == "schema"):
+    if command == "convert" or (version != CURRENT_SCHEMA_VERSION and command == "schema"):
         output = yaml.safe_load(target.read_text(encoding="utf-8"))
-        assert output["schema_version"] == DEV16
+        assert output["schema_version"] == CURRENT_SCHEMA_VERSION
         assert output["sites"] == data["sites"]
     else:
         assert target.read_bytes() == b"existing output\n"
@@ -228,7 +229,7 @@ def test_released_input_requires_an_explicit_repair(release, tmp_path):
     upgrade_yaml(source, target, from_ver=release)
     good = target.read_bytes()
     exported = yaml.safe_load(good)
-    assert exported["schema_version"] == DEV16
+    assert exported["schema_version"] == CURRENT_SCHEMA_VERSION
     initial = exported["sites"][0]["initial_states"]
     assert [initial[name]["sdd_id"]["value"] for name in SURFACES] == [-450] * 3
 
@@ -255,12 +256,13 @@ def test_published_senescence_description_begins_at_dev16(include_internal):
         "2026.6.dev14",
         DEV15,
         DEV16,
+        "2026.6.dev17",
     ):
         schema = generate_json_schema(version, include_internal=include_internal)
         for name in ("InitialStateEvetr", "InitialStateDectr", "InitialStateGrass"):
             field = schema["$defs"][name]["properties"]["sdd_id"]
             assert field["default"] == 0
-            if version == DEV16:
+            if version in (DEV16, "2026.6.dev17"):
                 assert "Must be finite" in field["description"]
             else:
                 assert (

@@ -55,12 +55,6 @@ mappings:
     classification: "defect"
   - selector:
       ledger: "R"
-      function: "apply_lumps_overrides"
-    contract: "C-STRICT"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "R"
       function: "apply_ohm_overrides"
     contract: "C-STRICT"
     issue: 1991
@@ -137,12 +131,6 @@ mappings:
     contract: "C-RESPONSE"
     issue: 2172
     classification: "coverage_gap"
-  - selector:
-      ledger: "U"
-      file: "src/suews/src/suews_phys_atmmoiststab.f95"
-    contract: "C-RESPONSE"
-    issue: 2171
-    classification: "defect"
   - selector:
       ledger: "U"
       file: "src/suews/src/suews_phys_narp.f95"
@@ -422,12 +410,6 @@ mappings:
       id_prefix: "sites[0].properties.snow.ohm_"
     contract: "C-BIND"
     issue: 2109
-    classification: "defect"
-  - selector:
-      ledger: "J1"
-      id_prefix: "sites[0].initial_states."
-    contract: "C-WARMSTART"
-    issue: 2003
     classification: "defect"
   - selector:
       ledger: "J1"

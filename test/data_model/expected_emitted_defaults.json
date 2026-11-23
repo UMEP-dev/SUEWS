@@ -71,18 +71,6 @@
       "type": "float",
       "value": 15.0
     },
-    "sites[0].initial_states.*.wu.wu_auto": {
-      "type": "float",
-      "value": 0.0
-    },
-    "sites[0].initial_states.*.wu.wu_manual": {
-      "type": "float",
-      "value": 0.0
-    },
-    "sites[0].initial_states.*.wu.wu_total": {
-      "type": "float",
-      "value": 0.0
-    },
     "sites[0].initial_states.bldgs.soilstore": {
       "type": "float",
       "value": 150.0

@@ -1596,20 +1596,14 @@ fn apply_vertical_layers_overrides(
     Ok(())
 }
 
-fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
-    if let Some(v) = read_numeric(site_root, &["properties", "lumps", "raincover"]) {
-        site.lumps.raincover = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "lumps", "rainmaxres"]) {
-        site.lumps.rainmaxres = v;
-    }
-    if let Some(v) = read_numeric(site_root, &["properties", "lumps", "drainrt"]) {
-        site.lumps.drainrt = v;
-    }
-    if let Some(v) = read_i32(site_root, &["properties", "lumps", "veg_type"]) {
-        site.lumps.veg_type = v;
-    }
-    Ok(())
+fn read_lumps(site_root: &Value) -> Result<crate::lumps::LumpsPrm, String> {
+    let at = site_yaml_at(site_root);
+    Ok(crate::lumps::LumpsPrm {
+        raincover: require_numeric(site_root, &["properties", "lumps", "raincover"], &at)?,
+        rainmaxres: require_numeric(site_root, &["properties", "lumps", "rainmaxres"], &at)?,
+        drainrt: require_numeric(site_root, &["properties", "lumps", "drainrt"], &at)?,
+        veg_type: require_i32(site_root, &["properties", "lumps", "veg_type"], &at)?,
+    })
 }
 
 fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
@@ -2772,7 +2766,7 @@ fn apply_site_overrides(
     spartacus_on: bool,
 ) -> Result<(), String> {
     apply_conductance_overrides(site, root, site_root)?;
-    apply_lumps_overrides(site, site_root)?;
+    site.lumps = read_lumps(site_root)?;
     apply_spartacus_overrides(site, site_root)?;
     if let Some(v) = read_numeric(root, &["model", "physics", "sw_dn_direct_frac"]) {
         site.spartacus.sw_dn_direct_frac = v;
@@ -2878,6 +2872,41 @@ fn apply_state_overrides(
             ));
         }
     }
+    for name in [
+        "dt_since_start",
+        "tair_av",
+        "tstep_prev",
+        "l_mod",
+        "ustar",
+        "ra_h",
+        "rb",
+        "rs",
+    ] {
+        if get_path(initial_states_root, &[name]).is_some() {
+            return Err(format!(
+                "{initial_at}.{name} is internal continuation state and cannot be supplied \
+                 for a fresh run. Remove the field; use a complete checkpoint for continuation."
+            ));
+        }
+    }
+    for veg in ["evetr", "dectr", "grass"] {
+        if get_path(initial_states_root, &[veg, "wu"]).is_some() {
+            return Err(format!(
+                "{initial_at}.{veg}.wu is internal irrigation memory and cannot be supplied \
+                 for a fresh run. Remove the field; use a complete checkpoint for continuation."
+            ));
+        }
+    }
+    // Internal cold-start defaults retained from `suews_state_default_from_fortran()`
+    // on fresh runs (complete checkpoints bypass this path and restore every member):
+    // - Running step-1 diagnostics (fluxes, resistances, roughness, solar, snow/hydro
+    //   per-step diagnostics, and atmospheric properties) are overwritten before use.
+    // - AnOHM buffers start at -999 / 0 / false ("no completed day").
+    // - `Tmin_id` / `Tmax_id` default to 0 assuming a midnight cold start.
+    // - DyOHM (storage_heat 6-8) dynamic coefficients start at 0 until the first
+    //   midnight, with `t2_prev` and `temp_surf_dyohm` / `tsfc_surf_dyohm` at 0 degC.
+    // - STEBBS under NetRadiationMethod < 1000 sees 0 W m-2 BEERS roof/wall radiation
+    //   on step 1 before `BEERS_cal_main` runs at the end of the step.
 
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         if let Some(v) = read_numeric(initial_states_root, &[surface_name, "soilstore"]) {
@@ -3512,6 +3541,45 @@ mod tests {
 
     fn sample_fixture_yaml() -> &'static str {
         include_str!("../../../test/fixtures/bridge/sample_resolved.yml")
+    }
+
+    #[test]
+    fn resolved_lumps_preserves_distinct_values_and_rejects_malformed_fields() {
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let site = &mut root["sites"][0];
+        site["gridiv"] = Value::from(43);
+        site["properties"]["lumps"] = serde_yaml::from_str(
+            "{raincover: 0.75, rainmaxres: {value: 3.5}, drainrt: 0.125, veg_type: {value: 2}}",
+        )
+        .unwrap();
+        let parsed = load_run_config_from_value(&mut root.clone())
+            .unwrap()
+            .site
+            .lumps;
+        assert_eq!(
+            (
+                parsed.raincover,
+                parsed.rainmaxres,
+                parsed.drainrt,
+                parsed.veg_type
+            ),
+            (0.75, 3.5, 0.125, 2)
+        );
+        for (field, bad, reason) in [
+            ("raincover", "null", "is null"),
+            ("rainmaxres", "{value: .nan}", "is non-finite"),
+            ("drainrt", "off", "is a string"),
+            ("veg_type", "{value: 1.5}", "must be an integer"),
+        ] {
+            let mut bad_input = root.clone();
+            bad_input["sites"][0]["properties"]["lumps"][field] =
+                serde_yaml::from_str(bad).unwrap();
+            let error =
+                load_run_config_from_value(&mut bad_input).expect_err("invalid LUMPS field");
+            let expected = format!("`sites[gridiv=43].properties.lumps.{field}`");
+            assert!(error.contains(&expected), "{error}");
+            assert!(error.contains(reason), "{error}");
+        }
     }
 
     #[test]

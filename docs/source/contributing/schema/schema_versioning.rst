@@ -187,7 +187,17 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev13** (current development version)
+**Schema 2026.6.dev14** (current development version)
+   Removes the remaining 17 continuation-only ``initial_states`` inputs from
+   fresh runs: ``evetr.wu``, ``dectr.wu`` and ``grass.wu`` (``wu_total``,
+   ``wu_auto``, ``wu_manual``), plus ``dt_since_start``, ``tair_av``,
+   ``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb`` and ``rs``. Older
+   cold-start placeholders are removed with a migration message; non-placeholder
+   values require an explicit choice of cold start or checkpoint continuation.
+   Numerical initialisation and checkpoint payloads are unchanged.
+   See :ref:`schema_dev14_continuation_state`.
+
+**Schema 2026.6.dev13** (development)
    Removes fresh-run ``qn_surfs`` and ``dqndt_surf`` inputs. Older seven-zero
    placeholders are removed with a migration message; other supplied values
    require an explicit choice of cold start or checkpoint continuation.

@@ -5217,6 +5217,11 @@
     },
     "InitialStateDectr": {
       "description": "Initial state for deciduous trees with vegetation parameters plus porosity.",
+      "not": {
+        "required": [
+          "wu"
+        ]
+      },
       "properties": {
         "state": {
           "anyOf": [
@@ -5506,10 +5511,6 @@
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
-        },
-        "wu": {
-          "$ref": "#/$defs/WaterUse",
-          "display_name": "Water Use"
         },
         "porosity_id": {
           "anyOf": [
@@ -5550,6 +5551,11 @@
     },
     "InitialStateEvetr": {
       "description": "Initial state for evergreen trees with vegetation parameters.",
+      "not": {
+        "required": [
+          "wu"
+        ]
+      },
       "properties": {
         "state": {
           "anyOf": [
@@ -5839,10 +5845,6 @@
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
-        },
-        "wu": {
-          "$ref": "#/$defs/WaterUse",
-          "display_name": "Water Use"
         }
       },
       "title": "Evergreen Tree Initial State",
@@ -5850,6 +5852,11 @@
     },
     "InitialStateGrass": {
       "description": "Initial state for grass surfaces with vegetation parameters.",
+      "not": {
+        "required": [
+          "wu"
+        ]
+      },
       "properties": {
         "state": {
           "anyOf": [
@@ -6139,10 +6146,6 @@
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
-        },
-        "wu": {
-          "$ref": "#/$defs/WaterUse",
-          "display_name": "Water Use"
         }
       },
       "title": "Grass Initial State",
@@ -6601,7 +6604,7 @@
       "type": "object"
     },
     "InitialStates": {
-      "description": "Initial conditions for the SUEWS model",
+      "description": "Initial conditions for fresh SUEWS runs.\n\nInternal continuation state (radiation memory ``qn_surfs``/``dqndt_surf``,\ndaily irrigation memory ``evetr``/``dectr``/``grass.wu``, and running\ntimer/atmosphere diagnostics ``dt_since_start``, ``tair_av``,\n``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb``, ``rs``) is\nrejected on fresh runs and restored solely through complete checkpoints.\nOther unconfigured Fortran state members follow documented cold-start\nconventions: step-1 running diagnostics are overwritten before use,\nAnOHM buffers start at -999/0/false, ``tmin_id``/``tmax_id`` assume a\nmidnight start at 0, DyOHM (methods 6-8) dynamic coefficients start at 0\nuntil the first midnight with ``t2_prev`` and ``temp_surf_dyohm`` at\n0 degC, and STEBBS under NetRadiationMethod < 1000 sees 0 W m-2 BEERS\nradiation on step 1 before BEERS runs at the end of the step.",
       "not": {
         "anyOf": [
           {
@@ -6612,6 +6615,46 @@
           {
             "required": [
               "dqndt_surf"
+            ]
+          },
+          {
+            "required": [
+              "dt_since_start"
+            ]
+          },
+          {
+            "required": [
+              "tair_av"
+            ]
+          },
+          {
+            "required": [
+              "tstep_prev"
+            ]
+          },
+          {
+            "required": [
+              "l_mod"
+            ]
+          },
+          {
+            "required": [
+              "ustar"
+            ]
+          },
+          {
+            "required": [
+              "ra_h"
+            ]
+          },
+          {
+            "required": [
+              "rb"
+            ]
+          },
+          {
+            "required": [
+              "rs"
             ]
           }
         ]
@@ -13579,72 +13622,6 @@
       "title": "Water Surfaces",
       "type": "object"
     },
-    "WaterUse": {
-      "description": "Water use data and parameters.",
-      "properties": {
-        "wu_total": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "default": 0.0,
-          "description": "Total water use",
-          "display_name": "Total Water Use",
-          "ge": 0,
-          "title": "Wu Total",
-          "unit": "mm"
-        },
-        "wu_auto": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "default": 0.0,
-          "description": "Automatic water use",
-          "display_name": "Automatic Water Use",
-          "ge": 0,
-          "title": "Wu Auto",
-          "unit": "mm"
-        },
-        "wu_manual": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "default": 0.0,
-          "description": "Manual water use",
-          "display_name": "Manual Water Use",
-          "ge": 0,
-          "title": "Wu Manual",
-          "unit": "mm"
-        },
-        "ref": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Reference"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "title": "Water Use",
-      "type": "object"
-    },
     "WaterUseMethod": {
       "description": "Method for determining external water use (irrigation).\n\n0: MODELLED - Water use calculated based on soil moisture deficit and irrigation parameters\n1: OBSERVED - Uses observed water use values from forcing file",
       "enum": [
@@ -13758,7 +13735,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev13. Radiation memory is internal to cold starts (#2003). Fresh-run qn_surfs and dqndt_surf inputs are rejected; legacy seven-zero placeholders are removed with an explicit migration message. Nonzero legacy values require an explicit choice of cold start or complete checkpoint continuation. Numerical seeds are unchanged.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev14. Remaining continuation-only initial_states fields are internal to cold starts (#2003). Fresh-run evetr/dectr/grass.wu, dt_since_start, tair_av, tstep_prev, l_mod, ustar, ra_h, rb, and rs inputs are rejected; legacy cold-start placeholders are removed with an explicit migration message. Non-placeholder values require an explicit choice of cold start or complete checkpoint continuation. Numerical seeds and checkpoint payloads are unchanged.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13811,20 +13788,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev13",
+  "title": "SUEWS Configuration Schema v2026.6.dev14",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev13.json",
-  "version": "2026.6.dev13",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev14.json",
+  "version": "2026.6.dev14",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev13"
+    "schema_version": "2026.6.dev14"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev13",
+      "schema_version": "2026.6.dev14",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

@@ -139,7 +139,6 @@ class ModelDocExtractor:
         self.all_models: Dict[str, Type[BaseModel]] = {}
         self.internal_classes = {
             "HDD_ID",
-            "WaterUse",
             # Add other internal classes to skip
         }
 

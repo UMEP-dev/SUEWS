@@ -67,8 +67,32 @@ def generate_json_schema(
         _restore_historical_water_descriptions(schema["$defs"])
 
     if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev13"):
-        # The new input prohibition must not be backdated onto old exports.
+        # The new input prohibitions must not be backdated onto old exports.
         schema["$defs"]["InitialStates"].pop("not", None)
+        for def_name in (
+            "InitialStateVeg",
+            "InitialStateEvetr",
+            "InitialStateDectr",
+            "InitialStateGrass",
+        ):
+            if def_name in schema["$defs"]:
+                schema["$defs"][def_name].pop("not", None)
+    elif version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev14"):
+        # Schema 2026.6.dev13 prohibited only radiation-memory inputs.
+        schema["$defs"]["InitialStates"]["not"] = {
+            "anyOf": [
+                {"required": ["qn_surfs"]},
+                {"required": ["dqndt_surf"]},
+            ]
+        }
+        for def_name in (
+            "InitialStateVeg",
+            "InitialStateEvetr",
+            "InitialStateDectr",
+            "InitialStateGrass",
+        ):
+            if def_name in schema["$defs"]:
+                schema["$defs"][def_name].pop("not", None)
 
     # Filter internal fields if requested
     if not include_internal:

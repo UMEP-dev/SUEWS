@@ -189,63 +189,63 @@ impl HydroState {
 
         let mut state = Self::default();
 
-        for i in 0..NSURF {
-            state.soilstore_surf[i] = next();
+        for slot in &mut state.soilstore_surf {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.state_surf[i] = next();
+        for slot in &mut state.state_surf {
+            *slot = next();
         }
-        for i in 0..9 {
-            state.wuday_id[i] = next();
+        for slot in &mut state.wuday_id {
+            *slot = next();
         }
 
         state.soilstore_roof = vec![0.0; alloc_lens[0]];
-        for i in 0..alloc_lens[0] {
-            state.soilstore_roof[i] = next();
+        for slot in &mut state.soilstore_roof {
+            *slot = next();
         }
 
         state.state_roof = vec![0.0; alloc_lens[1]];
-        for i in 0..alloc_lens[1] {
-            state.state_roof[i] = next();
+        for slot in &mut state.state_roof {
+            *slot = next();
         }
 
         state.soilstore_wall = vec![0.0; alloc_lens[2]];
-        for i in 0..alloc_lens[2] {
-            state.soilstore_wall[i] = next();
+        for slot in &mut state.soilstore_wall {
+            *slot = next();
         }
 
         state.state_wall = vec![0.0; alloc_lens[3]];
-        for i in 0..alloc_lens[3] {
-            state.state_wall[i] = next();
+        for slot in &mut state.state_wall {
+            *slot = next();
         }
 
         state.ev_roof = vec![0.0; alloc_lens[4]];
-        for i in 0..alloc_lens[4] {
-            state.ev_roof[i] = next();
+        for slot in &mut state.ev_roof {
+            *slot = next();
         }
 
         state.ev_wall = vec![0.0; alloc_lens[5]];
-        for i in 0..alloc_lens[5] {
-            state.ev_wall[i] = next();
+        for slot in &mut state.ev_wall {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.ev0_surf[i] = next();
+        for slot in &mut state.ev0_surf {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.ev_surf[i] = next();
+        for slot in &mut state.ev_surf {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.wu_surf[i] = next();
+        for slot in &mut state.wu_surf {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.runoff_soil[i] = next();
+        for slot in &mut state.runoff_soil {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.smd_surf[i] = next();
+        for slot in &mut state.smd_surf {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.drain_surf[i] = next();
+        for slot in &mut state.drain_surf {
+            *slot = next();
         }
 
         state.drain_per_tstep = next();
@@ -273,11 +273,11 @@ impl HydroState {
         state.add_veg = next();
         state.add_waterbody = next();
 
-        for i in 0..NSURF {
-            state.add_water[i] = next();
+        for slot in &mut state.add_water {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.frac_water2runoff[i] = next();
+        for slot in &mut state.frac_water2runoff {
+            *slot = next();
         }
 
         state.iter_safe = next() >= 0.5;
@@ -837,6 +837,7 @@ pub fn hydro_state_default_from_fortran() -> Result<HydroState, BridgeError> {
     HydroState::from_flat_with_lens(&flat, alloc_lens)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

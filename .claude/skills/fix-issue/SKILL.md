@@ -190,9 +190,14 @@ read from the base branch.
    it unreliable). If any check fails, stop and escalate -- never push to or edit a
    branch/PR you do not own. Then push to `origin`.
 5. If the branch already has a PR you own, update the PR body when needed.
-   Otherwise create one with a concise title, issue link (`Fixes #<issue>` only
-   when the PR should close it; otherwise `Refs #<issue>`), fix summary,
-   validation status, and known limitations.
+   Otherwise create one with a concise, human-authored title (no AI branding)
+   and a description following `.claude/rules/pr-description.md` (`Fixes #<issue>`
+   only when merging closes it; otherwise `Refs #<issue>`, `## Why`,
+   `## What changed` with known limits, `## How to review`, PR-specific
+   `## Verification`, and any conditional section such as
+   `## Scientific evidence` or `## Numerical change` per
+   `.claude/rules/physics-change-evidence.md`). Format posted GitHub prose as
+   one line per paragraph.
 
 ### 5. Audit, Address, Re-Audit
 
@@ -218,10 +223,21 @@ recurring-signature check is the oscillation guard.
      outside fix-issue's authority, so stop and record it in `Remaining` naming
      the check and the action needed. Never call the PR ready over a red CI gate.
 3. Address all valid blocking/major findings in the branch, run the relevant
-   validation again, commit scoped fixes, and push.
-4. Re-run `audit-pr` on the updated PR/head. Repeat this address-and-re-audit loop
-   until `audit-pr` returns `Verdict: clean` **and** `CI gate` is not `red`, to a
-   maximum of 3 iterations. The
+   validation again (verifying any user-visible output or error-propagation fix
+   through the outermost public entry point per
+   `.claude/rules/review-convergence.md`, "Outer-boundary fix verification"),
+   and commit scoped fixes locally. Run the blind cold-start full-diff pass
+   ("Cold-start final pass" in `.claude/rules/review-convergence.md`) before
+   pushing a final multi-round (`>1` round) or post-rebase revision to
+   `origin`.
+4. Re-run `audit-pr` on the updated head (and check hosted CI after pushing).
+   Repeat this address-and-re-audit loop until `audit-pr` (including the
+   cold-start final pass when triggered by `>1` round or a rebase) returns
+   `Verdict: clean` **and** `CI gate` is not `red`, to a maximum of 3
+   iterations; then verify target-platform CI execution plus CI bot advisories
+   ("Pre-enqueue CI coverage and advisory audit" in
+   `.claude/rules/review-convergence.md`) before calling the PR ready or
+   enqueueing it. The
    operative gate is whether any valid blocking/major finding remains, which the
    per-finding `[severity]` field reports: a `needs-attention` verdict carrying
    only `minor`/`nit` findings (or findings dismissed as `false-positive`) still

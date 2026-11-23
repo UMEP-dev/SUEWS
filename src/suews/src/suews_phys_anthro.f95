@@ -106,6 +106,7 @@ CONTAINS
       INTEGER :: &
          iu, & !1=weekday OR 2=weekend
          ih
+      CHARACTER(LEN=80) :: err_msg
 
       REAL(KIND(1D0)) :: &
          ! get_Prof_SpecTime_inst, &
@@ -238,6 +239,16 @@ CONTAINS
             QF_SAHP_cooling = 0
          END IF
 
+      ELSE
+         WRITE (err_msg, '(A,I0)') 'AnthropogenicEmissions: unsupported EmissionsMethod=', EmissionsMethod
+         CALL ErrorHint(73, TRIM(err_msg), REAL(EmissionsMethod, KIND(1D0)), -999.0D0, EmissionsMethod, modState)
+         QF_SAHP = -999.0D0
+         Fc_anthro = -999.0D0
+         Fc_metab = -999.0D0
+         Fc_traff = -999.0D0
+         Fc_build = -999.0D0
+         Fc_point = -999.0D0
+         RETURN
       END IF
 
       ! total QF as the sum of components

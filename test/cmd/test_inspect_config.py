@@ -13,7 +13,7 @@ from click.testing import CliRunner
 import pytest
 import yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 @contextmanager

@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _input_files:
 
 :nosearch:

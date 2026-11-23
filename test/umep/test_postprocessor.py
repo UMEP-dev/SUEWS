@@ -9,7 +9,11 @@ See: https://github.com/UMEP-dev/SUEWS/issues/901
 from importlib.resources import as_file
 from unittest import TestCase
 
+import pytest
+
 from supy._env import trv_supy_module
+
+pytestmark = pytest.mark.contract("C-API")
 
 
 class TestOutputPathHandling(TestCase):

@@ -14,7 +14,7 @@ import sys
 import conftest as suite_conftest
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-TOOLING")]
 
 _HISTORIC_SAMPLE_OUTPUT_NODEIDS = (
     "test/core/test_sample_output.py::TestSampleOutput::test_library_cli_parity",

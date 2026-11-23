@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 import yaml
 
 from ..._env import _user_warning_stacklevel
@@ -29,7 +29,15 @@ from .physics_orthogonal import (
     fold_kdown_split_constant_direct_fraction,
     fold_storage_heat_ohm_inc_qf,
 )
-from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
+from .type import (
+    DataModelBase,
+    FlexibleRefValue,
+    Reference,
+    RefValue,
+    df_from_col_items,
+    df_from_cols,
+    merge_df_state_col_items,
+)
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -325,7 +333,7 @@ class MomentumRoughnessMethod(Enum):
     2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)
     3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry
     4: LAMBDAP_DEPENDENT - Varies with plan area fraction λp (Grimmond & Oke 1999)
-    5: ALTERNATIVE - Alternative variable method
+    5: ALTERNATIVE - Reserved / unimplemented; not available (rejected at validation)
     """
 
     FIXED = 1  # Fixed roughness length
@@ -778,7 +786,7 @@ for enum_class in [
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
 
-class StebbsPhysics(BaseModel):
+class StebbsPhysics(DataModelBase):
     """
     STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.
 
@@ -853,11 +861,14 @@ class StebbsPhysics(BaseModel):
             return fold_stebbs_public_key_aliases(values, cls.__name__)
         return values
 
-    @field_validator("enabled", "parameters", mode="after")
+    @field_validator("enabled", "parameters", mode="before")
     @classmethod
     def _require_master_switch_values(cls, value):
-        inner = value.value if isinstance(value, RefValue) else value
-        if inner is None:
+        if value is None:
+            raise ValueError("STEBBS enabled/parameters switches cannot be null")
+        if isinstance(value, RefValue) and value.value is None:
+            raise ValueError("STEBBS enabled/parameters switches cannot be null")
+        if isinstance(value, dict) and "value" in value and value["value"] is None:
             raise ValueError("STEBBS enabled/parameters switches cannot be null")
         return value
 
@@ -869,7 +880,7 @@ class StebbsPhysics(BaseModel):
         return coerce_nested_to_flat(info.field_name, value)
 
 
-class ModelPhysics(BaseModel):
+class ModelPhysics(DataModelBase):
     """
     Model physics configuration options.
     """
@@ -944,6 +955,25 @@ class ModelPhysics(BaseModel):
                 f"stability={code} is a reserved code with no stability-function "
                 "implementation. Use 3 (Campbell & Norman, recommended), or 2 "
                 "(Hoegstrom) or 4 (Businger-Hoegstrom)."
+            )
+        return value
+
+    @field_validator("roughness_length_momentum", mode="after")
+    @classmethod
+    def _reject_unsupported_momentum_roughness(cls, value):
+        # gh#2105: code 5 (ALTERNATIVE) has no formulation in
+        # SUEWS_cal_RoughnessParameters, leaving z0m_zh and zdm_zh unassigned
+        # in the kernel. Refuse it on validated construction and direct field
+        # assignment, as for ESTM and reserved stability codes.
+        inner = value.value if isinstance(value, RefValue) else value
+        code = getattr(inner, "value", inner)
+        if code == MomentumRoughnessMethod.ALTERNATIVE.value:
+            raise ValueError(
+                "roughness_length_momentum=5 (ALTERNATIVE) is not available: "
+                "no momentum roughness-length formulation is implemented for it. "
+                "Use 1 (fixed), 2 (variable, Grimmond & Oke 1999), "
+                "3 (MacDonald et al. 1998), or 4 (lambda_p-dependent, "
+                "Grimmond & Oke 1999)."
             )
         return value
 
@@ -1185,8 +1215,7 @@ class ModelPhysics(BaseModel):
         ("same_emissivity_roof", "same_emissivity_roof"),
     ]
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert model physics properties to DataFrame state format."""
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {("gridiv", "0"): grid_id}
         for field_name, col_name in self._FIELD_COL_PAIRS:
             value = getattr(self, field_name)
@@ -1201,9 +1230,6 @@ class ModelPhysics(BaseModel):
         )
         cols[("sw_dn_direct_frac", "0")] = float(direct_fraction)
 
-        # gh#1456: compose the legacy `stebbsmethod` integer column from the
-        # nested (enabled, parameters) pair, and write the remaining STEBBS
-        # switches from their nested members.
         stebbs = self.stebbs
         enabled = stebbs.enabled
         enabled = enabled.value if isinstance(enabled, RefValue) else enabled
@@ -1218,7 +1244,13 @@ class ModelPhysics(BaseModel):
             val = value.value if isinstance(value, RefValue) else value
             cols[(col_name, "0")] = int(val)
 
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return cols
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert model physics properties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelPhysics":
@@ -1376,7 +1408,7 @@ class OutputTimestampReference(StrEnum):
     DAYLIGHT = "daylight"
 
 
-class OutputControl(BaseModel):
+class OutputControl(DataModelBase):
     """Configuration block for model output files.
 
     Renamed from ``OutputConfig`` and lifted out of the legacy
@@ -1572,7 +1604,7 @@ class ForcingTimestampReference(StrEnum):
     UTC = "utc"
 
 
-class ForcingControl(BaseModel):
+class ForcingControl(DataModelBase):
     """Configuration block for meteorological forcing input.
 
     Groups forcing-related fields, such as sub-hourly disaggregation and
@@ -1628,7 +1660,7 @@ class ForcingControl(BaseModel):
     )
 
 
-class ModelControl(BaseModel):
+class ModelControl(DataModelBase):
     model_config = ConfigDict(title="Model Control", validate_assignment=True)
 
     @model_validator(mode="before")
@@ -1865,16 +1897,19 @@ class ModelControl(BaseModel):
             return int(v)
         return v
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert model control properties to DataFrame state format."""
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {("gridiv", "0"): grid_id}
-        list_attr = ["tstep", "diagnose"]
-        for attr in list_attr:
+        for attr in ("tstep", "diagnose"):
             value = getattr(self, attr)
-            # Extract value from RefValue if needed
             val = value.value if isinstance(value, RefValue) else value
             cols[(attr, "0")] = val
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return cols
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert model control properties to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelControl":
@@ -1890,7 +1925,7 @@ class ModelControl(BaseModel):
         return instance
 
 
-class Model(BaseModel):
+class Model(DataModelBase):
     model_config = ConfigDict(title="Model Configuration", validate_assignment=True)
 
     control: ModelControl = Field(
@@ -1902,15 +1937,20 @@ class Model(BaseModel):
         description="Model physics parameters including surface properties, coefficients, etc.",
     )
 
+    def _to_df_state_items(self, grid_id: int) -> list[tuple[tuple[str, str], object]]:
+        items: list[tuple[tuple[str, str], object]] = [(("gridiv", "0"), grid_id)]
+        items.extend(self.control._to_df_state_cols(grid_id).items())
+        items.extend(self.physics._to_df_state_cols(grid_id).items())
+        return items
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        return merge_df_state_col_items(self._to_df_state_items(grid_id))
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
-        df_state = df_from_cols(
-            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        return df_from_col_items(
+            self._to_df_state_items(grid_id), index=pd.Index([grid_id], name="grid")
         )
-        df_control = self.control.to_df_state(grid_id)
-        df_physics = self.physics.to_df_state(grid_id)
-        df_state = pd.concat([df_state, df_control, df_physics], axis=1)
-        return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "Model":

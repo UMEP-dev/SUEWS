@@ -177,12 +177,12 @@ Referenced from workflows as:
 Categories are defined in `.github/path-filters.yml`:
 
 - **fortran** -- Fortran physics and extension source (triggers multiplatform build) [fact: git grep -n src/suews/ext_lib .github/path-filters.yml]
-- **rust** -- Rust FFI bridge and `c_api` wrappers (`src/suews_bridge/src/**`, `src/suews_bridge/c_api/**`, `Cargo.toml`, `Cargo.lock`, `build.rs`; triggers multiplatform build) [fact: git grep -n src/suews_bridge/c_api .github/path-filters.yml]
+- **rust** -- Rust FFI bridge, `bridge-manifest.json`, and `c_api` wrappers (`src/suews_bridge/src/**`, `src/suews_bridge/c_api/**`, `src/suews_bridge/bridge-manifest.json`, `Cargo.toml`, `Cargo.lock`, `build.rs`; triggers multiplatform build) [fact: git grep -n "bridge-manifest.json" .github/path-filters.yml]
 - **python** -- pure Python source and `mcp/**` (single-platform build) [fact: git grep -n "'mcp/" .github/path-filters.yml]
 - **util** -- utility modules (`src/supy/util/**`, single-platform build) [fact: git grep -n src/supy/util/ .github/path-filters.yml]
 - **build** -- build system files affecting wheel output: `meson.build`, `meson_options.txt`, `src/supy/meson.build`, `get_ver_git.py` (multiplatform build) [fact: git grep -n get_ver_git.py .github/path-filters.yml]
 - **pyproject** -- `pyproject.toml` (classified by content via `.github/scripts/classify_pyproject.py` in workflow) [fact: git grep -n classify_pyproject.py .github/workflows/build-publish_to_pypi.yml]
-- **ci** -- CI workflows, `.github/scripts/**`, `Makefile`, `scripts/suews/**` (single-platform build) [fact: git grep -n scripts/suews/ .github/path-filters.yml]
+- **ci** -- CI workflows, `.github/scripts/**`, `Makefile`, `scripts/lint/**`, `scripts/security/**`, `scripts/suews/**` (single-platform build) [fact: git grep -n scripts/lint/ .github/path-filters.yml]
 - **tests** -- test files (`test/**`, single-platform build) [fact: git grep -n "'test/" .github/path-filters.yml]
 - **docs** -- documentation source
 - **site** -- static site content
@@ -295,7 +295,7 @@ Test tiers control which pytest markers run during CI builds. Defined via pytest
 - **core** (`-m "(smoke or core) and not slow"`) -- core physics and logic, includes smoke (~2-3 min)
 - **cfg** (`-m "(smoke or cfg) and not slow"`) -- config/schema validation, includes smoke (~2-3 min)
 - **standard** (`-m "core or not slow"`) -- all non-slow tests plus essential core regressions (~5-10 min)
-- **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`.
+- **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics/numerics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 - **all** (no filter) -- full suite including slow tests (~15-30 min)
 
 Importance and cost are independent. The cost markers are defined by the CPU
@@ -329,9 +329,9 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 
 - `fortran`, `rust`, or `build`-system: `PR_PLATFORMS` (3), test tier **standard** [fact: git grep -n "Ready PR with fortran/build changes" .github/scripts/determine-matrix.sh]
 - `python` or `util`: `MINIMAL_PLATFORMS` (1), test tier **standard** [fact: git grep -n "Ready PR with python/util changes" .github/scripts/determine-matrix.sh]
-- `ci` or `tests` only: `MINIMAL_PLATFORMS` (1), test tier **smoke** [fact: git grep -n "Ready PR with ci/tests-only changes" .github/scripts/determine-matrix.sh]
+- `tests` or `ci` only: `MINIMAL_PLATFORMS` (1), test tier **standard** (so newly added or edited non-smoke unit/API/lint tests run on ready PRs rather than being deferred to the merge queue) [fact: git grep -n "Ready PR with tests changes" .github/scripts/determine-matrix.sh && git grep -n "Ready PR with ci-only changes" .github/scripts/determine-matrix.sh]
 - Python versions (`api_python`): `BOOKEND` (2) [fact: git grep -n 'API_PYTHON="$BOOKEND_PYTHON"' .github/scripts/determine-matrix.sh]
-- **`0-physics:change` label override (gh#1576)**: a ready PR carrying this label runs test tier **physics-full** instead, so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python.
+- **`0-physics:change` / `0-numerics:change` label override (gh#1576)**: a ready PR carrying either label forces `build_wheels` (even when `needs-build` is false) and runs test tier **physics-full**, requiring a green wheel build in `pr-gate` so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml]
 
 ### Merge queue (`merge_group`)
 
@@ -339,7 +339,7 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 - Tests-only or other non-package changes across the queued group: `MINIMAL_PLATFORMS` (1, Linux x86_64), the abi3 build floor (1 Python), test tier **standard** -- wheels are byte-for-byte identical to what `master` already validated across OS families, so one Linux build runs the new tests while the nightly still covers every platform. [fact: git grep -n "tests-only change, minimal platform" .github/scripts/determine-matrix.sh]
 - Ready-PR CI has already exercised both Python bookends; the queue repeats the combined tree on the abi3 floor only. [fact: git grep -n 'API_PYTHON="$BUILD_PYTHON"' .github/scripts/determine-matrix.sh]
 
-**Exception (gh#1576):** when the queued PR carries `0-physics:change`, the merge queue runs `PR_PLATFORMS` (3) with test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from the queue ref and validated before the label is queried; if it cannot be identified (e.g. a batched group), the queue fails safe to **physics-full**. [fact: git grep -n 'MERGE_PLATFORMS="$PR_PLATFORMS"' .github/scripts/determine-matrix.sh]
+**Exception (gh#1576):** when the queued PR carries `0-physics:change` or `0-numerics:change`, the merge queue forces `build_wheels` on `PR_PLATFORMS` (3) with test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from `gh-readonly-queue/<base>/pr-<n>-<sha>` when `<sha>` matches `merge_group.base_sha` (a single-PR queue diff); if the queue ref spans multiple PRs or cannot be parsed, the queue fails safe to **physics-full**. [fact: git grep -n 'MERGE_PLATFORMS="$PR_PLATFORMS"' .github/scripts/determine-matrix.sh && git grep -n "ref_base_sha" .github/workflows/build-publish_to_pypi.yml]
 
 ### Nightly schedule / tag push
 
@@ -414,7 +414,7 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 
 - macOS Intel x86_64 (legacy platform, declining user base)
 - Python 3.13, 3.14 and 3.15 (3.15 is covered by the ready-PR bookends; 3.13 and 3.14 by nightly/release CI)
-- non-core `slow` tests -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576)
+- non-core `slow` tests -- **except** for PRs labelled `0-physics:change` or `0-numerics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576) [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 
 **Rationale:** Full matrix (4 platforms x 4 Python = 16 jobs), or even
 repeating both bookends on all three queue platforms, duplicates work already
@@ -456,13 +456,13 @@ trusted, which is what the alert job below is for.
 | `build_wheels_checked` | `schedule` only | `checked-cp*` wheels, built `-O0 -fcheck=all`, running the full physics tier | whoever investigates a Fortran runtime error; the release-profile run in the same night is the comparison |
 | `python_coverage` | `schedule`, or `workflow_dispatch` with the `python_coverage` input | the `python-coverage` artefact (`coverage.json`, `coverage.xml`, 30-day retention) and a job-summary table of line and branch coverage per package, for `supy` and `suews_mcp` over the whole suite except `qgis` on the Linux cp312 wheel | whoever asks which code no test reaches; `pytest --cov` reproduces it locally from the `[tool.coverage.*]` tables in `pyproject.toml` |
 | `tolerance_spread` | `schedule`, or `workflow_dispatch` with the `tolerance_spread` input | one `tolerance-spread-<platform>-<arch>-<cpXY>` JSON per matrix cell, 30-day retention | the tolerance derivation for `test/core/test_sample_output.py`, via `tolerance_spread.py summarise` (see `.claude/rules/tests/patterns.md`) |
-| `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds, and a drift status and count that `report_scheduled_run` prints (its job summary, and the tracking-issue comment on a night that fails for another reason) | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md`. Pull requests get the same check on the test files they change from `cost_markers_pr`, in the CI summary comment |
-| `report_scheduled_run` | `schedule` only | the `2-infra:ci` tracking issue "Nightly scheduled run is failing" | everyone; the first green night closes it |
+| `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds, and a drift status and count that `report_scheduled_run` prints in its job summary | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md`. Pull requests get the same check on the test files they change from `cost_markers_pr`, in the CI summary comment |
+| `report_scheduled_run` | `schedule` only | the cost-marker drift line in its job summary; it no longer writes issues | whoever reads the run |
+| `scheduled-run-tracker.yml` (separate workflow, `workflow_run` completed) | every finished scheduled run of every scheduled workflow | one `2-infra:ci` tracking issue per workflow ("Nightly scheduled run is failing" for this one), assigned to the maintainer named in `NIGHTLY_ASSIGNEE`, listing the failed job leaves and the PRs merged since the last green scheduled run (`.github/scripts/nightly-tracker.js`) | the assignee, notified by GitHub; everyone else through the issue. The first green scheduled run closes it |
 
 `create_nightly_tag` and the TestPyPI publish are schedule-side infrastructure
-rather than science, but they gate the same way the test tiers do: they are in
-`report_scheduled_run`'s needs, so a broken nightly tag is an alert, not a
-silent skip.
+rather than science, but they gate the same way the test tiers do: a failure
+there fails the run, so a broken nightly tag is an alert, not a silent skip.
 
 Two further nightly-only behaviours are documented in their own sections above:
 the api-test platform trim (`api_buildplat` drops `macos-15-intel` on the
@@ -471,46 +471,36 @@ which the nightly restores nothing from but still saves, under "Build Caches".
 
 ### What may redden the nightly
 
-Only the genuine test tiers and the infrastructure they need. The alert
-watches exactly `report_scheduled_run`'s needs other than `cost_markers`, which
-it reads only for its drift count: `create_nightly_tag`,
-`build_wheels` (which chains both the wheel build and the per-platform
-`api cross-CPython` lane inside `build-wheels-reusable.yml`),
-`build_wheels_checked`, `build_mcp`, `check_test_markers`, and
-`deploy_testpypi`. The matrix and tag jobs they depend on
-(`determine_matrix`, `detect-changes`, `verify-release-tag`) are not in that
-list, but a failure there skips the needed jobs, which reaches the alert as a
-non-success result. [fact: git grep -n "needs: \\[create_nightly_tag, build_wheels" .github/workflows/build-publish_to_pypi.yml]
+The alert is `scheduled-run-tracker.yml`, which runs after a scheduled run has
+finished and judges it by the run's own conclusion: `success` is green;
+`failure`, `cancelled`, `timed_out` and `startup_failure` are red. Judging the
+whole run rather than a list of needed jobs means a job cancelled late -- a
+recording job reaching its timeout, as on 17 and 21 November 2026 -- is a red
+night too, where the earlier in-run alert finished before it and stayed silent.
+The same tracker covers every scheduled workflow, each with its own issue.
+[fact: git grep -n "workflow_run" .github/workflows/scheduled-run-tracker.yml]
 
-The recording jobs -- `tolerance_spread` and `cost_markers` -- carry
-`continue-on-error: true` and never count as a failure: neither feeds `pr-gate`,
-`tolerance_spread` does not feed `report_scheduled_run`, and
-`report_scheduled_run` reads `cost_markers` only to print its drift count,
-excluding it by name from the jobs it counts.
-A wide spread or a drifted marker is information to act on, not a red night. A
-new recording job must be wired the same way, or the nightly stops being
-trusted and the fast PR tier stops being defensible.
+The recording jobs -- `tolerance_spread`, `cost_markers` and `python_coverage`
+-- carry `continue-on-error: true`, so a failing recording job still leaves the
+run `success` and never opens the issue: a wide spread, a drifted marker or
+lower coverage is information to act on, not a red night. A recording job that
+is cancelled or times out does turn the run red, and the report lists it marked
+"recording job", so the cure is to fix its runtime or timeout, not to ignore
+the alert. Neither feeds `pr-gate`. A new recording job must be wired the same
+way, or the nightly stops being trusted and the fast PR tier stops being
+defensible. `scripts/suews/nightly_streak.py` lists recording-job failures
+separately from gating ones.
 
-`report_scheduled_run` counts any needed job whose result is not `success` as a
-failure, `skipped` included. On a schedule every one of its needs is expected to
-run, so a skip means an upstream job failed and the night built nothing;
-counting only `failure` and `cancelled` would report that night as green and
-close the tracking issue.
-
-`python_coverage` is a recording job in the same way: `continue-on-error: true`,
-a timeout, and in neither `report_scheduled_run`'s needs nor `pr-gate`'s. A
-failing test lowers its figures and is reported by the test lanes, not by it;
-`scripts/suews/nightly_streak.py` lists its failures with the other recording
-jobs.
+A gating job that is skipped because an upstream job (`determine_matrix`,
+`create_nightly_tag`) failed reaches the alert through that upstream failure,
+which fails the run.
 
 ### Where a new expensive check goes
 
 A new check that costs more than a minute or two of runner time goes to the
 nightly first, as a recording job that never gates. Give it a PR-tier
 counterpart only when it must gate merges -- that is, when landing the failure
-it detects would be worse than the delay it adds to every PR. The physics tier
-is the worked example: `slow` physics tests run nightly, and gate a PR only
-through the `0-physics:change` label (gh#1576), never by default.
+it detects would be worse than the delay it adds to every PR. The physics tier is the worked example: `slow` physics tests run nightly, and gate a PR only through the `0-physics:change` or `0-numerics:change` label (gh#1576), never by default. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml]
 
 The corollary is that the nightly's own reliability is a first-class concern.
 The verification criterion for this arrangement is thirty consecutive green

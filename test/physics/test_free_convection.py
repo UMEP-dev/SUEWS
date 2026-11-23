@@ -25,7 +25,11 @@ import pytest
 
 import supy
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-RESPONSE", "C-ISOLATION"),
+]
 
 _run_rust = import_module("supy._run_rust")
 
@@ -351,6 +355,7 @@ def _run_grids(inputs, grids, max_workers):
     return {grids[result[0]][0]: bytes(result[1]) for result in results}
 
 
+@pytest.mark.medium
 def test_free_convection_carry_does_not_leak_between_grids(leak_inputs):
     """Each grid in a run of four, in parallel and serially and in either
     order, gives the output of that grid run alone: the previous-pass w_f is
@@ -369,6 +374,7 @@ def test_free_convection_carry_does_not_leak_between_grids(leak_inputs):
                 assert _run_grids(leak_inputs, order, max_workers) == alone
 
 
+@pytest.mark.medium
 def test_sample_year_converges_with_free_convection(sample_run_cached):
     """The w_f feedback (QH -> w_f -> r_a -> QE -> QH) two-cycles across
     QH = 0 when undamped; relaxed, no sample step reaches the pass limit."""

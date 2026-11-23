@@ -199,3 +199,34 @@ rule, backed by symbols and concrete checks. Existing gaps stay visible until
 the corresponding implementation and acceptance evidence land. A successful
 round trip, lint run or smoke suite is useful evidence but cannot certify all
 field mappings or scientific behaviour.
+
+## Public and native grid identity
+
+`supy._run_rust._grid_config_jsons` owns the private conversion of public site
+labels into signed 32-bit native IDs. It reserves every already-representable
+ID, then assigns sorted exceptional Python integers the first unused positive
+ID (continuing through zero and negatives if necessary). It rejects duplicate
+public keys after source normalisation. The allocation is local to the public
+run's site set and does not mutate source configuration or its YAML export.
+
+The kernel boundary itself is single-site: `suews_cal_multitsteps_c` owns one
+local `SUEWS_SITE`, state and timer. Serial dispatch and Rayon dispatch invoke
+that same boundary separately for each site. Uniqueness across a public batch
+is a stronger caller invariant; unrelated runs may reuse native IDs. Raw native
+string/file callers bypass the Python allocation, and the native YAML loader
+still consumes only `sites[0]` from each payload.
+
+Output frames, warning attribution and the Python checkpoint envelope retain
+public keys. Native checkpoints contain state and timer, not site identity;
+restart reloads site geometry from configuration. Reordering an unchanged site
+set reproduces the allocation, so neither checkpoint version nor wire layout
+changes. A changed site set can allocate differently without changing the public
+key that binds each checkpoint state to its site.
+
+Native configuration errors contain `sites[gridiv=N]` paths; batch errors also
+carry a positional `grid i:` prefix. `_public_grid_error` restores those two
+namespaces at the public boundary and identifies single-site execution errors.
+It does not replace arbitrary numbers in scientific diagnostic text. If native
+diagnostics add a new identity spelling, extend this adapter and its tests.
+The regression tests are in `test/core/test_grid_identity.py`; the bridge's
+C-API field observer can inspect the named `SUEWS_SITE%gridiv` after unpacking.

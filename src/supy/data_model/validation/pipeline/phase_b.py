@@ -20,6 +20,7 @@ import math
 import yaml
 import os
 import calendar
+from collections.abc import Mapping
 from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
@@ -46,6 +47,7 @@ from ..core.yaml_helpers import (
     parse_simulation_bounds,
 )
 from ...core.field_renames import normalise_yaml_renames
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
 from .phase_b_rules import (
     RulesRegistry,
@@ -316,6 +318,7 @@ def validate_phase_b_inputs(
             # use load_user_yaml_normalised (the path-based canonical loader);
             # the normalise_yaml_renames call keeps it equivalent.
             uptodate_data = normalise_yaml_renames(yaml.safe_load(uptodate_content))
+            uptodate_data, _ = normalise_hourly_profile_keys_in_raw_config(uptodate_data)
 
         is_phase_a_output = "UP TO DATE YAML" in uptodate_content
 
@@ -532,10 +535,83 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
 
         anthro_emissions = props.get("anthropogenic_emissions", {})
         if anthro_emissions:
+            from ...core.human_activity import coerce_integer_doy_scalar
+
             startdls = get_value_safe(anthro_emissions, "startdls")
             enddls = get_value_safe(anthro_emissions, "enddls")
+            if (
+                isinstance(startdls, Mapping)
+                and "value" not in startdls
+                and all(k == "ref" for k in startdls)
+            ):
+                startdls = None
+            if (
+                isinstance(enddls, Mapping)
+                and "value" not in enddls
+                and all(k == "ref" for k in enddls)
+            ):
+                enddls = None
 
-            if startdls is None or enddls is None:
+            max_dls_doy = 366
+            model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
+            control_cfg = (
+                model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
+            )
+            start_time = (
+                get_value_safe(control_cfg, "start_time")
+                if isinstance(control_cfg, Mapping)
+                else None
+            )
+            if start_time is not None:
+                try:
+                    year = int(str(start_time)[:4])
+                    if not calendar.isleap(year):
+                        max_dls_doy = 365
+                except (TypeError, ValueError):
+                    pass
+
+            for dls_name, dls_val in (("startdls", startdls), ("enddls", enddls)):
+                if dls_val is None:
+                    continue
+                try:
+                    dls_int = coerce_integer_doy_scalar(dls_val, dls_name)
+                except ValueError as exc:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="GEOGRAPHY",
+                            parameter=f"anthropogenic_emissions.{dls_name}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=str(exc),
+                            suggested_value=(
+                                "Replace decimal or non-integer values with an "
+                                f"integer day of year between 1 and {max_dls_doy}"
+                            ),
+                        )
+                    )
+                    continue
+                if not (1 <= dls_int <= max_dls_doy):
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="GEOGRAPHY",
+                            parameter=f"anthropogenic_emissions.{dls_name}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                f"{dls_name}={dls_int} is invalid. Must be an "
+                                f"integer day of year between 1 and {max_dls_doy}."
+                            ),
+                            suggested_value=(
+                                f"Set an integer day of year between 1 and {max_dls_doy}, "
+                                "or omit both startdls and enddls to disable "
+                                "daylight saving"
+                            ),
+                        )
+                    )
+
+            if (startdls is None) != (enddls is None):
                 results.append(
                     ValidationResult(
                         status="WARNING",
@@ -543,8 +619,16 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                         parameter="anthropogenic_emissions.startdls,enddls",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates (see updated parameters)",
-                        suggested_value="Parameters will be set based on your location. You can also manually set startdls and enddls if you prefer specific values",
+                        message=(
+                            "Only one daylight saving parameter (startdls or enddls) "
+                            "is set - provide both integer days of year (1-366), or "
+                            "set both to null / omit both to disable daylight saving"
+                        ),
+                        suggested_value=(
+                            "Set both startdls and enddls (or let --science-fixes apply "
+                            "fill them from your coordinates), or disable daylight saving "
+                            "by setting both to null / omitting both"
+                        ),
                     )
                 )
 
@@ -563,8 +647,8 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
 
 
 def validate_irrigation_doy(
-    ie_start: Optional[float],
-    ie_end: Optional[float],
+    ie_start: Optional[Union[int, float]],
+    ie_end: Optional[Union[int, float]],
     lat: float,
     model_year: int,
     site_name: str,
@@ -574,10 +658,12 @@ def validate_irrigation_doy(
 
     Parameters
     ----------
-    ie_start : Optional[float]
-        Irrigation start day of year.
-    ie_end : Optional[float]
-        Irrigation end day of year.
+    ie_start : Optional[int]
+        Irrigation start integer day of year (1-366, or null/None to disable;
+        0 is only used as the internal df_state sentinel).
+    ie_end : Optional[int]
+        Irrigation end integer day of year (1-366, or null/None to disable;
+        0 is only used as the internal df_state sentinel).
     lat : float
         Site latitude (for hemisphere and tropical detection).
     model_year : int
@@ -594,23 +680,78 @@ def validate_irrigation_doy(
     -----
     This validator ensures irrigation timing parameters are logically consistent
     and appropriate for the site's location. It checks:
-    1. DOY values are within valid range (1-365 or 1-366 for leap years)
+    1. DOY values are whole integers within valid range (1-365 or 1-366 for leap years)
     2. Both parameters are set together or both disabled
     3. Warm season appropriateness based on hemisphere and latitude:
        - Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round
        - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
        - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
     """
+    from ...core.human_activity import coerce_integer_doy_scalar
+
     results = []
+    is_leap = calendar.isleap(model_year)
+    max_doy = 366 if is_leap else 365
 
-    # Helper: treat 0 and None as equivalent (both mean "disabled")
-    def is_disabled(value):
-        return value is None or value == 0 or value == 0.0
+    parsed: Dict[str, Optional[int]] = {}
+    has_type_error = False
+    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
+        if param_value is None or (
+            isinstance(param_value, Mapping)
+            and "value" not in param_value
+            and all(k == "ref" for k in param_value)
+        ):
+            parsed[param_name] = None
+            continue
+        try:
+            parsed[param_name] = coerce_integer_doy_scalar(param_value, param_name)
+        except ValueError as exc:
+            has_type_error = True
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"{param_name} in site {site_name}",
+                    message=str(exc),
+                    suggested_value=(
+                        f"Replace decimal or non-integer values with an integer "
+                        f"day of year (1-{max_doy}), or null/None to disable"
+                    ),
+                )
+            )
+    if has_type_error:
+        return results
 
-    start_disabled = is_disabled(ie_start)
-    end_disabled = is_disabled(ie_end)
+    ie_start_int = parsed["ie_start"]
+    ie_end_int = parsed["ie_end"]
 
-    # Case 1: Both disabled = valid (irrigation not configured)
+    # Range check first: reject explicit 0 and out-of-range integers (1..max_doy)
+    has_range_error = False
+    for param_name, param_value in [
+        ("ie_start", ie_start_int),
+        ("ie_end", ie_end_int),
+    ]:
+        if param_value is not None and (param_value < 1 or param_value > max_doy):
+            has_range_error = True
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"{param_name} in site {site_name}",
+                    message=f"{param_name}={param_value} is invalid. "
+                    f"Must be an integer day of year between 1 and {max_doy} for "
+                    f"{'leap' if is_leap else 'non-leap'} year {model_year}, "
+                    "or null/None to disable irrigation",
+                    suggested_value=f"Valid range: 1-{max_doy}, or null/None to disable",
+                )
+            )
+    if has_range_error:
+        return results
+
+    start_disabled = ie_start_int is None
+    end_disabled = ie_end_int is None
+
+    # Case 1: Both disabled (None/absent) = valid (irrigation not configured)
     if start_disabled and end_disabled:
         return results
 
@@ -621,32 +762,18 @@ def validate_irrigation_doy(
                 status="ERROR",
                 category="IRRIGATION",
                 parameter=f"irrigation in site {site_name}",
-                message="Both ie_start and ie_end must be specified together (both set to valid DOY), "
-                "or both left as None/0 (irrigation disabled). "
+                message="Both ie_start and ie_end must be specified together (both set to valid integer DOY), "
+                "or both left as null/None (irrigation disabled). "
                 f"Currently: ie_start={ie_start}, ie_end={ie_end}",
-                suggested_value="Set both to valid DOY (1-365/366) or both to None/0",
+                suggested_value="Set both to valid integer DOY (1-365/366) or both to null/None",
             )
         )
         return results
 
-    # Case 3: Both enabled = validate DOY range and hemisphere logic
-    is_leap = calendar.isleap(model_year)
-    max_doy = 366 if is_leap else 365
-
-    # Validate DOY range (must be 1-365/366, not 0)
-    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
-        if param_value < 1 or param_value > max_doy:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="IRRIGATION",
-                    parameter=f"{param_name} in site {site_name}",
-                    message=f"{param_name}={param_value} is invalid. "
-                    f"Must be between 1 and {max_doy} for {'leap' if is_leap else 'non-leap'} "
-                    f"year {model_year}, or 0/None to disable irrigation",
-                    suggested_value=f"Valid range: 1-{max_doy}, or 0/None to disable",
-                )
-            )
+    # Case 3: Both enabled = validate hemisphere logic
+    assert ie_start_int is not None and ie_end_int is not None
+    ie_start = ie_start_int
+    ie_end = ie_end_int
 
     # Seasonal validation based on hemisphere and latitude
     abs_lat = abs(lat)
@@ -762,11 +889,11 @@ def validate_irrigation_parameters(
     sites = yaml_data.get("sites", [])
 
     # Handle both list and dict formats for sites
-    if isinstance(sites, dict):
+    if isinstance(sites, Mapping):
         # Dict format: {site_name: {lat: ..., ...}, ...}
         sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, list):
-        # List format: [{name: site_name, lat: ..., ...}, ...]
+    elif isinstance(sites, (list, tuple)):
+        # List/frozen-tuple format: [{name: site_name, lat: ..., ...}, ...]
         sites_list = [
             (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
         ]
@@ -1879,47 +2006,91 @@ def adjust_seasonal_parameters(
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                 start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
 
-                anthro_emissions = props.get("anthropogenic_emissions", {})
-                if anthro_emissions and start_dls and end_dls:
-                    current_startdls = anthro_emissions.get("startdls", {}).get("value")
-                    current_enddls = anthro_emissions.get("enddls", {}).get("value")
+                anthro_emissions = props.get("anthropogenic_emissions")
+                if (
+                    isinstance(anthro_emissions, dict)
+                    and anthro_emissions
+                    and start_dls
+                    and end_dls
+                ):
+                    from ...core.human_activity import coerce_integer_doy_scalar
 
-                    dls_updated = False
-                    if current_startdls != start_dls:
-                        anthro_emissions["startdls"] = {"value": start_dls}
-                        dls_updated = True
+                    max_dls_doy = (
+                        366
+                        if (model_year is None or calendar.isleap(model_year))
+                        else 365
+                    )
 
-                    if current_enddls != end_dls:
-                        anthro_emissions["enddls"] = {"value": end_dls}
-                        dls_updated = True
+                    def _classify_doy_entry(
+                        section: dict, key: str
+                    ) -> tuple[str, Optional[int]]:
+                        if key not in section:
+                            return "absent", None
+                        raw = section[key]
+                        if raw is None:
+                            return "absent", None
+                        if isinstance(raw, dict):
+                            if not (set(raw.keys()) <= {"value", "ref"}):
+                                return "invalid", None
+                            if raw.get("value") is None:
+                                return "absent", None
+                            raw = raw["value"]
+                        try:
+                            val = coerce_integer_doy_scalar(raw, key)
+                        except ValueError:
+                            return "invalid", None
+                        if not (1 <= val <= max_dls_doy):
+                            return "invalid", None
+                        return "valid", val
 
-                    if dls_updated:
-                        # Add separate adjustments for each parameter
+                    s_state, current_startdls = _classify_doy_entry(
+                        anthro_emissions, "startdls"
+                    )
+                    e_state, current_enddls = _classify_doy_entry(
+                        anthro_emissions, "enddls"
+                    )
+                    if not (
+                        (s_state == "absent" and e_state == "absent")
+                        or s_state == "invalid"
+                        or e_state == "invalid"
+                    ):
+
+                        dls_updated = False
                         if current_startdls != start_dls:
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter="anthropogenic_emissions.startdls",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(current_startdls),
-                                    new_value=str(start_dls),
-                                    reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
-                                )
-                            )
+                            anthro_emissions["startdls"] = {"value": start_dls}
+                            dls_updated = True
+
                         if current_enddls != end_dls:
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter="anthropogenic_emissions.enddls",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(current_enddls),
-                                    new_value=str(end_dls),
-                                    reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
+                            anthro_emissions["enddls"] = {"value": end_dls}
+                            dls_updated = True
+
+                        if dls_updated:
+                            # Add separate adjustments for each parameter
+                            if current_startdls != start_dls:
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter="anthropogenic_emissions.startdls",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(current_startdls),
+                                        new_value=str(start_dls),
+                                        reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
+                                    )
                                 )
+                            if current_enddls != end_dls:
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter="anthropogenic_emissions.enddls",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(current_enddls),
+                                        new_value=str(end_dls),
+                                        reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
+                                    )
+                                )
+                            logger_supy.debug(
+                                f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
                             )
-                        logger_supy.debug(
-                            f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
-                        )
 
                 if tz_offset is not None:
                     current_timezone = props.get("timezone", {}).get("value")

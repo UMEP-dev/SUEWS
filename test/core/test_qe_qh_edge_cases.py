@@ -13,7 +13,7 @@ from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 
 class TestQEQHEdgeCases:

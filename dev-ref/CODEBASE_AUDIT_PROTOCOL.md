@@ -201,8 +201,8 @@ Impact tiers map directly to the repository's `.claude/rules/labels.md` priority
 
 Attach these tags independently of priority whenever triggered:
 
-- `[0-physics:change]` -- Required whenever fixing the finding will alter numerical outputs of **any** supported configuration (including `R2` opt-in schemes such as snow, STEBBS, EHC, or SPARTACUS) or refresh a reference fixture under `.claude/rules/physics-change-evidence.md`.
-  Remediation PRs carrying `[0-physics:change]` that touch shared fixtures must be serialised across waves.
+- `[0-physics:change]` / `[0-numerics:change]` -- Required per `.claude/rules/physics-change-evidence.md` whenever fixing the finding will alter numerical outputs of **any** supported configuration (including `R2` opt-in schemes such as snow, STEBBS, EHC, or SPARTACUS) or refresh a reference fixture (`[0-numerics:change]` only when restricted to constant precision, unit conversions, or floating-point representation strictly within threshold; `[0-physics:change]` otherwise).
+  Remediation PRs carrying `[0-physics:change]` or `[0-numerics:change]` that touch shared fixtures must be serialised across waves.
 - `Fix-Safety: mechanical-safe | design-review | maintainer-signoff` -- Separates defect priority from remediation risk so a `3-P0` physics bug with an iteration-rollback trap is routed through `design-review`, whereas a straightforward typo or path fix is marked `mechanical-safe`.
 
 ---
@@ -226,7 +226,7 @@ The skeptic emits one structured verdict per finding:
 ```text
 Finding: <ID> (<path::symbol>)
 Verdict: CONFIRMED | PARTLY (scope/tier/fix corrected) | REFUTED | NOT-VERIFIED
-Calibrated rating: <3-P0|3-P1|3-P2|hygiene> x <R1..R5> [optional: 0-physics:change]
+Calibrated rating: <3-P0|3-P1|3-P2|hygiene> x <R1..R5> [optional: 0-physics:change | 0-numerics:change]
 Fix-Safety: mechanical-safe | design-review | maintainer-signoff
 Fix-trap note: <SAFE-AS-WRITTEN, or exact regression mode + corrected minimal direction>
 Collisions: <open PR # / open issue # / baseline doc, or none>

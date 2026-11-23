@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _Soil_moisture_states:
 
 

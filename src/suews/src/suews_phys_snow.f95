@@ -564,7 +564,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: addVeg
       REAL(KIND(1D0)), INTENT(in) :: SnowLimPaved
       REAL(KIND(1D0)), INTENT(in) :: SnowLimBldg
-      REAL(KIND(1D0)), INTENT(in) :: FlowChange
+      REAL(KIND(1D0)), INTENT(in) :: FlowChange !water-body flow rate [mm h-1]
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: drain
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: WetThresh
@@ -718,7 +718,9 @@ CONTAINS
                                 (mw_ind(WaterSurf) + ev_snow(WaterSurf))
 
          SnowPack(WaterSurf) = SnowPack(WaterSurf) + changSnow(WaterSurf) !Update SnowPack
-         state_id(WaterSurf) = state_id(WaterSurf) + FlowChange - freezState(WaterSurf) !Update state_id below ice
+         ! Integrate the hourly flow once per timestep, as on the snow-free
+         ! path in cal_water_storage (gh#1927, gh#2012).
+         state_id(WaterSurf) = state_id(WaterSurf) + FlowChange/nsh_real - freezState(WaterSurf)
 
          !If SnowPack exists
          IF (SnowPack(WaterSurf) > 0) THEN

@@ -18,7 +18,11 @@ from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.core import SUEWSConfig
 from supy.util.converter.yaml_upgrade import upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-MIGRATE"),
+]
 
 FIELD = "emission_co2_point_source"
 BIOGENIC_J11 = 12  # BIOGEN_RECT_J11

@@ -11,22 +11,33 @@ import yaml
 from supy import SUEWSSimulation
 
 _run_rust = import_module("supy._run_rust")
-pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.rust]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.rust,
+    pytest.mark.contract("C-BIND"),
+]
+
+
+_OBSERVED_QF = np.linspace(10.0, 32.0, 12)
 
 
 @pytest.fixture(scope="module")
 def bridge_inputs():
     sim = SUEWSSimulation.from_sample_data()
     df_forcing = sim.forcing.df.iloc[:12]
+    df_forcing_obs_qf = df_forcing.copy()
+    df_forcing_obs_qf["qf"] = _OBSERVED_QF
     return (
         sim.config.model_dump(exclude_none=True, mode="json"),
         _run_rust._prepare_forcing_block(df_forcing).ravel(order="C").tolist(),
+        _run_rust._prepare_forcing_block(df_forcing_obs_qf).ravel(order="C").tolist(),
         len(df_forcing),
     )
 
 
 def run_point_source(inputs, method, point_source):
-    dict_config, forcing, count = inputs
+    dict_config, forcing, forcing_obs_qf, count = inputs
     dict_config = deepcopy(dict_config)
     dict_config["model"]["physics"]["emissions"] = {"value": method}
     dict_co2 = dict_config["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
@@ -34,8 +45,9 @@ def run_point_source(inputs, method, point_source):
         dict_co2.pop("emission_co2_point_source", None)
     else:
         dict_co2["emission_co2_point_source"] = point_source
+    active_forcing = forcing_obs_qf if method == 0 else forcing
     result = _run_rust._check_rust_available().run_suews(
-        yaml.safe_dump(dict_config), forcing, count
+        yaml.safe_dump(dict_config), active_forcing, count
     )
     assert result[2] == count
     return _run_rust._parse_output_block(result[0], count, 1)
@@ -49,6 +61,8 @@ def test_inactive_absence_preserves_all_outputs(bridge_inputs, method):
         df_absent = run_point_source(bridge_inputs, method, absent)
         pd.testing.assert_frame_equal(df_absent, df_zero, check_exact=True)
     np.testing.assert_array_equal(df_zero["SUEWS"]["FcPoint"], 0.0)
+    if method == 0:
+        np.testing.assert_array_equal(df_zero["SUEWS"]["QF"], _OBSERVED_QF)
 
 
 def test_active_point_source_matches_mass_to_flux_conversion(bridge_inputs):

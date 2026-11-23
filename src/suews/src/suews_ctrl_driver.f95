@@ -181,7 +181,10 @@ CONTAINS
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
       CALL validate_outputline_layout(outputLine)
-      IF (supy_error_flag()) RETURN
+      IF (supy_error_flag()) THEN
+         CALL sync_error_to_state(modState, timer)
+         RETURN
+      END IF
 
       max_iter = max_iter_default
       ehc_restore_best_mode = 0
@@ -257,6 +260,18 @@ CONTAINS
             IF (PRESENT(debugState)) THEN
                CALL debugState%init(nlayer, ndepth)
             END IF
+            ! Clear inactive snow before either iteration snapshot is saved.
+            ! Otherwise check_and_reset_states restores the supplied initial
+            ! snow on later iterations, even when SnowUse is off (gh#2010).
+            IF (config%snowuse == 0) THEN
+               snowState%snow_density = 0.
+               snowState%snow_fraction = 0.
+               snowState%snow_water = 0.
+               snowState%snow_albedo = 0.
+               snowState%ice_frac = 0.
+               snowState%snow_pack = 0.
+            END IF
+
             ! save initial values of model states
             modState_tstepstart = modState
             modState_best_ehc_iter = modState
@@ -278,16 +293,6 @@ CONTAINS
             qe0_surf = 0 ! QE from PM: only meaningful when snowuse=0
             ev0_surf = 0 ! ev from PM: only meaningful when snowuse=0
             ev_surf = 0 ! ev from water balance: only meaningful when snowuse=0
-
-            ! force several snow related state variables to zero if snow module is off
-            IF (config%snowuse == 0) THEN
-               snowState%snow_density = 0.
-               snowState%snow_fraction = 0.
-               snowState%snow_water = 0.
-               snowState%snow_albedo = 0.
-               snowState%ice_frac = 0.
-               snowState%snow_pack = 0.
-            END IF
 
             ! ########################################################################################
             ! save initial values of inout variables
@@ -325,6 +330,10 @@ CONTAINS
             CALL SUEWS_cal_RoughnessParameters( &
                timer, config, forcing, siteInfo, & !input
                modState) ! input/output:
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
 
             !=================Calculate sun position=================
             IF (Diagnose == 1) WRITE (*, *) 'Calling NARP_update_SunPosition...'
@@ -332,10 +341,18 @@ CONTAINS
             CALL NARP_update_SunPosition( &
                timer, siteInfo, & !input
                modState) ! input/output:
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
 
             !=================Calculation of density and other water related parameters=================
             IF (Diagnose == 1) WRITE (*, *) 'Calling LUMPS_cal_AtmMoist...'
             CALL SUEWS_update_atmState(timer, forcing, modState)
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
 
             ! start iteration-based calculation
             ! through iterations, the surface temperature is examined to be converged
@@ -402,6 +419,10 @@ CONTAINS
                CALL SUEWS_cal_DailyState( &
                   timer, config, forcing, siteInfo, & !input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_01_dailystate = modState
                END IF
@@ -410,6 +431,10 @@ CONTAINS
                CALL SUEWS_update_SoilMoist( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_02_soilmoist = modState
                END IF
@@ -423,6 +448,10 @@ CONTAINS
                CALL SUEWS_cal_WaterUse( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_03_wateruse = modState
                END IF
@@ -431,6 +460,10 @@ CONTAINS
                CALL SUEWS_cal_AnthropogenicEmission( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_04_anthroemis = modState
                END IF
@@ -445,6 +478,10 @@ CONTAINS
                   timer, config, forcing, siteInfo, & ! input
                   modState, & ! input/output:
                   dataOutLineSPARTACUS) ! output
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_05_qn = modState
                END IF
@@ -455,10 +492,6 @@ CONTAINS
                   modState, & ! input/output:
                   dataOutLineESTM, dataOutLineSTEBBS)
                IF (supy_error_flag()) THEN
-                  ! A storage-heat method with no scheme (GH#1802) leaves the
-                  ! sentinel QS = -999; stop the timestep here so LUMPS, the
-                  ! water balance and QH never consume it, and sync the error
-                  ! into modState so the bridge still reads it.
                   CALL sync_error_to_state(modState, timer)
                   RETURN
                END IF
@@ -474,6 +507,10 @@ CONTAINS
                CALL LUMPS_cal_QHQE( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_07_qhqe_lumps = modState
                END IF
@@ -483,6 +520,10 @@ CONTAINS
                CALL SUEWS_cal_Water( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_08_water = modState
                END IF
@@ -521,6 +562,10 @@ CONTAINS
                      timer, config, forcing, siteInfo, & ! input
                      modState, & ! input/output
                      dataOutLineSnow)
+                  IF (supy_error_flag()) THEN
+                     CALL sync_error_to_state(modState, timer)
+                     RETURN
+                  END IF
                   ! N.B.: snow-related calculations end here.
                   !===================================================
                ELSE
@@ -529,6 +574,10 @@ CONTAINS
                   CALL SUEWS_cal_QE( &
                      timer, config, forcing, siteInfo, & ! input
                      modState) ! input/output:
+                  IF (supy_error_flag()) THEN
+                     CALL sync_error_to_state(modState, timer)
+                     RETURN
+                  END IF
                   IF (config%flag_test .AND. PRESENT(debugState)) THEN
                      debugState%state_10_qe = modState
                   END IF
@@ -540,6 +589,10 @@ CONTAINS
                CALL SUEWS_cal_QH( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_11_qh = modState
                END IF
@@ -565,6 +618,10 @@ CONTAINS
                CALL suews_update_tsurf( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                ! The surface-temperature test alone can pass while the relaxed (z-d)/L
                ! and free-convection velocity are still moving, which leaves RA
                ! alternating from one timestep to the next. Also require both to have
@@ -633,6 +690,10 @@ CONTAINS
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataoutLineRSL) ! output
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
                debugState%state_13_rsl = modState
             END IF
@@ -644,6 +705,10 @@ CONTAINS
             CALL SUEWS_cal_BiogenCO2( &
                timer, config, forcing, siteInfo, & ! input
                modState) ! input/output:
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
                debugState%state_14_biogenco2 = modState
             END IF
@@ -663,6 +728,10 @@ CONTAINS
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataOutLineBEERS) ! output
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
                debugState%state_15_beers = modState
             END IF
@@ -670,6 +739,10 @@ CONTAINS
             CALL suews_update_tsurf_dyohm( &
                timer, config, forcing, siteInfo, & ! input
                modState) ! input/output:
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
 
 
             !==============translation of  output variables into output array===========
@@ -678,6 +751,10 @@ CONTAINS
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                datetimeLine, dataOutLineSUEWS) !output
+            IF (supy_error_flag()) THEN
+               CALL sync_error_to_state(modState, timer)
+               RETURN
+            END IF
 
             IF (config%StorageHeatMethod == 5) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling EHC_update_outputLine...'
@@ -820,6 +897,11 @@ CONTAINS
             timer, forcing, config, siteInfo, &
             modState, &
             output_line_local)
+
+         IF (supy_error_flag()) THEN
+            CALL sync_error_to_state(modState, timer)
+            EXIT
+         END IF
 
          ! === Store all output groups concatenated, datetime prefix once ===
          datetimeBlock(ir, :) = output_line_local%dataOutLineSUEWS(1:5)
@@ -1092,7 +1174,14 @@ CONTAINS
             END IF
 
             IF (StorageHeatMethod /= 5) THEN
-               dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf))
+               ! Exclude absent surfaces (sfr_surf == 0) from convergence
+               ! stopping so their uncoupled temperatures cannot add
+               ! iterations and leak into grid-scale fluxes.
+               IF (ANY(sfr_surf > 0.0D0)) THEN
+                  dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf), MASK=(sfr_surf > 0.0D0))
+               ELSE
+                  dif_tsfc_iter = 0.0D0
+               END IF
             END IF
             dif_qh_iter = 0.0D0
             qh_flux_tol = 5.0D0
@@ -1144,19 +1233,29 @@ CONTAINS
                ! carried into the next iteration, after relaxation and physical
                ! limiting. Testing the raw fixed-point proposal can report
                ! non-convergence even when the applied update is already small.
-               dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf))
-               IF (use_building_facets_for_ehc) THEN
+               ! Exclude absent surfaces (sfr_surf == 0) and absent building
+               ! facets (sfr_surf(BldgSurf) == 0) from both temperature and flux
+               ! residuals so uncoupled absent surfaces cannot drive convergence
+               ! or ehc_restore_best_mode selection.
+               IF (ANY(sfr_surf > 0.0D0)) THEN
+                  dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf), MASK=(sfr_surf > 0.0D0))
+               ELSE
+                  dif_tsfc_iter = 0.0D0
+               END IF
+               IF (use_building_facets_for_ehc .AND. sfr_surf(BldgSurf) > 0.0D0) THEN
                   dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc_roof - tsfc0_out_roof)), dif_tsfc_iter)
                   dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc0_out_wall - tsfc_wall)), dif_tsfc_iter)
                END IF
 
                IF (RA_h /= 0.0D0 .AND. avdens > 0.0D0 .AND. avcp > 0.0D0) THEN
                   DO i_surf = 1, nsurf
+                     IF (sfr_surf(i_surf) > 0.0D0) THEN
                         qh_resist_iter = avdens*avcp*(tsfc_surf(i_surf) - temp_c)/RA_h
                         dif_qh_iter = MAX(dif_qh_iter, ABS( &
                            QN_surf(i_surf) + qf_surf_ehc(i_surf) - QS_surf(i_surf) - QE_surf(i_surf) - qh_resist_iter))
-                     END DO
-                  IF (use_building_facets_for_ehc) THEN
+                     END IF
+                  END DO
+                  IF (use_building_facets_for_ehc .AND. sfr_surf(BldgSurf) > 0.0D0) THEN
                      DO i_layer = 1, nlayer
                         qh_resist_iter = avdens*avcp*(tsfc_roof(i_layer) - temp_c)/RA_h
                         dif_qh_iter = MAX(dif_qh_iter, ABS( &
@@ -1445,6 +1544,7 @@ CONTAINS
                      Fc_anthro, Fc_metab, Fc_traff, Fc_build, Fc_point, &
                      AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea, &
                      modState)
+                  IF (supy_error_flag()) RETURN
 
                ELSE
                   CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod, modState)
@@ -1618,6 +1718,7 @@ CONTAINS
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
                         gfunc_use, unused_gs, unused_rs, & ! output:
                         modState)
+                     IF (supy_error_flag()) RETURN
                   END IF
 
                   IF (gsmodel == 3 .OR. gsmodel == 4) THEN ! With modelled 2 meter temperature
@@ -1644,6 +1745,7 @@ CONTAINS
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
                         gfunc2, unused_gs, unused_rs, & ! output:
                         modState)
+                     IF (supy_error_flag()) RETURN
                   ELSEIF ((gsmodel == 1 .OR. gsmodel == 2) .AND. RSLLevel > 0) THEN
                      ! Use local temperature for gsmodel 1/2 with RSL diagnostics
                      t2 = Tair_local
@@ -1899,10 +2001,6 @@ CONTAINS
                   ! IF (SnowUse==0) SnowFrac=snowFrac_obs
                   IF (SnowUse == 0) SnowFrac = 0
 
-                  IF (ldown_option == 2) THEN !observed cloud fraction provided as forcing
-                     fcld = fcld_obs
-                  END IF
-
                   !write(*,*) DecidCap(id), id, it, imin, 'Calc - near start'
 
                   ! Update variables that change daily and represent seasonal variability
@@ -1922,7 +2020,7 @@ CONTAINS
                   CALL NARP( &
                      nsurf, sfr_surf, tsfc_surf, SnowFrac, alb, emis, IceFrac, & !
                      NARP_TRANS_SITE, NARP_EMIS_SNOW, &
-                     dectime, ZENITH_deg, kdown, Tair_C, avRH, ea_hPa, qn1_obs, ldown_obs, &
+                     dectime, ZENITH_deg, kdown, Tair_C, avRH, ea_hPa, qn1_obs, ldown_obs, fcld_obs, &
                      SnowAlb, &
                      AlbedoChoice, ldown_option, NetRadiationMethod_use, DiagQN, &
                      qn_surf, & ! output:
@@ -3290,7 +3388,14 @@ CONTAINS
 
       ! load dim constants
       nlayer = siteInfo%nlayer
-      use_building_facets_for_ehc = config%StorageHeatMethod == 5 .AND. config%NetRadiationMethod > 1000
+      use_building_facets_for_ehc = config%StorageHeatMethod == 5 &
+                                    .AND. config%NetRadiationMethod > 1000 &
+                                    .AND. siteInfo%sfr_surf(BldgSurf) > 0.0D0
+      state_building = 0.0D0
+      soilstore_building = 0.0D0
+      capStore_builing = 0.0D0
+      runoff_building = 0.0D0
+      qe_building = 0.0D0
 
       ALLOCATE (rss_roof(nlayer))
       ALLOCATE (runoff_roof(nlayer))
@@ -3526,7 +3631,9 @@ CONTAINS
                   ! update building specific values
                   qe_surf(BldgSurf) = qe_building
                   state_surf(BldgSurf) = state_building
-                  soilstore_surf(BldgSurf) = soilstore_building/capStore_builing*capStore_surf(BldgSurf)
+                  IF (capStore_builing > 0.0D0) THEN
+                     soilstore_surf(BldgSurf) = soilstore_building/capStore_builing*capStore_surf(BldgSurf)
+                  END IF
                   runoff_surf(BldgSurf) = runoff_building
                END IF
 
@@ -3917,6 +4024,7 @@ CONTAINS
                   zL = relax_zl(zL_prev_pass, zL, modState%flagState%i_iter)
                   CALL stability_scales(StabilityMethod, zzd, z0m, avU1, QH_init/(avdens*avcp), &
                                         zL, L_mod, UStar, TStar)
+                  IF (supy_error_flag()) RETURN
                END IF
 
                ! Free-convection velocity for the resistance, from this pass's heat
@@ -3945,6 +4053,7 @@ CONTAINS
                   RoughLenHeatMethod, &
                   RA, z0v, & ! output:
                   modState)
+               IF (supy_error_flag()) RETURN
 
                IF (config%StorageHeatMethod == 5 .AND. ehc_experimental_controls_enabled()) THEN
                   ehc_ra_heat_factor = 1.0D0
@@ -4039,6 +4148,7 @@ CONTAINS
                      3, &
                      RASnow, z0vSnow, & ! output:
                      modState)
+                  IF (supy_error_flag()) RETURN
                END IF
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling SurfaceResistance...'
@@ -4052,6 +4162,7 @@ CONTAINS
                   g_kdown, g_dq, g_ta, g_smd, g_lai, & ! output:
                   gfunc, gsc, RS, & ! output:
                   modState)
+               IF (supy_error_flag()) RETURN
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling BoundaryLayerResistance...'
                CALL BoundaryLayerResistance( &
@@ -5153,7 +5264,6 @@ CONTAINS
       ! Used in OHM calcs - need to be reset between supy calls - TODO: Should allow passing initial values
       REAL(KIND(1D0)) :: t2_prev ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav ! running average of wind speed [m s-1]
-      REAL(KIND(1D0)) :: tair_prev
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_rav ! running average of net radiation of each surface [W m-2]
       REAL(KIND(1D0)) :: a1_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg ! Dynamic OHM coefficients of buildings
@@ -6042,7 +6152,6 @@ CONTAINS
 
       ohmState%t2_prev = 0.0 ! previous day midnight air temperature [degC]
       ohmState%ws_rav = 2.0 ! running average of wind speed [m s-1]
-      ohmState%tair_prev = 0.0
       ohmState%qn_rav = 0.0 ! running average of net radiation [W m-2]
       ohmState%a1_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a2_bldg = 0.0 ! Dynamic OHM coefficients of buildings
@@ -6320,6 +6429,10 @@ CONTAINS
                timer, forcing, config, siteInfo, &
                mod_State, &
                output_line_suews) !output
+         END IF
+         IF (supy_error_flag()) THEN
+            CALL sync_error_to_state(mod_State, timer)
+            EXIT
          END IF
          ! update dt_since_start_x for next iteration, dt_since_start_x is used for Qn averaging. TS 28 Nov 2018
          timer%dt_since_start = timer%dt_since_start + timer%tstep

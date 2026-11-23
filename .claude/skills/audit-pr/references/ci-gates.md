@@ -36,9 +36,13 @@ the log supplies one, quote the operative sentence into the finding rather than
 paraphrasing from memory. Some failure paths print only the cause -- there, derive
 the remedy from the catalogue below, or say plainly that it needs a maintainer.
 
-Also read the `<!-- ci-build-plan -->` bot comment on the PR. It states which
-platforms, Python versions, and test tier this PR's paths selected, which explains
-why a check some other PR ran is absent here.
+Also read the `<!-- ci-build-plan -->` bot comment and any other CI bot comments
+(such as `<!-- cost-markers:start -->`) on the PR. `<!-- ci-build-plan -->`
+states which platforms, Python versions, and test tier this PR's paths selected,
+which explains why a check some other PR ran is absent here; check against
+`.claude/rules/review-convergence.md` ("Pre-enqueue CI coverage and advisory
+audit") whether any target platform the PR claims to fix was skipped, and list
+any non-gating advisory findings explicitly rather than dropping them silently.
 
 ## Step 2 -- required is not the same as blocking
 
@@ -110,6 +114,10 @@ Fold CI findings into the same severity vocabulary as the rest of the review:
   all; the observability jobs (`Post CI summary comment`, `CI observability
   summary`) carry no such guard and can genuinely go red.
 - Pending required checks at review time -> note in the summary, not a finding.
+- Skipped target platform that the PR claims to fix, or an unresolved CI bot
+  advisory -> surface explicitly as a named gap/disposition per
+  `.claude/rules/review-convergence.md` ("Pre-enqueue CI coverage and advisory
+  audit").
 
 Each CI finding states, in one line: the check name, what it is enforcing, why it
 is red *for this diff*, the remedy, and who can apply it.
@@ -143,7 +151,9 @@ workflow's `on:` / `paths:` rather than assuming.
     via `python test/fixtures/sample_short/make_sample_short.py`).
   - Maintainer-gated when: the `data_model/core/` diff is genuinely non-structural
     (docstrings, comments, validator-rule tightening, internal refactor). Label:
-    `0-ci:schema-audit-ok`. Subject to the payload race below.
+    `0-ci:schema-audit-ok`. The workflow subscribes to `labeled`/`unlabeled` and
+    queries live PR labels via the API, so applying the label re-evaluates
+    cleanly without a close/reopen.
 - **`Validate data-interface version histories`** (`data-interface-version-audit.yml`)
   - Fires on: every `pull_request` (unconditional).
   - Enforces: append-only forcing/output semantic-version histories
@@ -267,15 +277,21 @@ workflow's `on:` / `paths:` rather than assuming.
 - **`Physics-change label`** (`check_physics_label` in `build-publish_to_pypi.yml`)
   - Enforces `.claude/rules/physics-change-evidence.md` (`needs:` of `PR build validation`):
     fails if stored reference outputs (`test/fixtures/data_test/sample_output_2012-*.csv`,
-    `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change
-    without the `0-physics:change` label, and warns on unlabelled `suews_phys_*.f9*`
-    edits.
-  - Maintainer-gated + author-fixable (no cosmetic bypass): add `## Scientific evidence`
-    to the PR body, have a maintainer apply `0-physics:change`, and re-trigger
-    (note: `check_physics_label` reads labels live via the API, whereas
-    `determine_matrix` on `pull_request` reads the event payload to select the
-    full `-m physics` tier -- push a commit or close/reopen so the full physics
-    tier runs).
+    `provenance.json`, `stebbs_test/sample_output_stebbs.csv`, `w16_most.csv`) change
+    without **exactly one** of `0-physics:change` or `0-numerics:change`, fails if a PR
+    carries both labels simultaneously or if a labelled ready PR / `merge_group` run did not
+    execute `test_tier=physics-full` (and `PR build validation` requires `build_wheels == success`
+    whenever either label is present), and warns on unlabelled `suews_phys_*.f9*` edits.
+  - Maintainer-gated + author-fixable (no cosmetic bypass): for formulation, build-environment,
+    or above-threshold changes, add `## Scientific evidence` to the PR body and have a
+    maintainer apply `0-physics:change`; for constant precision, unit conversion, or
+    floating-point representation changes strictly below `0.5%` scale-relative and `0.5 W m-2`
+    absolute flux difference, add the per-variable numerical change table and have a
+    maintainer apply `0-numerics:change`. Both `determine_matrix` and `check_physics_label`
+    query live PR labels via the API, and `build-publish_to_pypi.yml` does not trigger on
+    label events -- so after adding or changing either label, click "Re-run all jobs" (or push
+    a commit / close and reopen the PR) so `determine_matrix` and `build_wheels` run `physics-full`
+    (never re-run `check_physics_label` alone).
 - **`Build MCP package`** (`build_mcp` in `build-publish_to_pypi.yml`)
   - Enforces (`needs:` of `build_wheels` and `PR build validation`): runs
     `python3 get_ver_git.py` and `python -m build mcp` to produce the
@@ -295,27 +311,28 @@ both change. Query them (Step 1) at review time.
 
 ## The bypass-label payload race
 
-Two gates read their bypass label from the **static event payload** captured when
-the triggering event fired -- `${{ toJSON(github.event.pull_request.labels.*.name) }}`
--- and subscribe only to the default `pull_request` types (`opened`, `synchronize`,
-`reopened`):
+One remaining standalone gate reads its bypass label from the **static event
+payload** captured when the triggering event fired --
+`${{ toJSON(github.event.pull_request.labels.*.name) }}` -- and subscribes only
+to the default `pull_request` types (`opened`, `synchronize`, `reopened`):
 
-- `schema-version-audit.yml` (`0-ci:schema-audit-ok`)
 - `knowledge-pack-audit.yml` (`0-ci:knowledge-pack-audit-ok`)
 
 So a label applied *after* the run started is invisible to it, and the gate stays
 red even though the label is plainly on the PR.
 
-- Preferred: apply the label at creation -- `gh pr create ... --label "0-ci:schema-audit-ok"`.
+- Preferred: apply the label at creation -- `gh pr create ... --label "0-ci:knowledge-pack-audit-ok"`.
 - Already failed: push a commit (fires `synchronize`) or
   `gh pr close {pr} && gh pr reopen {pr}` (fires `reopened`). Either regenerates a
   payload carrying the current labels.
 - **`gh run rerun` does not help** -- it replays the stale payload. Recommending it
   costs the author a cycle and looks like the fix failed.
 
-`encoding-audit.yml` and `rust-clippy.yml` do include `labeled`/`unlabeled` in their
-trigger types, so labelling those re-triggers them directly. Check the workflow's
-`types:` line before advising a re-trigger.
+`schema-version-audit.yml`, `encoding-audit.yml`, and `rust-clippy.yml` include
+`labeled`/`unlabeled` in their trigger types and query live PR labels via the
+API, so labelling those re-triggers them directly (and re-running folded jobs in
+`build-publish_to_pypi.yml` also reads the current label state). Check the
+workflow's `types:` line before advising a re-trigger.
 
 ---
 
@@ -330,9 +347,9 @@ trigger types, so labelling those re-triggers them directly. Check the workflow'
 - **Do not propose a bypass to dodge a real change.** The label is for diffs that
   do not need the bump, never for diffs that need it and would rather not. Verify
   the non-structural claim against the diff yourself before writing the sentence.
-- **Do not propose a bypass at all for `0-physics:change`.** Per
-  `.claude/rules/physics-change-evidence.md` that gate has no cosmetic bypass; it is
-  satisfied by supplying the evidence.
+- **Do not propose a cosmetic bypass for `0-physics:change` or `0-numerics:change`.** Per
+  `.claude/rules/physics-change-evidence.md` neither label can be waived, and `0-numerics:change`
+  must never be proposed for a formulation change or an output shift at or above the numerical threshold.
 - **Do not re-run, close/reopen, or push to a PR you do not own** to clear a check.
   Those are author or maintainer actions; the review names them, the review does not
   perform them.

@@ -196,7 +196,6 @@ PHYS =	\
 	suews_phys_spartacus.o \
 	suews_phys_atmmoiststab.o \
 	suews_phys_resist.o \
-	suews_phys_bluews.o \
 	suews_phys_waterdist.o \
 	suews_phys_evap.o \
 	suews_phys_snow.o \
@@ -296,7 +295,7 @@ help:
 	@echo $(SUEWS_VER)
 	@echo $(FC_VER)
 
-libspartacus: $(FILE_SRC_UTIL_SPTCS) $(FILE_SRC_RADTOOL_SPTCS) $(FILE_SRC_RAD_SPTCS)
+libspartacus: src/suews_ctrl_error_tls.o $(FILE_SRC_UTIL_SPTCS) $(FILE_SRC_RADTOOL_SPTCS) $(FILE_SRC_RAD_SPTCS)
 	mkdir -p $(DIR_LIB_SUEWS)
 	ar r lib/$(LIBSPTCS) $^
 
@@ -364,7 +363,7 @@ exe: $(addprefix $(DIR_SRC_SUEWS), $(OTHERS) suews_program$(suffix_code))
 # libspartacus is order-only: it is not a file, so as a normal prerequisite it
 # would rebuild this object (and the driver that USEs it) on every make. The
 # SPARTACUS objects themselves are normal prerequisites via Makefile.deps.
-src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 src/suews_phys_beers.o | libspartacus
+src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 src/suews_phys_beers.o Makefile Makefile.$(PROFILE) | libspartacus
 	$(FC) $(FCFLAGS) -c $< -o $@
 
 # Module dependency edges: an object that USEs a module is built after the
@@ -375,7 +374,7 @@ include Makefile.deps
 # rules for f95-->f90
 # $< (the source alone), not $^: the dependency edges above add objects to
 # the prerequisite list, and those must not reach the compile command.
-%.o: %$(suffix_code)
+%.o: %$(suffix_code) Makefile Makefile.$(PROFILE)
 	@echo $<
 	$(FC) $(FCFLAGS) -c $< -o $@
 
@@ -385,6 +384,7 @@ clean: clean-obj clean-mods clean-lib clean-bin clean-ext
 
 clean-obj:
 	find . -name "*.o" -type f -delete
+	rm -f .suews_build_fingerprint
 
 
 clean-lib:
@@ -404,7 +404,7 @@ clean-ext:
 
 
 # C helpers (thread-local error store; strptime shim on Windows)
-%.o: %.c
+%.o: %.c Makefile Makefile.$(PROFILE)
 	$(CC) $(CFLAGS_C) -c $< -o $@
 
 

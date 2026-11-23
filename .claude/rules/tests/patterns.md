@@ -276,8 +276,7 @@ than being skipped, so a schema bump cannot read as no drift. The nightly
 Linux cp312 lanes (also on `workflow_dispatch` with the `cost_markers` input)
 with `continue-on-error`, so drift is reported in the step summary and never
 reddens the run; `report_scheduled_run` prints the drift count in its own
-summary and, on a night that fails for another reason, in the tracking-issue
-comment, but never counts drift as a failure. On a pull request that changes
+summary, and drift never counts as a failure. On a pull request that changes
 test files, the `cost_markers_pr` job runs the same check restricted to those
 files (`--test-file`) on the PR's own Linux cp312 metrics and adds the result to
 the CI summary comment; it never gates, and it cannot judge tests the PR tier
@@ -293,6 +292,65 @@ python scripts/lint/check_cost_markers.py ci-metrics --histogram
 Fix the marker, not the threshold. A threshold moves only with a new
 distribution table in this section and a matching change to the constants at
 the top of the lint.
+
+---
+
+## Simulation Cost and Shared Reference Runs
+
+Keep test execution fast by sharing repeated reference runs and bounding
+simulation windows to what the assertion actually requires:
+
+1. **Share repeated reference runs per session.** A reference simulation that
+   several tests or modules compare against must be computed once per session
+   through a shared session-scoped fixture in `test/conftest.py`, not
+   recomputed per test or per module. [decision: software maintainer, 2026-11-22]
+   - Reuse existing session fixtures before adding a new one:
+     `sample_run_cached`, `sample_config_run_cached`,
+     `sample_dailystate_full_year`, `completed_sample_sim`,
+     `stream_chunk_reference_dir`, and `stream_chunk_reference_output`
+     (`test/conftest.py`). [fact: git grep -n "def sample_config_run_cached\|def stream_chunk_reference_dir\|def stream_chunk_reference_output\|def sample_run_cached" test/conftest.py]
+   - Every shared reference fixture must return immutable data, a documented
+     read-only artefact, or defensive copies (deep-copied DataFrames, configs,
+     and attributes; or an explicit copy option) so a mutating test cannot
+     poison later tests. [decision: software maintainer, 2026-11-22]
+   - Under `pytest-xdist`, session scope is per worker; set
+     `SUEWS_LOG_REFERENCE_RUNS=1` (or a `.jsonl` path) to log each cached
+     reference-run construction and confirm duplicate-build counts across
+     `-p no:xdist` and `-n` runs. [fact: git grep -n "SUEWS_LOG_REFERENCE_RUNS" test/conftest.py]
+
+2. **Use the shortest forcing that exercises the behaviour under test.**
+   Prefer hours or days (`SHORT_RUN_STEPS`, `TIMESTEPS_PER_DAY`, or a few days)
+   rather than a full year. When testing a calendar-year boundary or a chunk
+   boundary, use a short forcing slice that crosses that boundary (days to a
+   few weeks), not a full calendar year. [decision: software maintainer, 2026-11-22]
+
+3. **No full-year simulation in a unit test.** A full-year simulation belongs
+   only where the assertion genuinely requires a full year (reference
+   reproduction, annual balance, full-year phenology/GDD-SDD progression, or
+   full-year solver convergence), and must carry the cost marker that its
+   measured call-phase CPU seconds require (see "Cost thresholds" above).
+   [decision: software maintainer, 2026-11-22]
+
+4. **Mark cost honestly by the existing policy.** Assign `medium` and `slow`
+   only by measured call-phase CPU seconds or a documented non-CPU cause (see
+   "PR/CR placement" and "Cost thresholds" above). Never mark a test `slow`
+   merely to hide it from PR runs; essential `core` tests remain in the PR
+   tier. [decision: software maintainer, 2026-11-22]
+
+**How to recognise violations.**
+- *From a diff (reviewers)*: a new `SUEWSSimulation.from_sample_data().run(...)`
+  or module-scoped reference run whose settings match an existing fixture; a
+  parametrised test running an identical reference simulation inside its body
+  on every case; a unit test running a full-year forcing window without a
+  full-year assertion; or a `@pytest.mark.slow` decorator added without a
+  measured CPU reading or concrete non-CPU `reason=`.
+- *While working (agents)*: before writing a new `sim.run(...)` call in a test,
+  check `test/conftest.py` for an existing shared fixture, choose the shortest
+  window that triggers the code path, and keep mutating tests on private copies.
+
+**Origin.** Derived from the 22 Nov 2026 API-lane profile, in which
+`test/core/test_stream_chunk.py` accounted for 37-38% of API-lane runtime and
+repeated Python setup and reference-run overhead dominated.
 
 ---
 

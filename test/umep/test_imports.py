@@ -7,6 +7,10 @@ See: https://github.com/UMEP-dev/SUEWS/issues/901
 
 from unittest import TestCase
 
+import pytest
+
+pytestmark = pytest.mark.contract("C-API")
+
 
 class TestImportPaths(TestCase):
     """Test that all UMEP-used import paths work correctly."""

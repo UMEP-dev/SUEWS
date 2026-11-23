@@ -46,6 +46,36 @@ on:
         required: false
         type: boolean
         default: false
+      api_shard_python:
+        description: 'Test-time CPython tag whose api cell on this call''s platform is split into api_shard_count shards (the pull-request layout passes cp312 for Linux and Windows); empty runs every api cell whole. Only read when run_api_tests is true'
+        required: false
+        type: string
+        default: ''
+      api_shard_count:
+        description: 'Number of shards for the api_shard_python cell (scripts/suews/pytest_shard.py); draft tiers are never sharded'
+        required: false
+        type: number
+        default: 2
+      api_bookend_core:
+        description: 'Run every api Python except the build Python at the core-bookend tier (every core api test plus smoke) in one job; the non-core api tests on those Pythons wait for the nightly'
+        required: false
+        type: boolean
+        default: false
+      run_lowest_direct_deps:
+        description: 'Run the lowest-direct dependency smoke tests on the Linux cp312 wheel this call built, as soon as it exists (the caller passes true only for the manylinux x86_64 call, when dependency-audit paths changed, on the schedule, or on a dispatch with lowest_direct_deps)'
+        required: false
+        type: boolean
+        default: false
+      split_tests:
+        description: 'Upload the wheel without testing it inside cibuildwheel, then run the physics tier in physics_shards separate jobs in the same manylinux image, in parallel with the api lane (Linux only; the Fortran probe libraries are built once by the fortran_probes job)'
+        required: false
+        type: boolean
+        default: false
+      physics_shards:
+        description: 'Number of physics shard jobs when split_tests is true'
+        required: false
+        type: number
+        default: 2
       api_python_json:
         description: 'JSON array of test-time CPython tags for the api lane (e.g. ["cp312","cp315"]); only read when run_api_tests is true'
         required: false
@@ -56,13 +86,65 @@ on:
         required: false
         type: string
         default: ''
+      run_python_coverage:
+        description: 'Run the Python coverage recording job on the Linux cp312 wheel this call built (the caller passes true only for the manylinux x86_64 call, on the schedule or a dispatch with python_coverage, and only when the suews-mcp-dist artefact exists)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+env:
+  # The image cibuildwheel v3.2 (pinned in .github/actions/build-suews) builds
+  # the cp312 Linux wheel in: the physics shards and the Fortran probe
+  # libraries use it too, so the reference sample run and the probes see the
+  # same glibc, libm and gfortran as the wheel's own test step did.
+  MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_x86_64:2025.10.10-1
+
 jobs:
+  # Lays out this platform's test jobs (scripts/suews/ci_test_layout.py):
+  # which api Python is sharded and how many ways, which runs the
+  # core-bookend tier, and how many physics shards run. It needs nothing, so
+  # it finishes long before the wheel.
+  layout:
+    name: test layout
+    runs-on: ubuntu-latest
+    outputs:
+      api_cells: ${{ steps.layout.outputs.api_cells }}
+      physics_shards: ${{ steps.layout.outputs.physics_shards }}
+      effective_split_tests: ${{ steps.layout.outputs.effective_split_tests }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: scripts/suews
+          persist-credentials: false
+
+      - name: Lay out the api cells and physics shards
+        id: layout
+        shell: bash
+        env:
+          API_PYTHON: ${{ inputs.api_python_json }}
+          TIER: ${{ inputs.test_tier }}
+          SHARD_PYTHON: ${{ inputs.api_shard_python }}
+          SHARD_COUNT: ${{ inputs.api_shard_count }}
+          BOOKEND_CORE: ${{ inputs.api_bookend_core }}
+          FULL_PYTHON: ${{ fromJson(inputs.python_json)[0] }}
+          SPLIT_TESTS: ${{ inputs.split_tests }}
+          PHYSICS_SHARDS: ${{ inputs.physics_shards }}
+        run: |
+          args=(--api-python "$API_PYTHON" --tier "$TIER" --shard-python "$SHARD_PYTHON"
+                --shard-count "$SHARD_COUNT" --full-python "$FULL_PYTHON"
+                --physics-shards "$PHYSICS_SHARDS")
+          [[ "$BOOKEND_CORE" == "true" ]] && args+=(--bookend-core)
+          [[ "$SPLIT_TESTS" == "true" ]] && args+=(--split-tests)
+          python3 scripts/suews/ci_test_layout.py "${args[@]}"
+
   build:
-    name: ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    # Leaf names say what the job does: the caller's group name collapses
+    # into the checks list, where a bare cp312-<platform> leaf would read the
+    # same as the api lane's leaf.
+    name: wheel | ${{ matrix.python }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
       matrix:
@@ -108,6 +190,148 @@ jobs:
           build_profile: ${{ inputs.build_profile }}
           artifact_prefix: ${{ inputs.artifact_prefix }}
           metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics
+          skip_tests: ${{ inputs.split_tests && inputs.test_tier != 'smoke' && inputs.test_tier != 'core' && inputs.test_tier != 'cfg' }}
+          manylinux_x86_64_image: ${{ env.MANYLINUX_IMAGE }}
+
+  # The analytic Fortran probe tests (test_free_convection.py and others)
+  # compile a small program against the source-build libraries in
+  # src/suews/lib and src/suews/mod. In the split layout they are built once,
+  # here, in the wheel's manylinux image and in parallel with the wheel, and
+  # every physics shard downloads them, instead of each shard compiling them
+  # (run_ci_tests.py, SUEWS_FORTRAN_PROBES_PREBUILT).
+  fortran_probes:
+    name: fortran probes | ${{ fromJson(inputs.python_json)[0] }} | manylinux x86_64
+    if: inputs.split_tests && inputs.test_tier != 'smoke' && inputs.test_tier != 'core' && inputs.test_tier != 'cfg'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Build the Fortran libraries in the wheel's manylinux image
+        shell: bash
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -e FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none" -e F90=gfortran \
+            -v "$PWD":/project -w /project "$MANYLINUX_IMAGE" \
+            make -C src/suews all -j4
+          ls -l src/suews/lib
+
+      - name: Upload the Fortran probe libraries
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ${{ inputs.artifact_prefix }}fortran-probes-${{ fromJson(inputs.python_json)[0] }}-manylinux-x86_64
+          path: |
+            src/suews/lib/
+            src/suews/mod/
+          if-no-files-found: error
+          retention-days: 3
+
+  # The physics tier of the split layout: one job per shard, started as soon
+  # as the wheel is uploaded, in parallel with the api lane. Each runs inside
+  # the same manylinux image as the wheel build (a container job cannot run
+  # the JavaScript actions on that image's glibc, so the host checks out and
+  # downloads, then docker runs the tests), with SUEWS_REFERENCE_LANE=1 so the
+  # exact sample-output reproduction and the Fortran probes behave as they did
+  # in the wheel job. The core-test guard reads each shard's metrics.
+  physics:
+    name: physics | ${{ matrix.python }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}${{ matrix.shard && format(' shard {0}', matrix.shard) || '' }}
+    needs: [layout, build, fortran_probes]
+    if: needs.layout.outputs.effective_split_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat: ${{ fromJson(inputs.buildplat_json) }}
+        python: ${{ fromJson(inputs.python_json) }}
+        shard: ${{ fromJson(needs.layout.outputs.physics_shards) }}
+    env:
+      METRICS_NAME: physics-${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          filter: blob:none
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.artifact_prefix }}${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: wheelhouse/
+
+      - name: Download the Fortran probe libraries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.artifact_prefix }}fortran-probes-${{ matrix.python }}-manylinux-x86_64
+          path: src/suews/
+
+      - name: Restore the uv cache
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        with:
+          path: .uv-cache
+          key: uv-physics-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: uv-physics-${{ matrix.python }}-
+
+      - name: Run the physics shard in the wheel's manylinux image
+        shell: bash
+        env:
+          TIER: ${{ inputs.test_tier }}
+          SHARD: ${{ matrix.shard }}
+          PYTAG: ${{ matrix.python }}
+          # As the wheel job's test step: the reference lane is the cp312
+          # x86_64 release build only, and the tests read the build profile.
+          SUEWS_BUILD_PROFILE: ${{ inputs.build_profile }}
+          SUEWS_REFERENCE_LANE: ${{ (matrix.python == 'cp312' && matrix.buildplat[2] == 'x86_64' && inputs.build_profile != 'checked') && '1' || '0' }}
+        run: |
+          mkdir -p .uv-cache ci-metrics
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -e UV_CACHE_DIR=/project/.uv-cache -e UV_LINK_MODE=copy \
+            -e TIER -e SHARD -e PYTAG -e METRICS_NAME \
+            -e SUEWS_BUILD_PROFILE -e SUEWS_REFERENCE_LANE -e SUEWS_FORTRAN_PROBES_PREBUILT=1 \
+            -e SUEWS_CI_METRICS_DIR=/project/ci-metrics -e SUEWS_CI_METRICS_NAME="$METRICS_NAME" \
+            -e F90=gfortran -e FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none" \
+            -v "$PWD":/project -w /project "$MANYLINUX_IMAGE" bash -euo pipefail -c '
+              PY="/opt/python/${PYTAG}-${PYTAG}/bin/python"
+              "$PY" -m pip install --quiet --user uv==0.9.5
+              UV="$HOME/.local/bin/uv"
+              "$UV" venv --quiet --python "$PY" /tmp/venv
+              "$UV" pip install --quiet --python /tmp/venv/bin/python --only-binary :all:                 pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0                 wheelhouse/*.whl
+              git config --global --add safe.directory /project
+              EXPR="$(/tmp/venv/bin/python scripts/suews/ci_tiers.py physics "$TIER")"
+              SHARD_ARGS=()
+              if [[ -n "$SHARD" ]]; then
+                SHARD_ARGS=(-p scripts.suews.pytest_shard --suews-shard "${SHARD/-of-//}")
+              fi
+              echo "physics tier ${TIER}: -m "${EXPR}" ${SHARD:+shard ${SHARD}}"
+              /tmp/venv/bin/python scripts/suews/run_ci_tests.py /project                 -v --tb=short --durations=10 -n auto --maxprocesses=4 --dist worksteal                 -m "$EXPR" "${SHARD_ARGS[@]}"
+            '
+
+      - name: Upload the physics shard metrics
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ${{ inputs.artifact_prefix }}ci-metrics-${{ env.METRICS_NAME }}
+          path: ci-metrics/*.json
+          if-no-files-found: error
+          retention-days: 14
+
+      # The exact sample-output check writes the regenerated reference under
+      # SUEWS_CI_METRICS_DIR when the run no longer reproduces the committed
+      # shards. The artefact keeps the wheel job's name, which the test's
+      # failure message and the reference-refresh procedure name: only the
+      # shard that holds that test writes files, and the other shards and the
+      # untested wheel job upload nothing (if-no-files-found: ignore).
+      - name: Upload regenerated sample-output reference
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ${{ inputs.artifact_prefix }}reference-regenerated-${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: ci-metrics/reference-regenerated/
+          if-no-files-found: ignore
+          retention-days: 14
 
   # The api lane for the platforms built above. It needs the wheel artefact
   # this call uploaded (cp312-<platform>-<arch>) and the suews-mcp-dist
@@ -115,11 +339,222 @@ jobs:
   # depending on that job and passing run_api_tests only when it succeeded.
   api_cross_python:
     name: API cross-CPython tests
-    needs: build
+    needs: [layout, build]
     if: inputs.run_api_tests
     uses: $/.github/workflows/test-api-cross-python-reusable.yml
     with:
       buildplat_json: ${{ inputs.buildplat_json }}
-      api_python_json: ${{ inputs.api_python_json }}
+      cells_json: ${{ needs.layout.outputs.api_cells }}
       test_tier: ${{ inputs.test_tier }}
       serial_platforms: ${{ inputs.serial_platforms }}
+
+  # Verify the built Linux cp312 wheel installs and passes core/smoke tests
+  # against the lowest declared runtime dependency floors via uv
+  # --resolution=lowest-direct (gh#2104 F-17a). It is chained here, behind
+  # this call's wheel only, so it starts when the Linux wheel exists instead
+  # of after every test lane. The caller decides when it runs (dependency-
+  # audit paths changed on a PR or in the queue, the schedule, or a dispatch
+  # with lowest_direct_deps); its result rolls into build_wheels, which
+  # pr-gate and report_scheduled_run read.
+  lowest_direct_deps:
+    name: Lowest-direct dependency smoke tests (Linux cp312)
+    needs: build
+    if: inputs.run_lowest_direct_deps
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: false
+
+      - name: Download the Linux cp312 wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-manylinux-x86_64
+          path: wheelhouse/
+
+      - name: Install built wheel with --resolution=lowest-direct and run core/smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/security/export_pyproject_requirements.py > requirements-core.txt
+          uv pip compile --resolution=lowest-direct --only-binary :all: --python-version 3.12 \
+            requirements-core.txt -o lowest-constraints.txt
+          uv venv --python 3.12 .lowest-venv
+          uv pip install --python .lowest-venv/bin/python --only-binary :all: -r lowest-constraints.txt
+          uv pip install --python .lowest-venv/bin/python --no-deps wheelhouse/*.whl
+          uv pip install --python .lowest-venv/bin/python -c lowest-constraints.txt \
+            pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
+          uv pip check --python .lowest-venv/bin/python
+          .lowest-venv/bin/python - <<'PY'
+          import importlib.metadata as md
+          from pathlib import Path
+
+          from packaging.utils import canonicalize_name
+
+          pinned = {}
+          for line in Path("lowest-constraints.txt").read_text(encoding="utf-8").splitlines():
+              stripped = line.strip()
+              if not stripped or stripped.startswith("#") or "==" not in stripped:
+                  continue
+              name, ver = stripped.split("==", maxsplit=1)
+              pinned[canonicalize_name(name)] = ver.strip()
+
+          for name, expected in sorted(pinned.items()):
+              actual = md.version(name)
+              if actual != expected:
+                  raise SystemExit(
+                      f"Lowest-direct constraint drifted for {name}: expected {expected}, got {actual}"
+                  )
+
+          for pkg in (
+              "supy",
+              "pandas",
+              "scipy",
+              "numpy",
+              "pydantic",
+              "pyarrow",
+              "pyyaml",
+              "matplotlib",
+              "seaborn",
+              "scikit-learn",
+              "lmfit",
+              "atmosp",
+              "cdsapi",
+              "pytz",
+              "click",
+              "rich",
+              "jsonschema",
+              "packaging",
+          ):
+              print(f"  {pkg:14s} == {md.version(pkg)}")
+          PY
+          export PATH="$PWD/.lowest-venv/bin:$PATH"
+          SUEWS_VALIDATE_BIN="$(command -v suews-validate || true)"
+          if [[ "$SUEWS_VALIDATE_BIN" != "$PWD/.lowest-venv/bin/suews-validate" ]]; then
+            echo "Expected suews-validate in $PWD/.lowest-venv/bin, got: ${SUEWS_VALIDATE_BIN:-<missing>}" >&2
+            exit 1
+          fi
+          .lowest-venv/bin/python -m pytest -n 4 --dist worksteal -q --tb=short \
+            -m "(smoke or core) and not slow and not qgis" \
+            test/core test/data_model test/io_tests test/cmd
+          printf '{"result": "success"}\n' > lowest-direct-deps-result.json
+
+      - name: Upload lowest-direct dependency result marker
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: lowest-direct-deps-result
+          path: lowest-direct-deps-result.json
+          if-no-files-found: error
+          retention-days: 3
+
+  # Fail closed inside build_wheels if lowest_direct_deps was requested and the
+  # wheel succeeded, but lowest_direct_deps was skipped or failed (#2284).
+  lowest_direct_deps_guard:
+    name: Require lowest-direct dependency smoke tests
+    needs: [build, lowest_direct_deps]
+    if: always() && inputs.run_lowest_direct_deps && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed if lowest_direct_deps did not succeed
+        shell: bash
+        env:
+          LOWEST_DIRECT_DEPS_RESULT: ${{ needs.lowest_direct_deps.result }}
+        run: |
+          if [[ "$LOWEST_DIRECT_DEPS_RESULT" != "success" ]]; then
+            echo "::error::lowest_direct_deps was required (run_lowest_direct_deps=true) but finished with '${LOWEST_DIRECT_DEPS_RESULT}'"
+            exit 1
+          fi
+          echo "[OK] lowest_direct_deps succeeded"
+
+  # Nightly and on demand: Python line and branch coverage of supy and
+  # suews_mcp over the whole suite except the qgis tests, on the Linux cp312
+  # wheel this call built, installed as the api lane installs it, with the
+  # configuration in pyproject.toml ([tool.coverage.*]) so `pytest --cov`
+  # gives the same numbers locally. The test requirements are the api lane's
+  # exact pins plus pytest-cov and coverage, pinned the same way. It records
+  # and never gates: continue-on-error keeps a failing test, an install
+  # failure or the timeout from turning the calling run red, and it feeds
+  # neither report_scheduled_run nor pr-gate; a failing test is the api and
+  # physics lanes' to report, here it only lowers the figures. It uploads
+  # coverage.json and coverage.xml as the python-coverage artefact and writes
+  # totals and a per-package table to the job summary; no external service.
+  # It lives here, chained behind `build`, so it starts when the Linux wheel
+  # exists rather than after every platform's api lane; the check renders as
+  # "Build and test (manylinux x86_64) / Python coverage (Linux cp312)".
+  python_coverage:
+    name: Python coverage (Linux cp312)
+    needs: build
+    if: inputs.run_python_coverage
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Download the Linux cp312 wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-manylinux-x86_64
+          path: wheelhouse/
+
+      - name: Download MCP distribution
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: suews-mcp-dist
+          path: mcp-dist/
+
+      - name: Install the wheel and the pinned test requirements
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0 \
+            pytest-cov==7.1.0 coverage==7.17.3
+          python -m pip install wheelhouse/*.whl mcp-dist/*.whl
+
+      # Four workers, as the Linux api lane measured (#1786). pytest-cov writes
+      # the reports whatever the test outcome.
+      # The step timeout sits under the job timeout so a slow night fails
+      # this step (which continue-on-error absorbs) rather than cancelling
+      # the job, and the summary and upload steps below still run.
+      - name: Run the suite under coverage
+        timeout-minutes: 80
+        shell: bash
+        run: >-
+          python -m pytest test -m "not qgis"
+          -n 4 --dist worksteal -q --tb=short -p no:cacheprovider
+          --cov
+          --cov-report=json:coverage/coverage.json
+          --cov-report=xml:coverage/coverage.xml
+          --cov-report=term
+
+      - name: Summarise coverage
+        if: always()
+        shell: bash
+        run: python scripts/suews/coverage_summary.py coverage/coverage.json --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the coverage reports
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: python-coverage
+          path: |
+            coverage/coverage.json
+            coverage/coverage.xml
+          if-no-files-found: error
+          retention-days: 30

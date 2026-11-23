@@ -13,6 +13,7 @@ One file for the from_yaml/to_yaml surface:
   serialising a config emits no Pydantic serializer warnings.
 """
 
+from copy import deepcopy
 import tempfile
 import warnings
 from pathlib import Path
@@ -29,7 +30,7 @@ from supy.data_model.core.type import Reference, RefValue
 from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-ROUNDTRIP", "C-VALID")]
 
 
 # ===========================================================================
@@ -50,6 +51,140 @@ def _write_yaml(tmp_path: Path, data: dict) -> Path:
     with target.open("w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, sort_keys=False)
     return target
+
+
+@pytest.mark.cfg
+class TestSiteLongitudeInput:
+    """The validated dict and YAML routes accept lng and preserve authored errors."""
+
+    @staticmethod
+    def _load(data, tmp_path, entry):
+        if entry == "yaml":
+            return SUEWSConfig.from_yaml(str(_write_yaml(tmp_path, data)))
+        return SUEWSConfig.from_dict(data)
+
+    @pytest.mark.parametrize("entry", ["dict", "yaml"])
+    @pytest.mark.parametrize("key", ["lon", "lng", None])
+    @pytest.mark.parametrize("wrapped", [False, True])
+    @pytest.mark.parametrize("value", [0.0, 23.5])
+    def test_source_to_resolved_yaml(self, sample_config_dict, tmp_path, entry, key, wrapped, value):
+        from supy._run_rust import config_to_engine_yaml
+
+        properties = sample_config_dict["sites"][0]["properties"]
+        properties.pop("lng")
+        if key is not None:
+            properties[key] = {"value": value} if wrapped else value
+        original = deepcopy(sample_config_dict)
+        if key == "lon":
+            with pytest.raises(ValueError, match=r"sites\[gridiv=1\]\.properties\.lon"):
+                self._load(sample_config_dict, tmp_path, entry)
+        else:
+            config = self._load(sample_config_dict, tmp_path, entry)
+            expected = -0.13 if key is None else value
+            longitude = config.sites[0].properties.lng
+            assert getattr(longitude, "value", longitude) == pytest.approx(expected)
+            resolved = yaml.safe_load(config_to_engine_yaml(config))["sites"][0]["properties"]
+            assert "lon" not in resolved
+            longitude = resolved["lng"]
+            assert (longitude["value"] if isinstance(longitude, dict) else longitude) == pytest.approx(expected)
+        assert sample_config_dict == original
+
+    @pytest.mark.parametrize("entry", ["dict", "yaml"])
+    @pytest.mark.parametrize("canonical,alias", [(0, 0), (23.5, 0), (None, 23.5), (0, None)])
+    def test_duplicate_spellings_fail_with_site_path(self, sample_config_dict, tmp_path, entry, canonical, alias):
+        later = deepcopy(sample_config_dict["sites"][0])
+        later["gridiv"] = 27
+        later["properties"].update(lng=canonical, lon=alias)
+        sample_config_dict["sites"].append(later)
+        with pytest.raises(ValueError, match=r"sites\[gridiv=27\]\.properties\.lon") as exc:
+            self._load(sample_config_dict, tmp_path, entry)
+        assert "extra_forbidden" in str(exc.value)
+
+    def test_validation_folds_only_site_properties(self, tmp_path):
+        """The supported soil alias is folded; longitude-like metadata stays intact."""
+        from supy.data_model.validation.core.yaml_helpers import load_user_yaml_normalised
+
+        data = {
+            "lon": "root",
+            "metadata": {"lon": 8, "lng": 9},
+            "sites": [
+                {
+                    "properties": {
+                        "lon": {"value": 0, "ref": {"lon": "citation"}},
+                        "metadata": {"lon": 10, "lng": 11},
+                        "land_cover": {"paved": {"soildepth": {"value": 1}}},
+                    }
+                }
+            ],
+        }
+        expected = deepcopy(data)
+        paved = expected["sites"][0]["properties"]["land_cover"]["paved"]
+        paved["soil_depth"] = paved.pop("soildepth")
+        path = _write_yaml(tmp_path, data)
+        original_bytes = path.read_bytes()
+        assert load_user_yaml_normalised(str(path)) == expected
+        assert path.read_bytes() == original_bytes
+
+    def test_reference_only_input_keeps_canonical_fast_path(self, sample_config_dict, tmp_path):
+        from supy.data_model.validation.core.yaml_helpers import load_user_yaml_normalised
+
+        ref = {"desc": "Longitude survey", "ID": "grid-1"}
+        authored = {"value": 0.0, "ref": ref}
+        sample_config_dict["sites"][0]["properties"]["lng"] = deepcopy(authored)
+        path = _write_yaml(tmp_path, sample_config_dict)
+        original_bytes = path.read_bytes()
+        assert load_user_yaml_normalised(str(path))["sites"][0]["properties"]["lng"] == authored
+        loaded = SUEWSConfig.from_yaml(str(path)).sites[0].properties.lng
+        assert loaded.value == 0
+        assert loaded.ref.desc == ref["desc"]
+        assert loaded.ref.ID == ref["ID"]
+        assert path.read_bytes() == original_bytes
+
+    @pytest.mark.parametrize("entry", ["dict", "yaml"])
+    @pytest.mark.parametrize("value", [None, "wrong", -999, float("nan"), float("inf")])
+    def test_invalid_alias_value_is_not_replaced_by_default(self, sample_config_dict, tmp_path, entry, value):
+        properties = sample_config_dict["sites"][0]["properties"]
+        properties.pop("lng")
+        properties["lon"] = {"value": value}
+        with pytest.raises(ValueError, match=r"sites\[gridiv=1\]\.properties\.lon"):
+            self._load(sample_config_dict, tmp_path, entry)
+
+    def test_phase_a_reports_only_actual_site_alias_folds(self):
+        from supy.data_model.validation.pipeline.phase_a import _normalise_phase_a_compatibility
+
+        data = {
+            "metadata": {"lon": 8},
+            "sites": [
+                {"properties": {"lng": 0}},
+                {"properties": {"lon": {"value": 23.5}}},
+                {"properties": {"lon": 0}},
+            ],
+        }
+        original = deepcopy(data)
+        normalised, replacements = _normalise_phase_a_compatibility(data)
+        assert replacements == []
+        assert normalised == original
+        assert data == original
+
+    def test_unchecked_input_folds_spelling_without_resolving_defaults(self, sample_config_dict, tmp_path):
+        """After supported raw renames, unchecked data still needs full validation."""
+        from supy.data_model.validation.core.yaml_helpers import load_user_yaml_normalised
+
+        props = sample_config_dict["sites"][0]["properties"]
+        props["lon"] = props.pop("lng")
+        paved = props["land_cover"]["paved"]
+        value = paved.pop("soil_depth")
+        paved["soildepth"] = value
+        path = _write_yaml(tmp_path, sample_config_dict)
+        prepared = load_user_yaml_normalised(str(path))
+        unchecked = SUEWSConfig.from_dict(prepared, use_conditional_validation=False)
+        raw = unchecked.sites[0]["properties"]
+        assert raw["land_cover"]["paved"]["soil_depth"] == value
+        assert "soildepth" not in raw["land_cover"]["paved"]
+        assert raw["lon"] == props["lon"]
+        assert "lng" not in raw
+        with pytest.raises(ValueError, match=r"sites\[gridiv=1\]\.properties\.lon"):
+            SUEWSConfig.from_dict(prepared)
 
 
 @pytest.mark.cfg
@@ -400,14 +535,13 @@ class TestToYamlRoundTrip:
 
         Path(tmp_path).unlink(missing_ok=True)
 
-    def test_default_round_trip_preserves_internal_fields(self, sample_config):
-        """Default to_yaml() should preserve internal state on round-trip."""
+    def test_default_round_trip_preserves_other_internal_fields(self, sample_config):
+        """Other internal fields retain their existing YAML round-trip contract."""
         # ARRANGE
         sample_config.model.control.diagnose = 2
         sample_config.model.control.kdownzen = 1
         sample_config.sites[0].initial_states.dqndt = 12.5
         sample_config.sites[0].initial_states.hdd_id.hdd_daily = 7.0
-        sample_config.sites[0].initial_states.qn_surfs = [1.0] * 7
 
         with tempfile.NamedTemporaryFile(
             encoding="utf-8", suffix=".yml", delete=False, mode="w"
@@ -423,7 +557,6 @@ class TestToYamlRoundTrip:
         assert reloaded.model.control.kdownzen == 1
         assert reloaded.sites[0].initial_states.dqndt == 12.5
         assert reloaded.sites[0].initial_states.hdd_id.hdd_daily == 7.0
-        assert reloaded.sites[0].initial_states.qn_surfs == [1.0] * 7
 
         Path(tmp_path).unlink(missing_ok=True)
 

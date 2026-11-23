@@ -30,6 +30,6 @@ def read_diagnostics(run_dir: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(
             f"diagnostics.json not found in {run_dir} — "
-            "run `suews diagnose <run_dir> --format json > {run_dir}/diagnostics.json` first."
+            f"run `suews diagnose <run_dir> --format json > {run_dir}/diagnostics.json` first."
         )
     return json.loads(path.read_text(encoding="utf-8"))

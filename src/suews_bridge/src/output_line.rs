@@ -1,3 +1,13 @@
+//! Single-timestep output record codec mirroring Fortran `output_line`
+//! (`c_api/output_line.f95`).
+//!
+//! Group widths (`OUTPUT_LINE_*_LEN`) are imported from `$OUT_DIR/output_cols.rs`,
+//! which `build.rs` generates from `ncolumnsDataOut*` in
+//! `src/suews/src/suews_ctrl_const.f95`, preventing drift between Rust and the
+//! Fortran kernel. Like [`crate::output_block`], this codec transports raw
+//! arrays only; canonical variable names and units live in Python's output
+//! registry (`src/supy/data_model/output/`).
+
 use crate::codec::{
     field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
     StateCodec, TypeSchema, ValuesPayload,
@@ -42,6 +52,7 @@ pub type OutputLineSchema = crate::codec::SimpleSchema;
 
 pub type OutputLineValuesPayload = ValuesPayload;
 
+/// Single-timestep output arrays across datetime and all 11 SUEWS output groups.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputLine {
     pub datetime_line: [f64; OUTPUT_LINE_DATETIME_LEN],
@@ -332,6 +343,7 @@ pub fn output_line_default_from_fortran() -> Result<OutputLine, BridgeError> {
     OutputLine::from_flat(&flat)
 }
 
+// contract: C-CODEC, C-OUTPUT
 #[cfg(test)]
 mod tests {
     use super::*;

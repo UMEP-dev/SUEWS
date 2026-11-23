@@ -107,8 +107,9 @@ For parallel work across multiple issues or PRs, prefer `git worktree` rather th
    Use `/lint-code`, `/verify-build`, and `/audit-docs` in agent sessions.
 
 2. **Open a Pull Request**:
-   - Open as a Draft PR early if you want CI feedback on reduced tiers; mark Ready for review once tests, docs, and `CHANGELOG.md` (if applicable) are complete.
-   - If the PR alters model physics or reference fixtures, apply `0-physics:change`, include a `## Scientific evidence` section, refresh moved fixtures in the same PR, and obtain required domain-owner sign-off (the rule is `.claude/rules/physics-change-evidence.md`; who signs off for each module is recorded in [`MAINTAINERS.md`](../MAINTAINERS.md)).
+   - Open as a Draft PR early if you want CI feedback on reduced tiers; mark Ready for review once tests, docs, and a CHANGELOG fragment under `changes/` (if applicable) are complete.
+   - Write the PR description using [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md) and [`.claude/rules/pr-description.md`](../.claude/rules/pr-description.md) (`## Why`, `## What changed` + known limits, `## How to review`, and PR-specific `## Verification`).
+   - If the PR alters model physics or moves reference fixtures, classify it under [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md): apply `0-physics:change` with `## Scientific evidence`, same-PR fixture refresh, and required domain-owner sign-off ([`MAINTAINERS.md`](../MAINTAINERS.md)) for formulation/default or above-threshold changes, or `0-numerics:change` with same-PR fixture refresh and a per-variable numerical change table when only constant precision, unit conversions, or floating-point representation move outputs within threshold.
 
 3. **Merge via the Merge Queue (Never Push Directly to `master`)**:
    - Branch protection prohibits direct pushes to `master`.

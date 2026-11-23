@@ -10,7 +10,12 @@ import yaml
 from supy import SUEWSSimulation
 
 _run_rust = import_module("supy._run_rust")
-pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.rust]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.rust,
+    pytest.mark.contract("C-STRICT"),
+]
 
 
 def test_missing_layer_emissivity_preserves_non_spartacus_outputs():

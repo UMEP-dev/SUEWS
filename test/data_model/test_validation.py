@@ -9,15 +9,13 @@ This file combines:
 - Validator improvements from test_validator_improvements.py
 """
 
-import io
+import copy
 from importlib.resources import as_file
 import logging
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import warnings
-import types
-import copy
 
 import pytest
 import yaml
@@ -25,10 +23,10 @@ import yaml
 from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.site import (
-    LAIParams,
     DectrProperties,
     EvetrProperties,
     GrassProperties,
+    LAIParams,
     LandCover,
     Site,
     SiteProperties,
@@ -42,17 +40,15 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import (
-    adjust_seasonal_parameters,
-    adjust_model_option_stebbsmethod,
-    adjust_model_option_setpointmethod,
-    adjust_model_option_rcmethod,
     RulesRegistry,
-    ValidationContext
+    ValidationContext,
+    adjust_model_option_rcmethod,
+    adjust_model_option_setpointmethod,
+    adjust_model_option_stebbsmethod,
+    adjust_seasonal_parameters,
 )
-import types
-import copy
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID")]
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
@@ -170,7 +166,6 @@ def test_validate_storage_rejects_nonfinite_values():
     issues = SUEWSConfig._validate_storage(cfg, site, 2)
 
     assert any("thermal_layers.dz" in issue and "finite" in issue for issue in issues)
-    assert any("dqndt_surf" in issue and "finite" in issue for issue in issues)
 
 
 def test_validate_lai_ranges_no_land_cover():
@@ -2045,88 +2040,113 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
     assert msgs == []
 
 
+def _load_sample_config_dict() -> dict:
+    """Load a fresh mutable copy of the packaged sample configuration."""
+    sample_yaml = trv_supy_module / "sample_data" / "sample_config.yml"
+    return yaml.safe_load(sample_yaml.read_text(encoding="utf-8"))
 
-def make_sample_physics(fields):
-    obj = types.SimpleNamespace()
-    obj.model_fields_set = set(fields)
-    return obj
 
-def make_sample_model(physics):
-    obj = types.SimpleNamespace()
-    obj.physics = physics
-    return obj
+def test_is_physics_explicitly_configured_true_for_explicit_fields():
+    """Real SUEWSConfig reports True for physics options explicitly provided in YAML."""
+    data = _load_sample_config_dict()
+    cfg = SUEWSConfig.from_dict(data)
+    assert cfg._is_physics_explicitly_configured("roughness_sublayer") is True
+    assert cfg._is_physics_explicitly_configured("storage_heat") is True
+    assert cfg._is_physics_explicitly_configured("net_radiation") is True
 
-class SampleConfig:
-    def __init__(self, model):
-        self.model = model
 
-    def _is_physics_explicitly_configured(self, option_name: str) -> bool:
-        physics = getattr(self.model, "physics", None)
-        return bool(
-            physics
-            and hasattr(physics, "model_fields_set")
-            and option_name in physics.model_fields_set
-        )
+def test_is_physics_explicitly_configured_false_for_omitted_default_fields():
+    """Omitted physics options return False even when their Pydantic default is active."""
+    data = _load_sample_config_dict()
+    data["model"]["physics"].pop("roughness_sublayer", None)
+    data["model"]["physics"].pop("storage_heat", None)
 
-def test_is_physics_explicitly_configured_true():
-    """Returns True if the physics field is explicitly set."""
-    model = make_sample_model(make_sample_physics({'roughness_sublayer', 'storage_heat'}))
-    cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is True
+    cfg = SUEWSConfig.from_dict(data)
+    # Default roughness_sublayer is still RSLMethod.VARIABLE (2), yet not explicitly set.
+    assert int(cfg.model.physics.roughness_sublayer.value) == 2
+    assert cfg._is_physics_explicitly_configured("roughness_sublayer") is False
+    assert cfg._is_physics_explicitly_configured("storage_heat") is False
+    assert cfg._needs_rsl_validation() is False
+    assert cfg._needs_storage_validation() is False
 
-def test_is_physics_explicitly_configured_false():
-    """Returns False if the specific physics field is not set."""
-    model = make_sample_model(make_sample_physics({'storage_heat'}))
-    cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is False
 
-def test_is_physics_explicitly_configured_empty():
-    """Returns False if model_fields_set is empty."""
-    model = make_sample_model(make_sample_physics(set()))
-    cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is False
+def test_is_physics_explicitly_configured_false_for_default_config():
+    """Default-constructed SUEWSConfig has no explicitly configured physics fields."""
+    cfg = SUEWSConfig()
+    assert cfg._is_physics_explicitly_configured("roughness_sublayer") is False
+    assert cfg._is_physics_explicitly_configured("storage_heat") is False
+    assert cfg._needs_rsl_validation() is False
+    assert cfg._needs_storage_validation() is False
 
-def test_is_physics_explicitly_configured_no_physics():
-    """Returns False if physics attribute is missing or None."""
-    # model without physics attribute
-    class DummyModel: pass
-    cfg = SampleConfig(DummyModel())
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is False
 
-    # model with physics None
-    class DummyModel2: pass
-    m = DummyModel2()
-    m.physics = None
-    cfg = SampleConfig(m)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is False
+def test_is_physics_explicitly_configured_false_for_empty_physics_mapping():
+    """An empty model.physics mapping leaves all physics options unset."""
+    data = _load_sample_config_dict()
+    data["model"]["physics"] = {}
 
-def test_is_physics_explicitly_configured_no_model_fields_set():
-    """Returns False if physics object has no model_fields_set attribute."""
-    class DummyPhysics: pass
-    model = make_sample_model(DummyPhysics())
-    cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is False
+    cfg = SUEWSConfig.from_dict(data)
+    assert cfg._is_physics_explicitly_configured("roughness_sublayer") is False
+    assert cfg._is_physics_explicitly_configured("storage_heat") is False
+    assert cfg._needs_rsl_validation() is False
 
-def test_is_physics_explicitly_configured_non_string_fields():
-    """Handles non-string entries in model_fields_set gracefully."""
-    model = make_sample_model(make_sample_physics({1, None, 'roughness_sublayer'}))
-    cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is True
-    assert cfg._is_physics_explicitly_configured('storage_heat') is False
 
-def test_is_physics_explicitly_configured_model_fields_set_list():
-    """Handles model_fields_set as a list instead of set."""
-    obj = types.SimpleNamespace()
-    obj.model_fields_set = ['roughness_sublayer', 'storage_heat']
-    model = make_sample_model(obj)
-    cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is True
-    assert cfg._is_physics_explicitly_configured('other') is False
+def test_is_physics_explicitly_configured_recognises_legacy_alias():
+    """Legacy physics key names (rslmethod) still mark canonical options configured."""
+    data = _load_sample_config_dict()
+    data["model"]["physics"].pop("roughness_sublayer", None)
+    data["model"]["physics"]["rslmethod"] = {"value": 2}
 
-def test_is_physics_explicitly_configured_model_none():
-    """Returns False if model is None."""
-    cfg = SampleConfig(None)
-    assert cfg._is_physics_explicitly_configured('roughness_sublayer') is False
+    with pytest.warns(DeprecationWarning, match="rslmethod"):
+        cfg = SUEWSConfig.from_dict(data)
+    assert cfg._is_physics_explicitly_configured("roughness_sublayer") is True
+    assert cfg._needs_rsl_validation() is True
+
+
+def test_is_physics_explicitly_configured_false_for_unknown_option():
+    """Unknown option names return False on a real SUEWSConfig."""
+    cfg = SUEWSConfig.from_dict(_load_sample_config_dict())
+    assert cfg._is_physics_explicitly_configured("nonexistent_physics_option") is False
+
+
+def test_explicit_rsl_method_gates_rsl_validation_contract():
+    """Explicit roughness_sublayer=2 triggers the RSL faibldg check; omitted does not."""
+    data_explicit = _load_sample_config_dict()
+    data_explicit["model"]["physics"]["roughness_sublayer"] = {"value": 2}
+    data_explicit["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"] = {
+        "value": None
+    }
+    with pytest.raises(ValueError) as exc_explicit:
+        SUEWSConfig.from_dict(data_explicit)
+    assert "for rsl_method=2" in str(exc_explicit.value)
+    assert "bldgs.faibldg must be set" in str(exc_explicit.value)
+
+    data_omitted = _load_sample_config_dict()
+    data_omitted["model"]["physics"].pop("roughness_sublayer", None)
+    data_omitted["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"] = {
+        "value": None
+    }
+    with pytest.raises(ValueError) as exc_omitted:
+        SUEWSConfig.from_dict(data_omitted)
+    assert "for rsl_method=2" not in str(exc_omitted.value)
+
+
+def test_explicit_storage_heat_dyohm_gates_storage_validation_contract():
+    """Explicit storage_heat=6 enables DyOHM storage validation through from_dict."""
+    data = _load_sample_config_dict()
+    data["model"]["physics"]["storage_heat"] = {"value": 6}
+    cfg = SUEWSConfig.from_dict(data)
+    assert cfg._is_physics_explicitly_configured("storage_heat") is True
+    assert cfg._needs_storage_validation() is True
+
+    # Removing building thermal layers under explicit DyOHM must fail validation.
+    data_missing_layers = _load_sample_config_dict()
+    data_missing_layers["model"]["physics"]["storage_heat"] = {"value": 6}
+    data_missing_layers["sites"][0]["properties"]["land_cover"]["bldgs"][
+        "thermal_layers"
+    ] = {"dz": {"value": []}, "k": {"value": []}, "rho_cp": {"value": []}}
+    with pytest.raises(ValueError, match="thermal_layers"):
+        SUEWSConfig.from_dict(data_missing_layers)
+
 
 # From test_validation_topdown.py
 class TestTopDownValidation:
@@ -2237,11 +2257,55 @@ sites:
             if annotated_path.exists():
                 annotated_path.unlink()
 
-    def test_no_validation_with_complete_config(self):
-        """Test no warnings when all required parameters are provided."""
-        # This would be a complex test - simplified for now
-        # Key point: when all params provided, validation summary should be minimal
-        pass
+    def test_no_validation_with_complete_config(self, tmp_path, caplog):
+        """Complete sample config loads cleanly with no warnings or annotated file."""
+        sample_resource = trv_supy_module / "sample_data" / "sample_config.yml"
+        yaml_path = tmp_path / "sample_config.yml"
+        yaml_path.write_bytes(sample_resource.read_bytes())
+        annotated_path = tmp_path / "sample_config_annotated.yml"
+
+        with (
+            warnings.catch_warnings(record=True) as caught_warnings,
+            caplog.at_level(logging.WARNING, logger="SuPy"),
+        ):
+            warnings.simplefilter("always")
+            cfg = SUEWSConfig.from_yaml(
+                yaml_path,
+                strict=True,
+                auto_generate_annotated=True,
+            )
+
+        assert isinstance(cfg, SUEWSConfig)
+        assert len(cfg.sites) == 1
+        assert len(caught_warnings) == 0, (
+            f"Complete config emitted unexpected warnings: {caught_warnings}"
+        )
+        assert not annotated_path.exists(), (
+            "Complete config must not emit an annotated error template"
+        )
+        assert not [
+            rec.message
+            for rec in caplog.records
+            if "missing" in rec.message.lower() or "validation" in rec.message.lower()
+        ]
+
+        # Falsification check: removing a required building parameter from this
+        # exact config must raise ValueError and generate the annotated template.
+        incomplete_data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        incomplete_data["sites"][0]["properties"]["land_cover"]["bldgs"].pop("bldgh")
+        incomplete_path = tmp_path / "incomplete_config.yml"
+        incomplete_path.write_text(
+            yaml.safe_dump(incomplete_data, sort_keys=False), encoding="utf-8"
+        )
+        incomplete_annotated = tmp_path / "incomplete_config_annotated.yml"
+
+        with pytest.raises(ValueError, match="bldgh"):
+            SUEWSConfig.from_yaml(
+                incomplete_path,
+                strict=True,
+                auto_generate_annotated=True,
+            )
+        assert incomplete_annotated.exists()
 
     def test_auto_generate_annotated_yaml_option(self):
         """``auto_generate_annotated=True`` emits the template on the failure path.
@@ -4080,14 +4144,16 @@ def test_irrigation_doy_leap_year():
 
 
 def test_irrigation_doy_disabled():
-    """Test irrigation disabled configurations (None/0)."""
+    """Test irrigation disabled configurations (None) and explicit zero rejection."""
     from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Both None = valid
     assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
 
-    # Both 0 = valid
-    assert len(validate_irrigation_doy(0, 0, 51.5, 2023, "test")) == 0
+    # Explicit 0 is rejected (valid YAML DOYs are 1..366; use null/None to disable)
+    zero_results = validate_irrigation_doy(0, 0, 51.5, 2023, "test")
+    zero_errors = [r for r in zero_results if r.status == "ERROR"]
+    assert len(zero_errors) == 2
 
     # One set, one None = error
     results = validate_irrigation_doy(120, None, 51.5, 2023, "test")
@@ -4256,10 +4322,18 @@ def test_startdls_enddls_range_validation():
     assert emissions.startdls == 366
     assert emissions.enddls == 366
 
-    # Decimal values (DOY can be decimal)
-    emissions = AnthropogenicEmissions(startdls=86.5, enddls=303.75)
-    assert emissions.startdls == 86.5
-    assert emissions.enddls == 303.75
+    # Whole-number floats are accepted as integers, while fractional DOYs are rejected (#2101)
+    emissions = AnthropogenicEmissions(startdls=86.0, enddls=303.0)
+    assert emissions.startdls == 86
+    assert emissions.enddls == 303
+    assert type(emissions.startdls) is int
+    assert type(emissions.enddls) is int
+
+    with pytest.raises(ValidationError, match="integer day of year"):
+        AnthropogenicEmissions(startdls=86.5, enddls=303)
+
+    with pytest.raises(ValidationError, match="integer day of year"):
+        AnthropogenicEmissions(startdls=86, enddls=303.75)
 
 
 def test_dls_consistency_validation_in_suews_config():
@@ -4532,12 +4606,14 @@ sites:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.48}
           alb: {value: 0.08}
         bldgs:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.25}
           alb: {value: 0.15}
           bldgh: {value: 3.5}
@@ -4608,12 +4684,14 @@ sites:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.48}
           alb: {value: 0.08}
         bldgs:
           sfr: {value: 0.5}
           soil_depth: {value: 350.0}
           soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           state_limit: {value: 0.25}
           alb: {value: 0.15}
           bldgh: {value: 3.5}
@@ -4713,6 +4791,9 @@ sites:
           sfr: {value: 0.0}
         grass:
           sfr: {value: 1.0}
+          soil_depth: {value: 350.0}
+          soil_store_capacity: {value: 150.0}
+          saturated_hydraulic_conductivity: {value: 0.0005}
           lai:
             lai_max: {value: 4.5}
         bsoil:

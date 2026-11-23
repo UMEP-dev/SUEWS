@@ -37,7 +37,7 @@ from supy.util._attribution._physics import (
     decompose_flux_budget,
 )
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE")]
 
 
 class TestShapleyDecomposition(TestCase):

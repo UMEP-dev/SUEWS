@@ -7,6 +7,7 @@ on:
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
       - '.github/scripts/post-ci-summary*'
+      - '.github/scripts/nightly-tracker*'
       - '.github/scripts/package.json'
   push:
     branches: [master]
@@ -15,10 +16,18 @@ on:
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
       - '.github/scripts/post-ci-summary*'
+      - '.github/scripts/nightly-tracker*'
       - '.github/scripts/package.json'
   schedule:
     - cron: '15 6 * * 1'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -27,9 +36,11 @@ jobs:
   enforce-sha-pins:
     name: Enforce SHA-pinned actions
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       - name: Check action pins
@@ -38,9 +49,11 @@ jobs:
   ci-summary-script:
     name: Test CI summary comment script
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       # post-ci-summary.js renders the "CI Build Plan" PR comment from the
@@ -49,13 +62,20 @@ jobs:
       - name: Run post-ci-summary unit tests
         run: node --test .github/scripts/post-ci-summary.test.js
 
+      # nightly-tracker.js opens, updates and closes the nightly tracking
+      # issue from report_scheduled_run; the test drives it with a fake client.
+      - name: Run nightly-tracker unit tests
+        run: node --test .github/scripts/nightly-tracker.test.js
+
   zizmor:
     name: Advisory workflow audit
     runs-on: ubuntu-latest
     continue-on-error: true
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6

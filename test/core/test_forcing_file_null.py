@@ -27,7 +27,7 @@ from supy.data_model.validation.pipeline.phase_a import (
 )
 from supy.suews_sim import SUEWSSimulation
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
 
 NULL_WARNING_TEXT = "forcing.file is null"
 

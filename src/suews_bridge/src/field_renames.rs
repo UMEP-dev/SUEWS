@@ -2000,7 +2000,28 @@ fn read_parameters_code(entry: &Value) -> Result<i64, String> {
 /// continues through the existing rename walker. Idempotent: running twice is a
 /// no-op because the nested object is removed on the first pass and the fused
 /// keys it writes are not themselves nested-leaf keys.
+/// Return true when `model.physics.stebbs` is a genuine nested STEBBS object
+/// rather than a scalar or `{value: N[, ref: ...]}` legacy master toggle.
+pub(crate) fn is_nested_stebbs_physics(root: &Value) -> bool {
+    let Some(physics) = root
+        .get("model")
+        .and_then(Value::as_mapping)
+        .and_then(|m| m.get(Value::String("physics".into())))
+        .and_then(Value::as_mapping)
+    else {
+        return false;
+    };
+    match physics.get(Value::String("stebbs".into())) {
+        Some(Value::Mapping(map)) if is_stebbs_refvalue_scalar(map) => false,
+        Some(Value::Mapping(map)) => has_stebbs_nested_key(map),
+        _ => false,
+    }
+}
+
 fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
+    if !is_nested_stebbs_physics(root) {
+        return Ok(());
+    }
     let physics = match root
         .get_mut("model")
         .and_then(|m| m.as_mapping_mut())
@@ -2010,19 +2031,7 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
         Some(p) => p,
         None => return Ok(()),
     };
-
     let stebbs_key = Value::String("stebbs".into());
-    let is_nested = match physics.get(&stebbs_key) {
-        // A `{value: N}` / `{value: N, ref: {...}}` RefValue scalar is the
-        // legacy master toggle, NOT the nested object (gh#1456).
-        Some(Value::Mapping(map)) if is_stebbs_refvalue_scalar(map) => false,
-        Some(Value::Mapping(map)) => has_stebbs_nested_key(map),
-        // A scalar / `{value: N}` master toggle, or absent: legacy flat path.
-        _ => false,
-    };
-    if !is_nested {
-        return Ok(());
-    }
 
     // Guard against any flat STEBBS sibling colliding with the nested object
     // (e.g. a flat `outer_cap_fraction`/`rcmethod` alongside
@@ -2217,6 +2226,7 @@ fn normalize_field_names_at(root: &mut Value, path: &str) -> Result<(), String> 
     Ok(())
 }
 
+// contract: C-MIGRATE
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -36,8 +36,8 @@ test('every tier emitted by determine-matrix.sh has a description', () => {
 
 test('physics-full renders with its description, not the bare token', () => {
   const body = buildBody(envFor({ TEST_TIER: 'physics-full' }), ctx);
-  assert.match(body, /\| \*\*Test tier\*\* \| physics-full \(full physics tier incl\. slow; 0-physics:change label\) \|/);
-  assert.match(body, /0-physics:change label -> full physics tier/);
+  assert.match(body, /\| \*\*Test tier\*\* \| physics-full \(full physics tier incl\. slow; 0-physics:change \/ 0-numerics:change\) \|/);
+  assert.match(body, /0-physics:change or 0-numerics:change label -> full physics tier/);
 });
 
 test('matrix descriptor follows buildplat, not the draft flag', () => {
@@ -143,24 +143,43 @@ test('cost-marker block sits above the footer, is replaced in place and removed 
   assert.equal(withCostMarkerSection(body, ''), body);
 });
 
-function fakeGithub(comments) {
+function fakeGithub(comments, { usePaginate = false, pageSize = 100 } = {}) {
   const calls = [];
-  return {
+  const listCalls = [];
+  const listComments = async (params = {}) => {
+    listCalls.push(params);
+    if (params.page) {
+      const perPage = params.per_page || pageSize;
+      const start = (params.page - 1) * perPage;
+      return { data: comments.slice(start, start + perPage) };
+    }
+    return { data: comments };
+  };
+  const gh = {
     calls,
+    listCalls,
     rest: { issues: {
-      listComments: async () => ({ data: comments }),
+      listComments,
       updateComment: async (args) => { calls.push(args); },
     } },
   };
+  if (usePaginate) {
+    gh.paginate = async (fn, params) => {
+      listCalls.push({ paginated: true, ...params });
+      return comments;
+    };
+  }
+  return gh;
 }
 const fakeContext = { repo: { owner: 'UMEP-dev', repo: 'SUEWS' }, issue: { number: 7 } };
 const fakeCore = { messages: [], info(m) { this.messages.push(m); } };
 
-test('postCostMarkers updates only the bot summary comment, and only when it changes', async () => {
+test('postCostMarkers updates only the github-actions[bot] summary comment, and only when it changes', async () => {
   const body = buildBody(envFor({}), ctx);
   const gh = fakeGithub([
-    { id: 1, user: { type: 'User' }, body: 'a human comment <!-- ci-build-plan -->' },
-    { id: 2, user: { type: 'Bot' }, body },
+    { id: 1, user: { type: 'User', login: 'alice' }, body: 'a human comment <!-- ci-build-plan -->' },
+    { id: 3, user: { type: 'Bot', login: 'other-app[bot]' }, body: 'another bot <!-- ci-build-plan -->' },
+    { id: 2, user: { type: 'Bot', login: 'github-actions[bot]' }, body },
   ]);
   await postCostMarkers({ github: gh, context: fakeContext, core: fakeCore, report: DRIFT, testTier: 'standard' });
   assert.equal(gh.calls.length, 1);
@@ -168,7 +187,7 @@ test('postCostMarkers updates only the bot summary comment, and only when it cha
   assert.match(gh.calls[0].body, /cost-markers:start/);
 
   // Nothing measured and no existing block: no API write at all.
-  const quiet = fakeGithub([{ id: 2, user: { type: 'Bot' }, body }]);
+  const quiet = fakeGithub([{ id: 2, user: { type: 'Bot', login: 'github-actions[bot]' }, body }]);
   await postCostMarkers({ github: quiet, context: fakeContext, core: fakeCore, report: costReport({}), testTier: 'standard' });
   assert.equal(quiet.calls.length, 0);
 
@@ -176,4 +195,300 @@ test('postCostMarkers updates only the bot summary comment, and only when it cha
   const none = fakeGithub([]);
   await postCostMarkers({ github: none, context: fakeContext, core: fakeCore, report: DRIFT });
   assert.equal(none.calls.length, 0);
+});
+
+// ---- Test duration guard section (postDurationGuard) ----
+
+const { durationGuardSection, withDurationGuardSection, postDurationGuard } = require('./post-ci-summary.js');
+
+function durationReport(overrides) {
+  return {
+    ok: true,
+    max_regression: 0.1,
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'ok',
+        baseline_total_seconds: 5333.2,
+        raw_total_seconds: 3583.6,
+        scaled_total_seconds: 5333.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '0.67x',
+      },
+      physics: {
+        lane: 'physics',
+        status: 'ok',
+        baseline_total_seconds: 1606.2,
+        raw_total_seconds: 2054.4,
+        scaled_total_seconds: 1606.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.28x',
+      },
+    },
+    marker_warnings: [],
+    ...overrides,
+  };
+}
+
+const DURATION_REGRESSION = durationReport({
+  ok: false,
+  lanes: {
+    api: {
+      lane: 'api',
+      status: 'regressed',
+      baseline_total_seconds: 5333.2,
+      raw_total_seconds: 4088.1,
+      scaled_total_seconds: 6084.0,
+      delta_ratio: 0.1408,
+      delta_percent: 14.08,
+      regressed: true,
+      factor_summary: '0.67x',
+    },
+    physics: {
+      lane: 'physics',
+      status: 'ok',
+      baseline_total_seconds: 1606.2,
+      raw_total_seconds: 2054.4,
+      scaled_total_seconds: 1606.2,
+      delta_ratio: 0.0,
+      delta_percent: 0.0,
+      regressed: false,
+      factor_summary: '1.28x',
+    },
+  },
+  marker_warnings: [
+    {
+      node_id: 'test/core/test_x.py::test_heavy`a`',
+      lane: 'api',
+      raw_cpu_seconds: 16.5,
+      scaled_cpu_seconds: 24.6,
+      runner_factor: 0.67,
+      current: null,
+      wanted: 'medium',
+    },
+  ],
+});
+
+test('duration-guard section reports missing lanes as incomplete and stays empty only for null or no lanes', () => {
+  const allMissing = durationReport({
+    ok: false,
+    complete: false,
+    status: 'incomplete',
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'missing',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'no metrics artefacts found for lane',
+      },
+    },
+  });
+  const section = durationGuardSection(allMissing);
+  assert.match(section, /comparison incomplete; information only, not a gate/);
+  assert.match(section, /\*\*api\*\* lane: missing \(no metrics artefacts found for lane\)/);
+  assert.doesNotMatch(section, /within \+10% of baseline/);
+  assert.equal(durationGuardSection(durationReport({ lanes: {} })), '');
+  assert.equal(durationGuardSection(null), '');
+});
+
+test('duration-guard section reports wholly missing API lane alongside clean physics as incomplete', () => {
+  const apiMissing = durationReport({
+    ok: false,
+    complete: false,
+    status: 'incomplete',
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'missing',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'no metrics artefacts found for lane',
+      },
+      physics: {
+        lane: 'physics',
+        status: 'ok',
+        baseline_total_seconds: 1606.2,
+        raw_total_seconds: 1606.2,
+        scaled_total_seconds: 1606.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+    },
+  });
+  const section = durationGuardSection(apiMissing);
+  assert.match(section, /comparison incomplete; information only, not a gate/);
+  assert.match(section, /\*\*api\*\* lane: missing \(no metrics artefacts found for lane\)/);
+  assert.match(section, /Completed lane\(s\) within \+10%: physics \+0\.0%/);
+  assert.doesNotMatch(section, /within \+10% of baseline/);
+});
+
+test('duration-guard section is one line when clean', () => {
+  const line = durationGuardSection(durationReport({}));
+  assert.equal(line.split('\n').length, 1);
+  assert.match(line, /within \+10% of baseline \(api \+0\.0%, physics \+0\.0%; runner-normalised\)/);
+
+  // Explicit 0% threshold must render as +0%, not fall back to +10%.
+  const zeroLine = durationGuardSection(durationReport({ max_regression: 0 }));
+  assert.match(zeroLine, /within \+0% of baseline/);
+});
+
+test('duration-guard section lists lane regressions and under-marked tests without gating', () => {
+  const section = durationGuardSection(DURATION_REGRESSION);
+  assert.match(section, /information only, not a gate/);
+  assert.match(section, /\*\*api\*\* lane: \+14\.1% normalised call CPU-s \(6084\.0 s vs 5333\.2 s baseline, threshold \+10%; runner 0\.67x\)/);
+  assert.match(section, /- `test\/core\/test_x\.py::test_heavy'a'`: 24\.6 normalised CPU-s \(raw 16\.5 s, runner 0\.67x\), no cost marker -> medium/);
+  assert.doesNotMatch(section, /\*\*physics\*\* lane/);
+});
+
+test('duration-guard section lists unavailable lanes rather than claiming clean', () => {
+  const partial = durationReport({
+    ok: true,
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'unavailable',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'incomplete shard set: missing shard(s) 4 of 4 (found 3/4)',
+      },
+      physics: {
+        lane: 'physics',
+        status: 'ok',
+        baseline_total_seconds: 1606.2,
+        raw_total_seconds: 1606.2,
+        scaled_total_seconds: 1606.2,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+    },
+  });
+  const section = durationGuardSection(partial);
+  assert.match(section, /\*\*api\*\* lane: unavailable \(incomplete shard set: missing shard\(s\) 4 of 4 \(found 3\/4\)\)/);
+  assert.doesNotMatch(section, /within \+10% of baseline/);
+});
+
+test('duration-guard block coexists cleanly with cost-markers block and is idempotent', () => {
+  const body = buildBody(envFor({ TESTS_CHANGED: 'true' }), ctx);
+  const withCost = withCostMarkerSection(body, costMarkerSection(DRIFT));
+  const withBoth = withDurationGuardSection(withCost, durationGuardSection(DURATION_REGRESSION));
+  assert.ok(withBoth.includes('<!-- cost-markers:start -->'));
+  assert.ok(withBoth.includes('<!-- duration-guard:start -->'));
+  assert.ok(withBoth.indexOf('<!-- duration-guard:end -->') < withBoth.lastIndexOf('\n---\n'));
+  // Idempotent update and clean removal leaving cost-markers intact.
+  assert.equal(withDurationGuardSection(withBoth, durationGuardSection(DURATION_REGRESSION)), withBoth);
+  assert.equal(withDurationGuardSection(withBoth, ''), withCost);
+});
+
+test('postDurationGuard updates only the github-actions[bot] summary comment, paginates, and skips when unchanged', async () => {
+  const body = buildBody(envFor({}), ctx);
+  const gh = fakeGithub([
+    { id: 9, user: { type: 'Bot', login: 'other-app[bot]' }, body },
+    { id: 2, user: { type: 'Bot', login: 'github-actions[bot]' }, body },
+  ]);
+  await postDurationGuard({ github: gh, context: fakeContext, core: fakeCore, report: DURATION_REGRESSION });
+  assert.equal(gh.calls.length, 1);
+  assert.equal(gh.calls[0].comment_id, 2);
+  assert.match(gh.calls[0].body, /duration-guard:start/);
+
+  const already = fakeGithub([{ id: 2, user: { type: 'Bot', login: 'github-actions[bot]' }, body: gh.calls[0].body }]);
+  await postDurationGuard({ github: already, context: fakeContext, core: fakeCore, report: DURATION_REGRESSION });
+  assert.equal(already.calls.length, 0);
+
+  // Paginated lookup finds the sticky comment past page 1 (>100 comments).
+  const filler = Array.from({ length: 105 }, (_, i) => ({
+    id: 100 + i,
+    user: { type: 'User', login: 'reviewer' },
+    body: `comment ${i}`,
+  }));
+  const pagedManual = fakeGithub([
+    ...filler,
+    { id: 999, user: { type: 'Bot', login: 'github-actions[bot]' }, body },
+  ]);
+  await postDurationGuard({ github: pagedManual, context: fakeContext, core: fakeCore, report: DURATION_REGRESSION });
+  assert.equal(pagedManual.calls.length, 1);
+  assert.equal(pagedManual.calls[0].comment_id, 999);
+  assert.equal(pagedManual.listCalls.length, 2);
+  assert.equal(pagedManual.listCalls[1].page, 2);
+
+  // Also works through octokit github.paginate when provided.
+  const pagedHelper = fakeGithub(
+    [...filler, { id: 1000, user: { type: 'Bot', login: 'github-actions[bot]' }, body }],
+    { usePaginate: true },
+  );
+  await postDurationGuard({ github: pagedHelper, context: fakeContext, core: fakeCore, report: DURATION_REGRESSION });
+  assert.equal(pagedHelper.calls.length, 1);
+  assert.equal(pagedHelper.calls[0].comment_id, 1000);
+  assert.equal(pagedHelper.listCalls[0].paginated, true);
+});
+
+test('duration-guard section uses trusted reason_code fields and neutralises injected markers in fallback text or node IDs', () => {
+  // Structured reason_code never leaks raw PR-controlled filenames into the comment.
+  const structured = durationReport({
+    ok: false,
+    complete: false,
+    status: 'incomplete',
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'unavailable',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'too few unchanged reference matches in evil\n<!-- duration-guard:end -->[click](https://evil.test) (0/5)',
+        reason_code: 'insufficient_references',
+        reason_details: { artefact_count: 1, min_reference_matches: 5 },
+      },
+    },
+  });
+  const structuredSection = durationGuardSection(structured);
+  assert.match(structuredSection, /too few unchanged reference matches in 1 artefact \(need at least 5\)/);
+  assert.doesNotMatch(structuredSection, /evil\.test/);
+  assert.doesNotMatch(structuredSection, /duration-guard:end/);
+
+  // Fallback without reason_code and forged node_id still neutralise HTML comment markers and Markdown links.
+  const fallback = durationReport({
+    ok: false,
+    complete: false,
+    status: 'incomplete',
+    lanes: {
+      api: {
+        lane: 'api',
+        status: 'unavailable',
+        scaled_total_seconds: null,
+        delta_percent: null,
+        regressed: false,
+        reason: 'bad\n<!-- duration-guard:end -->\n[Click](https://evil.test)\n**forged**',
+      },
+    },
+    marker_warnings: [
+      {
+        node_id: 'test/core/test_x.py::test_y[<!-- duration-guard:end -->]',
+        lane: 'api',
+        raw_cpu_seconds: 25.0,
+        scaled_cpu_seconds: 25.0,
+        runner_factor: 1.0,
+        current: null,
+        wanted: 'medium',
+      },
+    ],
+  });
+  const body = buildBody(envFor({}), ctx);
+  const rendered = withDurationGuardSection(body, durationGuardSection(fallback));
+  assert.equal((rendered.match(/<!-- duration-guard:start -->/g) || []).length, 1);
+  assert.equal((rendered.match(/<!-- duration-guard:end -->/g) || []).length, 1);
+  assert.doesNotMatch(rendered, /\[Click\]\(https:\/\/evil\.test\)/);
+  // Replacing the section cleanly removes the entire forged payload without leaving residue.
+  assert.equal(withDurationGuardSection(rendered, ''), body);
 });

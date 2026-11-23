@@ -11,7 +11,7 @@ from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE")]
 
 # Below 1 degree of solar altitude the kernel caps the direct beam at the
 # global radiation, so the decomposition identity does not hold there.

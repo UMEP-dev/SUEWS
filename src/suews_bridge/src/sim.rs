@@ -10,6 +10,7 @@ use crate::ehc_prm::{ehc_prm_from_ordered_values, EhcPrm};
 use crate::error::BridgeError;
 use crate::ffi;
 use crate::flag::flag_state_from_ordered_values;
+use crate::forcing_io::validate_forcing_block_for_emissions;
 use crate::heat_state::HeatState;
 use crate::hydro_state::HydroState;
 use crate::irrigation_prm::irrigation_prm_from_ordered_values;
@@ -131,10 +132,10 @@ pub const SUEWS_CAPI_SITE_SCALARS_LEN: usize = 24;
 ///
 /// Unlike the bridged types, the defaults below are Rust's own and are all
 /// zero (except `gridiv`). The YAML reader
-/// (`yaml_config::apply_site_scalar_overrides`) overwrites only the keys it
-/// finds, and the command-line entry point has no required-field check, so a
-/// YAML without, say, `properties.z` runs with a measurement height of 0 m.
-/// supy's data model supplies most of these values. These Rust-side zeros are
+/// (`yaml_config::apply_site_scalar_overrides`) requires finite coordinates,
+/// altitude, time zone, site area and measurement height. Other legacy reads
+/// still overwrite only the keys they find. SuPy's data model supplies the
+/// resolved values and owns their defaults. These Rust-side zeros are
 /// legacy: under the bridge's pass-through rule (`yaml_config.rs` module
 /// docs) a site scalar the kernel needs must come from the YAML or the run
 /// stops; do not rely on, or add to, these defaults.
@@ -506,6 +507,26 @@ fn encode_site_scalars(site_scalars: &SiteScalars) -> [f64; SUEWS_CAPI_SITE_SCAL
     out[16..23].copy_from_slice(&site_scalars.sfr_surf);
     out[23] = f64::from(site_scalars.gridiv);
     out
+}
+
+/// Test-only helper exposing the real `SiteScalars` flat encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_site_scalars_flat(site_scalars: &SiteScalars) -> Vec<f64> {
+    encode_site_scalars(site_scalars).to_vec()
+}
+
+/// Test-only helper exposing the real `SuewsSite` TOC encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_site_members_flat(site: &SuewsSite) -> Result<(Vec<f64>, Vec<i32>), BridgeError> {
+    let buf = encode_site_members(site)?;
+    Ok((buf.flat, buf.toc))
+}
+
+/// Test-only helper exposing the real `SuewsState` TOC encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_state_members_flat(state: &SuewsState) -> Result<(Vec<f64>, Vec<i32>), BridgeError> {
+    let buf = encode_state_members(state)?;
+    Ok((buf.flat, buf.toc))
 }
 
 fn decode_state_members(
@@ -1275,6 +1296,14 @@ pub fn run_simulation_into(
         });
     }
 
+    validate_forcing_block_for_emissions(
+        &input.forcing_block,
+        input.len_sim,
+        MET_FORCING_COLS,
+        input.config.emissions_method,
+    )
+    .map_err(simulation_error)?;
+
     let timer_in = input.timer.to_flat();
     let config_in = input.config.to_flat();
     let site_members = encode_site_members(&input.site)?;
@@ -1419,6 +1448,7 @@ pub fn run_simulation_into(
     })
 }
 
+// contract: C-STRICT, C-NATIVE-ERROR, C-OUTPUT, C-RESTART
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1500,6 +1530,152 @@ mod tests {
         run_cfg.config.storage_heat_method = 1;
         validate_checkpoint_ehc_temperatures(&run_cfg)
             .expect("the layout is not checked outside EHC");
+    }
+
+    #[test]
+    fn native_spartacus_failure_preserves_output_buffers() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+        let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        // Exercise the native API, bypassing the YAML validator deliberately:
+        // callers of run_simulation_into can supply typed in-memory inputs.
+        input.config.net_radiation_method = 1003;
+        input.site.spartacus_layer.building_frac[0] = 0.2;
+        input.site.spartacus_layer.building_frac[1] = 0.4;
+        let sentinel = 12345.0;
+        let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+        let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+        let result = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        );
+        assert!(matches!(
+            result,
+            Err(BridgeError::SimulationError { code: 111, .. })
+        ));
+        // No failed or later timestep may publish any output, including time.
+        assert!(data.iter().all(|value| *value == sentinel));
+        assert!(datetime.iter().all(|value| *value == sentinel));
+    }
+
+    #[test]
+    fn native_invalid_emissions_method_triggers_fortran_error_73() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+
+        for invalid_code in [7, 17, 20, 47] {
+            let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+            // Bypass YAML allowlist to exercise the Fortran kernel guard directly.
+            input.config.emissions_method = invalid_code;
+            let sentinel = 12345.0;
+            let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+            let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+            let result = run_simulation_into(
+                input,
+                OutputBuffers {
+                    data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                    datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS)
+                        .unwrap(),
+                },
+            );
+            match result {
+                Err(BridgeError::SimulationError { code: 73, message }) => {
+                    assert!(
+                        message.contains("EmissionsMethod"),
+                        "emissions={invalid_code} error message should mention EmissionsMethod: {message}"
+                    );
+                }
+                other => panic!(
+                    "expected SimulationError code 73 for emissions={invalid_code}, got {other:?}"
+                ),
+            }
+            assert!(data.iter().all(|value| *value == sentinel));
+            assert!(datetime.iter().all(|value| *value == sentinel));
+        }
+    }
+
+    #[test]
+    fn observed_emissions_rejects_missing_qf_and_accepts_valid_qf() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+        use crate::forcing::SuewsField;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+
+        // Missing qf (-999) with emissions=0 must fail before stepping Fortran.
+        let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        input.config.emissions_method = 0;
+        let sentinel = 12345.0;
+        let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+        let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+        let err = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        )
+        .expect_err("emissions=0 with missing qf must fail");
+        assert!(
+            matches!(err, BridgeError::SimulationError { ref message, .. }
+                if message.contains("forcing column 'qf'") && message.contains("emissions=0")),
+            "unexpected error: {err}"
+        );
+        assert!(data.iter().all(|value| *value == sentinel));
+        assert!(datetime.iter().all(|value| *value == sentinel));
+
+        // Valid observed qf (25.0 W m-2) succeeds and flows into SUEWS QF (data col 6).
+        row[SuewsField::qf_obs.index()] = 25.0;
+        let mut valid_input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        valid_input.config.emissions_method = 0;
+        let mut data_ok = vec![0.0; 3 * OUTPUT_DATA_COLS];
+        let mut datetime_ok = vec![0.0; 3 * OUTPUT_DATETIME_COLS];
+        run_simulation_into(
+            valid_input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data_ok, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime_ok, 3, OUTPUT_DATETIME_COLS)
+                    .unwrap(),
+            },
+        )
+        .expect("emissions=0 with valid observed qf must succeed");
+        // Column-major layout: element (r, c) is at c * nrows + r. SUEWS QF is col 6.
+        let qf_col = 6;
+        for step in 0..3 {
+            let qf_out = data_ok[qf_col * 3 + step];
+            assert!(
+                (qf_out - 25.0).abs() < 1e-12,
+                "step {step}: expected QF=25.0, got {qf_out}"
+            );
+        }
     }
 
     #[test]

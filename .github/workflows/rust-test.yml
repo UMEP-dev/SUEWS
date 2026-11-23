@@ -10,10 +10,13 @@ name: Rust test
 #
 # Unlike clippy, cargo test links, so it needs the SUEWS Fortran static
 # libraries and .mod files: the job builds them with `make -C src/suews all`
-# before testing with the `physics` feature, which is how the bridge is built
-# for SuPy. Only the SHA-pinned actions/checkout is used (satisfies
-# workflow-security.yml); gfortran comes from apt and Rust from the runner's
-# preinstalled rustup.
+# before testing both `--features physics` (without optional Arrow output)
+# and `--features physics,arrow-output` (matching the `physics,arrow-output`
+# features enabled alongside `python-extension` in
+# `src/supy/build_rust_bridge.py`, gh#2093), so neither feature-off nor
+# feature-on builds can regress. Only the SHA-pinned actions/checkout is used
+# (satisfies workflow-security.yml); gfortran comes from apt and Rust from
+# the runner's preinstalled rustup.
 
 on:
   pull_request:
@@ -26,23 +29,37 @@ on:
       - 'src/suews/Makefile.gfortran'
       # The Rust tests compile these resolved fixtures in with include_str!.
       - 'test/fixtures/bridge/**'
+      # output_io tests check SUEWS column names and widths against the
+      # published output contract catalogue.
+      - 'src/supy/data_model/output/**'
       - '.github/workflows/rust-test.yml'
+  workflow_call:
+    inputs:
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: rust-test-${{ github.event.pull_request.number || github.ref }}
+  # Include github.workflow so standalone pull_request runs and folded
+  # workflow_call runs from build-publish_to_pypi.yml never cancel each other.
+  group: rust-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
     name: cargo test (suews_bridge)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ inputs.head_sha }}
           persist-credentials: false
 
       - name: Install gfortran
@@ -57,15 +74,28 @@ jobs:
       - name: Build SUEWS Fortran libraries
         run: make -C src/suews all -j"$(nproc)"
 
-      - name: Run cargo test
+      - name: Run cargo test (physics)
         run: |
           set -eu
           if ! cargo test \
                 --manifest-path src/suews_bridge/Cargo.toml \
                 --features physics; then
-            echo "::error::cargo test failed in src/suews_bridge/."
+            echo "::error::cargo test (--features physics) failed in src/suews_bridge/."
             echo "Reproduce locally:"
             echo "    make -C src/suews all"
             echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics"
+            exit 1
+          fi
+
+      - name: Run cargo test (physics,arrow-output)
+        run: |
+          set -eu
+          if ! cargo test \
+                --manifest-path src/suews_bridge/Cargo.toml \
+                --features physics,arrow-output; then
+            echo "::error::cargo test (--features physics,arrow-output) failed in src/suews_bridge/."
+            echo "Reproduce locally:"
+            echo "    make -C src/suews all"
+            echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,arrow-output"
             exit 1
           fi

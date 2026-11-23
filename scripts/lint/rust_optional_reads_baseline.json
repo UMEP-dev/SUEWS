@@ -1,0 +1,5 @@
+{
+  "description": "Per-function counts of legacy optional YAML readers in src/suews_bridge/src/yaml_config.rs; see scripts/lint/check_rust_optional_reads.py. Counts may only go down.",
+  "totals": {},
+  "functions": {}
+}

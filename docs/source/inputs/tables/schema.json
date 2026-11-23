@@ -5,23 +5,47 @@
         "startdls": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
                 },
-                {
-                  "type": "number"
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
                 }
-              ],
-              "ge": 1,
-              "le": 366
+              },
+              "title": "RefValue[int]",
+              "type": "object"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Start of daylight savings time in decimal day of year",
+          "description": "Start of daylight savings time in integer day of year (1-366)",
           "display_name": "Daylight Saving Start",
           "title": "Startdls",
           "unit": "1"
@@ -29,23 +53,47 @@
         "enddls": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
                 },
-                {
-                  "type": "number"
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
                 }
-              ],
-              "ge": 1,
-              "le": 366
+              },
+              "title": "RefValue[int]",
+              "type": "object"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "End of daylight savings time in decimal day of year",
+          "description": "End of daylight savings time in integer day of year (1-366)",
           "display_name": "Daylight Saving End",
           "title": "Enddls",
           "unit": "1"
@@ -80,63 +128,63 @@
       "properties": {
         "qf0_beu": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Base anthropogenic heat flux for buildings, equipment and urban metabolism",
-          "display_name": "Base Energy Use QF",
-          "unit": "W m-2"
+          "description": "Fraction of the temperature-independent (base) anthropogenic heat flux that comes from building energy use. Used to separate the building share of heat and CO2 emissions. In the methods with codes ending in 1, 2 or 3 the rest of the base flux, less human metabolism, is attributed to traffic.",
+          "display_name": "Building Fraction of Base QF",
+          "unit": "1"
         },
         "qf_a": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Coefficient a for anthropogenic heat flux calculation",
+          "description": "Temperature-independent (base) anthropogenic heat flux per unit population density, that is per person, in the J11 heat basis (method codes ending in 2 or 5).",
           "display_name": "QF Coefficient A",
           "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
-          "unit": "1"
+          "unit": "W m-2 ha"
         },
         "qf_b": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Coefficient b for anthropogenic heat flux calculation",
+          "description": "Cooling coefficient in the J11 heat basis (method codes ending in 2 or 5): anthropogenic heat flux per cooling degree day and per unit population density, that is per person.",
           "display_name": "QF Coefficient B",
           "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
-          "unit": "1"
+          "unit": "W m-2 K-1 ha"
         },
         "qf_c": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Coefficient c for anthropogenic heat flux calculation",
+          "description": "Heating coefficient in the J11 heat basis (method codes ending in 2 or 5): anthropogenic heat flux per heating degree day and per unit population density, that is per person.",
           "display_name": "QF Coefficient C",
           "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
-          "unit": "1"
+          "unit": "W m-2 K-1 ha"
         },
         "baset_cooling": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Base temperature for cooling degree days",
+          "description": "Base temperature for cooling degree days. In the L11_UPDATED heat basis (method codes ending in 3 or 6) it is also the critical temperature above which the cooling term applies, compared with a running mean of daily mean air temperature over about five days.",
           "display_name": "Base Temperature Cooling",
           "unit": "degC"
         },
         "baset_heating": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Base temperature for heating degree days",
+          "description": "Base temperature for heating degree days. In the L11 and L11_UPDATED heat bases (method codes ending in 1, 3, 4 or 6) it is also the critical air temperature below which the heating term applies.",
           "display_name": "Base Temperature Heating",
           "unit": "degC"
         },
         "ah_min": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Minimum anthropogenic heat flux",
-          "display_name": "Minimum Anthropogenic Heat",
+          "description": "Temperature-independent (base) anthropogenic heat flux in the L11 and L11_UPDATED heat bases (method codes ending in 1, 3, 4 or 6), as a daily mean and not a lower bound: at each timestep it is multiplied by ahprof_24hr normalised to a mean of 1, so the modelled base term is above this value at some hours and below it at others. In the detailed methods (codes ending in 4 or 6) the building heat flux is rescaled by the population profile instead. Not used by the J11 heat basis (codes ending in 2 or 5).",
+          "display_name": "Base Anthropogenic Heat",
           "unit": "W m-2"
         },
         "ah_slope_cooling": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Slope of anthropogenic heat vs cooling degree days",
+          "description": "Increase in anthropogenic heat flux per degree by which a running mean of daily mean air temperature (about five days) exceeds baset_cooling. Used only by the L11_UPDATED heat basis (method codes ending in 3 or 6); scaled by the normalised ahprof_24hr.",
           "display_name": "Anthropogenic Heat Slope (Cooling)",
           "unit": "W m-2 K-1"
         },
         "ah_slope_heating": {
           "$ref": "#/$defs/DayProfile",
           "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Slope of anthropogenic heat vs heating degree days",
+          "description": "Increase in anthropogenic heat flux per degree of air temperature below baset_heating: instantaneous air temperature in the L11 heat basis (method codes ending in 1 or 4), a running mean of daily mean air temperature over about five days in L11_UPDATED (codes ending in 3 or 6). Scaled by the normalised ahprof_24hr.",
           "display_name": "Anthropogenic Heat Slope (Heating)",
           "unit": "W m-2 K-1"
         },
@@ -1786,6 +1834,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
+          "description": "Water distribution for building surfaces (impervious: routes to other surfaces and to_runoff when sfr > 0; to_bldgs/to_soilstore inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -1805,8 +1854,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -2121,7 +2170,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for bare soil",
+          "description": "Water distribution for bare soil (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_bsoil/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -2141,8 +2190,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -2408,9 +2457,32 @@
               "type": "null"
             }
           ],
+          "conditional_unit": {
+            "activation_note": "Used only when model.physics.emissions selects a detailed anthropogenic branch (codes 4-6, 14-16, 24-26, 34-36, 44-46); codes 4-6 still include traffic heat QF_traff while zeroing Fc_anthro in the driver.",
+            "cases": {
+              "1": {
+                "formula": "QF_traff = traffic_rate / 86400 * emission_factor_energy_vehicle * profile_traffic; Fc_traff = traffic_rate / 86400 * emission_factor_co2_vehicle * 1e9 / 44 * profile_traffic",
+                "kind": "cf",
+                "label": "Per area",
+                "note": "Daily vehicle-km per m2 of grid area (counted vehicles leave the CF unit string; 86400 s d-1 converts per-day activity to per-second fluxes).",
+                "unit": "km m-2 d-1"
+              },
+              "2": {
+                "formula": "QF_traff = traffic_rate / 86400 * emission_factor_energy_vehicle * profile_traffic * (pop_density / 10000); Fc_traff = traffic_rate / 86400 * emission_factor_co2_vehicle * 1e9 / 44 * profile_traffic * (pop_density / 10000)",
+                "kind": "cf",
+                "label": "Per capita",
+                "note": "Daily vehicle-km per person (counted vehicles and people leave the CF unit string; pop_density in ha-1 is divided by 10000 m2 ha-1 to convert per-capita traffic to grid area).",
+                "unit": "km d-1"
+              }
+            },
+            "inactive_note": "Ignored when model.physics.emissions is 0 or ends in 1-3; inside detailed emissions branches, any type_traffic_rate other than 1 or 2 (including unset/0) raises Fortran ErrorHint(75).",
+            "selector": "type_traffic_rate",
+            "selector_field": "type_traffic_rate",
+            "selector_model": "CO2Params",
+            "selector_scope": "sibling"
+          },
           "description": "Mean traffic activity; basis selected by type_traffic_rate",
-          "display_name": "Traffic Rate",
-          "unit": "vehicle km m-2 day-1 (type 1) or vehicle km cap-1 day-1 (type 2)"
+          "display_name": "Traffic Rate"
         },
         "type_traffic_rate": {
           "anyOf": [
@@ -2487,10 +2559,10 @@
             }
           ],
           "default": null,
-          "description": "Maximum surface conductance for photosynthesis",
-          "display_name": "Maximum Surface Conductance",
+          "description": "Fitted scaling coefficient for surface conductance: it multiplies the product of the environmental response functions and the LAI-weighted sum of the per-surface maximum conductances (max_conductance). It is not itself a conductance.",
+          "display_name": "Surface Conductance Scaling Coefficient",
           "title": "G Max",
-          "unit": "mm s-1"
+          "unit": "1"
         },
         "g_k": {
           "anyOf": [
@@ -2522,11 +2594,34 @@
               "type": "null"
             }
           ],
+          "conditional_unit": {
+            "activation_note": "Applied when any vegetated surface (evetr, dectr, grass) has positive surface fraction (sfr > 0).",
+            "cases": {
+              "1": {
+                "formula": "g_dq = 1 - g_q_base * min(dq, g_q_shape), with dq in g kg-1",
+                "kind": "cf",
+                "label": "J11 (Jarvi et al. 2011)",
+                "note": "Reciprocal of specific humidity deficit in g kg-1 (1 / (g kg-1) = kg g-1).",
+                "unit": "kg g-1"
+              },
+              "2": {
+                "formula": "g_dq = g_q_base + (1 - g_q_base) * (g_q_shape**dq), with dq in g kg-1",
+                "kind": "cf",
+                "label": "W16 (Ward et al. 2016)",
+                "note": "Dimensionless asymptotic lower bound of the specific-humidity-deficit conductance modifier.",
+                "unit": "1"
+              }
+            },
+            "inactive_note": "Public YAML accepts only surface_conductance in {1 (J11), 2 (W16)}; retired legacy Fortran codes 3 and 4 mapped to the J11 and W16 humidity forms respectively, and other codes raise ErrorHint(71).",
+            "selector": "model.physics.surface_conductance",
+            "selector_field": "surface_conductance",
+            "selector_model": "ModelPhysics",
+            "selector_scope": "config"
+          },
           "default": null,
-          "description": "Base conductance response parameter for vapour pressure deficit; its interpretation and units depend on the surface-conductance model",
+          "description": "Base conductance response parameter for specific humidity deficit; its interpretation and units depend on model.physics.surface_conductance",
           "display_name": "VPD Response Base Value",
-          "title": "G Q Base",
-          "unit": "model-dependent"
+          "title": "G Q Base"
         },
         "g_q_shape": {
           "anyOf": [
@@ -2540,11 +2635,36 @@
               "type": "null"
             }
           ],
+          "conditional_unit": {
+            "activation_note": "Applied when any vegetated surface (evetr, dectr, grass) has positive surface fraction (sfr > 0).",
+            "cases": {
+              "1": {
+                "formula": "g_dq = 1 - g_q_base * min(dq, g_q_shape), with dq in g kg-1",
+                "kind": "cf",
+                "label": "J11 (Jarvi et al. 2011)",
+                "note": "Specific humidity deficit threshold above which g_dq stays constant.",
+                "unit": "g kg-1"
+              },
+              "2": {
+                "basis_unit": "g kg-1",
+                "expression": "empirical power base for g_q_shape**dq with dq in g kg-1; ln(g_q_shape) has unit kg g-1",
+                "formula": "g_dq = g_q_base + (1 - g_q_base) * (g_q_shape**dq), with dq in g kg-1",
+                "kind": "empirical_base",
+                "label": "W16 (Ward et al. 2016)",
+                "log_unit": "kg g-1",
+                "note": "Not dimensionless: changing dq from g kg-1 to kg kg-1 transforms g_q_shape nonlinearly (g_q_shape -> g_q_shape**1000) because g_q_shape**dq = exp((ln(g_q_shape) / (1 g kg-1)) * dq)."
+              }
+            },
+            "inactive_note": "Public YAML accepts only surface_conductance in {1 (J11), 2 (W16)}; retired legacy Fortran codes 3 and 4 mapped to the J11 and W16 humidity forms respectively, and other codes raise ErrorHint(71).",
+            "selector": "model.physics.surface_conductance",
+            "selector_field": "surface_conductance",
+            "selector_model": "ModelPhysics",
+            "selector_scope": "config"
+          },
           "default": null,
-          "description": "Shape conductance response parameter for vapour pressure deficit; its interpretation and units depend on the surface-conductance model",
+          "description": "Shape conductance response parameter for specific humidity deficit; its interpretation and units depend on model.physics.surface_conductance",
           "display_name": "VPD Response Shape Parameter",
-          "title": "G Q Shape",
-          "unit": "model-dependent"
+          "title": "G Q Shape"
         },
         "g_t": {
           "anyOf": [
@@ -2692,7 +2812,7 @@
       "type": "object"
     },
     "CoolingSetpointProfile": {
-      "description": "10-minute profile for cooling setpoints (default: off).",
+      "description": "Cooling setpoints in two day-type mappings with 10-minute keys ``\"1\"`` to ``\"144\"``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -2756,7 +2876,7 @@
       "type": "object"
     },
     "DayProfile": {
-      "description": "Daily values that can vary by day of year.",
+      "description": "Scalar values keyed by ``working_day`` and ``holiday``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for day selection and field uses.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -3010,7 +3130,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for deciduous trees",
+          "description": "Water distribution for deciduous trees (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_dectr/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -3030,8 +3150,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -3400,7 +3520,7 @@
       "type": "object"
     },
     "EmissionsMethod": {
-      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature\n4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes\n11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
+      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using a running mean of daily mean air temperature (about five days)\n4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes\n11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
       "enum": [
         0,
         1,
@@ -3648,7 +3768,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for evergreen trees",
+          "description": "Water distribution for evergreen trees (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_evetr/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -3668,8 +3788,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -4256,7 +4376,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution for grass",
+          "description": "Water distribution for grass (pervious: routes to other surfaces and to_soilstore when sfr > 0; to_grass/to_runoff inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -4276,8 +4396,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -4564,7 +4684,7 @@
       "type": "integer"
     },
     "HeatingSetpointProfile": {
-      "description": "10-minute profile for heating setpoints (default: off).",
+      "description": "Heating setpoints in two day-type mappings with 10-minute keys ``\"1\"`` to ``\"144\"``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and the default values.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -4628,7 +4748,7 @@
       "type": "object"
     },
     "HourlyProfile": {
-      "description": "24-hour profile for diurnal variations.\n\nHolds two sets of 24 hourly values, one for working days\n(``working_day``) and one for holidays (``holiday``). Each set is a\nmapping keyed by the hour, ``\"1\"`` to ``\"24\"``, where ``\"1\"`` is the\nfirst hour of the day, starting at 00:00; all 24 keys must be present.\nThe two sets are given together. A profile left out of the\nconfiguration takes a uniform 1/24 in both sets.\n\nUsed by the snow, irrigation, anthropogenic-heat, population, traffic\nand human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\nThe 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\nsubclasses instead.",
+      "description": "24-hour profile for diurnal variations.\n\nHolds two sets of 24 hourly values, one for working days\n(``working_day``) and one for holidays (``holiday``). Each set is a\nmapping keyed by the hour, ``\"1\"`` to ``\"24\"``, where ``\"1\"`` is the\nfirst hour of the day, starting at 00:00; all 24 keys must be present.\nThe two sets are given together. A profile left out of the\nconfiguration takes a uniform 1/24 in both sets.\n\nUsed by the snow, irrigation, anthropogenic-heat, population, traffic\nand human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\nThe 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\nsubclasses instead.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -5145,6 +5265,11 @@
     },
     "InitialStateDectr": {
       "description": "Initial state for deciduous trees with vegetation parameters plus porosity.",
+      "not": {
+        "required": [
+          "wu"
+        ]
+      },
       "properties": {
         "state": {
           "anyOf": [
@@ -5430,14 +5555,10 @@
             }
           ],
           "default": 0,
-          "description": "Senescence degree days at the start of the model run",
+          "description": "Senescence degree days at the start of the model run. Must be finite; negative, zero and positive values are permitted. Omit to use 0. NaN, either infinity and null are not accepted.",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
-        },
-        "wu": {
-          "$ref": "#/$defs/WaterUse",
-          "display_name": "Water Use"
         },
         "porosity_id": {
           "anyOf": [
@@ -5478,6 +5599,11 @@
     },
     "InitialStateEvetr": {
       "description": "Initial state for evergreen trees with vegetation parameters.",
+      "not": {
+        "required": [
+          "wu"
+        ]
+      },
       "properties": {
         "state": {
           "anyOf": [
@@ -5763,14 +5889,10 @@
             }
           ],
           "default": 0,
-          "description": "Senescence degree days at the start of the model run",
+          "description": "Senescence degree days at the start of the model run. Must be finite; negative, zero and positive values are permitted. Omit to use 0. NaN, either infinity and null are not accepted.",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
-        },
-        "wu": {
-          "$ref": "#/$defs/WaterUse",
-          "display_name": "Water Use"
         }
       },
       "title": "Evergreen Tree Initial State",
@@ -5778,6 +5900,11 @@
     },
     "InitialStateGrass": {
       "description": "Initial state for grass surfaces with vegetation parameters.",
+      "not": {
+        "required": [
+          "wu"
+        ]
+      },
       "properties": {
         "state": {
           "anyOf": [
@@ -6063,14 +6190,10 @@
             }
           ],
           "default": 0,
-          "description": "Senescence degree days at the start of the model run",
+          "description": "Senescence degree days at the start of the model run. Must be finite; negative, zero and positive values are permitted. Omit to use 0. NaN, either infinity and null are not accepted.",
           "display_name": "Initial Senescence Degree Days",
           "title": "Sdd Id",
           "unit": "K d"
-        },
-        "wu": {
-          "$ref": "#/$defs/WaterUse",
-          "display_name": "Water Use"
         }
       },
       "title": "Grass Initial State",
@@ -6529,7 +6652,61 @@
       "type": "object"
     },
     "InitialStates": {
-      "description": "Initial conditions for the SUEWS model",
+      "description": "Initial conditions for fresh SUEWS runs.\n\nInternal continuation state (radiation memory ``qn_surfs``/``dqndt_surf``,\ndaily irrigation memory ``evetr``/``dectr``/``grass.wu``, and running\ntimer/atmosphere diagnostics ``dt_since_start``, ``tair_av``,\n``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb``, ``rs``) is\nrejected on fresh runs and restored solely through complete checkpoints.\nOther unconfigured Fortran state members follow documented cold-start\nconventions: step-1 running diagnostics are overwritten before use,\nAnOHM buffers start at -999/0/false, ``tmin_id``/``tmax_id`` assume a\nmidnight start at 0, DyOHM (methods 6-8) dynamic coefficients start at 0\nuntil the first midnight with ``t2_prev`` and ``temp_surf_dyohm`` at\n0 degC, and STEBBS under NetRadiationMethod < 1000 sees 0 W m-2 BEERS\nradiation on step 1 before BEERS runs at the end of the step.",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "qn_surfs"
+            ]
+          },
+          {
+            "required": [
+              "dqndt_surf"
+            ]
+          },
+          {
+            "required": [
+              "dt_since_start"
+            ]
+          },
+          {
+            "required": [
+              "tair_av"
+            ]
+          },
+          {
+            "required": [
+              "tstep_prev"
+            ]
+          },
+          {
+            "required": [
+              "l_mod"
+            ]
+          },
+          {
+            "required": [
+              "ustar"
+            ]
+          },
+          {
+            "required": [
+              "ra_h"
+            ]
+          },
+          {
+            "required": [
+              "rb"
+            ]
+          },
+          {
+            "required": [
+              "rs"
+            ]
+          }
+        ]
+      },
       "properties": {
         "snowalb": {
           "anyOf": [
@@ -6778,17 +6955,47 @@
         "ie_start": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
+                },
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "title": "RefValue[int]",
+              "type": "object"
             },
             {
-              "type": "number"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Day of year when irrigation starts",
+          "description": "Integer day of year (1-366) when irrigation starts",
           "display_name": "Irrigation Start Day",
           "title": "Ie Start",
           "unit": "1"
@@ -6796,17 +7003,47 @@
         "ie_end": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Value"
+                },
+                "ref": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Reference"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "title": "RefValue[int]",
+              "type": "object"
             },
             {
-              "type": "number"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Day of year when irrigation ends",
+          "description": "Integer day of year (1-366) when irrigation ends",
           "display_name": "Irrigation End Day",
           "title": "Ie End",
           "unit": "1"
@@ -7377,7 +7614,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature; 4 (J19) = Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 5 (J19_UPDATED) = Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 6 (L11_UPDATED_DETAILED) = Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 13 (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 14 (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 15 (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 16 (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 21 (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 22 (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 23 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 24 (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 25 (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 26 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 31 (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 32 (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 33 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 34 (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 35 (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 36 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 41 (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 42 (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 43 (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 44 (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 45 (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 46 (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
+          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using a running mean of daily mean air temperature (about five days); 4 (J19) = Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 5 (J19_UPDATED) = Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 6 (L11_UPDATED_DETAILED) = Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 13 (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 14 (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 15 (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 16 (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 21 (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 22 (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 23 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 24 (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 25 (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 26 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 31 (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 32 (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 33 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 34 (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 35 (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 36 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 41 (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 42 (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 43 (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 44 (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 45 (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 46 (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
           "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
           "provides_to": [
             "ohm_inc_qf",
@@ -7442,7 +7679,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed roughness length from site parameters; 2 (VARIABLE) = Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999); 3 (MACDONALD) = MacDonald et al. (1998) morphometric method based on building geometry; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction \u03bbp (Grimmond & Oke 1999); 5 (ALTERNATIVE) = Alternative variable method",
+          "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed roughness length from site parameters; 2 (VARIABLE) = Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999); 3 (MACDONALD) = MacDonald et al. (1998) morphometric method based on building geometry; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction \u03bbp (Grimmond & Oke 1999); 5 (ALTERNATIVE) = Reserved / unimplemented; not available (rejected at validation)",
           "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
           "provides_to": [
             "roughness_length_heat",
@@ -7656,7 +7893,7 @@
       "type": "object"
     },
     "MomentumRoughnessMethod": {
-      "description": "Method for calculating momentum roughness length (z0m).\n\n1: FIXED - Fixed roughness length from site parameters\n2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)\n3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry\n4: LAMBDAP_DEPENDENT - Varies with plan area fraction \u03bbp (Grimmond & Oke 1999)\n5: ALTERNATIVE - Alternative variable method",
+      "description": "Method for calculating momentum roughness length (z0m).\n\n1: FIXED - Fixed roughness length from site parameters\n2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)\n3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry\n4: LAMBDAP_DEPENDENT - Varies with plan area fraction \u03bbp (Grimmond & Oke 1999)\n5: ALTERNATIVE - Reserved / unimplemented; not available (rejected at validation)",
       "enum": [
         1,
         2,
@@ -8116,7 +8353,7 @@
         },
         "waterdist": {
           "$ref": "#/$defs/WaterDistribution",
-          "description": "Water distribution fractions for paved surfaces",
+          "description": "Water distribution for paved surfaces (impervious: routes to other surfaces and to_runoff when sfr > 0; to_paved/to_soilstore inapplicable).",
           "display_name": "Water Distribution"
         },
         "storage_drain_params": {
@@ -8136,8 +8373,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -11970,7 +12207,7 @@
             }
           ],
           "default": 0.0,
-          "description": "Minimum water storage capacity",
+          "description": "Minimum storage capacity, kept for compatibility with the legacy tables. The model does not read it.",
           "display_name": "Minimum Storage",
           "ge": 0,
           "title": "Store Min",
@@ -11994,7 +12231,7 @@
             }
           ],
           "default": null,
-          "description": "Maximum water storage capacity",
+          "description": "Interception storage capacity of the surface: the depth of water the surface can hold. It is the default for store_cap. The model does not read this value directly.",
           "display_name": "Maximum Storage",
           "title": "Store Max",
           "unit": "kg m-2"
@@ -12017,7 +12254,7 @@
             }
           ],
           "default": null,
-          "description": "Current surface/interception water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html.",
+          "description": "Storage capacity the model uses as the surface's current capacity: the drainage threshold when drain_eq is 1, and the capacity used by the Rutter evaporation option and the moisture terms that read it. Defaults to store_max when not given. For deciduous trees the model updates it daily with leaf state. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html.",
           "display_name": "Storage Capacity",
           "title": "Store Cap",
           "unit": "kg m-2"
@@ -12049,11 +12286,55 @@
               "type": "null"
             }
           ],
+          "conditional_unit": {
+            "activation_note": "Applied to non-water surfaces with positive surface fraction (sfr > 0); ignored for water and inactive surfaces.",
+            "cases": {
+              "1": {
+                "base_units": [
+                  "kg m-2",
+                  "h"
+                ],
+                "depends_on": [
+                  "drain_coef_2"
+                ],
+                "expression": "(kg m-2)^(1 - drain_coef_2) h-1",
+                "formula": "drain = drain_coef_1 * (state - store_cap)**drain_coef_2 / nsh_real for state >= store_cap, else 0",
+                "kind": "formula",
+                "label": "Threshold power law",
+                "note": "No fixed CF unit: the storage-unit exponent depends on the fitted dimensionless exponent drain_coef_2 (1 kg m-2 = 1 mm liquid water; nsh_real = 3600 / tstep is timesteps per hour)."
+              },
+              "2": {
+                "formula": "drain = drain_coef_1 * (exp(drain_coef_2 * state) - 1) / nsh_real",
+                "kind": "cf",
+                "label": "Modified Rutter exponential",
+                "note": "Hourly drainage flux scale (numerically equal to mm h-1 for liquid water; nsh_real = 3600 / tstep is timesteps per hour).",
+                "unit": "kg m-2 h-1"
+              },
+              "3": {
+                "base_units": [
+                  "kg m-2",
+                  "h"
+                ],
+                "depends_on": [
+                  "drain_coef_2"
+                ],
+                "expression": "(kg m-2)^(1 - drain_coef_2) h-1",
+                "formula": "drain = drain_coef_1 * state**drain_coef_2 / nsh_real",
+                "kind": "formula",
+                "label": "Power law without threshold",
+                "note": "No fixed CF unit: the storage-unit exponent depends on the fitted dimensionless exponent drain_coef_2 (1 kg m-2 = 1 mm liquid water; nsh_real = 3600 / tstep is timesteps per hour)."
+              }
+            },
+            "inactive_note": "drain_eq = 0 is an unset placeholder and any code outside {1, 2, 3} (including retired equation 4) selects no drainage branch in Fortran.",
+            "selector": "drain_eq",
+            "selector_field": "drain_eq",
+            "selector_model": "StorageDrainParams",
+            "selector_scope": "sibling"
+          },
           "default": null,
-          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 1",
-          "title": "Drain Coef 1",
-          "unit": "equation-dependent"
+          "title": "Drain Coef 1"
         },
         "drain_coef_2": {
           "anyOf": [
@@ -12067,11 +12348,41 @@
               "type": "null"
             }
           ],
+          "conditional_unit": {
+            "activation_note": "Applied to non-water surfaces with positive surface fraction (sfr > 0); ignored for water and inactive surfaces.",
+            "cases": {
+              "1": {
+                "formula": "drain = drain_coef_1 * (state - store_cap)**drain_coef_2 / nsh_real for state >= store_cap, else 0",
+                "kind": "cf",
+                "label": "Threshold power law",
+                "note": "Dimensionless power-law exponent.",
+                "unit": "1"
+              },
+              "2": {
+                "formula": "drain = drain_coef_1 * (exp(drain_coef_2 * state) - 1) / nsh_real",
+                "kind": "cf",
+                "label": "Modified Rutter exponential",
+                "note": "Inverse surface-water storage scale multiplying state in kg m-2 (numerically equal to mm-1 for liquid water).",
+                "unit": "m2 kg-1"
+              },
+              "3": {
+                "formula": "drain = drain_coef_1 * state**drain_coef_2 / nsh_real",
+                "kind": "cf",
+                "label": "Power law without threshold",
+                "note": "Dimensionless power-law exponent.",
+                "unit": "1"
+              }
+            },
+            "inactive_note": "drain_eq = 0 is an unset placeholder and any code outside {1, 2, 3} (including retired equation 4) selects no drainage branch in Fortran.",
+            "selector": "drain_eq",
+            "selector_field": "drain_eq",
+            "selector_model": "StorageDrainParams",
+            "selector_scope": "sibling"
+          },
           "default": null,
-          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq",
+          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq. Required and finite on active non-water surfaces using equations 1, 2 or 3. Explicit zero is allowed.",
           "display_name": "Drainage Coefficient 2",
-          "title": "Drain Coef 2",
-          "unit": "equation-dependent"
+          "title": "Drain Coef 2"
         },
         "ref": {
           "anyOf": [
@@ -12331,7 +12642,7 @@
       "type": "object"
     },
     "TenMinuteProfile": {
-      "description": "10-minute profile for diurnal variations (144 values per day).",
+      "description": "Two 10-minute mappings, ``working_day`` and ``holiday``, keyed ``\"1\"`` to ``\"144\"``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for slot timing and field uses.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -12874,7 +13185,7 @@
       "type": "object"
     },
     "WaterDistribution": {
-      "description": "Water routing between surface types.",
+      "description": "Within-grid water routing fractions (required when sfr > 0). Inapplicable slots (self-routing or opposite terminal): 0 normalises to absent at load; non-zero or post-load edits fail.\n\nEach non-water surface routes surface drainage to the other six surfaces\nplus its terminal destination: ``to_runoff`` for impervious surfaces\n(``paved``, ``bldgs``) or ``to_soilstore`` for pervious surfaces\n(``evetr``, ``dectr``, ``grass``, ``bsoil``). The ``water`` surface has\nno ``waterdist`` block.\n\nActive surfaces (``sfr > 0``) require all seven applicable destinations\nto be finite fractions in ``[0, 1]`` summing to ``1.0`` when a\n``waterdist`` block is supplied; omitting the entire ``waterdist`` block\napplies surface-specific defaults. Inactive surfaces (``sfr == 0``) may\nomit applicable destinations, and raising ``sfr`` from ``0`` to ``> 0``\nwithout supplying them fails before engine execution.\n\nInapplicable destinations (self-routing ``to_<self>``, ``to_soilstore``\non impervious surfaces, and ``to_runoff`` on pervious surfaces) should be\nomitted or set to null. At YAML or model load, an explicit numeric zero\n(``0``, ``0.0``, ``-0.0``, or ``{value: 0.0}``) in an inapplicable slot\nis normalised to absent (``None``) while non-zero, boolean, or invalid\nvalues fail. After loading, introducing any inapplicable destination by\nin-place mutation (including ``0.0``) fails before engine execution.",
       "properties": {
         "to_paved": {
           "anyOf": [
@@ -12895,7 +13206,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to paved surfaces within the grid",
+          "description": "Fraction to paved surfaces (other non-water surfaces; required when sfr > 0). Self-routing on paved is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Paved",
           "title": "To Paved",
           "unit": "1"
@@ -12919,7 +13230,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to building surfaces within the grid",
+          "description": "Fraction to building surfaces (other non-water surfaces; required when sfr > 0). Self-routing on bldgs is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Buildings",
           "title": "To Bldgs",
           "unit": "1"
@@ -12943,7 +13254,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to deciduous tree surfaces within the grid",
+          "description": "Fraction to deciduous trees (other non-water surfaces; required when sfr > 0). Self-routing on dectr is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Deciduous Trees",
           "title": "To Dectr",
           "unit": "1"
@@ -12967,7 +13278,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to evergreen tree surfaces within the grid",
+          "description": "Fraction to evergreen trees (other non-water surfaces; required when sfr > 0). Self-routing on evetr is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Evergreen Trees",
           "title": "To Evetr",
           "unit": "1"
@@ -12991,7 +13302,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to grass surfaces within the grid",
+          "description": "Fraction to grass surfaces (other non-water surfaces; required when sfr > 0). Self-routing on grass is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Grass",
           "title": "To Grass",
           "unit": "1"
@@ -13015,7 +13326,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to bare soil surfaces within the grid",
+          "description": "Fraction to bare soil surfaces (other non-water surfaces; required when sfr > 0). Self-routing on bsoil is inapplicable: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Bare Soil",
           "title": "To Bsoil",
           "unit": "1"
@@ -13039,7 +13350,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water redistributed to water surfaces within the grid",
+          "description": "Fraction redistributed to water surfaces within the grid (all six non-water surfaces; required when sfr > 0 when waterdist is given; water surfaces have no waterdist block).",
           "display_name": "To Water",
           "title": "To Water",
           "unit": "1"
@@ -13063,7 +13374,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water going to surface runoff (for impervious surfaces: paved and buildings)",
+          "description": "Fraction to surface runoff (impervious paved/bldgs; required when sfr > 0). Inapplicable on pervious surfaces: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Runoff",
           "title": "To Runoff",
           "unit": "1"
@@ -13087,7 +13398,7 @@
             }
           ],
           "default": null,
-          "description": "Fraction of water going to subsurface soil storage (for pervious surfaces: vegetation and bare soil)",
+          "description": "Fraction to subsurface soil store (pervious evetr/dectr/grass/bsoil; required when sfr > 0). Inapplicable on paved/bldgs: 0 normalises to absent at load; non-zero or post-load edits fail.",
           "display_name": "To Soil Store",
           "title": "To Soilstore",
           "unit": "1"
@@ -13260,7 +13571,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Upper limit to the surface water state",
+          "description": "Maximum depth of water the water body can store in this grid cell (1 kg m-2 of water equals 1 mm of depth). Water above this limit contributes to runoff.",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "kg m-2"
@@ -13326,7 +13637,7 @@
             }
           ],
           "default": null,
-          "description": "Water distribution parameters"
+          "description": "Within-grid water routing fractions (applicable destinations required when sfr > 0; inapplicable 0 normalises to absent at load; non-zero or post-load edits fail)."
         },
         "storage_drain_params": {
           "$ref": "#/$defs/StorageDrainParams",
@@ -13345,8 +13656,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Limit of snow that can be held on surface",
-          "display_name": "Snow Pack Limit",
+          "description": "Snow water equivalent at and above which the surface is fully snow covered; below it, while snow is melting, the snow-covered fraction follows the snow depletion curve. It does not cap the snowpack. Not used for the water surface.",
+          "display_name": "Snow Depletion Threshold",
           "title": "Snowpack Limit",
           "unit": "kg m-2"
         },
@@ -13419,72 +13730,6 @@
       "title": "Water Surfaces",
       "type": "object"
     },
-    "WaterUse": {
-      "description": "Water use data and parameters.",
-      "properties": {
-        "wu_total": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "default": 0.0,
-          "description": "Total water use",
-          "display_name": "Total Water Use",
-          "ge": 0,
-          "title": "Wu Total",
-          "unit": "mm"
-        },
-        "wu_auto": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "default": 0.0,
-          "description": "Automatic water use",
-          "display_name": "Automatic Water Use",
-          "ge": 0,
-          "title": "Wu Auto",
-          "unit": "mm"
-        },
-        "wu_manual": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "default": 0.0,
-          "description": "Manual water use",
-          "display_name": "Manual Water Use",
-          "ge": 0,
-          "title": "Wu Manual",
-          "unit": "mm"
-        },
-        "ref": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Reference"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "title": "Water Use",
-      "type": "object"
-    },
     "WaterUseMethod": {
       "description": "Method for determining external water use (irrigation).\n\n0: MODELLED - Water use calculated based on soil moisture deficit and irrigation parameters\n1: OBSERVED - Uses observed water use values from forcing file",
       "enum": [
@@ -13495,7 +13740,7 @@
       "type": "integer"
     },
     "WeeklyProfile": {
-      "description": "Weekly pattern for 7-day variations.",
+      "description": "Seven daily values keyed by lowercase weekday names, Monday to Sunday.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for storage order and field uses.",
       "properties": {
         "monday": {
           "anyOf": [
@@ -13598,7 +13843,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev9. Observed soil-water configuration (#1422): soil_moisture source selector, explicit whole-store layer bounds in metres, optional SI density and surface field capacity; retire sensor saturation capacity. Active legacy observations require confirmed bounds and a completed forcing manifest.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev17. Day-of-year fields for irrigation (ie_start, ie_end) and daylight saving time (startdls, enddls) require whole integers in 1..366 or null/omission to disable (#2101, #2001, #2002). The (2026.6.dev16 -> 2026.6.dev17) migration normalises exact whole-number floats (e.g. 86.0 -> 86), preserves null and disabled ref-only/empty mappings, and rejects fractional, boolean, non-finite or out-of-range values rather than truncating or zeroing them.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13651,20 +13896,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev9",
+  "title": "SUEWS Configuration Schema v2026.6.dev17",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev9.json",
-  "version": "2026.6.dev9",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev17.json",
+  "version": "2026.6.dev17",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev9"
+    "schema_version": "2026.6.dev17"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev9",
+      "schema_version": "2026.6.dev17",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

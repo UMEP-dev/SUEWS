@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _met_input:
 
 Meteorological Input File

@@ -1,3 +1,23 @@
+//! Composite model state container mirroring Fortran `SUEWS_STATE`.
+//!
+//! Aggregates all 13 subsystem state members (`SUEWS_STATE_MEMBER_ORDER`):
+//! `error_state`, `flag_state`, `anthroemis_state`, `ohm_state`, `solar_state`,
+//! `atm_state`, `phenology_state`, `snow_state`, `hydro_state`, `heat_state`,
+//! `roughness_state`, `stebbs_state` and `nhood_state`.
+//!
+//! ## Restart and checkpoint contract (`BR-06`)
+//!
+//! - Decoding requires the complete 13-member set (`validate_member_set`); a
+//!   missing or unknown member fails with [`BridgeError::BadState`] instead of
+//!   silently substituting a default state.
+//! - Checkpoint serialisation (`suews_state_to_checkpoint_value`, invoked by
+//!   `checkpoint::suews_checkpoint_to_json`) preserves inactive `NaN` entries as
+//!   JSON `null` and restores JSON `null` back to `f64::NAN`, while rejecting
+//!   `+Inf` / `-Inf` with [`BridgeError::NonFiniteCheckpointValue`].
+//! - During simulation (`sim.rs`), all 13 members are packed into a flat buffer
+//!   plus a TOC matching `STATE_MEMBER_*` (`sim.rs`) and
+//!   `SUEWS_CAPI_STATE_MEMBER_*` (`c_api/driver.f95`).
+
 use crate::anthroemis::{
     anthroemis_state_default_from_fortran, anthroemis_state_from_values_payload,
     anthroemis_state_schema_version, anthroemis_state_schema_version_runtime,
@@ -61,6 +81,7 @@ use crate::stebbs_state::{
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
+/// Schema version for the composite [`SuewsState`] container payload.
 pub const SUEWS_STATE_SCHEMA_VERSION: u32 = 1;
 
 const MEMBER_ERROR_STATE: &str = "error_state";
@@ -93,6 +114,7 @@ const SUEWS_STATE_MEMBER_ORDER: [&str; 13] = [
     MEMBER_NHOOD_STATE,
 ];
 
+/// Schema metadata for [`SuewsState`], recording each member's schema version.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SuewsStateSchema {
     pub schema_version: u32,
@@ -100,12 +122,14 @@ pub struct SuewsStateSchema {
     pub member_schema_versions: BTreeMap<String, u32>,
 }
 
+/// Versioned nested JSON map holding all 13 serialised members of [`SuewsState`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsStateValuesPayload {
     pub schema_version: u32,
     pub members: BTreeMap<String, Value>,
 }
 
+/// Complete 13-member runtime state mirroring Fortran `SUEWS_STATE`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsState {
     pub error_state: ErrorState,
@@ -871,6 +895,7 @@ pub fn suews_state_from_nested_payload(payload: &Value) -> Result<SuewsState, Br
     suews_state_from_values_payload(&values_payload)
 }
 
+// contract: C-CODEC, C-RESTART
 #[cfg(test)]
 mod tests {
     use super::*;

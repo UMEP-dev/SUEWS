@@ -423,20 +423,20 @@ impl BuildingArchetypePrm {
         flat.push(self.heatingsetpointtemperature);
         flat.push(self.coolingsetpointtemperature);
 
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            flat.extend_from_slice(&self.heatingsetpointtemperatureprofile[day_type]);
+        for row in &self.heatingsetpointtemperatureprofile {
+            flat.extend_from_slice(row);
         }
 
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            flat.extend_from_slice(&self.coolingsetpointtemperatureprofile[day_type]);
+        for row in &self.coolingsetpointtemperatureprofile {
+            flat.extend_from_slice(row);
         }
 
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            flat.extend_from_slice(&self.metabolismprofile[day_type]);
+        for row in &self.metabolismprofile {
+            flat.extend_from_slice(row);
         }
 
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            flat.extend_from_slice(&self.applianceprofile[day_type]);
+        for row in &self.applianceprofile {
+            flat.extend_from_slice(row);
         }
 
         flat.push(self.lightingpowerdensity);
@@ -685,6 +685,7 @@ pub fn building_archetype_prm_default_from_fortran() -> Result<BuildingArchetype
     BuildingArchetypePrm::from_flat(&flat)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

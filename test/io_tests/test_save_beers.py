@@ -17,7 +17,7 @@ from supy.data_model.output import (
 )
 from supy.suews_output import SUEWSOutput
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
 
 
 @pytest.fixture

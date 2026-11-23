@@ -42,7 +42,7 @@ import pytest
 
 from supy.data_model.core.model import ModelPhysics
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
 
 # Same bound as test_core_physics.test_water_balance_consistency: the closure
 # is exact by construction, so this is a numerical-noise margin, not a
@@ -65,15 +65,28 @@ OPTION_VALUES_REFUSED = {
     ("net_radiation", 12): "forcing column 'fcld'",
     ("net_radiation", 100): "forcing column 'ldown'",
     ("net_radiation", 200): "forcing column 'fcld'",
-    ("net_radiation", 1001): "forcing column 'ldown'",
-    ("net_radiation", 1002): "forcing column 'fcld'",
+    # SPARTACUS with buildings needs a facet-resolved storage heat method
+    # (gh#1834) and zero vegetation above tree crowns, which the sample's
+    # storage_heat=1 and vertical layers do not satisfy; varying one option
+    # at a time cannot satisfy the paired rules.
+    ("net_radiation", 1001): "SPARTACUS with buildings",
+    ("net_radiation", 1002): "SPARTACUS with buildings",
+    ("net_radiation", 1003): "SPARTACUS with buildings",
     ("emissions", 0): "forcing column 'qf'",
     ("storage_heat", 0): "forcing column 'qs'",
     # STEBBS storage heat needs SPARTACUS-Surface net radiation, which the
     # sample's net_radiation=3 is not; varying one option at a time cannot
     # satisfy the pair.
-    ("storage_heat", 7): "requires SPARTACUS-Surface net radiation",
-    ("soil_moisture", 1): "forcing column 'sm'",
+    (
+        "storage_heat",
+        7,
+    ): "requires model.physics.net_radiation to be a SPARTACUS-Surface method",
+    # Observed soil moisture requires a soil_observation input block before the
+    # forcing check runs, which the bundled sample does not carry.
+    (
+        "soil_moisture",
+        1,
+    ): "Observed soil moisture requires soil_observation layer bounds",
     ("water_use", 1): "forcing column 'wuh'",
     ("laimethod", 0): "forcing column 'lai'",
     # W16 has no phi implementation for the sample's RSL path (GH#1784).
@@ -100,6 +113,13 @@ OPTION_VALUES_REJECTED = {
     # gh#1783 the RSL profile returned NaN T2/RH2/Q2/U10 without a warning.
     ("stability", 0): "stability=0 is a reserved code",
     ("stability", 1): "stability=1 is a reserved code",
+    # Momentum roughness code 5 (ALTERNATIVE) has no formulation in
+    # SUEWS_cal_RoughnessParameters; before gh#2105 z0m_zh/zdm_zh remained
+    # unassigned in the kernel.
+    (
+        "roughness_length_momentum",
+        5,
+    ): "roughness_length_momentum=5 (ALTERNATIVE) is not available",
 }
 
 
@@ -207,12 +227,38 @@ def water_balance_residual_mm(df_output, df_state, grid=1):
     soil store from the debug group plus the surface water state -- the same
     accounting `test_core_physics.test_water_balance_consistency` uses.
     """
-    suews = df_output.loc[grid, "SUEWS"]
-    df_soil_store = df_output.loc[grid, "debug"].filter(regex=r"^ss_.*_next$")
-    soil_store = df_soil_store.dot(df_state.sfr_surf.iloc[0].values)
+    columns = [("SUEWS", name) for name in ("State", "Rain", "Irr", "Evap", "RO")]
+    columns += [
+        ("debug", f"ss_{surface}_next")
+        for surface in ("Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water")
+    ]
+    missing = [col for col in columns if col not in df_output.columns]
+    assert not missing, f"Missing water balance columns for grid={grid}: {missing}"
+    water = df_output.loc[grid, columns]
+    assert len(water) >= 2 and water.index.is_unique, (
+        f"Water balance needs unique intervals for grid={grid}: {water.index.tolist()}"
+    )
+    assert water.index.is_monotonic_increasing, (
+        f"Water balance times are not chronological for grid={grid}"
+    )
+    values = water.to_numpy(dtype=float)
+    invalid = np.argwhere(~np.isfinite(values) | (values == -999))
+    assert not invalid.size, "Invalid water balance input: " + "; ".join(
+        f"{columns[col]} at grid={grid}, time={water.index[row]}: {values[row, col]}"
+        for row, col in invalid[:5]
+    )
+    fractions = df_state["sfr_surf"].loc[grid, [f"({i},)" for i in range(7)]]
+    weights = fractions.to_numpy(dtype=float)
+    invalid_fractions = fractions.index[~np.isfinite(weights) | (weights == -999)]
+    assert invalid_fractions.empty, (
+        f"Invalid sfr_surf at grid={grid}: {invalid_fractions.tolist()}"
+    )
+    suews = water["SUEWS"]
+    soil_store = water["debug"].dot(weights)
     total_store = soil_store + suews.State
     net_input = suews.Rain + suews.Irr - suews.Evap - suews.RO
-    return float((total_store.diff().dropna() - net_input).abs().max())
+    # Only the first output has no predecessor; inputs were checked above.
+    return float((total_store.diff().iloc[1:] - net_input.iloc[1:]).abs().max())
 
 
 @pytest.mark.parametrize(("field", "value"), list(_sweep_params()))
@@ -228,6 +274,13 @@ def test_option_value_runs_finite_and_conserves_water(
     df_output, _ = run_simulation(df_forcing, df_state, serial_mode=True)
 
     # ASSERT
+    actual_times = df_output.loc[1].index
+    assert actual_times.equals(df_forcing.index), (
+        "Incomplete or misordered water output rows for grid=1: "
+        f"missing={df_forcing.index.difference(actual_times).tolist()}, "
+        f"unexpected={actual_times.difference(df_forcing.index).tolist()}"
+    )
+    residual = water_balance_residual_mm(df_output, df_state)
     suews = df_output.loc[1, "SUEWS"].drop(
         columns=list(SUEWS_COLUMNS_ABSENT_FROM_SAMPLE)
     )
@@ -238,7 +291,6 @@ def test_option_value_runs_finite_and_conserves_water(
         f"{field}={value.name} produced non-finite SUEWS output in {non_finite}"
     )
 
-    residual = water_balance_residual_mm(df_output, df_state)
     assert residual < WATER_CLOSURE_TOLERANCE_MM, (
         f"{field}={value.name}: water balance not closed, max residual "
         f"{residual:.3e} mm"

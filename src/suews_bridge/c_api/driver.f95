@@ -45,13 +45,13 @@ use module_c_api_ohm, only: SUEWS_CAPI_OHM_STATE_LEN, ohm_state_pack, ohm_state_
 use module_c_api_solar, only: solar_state_unpack
 use module_c_api_atm, only: atm_state_unpack
 use module_c_api_phenology, only: phenology_state_unpack
-use module_c_api_snow, only: snow_state_unpack
+use module_c_api_snow, only: SUEWS_CAPI_SNOW_STATE_LEN, snow_state_unpack
 use module_c_api_hydro_state, only: hydro_state_unpack
 use module_c_api_heat_state, only: heat_state_unpack
 use module_c_api_roughness, only: roughness_state_unpack
 use module_c_api_stebbs_state, only: stebbs_state_unpack
 use module_c_api_nhood, only: nhood_state_unpack
-use SUEWS_Driver, only: SUEWS_cal_multitsteps_dts
+use SUEWS_Driver, only: sync_error_to_state, SUEWS_cal_multitsteps_dts
 
 implicit none
 
@@ -109,7 +109,6 @@ integer(c_int), parameter :: SUEWS_CAPI_ANTHROEMIS_STATE_LEN = 22_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SOLAR_STATE_LEN = 3_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ATM_STATE_LEN = 39_c_int
 integer(c_int), parameter :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 76_c_int
-integer(c_int), parameter :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HYDRO_STATE_BASE_LEN = 10_c_int * int(nsurf, c_int) + 34_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HEAT_STATE_BASE_LEN = 7_c_int * int(nsurf, c_int) + 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ROUGHNESS_STATE_LEN = 11_c_int
@@ -118,6 +117,12 @@ integer(c_int), parameter :: SUEWS_CAPI_NHOOD_STATE_LEN = 5_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_RSL_LEN = 30_c_int
 
 public :: suews_cal_multitsteps_c
+! Module-level Fortran exports (non-BIND(C)) for the opt-in test-only C-API field observer.
+public :: unpack_config
+public :: unpack_timer
+public :: unpack_site_scalars
+public :: unpack_site_members
+public :: unpack_state_members
 
 contains
 
@@ -354,16 +359,21 @@ subroutine suews_cal_multitsteps_c( &
       state_local, output_flat(1:len_sim_i, 1:ncols_data), &
       datetime_flat(1:len_sim_i, 1:n_datetime_cols))
 
+   ! Preserve TLS-only failures, including layout validation early exits.
+   call sync_error_to_state(state_local, timer_local)
+
+   if (state_local%errorState%flag) then
+      sim_err_code = int(state_local%errorState%code, c_int)
+      call copy_to_c_buffer(state_local%errorState%message, sim_err_message, sim_err_message_len)
+      return
+   end if
+
    call pack_timer(timer_local, timer_out, timer_out_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
    end if
 
-   if (state_local%errorState%flag) then
-      sim_err_code = int(state_local%errorState%code, c_int)
-      call copy_to_c_buffer(state_local%errorState%message, sim_err_message, sim_err_message_len)
-   end if
 
    call pack_kernel_warnings( &
       state_local, warn_total, warn_stored, warn_max, warn_timer, warn_text, warn_text_len)
@@ -1645,7 +1655,6 @@ subroutine pack_snow_state(s, flat, n_flat, err)
    flat(idx) = s%swe; idx = idx + 1_c_int
    flat(idx) = s%z0v_snow; idx = idx + 1_c_int
    flat(idx) = s%ra_snow; idx = idx + 1_c_int
-   flat(idx) = s%s_ice_hpa; idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
       flat(idx) = s%snow_removal(i)

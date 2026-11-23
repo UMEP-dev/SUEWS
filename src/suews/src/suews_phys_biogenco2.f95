@@ -83,7 +83,6 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: &
          active_veg_fr, & ! Active vegetation fraction
-         active_veg_fr0, & ! Active vegetation fraction without LAI
          Fc_photo_surf, & ! Photosynthesis for each vegetated surface
          Bellucco2017_Pho_surf, & ! Photosynthesis for each vegetated surface
          alpha_bioCO2_v2, &
@@ -99,21 +98,35 @@ CONTAINS
       PAR_umolm2s1 = JtoumolPAR*KdntoPAR*avKdn
       VegFracSum = sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf)
 
+      ! In the general model an empty canopy has no photosynthesis or
+      ! vegetation respiration. Its relative area and LAI are undefined.
+      IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36 .AND. VegFracSum == 0.0D0) THEN
+         Fc_photo = 0.0D0
+         Fc_respi = 0.0D0
+         Fc_biogen = 0.0D0
+         RETURN
+      END IF
+
       ! Calculate active vegetation surface -----------------------
       !Now this is zero always when LAI in its minimum values. This needs to vary between the summer time maximum and some minimum value
       !especially in the case of evergreen trees (i.e. in early March LAI can be in its minimum value, but air temperature and radiation
       !such that uptake can take place)
-      DO iv = ivConif, ivGrass !For vegetated surfaces. Snow included although quite often LAI will be in its minimum when snow on ground
-
-         active_veg_fr(iv) = (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*(LAI_id(iv)/LAIMax(iv))
-         active_veg_fr0(iv) = (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*LAI_id(iv)
-
+      active_veg_fr = 0.0D0
+      DO iv = ivConif, ivGrass
+         ! An absent type contributes zero even when its maximum LAI is zero.
+         IF (sfr_surf(iv + 2) == 0.0D0) CYCLE
+         IF (EmissionsMethod >= 41 .AND. EmissionsMethod <= 46) THEN
+            active_veg_fr(iv) = (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*LAI_id(iv)
+         ELSE
+            active_veg_fr(iv) = (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*(LAI_id(iv)/LAIMax(iv))
+         END IF
       END DO
 
       IF (EmissionsMethod >= 11 .AND. EmissionsMethod <= 16) THEN ! Rectangular hyperbola
          ! Calculate carbon uptake due to photosynthesis -------------
          Fc_photo = 0
          DO iv = ivConif, ivGrass
+            IF (sfr_surf(iv + 2) == 0.0D0) CYCLE
             Fc_photo_surf(iv) = -beta_bioCO2(iv)*alpha_bioCO2(iv)*PAR_umolm2s1/(alpha_bioCO2(iv)*PAR_umolm2s1 + beta_bioCO2(iv))
             ! For active vegetation fraction only
             Fc_photo = Fc_photo + Fc_photo_surf(iv)*active_veg_fr(iv) !umol m-2 s-1
@@ -123,6 +136,7 @@ CONTAINS
          ! Calculate carbon uptake due to photosynthesis -------------
          Bellucco2017_Pho = 0
          DO iv = ivConif, ivGrass
+            IF (sfr_surf(iv + 2) == 0.0D0) CYCLE
             Bellucco2017_Pho_surf(iv) = -(1/(2*theta_bioCO2(iv)) &
                                           *(alpha_bioCO2(iv)*PAR_umolm2s1 + beta_bioCO2(iv) &
                                             - SQRT((alpha_bioCO2(iv)*PAR_umolm2s1 + beta_bioCO2(iv))**2 &
@@ -195,7 +209,7 @@ CONTAINS
          !Dependance to incoming shortwave radiation, specific humidity deficit, air temperature and soil moisture deficit
          Fc_photo = 0
          DO iv = ivConif, ivGrass
-            Fc_photo = Fc_photo + active_veg_fr0(iv)*beta_bioCO2(iv)
+            Fc_photo = Fc_photo + active_veg_fr(iv)*beta_bioCO2(iv)
          END DO
 
          IF (gsmodel == 1 .OR. gsmodel == 2) THEN !With air temperature

@@ -14,7 +14,7 @@ except ImportError:
 
 from supy.suews_sim import SUEWSSimulation
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
 
 
 @contextmanager

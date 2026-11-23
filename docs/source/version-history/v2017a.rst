@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _new_2017a:
 
 Version 2017a (released on 1 Feb 2017)

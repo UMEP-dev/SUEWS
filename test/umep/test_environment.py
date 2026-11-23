@@ -15,6 +15,8 @@ import pytest
 
 from .conftest import _HAS_SAFE_STDOUT_STDERR
 
+pytestmark = pytest.mark.contract("C-API")
+
 
 class TestQGISEnvironment(TestCase):
     """Test QGIS-specific environment handling.

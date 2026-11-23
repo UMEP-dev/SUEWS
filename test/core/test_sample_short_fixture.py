@@ -15,7 +15,7 @@ import pytest
 
 from supy.suews_sim import SUEWSSimulation
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-TOOLING")]
 
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "sample_short"
 sys.path.insert(0, str(FIXTURE_DIR))

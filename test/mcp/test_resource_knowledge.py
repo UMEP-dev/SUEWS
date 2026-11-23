@@ -7,7 +7,7 @@ import subprocess
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 def _stub_envelope(captured: dict, payload: dict):

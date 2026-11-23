@@ -15,12 +15,13 @@ assignees: ''
 - [ ] **Clean state**: `git checkout master && git pull && git status` (clean)
 - [ ] **Tests pass**: `make test` (all pass)
 - [ ] **Docs build**: `make docs` (no errors)
-- [ ] **Update CHANGELOG.md**: Add entry under today's date with `[feature]`, `[bugfix]`, `[change]` tags + issue links
+- [ ] **Fold fragments**: `python scripts/suews/fold_changelog.py --dry-run`, then without `--dry-run` (moves `changes/*.md` into `CHANGELOG.md`)
+- [ ] **Update CHANGELOG.md**: Add any entry still missing under its commit date with `[feature]`, `[bugfix]`, `[change]` tags + issue links
 - [ ] **Create version history page**: Create `docs/source/version-history/vYYYY.M.D.rst` and add to toctree in `version-history.rst` (remove `new_latest` label from previous version)
 
 ## Create Release
 
-- [ ] **Commit & push**: `git add CHANGELOG.md docs/source/version-history/ && git commit -m "docs: update changelog and version history for YYYY.M.D" && git push`
+- [ ] **Commit & push**: `git add CHANGELOG.md changes/ docs/source/version-history/ && git commit -m "docs: update changelog and version history for YYYY.M.D" && git push`
 - [ ] **Tag & push**:
 ```bash
 VERSION="YYYY.M.D"

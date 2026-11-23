@@ -1,11 +1,26 @@
 ---
 paths:
   - CHANGELOG.md
+  - changes/*.md
 ---
 
 # CHANGELOG Format
 
 Conventions for SUEWS CHANGELOG entries.
+
+---
+
+## Fragments, not direct edits
+
+Pull requests do not edit `CHANGELOG.md`. Each PR adds a fragment file `changes/<number>.<category>.md` holding the exact bullet lines its entry would add, with no date heading [decision: software maintainer, 2026-11-22]. A shared `CHANGELOG.md` edit makes every open PR conflict with every other, so PRs had to merge one at a time; fragments let PRs with disjoint files share a merge-queue batch.
+
+- `<number>` is the PR number (the issue number when there is no PR yet); `<category>` is one of the categories below and must match the tag on every top-level bullet in the file
+- A PR with entries in two categories adds two files (`2171.feature.md`, `2171.doc.md`)
+- Validate with `python scripts/suews/fold_changelog.py --check`
+- Before each release, a maintainer folds the fragments into `CHANGELOG.md` with `python scripts/suews/fold_changelog.py` and lands the result through a PR; the fold dates each entry by the commit that added its fragment and only inserts lines
+- `changes/README.md` is the contributor-facing summary
+
+Everything below applies to the bullet text in a fragment exactly as it does to `CHANGELOG.md`.
 
 ---
 
@@ -76,7 +91,7 @@ For `[feature]` and `[change]` entries, add a status tag:
 ## Critical Rules
 
 1. **NEVER** modify the Annual Statistics table
-2. **Use actual commit dates**, not today's date
+2. **Use actual commit dates**, not today's date (the fold takes them from git; when editing `CHANGELOG.md` by hand, use the commit date)
 3. **Group entries by date** under appropriate heading
 4. Keep existing entries intact
 

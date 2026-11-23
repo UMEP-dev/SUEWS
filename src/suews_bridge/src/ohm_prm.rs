@@ -123,6 +123,7 @@ crate::codec::impl_state_module_fns! {
     ffi_default_fn = ffi::suews_ohm_prm_default,
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

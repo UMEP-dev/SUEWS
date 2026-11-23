@@ -8,7 +8,7 @@ import pytest
 
 from supy.metrics import bias, pearson_r, rmse
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 def test_rmse_identity_zero() -> None:

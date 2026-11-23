@@ -38,7 +38,7 @@ import pytest
 import yaml
 from supy._env import trv_supy_module
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-MIGRATE")]
 
 try:
     from importlib.resources import as_file
@@ -1883,6 +1883,7 @@ def test_lai_id_set_in_fall():
 
 
 def test_precheck_dls_assignment():
+    """Disabled/omitted DLS pairs stay disabled while timezone is still computed."""
     data = {
         "sites": [
             {
@@ -1902,11 +1903,9 @@ def test_precheck_dls_assignment():
     emissions = updated["sites"][0]["properties"]["anthropogenic_emissions"]
     props = updated["sites"][0]["properties"]
 
-    assert "startdls" in emissions
-    assert "enddls" in emissions
+    assert "startdls" not in emissions
+    assert "enddls" not in emissions
     assert "timezone" in props
-    assert emissions["startdls"]["value"] is not None
-    assert emissions["enddls"]["value"] is not None
     assert props["timezone"]["value"] == 0  # London standard time offset (UTC+0)
 
 
@@ -1934,6 +1933,7 @@ def test_precheck_dls_for_unknown_location_graceful():
 
 
 def test_precheck_dls_overwrites_existing_values():
+    """Valid active DLS values are updated to location DST; invalid DOYs are not masked."""
     data = {
         "sites": [
             {
@@ -1941,8 +1941,8 @@ def test_precheck_dls_overwrites_existing_values():
                     "lat": {"value": 51.5},
                     "lng": {"value": -0.12},
                     "anthropogenic_emissions": {
-                        "startdls": {"value": 999},
-                        "enddls": {"value": 999},
+                        "startdls": {"value": 100},
+                        "enddls": {"value": 280},
                     },
                 },
                 "initial_states": {},
@@ -1955,10 +1955,24 @@ def test_precheck_dls_overwrites_existing_values():
     )
     emissions = updated["sites"][0]["properties"]["anthropogenic_emissions"]
 
-    assert emissions["startdls"]["value"] != 999
-    assert emissions["enddls"]["value"] != 999
+    assert emissions["startdls"]["value"] != 100
+    assert emissions["enddls"]["value"] != 280
     assert isinstance(emissions["startdls"]["value"], int)
     assert isinstance(emissions["enddls"]["value"], int)
+
+    # Invalid DOYs (e.g. out-of-range 999 or fractional 20.5) must not be
+    # silently overwritten before Pydantic validation can reject them.
+    invalid = deepcopy(data)
+    invalid["sites"][0]["properties"]["anthropogenic_emissions"] = {
+        "startdls": {"value": 999},
+        "enddls": {"value": 20.5},
+    }
+    untouched = precheck_site_season_adjustments(
+        invalid, start_date="2025-03-01", model_year=2025
+    )
+    untouched_emis = untouched["sites"][0]["properties"]["anthropogenic_emissions"]
+    assert untouched_emis["startdls"] == {"value": 999}
+    assert untouched_emis["enddls"] == {"value": 20.5}
 
 
 def test_land_cover_exact_sum():

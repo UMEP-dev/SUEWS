@@ -376,6 +376,7 @@ contains
         frac_lower(nreg+1) = sum(region_fracs(:,jlay+1)) - sum(region_fracs(:,jlay))
         if (frac_lower(nreg+1) < 0.0_jprb) then
           call radiation_abort('Building fraction cannot increase with height')
+          return
         end if
       else if (jlay == nlay) then
         frac_lower(nreg+1) = 1.0_jprb - sum(region_fracs(:,jlay))

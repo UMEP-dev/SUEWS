@@ -21,7 +21,7 @@ import pandas as pd
 from pydantic import ValidationError
 import yaml
 
-from ...data_model.core.config import SUEWSConfig
+from ...data_model.core.config import SUEWSConfig, _predates_observed_soil_layers
 from .._forcing import (
     SOIL_CONTRACT_CONFLICT,
     convert_observed_soil_moisture,
@@ -227,7 +227,7 @@ def _prepare(  # ruff: ignore[too-many-branches, too-many-locals, too-many-state
     if len(names) > 1:
         raise YamlUpgradeError(CONFLICT)
     method = _soil_method(physics[names[0]]) if names else 0
-    canonical = source_schema == CURRENT_SCHEMA_VERSION
+    canonical = not _predates_observed_soil_layers(source_schema)
     legacy = "xsmd" in header
     changes, context, parameters = [], None, []
     original_method = method

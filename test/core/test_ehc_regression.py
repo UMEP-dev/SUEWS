@@ -9,6 +9,7 @@ import supy as sp
 pytestmark = [
     pytest.mark.physics,
     pytest.mark.rust,
+    pytest.mark.contract("C-RESPONSE"),
 ]
 
 

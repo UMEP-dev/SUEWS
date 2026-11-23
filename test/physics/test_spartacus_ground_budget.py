@@ -8,7 +8,11 @@ import subprocess
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-BALANCE", "C-NATIVE-ERROR"),
+]
 
 GROUND = [0, 4, 5, 6]
 TREES = [2, 3]
@@ -61,15 +65,6 @@ def ground_radiation(tmp_path_factory):
             [str(executable)], input="\n".join(rows) + "\n",
             capture_output=True, text=True, check=False,
         )
-        if (
-            fractions[1:4].sum() == 0
-            and result.returncode != 0
-            and "Program received signal SIGSEGV" in result.stderr
-        ):
-            pytest.xfail(
-                "Flat-tile canopy-depth allocation segfault precedes radiation; "
-                "fixed separately by #1854. Run the budget assertions when reachable."
-            )
         assert result.returncode == 0, result.stdout + result.stderr
         lines = result.stdout.splitlines()
         values = np.fromstring(lines[0], sep=" ")

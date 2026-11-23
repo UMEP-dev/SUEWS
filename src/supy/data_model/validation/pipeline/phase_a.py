@@ -1,3 +1,5 @@
+import hashlib
+import io
 import yaml
 import os
 import re
@@ -8,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from .report_writer import REPORT_WRITER
+from ...core._yaml_io import safe_dump_yaml, safe_load_yaml
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
@@ -17,6 +20,10 @@ from ...core.physics_families import (
     STEBBS_PUBLIC_KEY_ALIASES,
     coerce_nested_to_flat,
     flatten_physics_in_config,
+)
+from ...core.profile import (
+    HOURLY_PROFILE_FIELD_NAMES,
+    normalise_hourly_profile_keys_in_raw_config,
 )
 
 RENAMED_PARAMS = {
@@ -53,6 +60,17 @@ PHYSICS_OPTIONS = {
     "same_emissivity_roof",
     "setpoint",
 }
+
+_PUBLIC_PHYSICS_DISPLAY_NAMES = {
+    "snow_use": "snow",
+    "ohm_inc_qf": "storage_heat.ohm.include_qf",
+    "laimethod": "leaf_area_index",
+}
+
+
+def _display_physics_param_name(param_name: str) -> str:
+    """Map internal flattened physics keys to their public YAML names for diagnostics."""
+    return _PUBLIC_PHYSICS_DISPLAY_NAMES.get(param_name, param_name)
 
 ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
 
@@ -136,13 +154,20 @@ def _normalise_model_control_subobjects(
     if not isinstance(config_data, dict):
         return config_data, []
 
-    normalised = deepcopy(config_data)
-    model = normalised.get("model")
+    model = config_data.get("model")
     if not isinstance(model, dict):
-        return normalised, []
+        return dict(config_data), []
     control = model.get("control")
     if not isinstance(control, dict):
-        return normalised, []
+        return dict(config_data), []
+    if "forcing_file" not in control and "output_file" not in control:
+        return dict(config_data), []
+
+    normalised = dict(config_data)
+    normalised_model = dict(model)
+    control = deepcopy(control)
+    normalised_model["control"] = control
+    normalised["model"] = normalised_model
 
     replacements: list[tuple[str, str]] = []
 
@@ -273,13 +298,18 @@ def _normalise_model_physics_stebbs(
     if not isinstance(config_data, dict):
         return config_data, []
 
-    normalised = deepcopy(config_data)
-    model = normalised.get("model")
+    model = config_data.get("model")
     if not isinstance(model, dict):
-        return normalised, []
+        return dict(config_data), []
     physics = model.get("physics")
     if not isinstance(physics, dict):
-        return normalised, []
+        return dict(config_data), []
+
+    normalised = dict(config_data)
+    normalised_model = dict(model)
+    physics = deepcopy(physics)
+    normalised_model["physics"] = physics
+    normalised["model"] = normalised_model
 
     replacements: list[tuple[str, str]] = []
     existing = physics.get("stebbs")
@@ -365,6 +395,7 @@ def _normalise_phase_a_compatibility(
     normalised, replacements = _normalise_model_control_subobjects(config_data)
     normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
     replacements.extend(stebbs_replacements)
+    normalised, _ = normalise_hourly_profile_keys_in_raw_config(normalised)
     return normalised, replacements
 
 
@@ -418,39 +449,87 @@ def _strip_ref_blocks(obj):
 def handle_renamed_parameters(yaml_content: str, skip=()):
     lines = yaml_content.split("\n")
     replacements = []
+    skip_set = frozenset(skip) if skip else ()
     for i, line in enumerate(lines):
+        if ":" not in line:
+            continue
         stripped = line.strip()
-        for old_key, new_key in RENAMED_PARAMS.items():
-            if old_key in skip:
-                continue
-            if stripped.startswith(f"{old_key}:"):
-                indent = line[: len(line) - len(stripped)]
-                value = stripped.split(":", 1)[1].strip()
-                lines[i] = (
-                    f'{indent}{new_key}: {value}  #RENAMED IN STANDARD - Found "{old_key}" and changed into "{new_key}"'
-                )
-                replacements.append((old_key, new_key))
+        old_key, sep, rest = stripped.partition(":")
+        if not sep or old_key in skip_set:
+            continue
+        new_key = RENAMED_PARAMS.get(old_key)
+        if new_key is not None:
+            indent = line[: len(line) - len(stripped)]
+            value = rest.strip()
+            lines[i] = (
+                f'{indent}{new_key}: {value}  #RENAMED IN STANDARD - Found "{old_key}" and changed into "{new_key}"'
+            )
+            replacements.append((old_key, new_key))
     return "\n".join(lines), replacements
 
 
 def handle_renamed_parameters_in_parsed_yaml(obj, skip=()):
     """Rename deprecated keys in parsed YAML structures where line matching misses."""
     replacements = []
+    skip_set = frozenset(skip) if skip else ()
 
-    if isinstance(obj, dict):
-        for old_key, new_key in list(RENAMED_PARAMS.items()):
-            if old_key in skip:
-                continue
-            if old_key in obj and new_key not in obj:
-                obj[new_key] = obj.pop(old_key)
-                replacements.append((old_key, new_key))
-        for value in obj.values():
-            replacements.extend(handle_renamed_parameters_in_parsed_yaml(value, skip))
-    elif isinstance(obj, list):
-        for item in obj:
-            replacements.extend(handle_renamed_parameters_in_parsed_yaml(item, skip))
+    def _walk(node):
+        if isinstance(node, dict):
+            if node and (node.keys() & RENAMED_PARAMS.keys()):
+                for old_key, new_key in RENAMED_PARAMS.items():
+                    if old_key in skip_set:
+                        continue
+                    if old_key in node and new_key not in node:
+                        node[new_key] = node.pop(old_key)
+                        replacements.append((old_key, new_key))
+            for value in node.values():
+                if isinstance(value, (dict, list)):
+                    _walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                if isinstance(item, (dict, list)):
+                    _walk(item)
 
+    _walk(obj)
     return replacements
+
+
+def detect_nlayer_from_yaml_data(user_data: object) -> int:
+    """Extract ``nlayer`` from parsed user YAML data, defaulting to 3."""
+    if not isinstance(user_data, dict):
+        return 3
+    sites = user_data.get("sites")
+    if not sites or not isinstance(sites, list) or not isinstance(sites[0], dict):
+        return 3
+    properties = sites[0].get("properties")
+    vertical_layers = (
+        properties.get("vertical_layers") if isinstance(properties, dict) else None
+    )
+    if not isinstance(vertical_layers, dict):
+        return 3
+    nlayer = vertical_layers.get("nlayer", {})
+    nlayer_value = nlayer.get("value", 3) if isinstance(nlayer, dict) else nlayer
+    if nlayer_value is None:
+        return 3
+    try:
+        return int(nlayer_value)
+    except Exception:
+        return 3
+
+
+def _snapshot_forcing_user_data(raw_user_data: object) -> object:
+    """Capture the unmutated ``model.control`` subtree for forcing checks."""
+    if not isinstance(raw_user_data, dict):
+        return raw_user_data
+    if "model" not in raw_user_data:
+        return {}
+    raw_model = raw_user_data["model"]
+    if not isinstance(raw_model, dict):
+        return {"model": raw_model}
+    snapshot = {}
+    if "control" in raw_model:
+        snapshot["control"] = deepcopy(raw_model["control"])
+    return {"model": snapshot}
 
 
 def is_physics_option(param_path):
@@ -711,10 +790,12 @@ def categorise_extra_parameters(extra_params: list) -> dict:
     return categorised
 
 
-def find_extra_parameters(user_data, standard_data, current_path=""):
+def find_extra_parameters(
+    user_data, standard_data, current_path="", *, _normalised: bool = False
+):
     """Find parameters that exist in user data but not in standard data."""
     extra_params = []
-    if current_path == "":
+    if current_path == "" and not _normalised:
         user_data, _ = _normalise_phase_a_compatibility(user_data)
         standard_data, _ = _normalise_phase_a_compatibility(standard_data)
         flatten_physics_in_config(user_data)
@@ -770,9 +851,26 @@ def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
     return extra_params
 
 
-def find_missing_parameters(user_data, standard_data, current_path=""):
+def _has_placeholder_leaves(value: object) -> bool:
+    """Return True if a missing block has at least one non-null-rejected leaf."""
+    if not isinstance(value, dict):
+        return True
+    for key, subval in value.items():
+        if key in NULL_REJECTED_FIELDS:
+            continue
+        if isinstance(subval, dict):
+            if _has_placeholder_leaves(subval):
+                return True
+        else:
+            return True
+    return False
+
+
+def find_missing_parameters(
+    user_data, standard_data, current_path="", *, _normalised: bool = False
+):
     missing_params = []
-    if current_path == "":
+    if current_path == "" and not _normalised:
         user_data, _ = _normalise_phase_a_compatibility(user_data)
         standard_data, _ = _normalise_phase_a_compatibility(standard_data)
         flatten_physics_in_config(user_data)
@@ -784,16 +882,29 @@ def find_missing_parameters(user_data, standard_data, current_path=""):
             full_path = f"{current_path}.{key}" if current_path else key
             if _is_default_backed_control_path(full_path):
                 continue
-            # Omitting a null-rejecting field gives its default, so it is not
-            # missing, and a null placeholder would fail Phase C (gh#2001).
-            if key in NULL_REJECTED_FIELDS:
+            is_physics = is_physics_option(full_path)
+            # Omitting a defaulted null-rejecting field gives its model default,
+            # so it is not missing and a null placeholder would fail Phase C
+            # (gh#2001, gh#2087). Critical physics options remain reported.
+            if not is_physics and key in NULL_REJECTED_FIELDS:
                 continue
             if key not in user_dict:
-                is_physics = is_physics_option(full_path)
+                if (
+                    not is_physics
+                    and isinstance(standard_value, dict)
+                    and not _has_placeholder_leaves(standard_value)
+                ):
+                    continue
                 missing_params.append((full_path, standard_value, is_physics))
             elif isinstance(standard_value, dict) and isinstance(
                 user_dict.get(key), dict
             ):
+                if (
+                    key in {"ie_start", "ie_end", "startdls", "enddls"}
+                    and "value" not in user_dict[key]
+                    and all(k == "ref" for k in user_dict[key])
+                ):
+                    continue
                 nested_missing = find_missing_parameters(
                     user_dict[key], standard_value, full_path
                 )
@@ -881,14 +992,14 @@ def flatten_missing_dict(data, current_path=""):
     missing_params = []
     if isinstance(data, dict):
         for key, value in data.items():
-            if key in NULL_REJECTED_FIELDS:
-                continue
             full_path = f"{current_path}.{key}" if current_path else key
+            is_physics = is_physics_option(full_path)
+            if not is_physics and key in NULL_REJECTED_FIELDS:
+                continue
             if isinstance(value, dict):
                 nested_missing = flatten_missing_dict(value, full_path)
                 missing_params.extend(nested_missing)
             else:
-                is_physics = is_physics_option(full_path)
                 missing_params.append((full_path, value, is_physics))
     else:
         is_physics = is_physics_option(current_path)
@@ -1151,38 +1262,55 @@ def create_uptodate_yaml_header():
     return header
 
 
-def create_clean_missing_param_annotation(param_name, standard_value):
+def _format_missing_mapping_lines(
+    mapping: dict,
+    indent_level: int = 1,
+    *,
+    skip_null_rejected: bool = True,
+) -> list[str]:
+    """Recursively render null placeholders while skipping null-rejected fields."""
+    indent = "  " * indent_level
+    child_lines: list[str] = []
+    for key, value in mapping.items():
+        # A missing parent block gets no null placeholder for a field
+        # that rejects null; its default applies instead (gh#2001, gh#2087).
+        if skip_null_rejected and key in NULL_REJECTED_FIELDS:
+            continue
+        formatted_key = format_yaml_key(key)
+        if isinstance(value, dict):
+            nested = _format_missing_mapping_lines(
+                value,
+                indent_level + 1,
+                skip_null_rejected=skip_null_rejected,
+            )
+            if nested:
+                child_lines.append(f"{indent}{formatted_key}:")
+                child_lines.extend(nested)
+        else:
+            default_value = get_null_placeholder()
+            child_lines.append(f"{indent}{formatted_key}: {default_value}")
+    return child_lines
+
+
+def create_clean_missing_param_annotation(
+    param_name,
+    standard_value,
+    *,
+    skip_null_rejected: bool = True,
+):
     """Create missing parameter annotation without inline comments for clean YAML."""
-    lines = []
-
-    if param_name in ["qn_surfs", "dqndt_surf"]:
-        null_array = ["null"] * 7
-        lines.append(f"{param_name}: [{', '.join(null_array)}]")
-        return lines
-
     if isinstance(standard_value, dict):
-        lines.append(f"{param_name}:")
-        for key, value in standard_value.items():
-            # A missing parent block gets no null placeholder for a field
-            # that rejects null; its default applies instead (gh#2001).
-            if key in NULL_REJECTED_FIELDS:
-                continue
-            formatted_key = format_yaml_key(key)
-            if isinstance(value, dict):
-                lines.append(f"  {formatted_key}:")
-                for subkey, subvalue in value.items():
-                    if subkey in NULL_REJECTED_FIELDS:
-                        continue
-                    formatted_subkey = format_yaml_key(subkey)
-                    default_value = get_null_placeholder()
-                    lines.append(f"    {formatted_subkey}: {default_value}")
-            else:
-                default_value = get_null_placeholder()
-                lines.append(f"  {formatted_key}: {default_value}")
-    else:
-        default_value = get_null_placeholder()
-        lines.append(f"{param_name}: {default_value}")
-    return lines
+        child_lines = _format_missing_mapping_lines(
+            standard_value,
+            indent_level=1,
+            skip_null_rejected=skip_null_rejected,
+        )
+        if not child_lines:
+            return []
+        return [f"{param_name}:", *child_lines]
+
+    default_value = get_null_placeholder()
+    return [f"{param_name}: {default_value}"]
 
 
 def get_null_placeholder():
@@ -1770,7 +1898,12 @@ def _drop_repeated_convert_hint(migration_errors: list, forcing_errors: list) ->
     ]
 
 
-def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
+def validate_forcing_data(
+    user_yaml_file: str,
+    physics: dict = None,
+    *,
+    _preloaded_user_data=_MISSING,
+) -> tuple:
     """
     Validate forcing data file(s) referenced in the user YAML configuration.
 
@@ -1807,8 +1940,11 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
 
     try:
         # Load user YAML to extract forcing file path
-        with open(user_yaml_file, "r", encoding="utf-8") as f:
-            user_data = yaml.safe_load(f)
+        if _preloaded_user_data is _MISSING:
+            with open(user_yaml_file, "r", encoding="utf-8") as f:
+                user_data = safe_load_yaml(f)
+        else:
+            user_data = _preloaded_user_data
 
         # Navigate to model.control.forcing_file
         if not user_data or "model" not in user_data:
@@ -1920,6 +2056,22 @@ def remove_extra_parameters_from_yaml(yaml_content, extra_params):
     return "\n".join(lines)
 
 
+def _is_hourly_profile_member_path(param_path: str) -> bool:
+    """Return True for missing hour slots or day types inside an existing 24-hour profile."""
+    parts = param_path.split(".")
+    if (
+        len(parts) >= 3
+        and parts[-2] in ("working_day", "holiday")
+        and parts[-3] in HOURLY_PROFILE_FIELD_NAMES
+    ):
+        return True
+    return (
+        len(parts) >= 2
+        and parts[-1] in ("working_day", "holiday")
+        and parts[-2] in HOURLY_PROFILE_FIELD_NAMES
+    )
+
+
 def create_uptodate_yaml_with_missing_params(
     yaml_content, missing_params, extra_params=None, mode="public"
 ):
@@ -1936,6 +2088,11 @@ def create_uptodate_yaml_with_missing_params(
     missing_params.sort(key=lambda x: x[0].count("."), reverse=True)
 
     for param_path, standard_value, is_physics in missing_params:
+        # Never pad missing 24-hour profile hour slots or day-type blocks with
+        # `null` placeholders: doing so would mask incomplete profiles from
+        # downstream strict completeness validation across Phase A -> C.
+        if _is_hourly_profile_member_path(param_path):
+            continue
         path_parts = param_path.split(".")
         param_name = path_parts[-1]
         insert_position = find_insertion_point(lines, path_parts)
@@ -1965,7 +2122,9 @@ def create_uptodate_yaml_with_missing_params(
                 indent = get_section_indent(lines, insert_position)
 
             annotation_lines = create_clean_missing_param_annotation(
-                param_name, standard_value
+                param_name,
+                standard_value,
+                skip_null_rejected=not is_physics,
             )
             indented_lines = []
             for line in annotation_lines:
@@ -2136,7 +2295,7 @@ def create_analysis_report(
             )
             for param_path, standard_value, is_physics in missing_params:
                 if is_physics:
-                    param_name = param_path.split(".")[-1]
+                    param_name = _display_physics_param_name(param_path.split(".")[-1])
                     report_lines.append(
                         f"-- {param_name} has been added to the updated YAML and set to null"
                     )
@@ -2288,6 +2447,37 @@ def create_analysis_report(
     return "\n".join(report_lines)
 
 
+_STANDARD_DATA_CACHE: dict[tuple[bytes, int], object] = {}
+
+
+def _load_normalised_standard_data(standard_file: str):
+    """Load and normalise *standard_file*, reusing digest-validated parsed trees.
+
+    Keyed on ``(sha256(file_bytes), id(safe_load_yaml))`` so any content change
+    (including same-length edits with preserved timestamps or malformed YAML)
+    or monkeypatched loader never returns stale data. Returns a deep copy so
+    callers never share mutable state.
+    """
+    raw_bytes = Path(standard_file).read_bytes()
+    cache_key = (hashlib.sha256(raw_bytes).digest(), id(safe_load_yaml))
+    cached = _STANDARD_DATA_CACHE.get(cache_key)
+    if cached is not None:
+        return deepcopy(cached)
+
+    stream = io.StringIO(raw_bytes.decode("utf-8"))
+    stream.name = str(standard_file)
+    standard_data = safe_load_yaml(stream)
+    flatten_physics_in_config(standard_data)
+    standard_data_no_ref = _strip_ref_blocks(standard_data)
+    standard_data_no_ref, _ = _normalise_phase_a_compatibility(standard_data_no_ref)
+    flatten_physics_in_config(standard_data_no_ref)
+
+    if len(_STANDARD_DATA_CACHE) >= 4:
+        _STANDARD_DATA_CACHE.clear()
+    _STANDARD_DATA_CACHE[cache_key] = standard_data_no_ref
+    return deepcopy(standard_data_no_ref)
+
+
 def annotate_missing_parameters(
     user_file,
     standard_file,
@@ -2297,6 +2487,9 @@ def annotate_missing_parameters(
     phase="A",
     nlayer=None,
     forcing="on",
+    *,
+    detect_nlayer: bool = False,
+    _preloaded_user_data=_MISSING,
 ):
     try:
         with open(user_file, "r", encoding="utf-8") as f:
@@ -2310,14 +2503,27 @@ def annotate_missing_parameters(
         # Legacy observed soil moisture is migrated by the coordinated converter,
         # not renamed here: keep its selector and sensor metadata untouched.
         # A mix of legacy and canonical inputs is kept as given and reported.
-        raw_user_data = yaml.safe_load(original_yaml_content)
+        if _preloaded_user_data is _MISSING:
+            raw_user_data = safe_load_yaml(original_yaml_content)
+        else:
+            raw_user_data = _preloaded_user_data
+        if nlayer is None and detect_nlayer:
+            nlayer = detect_nlayer_from_yaml_data(raw_user_data)
+        forcing_user_data = (
+            _snapshot_forcing_user_data(raw_user_data)
+            if forcing == "on"
+            else _MISSING
+        )
         legacy_soil = _uses_legacy_observed_soil(raw_user_data)
         soil_conflicts = _soil_contract_conflicts(raw_user_data)
         rename_skip = LEGACY_SOIL_SELECTORS if legacy_soil else ()
         original_yaml_content, renamed_replacements = handle_renamed_parameters(
             original_yaml_content, skip=rename_skip
         )
-        user_data = yaml.safe_load(original_yaml_content)
+        if renamed_replacements:
+            user_data = safe_load_yaml(original_yaml_content)
+        else:
+            user_data = raw_user_data
         parsed_renames = handle_renamed_parameters_in_parsed_yaml(
             user_data, skip=rename_skip
         )
@@ -2337,7 +2543,7 @@ def annotate_missing_parameters(
             import io
 
             stream = io.StringIO()
-            yaml.dump(
+            safe_dump_yaml(
                 user_data,
                 stream,
                 default_flow_style=False,
@@ -2345,11 +2551,9 @@ def annotate_missing_parameters(
                 allow_unicode=True,
             )
             original_yaml_content = stream.getvalue()
-        with open(standard_file, "r", encoding="utf-8") as f:
-            standard_data = yaml.safe_load(f)
-        # Collapse readable physics names in both trees before structure diffs.
+        standard_data_no_ref = _load_normalised_standard_data(standard_file)
+        # Collapse readable physics names before structure diffs.
         flatten_physics_in_config(user_data)
-        flatten_physics_in_config(standard_data)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
         return _phase_a_failure_report(
@@ -2385,16 +2589,23 @@ def annotate_missing_parameters(
         physics_config = None
         if user_data and "model" in user_data and "physics" in user_data["model"]:
             physics_config = user_data["model"]["physics"]
-        forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
+        forcing_errors, _ = validate_forcing_data(
+            user_file,
+            physics=physics_config,
+            _preloaded_user_data=forcing_user_data,
+        )
     forcing_warnings = []
     if forcing == "on" and forcing_file_is_runtime(user_data):
         forcing_warnings.append(RUNTIME_FORCING_WARNING)
 
     user_data_no_ref = _strip_ref_blocks(user_data)
-    standard_data_no_ref = _strip_ref_blocks(standard_data)
 
-    missing_params = find_missing_parameters(user_data_no_ref, standard_data_no_ref)
-    extra_params = find_extra_parameters(user_data_no_ref, standard_data_no_ref)
+    missing_params = find_missing_parameters(
+        user_data_no_ref, standard_data_no_ref, _normalised=True
+    )
+    extra_params = find_extra_parameters(
+        user_data_no_ref, standard_data_no_ref, _normalised=True
+    )
     migration_errors = []
     if legacy_soil:
         from ....util._forcing import SOIL_CONVERT_HINT
@@ -2427,7 +2638,7 @@ def annotate_missing_parameters(
             import io
 
             stream = io.StringIO()
-            yaml.dump(
+            safe_dump_yaml(
                 user_data,
                 stream,
                 default_flow_style=False,
@@ -2481,7 +2692,7 @@ def annotate_missing_parameters(
         if critical_params:
             print("Action needed: CRITICAL parameters missing:")
             for param_path, standard_value, _ in critical_params:
-                param_name = param_path.split(".")[-1]
+                param_name = _display_physics_param_name(param_path.split(".")[-1])
                 print(f"  - {param_name}")
         if dimension_errors:
             print("Action needed: DIMENSION MISMATCH errors:")

@@ -1,10 +1,10 @@
 from typing import Optional
 import pandas as pd
-from pydantic import ConfigDict, BaseModel, Field
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from pydantic import ConfigDict, Field
+from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
 
 
-class OHMCoefficients(BaseModel):
+class OHMCoefficients(DataModelBase):
     """Objective Hysteresis Model coefficients."""
 
     model_config = ConfigDict(title="OHM Coefficients")
@@ -30,6 +30,23 @@ class OHMCoefficients(BaseModel):
 
     ref: Optional[Reference] = None
 
+    def _to_df_state_cols(self, grid_id: int, surf_idx: int, idx_s) -> dict:
+        a_map = {
+            "a1": 0,
+            "a2": 1,
+            "a3": 2,
+        }
+        cols = {("gridiv", "0"): grid_id}
+        for aX, idx_a in a_map.items():
+            str_idx = f"({surf_idx}, {idx_s}, {idx_a})"
+            field_val = getattr(self, aX)
+            if field_val is not None:
+                val = field_val.value if isinstance(field_val, RefValue) else field_val
+            else:
+                val = 0.0
+            cols[("ohm_coef", str_idx)] = val
+        return cols
+
     def to_df_state(self, grid_id: int, surf_idx: int, idx_s) -> pd.DataFrame:
         """Convert OHM coefficients to DataFrame state format.
 
@@ -40,25 +57,10 @@ class OHMCoefficients(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing OHM coefficients with MultiIndex columns
         """
-        # Map season/wetness combinations to indices
-        a_map = {
-            "a1": 0,
-            "a2": 1,
-            "a3": 2,
-        }
-
-        # Set values for each season/wetness combination
-        cols = {("gridiv", "0"): grid_id}
-        for aX, idx_a in a_map.items():
-            str_idx = f"({surf_idx}, {idx_s}, {idx_a})"
-            field_val = getattr(self, aX)
-            if field_val is not None:
-                val = field_val.value if isinstance(field_val, RefValue) else field_val
-            else:
-                val = 0.0
-            cols[("ohm_coef", str_idx)] = val
-
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, surf_idx, idx_s),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(
@@ -90,7 +92,7 @@ class OHMCoefficients(BaseModel):
         return cls(**params)
 
 
-class OHM_Coefficient_season_wetness(BaseModel):
+class OHM_Coefficient_season_wetness(DataModelBase):
     """OHM coefficients for different seasonal and wetness conditions."""
 
     model_config = ConfigDict(title="Seasonal/Wetness OHM Coefficients")
@@ -118,6 +120,18 @@ class OHM_Coefficient_season_wetness(BaseModel):
 
     ref: Optional[Reference] = None
 
+    def _to_df_state_cols(self, grid_id: int, surf_idx: int) -> dict:
+        cols = {("gridiv", "0"): grid_id}
+        for idx_s, coef in enumerate([
+            self.summer_wet,
+            self.summer_dry,
+            self.winter_wet,
+            self.winter_dry,
+        ]):
+            for k, v in coef._to_df_state_cols(grid_id, surf_idx, idx_s).items():
+                cols.setdefault(k, v)
+        return cols
+
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert OHM coefficients to DataFrame state format.
 
@@ -129,29 +143,10 @@ class OHM_Coefficient_season_wetness(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing OHM coefficients with MultiIndex columns
         """
-        frames = [
-            df_from_cols(
-                {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
-            )
-        ]
-        # Convert each coefficient. The snow row (surface index 7) is NOT
-        # written here: it belongs to SnowParams.ohm_coef. Writing it from
-        # every surface used to fabricate snow's coefficients from whichever
-        # surface was serialised first.
-        for idx_s, coef in enumerate([
-            self.summer_wet,
-            self.summer_dry,
-            self.winter_wet,
-            self.winter_dry,
-        ]):
-            df_coef = coef.to_df_state(grid_id, surf_idx, idx_s)
-            frames.append(df_coef)
-
-        df_state = pd.concat(frames, axis=1)
-        # drop duplicate columns
-        df_state = df_state.loc[:, ~df_state.columns.duplicated()]
-
-        return df_state
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, surf_idx),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(

@@ -12,7 +12,7 @@ from supy.data_model.core.config import SUEWSConfig
 from pathlib import Path
 import yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-MIGRATE")]
 
 
 def test_output_control_creation():

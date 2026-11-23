@@ -16,19 +16,23 @@ unambiguous.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import copy
 from importlib.resources import as_file, files
 import json
 import math
+import os
 from pathlib import Path
+import re
+import subprocess
+import sysconfig
 from typing import Any, Callable, Dict, Iterator
 
 from click.testing import CliRunner
 import pytest
 import yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-ERROR")]
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +79,537 @@ def _set_first_paved_sfr(payload: Dict[str, Any], value: float) -> None:
 # ---------------------------------------------------------------------------
 # Envelope shape — happy path
 # ---------------------------------------------------------------------------
+
+
+
+@pytest.mark.parametrize("mode", ["public", "dev"])
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("field", ["model", "physics"])
+@pytest.mark.parametrize("value", [None, [], "invalid", -999])
+def test_validate_malformed_mapping_emits_location(
+    tmp_path, mode, dry_run, field, value
+):
+    """Malformed containers fail through the real public command envelope."""
+    from supy.cmd.suews_cli import cli
+
+    payload = _load_sample_dict()
+    container = payload if field == "model" else payload["model"]
+    container[field] = value
+    path = tmp_path / "malformed.yml"
+    _write_yaml(path, payload)
+    args = ["validate", str(path), "-p", "C", "--mode", mode, "--format", "json"]
+    if dry_run:
+        args.append("--dry-run")
+    result = CliRunner().invoke(cli, args)
+
+    assert result.exit_code == 1, result.output
+    assert "Traceback" not in result.output
+    envelope = json.loads(result.stdout)
+    assert set(envelope) == {"status", "data", "errors", "warnings", "meta"}
+    assert envelope["status"] == "error"
+    expected = "model" if field == "model" else "model.physics"
+    assert any(
+        (error.get("yaml_path") or error.get("schema_path") or "")
+        .replace(" -> ", ".") == expected
+        and error.get("message")
+        for error in envelope["errors"]
+    ), envelope["errors"]
+
+
+@pytest.mark.parametrize("mode", ["public", "dev"])
+def test_validate_c_valid_mapping_executes_phase(tmp_path, mode):
+    """A valid control must execute C and succeed, not merely avoid a crash."""
+    from supy.cmd.suews_cli import cli
+
+    path = _copy_sample_data(tmp_path)
+    result = CliRunner().invoke(
+        cli, ["validate", str(path), "-p", "C", "--mode", mode, "--format", "json"]
+    )
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.stdout)
+    assert not envelope["errors"]
+    assert envelope["data"]["phases_run"] == ["C"]
+
+def _resolved_sample_dict():
+    """Use the supported model dump, not human-facing physics shorthand."""
+    from supy.data_model.core.config import SUEWSConfig
+
+    return SUEWSConfig.from_dict(_load_sample_dict()).model_dump(
+        mode="json", exclude_none=True, round_trip=True
+    )
+
+
+@pytest.mark.parametrize("pipeline", ["C", "ABC"])
+def test_site_longitude_source_compatibility(tmp_path, pipeline):
+    """Run the public CLI with canonical, alias-only and duplicate input."""
+    import jsonschema
+    from supy.cmd.suews_cli import cli
+    from supy.data_model.configuration.publisher import generate_json_schema
+
+    canonical = _resolved_sample_dict()
+    # Establish the positive control independently before exercising aliases.
+    jsonschema.Draft7Validator(generate_json_schema()).validate(canonical)
+    path = tmp_path / "longitude.yml"
+    for spelling in ["canonical", "alias", "duplicate"]:
+        data = copy.deepcopy(canonical)
+        props = data["sites"][0]["properties"]
+        if spelling == "alias":
+            props["lon"] = props.pop("lng")
+        elif spelling == "duplicate":
+            props["lon"] = copy.deepcopy(props["lng"])
+        _write_yaml(path, data)
+        original = path.read_bytes()
+        result = CliRunner().invoke(
+            cli,
+            ["validate", "--pipeline", pipeline, "--dry-run",
+             "--format", "json", str(path)],
+        )
+        assert path.read_bytes() == original
+        envelope = json.loads(result.stdout)
+        assert envelope["data"]["files"][0]["file"] == str(path)
+        if spelling != "canonical":
+            assert result.exit_code == 1, result.output
+            errors = envelope["errors"]
+            assert errors
+            assert all(error["file"] == str(path) for error in errors)
+            assert any("lon" in error["message"] for error in errors)
+        else:
+            assert result.exit_code == 0, result.output
+            assert envelope["errors"] == []
+
+
+@pytest.mark.parametrize(
+    "entry", ["cli-C", "cli-ABC", "standalone-C", "standalone-ABC", "orchestrator-ABC"]
+)
+@pytest.mark.parametrize("mode", ["public", "dev"])
+@pytest.mark.parametrize(
+    "spelling",
+    ["canonical", "alias", "alias-null", "alias-wrapped-null", "duplicate",
+     "duplicate-null", "duplicate-invalid-both", "canonical-invalid"],
+)
+def test_site_longitude_normal_pipeline(
+    tmp_path, monkeypatch, capsys, entry, mode, spelling
+):
+    """Only lng is public; real phases must reject every lon spelling.
+
+    The installed commands run with the candidate environment, including an
+    uncommitted working tree. No git archive or HEAD checkout supplies code.
+    ABC stops at B for missing/invalid lng, otherwise C rejects unknown lon.
+    Rejection publishes the last successful phase's YAML and the diagnosis.
+    """
+    from supy._run_rust import config_to_engine_yaml
+    from supy.data_model.core.config import SUEWSConfig
+    from supy.data_model.validation.pipeline import orchestrator
+
+    path = _copy_sample_data(tmp_path)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    props = data["sites"][0]["properties"]
+    props["lng"] = {"value": 0.0}
+    if spelling.startswith("alias"):
+        props["lon"] = props.pop("lng")
+        if spelling == "alias-null":
+            props["lon"] = None
+        elif spelling == "alias-wrapped-null":
+            props["lon"] = {"value": None}
+    elif spelling == "duplicate-invalid-both":
+        props["lng"] = {"value": "invalid"}
+        props["lon"] = {"value": None}
+    elif spelling.startswith("duplicate"):
+        props["lon"] = (
+            None if spelling == "duplicate-null" else copy.deepcopy(props["lng"])
+        )
+    elif spelling == "canonical-invalid":
+        props["lng"] = {"value": "invalid"}
+    _write_yaml(path, data)
+    original = {
+        item: (item.read_bytes(), item.stat().st_mtime_ns, item.stat().st_ctime_ns)
+        for item in tmp_path.iterdir() if item.is_file()
+    }
+    updated_path = path.with_name(f"updated_{path.name}")
+    report_path = path.with_name(f"report_{path.stem}.txt")
+    pipeline = entry.rsplit("-", 1)[1]
+    rejected = spelling != "canonical"
+    stops_at_b = pipeline == "ABC" and (
+        spelling.startswith("alias")
+        or spelling in {"duplicate-invalid-both", "canonical-invalid"}
+    )
+    expected_phases = ["C"] if pipeline == "C" else (["A", "B"] if stops_at_b else ["A", "B", "C"])
+    failed_phase = "B" if stops_at_b else "C"
+
+    if entry == "orchestrator-ABC":
+        monkeypatch.setattr(
+            "sys.argv",
+            ["suews_yaml_processor", str(path), "--phase", "ABC", "--mode", mode],
+        )
+        exit_code = orchestrator.main()
+        diagnostics = capsys.readouterr().out
+    else:
+        route = "suews-validate" if entry.startswith("standalone") else "suews"
+        executable = Path(sysconfig.get_path("scripts")) / (
+            route + (".exe" if os.name == "nt" else "")
+        )
+        assert executable.is_file(), f"Missing installed command: {executable}"
+        command = [str(executable)] + (["validate"] if route == "suews" else [])
+        result = subprocess.run(
+            command + [str(path), "--pipeline", pipeline, "--mode", mode,
+                       "--format", "json"],
+            cwd=tmp_path, capture_output=True, text=True, timeout=180,
+        )
+        exit_code = result.returncode
+        diagnostics = result.stdout + result.stderr
+        envelope = json.loads(result.stdout)
+        assert envelope["data"]["phases_run"] == expected_phases
+        assert bool(envelope["errors"]) == rejected
+
+    assert exit_code == int(rejected), diagnostics
+    assert "Traceback" not in diagnostics
+    assert report_path.is_file(), diagnostics
+    report = report_path.read_text(encoding="utf-8")
+    sidecar = json.loads(report_path.with_suffix(".json").read_text(encoding="utf-8"))
+    phases = sidecar["phases"]
+    assert [phase["phase"] for phase in phases] == expected_phases
+    assert [phase["phase"] for phase in phases if phase["status"] == "FAILED"] == (
+        [failed_phase] if rejected else []
+    )
+    issues = [issue for phase in phases for issue in phase["issues"]]
+    assert not any(
+        issue["code"] == "A.RENAMED_PARAM" and "lon" in issue["message"]
+        for issue in issues
+    )
+    assert "sites[0].properties.lon changed to sites[0].properties.lng" not in report
+    assert "A.INPUT.AMBIGUOUS_LONGITUDE" not in report
+    assert "A.PIPELINE.EXCEPTION" not in report
+    if entry != "orchestrator-ABC":
+        assert envelope["data"]["validation_report"] == sidecar
+
+    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    annotated = updated["sites"][0]["properties"]
+    for authored_key in ("lon", "lng"):
+        if authored_key in props:
+            assert annotated[authored_key] == props[authored_key]
+    if rejected:
+        authored_key = "lng" if spelling == "canonical-invalid" else "lon"
+        if stops_at_b:
+            assert any(issue["code"] == "GEOGRAPHY.LNG"
+                       and issue["severity"] == "ERROR"
+                       and issue["yaml_path"] == "lng"
+                       for issue in phases[-1]["issues"])
+            if authored_key == "lon":
+                assert any(issue["code"] == "A.EXTRA_PARAM"
+                           and issue["yaml_path"] == "sites[0].properties.lon"
+                           for issue in phases[0]["issues"])
+                assert "sites[0].properties.lon" in report
+            else:
+                assert "lng" in report
+        else:
+            authored_issues = [
+                issue for issue in phases[-1]["issues"]
+                if f".properties.{authored_key}" in (issue.get("yaml_path") or "")
+            ]
+            assert authored_issues, phases[-1]
+            if authored_key == "lon":
+                assert any(issue["code"] == "C.PYDANTIC.EXTRA_FORBIDDEN"
+                           for issue in authored_issues)
+            assert f"properties.{authored_key}" in report
+        # A fallback is evidence, not an accepted alternative configuration.
+        with pytest.raises(ValueError):
+            SUEWSConfig.from_yaml(str(updated_path))
+        if pipeline == "ABC":
+            evidence, = tmp_path.glob(".suews-validate-*")
+            last_success = "A" if stops_at_b else "B"
+            assert updated_path.read_bytes() == (
+                evidence / f"updated{last_success}_{path.name}"
+            ).read_bytes()
+            assert phases[-1]["yaml_out"] is None
+    else:
+        assert "lon" not in annotated
+        config = SUEWSConfig.from_yaml(str(updated_path))
+        longitude = config.sites[0].properties.lng
+        assert getattr(longitude, "value", longitude) == 0.0
+        resolved = yaml.safe_load(config_to_engine_yaml(config))["sites"][0]["properties"]
+        assert "lon" not in resolved
+        longitude = resolved["lng"]
+        assert (longitude["value"] if isinstance(longitude, dict) else longitude) == 0.0
+        if pipeline == "ABC":
+            assert not list(tmp_path.glob(".suews-validate-*"))
+    assert {
+        item: (item.read_bytes(), item.stat().st_mtime_ns, item.stat().st_ctime_ns)
+        for item in original
+    } == original
+
+
+def _soil_input_warning(key, canonical):
+    """The validated model warns when it receives the authored legacy key."""
+    if key == canonical:
+        return nullcontext()
+    message = f"PavedProperties: field '{key}' is deprecated, use '{canonical}' instead."
+    return pytest.warns(DeprecationWarning, match=re.escape(message))
+
+
+@pytest.mark.parametrize("entry", ["cli-ABC", "standalone-ABC", "orchestrator-ABC"])
+@pytest.mark.parametrize("mode", ["public", "dev"])
+def test_supported_alias_atomic_report_repeats_once_per_section(
+    tmp_path, monkeypatch, capsys, entry, mode
+):
+    """Transfer positive rename/report coverage to supported soildepth, not lon."""
+    from supy.cmd.suews_cli import cli
+    from supy.cmd.validate_config import cli as standalone_cli
+    from supy.data_model.core.config import SUEWSConfig
+    from supy.data_model.validation.pipeline import orchestrator
+
+    path = _copy_sample_data(tmp_path)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    paved = data["sites"][0]["properties"]["land_cover"]["paved"]
+    value = paved.pop("soil_depth")
+    paved["soildepth"] = value
+    # The input loader accepts the alias and names its replacement.
+    with _soil_input_warning("soildepth", "soil_depth"):
+        SUEWSConfig.from_dict(data)
+    _write_yaml(path, data)
+    original = {p: p.read_bytes() for p in tmp_path.iterdir() if p.is_file()}
+    snapshots = []
+    for _ in range(2):
+        if entry == "orchestrator-ABC":
+            monkeypatch.setattr("sys.argv", [
+                "suews_yaml_processor", str(path), "--phase", "ABC", "--mode", mode,
+            ])
+            exit_code = orchestrator.main()
+            diagnostics = capsys.readouterr().out
+        else:
+            command = standalone_cli if entry.startswith("standalone") else cli
+            args = [] if entry.startswith("standalone") else ["validate"]
+            result = CliRunner().invoke(command, args + [
+                str(path), "--pipeline", "ABC", "--mode", mode, "--format", "json",
+            ])
+            exit_code, diagnostics = result.exit_code, result.output
+        assert exit_code == 0, diagnostics
+        products = {name: (tmp_path / name).read_bytes() for name in (
+            f"updated_{path.name}", f"report_{path.stem}.txt", f"report_{path.stem}.json",
+        )}
+        snapshots.append(products)
+        sidecar = json.loads(products[f"report_{path.stem}.json"])
+        if entry != "orchestrator-ABC":
+            assert json.loads(result.stdout)["data"]["validation_report"] == sidecar
+        renamed = [issue for phase in sidecar["phases"] for issue in phase["issues"]
+                   if issue["code"] == "A.RENAMED_PARAM"]
+        soil_renames = [issue for issue in renamed if issue["yaml_path"] == "soil_depth"]
+        assert len(soil_renames) == 1
+        assert soil_renames[0]["message"] == "Renamed soildepth -> soil_depth"
+        assert soil_renames[0]["applied_fix"] is True
+        assert all(issue["phase"] == "A" for issue in renamed)
+        report = products[f"report_{path.stem}.txt"].decode("utf-8")
+        sections, heading = {}, ""
+        for line in report.splitlines():
+            if line.startswith("## "):
+                heading = line[3:].strip()
+            else:
+                sections.setdefault(heading, []).append(line.strip())
+        rename_note = "soildepth changed to soil_depth"
+        headers = {
+            "INFO": f"- Updated ({len(renamed)}) renamed parameter(s):",
+            "APPLIED UPDATES": f"- Updated ({len(renamed)}) renamed parameter(s) to current standards:",
+        }
+        assert {heading for heading, lines in sections.items()
+                if any(rename_note in line for line in lines)} == set(headers)
+        for heading, header in headers.items():
+            lines = sections[heading]
+            assert lines.count(header) == 1, report
+            for issue in renamed:
+                old, new = issue["message"].removeprefix("Renamed ").split(" -> ")
+                detail = f"-- {old} changed to {new}"
+                assert lines.count(detail) == 1, report
+                assert lines.index(header) < lines.index(detail), report
+        updated_path = tmp_path / f"updated_{path.name}"
+        SUEWSConfig.from_yaml(str(updated_path))
+        updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+        paved = updated["sites"][0]["properties"]["land_cover"]["paved"]
+        assert paved["soil_depth"] == value
+        assert "soildepth" not in paved
+        assert not list(tmp_path.glob(".suews-validate-*"))
+        assert {p: p.read_bytes() for p in original} == original
+    assert snapshots[0] == snapshots[1]
+
+
+@pytest.mark.parametrize("mode", ["public", "dev"])
+@pytest.mark.parametrize("pipeline", ["C", "ABC"])
+@pytest.mark.parametrize("spelling", ["canonical", "alias"])
+@pytest.mark.parametrize("form", ["valid", "null", "wrapped-null"])
+@pytest.mark.parametrize("canonical,alias", [
+    ("soil_depth", "soildepth"),
+    ("soil_store_capacity", "soilstorecap"),
+])
+def test_supported_soil_aliases_preserve_required_null_rejection(
+    tmp_path, mode, pipeline, spelling, form, canonical, alias
+):
+    """Documented soil aliases still work; neither spelling hides explicit nulls."""
+    from supy.cmd.suews_cli import cli
+    from supy.data_model.core.config import SUEWSConfig
+
+    path = _copy_sample_data(tmp_path)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    paved = data["sites"][0]["properties"]["land_cover"]["paved"]
+    key = canonical if spelling == "canonical" else alias
+    value = paved.pop(canonical)
+    paved[key] = value if form == "valid" else (None if form == "null" else {"value": None})
+    rejected = form != "valid"
+    required_value = pytest.raises(ValueError, match=canonical) if rejected else nullcontext()
+    with _soil_input_warning(key, canonical), required_value:
+        SUEWSConfig.from_dict(data)
+    _write_yaml(path, data)
+    original = {p: p.read_bytes() for p in tmp_path.iterdir() if p.is_file()}
+    output_key = canonical if pipeline == "ABC" else key
+    # Phase A migrates the alias. Standalone C receives the original spelling.
+    with _soil_input_warning(output_key, canonical):
+        result = CliRunner().invoke(cli, [
+            "validate", str(path), "--pipeline", pipeline, "--mode", mode, "--format", "json",
+        ])
+    assert result.exit_code == int(rejected), result.output
+    assert "Traceback" not in result.output
+    envelope = json.loads(result.stdout)
+    assert bool(envelope["errors"]) == rejected
+    assert envelope["data"]["phases_run"][0] == pipeline[0]
+    report_path = tmp_path / f"report_{path.stem}.txt"
+    sidecar = json.loads(report_path.with_suffix(".json").read_text(encoding="utf-8"))
+    assert envelope["data"]["validation_report"] == sidecar
+    updated = tmp_path / f"updated_{path.name}"
+    assert all(
+        issue["code"] != "C.PIPELINE.EXCEPTION"
+        for phase in sidecar["phases"]
+        for issue in phase["issues"]
+    )
+    required_value = pytest.raises(ValueError, match=canonical) if rejected else nullcontext()
+    with _soil_input_warning(output_key, canonical), required_value:
+        SUEWSConfig.from_yaml(str(updated))
+    if rejected:
+        # These existing soil completeness diagnostics intentionally use the
+        # canonical field name, independently of the longitude unknown-key rule.
+        assert canonical in report_path.read_text(encoding="utf-8")
+        assert sidecar["overall_status"] == "FAILED"
+    else:
+        block = yaml.safe_load(updated.read_text(encoding="utf-8"))["sites"][0]["properties"]["land_cover"]["paved"]
+        assert block[output_key] == value
+    assert {p: p.read_bytes() for p in original} == original
+
+
+def test_schema_file_longitude_source_compatibility(tmp_path):
+    """The schema library path has its own independently valid control."""
+    import jsonschema
+    from supy.cmd.schema_cli import validate_file_against_schema
+    from supy.data_model.configuration.publisher import generate_json_schema
+
+    canonical = _resolved_sample_dict()
+    jsonschema.Draft7Validator(generate_json_schema()).validate(canonical)
+    path = tmp_path / "schema-longitude.yml"
+    for spelling in ["canonical", "alias", "duplicate"]:
+        data = copy.deepcopy(canonical)
+        props = data["sites"][0]["properties"]
+        if spelling == "alias":
+            props["lon"] = props.pop("lng")
+        elif spelling == "duplicate":
+            props["lon"] = copy.deepcopy(props["lng"])
+        _write_yaml(path, data)
+        original = path.read_bytes()
+        valid, errors = validate_file_against_schema(path)
+        assert path.read_bytes() == original
+        if spelling != "canonical":
+            assert not valid
+            assert "lon" in str(errors)
+        else:
+            assert valid, errors
+
+
+def test_historical_file_stamp_does_not_enable_current_longitude_fold(
+    tmp_path, monkeypatch
+):
+    """Default schema dispatch honours the file stamp; lon stays unknown.
+
+    The publisher currently generates model schemas with version metadata,
+    not archived historical shapes. Assert dispatch without inventing a
+    historical longitude rejection policy.
+    """
+    import jsonschema
+    from supy.cmd import schema_cli
+    from supy.data_model.core.config import SUEWSConfig
+
+    data = _resolved_sample_dict()
+    data["schema_version"] = "2026.5.dev5"
+    path = tmp_path / "historical.yml"
+    generate = schema_cli.generate_json_schema
+    versions = []
+
+    def record_version(*, version):
+        versions.append(version)
+        return generate(version=version)
+
+    monkeypatch.setattr(schema_cli, "generate_json_schema", record_version)
+    for alias in [False, True]:
+        if alias:
+            props = data["sites"][0]["properties"]
+            props["lon"] = props.pop("lng")
+        _write_yaml(path, data)
+        original = path.read_bytes()
+        # Default mode still performs the human-facing loader's semantic check.
+        if alias:
+            with pytest.raises(ValueError, match="lon"):
+                SUEWSConfig.from_yaml(str(path))
+        else:
+            SUEWSConfig.from_yaml(str(path))
+        schema_errors = list(jsonschema.Draft7Validator(
+            generate(version=data["schema_version"])
+        ).iter_errors(data))
+        if not alias:
+            assert not schema_errors
+        valid, errors = schema_cli.validate_file_against_schema(path)
+        assert valid == (not schema_errors), errors
+        model_errors = [error for error in errors if error.startswith("Model validation:")]
+        assert len(model_errors) == int(alias)
+        if alias:
+            assert "lon" in model_errors[0]
+        assert len(errors) == len(schema_errors) + int(alias)
+        assert versions[-1] == data["schema_version"]
+        assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize("entry", ["schema", "validate"])
+@pytest.mark.parametrize("spelling", ["canonical", "alias", "duplicate"])
+def test_explicit_historical_target_skips_longitude_fold(
+    tmp_path, monkeypatch, entry, spelling
+):
+    """Explicit old targets retain schema-only validation for both helpers."""
+    import jsonschema
+    from supy.cmd import schema_cli, validate_config
+    from supy.data_model.configuration.publisher import generate_json_schema
+    from supy.data_model.core.config import SUEWSConfig
+
+    data = _resolved_sample_dict()
+    target = "2026.5.dev5"
+    props = data["sites"][0]["properties"]
+    if spelling == "alias":
+        props["lon"] = props.pop("lng")
+    elif spelling == "duplicate":
+        props["lon"] = copy.deepcopy(props["lng"])
+    path = tmp_path / "historical-target.yml"
+    _write_yaml(path, data)
+    original = path.read_bytes()
+    schema = generate_json_schema(version=target)
+    expected = list(jsonschema.Draft7Validator(schema).iter_errors(data))
+
+    def unexpected_current_validation(*args, **kwargs):
+        pytest.fail("Explicit historical target used current model validation")
+
+    monkeypatch.setattr(SUEWSConfig, "from_yaml", unexpected_current_validation)
+    if entry == "schema":
+        valid, errors = schema_cli.validate_file_against_schema(
+            path, schema_version=target
+        )
+    else:
+        valid, errors = validate_config.validate_single_file(
+            path, schema, schema_version=target
+        )
+    assert valid == (not expected), errors
+    assert len(errors) == len(expected)
+    assert path.read_bytes() == original
+
 
 
 def test_validate_sample_config_emits_envelope() -> None:
@@ -139,6 +674,171 @@ def test_validate_pipeline_c_json_accepts_multiple_files() -> None:
     envelope = json.loads(result.stdout)
     assert envelope["status"] == "success"
     assert len(envelope["data"]["files"]) == 2
+
+
+@pytest.fixture
+def public_validator_sample(tmp_path):
+    """Keep the sample's relative forcing reference beside its configuration."""
+    project = tmp_path / "project"
+    project.mkdir()
+    path = _copy_sample_data(project)
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    forcing_file = payload["model"]["control"]["forcing"]["file"]["value"]
+    assert not Path(forcing_file).is_absolute()
+    assert (path.parent / forcing_file).is_file()
+    return path
+
+
+def _source_file_snapshot(root):
+    """Record complete source bytes and write/change timestamps, including forcing."""
+    snapshot = {}
+    for path in root.rglob("*"):
+        if path.is_file():
+            content = path.read_bytes()
+            stat = path.stat()
+            snapshot[path.relative_to(root)] = (
+                content, stat.st_mtime_ns, stat.st_ctime_ns,
+            )
+    return snapshot
+
+
+def _run_public_validation(path, pipeline, out_format, cwd, *, dry_run=False):
+    executable = Path(sysconfig.get_path("scripts")) / (
+        "suews.exe" if os.name == "nt" else "suews"
+    )
+    assert executable.is_file(), f"Public console script not installed: {executable}"
+    command = [str(executable), "validate", str(path), "-p", pipeline]
+    if dry_run:
+        command.append("--dry-run")
+    if out_format == "json":
+        command.extend(["--format", "json"])
+    # Omitting --format exercises the public command's default table renderer.
+    return subprocess.run(
+        command, cwd=cwd,
+        env={**os.environ, "COLUMNS": "240", "NO_COLOR": "1"},
+        capture_output=True, text=True, timeout=180,
+    )
+
+
+@pytest.mark.parametrize("pipeline", ["C", "ABC"])
+@pytest.mark.parametrize("out_format", [pytest.param(None, id="default"), "json"])
+@pytest.mark.parametrize("case", ["valid", "bad-tstep", "unknown-property"])
+def test_public_validate_dry_run_reports_field_reason_without_writes(
+    tmp_path, public_validator_sample, pipeline, out_format, case
+):
+    """Exercise the installed public command, including its ordinary renderer."""
+    path = public_validator_sample
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    expected_path = expected_reason = None
+    if case == "bad-tstep":
+        payload["model"]["control"]["tstep"] = "not an integer"
+        expected_path = "model -> control -> tstep"
+        expected_reason = "'not an integer' is not valid under any of the given schemas"
+    elif case == "unknown-property":
+        payload["sites"][0]["properties"]["unknown_extra"] = 42
+        expected_path = "sites -> 0 -> properties"
+        expected_reason = "Additional properties are not allowed ('unknown_extra' was unexpected)"
+    if case != "valid":
+        _write_yaml(path, payload)
+    # Existing generated files must also remain unchanged in read-only mode.
+    for name in (
+        f"updated_{path.name}", f"report_{path.stem}.txt", f"report_{path.stem}.json",
+    ):
+        (path.parent / name).write_bytes(b"previous output: do not replace\n")
+    before = _source_file_snapshot(tmp_path)
+    entries_before = set(tmp_path.rglob("*"))
+    result = _run_public_validation(
+        path, pipeline, out_format, tmp_path, dry_run=True,
+    )
+    valid = case == "valid"
+    assert result.returncode == (0 if valid else 1), result.stdout + result.stderr
+    assert "Traceback" not in result.stderr + result.stdout
+    assert "TypeError" not in result.stderr + result.stdout
+    assert set(tmp_path.rglob("*")) == entries_before
+    assert _source_file_snapshot(tmp_path) == before
+
+    if out_format == "json":
+        envelope = json.loads(result.stdout)
+        assert envelope["status"] == ("success" if valid else "error")
+        assert envelope["data"]["is_valid"] is valid
+        record, = envelope["data"]["files"]
+        assert record["valid"] is valid
+        assert record["error_count"] == len(envelope["errors"])
+        if valid:
+            assert envelope["errors"] == []
+        else:
+            # Independent expected field and reason, not just a non-empty error
+            # or parity with another output produced by the same implementation.
+            assert any(
+                issue["schema_path"] == expected_path
+                and issue["message"] == expected_reason
+                and issue["code_name"] == "INVALID_VALUE"
+                and issue["severity"] == "ERROR"
+                for issue in envelope["errors"]
+            ), envelope["errors"]
+    else:
+        assert not any("\u2500" <= ch <= "\u257f" for ch in result.stdout)
+        border_lines = [
+            line.strip()
+            for line in result.stdout.splitlines()
+            if line.strip().startswith("+")
+        ]
+        assert len(border_lines) >= 2, result.stdout
+        assert all(
+            line.isascii() and set(line) <= set("+-=") for line in border_lines
+        ), border_lines
+        rendered = re.sub(r"\s+", " ", result.stdout.replace("|", " "))
+        assert f"Summary: {1 if valid else 0}/1 files valid" in rendered
+        assert ("Valid" if valid else "Invalid") in rendered
+        if not valid:
+            assert f"{expected_path}: {expected_reason}" in rendered
+            assert "'code':" not in rendered
+            assert "ValidationError object" not in rendered
+            if case == "bad-tstep":
+                assert "[type=int_parsing]" in rendered
+
+
+@pytest.mark.parametrize("pipeline", ["C", "ABC"])
+@pytest.mark.parametrize("out_format", [pytest.param(None, id="default"), "json"])
+def test_public_validate_normal_sample_preserves_sources(
+    tmp_path, public_validator_sample, pipeline, out_format
+):
+    """The dry-run control must also be valid with real config-relative forcing."""
+    path = public_validator_sample
+    before = _source_file_snapshot(tmp_path)
+    result = _run_public_validation(path, pipeline, out_format, tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
+    after = _source_file_snapshot(tmp_path)
+    assert all(after.get(name) == content for name, content in before.items())
+    report_path = path.parent / f"report_{path.stem}.txt"
+    sidecar_path = report_path.with_suffix(".json")
+    updated_path = path.parent / f"updated_{path.name}"
+    assert "Validation stopped at:" not in report_path.read_text(encoding="utf-8")
+    report = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    assert [phase["phase"] for phase in report["phases"]] == list(pipeline)
+    assert all(phase["status"] != "FAILED" for phase in report["phases"])
+    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    tstep = updated["model"]["control"]["tstep"]
+    assert (tstep["value"] if isinstance(tstep, dict) else tstep) == 300
+    if out_format == "json":
+        envelope = json.loads(result.stdout)
+        # Phase B reports the sample's zero-area evergreen surface as an advisory.
+        if "B" in pipeline:
+            assert envelope["status"] == "warning"
+            assert any(
+                warning["phase"] == "B"
+                and warning["code"] == "LAND_COVER.LAND_COVER_EVETR"
+                for warning in envelope["warnings"]
+            )
+        else:
+            assert envelope["status"] == "success"
+            assert envelope["warnings"] == []
+        assert envelope["errors"] == []
+        assert envelope["data"]["phases_run"] == list(pipeline)
+        assert envelope["data"]["validation_report"] == report
+    else:
+        assert "Validation completed" in result.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -327,10 +1027,10 @@ def _minimal_paved_only_config(schema_version: str) -> Dict[str, Any]:
     """Build a minimal YAML that passes schema and Pydantic but lacks the
     required ``model.physics`` keys.
 
-    Uses ``land_cover.paved.sfr=1.0`` so the Pydantic ``model_validator``
-    does not reject the payload via site-level critical-null checks
-    (which fire only when vegetated surfaces are active). This isolates
-    the structural-presence gap closed in gh#1409.
+    Uses ``land_cover.paved.sfr=1.0`` with its required soil parameters so
+    the Pydantic ``model_validator`` does not reject the payload via
+    site-level critical-null checks. This isolates the structural-presence
+    gap closed in gh#1409.
     """
     return {
         "schema_version": schema_version,
@@ -357,7 +1057,12 @@ def _minimal_paved_only_config(schema_version: str) -> Dict[str, Any]:
                     "timezone": {"value": -7},
                     "surfacearea": {"value": 1.0},
                     "land_cover": {
-                        "paved": {"sfr": {"value": 1.0}},
+                        "paved": {
+                            "sfr": {"value": 1.0},
+                            "soil_depth": {"value": 350.0},
+                            "soil_store_capacity": {"value": 150.0},
+                            "saturated_hydraulic_conductivity": {"value": 0.0005},
+                        },
                         "bldgs": {"sfr": {"value": 0.0}},
                         "evetr": {"sfr": {"value": 0.0}},
                         "dectr": {"sfr": {"value": 0.0}},
@@ -598,6 +1303,69 @@ def test_validate_full_pipeline_emits_json_envelope(tmp_path: Path) -> None:
     # before B/C.
     assert isinstance(data["phases_run"], list)
     assert "A" in data["phases_run"]
+
+
+@pytest.mark.parametrize("failed_phase", ["A", "B"])
+@pytest.mark.parametrize("mode", ["public", "dev"])
+def test_validate_abc_failed_phase_envelope(tmp_path, failed_phase, mode):
+    """Real early rejections preserve their phase, diagnosis and consolidated sidecar."""
+    from supy.cmd.suews_cli import cli
+
+    _copy_sample_data(tmp_path)
+    path = tmp_path / "sample_config.yml"
+    payload = _load_sample_dict()
+    if failed_phase == "A":
+        payload["model"]["physics"].pop("net_radiation")
+    else:
+        _set_first_paved_sfr(payload, -0.1)
+    _write_yaml(path, payload)
+    result = CliRunner().invoke(cli, [
+        "validate", str(path), "-p", "ABC", "--mode", mode, "--format", "json",
+    ])
+
+    assert result.exit_code == 1, result.output
+    envelope = json.loads(result.stdout)
+    assert envelope["status"] == "error"
+    assert envelope["errors"]
+    data = envelope["data"]
+    assert data["phases_run"] == (["A"] if failed_phase == "A" else ["A", "B"])
+    report = data["validation_report"]
+    assert report["overall_status"] == "FAILED"
+    assert report["phases"][-1]["status"] == "FAILED"
+    assert json.loads(Path(data["report_file"]).with_suffix(".json").read_text(encoding="utf-8")) == report
+    text = Path(data["report_file"]).read_text(encoding="utf-8")
+    assert ("net_radiation" if failed_phase == "A" else "sfr") in text
+
+
+@pytest.mark.parametrize("mode", ["public", "dev"])
+@pytest.mark.parametrize("content", ["model: [unterminated\n", "model: null\n"])
+def test_validate_abc_malformed_input_envelope(tmp_path, content, mode):
+    """ABC retains the genuine startup or Phase A diagnosis for malformed inputs."""
+    from supy.cmd.suews_cli import cli
+
+    path = tmp_path / "malformed.yml"
+    path.write_text(content, encoding="utf-8")
+    result = CliRunner().invoke(cli, [
+        "validate", str(path), "-p", "ABC", "--mode", mode, "--format", "json",
+    ])
+
+    assert result.exit_code == 1, result.output
+    envelope = json.loads(result.stdout)
+    assert envelope["status"] == "error"
+    if mode == "public" and "unterminated" in content:
+        # The public feature gate already has a documented YAML-read envelope.
+        assert envelope["errors"][0]["code"] == "yaml_read_failed"
+        assert "Error reading YAML" in envelope["errors"][0]["message"]
+        assert not (tmp_path / "updated_malformed.yml").exists()
+        return
+    data = envelope["data"]
+    assert data["phases_run"] == ["A"]
+    phase = data["validation_report"]["phases"][0]
+    assert phase["status"] == "FAILED"
+    assert phase["yaml_out"] is None
+    text = Path(data["report_file"]).read_text(encoding="utf-8")
+    assert "Validation stopped at: Completeness Check" in text
+    assert all(issue["message"] in text for issue in phase["issues"])
 
 
 def test_validate_full_pipeline_experimental_restriction_emits_json_envelope(
@@ -1010,17 +1778,21 @@ def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
 def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> None:
     """gh#1467: the consolidated CLI JSON sidecar carries non-error issues.
 
-    Dropping the optional ``sites[0].properties.h_std`` makes the run
-    succeed (exit 0) while Phase A records a non-error ``A.MISSING_PARAM``
-    warning. That informational message must appear in the JSON sidecar,
-    not only in the text report. Anchored on the deterministic ``h_std``
-    signal (the sample config's Phase B issues are environment-dependent).
+    Dropping the genuinely optional ``emission_factor_co2_fuel`` (inactive under
+    the sample config's non-biogenic emissions method) makes the run succeed
+    (exit 0) while Phase A records a non-error ``A.MISSING_PARAM`` warning.
+    That informational message must appear in the JSON sidecar, not only in the
+    text report. Anchored on this deterministic signal (the sample config's
+    Phase B issues are environment-dependent; gh#2087 stopped Phase A from
+    null-filling defaulted non-optional fields such as ``h_std``).
     """
     from supy.cmd.validate_config import cli as validate_cli
 
     with _sample_yaml_path() as sample:
         data = yaml.safe_load(sample.read_text(encoding="utf-8"))
-    data["sites"][0]["properties"].pop("h_std")
+    data["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
+        "emission_factor_co2_fuel"
+    )
 
     config_path = tmp_path / "myconfig.yml"
     _write_yaml(config_path, data)
@@ -1042,10 +1814,10 @@ def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> No
     all_issues = [i for p in payload["phases"] for i in p["issues"]]
     assert any(
         i["code"] == "A.MISSING_PARAM"
-        and "h_std" in (i.get("yaml_path") or "")
+        and "emission_factor_co2_fuel" in (i.get("yaml_path") or "")
         and i["severity"] != "ERROR"
         for i in all_issues
-    ), f"h_std informational issue missing from sidecar: {all_issues}"
+    ), f"emission_factor_co2_fuel informational issue missing from sidecar: {all_issues}"
 
     # gh#1467: the consolidated sidecar must not publish paths to files that
     # no longer exist. In a multi-phase run the intermediate temp reports and
@@ -1090,7 +1862,9 @@ def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
 
     with _sample_yaml_path() as sample:
         data = yaml.safe_load(sample.read_text(encoding="utf-8"))
-    data["sites"][0]["properties"].pop("h_std")  # -> A.MISSING_PARAM (info)
+    data["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
+        "emission_factor_co2_fuel"
+    )  # -> A.MISSING_PARAM (info)
     data["sites"][0]["properties"]["bogus_extra_param"] = 42  # -> C.PYDANTIC error
 
     config_path = tmp_path / "bad.yml"
@@ -1387,16 +2161,18 @@ def test_validate_accepts_omitted_null_rejecting_field(
 
 
 def test_missing_block_gets_no_null_for_null_rejecting_field() -> None:
-    """A block Phase A fills in skips the null-rejecting fields (gh#2001)."""
+    """A block Phase A fills in skips the null-rejecting fields (gh#2001, gh#2087)."""
     from supy.data_model.validation.pipeline.phase_a import (
         create_clean_missing_param_annotation,
     )
 
     lines = create_clean_missing_param_annotation(
-        "evetr", {"state": {"value": 0.0}, "sdd_id": {"value": 0}}
+        "evetr",
+        {"alb_id": {"value": 0.1}, "state": {"value": 0.0}, "sdd_id": {"value": 0}},
     )
-    assert lines[:2] == ["evetr:", "  state:"], lines
+    assert lines[:2] == ["evetr:", "  alb_id:"], lines
     assert not any("sdd_id" in line for line in lines), lines
+    assert not any("state" in line for line in lines), lines
 
 
 def test_default_export_survives_annual_mean_science_fix(tmp_path, monkeypatch):

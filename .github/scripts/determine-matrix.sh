@@ -14,8 +14,10 @@
 # (BOOKEND for PRs, the abi3 floor for merge queue, ALL for nightly/tag).
 # "api_buildplat" is the platform matrix consumed by test-api-cross-python
 # (the wheel-build job keeps plain "buildplat"). Identical to "buildplat" on
-# every branch except the nightly schedule, the "full" manual dispatch and tag
-# releases, where it drops macos-15-intel (see NIGHTLY_API_PLATFORMS below) --
+# every branch except the merge queue, where it is Linux only (Windows builds
+# and runs smoke tests there, without an api lane), and the nightly schedule,
+# the "full" manual dispatch and tag releases, where it drops macos-15-intel
+# (see NIGHTLY_API_PLATFORMS below) --
 # macOS Intel wheels are still built and run their build-step tests; only
 # api-test coverage on that runner class is dropped for those triggers.
 #
@@ -27,8 +29,10 @@
 #   PYTHON_CHANGED       -- detect-changes output
 #   UTIL_CHANGED         -- detect-changes output
 #   BUILD_CHANGED        -- detect-changes output
-#   CI_CHANGED           -- detect-changes output (merge queue keeps all three
-#                           OS families when CI or build tooling changed)
+#   CI_CHANGED           -- detect-changes output (merge queue keeps its Linux
+#                           and Windows build when CI or build tooling changed)
+#   TESTS_CHANGED        -- detect-changes output (ready PRs touching tests run
+#                           standard so newly added/edited non-smoke tests run)
 #   INPUT_MATRIX_CONFIG  -- inputs.matrix_config (dispatch only)
 #   INPUT_PLAT_LINUX     -- inputs.plat_linux (dispatch/custom only)
 #   INPUT_PLAT_MACOS_INTEL -- inputs.plat_macos_intel
@@ -36,11 +40,18 @@
 #   INPUT_PLAT_WINDOWS   -- inputs.plat_windows
 #   INPUT_PY312..PY315   -- inputs.py312..py315
 #   INPUT_TEST_TIER      -- inputs.test_tier (dispatch only)
-#   PHYSICS_CHANGE       -- "true" if the PR carries the 0-physics:change label
-#                           (gh#1576). On a ready PR or in the merge queue this
-#                           forces the physics-full tier so the full -m physics
-#                           suite (incl. slow) runs as a required check before
-#                           merge, not only in the nightly. Defaults to false.
+#   INPUT_LOWEST_DIRECT_DEPS -- inputs.lowest_direct_deps (dispatch only;
+#                           custom matrix requires plat_linux=true when true)
+#   FULL_MATRIX          -- "true" if the PR carries the 0-ci:full-matrix label
+#                           (pull_request only). Opts a PR into PR_PLATFORMS
+#                           (Linux, macOS arm64, Windows); without it every PR
+#                           builds and tests on Linux only. Defaults to false.
+#   PHYSICS_CHANGE       -- "true" if the PR carries 0-physics:change or
+#                           0-numerics:change (gh#1576). On a ready PR or in the
+#                           merge queue this forces the physics-full tier so the
+#                           full -m physics suite (incl. slow) runs as a required
+#                           check before merge, not only in the nightly. Defaults
+#                           to false.
 #   GITHUB_REF           -- github.ref (e.g. refs/tags/v2025a1)
 #   PR_PYPROJECT         -- path to the built ref's pyproject.toml (data only;
 #                           the requires-python floor source of truth). The
@@ -51,16 +62,25 @@ set -euo pipefail
 
 # Defaults for vars that may be empty outside their event context
 IS_DRAFT="${IS_DRAFT:-false}"
+FULL_MATRIX="${FULL_MATRIX:-false}"
 INPUT_MATRIX_CONFIG="${INPUT_MATRIX_CONFIG:-}"
 INPUT_TEST_TIER="${INPUT_TEST_TIER:-all}"
+INPUT_LOWEST_DIRECT_DEPS="${INPUT_LOWEST_DIRECT_DEPS:-false}"
 PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
 CI_CHANGED="${CI_CHANGED:-false}"
+TESTS_CHANGED="${TESTS_CHANGED:-false}"
 GITHUB_REF="${GITHUB_REF:-}"
 
 # Platform presets
 FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "macosx", "x86_64"], ["macos-15", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
 PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
 MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
+# Merge queue: Linux runs the full queue tier; Windows builds its wheel and
+# runs only the smoke tier (the caller sets that per platform) and no api
+# lane; macOS is not in the queue. The nightly and tag releases keep the full
+# matrix, so platform-specific defects surface there; the nightly tracking
+# issue names the PRs merged since the last green night (#2241).
+MERGE_QUEUE_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["windows-2025", "win", "AMD64"]]'
 
 # Api-test preset for the nightly schedule, the "full" manual dispatch and tag
 # releases: FULL_PLATFORMS minus macos-15-intel (the name dates from when only
@@ -116,46 +136,54 @@ fi
 
 API_PYTHON="$BOOKEND_PYTHON"
 
+# Pull requests build and test on Linux only. The 0-ci:full-matrix label opts a
+# PR into PR_PLATFORMS (Linux, macOS arm64, Windows) whatever it changes; use it
+# for build-system, Fortran I/O and path-handling changes. The tier logic below
+# does not depend on the label.
+PR_MATRIX_PLATFORMS="$MINIMAL_PLATFORMS"
+PR_MATRIX_NOTE="Linux only (add 0-ci:full-matrix for every PR platform)"
+if [[ "${FULL_MATRIX}" == "true" ]]; then
+  PR_MATRIX_PLATFORMS="$PR_PLATFORMS"
+  PR_MATRIX_NOTE="0-ci:full-matrix label - reduced platforms"
+fi
+
 if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; then
   if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]]; then
-    echo "Draft PR with fortran/rust changes - reduced platforms, core tests"
-    echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
-    echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "Draft PR with fortran/rust changes - ${PR_MATRIX_NOTE}, core tests"
     echo "test_tier=core" >> "$GITHUB_OUTPUT"
   elif [[ "${BUILD_CHANGED}" == "true" ]]; then
-    echo "Draft PR with build-system changes - reduced platforms, cfg tests"
-    echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
-    echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "Draft PR with build-system changes - ${PR_MATRIX_NOTE}, cfg tests"
     echo "test_tier=cfg" >> "$GITHUB_OUTPUT"
   else
-    echo "Draft PR with python/util/ci/tests changes - minimal platform, smoke tests"
-    echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
-    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "Draft PR with python/util/ci/tests changes - ${PR_MATRIX_NOTE}, smoke tests"
     echo "test_tier=smoke" >> "$GITHUB_OUTPUT"
   fi
+  echo "buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
+  # Every ready PR runs standard (gh#2094: never silently deselect newly added
+  # or edited non-smoke unit/API tests), on Linux unless 0-ci:full-matrix is set.
   TIER=standard
   if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
-    echo "Ready PR with fortran/build changes - reduced platforms, standard tests"
-    echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
-    echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "Ready PR with fortran/build changes - ${PR_MATRIX_NOTE}, standard tests"
   elif [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
-    echo "Ready PR with python/util changes - minimal platform, standard tests"
-    echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
-    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "Ready PR with python/util changes - ${PR_MATRIX_NOTE}, standard tests"
+  elif [[ "${TESTS_CHANGED}" == "true" ]]; then
+    echo "Ready PR with tests changes - ${PR_MATRIX_NOTE}, standard tests"
+  elif [[ "${CI_CHANGED}" == "true" ]]; then
+    echo "Ready PR with ci-only changes - ${PR_MATRIX_NOTE}, standard tests"
   else
-    echo "Ready PR with ci/tests-only changes - minimal platform, smoke tests"
-    echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
-    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
-    TIER=smoke
+    echo "Ready PR with tests/other changes - ${PR_MATRIX_NOTE}, standard tests"
   fi
-  # gh#1576: a physics-change PR runs the full physics tier (incl. slow) so an
-  # output shift surfaces here rather than in the nightly. Only the physics axis
+  echo "buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
+  # gh#1576: a physics- or numerics-change PR runs the full physics tier (incl. slow)
+  # so an output shift surfaces here rather than in the nightly. Only the physics axis
   # widens; the api axis stays as standard (see test-api-cross-python EXPR map).
   if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
-    echo "Physics-change PR (0-physics:change) - forcing full physics tier (incl. slow)"
+    echo "Physics/numerics-change PR (0-physics:change or 0-numerics:change) - forcing full physics tier (incl. slow)"
     TIER=physics-full
   fi
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
@@ -164,30 +192,31 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
 elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
   # gh#1576: the merge queue otherwise runs `standard` (slow excluded), which is
   # how a known output-changing PR landed without the shift being caught. When
-  # the queued PR carries 0-physics:change, run the full physics tier here too.
+  # the queued PR carries 0-physics:change or 0-numerics:change, run the full
+  # physics tier here too.
   MERGE_TIER=standard
-  MERGE_PLATFORMS="$PR_PLATFORMS"
+  MERGE_PLATFORMS="$MERGE_QUEUE_PLATFORMS"
+  MERGE_API_PLATFORMS="$MINIMAL_PLATFORMS"
   if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
-    echo "Merge queue validation - physics-change PR, full physics tier (incl. slow)"
+    echo "Merge queue validation - physics/numerics-change PR, full physics tier (incl. slow)"
     MERGE_TIER=physics-full
   elif [[ "$NEEDS_MULTIPLATFORM" == "true" ]] || [[ "${CI_CHANGED}" == "true" ]] || \
        [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
-    echo "Merge queue validation - reduced platforms, standard tests"
+    echo "Merge queue validation - Linux standard tests and api lane, Windows wheel build with smoke tests"
   else
     # Only tests (or other non-package files) changed across the queued group,
-    # so every wheel is byte-for-byte what master already validated on all
-    # three OS families. One Linux build is enough to run the new tests; the
+    # so every wheel is byte-for-byte what master already validated. One Linux build is enough to run the new tests; the
     # nightly still covers them on every platform.
     echo "Merge queue validation - tests-only change, minimal platform, standard tests"
     MERGE_PLATFORMS="$MINIMAL_PLATFORMS"
   fi
   echo "buildplat=$MERGE_PLATFORMS" >> "$GITHUB_OUTPUT"
-  echo "api_buildplat=$MERGE_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$MERGE_API_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=$MERGE_TIER" >> "$GITHUB_OUTPUT"
   # Ready-PR CI already exercises the API suite on both Python bookends. The
   # queue's job is to validate the combined tree, so repeat it only on the
-  # abi3 floor while retaining all three OS families.
+  # abi3 floor, on Linux.
   API_PYTHON="$BUILD_PYTHON"
 
 elif [[ "${EVENT_NAME}" == "schedule" ]]; then
@@ -234,6 +263,11 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
 
       if [[ "$PLATFORMS" == "[]" ]]; then
         echo "::error::Custom matrix requires at least one platform"
+        exit 1
+      fi
+
+      if [[ "${INPUT_LOWEST_DIRECT_DEPS}" == "true" ]] && [[ "${INPUT_PLAT_LINUX:-false}" != "true" ]]; then
+        echo "::error::Custom matrix with lowest_direct_deps=true requires plat_linux=true (lowest-direct dependency smoke tests run on the Linux cp312 wheel)"
         exit 1
       fi
 

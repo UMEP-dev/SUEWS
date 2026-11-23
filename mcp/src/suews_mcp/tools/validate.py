@@ -73,10 +73,11 @@ def validate_config(
         The CLI's JSON envelope verbatim, or an error envelope generated
         locally when sandboxing or process invocation fails.
     """
-    root = ProjectRoot(project_root)
     try:
+        root = ProjectRoot(project_root)
         path = root.resolve(config_path)
-    except SUEWSMCPSandboxError as exc:
+        root.check_config(path)
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(str(exc), command=f"suews validate {config_path}")
 
     try:

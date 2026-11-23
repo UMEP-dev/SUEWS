@@ -4,13 +4,19 @@ from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-BALANCE", "C-RESPONSE"),
+]
 
 
 def _run_split(method, kdown):
     state, forcing = load_sample_frames()
     state = state.iloc[[0]].copy()
     state.loc[:, ("netradiationmethod", "0")] = 1003
+    # SPARTACUS with buildings requires a facet-resolved storage-heat method (gh#1834).
+    state.loc[:, ("storageheatmethod", "0")] = 5
     state.loc[:, ("kdown_split_method", "0")] = method
     # The sample's highest layer lies above both tree crowns.
     state.loc[:, ("veg_frac", "(2,)")] = 0.0

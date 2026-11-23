@@ -8,7 +8,7 @@ import warnings
 from unittest.mock import patch, MagicMock
 import sys
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE", "C-SCHEMA")]
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -537,7 +537,9 @@ if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
 
-def test_every_older_current_route_applies_soil_delta_once(monkeypatch):
+@pytest.mark.parametrize("destination", ["2026.6.dev9", CURRENT_SCHEMA_VERSION])
+def test_pre_dev9_routes_apply_soil_delta_once(monkeypatch, destination):
+    from packaging.version import Version
     from supy.util.converter import yaml_upgrade as upgrade
     from supy.data_model.configuration.migration import SchemaMigrator
     calls = []
@@ -548,14 +550,14 @@ def test_every_older_current_route_applies_soil_delta_once(monkeypatch):
         return original(cfg, migration_context=migration_context)
 
     monkeypatch.setattr(upgrade, "_migrate_2026_6_dev8_to_2026_6_dev9", tracked)
-    monkeypatch.setitem(upgrade._HANDLERS, ("2026.6.dev8", CURRENT_SCHEMA_VERSION), tracked)
+    monkeypatch.setitem(upgrade._HANDLERS, ("2026.6.dev8", destination), tracked)
     sources = [source for source, target in upgrade._HANDLERS
-               if target == CURRENT_SCHEMA_VERSION and source != target]
+               if target == CURRENT_SCHEMA_VERSION and Version(source) < Version("2026.6.dev9")]
     assert len(sources) >= 9
     for source in sources:
         calls.clear()
         cfg = {"schema_version": source, "model": {"physics": {"soil_moisture_deficit": 0}}, "sites": []}
-        result = SchemaMigrator().migrate(cfg)
+        result = SchemaMigrator().migrate(cfg, to_version=destination)
         assert len(calls) == 1, source
         assert "soil_moisture" in result["model"]["physics"]
         assert "soil_moisture_deficit" not in result["model"]["physics"]

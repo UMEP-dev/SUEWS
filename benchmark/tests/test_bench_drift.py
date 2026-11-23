@@ -3,6 +3,10 @@
 import sys
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.contract("C-TOOLING")
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from bench_drift import compute_drift, DriftRecord  # noqa: E402

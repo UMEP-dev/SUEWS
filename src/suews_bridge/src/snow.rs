@@ -4,8 +4,8 @@ use crate::ffi;
 use crate::NSURF;
 
 pub const SNOW_STATE_REMOVAL_LEN: usize = 2;
-pub const SNOW_STATE_FLAT_LEN: usize = 79;
-pub const SNOW_STATE_SCHEMA_VERSION: u32 = 1;
+pub const SNOW_STATE_FLAT_LEN: usize = 78;
+pub const SNOW_STATE_SCHEMA_VERSION: u32 = 2;
 
 pub type SnowStateSchema = crate::codec::SimpleSchema;
 
@@ -25,7 +25,6 @@ pub struct SnowState {
     pub swe: f64,
     pub z0v_snow: f64,
     pub ra_snow: f64,
-    pub sice_hpa: f64,
     pub snow_removal: [f64; SNOW_STATE_REMOVAL_LEN],
     pub icefrac: [f64; NSURF],
     pub snowdens: [f64; NSURF],
@@ -54,7 +53,6 @@ impl Default for SnowState {
             swe: 0.0,
             z0v_snow: 0.0,
             ra_snow: 0.0,
-            sice_hpa: 0.0,
             snow_removal: [0.0; SNOW_STATE_REMOVAL_LEN],
             icefrac: [0.0; NSURF],
             snowdens: [0.0; NSURF],
@@ -94,48 +92,47 @@ impl SnowState {
             swe: next(),
             z0v_snow: next(),
             ra_snow: next(),
-            sice_hpa: next(),
             ..Self::default()
         };
 
-        for i in 0..SNOW_STATE_REMOVAL_LEN {
-            state.snow_removal[i] = next();
+        for slot in &mut state.snow_removal {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.icefrac[i] = next();
+        for slot in &mut state.icefrac {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowdens[i] = next();
+        for slot in &mut state.snowdens {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowfrac[i] = next();
+        for slot in &mut state.snowfrac {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowpack[i] = next();
+        for slot in &mut state.snowpack {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.snowwater[i] = next();
+        for slot in &mut state.snowwater {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.kup_ind_snow[i] = next();
+        for slot in &mut state.kup_ind_snow {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.qn_ind_snow[i] = next();
+        for slot in &mut state.qn_ind_snow {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.delta_qi[i] = next();
+        for slot in &mut state.delta_qi {
+            *slot = next();
         }
 
-        for i in 0..NSURF {
-            state.tsurf_ind_snow[i] = next();
+        for slot in &mut state.tsurf_ind_snow {
+            *slot = next();
         }
 
         state.iter_safe = next() >= 0.5;
@@ -158,7 +155,6 @@ impl SnowState {
         flat.push(self.swe);
         flat.push(self.z0v_snow);
         flat.push(self.ra_snow);
-        flat.push(self.sice_hpa);
         flat.extend_from_slice(&self.snow_removal);
         flat.extend_from_slice(&self.icefrac);
         flat.extend_from_slice(&self.snowdens);
@@ -215,7 +211,6 @@ pub fn snow_state_field_names() -> Vec<String> {
         "swe".to_string(),
         "z0v_snow".to_string(),
         "ra_snow".to_string(),
-        "sice_hpa".to_string(),
         "snow_removal.1".to_string(),
         "snow_removal.2".to_string(),
     ];
@@ -246,6 +241,7 @@ crate::codec::impl_state_module_fns! {
     ffi_schema_version_fn = ffi::suews_snow_state_schema_version,
     ffi_default_fn = ffi::suews_snow_state_default,
 }
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -254,6 +250,12 @@ mod tests {
     fn schema_matches_expected_dimensions() {
         let n_flat = snow_state_schema().expect("schema call should succeed");
         assert_eq!(n_flat, SNOW_STATE_FLAT_LEN);
+        let names = snow_state_field_names();
+        assert_eq!(names.len(), SNOW_STATE_FLAT_LEN);
+        assert!(!names.iter().any(|name| name == "sice_hpa"));
+        assert!(crate::atm::atm_state_field_names()
+            .iter()
+            .any(|name| name == "sice_hpa"));
     }
 
     #[test]
@@ -285,6 +287,14 @@ mod tests {
         let recovered =
             snow_state_from_values_payload(&payload).expect("payload decode should work");
         assert_eq!(state, recovered);
+
+        let legacy_payload = SnowStateValuesPayload {
+            schema_version: 1,
+            values: vec![0.0_f64; SNOW_STATE_FLAT_LEN + 1],
+        };
+        let err = snow_state_from_values_payload(&legacy_payload)
+            .expect_err("legacy v1 payload should fail");
+        assert_eq!(err, BridgeError::BadState);
 
         let bad_payload = SnowStateValuesPayload {
             schema_version: SNOW_STATE_SCHEMA_VERSION + 1,

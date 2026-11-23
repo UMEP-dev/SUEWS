@@ -12,7 +12,7 @@ import pytest
 from supy.knowledge import build_pack, default_pack_dir, load_manifest, query_pack
 from supy.knowledge.pack import EXCLUDED_GENERATED_ROOTS, MAX_CHUNK_BYTES
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 def _write(path: Path, text: str) -> None:

@@ -19,7 +19,7 @@ import pytest
 
 import supy
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE")]
 
 RA_FORMER_CAP = 120.0  # removed hard cap [s m-1]
 RA_FLOOR = 10.0  # retained lower limit [s m-1]
@@ -176,6 +176,7 @@ def test_relax_zl_factor_decays_after_the_first_passes(probe):
     assert np.all(np.diff(factor) <= 0.0)
 
 
+@pytest.mark.medium
 def test_former_sign_flip_steps_converge_without_the_cap(sample_run_cached):
     """On 13 April 2012 the uncapped plain iteration flipped (z-d)/L between
     unstable and the stable clip on every pass and stopped at the pass limit;

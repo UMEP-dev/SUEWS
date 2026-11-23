@@ -3,7 +3,7 @@
 # Used by: build-publish_to_pypi.yml (detect-changes job)
 # Tested by: test-detect-changes.yml + scripts/suews/test-detect-changes.sh
 #
-# IMPORTANT — DO NOT use negation patterns (! prefix) in this file.
+# IMPORTANT -- DO NOT use negation patterns (! prefix) in this file.
 # dorny/paths-filter evaluates patterns with OR logic (picomatch).
 # A negation like '!foo/bar.py' matches EVERY file that is NOT foo/bar.py,
 # turning the entire category into a catch-all. See:
@@ -12,15 +12,22 @@
 # rather than attempting exclusions.
 #
 # Category guide:
-#   fortran  — compiled extension source (multiplatform build)
-#   rust     — Rust FFI bridge (compiled extension, multiplatform build)
-#   python   — pure Python source (single-platform build)
-#   util     — utility modules (single-platform build)
-#   build    — build system files affecting wheel output (multiplatform build)
-#   ci       — CI workflows and tooling (single-platform build)
-#   tests    — test files (single-platform build)
-#   docs     — documentation source
-#   site     — static site content
+#   fortran           -- compiled extension source (multiplatform build)
+#   rust              -- Rust FFI bridge (compiled extension, multiplatform build)
+#   python            -- pure Python source (single-platform build)
+#   util              -- utility modules (single-platform build)
+#   build             -- build system files affecting wheel output (multiplatform build)
+#   ci                -- CI workflows, lint/security scripts, and build tooling
+#   tests             -- test files (single-platform build)
+#   docs              -- documentation source
+#   site              -- static site content
+#   rust_test          -- triggers folded rust-test reusable workflow
+#   rust_clippy        -- triggers folded rust-clippy reusable workflow
+#   encoding_audit     -- triggers folded encoding-audit reusable workflow
+#   workflow_security  -- triggers folded workflow-security reusable workflow
+#   dependency_audit   -- triggers folded dependency-audit reusable workflow and lowest-direct floor check
+#   fortran_uninit     -- triggers folded fortran-uninit reusable workflow
+#   rust_capi_observer -- triggers folded rust-capi-observer reusable workflow
 
 fortran:
   # Fortran physics source
@@ -39,6 +46,8 @@ rust:
   - 'src/suews_bridge/Cargo.toml'
   - 'src/suews_bridge/Cargo.lock'
   - 'src/suews_bridge/build.rs'
+  # Bridge manifest checked during wheel test validation (check_bridge_manifest.py)
+  - 'src/suews_bridge/bridge-manifest.json'
   # C API Fortran wrappers called by the Rust bridge
   - 'src/suews_bridge/c_api/**'
 
@@ -61,8 +70,9 @@ util:
 
 build:
   # Build system files that affect compiled wheel output
-  # NOTE: pyproject.toml excluded — classified by content in workflow
-  # (only [build-system] and [tool.cibuildwheel] sections need multiplatform)
+  # NOTE: pyproject.toml excluded -- classified by content in workflow
+  # (only [build-system], [tool.cibuildwheel], and [tool.meson-python]
+  # need multiplatform builds)
   - 'meson.build'
   - 'meson_options.txt'
   - 'src/supy/meson.build'
@@ -82,12 +92,107 @@ ci:
   - '.github/workflows/build-wheels-reusable.yml'
   - '.github/workflows/cibuildwheel-debug.yml'
   - '.github/workflows/ci-metrics-overhead.yml'
+  - '.github/workflows/data-interface-version-audit.yml'
+  - '.github/workflows/dependency-audit.yml'
+  - '.github/workflows/encoding-audit.yml'
+  - '.github/workflows/fortran-uninit.yml'
+  - '.github/workflows/rust-capi-observer.yml'
+  - '.github/workflows/rust-clippy.yml'
+  - '.github/workflows/rust-test.yml'
+  - '.github/workflows/schema-version-audit.yml'
   - '.github/workflows/test-api-cross-python-reusable.yml'
   - '.github/workflows/tolerance-spread-reusable.yml'
+  - '.github/workflows/workflow-security.yml'
   - '.github/actions/build-suews/**'
   - '.github/scripts/**'
   - 'Makefile'
+  - 'scripts/lint/**'
+  - 'scripts/security/**'
   - 'scripts/suews/**'
+
+rust_test:
+  # Paths audited by the folded rust-test reusable workflow (gh#2094)
+  - 'src/suews_bridge/**'
+  - 'src/suews/src/**'
+  - 'src/suews/ext_lib/**'
+  - 'src/suews/Makefile'
+  - 'src/suews/Makefile.*'
+  - 'test/fixtures/bridge/**'
+  - 'src/supy/data_model/output/**'
+  - '.github/workflows/rust-test.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
+
+rust_clippy:
+  # Paths audited by the folded rust-clippy reusable workflow (gh#2094)
+  - 'src/suews_bridge/**'
+  - 'src/suews/src/suews_ctrl_const.f95'
+  - '.github/workflows/rust-clippy.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
+
+encoding_audit:
+  # Paths audited by the folded encoding-audit reusable workflow (gh#2094)
+  - '*.py'
+  - '**/*.py'
+  - '.github/**/*.py'
+  - '.claude/**/*.py'
+  - '.github/workflows/encoding-audit.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
+
+workflow_security:
+  # Paths audited by the folded workflow-security reusable workflow (gh#2094)
+  - '.github/workflows/**'
+  - '.github/actions/**'
+  - '.github/path-filters.yml'
+  - '.github/scripts/check_action_pins.py'
+  - '.github/scripts/post-ci-summary*'
+  - '.github/scripts/nightly-tracker*'
+  - '.github/scripts/package.json'
+
+dependency_audit:
+  # Paths audited by the folded dependency-audit reusable workflow (gh#2094)
+  # and the built-wheel lowest-direct dependency floor smoke check (gh#2104).
+  # Includes .github/scripts/pr-gate.sh so gate-only edits exercise the floor
+  # producer rather than skipping it; generic build plumbing such as
+  # build-wheels-reusable.yml stays in `ci` only.
+  - 'pyproject.toml'
+  - 'Makefile'
+  - 'scripts/security/**'
+  - '.github/workflows/dependency-audit.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
+  - '.github/scripts/pr-gate.sh'
+  - '.github/actions/build-suews/action.yml'
+
+fortran_uninit:
+  # Paths audited by the folded fortran-uninit reusable workflow (gh#2094, gh#2095)
+  - 'src/suews/src/**'
+  - 'src/suews/ext_lib/**'
+  - 'src/suews/Makefile'
+  - 'src/suews/Makefile.deps'
+  - 'src/suews/Makefile.gfortran'
+  - 'src/suews_bridge/c_api/**'
+  - 'src/suews_bridge/build.rs'
+  - 'scripts/lint/check_fortran_uninit.py'
+  - 'scripts/lint/fortran_uninit_baseline.json'
+  - '.github/workflows/fortran-uninit.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
+
+rust_capi_observer:
+  # Paths audited by the folded rust-capi-observer reusable workflow (gh#2094, gh#2096)
+  - 'src/suews_bridge/**'
+  - 'src/suews/src/**'
+  - 'src/suews/ext_lib/**'
+  - 'src/suews/Makefile'
+  - 'src/suews/Makefile.deps'
+  - 'src/suews/Makefile.gfortran'
+  - 'scripts/suews/gen_capi_field_observer.py'
+  - '.github/workflows/rust-capi-observer.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/path-filters.yml'
 
 site:
   # Static site content (GitHub Pages) - separate from wheel builds

@@ -222,8 +222,10 @@ Among CalVer schemas, explicit ``--target-version`` values are supported
 only for ``2026.4`` (from ``2025.12`` or ``2026.1``), ``2026.6.dev8``
 and later (from any older schema), and the current schema. Earlier
 historical labels such as ``2026.1``, ``2026.5`` and ``2026.6.dev1`` to
-``2026.6.dev7`` have no migration route from older schemas; if you need
-a configuration for an exact older release, use that release of SUEWS.
+``2026.6.dev7`` have no migration route from older schemas, and
+configurations cannot be migrated to an older schema. If you need a
+configuration for an older release without a migration route, use that
+release's documentation and sample configuration.
 
 The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
@@ -880,10 +882,12 @@ Upgrading to Schema 2026.5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Schema ``2026.5`` is the YAML schema shipped with release ``2026.6.5``.
-It is the single released label collapsing the ``2026.5.dev1`` ..
-``2026.5.dev14`` development cycle: one ``(2026.4 -> 2026.5)`` handler
-applies the union of every dev-cycle delta. Upgrading from ``2026.4``
-(shipped with 2026.4.3) brings the following user-visible changes:
+It collapsed the ``2026.5.dev1`` .. ``2026.5.dev14`` development cycle
+into a single released label: in release ``2026.6.5``, one
+``(2026.4 -> 2026.5)`` handler applied the union of every dev-cycle
+delta in order, and current migrations from ``2026.4`` apply that union
+on the way to later schemas. Upgrading from ``2026.4`` (shipped with
+2026.4.3) brings the following user-visible changes:
 
 - **Fused field names to snake_case** (#1256, Category 1): for example
   ``netradiationmethod`` -> ``net_radiation_method``, ``soildepth`` ->
@@ -1000,9 +1004,10 @@ pass, run the migrator without ``--target-version``:
 
    suews schema migrate your_config.yml
 
-If you need a configuration targeting SUEWS 2026.1.28, use that release
-of SUEWS (see :ref:`yaml_schema_migrations` for supported explicit
-targets).
+If you need a configuration for SUEWS 2026.1.28, use that release's
+documentation and sample configuration; ``suews schema migrate`` has no
+route to ``2026.1`` and cannot migrate configurations to an older schema
+(see :ref:`yaml_schema_migrations` for supported explicit targets).
 
 Preserving Your Values Through Renames
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -1291,38 +1291,262 @@ fn apply_soil_overrides(
     Ok(())
 }
 
+const WATERDIST_SUM_TOL: f64 = 1.0e-5;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum WaterDistSurface {
+    Paved,
+    Bldgs,
+    Evetr,
+    Dectr,
+    Grass,
+    Bsoil,
+}
+
+impl WaterDistSurface {
+    fn yaml_name(self) -> &'static str {
+        match self {
+            Self::Paved => "paved",
+            Self::Bldgs => "bldgs",
+            Self::Evetr => "evetr",
+            Self::Dectr => "dectr",
+            Self::Grass => "grass",
+            Self::Bsoil => "bsoil",
+        }
+    }
+
+    fn self_key(self) -> &'static str {
+        match self {
+            Self::Paved => "to_paved",
+            Self::Bldgs => "to_bldgs",
+            Self::Evetr => "to_evetr",
+            Self::Dectr => "to_dectr",
+            Self::Grass => "to_grass",
+            Self::Bsoil => "to_bsoil",
+        }
+    }
+
+    fn opposite_terminal_key(self) -> &'static str {
+        match self {
+            Self::Paved | Self::Bldgs => "to_soilstore",
+            Self::Evetr | Self::Dectr | Self::Grass | Self::Bsoil => "to_runoff",
+        }
+    }
+
+    fn required_keys(self) -> [&'static str; 7] {
+        match self {
+            Self::Paved => [
+                "to_bldgs",
+                "to_dectr",
+                "to_evetr",
+                "to_grass",
+                "to_bsoil",
+                "to_water",
+                "to_runoff",
+            ],
+            Self::Bldgs => [
+                "to_paved",
+                "to_dectr",
+                "to_evetr",
+                "to_grass",
+                "to_bsoil",
+                "to_water",
+                "to_runoff",
+            ],
+            Self::Evetr => [
+                "to_paved",
+                "to_bldgs",
+                "to_dectr",
+                "to_grass",
+                "to_bsoil",
+                "to_water",
+                "to_soilstore",
+            ],
+            Self::Dectr => [
+                "to_paved",
+                "to_bldgs",
+                "to_evetr",
+                "to_grass",
+                "to_bsoil",
+                "to_water",
+                "to_soilstore",
+            ],
+            Self::Grass => [
+                "to_paved",
+                "to_bldgs",
+                "to_dectr",
+                "to_evetr",
+                "to_bsoil",
+                "to_water",
+                "to_soilstore",
+            ],
+            Self::Bsoil => [
+                "to_paved",
+                "to_bldgs",
+                "to_dectr",
+                "to_evetr",
+                "to_grass",
+                "to_water",
+                "to_soilstore",
+            ],
+        }
+    }
+}
+
+/// Reject any non-null `waterdist` block on the `water` surface, mirroring
+/// `WaterProperties` / `SurfaceProperties.validate_water_distribution` (#2086).
+fn validate_water_surface_has_no_waterdist(lc_root: &Value, at: &str) -> Result<(), String> {
+    if let Some(val) = get_path(lc_root, &["waterdist"]) {
+        if !val.is_null() {
+            return Err(format!(
+                "`{at}.waterdist` is disallowed; `water` surface must not have water distribution"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Reproduce CPython 3.12-3.15 `sum` for validated water fractions.
+///
+/// The owning Python validator converts each value to float and sums in its
+/// canonical destination order. Neumaier compensation preserves that rounding
+/// policy; exact summation (`math.fsum`) can change acceptance at the tolerance.
+/// The caller supplies at most seven finite values in [0, 1], so neither
+/// overflow nor general-purpose non-finite summation needs handling here.
+fn sum_water_fractions(values: &[f64]) -> f64 {
+    let mut hi = 0.0_f64;
+    let mut lo = 0.0_f64;
+    for &value in values {
+        let next = hi + value;
+        lo += if hi >= value {
+            (hi - next) + value
+        } else {
+            (value - next) + hi
+        };
+        hi = next;
+    }
+    hi + lo
+}
+
+/// Read and validate `waterdist` for one non-water surface, mirroring the
+/// resolved handoff contract of `WaterDistribution.validate_distribution` (#2086, #2002).
+///
+/// - Active surfaces (`sfr > 0.0`) require a `waterdist` mapping containing all
+///   seven owning destinations, each finite in `[0, 1]` and summing to `1.0`
+///   within `1e-5` (relative tolerance matching `math.isclose(..., rel_tol=1e-5)`).
+/// - Inactive surfaces (`sfr == 0.0`) may omit `waterdist`, set it to `null`,
+///   or omit owning destinations (defaulting to `0.0`), while supplied values
+///   must remain finite in `[0, 1]` and sum to at most `1.0 + 1e-5`.
+/// - Regardless of `sfr`, disallowed destinations (self-routing `to_<self>` or
+///   the opposite terminal `to_soilstore`/`to_runoff`) reject any non-null value
+///   including `0.0`, the non-canonical `to_bldg` key is rejected in favour of
+///   `to_bldgs`, and unknown keys inside `waterdist` fail with the canonical path.
 fn apply_waterdist_overrides(
     waterdist: &mut crate::water_dist::WaterDistPrm,
     lc_root: &Value,
+    at: &str,
+    surface: WaterDistSurface,
+    active: bool,
 ) -> Result<(), String> {
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_paved"]) {
-        waterdist.to_paved = v;
+    *waterdist = crate::water_dist::WaterDistPrm::default();
+    let wd_at = format!("{at}.waterdist");
+
+    let map = match get_path(lc_root, &["waterdist"]) {
+        None | Some(Value::Null) => {
+            if active {
+                return Err(format!(
+                    "`{wd_at}` is missing; active surface `{}` (`sfr > 0`) requires all seven \
+                     water distribution fractions",
+                    surface.yaml_name()
+                ));
+            }
+            return Ok(());
+        }
+        Some(Value::Mapping(map)) => map,
+        Some(other) => {
+            return Err(format!(
+                "`{wd_at}` is {}; it must be a mapping of water distribution fractions",
+                yaml_kind(other)
+            ));
+        }
+    };
+
+    let required = surface.required_keys();
+    for (raw_key, raw_val) in map {
+        let Some(key) = raw_key.as_str() else {
+            return Err(format!("`{wd_at}` contains non-string key `{raw_key:?}`"));
+        };
+        if key == "ref" {
+            continue;
+        }
+        if key == "to_bldg" {
+            if surface == WaterDistSurface::Bldgs {
+                return Err(format!(
+                    "`{wd_at}.to_bldg` is not a resolved field (self-routing on `bldgs` is disallowed)"
+                ));
+            }
+            return Err(format!(
+                "`{wd_at}.to_bldg` is not a resolved field; use only `{wd_at}.to_bldgs`"
+            ));
+        }
+        if key == surface.self_key() || key == surface.opposite_terminal_key() {
+            if matches!(given_value(raw_val), None | Some(Value::Null)) {
+                continue;
+            }
+            return Err(format!(
+                "`{wd_at}.{key}` is a disallowed water distribution field for `{}`; omit it or set it to null",
+                surface.yaml_name()
+            ));
+        }
+        if !required.contains(&key) {
+            return Err(format!(
+                "`{wd_at}.{key}` is not a valid water distribution field for `{}`",
+                surface.yaml_name()
+            ));
+        }
     }
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_bldg"])
-        .or_else(|| read_numeric(lc_root, &["waterdist", "to_bldgs"]))
-    {
-        waterdist.to_bldg = v;
+
+    let mut values = [0.0_f64; 7];
+    let mut count = 0usize;
+    for key in required {
+        let has_non_null = get_path(lc_root, &["waterdist", key])
+            .and_then(given_value)
+            .is_some_and(|v| !v.is_null());
+        if !active && !has_non_null {
+            continue;
+        }
+        let v = require_numeric(lc_root, &["waterdist", key], at)?;
+        if !(0.0..=1.0).contains(&v) {
+            return Err(format!(
+                "`{wd_at}.{key}` is {v}; expected a finite fraction in [0, 1]"
+            ));
+        }
+        values[count] = v;
+        count += 1;
+        match key {
+            "to_paved" => waterdist.to_paved = v,
+            "to_bldgs" => waterdist.to_bldg = v,
+            "to_evetr" => waterdist.to_evetr = v,
+            "to_dectr" => waterdist.to_dectr = v,
+            "to_grass" => waterdist.to_grass = v,
+            "to_bsoil" => waterdist.to_bsoil = v,
+            "to_water" => waterdist.to_water = v,
+            "to_runoff" | "to_soilstore" => waterdist.to_soilstore = v,
+            _ => unreachable!("unexpected required waterdist key {key}"),
+        }
     }
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_evetr"]) {
-        waterdist.to_evetr = v;
+
+    let total = sum_water_fractions(&values[..count]);
+    if active {
+        if (total - 1.0).abs() > WATERDIST_SUM_TOL * total.abs().max(1.0) {
+            return Err(format!(
+                "`{wd_at}` sum must be 1.0 (within {WATERDIST_SUM_TOL}), got {total}"
+            ));
+        }
+    } else if total > 1.0 + WATERDIST_SUM_TOL {
+        return Err(format!("`{wd_at}` sum must not exceed 1.0, got {total}"));
     }
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_dectr"]) {
-        waterdist.to_dectr = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_grass"]) {
-        waterdist.to_grass = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_bsoil"]) {
-        waterdist.to_bsoil = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_water"]) {
-        waterdist.to_water = v;
-    }
-    if let Some(v) = read_numeric(lc_root, &["waterdist", "to_soilstore"])
-        .or_else(|| read_numeric(lc_root, &["waterdist", "to_runoff"]))
-    {
-        waterdist.to_soilstore = v;
-    }
+
     Ok(())
 }
 
@@ -2439,7 +2663,13 @@ fn apply_land_cover_overrides(
             storage_heat_method,
             site.lc_paved.soil.soil_store_capacity,
         )?;
-        apply_waterdist_overrides(&mut site.lc_paved.waterdist, lc_root)?;
+        apply_waterdist_overrides(
+            &mut site.lc_paved.waterdist,
+            lc_root,
+            &at,
+            WaterDistSurface::Paved,
+            paved_sfr > 0.0,
+        )?;
     }
 
     {
@@ -2477,7 +2707,13 @@ fn apply_land_cover_overrides(
             storage_heat_method,
             site.lc_bldg.soil.soil_store_capacity,
         )?;
-        apply_waterdist_overrides(&mut site.lc_bldg.waterdist, lc_root)?;
+        apply_waterdist_overrides(
+            &mut site.lc_bldg.waterdist,
+            lc_root,
+            &at,
+            WaterDistSurface::Bldgs,
+            bldg_sfr > 0.0,
+        )?;
     }
 
     {
@@ -2535,7 +2771,13 @@ fn apply_land_cover_overrides(
             emissions_method,
         )?;
         apply_lai_overrides(&mut site.lc_evetr.lai, lc_root, &at, evetr_sfr, lai_method)?;
-        apply_waterdist_overrides(&mut site.lc_evetr.waterdist, lc_root)?;
+        apply_waterdist_overrides(
+            &mut site.lc_evetr.waterdist,
+            lc_root,
+            &at,
+            WaterDistSurface::Evetr,
+            evetr_sfr > 0.0,
+        )?;
     }
 
     {
@@ -2597,7 +2839,13 @@ fn apply_land_cover_overrides(
             emissions_method,
         )?;
         apply_lai_overrides(&mut site.lc_dectr.lai, lc_root, &at, dectr_sfr, lai_method)?;
-        apply_waterdist_overrides(&mut site.lc_dectr.waterdist, lc_root)?;
+        apply_waterdist_overrides(
+            &mut site.lc_dectr.waterdist,
+            lc_root,
+            &at,
+            WaterDistSurface::Dectr,
+            dectr_sfr > 0.0,
+        )?;
     }
 
     {
@@ -2644,7 +2892,13 @@ fn apply_land_cover_overrides(
             emissions_method,
         )?;
         apply_lai_overrides(&mut site.lc_grass.lai, lc_root, &at, grass_sfr, lai_method)?;
-        apply_waterdist_overrides(&mut site.lc_grass.waterdist, lc_root)?;
+        apply_waterdist_overrides(
+            &mut site.lc_grass.waterdist,
+            lc_root,
+            &at,
+            WaterDistSurface::Grass,
+            grass_sfr > 0.0,
+        )?;
     }
 
     {
@@ -2674,7 +2928,13 @@ fn apply_land_cover_overrides(
             storage_heat_method,
             site.lc_bsoil.soil.soil_store_capacity,
         )?;
-        apply_waterdist_overrides(&mut site.lc_bsoil.waterdist, lc_root)?;
+        apply_waterdist_overrides(
+            &mut site.lc_bsoil.waterdist,
+            lc_root,
+            &at,
+            WaterDistSurface::Bsoil,
+            bsoil_sfr > 0.0,
+        )?;
     }
 
     {
@@ -2705,6 +2965,7 @@ fn apply_land_cover_overrides(
             storage_heat_method,
             site.lc_water.soil.soil_store_capacity,
         )?;
+        validate_water_surface_has_no_waterdist(lc_root, &at)?;
     }
     Ok(())
 }
@@ -10998,6 +11259,484 @@ mod tests {
             let err = load_run_config_from_value(&mut bad_parent)
                 .expect_err(&format!("non-mapping {expected} must fail"));
             assert!(err.contains(expected), "non-mapping {expected}: {err}");
+        }
+    }
+
+    #[test]
+    fn resolved_waterdist_active_surfaces_require_complete_unit_sum_across_public_readers() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("waterdist.yml");
+        fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../supy/sample_data/Kc_2012_data_60.txt"),
+            dir.path().join("Kc_2012_data_60.txt"),
+        )
+        .unwrap();
+
+        // Valid bare and wrapped forms (including optional `ref` metadata and within-1e-5 sum).
+        for wrapped in [false, true] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let wd = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "paved", "waterdist"],
+            )
+            .unwrap();
+            let Value::Mapping(map) = wd else {
+                panic!("waterdist should be a mapping");
+            };
+            map.clear();
+            for (k, v) in [
+                ("to_bldgs", 0.15),
+                ("to_dectr", 0.05),
+                ("to_evetr", 0.0),
+                ("to_grass", 0.1),
+                ("to_bsoil", 0.0),
+                ("to_water", 0.0),
+                ("to_runoff", 0.700005),
+            ] {
+                let val = if wrapped {
+                    serde_yaml::from_str(&format!("{{value: {v}}}")).unwrap()
+                } else {
+                    Value::from(v)
+                };
+                map.insert(Value::String(k.to_string()), val);
+            }
+            map.insert(
+                Value::String("ref".to_string()),
+                serde_yaml::from_str("{desc: test}").unwrap(),
+            );
+            let yaml = serde_yaml::to_string(&root).unwrap();
+            fs::write(&path, &yaml).unwrap();
+            for (reader, res) in [
+                ("value", load_run_config_from_value(&mut root)),
+                ("string", load_run_config_from_str(&yaml)),
+                ("file", load_run_config(&path)),
+            ] {
+                let wd_prm = res.expect(reader).site.lc_paved.waterdist;
+                assert_eq!(wd_prm.to_paved, 0.0);
+                assert_eq!(wd_prm.to_bldg, 0.15);
+                assert_eq!(wd_prm.to_dectr, 0.05);
+                assert_eq!(wd_prm.to_grass, 0.1);
+                assert_eq!(wd_prm.to_soilstore, 0.700005);
+            }
+        }
+
+        // Deleting a single required key on an active surface fails across all 3 public readers
+        // and reports the site gridiv, surface, and canonical field path.
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let site = first_site_mut(&mut root).unwrap();
+        site["gridiv"] = Value::from(7);
+        let wd = get_path_mut(site, &["properties", "land_cover", "paved", "waterdist"]).unwrap();
+        remove_key(wd, "to_runoff");
+        let yaml = serde_yaml::to_string(&root).unwrap();
+        fs::write(&path, &yaml).unwrap();
+        for (reader, res) in [
+            ("value", load_run_config_from_value(&mut root)),
+            ("string", load_run_config_from_str(&yaml)),
+            ("file", load_run_config(&path)),
+        ] {
+            let err = res.expect_err(reader);
+            assert!(
+                err.contains("`sites[gridiv=7].properties.land_cover.paved.waterdist.to_runoff`"),
+                "{reader}: {err}"
+            );
+        }
+
+        // Active surface omitting or nulling the entire waterdist block or passing non-mapping fails.
+        for bad_block in [None, Some("null"), Some("0.5"), Some("[1.0]")] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let site = first_site_mut(&mut root).unwrap();
+            site["gridiv"] = serde_yaml::from_str("{value: 9}").unwrap();
+            let paved = get_path_mut(site, &["properties", "land_cover", "paved"]).unwrap();
+            match bad_block {
+                None => {
+                    remove_key(paved, "waterdist");
+                }
+                Some(raw) => {
+                    if let Value::Mapping(map) = paved {
+                        map.insert(
+                            Value::String("waterdist".to_string()),
+                            serde_yaml::from_str(raw).unwrap(),
+                        );
+                    }
+                }
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("active surface missing/invalid waterdist block must fail");
+            assert!(
+                err.contains("`sites[gridiv=9].properties.land_cover.paved.waterdist`"),
+                "{bad_block:?}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn resolved_waterdist_rejects_disallowed_self_opposite_alias_bounds_and_sums() {
+        // 1. Non-canonical `to_bldg` is rejected on every surface (pointing to `to_bldgs`
+        //    on non-bldgs and flagging self-routing on `bldgs`).
+        for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"] {
+            let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+            let site = first_site_mut(&mut root).unwrap();
+            site["gridiv"] = Value::from(3);
+            let wd =
+                get_path_mut(site, &["properties", "land_cover", surface, "waterdist"]).unwrap();
+            if let Value::Mapping(map) = wd {
+                map.insert(Value::String("to_bldg".to_string()), Value::from(0.0));
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("non-canonical to_bldg must be rejected");
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=3].properties.land_cover.{surface}.waterdist.to_bldg`"
+                )),
+                "{surface}: {err}"
+            );
+            if surface != "bldgs" {
+                assert!(err.contains("to_bldgs"), "{surface}: {err}");
+            }
+        }
+
+        // 2. Self-routing and opposite-terminal fields reject any non-null value (including 0.0)
+        //    and accept explicit null / {value: null}.
+        for (surface, self_key, opp_key) in [
+            ("paved", "to_paved", "to_soilstore"),
+            ("bldgs", "to_bldgs", "to_soilstore"),
+            ("evetr", "to_evetr", "to_runoff"),
+            ("dectr", "to_dectr", "to_runoff"),
+            ("grass", "to_grass", "to_runoff"),
+            ("bsoil", "to_bsoil", "to_runoff"),
+        ] {
+            for disallowed in [self_key, opp_key] {
+                for bad in ["0", "0.0", "-0.0", "{value: 0.0}", "0.5", "false", ".nan"] {
+                    let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+                    let wd = get_path_mut(
+                        first_site_mut(&mut root).unwrap(),
+                        &["properties", "land_cover", surface, "waterdist"],
+                    )
+                    .unwrap();
+                    if let Value::Mapping(map) = wd {
+                        map.insert(
+                            Value::String(disallowed.to_string()),
+                            serde_yaml::from_str(bad).unwrap(),
+                        );
+                    }
+                    let err = load_run_config_from_value(&mut root)
+                        .expect_err(&format!("{surface}.{disallowed}={bad} must be rejected"));
+                    assert!(
+                        err.contains(&format!(
+                            "`sites[gridiv=1].properties.land_cover.{surface}.waterdist.{disallowed}`"
+                        )),
+                        "{surface}.{disallowed}={bad}: {err}"
+                    );
+                }
+
+                for ok_null in ["null", "{value: null}"] {
+                    let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+                    let wd = get_path_mut(
+                        first_site_mut(&mut root).unwrap(),
+                        &["properties", "land_cover", surface, "waterdist"],
+                    )
+                    .unwrap();
+                    if let Value::Mapping(map) = wd {
+                        map.insert(
+                            Value::String(disallowed.to_string()),
+                            serde_yaml::from_str(ok_null).unwrap(),
+                        );
+                    }
+                    load_run_config_from_value(&mut root).unwrap_or_else(|e| {
+                        panic!("{surface}.{disallowed}={ok_null} should be accepted: {e}")
+                    });
+                }
+            }
+        }
+
+        // 3. Unknown key inside waterdist is rejected.
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let wd = get_path_mut(
+            first_site_mut(&mut root).unwrap(),
+            &["properties", "land_cover", "paved", "waterdist"],
+        )
+        .unwrap();
+        if let Value::Mapping(map) = wd {
+            map.insert(Value::String("to_roof".to_string()), Value::from(0.0));
+        }
+        let err = load_run_config_from_value(&mut root).expect_err("unknown key must fail");
+        assert!(
+            err.contains("`sites[gridiv=1].properties.land_cover.paved.waterdist.to_roof`"),
+            "{err}"
+        );
+
+        // 4. Out-of-range, non-finite, bool, string, null, and bad-sum active values fail.
+        for bad in [
+            "-0.01",
+            "1.01",
+            ".nan",
+            ".inf",
+            "-.inf",
+            "true",
+            "bad",
+            "null",
+            "{value: null}",
+        ] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            *get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "paved", "waterdist", "to_grass"],
+            )
+            .unwrap() = serde_yaml::from_str(bad).unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("to_grass={bad} must fail"));
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.paved.waterdist.to_grass`"),
+                "{bad}: {err}"
+            );
+        }
+
+        for (to_grass, to_runoff) in [(0.02, 0.9799), (0.02, 0.9801), (0.5, 0.98)] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let wd = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "paved", "waterdist"],
+            )
+            .unwrap();
+            *get_path_mut(wd, &["to_grass"]).unwrap() = Value::from(to_grass);
+            *get_path_mut(wd, &["to_runoff"]).unwrap() = Value::from(to_runoff);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("sum outside 1e-5 tolerance must fail");
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.land_cover.paved.waterdist` sum must be 1.0"
+                ),
+                "{err}"
+            );
+        }
+
+        // 5. `water` surface rejects any non-null waterdist and allows omitted/null.
+        for bad in ["{}", "{to_runoff: 1.0}", "0.0"] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let water = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "water"],
+            )
+            .unwrap();
+            if let Value::Mapping(map) = water {
+                map.insert(
+                    Value::String("waterdist".to_string()),
+                    serde_yaml::from_str(bad).unwrap(),
+                );
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("water.waterdist must be rejected");
+            assert!(
+                err.contains("`sites[gridiv=1].properties.land_cover.water.waterdist`"),
+                "{bad}: {err}"
+            );
+        }
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let water = get_path_mut(
+            first_site_mut(&mut root).unwrap(),
+            &["properties", "land_cover", "water"],
+        )
+        .unwrap();
+        if let Value::Mapping(map) = water {
+            map.insert(Value::String("waterdist".to_string()), Value::Null);
+        }
+        load_run_config_from_value(&mut root).expect("water.waterdist=null is absent");
+    }
+
+    #[test]
+    fn resolved_waterdist_inactive_surface_rules_match_dev12() {
+        // `evetr` and `bsoil` have sfr=0 in sample_resolved.yml: omitted block, null block,
+        // empty mapping, and partial subset summing <= 1.0 are all accepted.
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let lc = get_path_mut(
+            first_site_mut(&mut root).unwrap(),
+            &["properties", "land_cover"],
+        )
+        .unwrap();
+        remove_key(get_path_mut(lc, &["evetr"]).unwrap(), "waterdist");
+        *get_path_mut(lc, &["bsoil", "waterdist"]).unwrap() =
+            serde_yaml::from_str("{to_paved: 0.25}").unwrap();
+        let rc = load_run_config_from_value(&mut root)
+            .expect("inactive surfaces may omit or partially specify waterdist");
+        assert_eq!(
+            rc.site.lc_evetr.waterdist,
+            crate::water_dist::WaterDistPrm::default()
+        );
+        assert_eq!(rc.site.lc_bsoil.waterdist.to_paved, 0.25);
+        assert_eq!(rc.site.lc_bsoil.waterdist.to_soilstore, 0.0);
+
+        // Inactive surface still rejects sum > 1.0 + 1e-5, out-of-range, non-finite,
+        // and disallowed self/opposite-terminal entries.
+        for (yaml_map, needle) in [
+            (
+                "{to_paved: 0.6, to_soilstore: 0.5}",
+                "sum must not exceed 1.0",
+            ),
+            ("{to_paved: -0.1}", "to_paved"),
+            ("{to_paved: .nan}", "to_paved"),
+            ("{to_bsoil: 0.0}", "to_bsoil"),
+            ("{to_runoff: 0.0}", "to_runoff"),
+            ("{to_bldg: 0.0}", "to_bldg"),
+        ] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            *get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &["properties", "land_cover", "bsoil", "waterdist"],
+            )
+            .unwrap() = serde_yaml::from_str(yaml_map).unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("inactive bsoil waterdist={yaml_map} must fail"));
+            assert!(
+                err.contains("sites[gridiv=1].properties.land_cover.bsoil.waterdist")
+                    && err.contains(needle),
+                "{yaml_map}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn water_fraction_sum_matches_public_python_oracle() {
+        // Expected bits are recorded from built-in sum on CPython 3.12-3.15,
+        // not from an exact-real sum: compatibility is the contract here.
+        let cases: Vec<(Vec<f64>, u64)> =
+            serde_json::from_str(include_str!("../tests/fixtures/water_fraction_sum.json"))
+                .unwrap();
+        for (values, expected_bits) in &cases {
+            assert_eq!(
+                sum_water_fractions(values).to_bits(),
+                *expected_bits,
+                "{values:?}"
+            );
+        }
+        fn permutations(values: &mut [f64], offset: usize, expected: u64) -> usize {
+            if offset == values.len() {
+                assert_eq!(sum_water_fractions(values).to_bits(), expected);
+                return 1;
+            }
+            let mut count = 0;
+            for index in offset..values.len() {
+                values.swap(offset, index);
+                count += permutations(values, offset + 1, expected);
+                values.swap(offset, index);
+            }
+            count
+        }
+        // Python's recorded oracle agrees across all 5040 assignments for each
+        // of these two ordinary vectors. This is not a general sum invariant.
+        for (values, expected) in &cases[3..5] {
+            assert_eq!(permutations(&mut values.clone(), 0, *expected), 5040);
+        }
+    }
+
+    #[test]
+    fn resolved_waterdist_sum_boundary_parity() {
+        let paved_keys = [
+            "to_bldgs",
+            "to_dectr",
+            "to_evetr",
+            "to_grass",
+            "to_bsoil",
+            "to_water",
+            "to_runoff",
+        ];
+        let bsoil_keys = [
+            "to_paved",
+            "to_bldgs",
+            "to_dectr",
+            "to_evetr",
+            "to_grass",
+            "to_water",
+            "to_soilstore",
+        ];
+
+        let set_waterdist = |root: &mut Value, surface: &str, keys: [&str; 7], vals: [f64; 7]| {
+            let mut map = serde_yaml::Mapping::new();
+            for (k, v) in keys.into_iter().zip(vals) {
+                map.insert(Value::String(k.to_string()), Value::from(v));
+            }
+            *get_path_mut(
+                first_site_mut(root).unwrap(),
+                &["properties", "land_cover", surface, "waterdist"],
+            )
+            .unwrap() = Value::Mapping(map);
+        };
+
+        let v1 = [0.034, 0.011, 0.015, 0.050, 0.040, 0.021, 0.82899];
+        let v2 = [0.030, 0.041, 0.040, 0.044, 0.011, 0.034, 0.79999];
+        let v1_rev = [0.82899, 0.021, 0.040, 0.050, 0.015, 0.011, 0.034];
+        let v2_rev = [0.79999, 0.034, 0.011, 0.044, 0.040, 0.041, 0.030];
+        let v1_rot = [0.050, 0.040, 0.021, 0.82899, 0.034, 0.011, 0.015];
+        let v2_rot = [0.044, 0.011, 0.034, 0.79999, 0.030, 0.041, 0.040];
+
+        // Active paved (sfr=0.43): v1 accepted in every ordering, v2 rejected in every ordering.
+        for vals in [v1, v1_rev, v1_rot] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            set_waterdist(&mut root, "paved", paved_keys, vals);
+            load_run_config_from_value(&mut root)
+                .unwrap_or_else(|e| panic!("v1 active paved {vals:?} must pass: {e}"));
+        }
+        for vals in [v2, v2_rev, v2_rot] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            set_waterdist(&mut root, "paved", paved_keys, vals);
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("v2 active paved {vals:?} must fail"));
+            assert!(
+                err.contains("sites[gridiv=1].properties.land_cover.paved.waterdist")
+                    && err.contains("sum must be 1.0"),
+                "{vals:?}: {err}"
+            );
+        }
+
+        // Active & inactive boundary matrix: lower (~0.99999) and upper (~1.00001).
+        // Note: active uses math.isclose(total, 1.0, rel_tol=1e-5) so 1.00001000005
+        // passes active (abs_diff <= 1e-5 * total) while failing inactive (> 1.0 + 1e-5).
+        let cases: [(&str, [f64; 7], bool, bool); 6] = [
+            ("lower_outside_v2", v2, false, true),
+            ("lower_at_v1", v1, true, true),
+            (
+                "lower_inside",
+                [0.034, 0.011, 0.015, 0.050, 0.040, 0.021, 0.828991],
+                true,
+                true,
+            ),
+            (
+                "upper_at_1p1e5",
+                [0.034, 0.011, 0.015, 0.050, 0.040, 0.021, 0.82901],
+                true,
+                true,
+            ),
+            (
+                "upper_between_active_and_inactive",
+                [0.034, 0.011, 0.015, 0.050, 0.040, 0.021, 0.82901000005],
+                true,
+                false,
+            ),
+            (
+                "upper_outside",
+                [0.034, 0.011, 0.015, 0.050, 0.040, 0.021, 0.8290100002],
+                false,
+                false,
+            ),
+        ];
+
+        for (label, vals, active_ok, inactive_ok) in cases {
+            let mut root_active: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            set_waterdist(&mut root_active, "paved", paved_keys, vals);
+            let res_active = load_run_config_from_value(&mut root_active);
+            assert_eq!(
+                res_active.is_ok(),
+                active_ok,
+                "active paved case {label}: {res_active:?}"
+            );
+
+            let mut root_inactive: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            set_waterdist(&mut root_inactive, "bsoil", bsoil_keys, vals);
+            let res_inactive = load_run_config_from_value(&mut root_inactive);
+            assert_eq!(
+                res_inactive.is_ok(),
+                inactive_ok,
+                "inactive bsoil case {label}: {res_inactive:?}"
+            );
         }
     }
 }

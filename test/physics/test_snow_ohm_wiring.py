@@ -28,7 +28,7 @@ import os
 from pathlib import Path
 import subprocess
 
-from conftest import TIMESTEPS_PER_DAY
+from conftest import TIMESTEPS_PER_DAY, run_cli_command
 import numpy as np
 import pandas as pd
 from pyarrow import ipc
@@ -36,11 +36,15 @@ import pytest
 import yaml
 
 from supy import SUEWSSimulation
+from supy.cmd.suews_cli import cli as suews_cli
 from supy.data_model import SUEWSConfig
 
 _run_rust = import_module("supy._run_rust")
 
-pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BIND", "C-RESPONSE")]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.contract("C-BIND", "C-RESPONSE", "C-STRICT", "C-ERROR"),
+]
 
 OHM_SEASONS = ("summer_dry", "summer_wet", "winter_dry", "winter_wet")
 NON_WATER_SURFACES = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil")
@@ -461,4 +465,211 @@ def test_snow_ohm_standalone_engine_parity_and_active_validation(
     )
     assert off_res.returncode == 0, (
         f"expected inactive snow_use=0 omitted ohm_coef to succeed: {off_res.stderr}"
+    )
+
+
+def _write_snow_ohm_entry_point_yaml(
+    case_dir: Path,
+    forcing_file: Path,
+    *,
+    snow_use: int,
+    storage_heat: int = 1,
+    mutate_snow=None,
+) -> Path:
+    """Write a short YAML configuration for Python API and ``suews run`` checks."""
+    case_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = case_dir / "out"
+    out_dir.mkdir(exist_ok=True)
+
+    sim = SUEWSSimulation.from_sample_data()
+    sites = [site.model_dump() for site in sim.config.sites]
+    site = sites[0]
+    for surf in ALL_SURFACES:
+        is_land = surf != "water" and snow_use == 1
+        site["initial_states"][surf].update(
+            snowfrac=1.0 if is_land else 0.0,
+            snowpack=INITIAL_SNOWPACK_MM if is_land else 0.0,
+            snowdens=INITIAL_SNOWDENS_KG_M3 if is_land else 0.0,
+            snowwater=0.0,
+            icefrac=0.0,
+        )
+    site["initial_states"]["snowalb"] = INITIAL_SNOWALB
+    sim.update_config(
+        {
+            "sites": sites,
+            "model": {
+                "physics": {
+                    "net_radiation": 3,
+                    "snow_use": snow_use,
+                    "storage_heat": storage_heat,
+                },
+                "control": {
+                    "start_time": "2012-01-01 00:05:00",
+                    "end_time": "2012-01-01 12:00:00",
+                    "forcing": {"file": str(forcing_file)},
+                    "output": {
+                        "dir": str(out_dir),
+                        "format": "txt",
+                        "freq": 3600,
+                        "groups": ["SUEWS"],
+                    },
+                },
+            },
+        },
+        auto_load_forcing=False,
+    )
+
+    doc = sim.config.model_dump(mode="json")
+    snow_cfg = doc["sites"][0]["properties"]["snow"]
+    if mutate_snow is not None:
+        mutate_snow(snow_cfg)
+
+    cfg_path = case_dir / "config.yml"
+    cfg_path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    return cfg_path
+
+
+def _assert_mentions_winter_wet_coef(message: str, coef_key: str) -> None:
+    """Confirm an error names the offending ``winter_wet.<coef_key>`` path."""
+    lower = message.lower()
+    assert "ohm_coef" in lower, f"error must name ohm_coef, got:\n{message}"
+    assert "winter_wet" in lower, f"error must name winter_wet, got:\n{message}"
+    assert coef_key in lower, f"error must name {coef_key}, got:\n{message}"
+
+
+def _mutate_missing_a1(snow_cfg: dict) -> None:
+    snow_cfg["ohm_coef"]["winter_wet"].pop("a1")
+
+
+def _mutate_null_a2(snow_cfg: dict) -> None:
+    snow_cfg["ohm_coef"]["winter_wet"]["a2"] = None
+
+
+def _mutate_malformed_a3(snow_cfg: dict) -> None:
+    snow_cfg["ohm_coef"]["winter_wet"]["a3"] = "not-a-number"
+
+
+def _mutate_nan_a1(snow_cfg: dict) -> None:
+    snow_cfg["ohm_coef"]["winter_wet"]["a1"] = float("nan")
+
+
+def _mutate_inf_a2(snow_cfg: dict) -> None:
+    snow_cfg["ohm_coef"]["winter_wet"]["a2"] = float("inf")
+
+
+_ACTIVE_WINTER_WET_FAILURE_CASES = [
+    pytest.param("missing_a1", _mutate_missing_a1, "a1", True, id="missing-a1"),
+    pytest.param("null_a2", _mutate_null_a2, "a2", True, id="null-a2"),
+    pytest.param("malformed_a3", _mutate_malformed_a3, "a3", False, id="malformed-a3"),
+    pytest.param("nan_a1", _mutate_nan_a1, "a1", False, id="nonfinite-nan-a1"),
+    pytest.param("inf_a2", _mutate_inf_a2, "a2", False, id="nonfinite-inf-a2"),
+]
+
+
+@pytest.mark.core
+@pytest.mark.parametrize(
+    ("case_name", "mutate_snow", "coef_key", "reaches_run"),
+    _ACTIVE_WINTER_WET_FAILURE_CASES,
+)
+def test_snow_ohm_python_api_rejects_invalid_active_winter_wet(
+    tmp_path: Path,
+    case_name: str,
+    mutate_snow,
+    coef_key: str,
+    reaches_run: bool,
+) -> None:
+    """``SUEWSSimulation`` / ``run()`` rejects missing, null, malformed and non-finite active snow OHM."""
+    forcing_file = _write_cold_hourly_forcing(tmp_path / "cold_forcing_60.txt")
+    cfg_path = _write_snow_ohm_entry_point_yaml(
+        tmp_path / case_name,
+        forcing_file,
+        snow_use=1,
+        mutate_snow=mutate_snow,
+    )
+
+    if reaches_run:
+        sim = SUEWSSimulation(cfg_path)
+        with pytest.raises((RuntimeError, ValueError)) as exc_info:
+            sim.run(
+                start_date=sim.forcing.df.index[0],
+                end_date=sim.forcing.df.index[-1],
+                n_jobs=1,
+            )
+        msg = str(exc_info.value)
+        assert f"properties.snow.ohm_coef.winter_wet.{coef_key}" in msg, msg
+    else:
+        with pytest.raises((ValueError, RuntimeError)) as exc_info:
+            sim = SUEWSSimulation(cfg_path)
+            sim.run(
+                start_date=sim.forcing.df.index[0],
+                end_date=sim.forcing.df.index[-1],
+                n_jobs=1,
+            )
+        _assert_mentions_winter_wet_coef(str(exc_info.value), coef_key)
+
+
+@pytest.mark.core
+@pytest.mark.parametrize(
+    ("case_name", "mutate_snow", "coef_key", "_reaches_run"),
+    _ACTIVE_WINTER_WET_FAILURE_CASES,
+)
+def test_snow_ohm_python_cli_rejects_invalid_active_winter_wet(
+    cli_runner,
+    tmp_path: Path,
+    case_name: str,
+    mutate_snow,
+    coef_key: str,
+    _reaches_run: bool,
+) -> None:
+    """``suews run`` exits non-zero and names the offending active snow OHM field."""
+    forcing_file = _write_cold_hourly_forcing(tmp_path / "cold_forcing_60.txt")
+    cfg_path = _write_snow_ohm_entry_point_yaml(
+        tmp_path / f"cli_{case_name}",
+        forcing_file,
+        snow_use=1,
+        mutate_snow=mutate_snow,
+    )
+
+    result = run_cli_command(cli_runner, suews_cli, ["run", str(cfg_path)], check=False)
+    assert result.returncode != 0, (
+        f"expected suews run to reject {case_name}; stdout={result.stdout}\nstderr={result.stderr}"
+    )
+    combined = f"{result.stdout}\n{result.stderr}"
+    _assert_mentions_winter_wet_coef(combined, coef_key)
+
+
+@pytest.mark.core
+def test_snow_ohm_inactive_branch_succeeds_in_python_api_and_cli(
+    cli_runner,
+    tmp_path: Path,
+) -> None:
+    """With ``snow_use = 0``, omitting ``properties.snow.ohm_coef`` succeeds in API and CLI."""
+    forcing_file = _write_cold_hourly_forcing(tmp_path / "cold_forcing_60.txt")
+
+    def _omit_ohm_coef(snow_cfg: dict) -> None:
+        snow_cfg["ohm_coef"] = None
+
+    api_cfg = _write_snow_ohm_entry_point_yaml(
+        tmp_path / "inactive_api",
+        forcing_file,
+        snow_use=0,
+        mutate_snow=_omit_ohm_coef,
+    )
+    sim = SUEWSSimulation(api_cfg)
+    out = sim.run(
+        start_date=sim.forcing.df.index[0],
+        end_date=sim.forcing.df.index[-1],
+        n_jobs=1,
+    )
+    assert np.all(np.isfinite(out.df.loc[1, ("SUEWS", "QH")].to_numpy()))
+
+    cli_cfg = _write_snow_ohm_entry_point_yaml(
+        tmp_path / "inactive_cli",
+        forcing_file,
+        snow_use=0,
+        mutate_snow=_omit_ohm_coef,
+    )
+    result = run_cli_command(cli_runner, suews_cli, ["run", str(cli_cfg)], check=False)
+    assert result.returncode == 0, (
+        f"expected inactive snow_use=0 to succeed in suews run:\n{result.stdout}\n{result.stderr}"
     )

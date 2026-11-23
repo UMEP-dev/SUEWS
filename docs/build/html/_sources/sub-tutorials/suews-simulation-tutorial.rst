@@ -53,16 +53,16 @@ Run with the provided benchmark data:
     from supy import SUEWSSimulation
     
     # Use benchmark configuration and forcing
-    config_path = Path('test/benchmark1/benchmark1.yml')
-    forcing_path = Path('test/benchmark1/forcing/Kc1_2011_data_5.txt')
+    config_path = Path('test/fixtures/benchmark1/benchmark1.yml')
+    forcing_path = Path('test/fixtures/benchmark1/forcing/Kc1_2011_data_5.txt')
     
     # Create and run simulation
     sim = SUEWSSimulation(config_path)
     sim.update_forcing(forcing_path)
-    sim.run()
+    output = sim.run()
     
     # Access results directly
-    results = sim.results
+    results = output.df
     print(f"Simulation complete! {len(results)} timesteps processed")
 
 Working with Results
@@ -71,12 +71,12 @@ Working with Results
 3. Accessing Output Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Results are returned as multi-level pandas DataFrames with columns organised by (group, variable):
+The returned :class:`~supy.SUEWSOutput` provides a pandas DataFrame via ``output.df``, with columns organised by output group and variable name:
 
 .. code-block:: python
 
-    # Access results property
-    results = sim.results
+    # Access the raw DataFrame
+    results = output.df
 
     # Method 1: Use get_variable() (recommended for simple access)
     qh = sim.get_variable('QH')          # Sensible heat flux
@@ -87,14 +87,14 @@ Results are returned as multi-level pandas DataFrames with columns organised by 
     t2 = results[('SUEWS', 'T2')]        # 2m air temperature
 
     # Calculate daily averages using pandas
-    qh_daily = qh.resample('D').mean()
+    qh_daily = qh.resample('D', level='datetime').mean()
 
     # Plot energy balance
     import matplotlib.pyplot as plt
 
     energy_vars = ['QH', 'QE', 'QS', 'QF']
     for var in energy_vars:
-        sim.get_variable(var).plot(label=var)
+        sim.get_variable(var, group='SUEWS').plot(label=var)
     plt.legend()
     plt.ylabel('Energy flux (W/m²)')
     plt.show()

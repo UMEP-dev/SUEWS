@@ -3654,7 +3654,12 @@ fn forcing_matrix_rows_reach_the_named_kernel_members() {
                 ts5.as_mut_ptr().cast(),
             );
         }
-        for (row, values) in actual.chunks_exact(FORCING_SCALARS.len()).enumerate() {
+        for (row, values) in actual
+            .as_chunks::<{ FORCING_SCALARS.len() }>()
+            .0
+            .iter()
+            .enumerate()
+        {
             for (&name, &value) in FORCING_SCALARS.iter().zip(values) {
                 assert_eq!(
                     value,

@@ -502,10 +502,10 @@ fn sample_wu_rows() -> [[f64; 7]; 3] {
 }
 
 fn assert_all_stage_dims(obs: &StageObservation, nlayer: i32, ndepth: i32) {
-    for r in 0..3 {
-        for s in 0..15 {
+    for (r, row_dims) in obs.stage_dims.iter().enumerate() {
+        for (s, &dims) in row_dims.iter().enumerate() {
             assert_eq!(
-                obs.stage_dims[r][s],
+                dims,
                 [nlayer, ndepth],
                 "SUEWS_DEBUG stage {:02} shape mismatch on row {r}",
                 s + 1
@@ -975,16 +975,16 @@ fn all_15_debug_stages_discriminate_named_transitions_and_controls() {
             obs_s07.aux[0][35], obs_s07.aux[0][36],
             "stage 07 iter_safe=false row 0 must separate state_06_qs and state_07_qhqe_lumps"
         );
-        for r in 1..3 {
+        for aux_row in &obs_s07.aux[1..3] {
             assert_approx(
-                obs_s07.aux[r][35],
-                obs_s07.aux[r][36],
+                aux_row[35],
+                aux_row[36],
                 1e-12,
                 "stage 07 iter_safe=false rows 1..2 post-sync unchanged control",
             );
             assert_approx(
-                obs_s07.aux[r][36],
-                obs_s07.aux[r][37],
+                aux_row[36],
+                aux_row[37],
                 1e-12,
                 "stage 07 iter_safe=false rows 1..2 qh_init == qh",
             );
@@ -1687,16 +1687,16 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
     let obs_d = run_multiline_observer(&run_d, &rows_d);
     assert_eq!(obs_d.mode_flags, [1, 1, 1, 1, 1]);
     assert_widths_match_schema(&obs_d.block_widths);
-    for r in 0..3 {
+    for (r, out_row) in obs_d.output_block.iter().enumerate() {
         assert!(
-            obs_d.output_block[r][15] > 0.0 && obs_d.output_block[r][15] < 1.0,
+            out_row[15] > 0.0 && out_row[15] < 1.0,
             "Case 1D dataOutBlockSPARTACUS alb active on row {r}: {}",
-            obs_d.output_block[r][15]
+            out_row[15]
         );
         assert!(
-            obs_d.output_block[r][18] > 0.0 && obs_d.output_block[r][18] < 20.0,
+            out_row[18] > 0.0 && out_row[18] < 20.0,
             "Case 1D dataOutBlockSTEBBS ws_10 active on row {r}: {}",
-            obs_d.output_block[r][18]
+            out_row[18]
         );
     }
     assert_ne!(

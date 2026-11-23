@@ -321,7 +321,12 @@ fn incoming_shortwave_and_rain_reach_the_named_public_outputs() {
     assert_eq!(OUTPUT_GROUP_LAYOUT[0].0, "SUEWS");
     let catalogue = read_output_catalogue();
     let variables = catalogue["variables"].as_array().unwrap();
-    for (step, row) in output.chunks_exact(OUTPUT_ALL_COLS).enumerate() {
+    for (step, row) in output
+        .as_chunks::<OUTPUT_ALL_COLS>()
+        .0
+        .iter()
+        .enumerate()
+    {
         assert_eq!(row[0], 2012.0, "datetime Year, step {step}");
         assert_eq!(row[1], 180.0, "datetime DOY, step {step}");
         assert_eq!(row[2], 12.0, "datetime Hour, step {step}");
@@ -337,7 +342,12 @@ fn incoming_shortwave_and_rain_reach_the_named_public_outputs() {
             .find(|v| v["group"] == "SUEWS" && v["name"] == name)
             .expect("public output catalogue entry");
         let column = OUTPUT_DATETIME_COLS + variable["ordinal"].as_u64().unwrap() as usize;
-        for (step, row) in output.chunks_exact(OUTPUT_ALL_COLS).enumerate() {
+        for (step, row) in output
+            .as_chunks::<OUTPUT_ALL_COLS>()
+            .0
+            .iter()
+            .enumerate()
+        {
             assert_eq!(row[column], inputs[step], "SUEWS/{name}, step {step}");
         }
     }

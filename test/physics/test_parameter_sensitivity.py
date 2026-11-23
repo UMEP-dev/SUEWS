@@ -34,7 +34,6 @@ import copy
 
 from conftest import TIMESTEPS_PER_DAY
 from layer5_checks import (
-    SUEWS_ABSENT_OBSERVED_LDOWN,
     SUEWS_MISSING_SENTINEL,
     assert_active_output_finiteness,
     assert_simulation_output_finiteness,
@@ -131,6 +130,7 @@ def _run_and_verify_conservation(
         df_out,
         expected_grids=(1,),
         expected_timestamps=df_forcing.index,
+        forcing=sim.forcing.df,
         tstep=300,
         storage_heat=storage_heat,
         net_radiation=net_radiation,
@@ -829,9 +829,7 @@ def test_ehc_spartacus_absent_building_facets_leave_grid_fluxes_invariant(
     # including SMDBldgs, SMD, and TotCh), debug.ss_Bldgs_next, and debug.iter
     # stay bit-identical under absent building-facet perturbations.
     suews_base = df_out_base.loc[1, "SUEWS"]
-    active_suews_cols = [
-        col for col in suews_base.columns if col not in SUEWS_ABSENT_OBSERVED_LDOWN
-    ]
+    active_suews_cols = [col for col in suews_base.columns if col != "Fcld"]
     assert {"SMDBldgs", "SMD", "TotCh"}.issubset(active_suews_cols)
     np.testing.assert_array_equal(
         df_out_pert.loc[1, "SUEWS"][active_suews_cols].to_numpy(),
@@ -999,8 +997,8 @@ def test_disabled_module_parameter_perturbation_is_invariant(
     df_out_pert = _run_and_verify_conservation(cfg_pert, df_rain)
 
     # ASSERT
-    s_base = df_out_base.loc[1, "SUEWS"].drop(columns=list(SUEWS_ABSENT_OBSERVED_LDOWN))
-    s_pert = df_out_pert.loc[1, "SUEWS"].drop(columns=list(SUEWS_ABSENT_OBSERVED_LDOWN))
+    s_base = df_out_base.loc[1, "SUEWS"]
+    s_pert = df_out_pert.loc[1, "SUEWS"]
     if check_all_suews:
         np.testing.assert_array_equal(
             s_pert.to_numpy(),
@@ -1041,41 +1039,50 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
     # ARRANGE: intact 2-day (576-row) single-grid and MultiIndex positive controls
     day1_grid = sensitivity_env["out_rain_base"].loc[1]
     two_day_grid = _make_two_day_grid_frame(day1_grid)
-    expected_576 = two_day_grid.index
+    forcing = _make_two_day_grid_frame(sensitivity_env["df_rain_day"])
+    expected_576 = forcing.index
     assert len(expected_576) == 2 * TIMESTEPS_PER_DAY
 
     # Positive controls: intact 576-row output and valid large negative flux (-950.0) pass.
     assert_active_output_finiteness(
-        two_day_grid, expected_timestamps=expected_576, tstep=300
+        two_day_grid, expected_timestamps=expected_576, forcing=forcing, tstep=300
     )
     neg_flux_ok = two_day_grid.copy()
     neg_flux_ok.iloc[12, neg_flux_ok.columns.get_loc(("SUEWS", "QH"))] = -950.0
     assert_active_output_finiteness(
-        neg_flux_ok, expected_timestamps=expected_576, tstep=300
+        neg_flux_ok, expected_timestamps=expected_576, forcing=forcing, tstep=300
     )
 
     # Negative controls 1-3: truncated 12/576, missing day 1, and duplicate day fail.
     with pytest.raises(AssertionError, match="row count mismatch"):
         assert_active_output_finiteness(
-            two_day_grid.iloc[:12], expected_timestamps=expected_576, tstep=300
+            two_day_grid.iloc[:12],
+            expected_timestamps=expected_576,
+            forcing=forcing,
+            tstep=300,
         )
     with pytest.raises(AssertionError, match="row count mismatch"):
         assert_active_output_finiteness(
             two_day_grid.iloc[TIMESTEPS_PER_DAY:],
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
     dup_day = pd.concat([day1_grid, day1_grid])
     assert len(dup_day) == len(expected_576)
     with pytest.raises(AssertionError, match="duplicate timestamps"):
         assert_active_output_finiteness(
-            dup_day, expected_timestamps=expected_576, tstep=300
+            dup_day, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
     # Negative controls 4-5: wrong grid ID and duplicate (grid, datetime) fail.
     multi_ok = pd.concat({1: two_day_grid}, names=["grid", "datetime"])
     assert_simulation_output_finiteness(
-        multi_ok, expected_grids=(1,), expected_timestamps=expected_576, tstep=300
+        multi_ok,
+        expected_grids=(1,),
+        expected_timestamps=expected_576,
+        forcing=forcing,
+        tstep=300,
     )
     multi_wrong_grid = pd.concat({99: two_day_grid}, names=["grid", "datetime"])
     with pytest.raises(AssertionError, match="grid IDs mismatch"):
@@ -1083,12 +1090,17 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
             multi_wrong_grid,
             expected_grids=(1,),
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
     multi_dup = pd.concat([multi_ok, multi_ok.iloc[:1]])
     with pytest.raises(AssertionError, match="duplicate"):
         assert_simulation_output_finiteness(
-            multi_dup, expected_grids=(1,), expected_timestamps=expected_576, tstep=300
+            multi_dup,
+            expected_grids=(1,),
+            expected_timestamps=expected_576,
+            forcing=forcing,
+            tstep=300,
         )
 
     # Negative controls 6-7: missing required columns QH or QE/QN/Kup fail.
@@ -1096,6 +1108,7 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
         assert_active_output_finiteness(
             two_day_grid.drop(columns=[("SUEWS", "QH")]),
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
     with pytest.raises(AssertionError, match="Kup"):
@@ -1104,25 +1117,18 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
                 columns=[("SUEWS", "QE"), ("SUEWS", "QN"), ("SUEWS", "Kup")]
             ),
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
 
     # Negative controls 8-12: exact -999 sentinel, active NaN, EOD NaN, non-EOD write, Fcld.
-    bad_sentinel = two_day_grid.copy()
-    bad_sentinel.iloc[12, bad_sentinel.columns.get_loc(("SUEWS", "QH"))] = (
-        SUEWS_MISSING_SENTINEL
-    )
-    with pytest.raises(AssertionError, match="QH"):
-        assert_active_output_finiteness(
-            bad_sentinel, expected_timestamps=expected_576, tstep=300
-        )
-
-    bad_nan = two_day_grid.copy()
-    bad_nan.iloc[12, bad_nan.columns.get_loc(("SUEWS", "QH"))] = np.nan
-    with pytest.raises(AssertionError, match="QH"):
-        assert_active_output_finiteness(
-            bad_nan, expected_timestamps=expected_576, tstep=300
-        )
+    for bad_val in (SUEWS_MISSING_SENTINEL, np.nan):
+        bad_qh = two_day_grid.copy()
+        bad_qh.iloc[12, bad_qh.columns.get_loc(("SUEWS", "QH"))] = bad_val
+        with pytest.raises(AssertionError, match="QH"):
+            assert_active_output_finiteness(
+                bad_qh, expected_timestamps=expected_576, forcing=forcing, tstep=300
+            )
 
     bad_ds_eod = two_day_grid.copy()
     eod_idx = int(np.flatnonzero(expected_dailystate_mask(expected_576, tstep=300))[0])
@@ -1131,21 +1137,21 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
     ] = np.nan
     with pytest.raises(AssertionError, match="LAI_Grass"):
         assert_active_output_finiteness(
-            bad_ds_eod, expected_timestamps=expected_576, tstep=300
+            bad_ds_eod, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
     bad_ds_mid = two_day_grid.copy()
     bad_ds_mid.iloc[0, bad_ds_mid.columns.get_loc(("DailyState", "LAI_Grass"))] = 1.0
     with pytest.raises(AssertionError, match="non-EOD"):
         assert_active_output_finiteness(
-            bad_ds_mid, expected_timestamps=expected_576, tstep=300
+            bad_ds_mid, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
     bad_absent = two_day_grid.copy()
     bad_absent.iloc[0, bad_absent.columns.get_loc(("SUEWS", "Fcld"))] = 0.5
     with pytest.raises(AssertionError, match="Fcld"):
         assert_active_output_finiteness(
-            bad_absent, expected_timestamps=expected_576, tstep=300
+            bad_absent, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
 

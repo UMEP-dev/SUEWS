@@ -607,6 +607,7 @@ def test_unittest_expected_failure_forms_are_counted_once_and_fail_unmapped(
         "def mark(fn): return fn\n\ndef outer():\n    from unittest import expectedFailure as mark\n    def inner():\n        global mark\n        return mark(lambda: None)\n    return inner\n",
         "from unittest import expectedFailure as ef\nwrappers = [lambda fn: ef(fn) for ef in [lambda fn: fn]]\n",
         "ef = lambda fn: fn\nclass C:\n    from unittest import expectedFailure as ef\n    cases = [ef(fn) for fn in [lambda: None]]\n",
+        "from unittest import expectedFailure as ef\nwrap = lambda fn: ((ef := lambda x: x), ef(fn))[1]\n",
     ],
 )
 def test_unrelated_unittest_and_expected_failure_names_are_not_flagged(tree, source):
@@ -948,6 +949,15 @@ def test_unittest_expected_failure_assignment_aliases_count_each_application(tre
             "        marker = unittest.expectedFailure\n"
             "    marker = lambda fn: fn\n"
             "@marker\n"
+            "def test_case():\n"
+            "    pass\n",
+            ["test/test_branch.py::test_case::1"],
+        ),
+        (
+            "class C:\n"
+            "    global ef\n"
+            "    from unittest import expectedFailure as ef\n"
+            "@ef\n"
             "def test_case():\n"
             "    pass\n",
             ["test/test_branch.py::test_case::1"],
@@ -1399,6 +1409,17 @@ def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allow
             "box = {}\n"
             "box[(len := mutate)] = 0\n"
             "len(LEDGER)\n",
+            "unsupported escape of constant LEDGER",
+        ),
+        (
+            "LEDGER = {}\n"
+            "def mutate(table):\n"
+            '    table["x"] = 1\n'
+            "def invoke(helper):\n"
+            "    helper(LEDGER)\n"
+            "    def helper(table):\n"
+            "        return len(table)\n"
+            "invoke(mutate)\n",
             "unsupported escape of constant LEDGER",
         ),
     ],

@@ -902,6 +902,13 @@ class _ConstantMutationChecker:
         local_bound, local_funcs, global_names, nonlocal_names = (
             _collect_scope_bindings(func.body)
         )
+        local_funcs = {
+            k: v
+            for k, v in local_funcs.items()
+            if k not in param_names
+            and k not in global_names
+            and k not in nonlocal_names
+        }
         local_bound |= param_names
         func_env: dict[str, _Taint] = {}
         for key, value in enclosing_env.items():
@@ -1027,14 +1034,14 @@ class _ConstantMutationChecker:
     def _eval_lambda(self, node: ast.Lambda, env, ctx: _ScopeCtx) -> None:
         default_taints = self._default_param_taints(node.args, env, ctx)
         param_names = _function_param_names(node.args)
+        lam_bound = set(param_names)
+        _walk_named_exprs(node.body, lam_bound.add)
         lam_env = {
             key: value
             for key, value in env.items()
-            if key not in param_names or key in self.dependencies
+            if key not in lam_bound or key in self.dependencies
         }
         lam_env.update(default_taints)
-        lam_bound = set(param_names)
-        _walk_named_exprs(node.body, lam_bound.add)
         outer_env, outer_bound, outer_funcs = self._child_enclosing_scope(env, ctx)
         lam_ctx = _ScopeCtx(
             local_funcs={},
@@ -1853,8 +1860,10 @@ class _UnittestExpectedFailureFinder:
         default_envs = self._scan_and_collect_defaults(expr.args, env, scope)
         outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
         param_names = _function_param_names(expr.args)
+        lam_bound = set(param_names)
+        _walk_named_exprs(expr.body, lam_bound.add)
         lam_env: _UnitEnv = {
-            k: set(v) for k, v in outer_non_class.items() if k not in param_names
+            k: set(v) for k, v in outer_non_class.items() if k not in lam_bound
         }
         _update_unittest_env(lam_env, default_envs)
         lam_scope = _UnitScope("function", lam_env, enclosing_env=outer_non_class)
@@ -2031,9 +2040,21 @@ class _UnittestExpectedFailureFinder:
             self._scan_expr(base, env, scope)
         for kw in stmt.keywords:
             self._scan_expr(kw.value, env, scope)
+        _, _, global_names, nonlocal_names = _collect_scope_bindings(stmt.body)
         outer_non_class = scope.non_class_env if scope.scope_kind == "class" else env
-        class_env = _copy_unittest_env(outer_non_class)
-        class_scope = _UnitScope("class", outer_non_class)
+        class_env: _UnitEnv = {
+            k: set(v) for k, v in outer_non_class.items() if k not in global_names
+        }
+        for name in global_names:
+            if name in self.module_env:
+                class_env.setdefault(name, set()).update(self.module_env[name])
+        class_scope = _UnitScope(
+            scope_kind="class",
+            non_class_env=outer_non_class,
+            global_names=frozenset(global_names),
+            nonlocal_names=frozenset(nonlocal_names),
+            enclosing_env=outer_non_class,
+        )
         self._walk_scope(stmt.body, class_env, class_scope)
 
     def _walk_try_or_match(

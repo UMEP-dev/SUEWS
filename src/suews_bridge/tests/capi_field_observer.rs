@@ -956,6 +956,8 @@ fn build_lai_prm(exp: &mut ExpectedStruct, prefix: &str) -> LaiPrm {
         lai_max: exp.real(&p("lai_max")),
         lai_power: exp.real_arr_1d::<4>(&p("lai_power"), 1),
         lai_type: exp.int(&p("lai_type")),
+        gdd_base: exp.int(&p("gdd_base")),
+        sdd_base: exp.int(&p("sdd_base")),
     }
 }
 

@@ -59,6 +59,10 @@ _COVERAGE_ATTR_KEYS = (
     "supy_output_coverage_s",
     "supy_output_daily_coverage_s",
 )
+_LEGACY_CLOCK_COLUMNS = ("Year", "DOY", "Hour", "Min")
+_LEGACY_TEXT_CLOCK_COLUMNS = frozenset({*_LEGACY_CLOCK_COLUMNS, "Dectime"})
+_LEGACY_TEXT_MISSING_SENTINEL = -999.0
+_DATETIME_COLUMN_CANDIDATES = ("datetime", "Datetime", "DateTime")
 
 
 def _candidate_patterns(include_text: bool = True) -> tuple[str, ...]:
@@ -356,7 +360,9 @@ def _validate_part_index(
             else idx_part
         )
         level_label = (
-            idx_ref.names[level] if idx_ref.names[level] is not None else f"level {level}"
+            idx_ref.names[level]
+            if idx_ref.names[level] is not None
+            else f"level {level}"
         )
         kind_ref = _column_dtype_kind(lvl_ref.dtype)
         kind_part = _column_dtype_kind(lvl_part.dtype)
@@ -664,7 +670,47 @@ def _read_streamed_parquet_dataset(path_dataset: Path) -> pd.DataFrame:
     return df_merged
 
 
+def _decode_legacy_text_sentinels(df_output: pd.DataFrame) -> pd.DataFrame:
+    """Decode legacy SUEWS text ``-999`` missing sentinels to ``NaN``.
+
+    ``SUEWSSimulation.save(..., format="txt")`` (:func:`supy._save._write_df_txt`)
+    encodes every ``NaN`` cell as exact ``-999.0`` (formatted as ``-999.0000``
+    for standard columns or ``-9.9900000000e+02`` for water-rate columns).
+    Exact numeric comparison against ``-999.0`` decodes integer, fixed-point,
+    and scientific-notation sentinels uniformly while retaining genuine zeros,
+    valid negative values, and close non-sentinel values such as ``-999.0001``
+    or ``-998.9999``. Clock columns (``Year``, ``DOY``, ``Hour``, ``Min``,
+    ``Dectime``) and non-numeric columns are left unchanged.
+
+    Notes
+    -----
+    Because ``-999.0`` is an in-band sentinel in the legacy text format, a
+    physical value that rounds to exact ``-999.0`` in a text output file cannot
+    be distinguished from a missing observation on read. Use Parquet output
+    when exact out-of-band ``NaN`` preservation is required.
+    """
+    df_decoded = df_output.copy()
+    for col in df_decoded.columns:
+        if col in _LEGACY_TEXT_CLOCK_COLUMNS:
+            continue
+        ser = df_decoded[col]
+        if not pd.api.types.is_numeric_dtype(ser) or pd.api.types.is_bool_dtype(ser):
+            continue
+        mask_sentinel = ser == _LEGACY_TEXT_MISSING_SENTINEL
+        if mask_sentinel.any():
+            df_decoded[col] = ser.astype(float).mask(mask_sentinel)
+    return df_decoded
+
+
 def _read_output_file(path_output: Path) -> pd.DataFrame:
+    """Read one saved SUEWS output file or streamed Parquet dataset.
+
+    Legacy SUEWS text outputs (``.txt``) have ``-999`` missing sentinels
+    decoded to ``NaN`` at this text-format boundary. Parquet files, streamed
+    Parquet datasets, and CSV files carry no SUEWS ``-999`` sentinel
+    declaration here and keep their native missing-value representations
+    unchanged.
+    """
     if _is_canonical_parquet_dataset_dir(path_output):
         return _read_streamed_parquet_dataset(path_output)
     if path_output.is_dir():
@@ -675,7 +721,8 @@ def _read_output_file(path_output: Path) -> pd.DataFrame:
     if suffix == ".parquet":
         return pd.read_parquet(path_output)
     if suffix == ".txt":
-        return pd.read_csv(path_output, sep=r"\s+", engine="python")
+        df_text = pd.read_csv(path_output, sep=r"\s+", engine="python")
+        return _decode_legacy_text_sentinels(df_text)
     return pd.read_csv(path_output)
 
 
@@ -844,10 +891,6 @@ def _load_run_output_dataframe(
 
     df_output = _read_output_file(path)
     return _flatten_output_columns(df_output) if flatten else df_output
-
-
-_LEGACY_CLOCK_COLUMNS = ("Year", "DOY", "Hour", "Min")
-_DATETIME_COLUMN_CANDIDATES = ("datetime", "Datetime", "DateTime")
 
 
 def _has_legacy_clock(df_output: pd.DataFrame) -> bool:

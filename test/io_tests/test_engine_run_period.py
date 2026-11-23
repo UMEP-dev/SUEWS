@@ -247,6 +247,22 @@ def _run_engine_cli(binary: Path, resolved_path: Path) -> subprocess.CompletedPr
             "2012-01-01 00:05:00",
             "2012-01-01 12:00:00",
         ),
+        (
+            "slash_explicit_timestamps",
+            "2012/01/01 06:05",
+            "2012/01/01 18:00",
+            144,
+            "2012-01-01 06:05:00",
+            "2012-01-01 18:00:00",
+        ),
+        (
+            "unpadded_date_only",
+            "2012-1-2",
+            "2012-1-2",
+            288,
+            "2012-01-02 00:05:00",
+            "2012-01-03 00:00:00",
+        ),
     ],
 )
 def test_engine_and_public_routes_match_across_period_cases(
@@ -668,3 +684,31 @@ def test_direct_buffer_and_high_level_override_semantics_preserved(
 
     _assert_outside_buffer_chunk_runs(config, forcing)
     assert not (tmp_path / "unused_out").exists()
+
+
+def test_config_to_engine_yaml_canonicalises_and_validates_bounds(tmp_path: Path):
+    """Python-owned YAML resolution canonicalises non-ISO bounds and rejects invalid ones."""
+    cfg = _load_sample_config_dict()
+    control = cfg["model"]["control"]
+    control["forcing"]["file"] = str(tmp_path / "dummy.txt")
+    control["output"]["dir"] = str(tmp_path / "out")
+    control["start_time"] = "2012/01/01 06:05"
+    control["end_time"] = "2012-1-2"
+
+    resolved = yaml.safe_load(
+        _run_rust.config_to_engine_yaml(SUEWSConfig.from_dict(cfg))
+    )
+    assert resolved["model"]["control"]["start_time"] == "2012-01-01 06:05:00"
+    assert resolved["model"]["control"]["end_time"] == "2012-01-02"
+
+    for bad_value, needle in (
+        ("2012-01-01T06:05:00Z", "timezone-naive"),
+        ("NaT", "NaT"),
+        ("not-a-date", "parseable"),
+    ):
+        cfg_bad = _load_sample_config_dict()
+        cfg_bad["model"]["control"]["forcing"]["file"] = str(tmp_path / "dummy.txt")
+        cfg_bad["model"]["control"]["output"]["dir"] = str(tmp_path / "out")
+        cfg_bad["model"]["control"]["start_time"] = bad_value
+        with pytest.raises(ValueError, match=needle):
+            _run_rust.config_to_engine_yaml(SUEWSConfig.from_dict(cfg_bad))

@@ -1,7 +1,10 @@
 //! Requested simulation period: parsing, row selection and forcing coverage
 //! checks for resolved standalone file runs (`suews-engine run`).
 //!
-//! Mirrors `src/supy/_run_period.py` and `docs/source/inputs/timestamp-convention.rst`:
+//! Mirrors `src/supy/_run_period.py` and `docs/source/inputs/timestamp-convention.rst`.
+//! Python's `config_to_engine_yaml` canonicalises liberal user-supplied bounds
+//! (such as slash-separated timestamps) into canonical ISO-8601 resolved bounds
+//! before writing resolved YAML; the native bridge consumes that resolved grammar:
 //!
 //! - Forcing rows are stamped at the *end* of each interval: a row stamped `t`
 //!   covers `(t - dt, t]`, so a calendar day `D` is `(D 00:00, D+1 00:00]`

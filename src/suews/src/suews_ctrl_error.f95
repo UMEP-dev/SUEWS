@@ -20,6 +20,7 @@
 !   112: Stability - Non-finite or out-of-domain z/L in stability correction functions (GH#2171)
 !   113: Roughness - RoughLenMomMethod value with no scheme behind it, e.g. 5 / ALTERNATIVE (GH#2105)
 !   114: RSL - Non-finite stability or canopy length-scale input in RSL_cal_prms (GH#2171)
+!   115: C-API bridge - buffer length mismatch across FFI boundary (GH#2085)
 !
 ! Thread Safety:
 !   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c

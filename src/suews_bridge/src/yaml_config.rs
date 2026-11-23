@@ -1123,12 +1123,16 @@ fn ensure_len_with_default(values: &mut Vec<f64>, len: usize, default_value: f64
 const LAYER_VALUE_ABSENT: f64 = f64::NAN;
 
 fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
+    // Match Fortran's compile-time spectral band count (`nspec = 1` in
+    // `src/suews/src/suews_ctrl_const.f95`). Falling back to
+    // `n_stream_sw_urban` (angular streams, e.g. 4) over-allocates the
+    // `roof_albedo_dir_mult_fact` matrix before `wall_specular_frac` in the
+    // flat FFI buffer, causing Fortran's `nspec = 1` unpacker to read
+    // spec-2 `roof_albedo_dir_mult_fact` into `wall_specular_frac`.
     let nspec = if site.spartacus_layer.nspec > 0 {
         site.spartacus_layer.nspec
-    } else if site.spartacus.n_stream_sw_urban > 0 {
-        site.spartacus.n_stream_sw_urban as usize
     } else {
-        2
+        1
     };
 
     ensure_len_with_default(&mut site.spartacus.height, nlayer + 1, 0.0);
@@ -2138,16 +2142,6 @@ fn apply_vertical_layers_overrides(
                     v,
                 );
             }
-            let spec = parse_optional_numeric(roof_root, &["wall_specular_frac"], &roof_at)?;
-            if let Some(v) = spec {
-                set_spartacus_layer_all_specs(
-                    site.spartacus_layer.wall_specular_frac.as_mut_slice(),
-                    nlayer,
-                    nspec,
-                    layer_idx,
-                    v,
-                );
-            }
         }
     }
 
@@ -2179,19 +2173,6 @@ fn apply_vertical_layers_overrides(
                 if let Some(slot) = site.spartacus_layer.emis_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
-            }
-            let mult =
-                parse_optional_numeric(wall_root, &["roof_albedo_dir_mult_fact"], &wall_at)?;
-            if let Some(v) = mult {
-                set_spartacus_layer_all_specs(
-                    site.spartacus_layer
-                        .roof_albedo_dir_mult_fact
-                        .as_mut_slice(),
-                    nlayer,
-                    nspec,
-                    layer_idx,
-                    v,
-                );
             }
             let spec = if active_facet {
                 require_numeric(wall_root, &["wall_specular_frac"], &wall_at).map(Some)?
@@ -12566,5 +12547,145 @@ mod tests {
                 "error should name canonical threshold key: {err}"
             );
         }
+    }
+
+    #[test]
+    fn spartacus_roof_and_wall_facet_fields_do_not_clobber_each_other() {
+        let roof_expected = [1.25_f64, 1.50, 1.75];
+        let wall_expected = [0.25_f64, 0.50, 0.75];
+        let roof_ignored_wall_spec = [0.91_f64, 0.92, 0.93];
+        let wall_ignored_roof_mult = [0.11_f64, 0.12, 0.13];
+
+        let run_cfg = fixture_with_options(1003, 5, |site| {
+            for (layer_idx, ((&roof_mult, &roof_wall_spec), (&wall_roof_mult, &wall_spec))) in
+                roof_expected
+                    .iter()
+                    .zip(roof_ignored_wall_spec.iter())
+                    .zip(wall_ignored_roof_mult.iter().zip(wall_expected.iter()))
+                    .enumerate()
+            {
+                set_site_path(
+                    site,
+                    &format!(
+                        "properties.vertical_layers.roofs.{layer_idx}.roof_albedo_dir_mult_fact"
+                    ),
+                    &format!("{{value: {roof_mult}}}"),
+                );
+                set_site_path(
+                    site,
+                    &format!("properties.vertical_layers.roofs.{layer_idx}.wall_specular_frac"),
+                    &format!("{{value: {roof_wall_spec}}}"),
+                );
+                set_site_path(
+                    site,
+                    &format!(
+                        "properties.vertical_layers.walls.{layer_idx}.roof_albedo_dir_mult_fact"
+                    ),
+                    &format!("{{value: {wall_roof_mult}}}"),
+                );
+                set_site_path(
+                    site,
+                    &format!("properties.vertical_layers.walls.{layer_idx}.wall_specular_frac"),
+                    &format!("{{value: {wall_spec}}}"),
+                );
+            }
+        })
+        .unwrap();
+
+        let layer = &run_cfg.site.spartacus_layer;
+        assert_eq!(layer.nlayer, roof_expected.len());
+        assert_eq!(
+            layer.nspec, 1,
+            "spartacus_layer.nspec must match Fortran compile-time nspec = 1"
+        );
+        assert_eq!(layer.to_flat().len(), 9 * layer.nlayer + 2 * layer.nlayer);
+        for spec_idx in 0..layer.nspec {
+            for (layer_idx, (&exp_roof, &exp_wall)) in
+                roof_expected.iter().zip(wall_expected.iter()).enumerate()
+            {
+                let offset = spec_idx * layer.nlayer + layer_idx;
+                assert_eq!(
+                    layer.roof_albedo_dir_mult_fact[offset], exp_roof,
+                    "walls[{layer_idx}] must not clobber roofs[{layer_idx}].roof_albedo_dir_mult_fact"
+                );
+                assert_eq!(
+                    layer.wall_specular_frac[offset], exp_wall,
+                    "roofs[{layer_idx}] must not clobber walls[{layer_idx}].wall_specular_frac"
+                );
+            }
+        }
+
+        // Cross-facet keys must also be ignored when the owning facet omits its
+        // own key on an inactive SPARTACUS configuration (net_radiation = 3).
+        let omitted_cfg = fixture_with_options(3, 5, |site| {
+            let roofs = get_path_mut(site, &["properties", "vertical_layers", "roofs"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            for (roof, &ignored_wall_spec) in roofs.iter_mut().zip(roof_ignored_wall_spec.iter()) {
+                let map = roof.as_mapping_mut().unwrap();
+                map.remove(Value::String("roof_albedo_dir_mult_fact".into()));
+                map.insert(
+                    Value::String("wall_specular_frac".into()),
+                    serde_yaml::from_str(&format!("{{value: {ignored_wall_spec}}}")).unwrap(),
+                );
+            }
+            let walls = get_path_mut(site, &["properties", "vertical_layers", "walls"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            for (wall, &ignored_roof_mult) in walls.iter_mut().zip(wall_ignored_roof_mult.iter()) {
+                let map = wall.as_mapping_mut().unwrap();
+                map.remove(Value::String("wall_specular_frac".into()));
+                map.insert(
+                    Value::String("roof_albedo_dir_mult_fact".into()),
+                    serde_yaml::from_str(&format!("{{value: {ignored_roof_mult}}}")).unwrap(),
+                );
+            }
+        })
+        .unwrap();
+
+        let omitted_layer = &omitted_cfg.site.spartacus_layer;
+        assert!(
+            omitted_layer
+                .roof_albedo_dir_mult_fact
+                .iter()
+                .all(|&v| (v - 1.0).abs() < 1e-12),
+            "walls[].roof_albedo_dir_mult_fact must not populate roof_albedo_dir_mult_fact: {:?}",
+            omitted_layer.roof_albedo_dir_mult_fact
+        );
+        assert!(
+            omitted_layer
+                .wall_specular_frac
+                .iter()
+                .all(|&v| v.abs() < 1e-12),
+            "roofs[].wall_specular_frac must not populate wall_specular_frac: {:?}",
+            omitted_layer.wall_specular_frac
+        );
+
+        // On an active SPARTACUS configuration (net_radiation = 1003), omitting
+        // walls[0].wall_specular_frac must be rejected by BR-03 even when
+        // roofs[0].wall_specular_frac is supplied.
+        let missing_wall_spec = fixture_with_options(1003, 5, |site| {
+            set_site_path(
+                site,
+                "properties.vertical_layers.roofs.0.wall_specular_frac",
+                "{value: 0.91}",
+            );
+            let walls = get_path_mut(site, &["properties", "vertical_layers", "walls"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            walls[0]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String("wall_specular_frac".into()));
+        })
+        .expect_err("omitting walls[0].wall_specular_frac under SPARTACUS must fail");
+        assert!(
+            missing_wall_spec.contains("walls[0]")
+                && missing_wall_spec.contains("wall_specular_frac"),
+            "unexpected error: {missing_wall_spec}"
+        );
     }
 }

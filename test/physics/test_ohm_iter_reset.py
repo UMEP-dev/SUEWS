@@ -16,6 +16,7 @@ import copy
 import dataclasses
 from importlib import import_module
 import json
+import math
 from pathlib import Path
 
 from conftest import TIMESTEPS_PER_DAY
@@ -33,6 +34,8 @@ pytestmark = [
 ]
 
 ENERGY_CLOSURE_TOLERANCE_W_M2 = 1.0e-6
+OHM_TAU1_MAX_S = 3600.0
+OHM_WINDOW_HR = 2.0
 STEBBS_CONFIG_PATH = (
     Path(__file__).resolve().parents[1]
     / "fixtures"
@@ -49,10 +52,9 @@ def _ohm_dqndt_single_pass_series(
     dqndt_init: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Evaluate ``OHM_dqndt_cal_X`` once per timestep on a converged ``QN`` series."""
-    dt0_thresh = 3600
-    window_hr = 2.0
-    # Match Fortran `dt/sec_per_hour` double-precision quotient in OHM_dqndt_cal_X (#1970).
-    dt_hr = float(tstep) / 3600.0
+    dt_s = float(tstep)
+    dt_hr = dt_s / OHM_TAU1_MAX_S
+    w2 = math.exp(-dt_s / (OHM_WINDOW_HR * OHM_TAU1_MAX_S))
 
     n_steps = len(qn_series)
     qn_av_out = np.empty(n_steps, dtype=float)
@@ -60,18 +62,21 @@ def _ohm_dqndt_single_pass_series(
     qn_av_prev = float(qn_av_init)
     dqndt_prev = float(dqndt_init)
 
-    for step_idx in range(n_steps):
+    for step_idx, qn_val in enumerate(qn_series):
         # Fresh runs start at dt_since_start = tstep (see src/suews_bridge/src/sim.rs).
         dt_since_start = (step_idx + 1) * tstep
-        dt0 = dt_since_start + tstep if dt_since_start < dt0_thresh else dt0_thresh
-        qn1 = float(qn_series[step_idx])
-        qn1_av_0 = qn_av_prev - dqndt_prev * (window_hr - dt_hr)
-        qn_av_next = (qn_av_prev * (dt0 - tstep) + qn1 * tstep) / float(dt0)
-        dqndt_next = (qn_av_next - qn1_av_0) / window_hr
+        qn1 = float(qn_val)
+        if dt_since_start <= tstep:
+            qn_av_next, dqndt_next = qn1, 0.0
+        else:
+            w1 = math.exp(-dt_s / min(OHM_TAU1_MAX_S, float(dt_since_start)))
+            qn_av_next = w1 * qn_av_prev + (1.0 - w1) * qn1
+            dqndt_next = w2 * dqndt_prev + (1.0 - w2) * (
+                (qn_av_next - qn_av_prev) / dt_hr
+            )
         qn_av_out[step_idx] = qn_av_next
         dqndt_out[step_idx] = dqndt_next
-        qn_av_prev = qn_av_next
-        dqndt_prev = dqndt_next
+        qn_av_prev, dqndt_prev = qn_av_next, dqndt_next
 
     return qn_av_out, dqndt_out, qn_av_prev, dqndt_prev
 

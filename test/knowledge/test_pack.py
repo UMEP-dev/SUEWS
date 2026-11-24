@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import gzip
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -23,34 +24,32 @@ def _write(path: Path, text: str) -> None:
 def _make_repo(path_repo: Path) -> None:
     _write(
         path_repo / "src/suews/src/suews_phys_evap.f95",
-        "\n".join(
-            [
-                "MODULE suews_phys_evap",
-                "! Evaporation source evidence should be preserved.",
-                "CONTAINS",
-                "SUBROUTINE evap_calculate(storage, runoff)",
-                "  REAL :: storage",
-                "  REAL :: runoff",
-                "END SUBROUTINE evap_calculate",
-                "END MODULE suews_phys_evap",
-            ]
-        ),
+        "\n".join([
+            "MODULE suews_phys_evap",
+            "! Evaporation source evidence should be preserved.",
+            "CONTAINS",
+            "SUBROUTINE evap_calculate(storage, runoff)",
+            "  REAL :: storage",
+            "  REAL :: runoff",
+            "END SUBROUTINE evap_calculate",
+            "END MODULE suews_phys_evap",
+        ]),
     )
     _write(
         path_repo / "src/suews_bridge/src/sim.rs",
-        "\n".join(
-            [
-                "pub struct BridgeRun {}",
-                "pub fn run_bridge() {",
-                "    // Rust bridge evidence should be preserved.",
-                "}",
-            ]
-        ),
+        "\n".join([
+            "pub struct BridgeRun {}",
+            "pub fn run_bridge() {",
+            "    // Rust bridge evidence should be preserved.",
+            "}",
+        ]),
     )
-    _write(path_repo / "src/suews_bridge/Cargo.toml", "[package]\nname = \"suews-engine\"\n")
+    _write(
+        path_repo / "src/suews_bridge/Cargo.toml", '[package]\nname = "suews-engine"\n'
+    )
     _write(
         path_repo / "src/suews_bridge/bridge-manifest.json",
-        "{\"manifest_version\": 1, \"types\": []}\n",
+        '{"manifest_version": 1, "types": []}\n',
     )
     _write(
         path_repo / "src/supy/cmd/example.py",
@@ -58,7 +57,7 @@ def _make_repo(path_repo: Path) -> None:
     )
     _write(
         path_repo / "src/supy/data_model/configuration/version.py",
-        "CURRENT_SCHEMA_VERSION = \"2026.5.test\"\n",
+        'CURRENT_SCHEMA_VERSION = "2026.5.test"\n',
     )
     _write(
         path_repo / "src/supy/data_model/schema/version.py",
@@ -68,7 +67,10 @@ def _make_repo(path_repo: Path) -> None:
         path_repo / "src/supy/_version_scm.py",
         "__version__ = version = '2026.5.1.test0'\n",
     )
-    _write(path_repo / "docs/source/index.rst", "This online documentation is not bundled.\n")
+    _write(
+        path_repo / "docs/source/index.rst",
+        "This online documentation is not bundled.\n",
+    )
 
 
 def _read_chunks(path_pack: Path) -> list[dict]:
@@ -133,9 +135,7 @@ def test_pack_preserves_selected_source_and_excludes_docs(tmp_path: Path) -> Non
     assert "src/supy/data_model/schema/version.py" in paths
     assert "docs/source/index.rst" not in paths
 
-    content_types = {
-        chunk["repo_path"]: chunk["content_type"] for chunk in chunks
-    }
+    content_types = {chunk["repo_path"]: chunk["content_type"] for chunk in chunks}
     assert content_types["src/supy/data_model/configuration/version.py"] == "schema"
     assert content_types["src/supy/data_model/schema/version.py"] == "schema"
 
@@ -173,22 +173,22 @@ def test_query_pack_can_scope_to_rust(tmp_path: Path) -> None:
     assert {match["content_type"] for match in result["matches"]} == {"rust"}
 
 
-def test_python_chunks_prefer_top_level_definitions_without_dropping_preamble(tmp_path: Path) -> None:
+def test_python_chunks_prefer_top_level_definitions_without_dropping_preamble(
+    tmp_path: Path,
+) -> None:
     path_repo = tmp_path / "repo"
     _make_repo(path_repo)
     _write(
         path_repo / "src/supy/tools.py",
-        "\n".join(
-            [
-                "import math",
-                "VALUE = 1",
-                "def alpha():",
-                "    return math.sqrt(VALUE)",
-                "class Beta:",
-                "    def gamma(self):",
-                "        return VALUE",
-            ]
-        ),
+        "\n".join([
+            "import math",
+            "VALUE = 1",
+            "def alpha():",
+            "    return math.sqrt(VALUE)",
+            "class Beta:",
+            "    def gamma(self):",
+            "        return VALUE",
+        ]),
     )
     path_pack = tmp_path / "pack"
 
@@ -199,7 +199,10 @@ def test_python_chunks_prefer_top_level_definitions_without_dropping_preamble(tm
         if chunk["repo_path"] == "src/supy/tools.py"
     ]
 
-    assert [(chunk["line_start"], chunk["line_end"]) for chunk in chunks] == [(1, 4), (5, 7)]
+    assert [(chunk["line_start"], chunk["line_end"]) for chunk in chunks] == [
+        (1, 4),
+        (5, 7),
+    ]
     assert chunks[0]["symbol"] == "def alpha"
     assert chunks[1]["symbol"] == "class Beta"
     assert "import math" in chunks[0]["text"]
@@ -234,7 +237,9 @@ def test_generated_contract_artefacts_are_excluded_and_declared(tmp_path: Path) 
     assert manifest["max_chunk_bytes"] == MAX_CHUNK_BYTES
 
 
-def test_single_line_file_over_the_bound_splits_into_byte_windows(tmp_path: Path) -> None:
+def test_single_line_file_over_the_bound_splits_into_byte_windows(
+    tmp_path: Path,
+) -> None:
     """A one-line file larger than the bound becomes several bounded chunks.
 
     The fixture is deliberately non-ASCII: the payload is a run of 3-byte
@@ -309,7 +314,12 @@ def test_installed_pack_respects_the_byte_bound() -> None:
     # The synthetic tests below are what fail on an unbounded chunker.
     oversized = sorted(
         (
-            (_chunk_size(chunk), chunk["repo_path"], chunk["line_start"], chunk["line_end"])
+            (
+                _chunk_size(chunk),
+                chunk["repo_path"],
+                chunk["line_start"],
+                chunk["line_end"],
+            )
             for chunk in chunks
             if _chunk_size(chunk) > MAX_CHUNK_BYTES
         ),
@@ -357,11 +367,16 @@ def test_group_budget_counts_the_joining_newline(tmp_path: Path) -> None:
         if chunk["repo_path"] == "src/suews/src/suews_phys_pair.f95"
     ]
 
-    assert [(chunk["line_start"], chunk["line_end"]) for chunk in chunks] == [(1, 1), (2, 2)]
+    assert [(chunk["line_start"], chunk["line_end"]) for chunk in chunks] == [
+        (1, 1),
+        (2, 2),
+    ]
     assert all(_chunk_size(chunk) <= MAX_CHUNK_BYTES for chunk in chunks)
 
 
-def test_over_long_line_in_a_window_overlap_is_not_chunked_twice(tmp_path: Path) -> None:
+def test_over_long_line_in_a_window_overlap_is_not_chunked_twice(
+    tmp_path: Path,
+) -> None:
     """Re-cutting overlapping windows must not emit the same piece twice.
 
     `_line_spans` overlaps its windows, so a line past the bound that falls in
@@ -386,7 +401,9 @@ def test_over_long_line_in_a_window_overlap_is_not_chunked_twice(tmp_path: Path)
 
     identities = [chunk["id"] for chunk in chunks]
     assert len(identities) == len(set(identities)), "duplicate chunks emitted"
-    pieces = [chunk for chunk in chunks if chunk["line_start"] == chunk["line_end"] == 150]
+    pieces = [
+        chunk for chunk in chunks if chunk["line_start"] == chunk["line_end"] == 150
+    ]
     assert len(pieces) == 2
     assert "".join(piece["text"] for piece in pieces) == lines[149]
 
@@ -412,7 +429,9 @@ def test_repeating_over_long_line_keeps_byte_identical_pieces(tmp_path: Path) ->
     ]
 
     assert len(chunks) == 2
-    assert chunks[0]["text"] == chunks[1]["text"], "fixture no longer tests the collision"
+    assert chunks[0]["text"] == chunks[1]["text"], (
+        "fixture no longer tests the collision"
+    )
     assert chunks[0]["id"] != chunks[1]["id"]
     assert "".join(chunk["text"] for chunk in chunks) == line
 
@@ -447,35 +466,42 @@ def test_re_cutting_drops_a_whitespace_only_group(tmp_path: Path) -> None:
     assert not empty, f"whitespace-only chunks emitted at {empty}"
 
 
+def _parse_depfile_deps(text: str) -> set[str]:
+    """Parse Ninja/Make depfile prerequisites while preserving escaped spaces."""
+    body = text.split(": ", 1)[1].replace("\\\n", " ")
+    tokens = re.findall(r"(?:\\.|[^\\\s])+", body)
+    return {
+        token.replace("\\ ", " ").replace("\\#", "#").replace("$$", "$")
+        for token in tokens
+    }
+
+
 def test_main_writes_depfile_of_pack_inputs(tmp_path: Path) -> None:
     """The Meson target relies on this depfile instead of rebuilding always."""
     from supy.knowledge.pack import _main
 
-    path_repo = tmp_path / "repo"
+    path_repo = tmp_path / "repo with spaces"
     _make_repo(path_repo)
     path_pack = tmp_path / "pack"
     path_depfile = tmp_path / "pack.d"
 
     assert (
-        _main(
-            [
-                str(path_repo),
-                str(path_pack),
-                "--git-sha",
-                "abc123",
-                "--depfile",
-                str(path_depfile),
-                "--depfile-target",
-                "src/supy/manifest.json",
-            ]
-        )
+        _main([
+            str(path_repo),
+            str(path_pack),
+            "--git-sha",
+            "abc123",
+            "--depfile",
+            str(path_depfile),
+            "--depfile-target",
+            "src/supy/manifest.json",
+        ])
         == 0
     )
 
     text = path_depfile.read_text(encoding="utf-8")
     assert text.startswith("src/supy/manifest.json: ")
-    deps = {token.rstrip("\\").strip() for token in text.split(": ", 1)[1].split()}
-    deps.discard("")
+    deps = _parse_depfile_deps(text)
     repo = path_repo.resolve()
     assert (repo / "src/suews/src/suews_phys_evap.f95").as_posix() in deps
     assert (repo / "src/supy/cmd/example.py").as_posix() in deps

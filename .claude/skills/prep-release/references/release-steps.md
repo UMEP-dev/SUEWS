@@ -184,7 +184,7 @@ Edit `docs/source/version-history/v${VERSION}.rst`:
 
 ### Knowledge Pack Freshness Gate
 
-`src/supy/meson.build` builds the embedded knowledge pack (`manifest.json` and `chunks.jsonl.gz`) into `@OUTDIR@` on every wheel build (`build_always_stale: true`), so `src/supy/knowledge/pack/current/` is intentionally **untracked** in git -- never commit generated `.gz` pack artefacts into `src/supy/`. Verify pack generation cleanly against the release base via:
+`src/supy/meson.build` builds the embedded knowledge pack (`manifest.json` and `chunks.jsonl.gz`) into `@OUTDIR@` on every wheel build (an editable install rebuilds it only when a packed source, the Git index or `HEAD` changes), so `src/supy/knowledge/pack/current/` is intentionally **untracked** in git -- never commit generated `.gz` pack artefacts into `src/supy/`. Verify pack generation cleanly against the release base via:
 
 ```bash
 python scripts/lint/check_knowledge_pack_freshness.py --base "${LAST_RELEASE}"

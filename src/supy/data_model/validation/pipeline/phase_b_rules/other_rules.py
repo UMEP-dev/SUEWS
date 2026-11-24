@@ -2,7 +2,12 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-from ...core.yaml_helpers import get_value_safe, read_physics_key
+from ...core.yaml_helpers import (
+    get_ref_or_bare,
+    get_value_safe,
+    is_ref_only,
+    read_physics_key,
+)
 from collections.abc import Mapping
 import calendar
 from typing import Dict, List, Optional, Union, Any
@@ -115,12 +120,18 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
                 if "value" in value:
                     param_value = value["value"]
                     if param_value in (None, "") or (
-                        isinstance(param_value, list)
+                        isinstance(param_value, (list, tuple))
                         and any(v in (None, "") for v in param_value)
                     ):
                         missing_params.append(current_path)
                 else:
                     _check_recursively(value, current_path)
+            elif value in (None, "") or (
+                # ValidationContext freezes lists into tuples.
+                isinstance(value, (list, tuple))
+                and any(v in (None, "") for v in value)
+            ):
+                missing_params.append(current_path)
 
     _check_recursively(surface_props)
     return missing_params
@@ -185,7 +196,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
 
         for surface_type, surface_props in land_cover.items():
             if isinstance(surface_props, Mapping):
-                sfr_value = surface_props.get("sfr", {}).get("value")
+                sfr_value = get_ref_or_bare(surface_props, "sfr")
                 if sfr_value is not None:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))
@@ -356,16 +367,17 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                     site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
                 )
 
-                def collect_param_names(d: dict, prefix: str = ""):
+                def collect_param_names(d: Mapping, prefix: str = ""):
                     for k, v in d.items():
                         if k == "sfr":
                             continue
                         current_path = f"{prefix}.{k}" if prefix else k
-                        if isinstance(v, Mapping):
-                            if "value" in v:
-                                param_list.append(current_path)
-                            else:
-                                collect_param_names(v, current_path)
+                        if isinstance(v, Mapping) and "value" not in v and not is_ref_only(v):
+                            collect_param_names(v, current_path)
+                        else:
+                            # RefValue mapping, ref-only placeholder or bare
+                            # scalar/list: all are parameters (gh#2297).
+                            param_list.append(current_path)
 
                 collect_param_names(surf_props)
 
@@ -541,24 +553,12 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
             if _is_absent_doy_mapping(enddls):
                 enddls = None
 
+            # The run year comes from the context, which already falls back to
+            # the forcing when start_time is not set; unknown year allows 366.
             max_dls_doy = 366
-            yaml_data = getattr(context, "yaml_data", None)
-            model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
-            control_cfg = (
-                model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
-            )
-            start_time = (
-                get_value_safe(control_cfg, "start_time")
-                if isinstance(control_cfg, Mapping)
-                else None
-            )
-            if start_time is not None:
-                try:
-                    year = int(str(start_time)[:4])
-                    if not calendar.isleap(year):
-                        max_dls_doy = 365
-                except (TypeError, ValueError):
-                    pass
+            year = getattr(context, "model_year", None)
+            if year is not None and not calendar.isleap(year):
+                max_dls_doy = 365
 
             for dls_name, dls_val in (("startdls", startdls), ("enddls", enddls)):
                 if dls_val is None:
@@ -640,7 +640,7 @@ def validate_irrigation_doy(
     ie_start: Optional[Union[int, float]],
     ie_end: Optional[Union[int, float]],
     lat: float,
-    model_year: int,
+    model_year: int | None,
     site_name: str,
 ) -> List[ValidationResult]:
     """
@@ -656,8 +656,9 @@ def validate_irrigation_doy(
         0 is only used as the internal df_state sentinel).
     lat : float
         Site latitude (used for hemisphere and tropical detection).
-    model_year : int
-        Simulation year (used for leap year detection).
+    model_year : int or None
+        Simulation year (used for leap year detection); None when the run
+        year is unknown, which allows DOY 366.
     site_name : str
         Site identifier for error messages.
 
@@ -678,7 +679,8 @@ def validate_irrigation_doy(
     from ....core.human_activity import coerce_integer_doy_scalar
 
     results = []
-    is_leap = calendar.isleap(model_year)
+    # Without a known run year, accept DOY 366 rather than guess a non-leap year.
+    is_leap = model_year is None or calendar.isleap(model_year)
     max_doy = 366 if is_leap else 365
 
     parsed: Dict[str, Optional[int]] = {}
@@ -723,9 +725,13 @@ def validate_irrigation_doy(
                     category="IRRIGATION",
                     parameter=f"{param_name} in site {site_name}",
                     message=f"{param_name}={param_value} is invalid. "
-                    f"Must be an integer day of year between 1 and {max_doy} for "
-                    f"{'leap' if is_leap else 'non-leap'} year {model_year}, "
-                    "or null/None to disable irrigation",
+                    f"Must be an integer day of year between 1 and {max_doy}"
+                    + (
+                        f" for {'leap' if is_leap else 'non-leap'} year {model_year}"
+                        if model_year is not None
+                        else ""
+                    )
+                    + ", or null/None to disable irrigation",
                     suggested_value=f"Valid range: 1-{max_doy}, or null/None to disable",
                 )
             )

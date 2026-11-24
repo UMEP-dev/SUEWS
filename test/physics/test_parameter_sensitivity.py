@@ -292,7 +292,9 @@ def test_aerodynamics_building_height_sensitivity_increases_ustar(sensitivity_en
     assert strict_max_abs(d_ustar, label="bldgh.dUStar") > 0.02
     assert strict_mean(d_ustar, label="bldgh.dUStar") > 0.02
     assert strict_max_abs(d_u10, label="bldgh.dU10") > 0.1
-    assert strict_max_abs(d_qh, label="bldgh.dQH") > 0.5
+    # With OHM_STATE%iter_safe = .FALSE., static OHM QS is invariant to iteration-count
+    # differences (dQS = 0.0), leaving the true aerodynamic dQH = -dQE (~0.28 W m-2).
+    assert strict_max_abs(d_qh, label="bldgh.dQH") > 0.2
 
 
 @pytest.mark.core

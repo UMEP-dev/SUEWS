@@ -2036,7 +2036,7 @@ def test_validate_forcing_file_null_is_a_warning(
 
 
 def _validate_sample_with_bounds(
-    tmp_path: Path, start_time: str, end_time: str
+    tmp_path: Path, start_time: str | None, end_time: str | None
 ) -> Dict[str, Any]:
     """Run the full pipeline on the sample with new bounds; return the report."""
     from supy.cmd.validate_config import cli as validate_cli
@@ -2094,6 +2094,49 @@ def test_validate_sample_period_is_covered(tmp_path: Path) -> None:
     report = _validate_sample_with_bounds(tmp_path, "2012-01-01", "2012-12-31")
     messages = _issue_messages(report)
     assert not any("does not cover" in message for message in messages), messages
+
+
+def test_validate_accepts_null_bounds_from_forcing(tmp_path: Path) -> None:
+    """Null ``start_time``/``end_time`` pass the full pipeline.
+
+    ``ModelControl`` documents both as optional (the run covers the forcing),
+    but Phase B used to fail its initialisation on them. The bounds now come
+    from the forcing file, so no season-dependent skip is reported either.
+    """
+    report = _validate_sample_with_bounds(tmp_path, None, None)
+    messages = _issue_messages(report)
+    assert report["overall_status"] != "FAILED", messages
+    assert not any("Phase B initialization failed" in m for m in messages), messages
+    assert not any("season-dependent checks" in m for m in messages), messages
+
+
+def test_validate_updated_yaml_keeps_constant_kdown_fraction(tmp_path: Path) -> None:
+    """The updated YAML keeps ``kdown_split_method.constant.sw_dn_direct_frac``.
+
+    Phase B writes its flattened working copy as the updated YAML; the
+    flattening used to drop the fraction, so the sample's 0.45 silently
+    became the 0.5 default on the next run.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.core import SUEWSConfig
+    from supy.data_model.core.model import KdownSplitMethod
+
+    config_path = _copy_sample_data(tmp_path)
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    split = payload["model"]["physics"]["kdown_split_method"]
+    assert split["constant"]["sw_dn_direct_frac"] == pytest.approx(0.45)
+
+    result = CliRunner().invoke(
+        validate_cli, ["--pipeline", "ABC", "--forcing", "off", str(config_path)]
+    )
+    assert result.exit_code == 0, result.output
+
+    reloaded = SUEWSConfig.from_yaml(str(tmp_path / "updated_sample_config.yml"))
+    physics = reloaded.model.physics
+    method = getattr(physics.kdown_split_method, "value", physics.kdown_split_method)
+    assert method == KdownSplitMethod.CONSTANT
+    fraction = getattr(physics.sw_dn_direct_frac, "value", physics.sw_dn_direct_frac)
+    assert fraction == pytest.approx(0.45)
 
 
 def test_default_export_survives_disabled_stebbs_science_fixes(tmp_path):
@@ -2236,3 +2279,87 @@ def test_snowalb_drop_survives_revalidation(tmp_path: Path) -> None:
     _write_yaml(again, updated)
     second = runner.invoke(validate_cli, [str(again), "--forcing", "off"])
     assert second.exit_code == 0, second.output
+
+
+def _unwrap_refvalues(node: Any) -> Any:
+    """Rewrite every ``{value: x, ref: ...}`` leaf as the bare ``x``."""
+    if isinstance(node, dict):
+        if "value" in node and set(node) <= {"value", "ref"}:
+            return _unwrap_refvalues(node["value"])
+        if node and set(node) == {"ref"}:
+            return None
+        return {key: _unwrap_refvalues(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_unwrap_refvalues(item) for item in node]
+    return node
+
+
+def test_abc_all_bare_scalar_multi_site_config_passes(tmp_path: Path) -> None:
+    """A fully bare-scalar, two-site config runs A, B and C without crashes (gh#2297).
+
+    Every RefValue leaf of the sample is written bare and the site is
+    duplicated, so each phase reads bare values on more than one site. No
+    rule may crash (``VALIDATOR.RULE_FAILED``) and Phase C must not fall
+    back to an unclassified pipeline failure.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    path = _copy_sample_data(tmp_path)
+    data = _unwrap_refvalues(yaml.safe_load(path.read_text(encoding="utf-8")))
+    second = copy.deepcopy(data["sites"][0])
+    second["gridiv"] = 2
+    second["name"] = f"{second.get('name') or 'site'}_copy"
+    data["sites"].append(second)
+    _write_yaml(path, data)
+
+    result = CliRunner().invoke(
+        validate_cli, [str(path), "-p", "ABC", "--format", "json"]
+    )
+
+    envelope = json.loads(result.output)
+    report = envelope["data"]["validation_report"]
+    codes = [
+        issue["code"] for phase in report["phases"] for issue in phase["issues"]
+    ]
+    assert not [code for code in codes if code.startswith("VALIDATOR.RULE_FAILED")]
+    assert "C.PIPELINE.UNKNOWN" not in codes
+    assert result.exit_code == 0, result.output
+    assert envelope["errors"] == []
+    assert envelope["data"]["phases_run"] == ["A", "B", "C"]
+    updated = yaml.safe_load(
+        (tmp_path / "updated_sample_config.yml").read_text(encoding="utf-8")
+    )
+    assert [site["gridiv"] for site in updated["sites"]] == [1, 2]
+
+
+def test_abc_reports_a_crashing_phase_b_rule(tmp_path: Path, monkeypatch) -> None:
+    """A Phase B rule that raises is reported as one error naming it, and B fails."""
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry
+
+    def _boom(context):
+        raise RuntimeError("rule exploded")
+
+    monkeypatch.setitem(RulesRegistry.rules, "boom", _boom)
+    path = _copy_sample_data(tmp_path)
+
+    result = CliRunner().invoke(
+        validate_cli, [str(path), "-p", "ABC", "--format", "json"]
+    )
+
+    assert result.exit_code != 0, result.output
+    envelope = json.loads(result.output)
+    phase_b = next(
+        phase
+        for phase in envelope["data"]["validation_report"]["phases"]
+        if phase["phase"] == "B"
+    )
+    assert phase_b["status"] == "FAILED"
+    crashed = [
+        issue for issue in phase_b["issues"]
+        if issue["code"] == "VALIDATOR.RULE_FAILED.BOOM"
+    ]
+    assert len(crashed) == 1
+    assert "rule exploded" in crashed[0]["message"]
+    # The registered rules still ran alongside the faulty one.
+    assert any(issue["code"].startswith("LAND_COVER.") for issue in phase_b["issues"])

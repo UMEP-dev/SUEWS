@@ -179,7 +179,7 @@ def detect_pydantic_defaults(
                 original_ref_value = (
                     original_value.get("value")
                     if isinstance(original_value, dict)
-                    else None
+                    else original_value
                 )
                 processed_ref_value = processed_value.get("value")
 

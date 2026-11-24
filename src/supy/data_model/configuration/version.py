@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev17"
+CURRENT_SCHEMA_VERSION = "2026.6.dev18"
 
 # Schema version history and descriptions.
 #
@@ -248,6 +248,16 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "whole-number floats (e.g. 86.0 -> 86), preserves null and disabled "
         "ref-only/empty mappings, and rejects fractional, boolean, non-finite "
         "or out-of-range values rather than truncating or zeroing them."
+    ),
+    "2026.6.dev18": (
+        "Default storage_heat=5 (EHC) to implicit surface coupling (#2108). "
+        "Adds optional model.physics controls ehc_surface_coupling (default "
+        "implicit), control_ehc_stability (default off), "
+        "control_ehc_initial_profile (default true), "
+        "resistance_ehc_indoor_roof (default 0.10 m2 K W-1), and "
+        "resistance_ehc_indoor_wall (default 0.13 m2 K W-1). Existing EHC "
+        "YAMLs that omit ehc_surface_coupling now use implicit coupling; set "
+        "ehc_surface_coupling: explicit to retain legacy explicit coupling."
     ),
 }
 

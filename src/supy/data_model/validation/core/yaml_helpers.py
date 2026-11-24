@@ -162,6 +162,55 @@ def get_value_safe(param_dict, param_key, default=None):
         return param  # Plain format: 1
 
 
+def get_ref_or_bare(container, key: str, default=None):
+    """Read ``container[key]`` whether stored as ``{"value": x, ...}`` or bare ``x``.
+
+    Returns ``default`` when ``container`` is not a mapping, ``key`` is absent,
+    or the entry is a mapping without a ``"value"`` key (such as ``{}`` or a
+    ref-only dict).
+    """
+    if not isinstance(container, Mapping) or key not in container:
+        return default
+    entry = container[key]
+    if isinstance(entry, Mapping):
+        return entry.get("value", default)
+    return entry
+
+
+def is_ref_only(entry) -> bool:
+    """Return True for a ref-only RefValue placeholder such as ``{"ref": {...}}``.
+
+    Such an entry carries no value (the model and the Rust bridge read it as
+    null), so nullifiers must leave it alone rather than descend into ``ref``.
+    """
+    return (
+        isinstance(entry, Mapping)
+        and "value" not in entry
+        and bool(entry)
+        and all(key == "ref" for key in entry)
+    )
+
+
+def set_ref_or_bare(container: dict, key: str, new_value) -> None:
+    """Update ``container[key]`` while preserving RefValue metadata or bare format.
+
+    - Existing ``dict`` entries (e.g. ``{"value": old, "ref": ...}``) have their
+      ``"value"`` field updated in place so ``"ref"`` metadata is preserved.
+    - Existing non-mapping entries (bare scalars, lists, or ``None``) remain bare.
+    - Absent keys are inserted as ``{"value": new_value}``.
+    """
+    if key in container:
+        existing = container[key]
+        if isinstance(existing, dict):
+            existing["value"] = new_value
+        elif isinstance(existing, Mapping):
+            container[key] = {**existing, "value": new_value}
+        else:
+            container[key] = new_value
+    else:
+        container[key] = {"value": new_value}
+
+
 _STEBBS_MISSING = object()
 _STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
 _STEBBS_NESTED_KEYS = frozenset(
@@ -582,10 +631,19 @@ class DLSCheck(BaseModel):
             except Exception:
                 return None
 
-        # Get standard UTC offset (in winter)
+        # Standard (non-DST) UTC offset: the smaller of the mid-January and
+        # mid-July offsets, so southern-hemisphere summer time (Sydney in
+        # January) is not taken as standard. Comparing offsets avoids
+        # ``dst()``, which pytz reports as negative in Irish winter. Fractional
+        # offsets (India +5.5, Nepal +5.75) are kept, not truncated.
         try:
-            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
-            utc_offset_hours = int(std_dt.utcoffset().total_seconds() / 3600)
+            std_offset = min(
+                tz.localize(datetime(self.year, month, 15), is_dst=False).utcoffset()
+                for month in (1, 7)
+            )
+            utc_offset_hours = std_offset.total_seconds() / 3600
+            if utc_offset_hours.is_integer():
+                utc_offset_hours = int(utc_offset_hours)
             logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
         except Exception as e:
             logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
@@ -618,6 +676,10 @@ def nullify_co2_block_recursive(block: Any) -> None:
     - Robust to empty/missing keys and arbitrary shapes.
     """
     if isinstance(block, dict):
+        # Ref-only placeholder ({"ref": ...}): already value-less; leave its
+        # metadata intact rather than nullifying ref.desc / ref.DOI (gh#2297).
+        if is_ref_only(block):
+            return
         # Handle RefValue leaf ({"value": ...})
         if "value" in block:
             val = block["value"]
@@ -674,14 +736,17 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
     def _p(base: str, key: str) -> str:
         return f"{base}.{key}" if base else key
 
+    def _is_null(value: Any) -> bool:
+        # A list-valued RefValue is nullified element-wise ([None, None, ...]).
+        if isinstance(value, list):
+            return bool(value) and all(item in (None, "") for item in value)
+        return value in (None, "")
+
     # Dict vs Dict
     if isinstance(before, dict) and isinstance(after, dict):
         # RefValue leaf detection
         if "value" in before and "value" in after:
-            if before.get("value") not in (None, "") and after.get("value") in (
-                None,
-                "",
-            ):
+            if not _is_null(before.get("value")) and _is_null(after.get("value")):
                 paths.append(path or "value")
             return paths
 
@@ -765,17 +830,18 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
 
         surface_changed = False
         for param in params:
-            if param not in surface_props:
+            # Reads RefValue dicts and bare values alike; ref-only placeholders
+            # and nulls have no value to clear, so they are left as written.
+            current = get_ref_or_bare(surface_props, param)
+            if current is None:
                 continue
-            val = surface_props[param]
-            if isinstance(val, dict) and "value" in val:
-                if isinstance(val["value"], list):
-                    val["value"] = [None] * len(val["value"])
-                else:
-                    val["value"] = None
-                surface_props[param] = val
+            if isinstance(current, list):
+                if all(item is None for item in current):
+                    continue
+                cleared = [None] * len(current)
             else:
-                surface_props[param] = None
+                cleared = None
+            set_ref_or_bare(surface_props, param, cleared)
             surface_changed = True
 
         if surface_changed:
@@ -1129,12 +1195,24 @@ def _bound_as_date(value, name: str, errors: List[str]) -> Optional[str]:
     return ts.strftime("%Y-%m-%d")
 
 
-def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
+def parse_simulation_bounds(
+    data: dict, allow_missing: bool = False
+) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
     """Read ``model.control.start_time`` / ``end_time`` for the validators.
 
     Both fields accept a date or a timestamp (see ``ModelControl``). The
     validators only need the calendar day, so each bound is returned as a
     ``YYYY-MM-DD`` string together with the model year taken from the start.
+
+    Parameters
+    ----------
+    data : dict
+        Raw YAML configuration.
+    allow_missing : bool, optional
+        When True, a null or absent bound is returned as None without an
+        error; ``ModelControl`` documents both as optional (the run then uses
+        the forcing bounds). A bound that is set but unparsable is still an
+        error. By default both bounds are required.
 
     Returns
     -------
@@ -1144,8 +1222,17 @@ def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optio
     """
     control = data.get("model", {}).get("control", {})
     errors: List[str] = []
-    start_date = _bound_as_date(control.get("start_time"), "start_time", errors)
-    end_date = _bound_as_date(control.get("end_time"), "end_time", errors)
+    bounds = {}
+    for name in ("start_time", "end_time"):
+        value = control.get(name)
+        if isinstance(value, Mapping) and "value" in value:
+            value = value["value"]
+        if value is None and allow_missing:
+            bounds[name] = None
+        else:
+            bounds[name] = _bound_as_date(value, name, errors)
+    start_date = bounds["start_time"]
+    end_date = bounds["end_time"]
     model_year = int(start_date[:4]) if start_date is not None else None
     return errors, model_year, start_date, end_date
 

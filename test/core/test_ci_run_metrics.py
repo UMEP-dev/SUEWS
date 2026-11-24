@@ -1613,6 +1613,9 @@ def test_check_physics_label_ref_regex_governs_only_live_reference_outputs() -> 
         ),
         "test/fixtures/data_test/provenance.json",
         "test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv",
+        "test/fixtures/ehc_reference/ehc_facets.csv",
+        "test/fixtures/ehc_reference/ehc_slab.csv",
+        "test/fixtures/ehc_reference/provenance.json",
         "test/fixtures/w16_most.csv",
     ])
 
@@ -1627,6 +1630,9 @@ def test_check_physics_label_ref_regex_governs_only_live_reference_outputs() -> 
         "sample_output_2012-",
         "provenance.json",
         "sample_output_stebbs.csv",
+        "ehc_reference",
+        "ehc_facets",
+        "ehc_slab",
         "w16_most.csv",
     ):
         assert token in test_sources, (

@@ -17,7 +17,7 @@ CONTAINS
          unpack_site_members, unpack_state_members
       IMPLICIT NONE
 
-      REAL(c_double), INTENT(IN) :: config_flat(24), timer_flat(18), scalars(24)
+      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(18), scalars(24)
       INTEGER(c_int), VALUE :: site_len, state_len, nlayer, ndepth_in
       REAL(c_double), INTENT(IN) :: site_flat(site_len), state_flat(state_len)
       INTEGER(c_int), INTENT(IN) :: site_toc(36), state_toc(26)
@@ -50,7 +50,7 @@ CONTAINS
       END IF
 
       CALL reset_supy_error()
-      CALL unpack_config(config_flat, 24_c_int, config, err)
+      CALL unpack_config(config_flat, 29_c_int, config, err)
       IF (err /= 0_c_int) RETURN
       CALL unpack_timer(timer_flat, 18_c_int, timer, err)
       IF (err /= 0_c_int) RETURN
@@ -232,7 +232,7 @@ CONTAINS
       USE module_c_api_driver, ONLY: unpack_config, unpack_timer
       IMPLICIT NONE
 
-      REAL(c_double), INTENT(IN) :: config_flat(24), timer_flat(18), scalars(24)
+      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(18), scalars(24)
       INTEGER(c_int), VALUE :: site_len, state_len, nlayer, ndepth_in
       REAL(c_double), INTENT(IN) :: site_flat(site_len), state_flat(state_len)
       INTEGER(c_int), INTENT(IN) :: site_toc(36), state_toc(26)
@@ -248,6 +248,7 @@ CONTAINS
       TYPE(SUEWS_FORCING) :: forcing, control_forcing, forcing_iter1
       TYPE(SUEWS_DEBUG), ALLOCATABLE :: snapshots
       TYPE(output_line) :: output, control_output
+      TYPE(dts_ehc_diagnostics) :: ehcDiag
       REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5) :: dataOutLineSPARTACUS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM
@@ -269,7 +270,7 @@ CONTAINS
       END IF
 
       CALL reset_supy_error()
-      CALL unpack_config(config_flat, 24_c_int, config, err)
+      CALL unpack_config(config_flat, 29_c_int, config, err)
       IF (err /= 0_c_int) RETURN
       CALL unpack_timer(timer_flat, 18_c_int, timer, err)
       IF (err /= 0_c_int) RETURN
@@ -327,6 +328,13 @@ CONTAINS
          END IF
 
          st_iter1%flagState%i_iter = 1
+         ehcDiag%ehc_dudt = -999.0D0
+         ehcDiag%ehc_q_bottom = -999.0D0
+         ehcDiag%ehc_q_indoor = -999.0D0
+         ehcDiag%ehc_t_indoor = -999.0D0
+         ehcDiag%ehc_t_deep = -999.0D0
+         ehcDiag%ehc_qf_air = -999.0D0
+         ehcDiag%qf_build = -999.0D0
          CALL SUEWS_cal_DailyState(timer_internal, config, forcing_iter1, site, st_iter1)
          IF (supy_error_flag()) THEN
             err = 304_c_int
@@ -342,7 +350,7 @@ CONTAINS
             err = 306_c_int
             RETURN
          END IF
-         CALL SUEWS_cal_AnthropogenicEmission(timer_internal, config, forcing_iter1, site, st_iter1)
+         CALL SUEWS_cal_AnthropogenicEmission(timer_internal, config, forcing_iter1, site, st_iter1, ehcDiag)
          IF (supy_error_flag()) THEN
             err = 307_c_int
             RETURN
@@ -354,7 +362,7 @@ CONTAINS
          END IF
          CALL SUEWS_cal_Qs( &
             timer_internal, config, forcing_iter1, site, datetimeLine, &
-            st_iter1, dataOutLineESTM, dataOutLineSTEBBS)
+            st_iter1, ehcDiag, dataOutLineESTM, dataOutLineSTEBBS)
          IF (supy_error_flag()) THEN
             err = 309_c_int
             RETURN
@@ -446,7 +454,7 @@ CONTAINS
          unpack_site_members, unpack_state_members
       IMPLICIT NONE
 
-      REAL(c_double), INTENT(IN) :: config_flat(24), timer_flat(18), scalars(24)
+      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(18), scalars(24)
       INTEGER(c_int), VALUE :: site_len, state_len, nlayer, ndepth_in
       REAL(c_double), INTENT(IN) :: site_flat(site_len), state_flat(state_len)
       INTEGER(c_int), INTENT(IN) :: site_toc(36), state_toc(26)
@@ -501,7 +509,7 @@ CONTAINS
       END IF
 
       CALL reset_supy_error()
-      CALL unpack_config(config_flat, 24_c_int, cfg_base, err)
+      CALL unpack_config(config_flat, 29_c_int, cfg_base, err)
       IF (err /= 0_c_int) RETURN
       CALL unpack_timer(timer_flat, 18_c_int, tmr_base, err)
       IF (err /= 0_c_int) RETURN
@@ -1058,8 +1066,6 @@ CONTAINS
           .NOT. ALLOCATED(st%heatState%temp_wall) .OR. &
           .NOT. ALLOCATED(st%heatState%temp_surf) .OR. &
           .NOT. ALLOCATED(st%heatState%temp_surf_dyohm) .OR. &
-          .NOT. ALLOCATED(st%heatState%temp_surf_ehc_fast) .OR. &
-          .NOT. ALLOCATED(st%heatState%temp_surf_ehc_slow) .OR. &
           .NOT. ALLOCATED(st%heatState%tsfc_roof) .OR. &
           .NOT. ALLOCATED(st%heatState%tsfc_wall) .OR. &
           .NOT. ALLOCATED(st%heatState%tsfc_surf) .OR. &
@@ -1095,10 +1101,6 @@ CONTAINS
           INT(SIZE(st%heatState%temp_surf, 2), c_int) /= nd .OR. &
           INT(SIZE(st%heatState%temp_surf_dyohm, 1), c_int) /= INT(nsurf, c_int) .OR. &
           INT(SIZE(st%heatState%temp_surf_dyohm, 2), c_int) /= nd .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_fast, 1), c_int) /= INT(nsurf, c_int) .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_fast, 2), c_int) /= nd .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_slow, 1), c_int) /= INT(nsurf, c_int) .OR. &
-          INT(SIZE(st%heatState%temp_surf_ehc_slow, 2), c_int) /= nd .OR. &
           INT(SIZE(st%heatState%tsfc_roof, 1), c_int) /= nl .OR. &
           INT(SIZE(st%heatState%tsfc_wall, 1), c_int) /= nl .OR. &
           INT(SIZE(st%heatState%tsfc_surf, 1), c_int) /= INT(nsurf, c_int) .OR. &
@@ -1235,6 +1237,7 @@ CONTAINS
       TYPE(SUEWS_TIMER) :: tmr
       TYPE(SUEWS_FORCING) :: frc
       TYPE(SUEWS_STATE) :: st_tstepstart
+      TYPE(dts_ehc_diagnostics) :: ehcDiag
       REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS - 5) :: dataOutLineSUEWS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSnow - 5) :: dataOutLineSnow
@@ -1247,7 +1250,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(KIND(1D0)) :: w_f_pass_prev, zl_pass_start, w_f_pass_start
-      INTEGER :: nl
+      INTEGER :: nl, timer_dt_since_start_prev_start, timer_new_day_start
 
       status = 0_c_int
       tmr = timer_in
@@ -1270,7 +1273,27 @@ CONTAINS
          oracle_state%snowState%snow_pack = 0.0D0
       END IF
 
+      ehcDiag%ehc_dudt = -999.0D0
+      ehcDiag%ehc_q_bottom = -999.0D0
+      ehcDiag%ehc_q_indoor = -999.0D0
+      ehcDiag%ehc_t_indoor = -999.0D0
+      ehcDiag%ehc_t_deep = -999.0D0
+      ehcDiag%ehc_qf_air = -999.0D0
+      ehcDiag%qf_build = -999.0D0
+
+      IF (config_in%StorageHeatMethod == 5 .AND. config_in%EHCSurfaceCoupling == 1 &
+          .AND. config_in%control_ehc_initial_profile .AND. config_in%NetRadiationMethod > 1000 &
+          .AND. tmr%dt_since_start == tmr%tstep) THEN
+         CALL ehc_init_envelope(config_in, tmr, frc, siteInfo, oracle_state)
+         IF (supy_error_flag()) THEN
+            status = 400_c_int
+            RETURN
+         END IF
+      END IF
+
       st_tstepstart = oracle_state
+      timer_dt_since_start_prev_start = tmr%dt_since_start_prev
+      timer_new_day_start = tmr%new_day
 
       oracle_state%snowState%swe = 0.0D0
       oracle_state%snowState%mwh = 0.0D0
@@ -1330,6 +1353,10 @@ CONTAINS
          IF (((.NOT. oracle_state%flagState%flag_converge) .AND. oracle_state%flagState%i_iter > 1) .OR. &
              (oracle_state%flagState%flag_converge .AND. oracle_state%flagState%i_iter == 2)) THEN
             CALL oracle_state%check_and_reset_states(st_tstepstart)
+            IF (.NOT. oracle_state%ohmState%iter_safe) THEN
+               tmr%dt_since_start_prev = timer_dt_since_start_prev_start
+               tmr%new_day = timer_new_day_start
+            END IF
             IF (config_in%StorageHeatMethod == 5) THEN
                CALL reset_ehc_heat_state_for_tsurf_iteration( &
                   oracle_state%heatState, st_tstepstart%heatState)
@@ -1357,7 +1384,7 @@ CONTAINS
          END IF
          oracle_debug%state_03_wateruse = oracle_state
 
-         CALL SUEWS_cal_AnthropogenicEmission(tmr, config_in, frc, siteInfo, oracle_state)
+         CALL SUEWS_cal_AnthropogenicEmission(tmr, config_in, frc, siteInfo, oracle_state, ehcDiag)
          IF (supy_error_flag()) THEN
             status = 414_c_int
             RETURN
@@ -1373,7 +1400,7 @@ CONTAINS
 
          CALL SUEWS_cal_Qs( &
             tmr, config_in, frc, siteInfo, datetimeLine, &
-            oracle_state, dataOutLineESTM, dataOutLineSTEBBS)
+            oracle_state, ehcDiag, dataOutLineESTM, dataOutLineSTEBBS)
          IF (supy_error_flag()) THEN
             status = 416_c_int
             RETURN
@@ -1421,7 +1448,7 @@ CONTAINS
             oracle_debug%state_10_qe = oracle_state
          END IF
 
-         CALL SUEWS_cal_QH(tmr, config_in, frc, siteInfo, oracle_state)
+         CALL SUEWS_cal_QH(tmr, config_in, frc, siteInfo, oracle_state, ehcDiag)
          IF (supy_error_flag()) THEN
             status = 421_c_int
             RETURN
@@ -1438,7 +1465,7 @@ CONTAINS
             END IF
          END IF
 
-         CALL suews_update_tsurf(tmr, config_in, frc, siteInfo, oracle_state)
+         CALL suews_update_tsurf(tmr, config_in, frc, siteInfo, oracle_state, ehcDiag)
          IF (supy_error_flag()) THEN
             status = 423_c_int
             RETURN
@@ -1495,7 +1522,7 @@ CONTAINS
       END IF
 
       IF (config_in%StorageHeatMethod == 5) THEN
-         CALL EHC_update_outputLine(tmr, oracle_state, datetimeLine, dataOutLineEHC)
+         CALL EHC_update_outputLine(tmr, oracle_state, ehcDiag, datetimeLine, dataOutLineEHC)
       END IF
 
       CALL update_DailyStateLine(tmr, config_in, frc, siteInfo, oracle_state, dataOutLineDailyState)
@@ -1521,8 +1548,6 @@ CONTAINS
       IF (.NOT. alloc_mat_equal(st%heatState%temp_roof, heat_anchor%heatState%temp_roof) .OR. &
           .NOT. alloc_mat_equal(st%heatState%temp_wall, heat_anchor%heatState%temp_wall) .OR. &
           .NOT. alloc_mat_equal(st%heatState%temp_surf, heat_anchor%heatState%temp_surf) .OR. &
-          .NOT. alloc_mat_equal(st%heatState%temp_surf_ehc_fast, heat_anchor%heatState%temp_surf_ehc_fast) .OR. &
-          .NOT. alloc_mat_equal(st%heatState%temp_surf_ehc_slow, heat_anchor%heatState%temp_surf_ehc_slow) .OR. &
           .NOT. alloc_vec_equal(st%hydroState%state_roof, hydro_anchor%hydroState%state_roof) .OR. &
           .NOT. alloc_vec_equal(st%hydroState%soil_store_roof, hydro_anchor%hydroState%soil_store_roof) .OR. &
           .NOT. alloc_vec_equal(st%hydroState%state_wall, hydro_anchor%hydroState%state_wall) .OR. &
@@ -1985,9 +2010,7 @@ CONTAINS
       IF (.NOT. alloc_mat_equal(a%temp_roof, b%temp_roof) .OR. &
           .NOT. alloc_mat_equal(a%temp_wall, b%temp_wall) .OR. &
           .NOT. alloc_mat_equal(a%temp_surf, b%temp_surf) .OR. &
-          .NOT. alloc_mat_equal(a%temp_surf_dyohm, b%temp_surf_dyohm) .OR. &
-          .NOT. alloc_mat_equal(a%temp_surf_ehc_fast, b%temp_surf_ehc_fast) .OR. &
-          .NOT. alloc_mat_equal(a%temp_surf_ehc_slow, b%temp_surf_ehc_slow)) RETURN
+          .NOT. alloc_mat_equal(a%temp_surf_dyohm, b%temp_surf_dyohm)) RETURN
       IF (.NOT. alloc_vec_equal(a%tsfc_roof, b%tsfc_roof) .OR. &
           .NOT. alloc_vec_equal(a%tsfc_wall, b%tsfc_wall) .OR. &
           .NOT. alloc_vec_equal(a%tsfc_surf, b%tsfc_surf) .OR. &
@@ -2024,9 +2047,6 @@ CONTAINS
           .NOT. reals_eq(a%qh, b%qh) .OR. &
           .NOT. reals_eq(a%qh_residual, b%qh_residual) .OR. &
           .NOT. reals_eq(a%qh_resist, b%qh_resist) .OR. &
-          .NOT. reals_eq(a%ehc_iter_dif_tsfc, b%ehc_iter_dif_tsfc) .OR. &
-          .NOT. reals_eq(a%ehc_iter_dif_qh, b%ehc_iter_dif_qh) .OR. &
-          .NOT. reals_eq(a%ehc_iter_score, b%ehc_iter_score) .OR. &
           .NOT. reals_eq(a%qn, b%qn) .OR. &
           .NOT. reals_eq(a%qn_snowfree, b%qn_snowfree) .OR. &
           .NOT. reals_eq(a%qs, b%qs) .OR. &

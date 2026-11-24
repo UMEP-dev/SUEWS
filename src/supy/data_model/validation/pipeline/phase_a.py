@@ -494,27 +494,40 @@ def handle_renamed_parameters_in_parsed_yaml(obj, skip=()):
     return replacements
 
 
-def detect_nlayer_from_yaml_data(user_data: object) -> int:
-    """Extract ``nlayer`` from parsed user YAML data, defaulting to 3."""
-    if not isinstance(user_data, dict):
-        return 3
-    sites = user_data.get("sites")
-    if not sites or not isinstance(sites, list) or not isinstance(sites[0], dict):
-        return 3
-    properties = sites[0].get("properties")
+def detect_site_nlayer(site: object, default: int = 3) -> int:
+    """Extract one site's ``nlayer`` (RefValue or bare), falling back to ``default``."""
+    if not isinstance(site, dict):
+        return default
+    properties = site.get("properties")
     vertical_layers = (
         properties.get("vertical_layers") if isinstance(properties, dict) else None
     )
     if not isinstance(vertical_layers, dict):
-        return 3
+        return default
     nlayer = vertical_layers.get("nlayer", {})
-    nlayer_value = nlayer.get("value", 3) if isinstance(nlayer, dict) else nlayer
+    nlayer_value = (
+        nlayer.get("value", default) if isinstance(nlayer, dict) else nlayer
+    )
     if nlayer_value is None:
-        return 3
+        return default
     try:
         return int(nlayer_value)
     except Exception:
+        return default
+
+
+def detect_nlayer_from_yaml_data(user_data: object) -> int:
+    """Extract ``nlayer`` of the first site from parsed user YAML, defaulting to 3.
+
+    Each site may set its own ``nlayer``; ``validate_nlayer_dimensions`` with
+    ``per_site=True`` reads them individually via ``detect_site_nlayer``.
+    """
+    if not isinstance(user_data, dict):
         return 3
+    sites = user_data.get("sites")
+    if not sites or not isinstance(sites, list):
+        return 3
+    return detect_site_nlayer(sites[0])
 
 
 def _snapshot_forcing_user_data(raw_user_data: object) -> object:
@@ -836,14 +849,44 @@ def find_extra_parameters(
     return extra_params
 
 
+_NO_STANDARD_ITEM = object()
+
+# The sample config carries a single site, which is the template for every
+# user site.
+_SITES_LIST_PATH = "sites"
+
+# Arrays whose length follows each site's nlayer, for any site index.
+_NLAYER_DEPENDENT_ARRAY_RE = re.compile(
+    r"^sites\[\d+\]\.(?:"
+    r"properties\.vertical_layers\."
+    r"(?:height|veg_frac|veg_scale|veg_ext|building_frac|building_scale)(?:\.value)?$"
+    r"|properties\.vertical_layers\.(?:roofs|walls)(?:$|\.|\[)"
+    r"|initial_states\.(?:roofs|walls)(?:$|\.|\[)"
+    r")"
+)
+
+
+def _standard_list_item(standard_list, index, current_path):
+    """Return the sample item a user list item is compared against.
+
+    Items pair up by index, except that every user site is compared against
+    the sample's single site template.
+    """
+    if index < len(standard_list):
+        return standard_list[index]
+    if current_path == _SITES_LIST_PATH and standard_list:
+        return standard_list[0]
+    return _NO_STANDARD_ITEM
+
+
 def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
     """Find extra parameters in list structures."""
     extra_params = []
     for i, user_item in enumerate(user_list):
         item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
-        if i < len(standard_list):
+        standard_item = _standard_list_item(standard_list, i, current_path)
+        if standard_item is not _NO_STANDARD_ITEM:
             # Compare with corresponding standard item
-            standard_item = standard_list[i]
             nested_extra = find_extra_parameters(user_item, standard_item, item_path)
             extra_params.extend(nested_extra)
         # Note: We don't flag entire array items as "extra" if they exceed standard length
@@ -928,37 +971,9 @@ def find_missing_parameters(
 def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
     missing_params = []
 
-    # Skip array element comparison for nlayer-dependent arrays
-    # These arrays have variable length based on user's nlayer value
-    nlayer_dependent_simple_arrays = [
-        "sites[0].properties.vertical_layers.height.value",
-        "sites[0].properties.vertical_layers.veg_frac.value",
-        "sites[0].properties.vertical_layers.veg_scale.value",
-        "sites[0].properties.vertical_layers.veg_ext.value",
-        "sites[0].properties.vertical_layers.building_frac.value",
-        "sites[0].properties.vertical_layers.building_scale.value",
-    ]
-
-    # Nested structure arrays (roofs/walls) - these contain objects, not simple values
-    nlayer_dependent_nested_arrays = [
-        "sites[0].properties.vertical_layers.roofs",
-        "sites[0].properties.vertical_layers.walls",
-        "sites[0].initial_states.roofs",
-        "sites[0].initial_states.walls",
-    ]
-
-    # Check if current path matches any nlayer-dependent array
-    is_nlayer_dependent = any(
-        current_path.startswith(arr) or current_path == arr
-        for arr in nlayer_dependent_simple_arrays
-    ) or any(
-        current_path.startswith(arr) or current_path == arr
-        for arr in nlayer_dependent_nested_arrays
-    )
-
-    if is_nlayer_dependent:
-        # For nlayer-dependent arrays, don't compare lengths - user's length is correct
-        # Only compare elements that exist in both arrays
+    # Arrays whose length follows the user's nlayer: compare only elements
+    # present in both, never the lengths (any site index).
+    if _NLAYER_DEPENDENT_ARRAY_RE.match(current_path):
         for i, standard_item in enumerate(standard_list):
             if i < len(user_list):
                 item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
@@ -985,6 +1000,16 @@ def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
             else:
                 is_physics = is_physics_option(item_path)
                 missing_params.append((item_path, standard_item, is_physics))
+
+    # Sites beyond the sample's single site are checked against that template.
+    for i in range(len(standard_list), len(user_list)):
+        standard_item = _standard_list_item(standard_list, i, current_path)
+        if standard_item is _NO_STANDARD_ITEM:
+            break
+        item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
+        missing_params.extend(
+            find_missing_parameters(user_list[i], standard_item, item_path)
+        )
     return missing_params
 
 
@@ -1330,6 +1355,10 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
     template = {}
 
     for key, value in reference_element.items():
+        if isinstance(value, list):
+            # Bare per-layer array (gh#2297): keep its length, null its items.
+            template[key] = [None] * len(value)
+            continue
         if isinstance(value, dict):
             if "value" in value:
                 # RefValue format
@@ -1352,6 +1381,8 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
                             }
                         else:
                             thermal_template[thermal_key] = {"value": None}
+                    elif isinstance(thermal_value, list):
+                        thermal_template[thermal_key] = [None] * len(thermal_value)
                     else:
                         thermal_template[thermal_key] = None
                 template[key] = thermal_template
@@ -1365,7 +1396,9 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
     return template
 
 
-def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
+def validate_nlayer_dimensions(
+    user_data: dict, nlayer: int, *, per_site: bool = False
+) -> tuple:
     """
     Validate that vertical layer array dimensions match the specified nlayer value.
 
@@ -1381,6 +1414,10 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
         The user YAML data as a dictionary.
     nlayer : int
         The expected number of vertical layers.
+    per_site : bool, default False
+        When True, each site is checked against its own ``nlayer`` value
+        (the model default of 3 where a site does not set one) and the
+        ``nlayer`` argument is ignored.
 
     Returns
     -------
@@ -1415,9 +1452,12 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     if not isinstance(sites, list):
         return user_data, dimension_errors
 
+    default_nlayer = nlayer
     for site_idx, site in enumerate(sites):
         if not isinstance(site, dict):
             continue
+        # A site without its own nlayer takes the model default, not site 0's.
+        nlayer = detect_site_nlayer(site) if per_site else default_nlayer
 
         # Check vertical_layers arrays in properties
         properties = site.get("properties", {})
@@ -1814,6 +1854,66 @@ def _unwrap_ref(value):
     return value
 
 
+def _control_tstep(control: dict) -> int:
+    """Return ``model.control.tstep`` as an int, defaulting to 300 s."""
+    try:
+        return int(_unwrap_ref(control.get("tstep", 300)))
+    except (TypeError, ValueError):
+        return 300
+
+
+def _load_forcing_index(forcing_file_path, yaml_dir: Path, tstep: int):
+    """Load the forcing as ``SUEWSSimulation`` does and return its time index.
+
+    ``forcing_file_path`` is one path or a list of paths, already unwrapped
+    from any RefValue; relative paths resolve against ``yaml_dir``.
+    """
+    from supy.suews_sim import SUEWSSimulation
+
+    def _resolve(item) -> Path:
+        path = Path(item).expanduser()
+        return path if path.is_absolute() else yaml_dir / path
+
+    if isinstance(forcing_file_path, list):
+        df_forcing = SUEWSSimulation._load_forcing_from_list(
+            [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
+        )
+    else:
+        df_forcing = SUEWSSimulation._load_forcing_file(
+            _resolve(forcing_file_path), tstep_mod=tstep
+        )
+    return df_forcing.index
+
+
+def forcing_date_bounds(
+    config_data: object, yaml_dir: Path
+) -> tuple[str | None, str | None]:
+    """Return the first and last forcing days as ``YYYY-MM-DD`` strings.
+
+    A run with no ``start_time``/``end_time`` covers the forcing it is given,
+    so the validators take the missing bound from the forcing file named in
+    ``model.control``. Returns ``(None, None)`` when the forcing is supplied
+    at runtime, is not named, or cannot be read.
+    """
+    if not isinstance(config_data, dict):
+        return None, None
+    model = config_data.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    present, forcing_file_path = _resolve_forcing_file_entry(control)
+    forcing_file_path = _unwrap_ref(forcing_file_path)
+    if not present or forcing_file_path in (None, "", []):
+        return None, None
+    try:
+        index = _load_forcing_index(
+            forcing_file_path, yaml_dir, _control_tstep(control)
+        )
+    except Exception:  # any read failure means the bounds are unknown
+        return None, None
+    if len(index) == 0:
+        return None, None
+    return index[0].strftime("%Y-%m-%d"), index[-1].strftime("%Y-%m-%d")
+
+
 def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> list:
     """
     Check that the forcing covers ``model.control.start_time`` / ``end_time``.
@@ -1843,28 +1943,12 @@ def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> li
     if start_time is None and end_time is None:
         return []
 
-    try:
-        tstep = int(_unwrap_ref(control.get("tstep", 300)))
-    except (TypeError, ValueError):
-        tstep = 300
+    tstep = _control_tstep(control)
 
     try:
         from supy._run_period import coverage_problem, resolve_run_period
-        from supy.suews_sim import SUEWSSimulation
 
-        def _resolve(item) -> Path:
-            path = Path(item).expanduser()
-            return path if path.is_absolute() else yaml_dir / path
-
-        if isinstance(forcing_file_path, list):
-            df_forcing = SUEWSSimulation._load_forcing_from_list(
-                [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
-            )
-        else:
-            df_forcing = SUEWSSimulation._load_forcing_file(
-                _resolve(forcing_file_path), tstep_mod=tstep
-            )
-        index = df_forcing.index
+        index = _load_forcing_index(forcing_file_path, yaml_dir, tstep)
         period = resolve_run_period(start_time, end_time, index)
         problem = coverage_problem(period, index, tstep)
     except Exception as e:
@@ -2491,6 +2575,7 @@ def annotate_missing_parameters(
     detect_nlayer: bool = False,
     _preloaded_user_data=_MISSING,
 ):
+    nlayer_per_site = False
     try:
         with open(user_file, "r", encoding="utf-8") as f:
             original_yaml_content = f.read()
@@ -2509,6 +2594,8 @@ def annotate_missing_parameters(
             raw_user_data = _preloaded_user_data
         if nlayer is None and detect_nlayer:
             nlayer = detect_nlayer_from_yaml_data(raw_user_data)
+            # A detected nlayer is per site; an explicit one applies to all.
+            nlayer_per_site = True
         forcing_user_data = (
             _snapshot_forcing_user_data(raw_user_data)
             if forcing == "on"
@@ -2576,7 +2663,9 @@ def annotate_missing_parameters(
     # Validate nlayer dimensions if nlayer is provided
     dimension_errors = []
     if nlayer is not None:
-        user_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer)
+        user_data, dimension_errors = validate_nlayer_dimensions(
+            user_data, nlayer, per_site=nlayer_per_site
+        )
         # user_data now contains padded arrays with nulls - we'll write this back
 
     # Validate nlayer limit regardless of CLI nlayer flag

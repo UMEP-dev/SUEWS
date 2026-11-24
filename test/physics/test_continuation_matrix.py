@@ -8,10 +8,8 @@ pure-cover get_spinup_state algorithm is a separate route not tested here.
 """
 
 import json
-import os
 from pathlib import Path
 
-from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pandas as pd
 import pytest
@@ -37,34 +35,7 @@ class ContinuationDifference(AssertionError):
     """An exact comparison failed, with the first variable/time and magnitude."""
 
 
-class _Issue2108ThermalDifference(ContinuationDifference):
-    """Missing fast/slow EHC temperatures first change storage heat."""
-
-
-def _known_difference(equal, actual, mode, boundary):
-    """Narrow expected debt; pre-boundary and independent outputs stay exact.
-
-    EHC thermal feedback subsequently reaches turbulence, water and phenology;
-    first-divergence identity is therefore more diagnostic than a whole-run
-    thermal-only column whitelist. Radiation and inactive modes remain guards.
-    """
-    row, col = np.argwhere(~equal)[0]
-    if actual.index[row][-1] != boundary:
-        return ContinuationDifference
-    columns = actual.columns
-    if mode == "dual_ehc" and columns[col] == ("SUEWS", "QS"):
-        independent = {"Kdown", "Kup", "Ldown", "Lup", "Tsurf", "QN", "Rain", "Irr"}
-        protected = [
-            group in {"snow", "SPARTACUS", "STEBBS", "NHood", "BL"}
-            or (group == "SUEWS" and name in independent)
-            for group, name in columns
-        ]
-        if equal[:, protected].all():
-            return _Issue2108ThermalDifference
-    return ContinuationDifference
-
-
-def _compare(actual, expected, *, mode=None, boundary=None):
+def _compare(actual, expected):
     """Compare all rows/columns without alignment that could hide missing data."""
     pd.testing.assert_index_equal(actual.index, expected.index)
     pd.testing.assert_index_equal(actual.columns, expected.columns)
@@ -73,8 +44,7 @@ def _compare(actual, expected, *, mode=None, boundary=None):
     equal = (a.view(np.uint64) == b.view(np.uint64)) | (np.isnan(a) & np.isnan(b))
     if not equal.all():
         row, col = np.argwhere(~equal)[0]
-        error = _known_difference(equal, actual, mode, boundary)
-        raise error(
+        raise ContinuationDifference(
             f"{actual.columns[col]} at {actual.index[row]}: "
             f"resumed={a[row, col]!r}, continuous={b[row, col]!r}, "
             f"abs_diff={abs(a[row, col] - b[row, col])!r}; "
@@ -113,7 +83,7 @@ def _active(frame, mode):
     elif mode == "co2":
         series = frame["SUEWS", "FcPhoto"]
         assert (series != 0).any(), "Biogenic CO2 is inactive"
-    elif mode == "dual_ehc":
+    elif mode in {"ehc", "ehc_explicit"}:
         series = frame["SUEWS", "QS"]
     elif mode == "stebbs":
         series = frame["STEBBS", "Tair_ind"]
@@ -125,10 +95,7 @@ def _active(frame, mode):
         assert series.nunique() > 1, f"Inactive {mode}"
 
 
-def _configuration(sample_config_loaded, sample_data_loaded, mode, monkeypatch):
-    for key in tuple(os.environ):
-        if key.startswith("SUEWS_EHC_"):
-            monkeypatch.delenv(key)
+def _configuration(sample_config_loaded, sample_data_loaded, mode):
     cfg = sample_config_loaded.model_copy(deep=True)
     forcing = sample_data_loaded[1].iloc[:STEPS].copy()
     assert len(forcing) == STEPS
@@ -159,10 +126,11 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode, monkeypatch):
         cfg.sites[0].properties.building_archetype = template.sites[
             0
         ].properties.building_archetype.model_copy(deep=True)
-    elif mode == "dual_ehc":
+    elif mode == "ehc":
         physics.storage_heat = 5
-        monkeypatch.setenv("SUEWS_EHC_EXPERIMENTAL_CONTROLS", "1")
-        monkeypatch.setenv("SUEWS_EHC_DUAL_TIMESCALE", "1")
+    elif mode == "ehc_explicit":
+        physics.storage_heat = 5
+        physics.ehc_surface_coupling = 0
     elif mode == "irrigation":
         props = cfg.sites[0].properties
         irr = props.irrigation
@@ -201,40 +169,24 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode, monkeypatch):
         "snow",
         "spartacus",
         "stebbs",
-        pytest.param(
-            "dual_ehc",
-            marks=pytest.mark.xfail(
-                strict=True,
-                raises=_Issue2108ThermalDifference,
-                reason="#2108: temp_surf_ehc_fast/slow lost across continuation",
-            ),
-        ),
+        "ehc",
+        "ehc_explicit",
         "irrigation",
         "co2",
     ],
 )
 @pytest.mark.parametrize("mechanism", ["chunk", "checkpoint", "stream"])
 def test_continuation_matrix(
-    sample_config_loaded, sample_data_loaded, tmp_path, monkeypatch, mode, mechanism
+    sample_config_loaded, sample_data_loaded, tmp_path, mode, mechanism
 ):
     """All active output groups survive the chosen state hand-over exactly."""
-    cfg, forcing = _configuration(
-        sample_config_loaded, sample_data_loaded, mode, monkeypatch
-    )
+    cfg, forcing = _configuration(sample_config_loaded, sample_data_loaded, mode)
     # Round-trip through YAML so overrides take the public parser/engine path.
     path = tmp_path / "case.yml"
     cfg.to_yaml(path)
     whole = _simulation(path)
     expected = _run(whole, forcing, chunk_day=3660)
     _active(expected, mode)
-    if mode == "dual_ehc":
-        monkeypatch.setenv("SUEWS_EHC_DUAL_TIMESCALE", "0")
-        single = _run(_simulation(path), forcing, chunk_day=3660)
-        _active(single, mode)
-        assert not np.array_equal(single["SUEWS", "QS"], expected["SUEWS", "QS"]), (
-            "Dual-timescale override is inactive"
-        )
-        monkeypatch.setenv("SUEWS_EHC_DUAL_TIMESCALE", "1")
     if mechanism == "chunk":
         actual = _run(_simulation(path), forcing, chunk_day=1)
     elif mechanism == "checkpoint":
@@ -277,8 +229,7 @@ def test_continuation_matrix(
         whole.save(tmp_path / "whole", format="parquet", include_provisional=True)
         (saved,) = (tmp_path / "whole").glob("*SUEWS_output*.parquet")
         expected = pd.read_parquet(saved).sort_index()
-    boundary = forcing.index[SPLIT if mechanism == "checkpoint" else TIMESTEPS_PER_DAY]
-    _compare(actual, expected, mode=mode, boundary=boundary)
+    _compare(actual, expected)
     _active(actual, mode)
 
 

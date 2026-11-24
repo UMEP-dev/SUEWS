@@ -2193,6 +2193,10 @@ class SUEWSSimulation:
                     stacklevel=2,
                 )
 
+        # A supplied model state owns its layer temperatures. The legacy
+        # adapter reconstructs YAML and enters the fresh kernel path, so carry
+        # this distinction explicitly rather than resetting its envelope.
+        df_state_init[("control_ehc_initial_profile", "0")] = False
         # Create simulation instance with loaded state
         sim = cls()
         sim._df_state_init = df_state_init

@@ -653,6 +653,7 @@ local-schema/
 
 # Temporary schema exports
 *.schema.json
+!src/supy/data_model/output/artefacts/*/catalogue.schema.json
 
 # Temporary schema export directory
 public/

@@ -1178,6 +1178,15 @@ fn prepare_checkpoint_input(
         )));
     }
     run_cfg.state = checkpoint.state;
+    // A saved state owns its envelope profile, even if its elapsed timer was
+    // reset externally. The configuration-start option must never replace it.
+    run_cfg.config.control_ehc_initial_profile = false;
+    // `iter_safe` describes the OHM state type, not the model state: OHM, AnOHM
+    // and DyOHM histories must be reset on every inner surface-temperature
+    // pass. Checkpoints written before that was fixed carry `iter_safe = true`,
+    // which would silently switch the reset off on resume, so the stored flag
+    // is ignored here.
+    run_cfg.state.ohm_state.iter_safe = false;
 
     // Set timer fields from the first forcing row.
     let first_row = &forcing_block[..MET_FORCING_COLS];
@@ -1487,6 +1496,13 @@ pub fn run_simulation_into(
     }
 
     if err != ffi::SUEWS_CAPI_OK {
+        let message = unsafe { CStr::from_ptr(sim_err_message.as_ptr()) }
+            .to_string_lossy()
+            .trim()
+            .to_string();
+        if err == ffi::SUEWS_CAPI_BAD_BUFFER && !message.is_empty() {
+            return Err(BridgeError::BadBufferDetail(message));
+        }
         return Err(BridgeError::from_code(err));
     }
 
@@ -1646,6 +1662,74 @@ mod tests {
         // No failed or later timestep may publish any output, including time.
         assert!(data.iter().all(|value| *value == sentinel));
         assert!(datetime.iter().all(|value| *value == sentinel));
+    }
+
+    #[test]
+    fn spartacus_layer_nspec_mismatch_is_rejected_at_ffi_boundary() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+        let mut input = prepare_fresh_input(yaml, row, 1).unwrap();
+        let nlayer = input.site.spartacus_layer.nlayer;
+        assert_eq!(input.site.spartacus_layer.nspec, 1);
+
+        // Oversized nspec = 2 must be rejected rather than silently unpacking
+        // spec-2 roof_albedo_dir_mult_fact into wall_specular_frac.
+        input.site.spartacus_layer.nspec = 2;
+        input
+            .site
+            .spartacus_layer
+            .roof_albedo_dir_mult_fact
+            .resize(2 * nlayer, 1.0);
+        input
+            .site
+            .spartacus_layer
+            .wall_specular_frac
+            .resize(2 * nlayer, 0.0);
+
+        let mut data = vec![0.0; OUTPUT_DATA_COLS];
+        let mut datetime = vec![0.0; OUTPUT_DATETIME_COLS];
+        let result = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 1, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 1, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        );
+        let expected_len = 9 * nlayer + 2 * nlayer;
+        let received_len = 9 * nlayer + 2 * 2 * nlayer;
+        let err = result.expect_err("oversized spartacus_layer nspec must be rejected");
+        let msg = match &err {
+            BridgeError::BadBufferDetail(msg) => msg.as_str(),
+            other => panic!(
+                "expected BadBufferDetail for oversized spartacus_layer nspec, got {other:?}"
+            ),
+        };
+        assert!(
+            msg.contains("spartacus_layer"),
+            "expected spartacus_layer in diagnostic, got: {msg}"
+        );
+        assert!(
+            msg.contains(&format!("received {received_len}"))
+                && msg.contains(&format!("expected {expected_len}")),
+            "expected received/expected lengths in diagnostic, got: {msg}"
+        );
+        assert!(
+            msg.contains(&format!("nlayer={nlayer}")) && msg.contains("nspec=1"),
+            "expected nlayer and compile-time nspec in diagnostic, got: {msg}"
+        );
+        assert!(
+            err.to_string().contains("spartacus_layer"),
+            "expected Display formatting to preserve diagnostic, got: {err}"
+        );
     }
 
     #[test]

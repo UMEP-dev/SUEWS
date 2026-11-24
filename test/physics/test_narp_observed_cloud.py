@@ -22,7 +22,9 @@ def _incoming_longwave(cloud, tair, rh, pressure):
     sat_hpa *= 1.00072 + (pressure / 10) * (3.2e-6 + 5.9e-10 * tair**2)
     water = 46.5 * (rh / 100) * sat_hpa / temp_k
     clear_emissivity = 1 - (1 + water) * np.exp(-np.sqrt(1.2 + 3 * water))
-    return 5.67e-8 * temp_k**4 * (clear_emissivity + (1 - clear_emissivity) * cloud)
+    return (
+        5.670374419e-8 * temp_k**4 * (clear_emissivity + (1 - clear_emissivity) * cloud)
+    )
 
 
 @pytest.mark.parametrize("method", [2, 12, 200, 1002])
@@ -54,7 +56,7 @@ def test_observed_cloud_sets_incoming_longwave(
     for period in (day, ~day):
         assert set(cloud[period]) == {0.0, 0.2, 0.8, 1.0}
     np.testing.assert_array_equal(flux["Fcld"], cloud)
-    # The kernel's legacy radiation and thermodynamic constants are rounded.
+    # Match the unified CODATA 2018 Stefan-Boltzmann constant (SBConst).
     expected = _incoming_longwave(cloud, tair, rh, pressure)
     np.testing.assert_allclose(flux["Ldown"], expected, rtol=0, atol=0.001)
 

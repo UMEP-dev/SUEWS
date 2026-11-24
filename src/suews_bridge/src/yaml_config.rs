@@ -1123,12 +1123,16 @@ fn ensure_len_with_default(values: &mut Vec<f64>, len: usize, default_value: f64
 const LAYER_VALUE_ABSENT: f64 = f64::NAN;
 
 fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
+    // Match Fortran's compile-time spectral band count (`nspec = 1` in
+    // `src/suews/src/suews_ctrl_const.f95`). Falling back to
+    // `n_stream_sw_urban` (angular streams, e.g. 4) over-allocates the
+    // `roof_albedo_dir_mult_fact` matrix before `wall_specular_frac` in the
+    // flat FFI buffer, causing Fortran's `nspec = 1` unpacker to read
+    // spec-2 `roof_albedo_dir_mult_fact` into `wall_specular_frac`.
     let nspec = if site.spartacus_layer.nspec > 0 {
         site.spartacus_layer.nspec
-    } else if site.spartacus.n_stream_sw_urban > 0 {
-        site.spartacus.n_stream_sw_urban as usize
     } else {
-        2
+        1
     };
 
     ensure_len_with_default(&mut site.spartacus.height, nlayer + 1, 0.0);
@@ -2144,16 +2148,6 @@ fn apply_vertical_layers_overrides(
                     v,
                 );
             }
-            let spec = parse_optional_numeric(roof_root, &["wall_specular_frac"], &roof_at)?;
-            if let Some(v) = spec {
-                set_spartacus_layer_all_specs(
-                    site.spartacus_layer.wall_specular_frac.as_mut_slice(),
-                    nlayer,
-                    nspec,
-                    layer_idx,
-                    v,
-                );
-            }
         }
     }
 
@@ -2185,19 +2179,6 @@ fn apply_vertical_layers_overrides(
                 if let Some(slot) = site.spartacus_layer.emis_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
-            }
-            let mult =
-                parse_optional_numeric(wall_root, &["roof_albedo_dir_mult_fact"], &wall_at)?;
-            if let Some(v) = mult {
-                set_spartacus_layer_all_specs(
-                    site.spartacus_layer
-                        .roof_albedo_dir_mult_fact
-                        .as_mut_slice(),
-                    nlayer,
-                    nspec,
-                    layer_idx,
-                    v,
-                );
             }
             let spec = if active_facet {
                 require_numeric(wall_root, &["wall_specular_frac"], &wall_at).map(Some)?
@@ -3517,6 +3498,98 @@ fn apply_config_overrides(
     config.flag_test = require_i32(root, &["model", "control", "flag_test"], "")? != 0;
     config.diag_qs = require_i32(root, &["model", "control", "diag_qs"], "")?;
     config.kdown_split_method = require_i32(root, &["model", "physics", "kdown_split_method"], "")?;
+    let ehc_on = ehc_is_on(config.storage_heat_method);
+    let coupling_path = &["model", "physics", "ehc_surface_coupling"];
+    if ehc_on
+        || get_path(root, coupling_path)
+            .and_then(given_value)
+            .is_some()
+    {
+        let v = require_i32(root, coupling_path, "").map_err(|e| {
+            format!("{e} (model.physics.ehc_surface_coupling must be explicit (0) or implicit (1))")
+        })?;
+        if v != 0 && v != 1 {
+            return Err(
+                "`model.physics.ehc_surface_coupling` must be explicit (0) or implicit (1)"
+                    .to_string(),
+            );
+        }
+        config.ehc_surface_coupling = v;
+    }
+    let ehc_implicit = ehc_on && config.ehc_surface_coupling == 1;
+    let stability_path = &["model", "physics", "control_ehc_stability"];
+    if ehc_implicit
+        || get_path(root, stability_path)
+            .and_then(given_value)
+            .is_some()
+    {
+        let v = require_i32(root, stability_path, "").map_err(|e| {
+            format!("{e} (model.physics.control_ehc_stability must be off, relax or secant)")
+        })?;
+        if !(0..=2).contains(&v) {
+            return Err(
+                "`model.physics.control_ehc_stability` must be off, relax or secant".to_string(),
+            );
+        }
+        config.control_ehc_stability = v;
+    }
+    let init_profile_path = &["model", "physics", "control_ehc_initial_profile"];
+    if ehc_implicit
+        || get_path(root, init_profile_path)
+            .and_then(given_value)
+            .is_some()
+    {
+        let scalar = require_value(root, init_profile_path, "")?;
+        config.control_ehc_initial_profile = match scalar {
+            Value::Bool(b) => *b,
+            Value::Number(n) => match n.as_f64() {
+                Some(0.0) => false,
+                Some(1.0) => true,
+                _ => {
+                    return Err(
+                        "`model.physics.control_ehc_initial_profile` must be a boolean (or 0/1)"
+                            .to_string(),
+                    );
+                }
+            },
+            _ => {
+                return Err(
+                    "`model.physics.control_ehc_initial_profile` must be a boolean (or 0/1)"
+                        .to_string(),
+                );
+            }
+        };
+    }
+    let r_roof_path = &["model", "physics", "resistance_ehc_indoor_roof"];
+    if ehc_implicit || get_path(root, r_roof_path).and_then(given_value).is_some() {
+        let v = require_numeric(root, r_roof_path, "").map_err(|e| {
+            format!(
+                "{e} (model.physics.resistance_ehc_indoor_roof must be finite and non-negative)"
+            )
+        })?;
+        if v < 0.0 {
+            return Err(
+                "`model.physics.resistance_ehc_indoor_roof` must be finite and non-negative"
+                    .to_string(),
+            );
+        }
+        config.resistance_ehc_indoor_roof = v;
+    }
+    let r_wall_path = &["model", "physics", "resistance_ehc_indoor_wall"];
+    if ehc_implicit || get_path(root, r_wall_path).and_then(given_value).is_some() {
+        let v = require_numeric(root, r_wall_path, "").map_err(|e| {
+            format!(
+                "{e} (model.physics.resistance_ehc_indoor_wall must be finite and non-negative)"
+            )
+        })?;
+        if v < 0.0 {
+            return Err(
+                "`model.physics.resistance_ehc_indoor_wall` must be finite and non-negative"
+                    .to_string(),
+            );
+        }
+        config.resistance_ehc_indoor_wall = v;
+    }
     // The kernel reads this switch from the run configuration, but users set
     // it per site under `properties.spartacus` (gh#1858). Same threshold as
     // `SuewsConfig::from_flat`. Option-gated on SPARTACUS (BR-03).
@@ -5319,6 +5392,155 @@ mod tests {
             let expected = format!("`sites[gridiv=43].properties.lumps.{field}`");
             assert!(error.contains(&expected), "{error}");
             assert!(error.contains(reason), "{error}");
+        }
+    }
+
+    #[test]
+    fn parses_ehc_stability_controls() {
+        for (name, code) in [("off", 0), ("relax", 1), ("secant", 2)] {
+            for selector in [name.to_string(), format!("{{value: {name}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["control_ehc_stability"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let run_cfg = load_run_config_from_value(&mut root).unwrap();
+                assert_eq!(run_cfg.config.control_ehc_stability, code);
+            }
+        }
+    }
+
+    #[test]
+    fn ehc_coupling_omission_defaults_to_implicit_and_explicit_remains_available() {
+        // Under storage_heat_method != 5 (sample fixture uses method 1), omitting
+        // all five EHC controls leaves Fortran defaults untouched (BR-03).
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let physics = root["model"]["physics"].as_mapping_mut().unwrap();
+        for key in [
+            "ehc_surface_coupling",
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ] {
+            physics.remove(Value::String(key.into()));
+        }
+        let omitted = load_run_config_from_value(&mut root).unwrap();
+        assert_eq!(omitted.config.storage_heat_method, 1);
+        assert_eq!(omitted.config.ehc_surface_coupling, 1);
+        root["model"]["physics"]["ehc_surface_coupling"] = Value::String("explicit".into());
+        let explicit = load_run_config_from_value(&mut root).unwrap();
+        assert_eq!(explicit.config.ehc_surface_coupling, 0);
+    }
+
+    #[test]
+    fn ehc_active_requires_coupling_and_implicit_controls_per_br03() {
+        // StorageHeatMethod == 5: omitting ehc_surface_coupling fails naming its path.
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        root["model"]["physics"]["storage_heat"] = Value::from(5);
+        root["model"]["physics"]
+            .as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("ehc_surface_coupling".into()));
+        let err = load_run_config_from_value(&mut root).unwrap_err();
+        assert!(
+            err.contains("model.physics.ehc_surface_coupling"),
+            "missing coupling error should name path: {err}"
+        );
+
+        // StorageHeatMethod == 5 with explicit coupling: omitting all 4 implicit-only
+        // controls loads cleanly because Fortran does not read them under explicit EHC.
+        let mut explicit_root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        explicit_root["model"]["physics"]["storage_heat"] = Value::from(5);
+        explicit_root["model"]["physics"]["ehc_surface_coupling"] =
+            Value::String("explicit".into());
+        let physics = explicit_root["model"]["physics"].as_mapping_mut().unwrap();
+        for key in [
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ] {
+            physics.remove(Value::String(key.into()));
+        }
+        let loaded = load_run_config_from_value(&mut explicit_root).unwrap();
+        assert_eq!(loaded.config.storage_heat_method, 5);
+        assert_eq!(loaded.config.ehc_surface_coupling, 0);
+
+        // StorageHeatMethod == 5 with implicit coupling: omitting each of the 4
+        // implicit-only controls individually fails naming its exact YAML path.
+        for key in [
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ] {
+            let mut imp_root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            imp_root["model"]["physics"]["storage_heat"] = Value::from(5);
+            imp_root["model"]["physics"]["ehc_surface_coupling"] =
+                Value::String("implicit".into());
+            imp_root["model"]["physics"]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String(key.into()));
+            let err = load_run_config_from_value(&mut imp_root).unwrap_err();
+            let expected_path = format!("model.physics.{key}");
+            assert!(
+                err.contains(&expected_path),
+                "missing {expected_path} error should name path: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn parses_ehc_coupling_controls() {
+        for (value, code) in [
+            ("explicit", 0),
+            ("implicit", 1),
+            ("0", 0),
+            ("1", 1),
+            ("0.0", 0),
+            ("1.0", 1),
+        ] {
+            for selector in [value.to_string(), format!("{{value: {value}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["ehc_surface_coupling"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let run_cfg = load_run_config_from_value(&mut root).unwrap();
+                assert_eq!(run_cfg.config.ehc_surface_coupling, code);
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_ehc_coupling_controls() {
+        for value in [
+            "unknown",
+            "-999",
+            "-1",
+            "2",
+            "0.5",
+            "1.5",
+            "1.0000000001",
+            ".nan",
+            ".inf",
+            "null",
+        ] {
+            for selector in [value.to_string(), format!("{{value: {value}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["ehc_surface_coupling"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let err = load_run_config_from_value(&mut root).unwrap_err();
+                assert!(err.contains("ehc_surface_coupling"), "{selector}: {err}");
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_ehc_stability_controls() {
+        for selector in ["unknown", "-999", "-1", "3", "1.5", ".nan", ".inf", "null"] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            root["model"]["physics"]["control_ehc_stability"] =
+                serde_yaml::from_str(selector).unwrap();
+            assert!(load_run_config_from_value(&mut root).is_err(), "{selector}");
         }
     }
 
@@ -12572,5 +12794,145 @@ mod tests {
                 "error should name canonical threshold key: {err}"
             );
         }
+    }
+
+    #[test]
+    fn spartacus_roof_and_wall_facet_fields_do_not_clobber_each_other() {
+        let roof_expected = [1.25_f64, 1.50, 1.75];
+        let wall_expected = [0.25_f64, 0.50, 0.75];
+        let roof_ignored_wall_spec = [0.91_f64, 0.92, 0.93];
+        let wall_ignored_roof_mult = [0.11_f64, 0.12, 0.13];
+
+        let run_cfg = fixture_with_options(1003, 5, |site| {
+            for (layer_idx, ((&roof_mult, &roof_wall_spec), (&wall_roof_mult, &wall_spec))) in
+                roof_expected
+                    .iter()
+                    .zip(roof_ignored_wall_spec.iter())
+                    .zip(wall_ignored_roof_mult.iter().zip(wall_expected.iter()))
+                    .enumerate()
+            {
+                set_site_path(
+                    site,
+                    &format!(
+                        "properties.vertical_layers.roofs.{layer_idx}.roof_albedo_dir_mult_fact"
+                    ),
+                    &format!("{{value: {roof_mult}}}"),
+                );
+                set_site_path(
+                    site,
+                    &format!("properties.vertical_layers.roofs.{layer_idx}.wall_specular_frac"),
+                    &format!("{{value: {roof_wall_spec}}}"),
+                );
+                set_site_path(
+                    site,
+                    &format!(
+                        "properties.vertical_layers.walls.{layer_idx}.roof_albedo_dir_mult_fact"
+                    ),
+                    &format!("{{value: {wall_roof_mult}}}"),
+                );
+                set_site_path(
+                    site,
+                    &format!("properties.vertical_layers.walls.{layer_idx}.wall_specular_frac"),
+                    &format!("{{value: {wall_spec}}}"),
+                );
+            }
+        })
+        .unwrap();
+
+        let layer = &run_cfg.site.spartacus_layer;
+        assert_eq!(layer.nlayer, roof_expected.len());
+        assert_eq!(
+            layer.nspec, 1,
+            "spartacus_layer.nspec must match Fortran compile-time nspec = 1"
+        );
+        assert_eq!(layer.to_flat().len(), 9 * layer.nlayer + 2 * layer.nlayer);
+        for spec_idx in 0..layer.nspec {
+            for (layer_idx, (&exp_roof, &exp_wall)) in
+                roof_expected.iter().zip(wall_expected.iter()).enumerate()
+            {
+                let offset = spec_idx * layer.nlayer + layer_idx;
+                assert_eq!(
+                    layer.roof_albedo_dir_mult_fact[offset], exp_roof,
+                    "walls[{layer_idx}] must not clobber roofs[{layer_idx}].roof_albedo_dir_mult_fact"
+                );
+                assert_eq!(
+                    layer.wall_specular_frac[offset], exp_wall,
+                    "roofs[{layer_idx}] must not clobber walls[{layer_idx}].wall_specular_frac"
+                );
+            }
+        }
+
+        // Cross-facet keys must also be ignored when the owning facet omits its
+        // own key on an inactive SPARTACUS configuration (net_radiation = 3).
+        let omitted_cfg = fixture_with_options(3, 5, |site| {
+            let roofs = get_path_mut(site, &["properties", "vertical_layers", "roofs"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            for (roof, &ignored_wall_spec) in roofs.iter_mut().zip(roof_ignored_wall_spec.iter()) {
+                let map = roof.as_mapping_mut().unwrap();
+                map.remove(Value::String("roof_albedo_dir_mult_fact".into()));
+                map.insert(
+                    Value::String("wall_specular_frac".into()),
+                    serde_yaml::from_str(&format!("{{value: {ignored_wall_spec}}}")).unwrap(),
+                );
+            }
+            let walls = get_path_mut(site, &["properties", "vertical_layers", "walls"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            for (wall, &ignored_roof_mult) in walls.iter_mut().zip(wall_ignored_roof_mult.iter()) {
+                let map = wall.as_mapping_mut().unwrap();
+                map.remove(Value::String("wall_specular_frac".into()));
+                map.insert(
+                    Value::String("roof_albedo_dir_mult_fact".into()),
+                    serde_yaml::from_str(&format!("{{value: {ignored_roof_mult}}}")).unwrap(),
+                );
+            }
+        })
+        .unwrap();
+
+        let omitted_layer = &omitted_cfg.site.spartacus_layer;
+        assert!(
+            omitted_layer
+                .roof_albedo_dir_mult_fact
+                .iter()
+                .all(|&v| (v - 1.0).abs() < 1e-12),
+            "walls[].roof_albedo_dir_mult_fact must not populate roof_albedo_dir_mult_fact: {:?}",
+            omitted_layer.roof_albedo_dir_mult_fact
+        );
+        assert!(
+            omitted_layer
+                .wall_specular_frac
+                .iter()
+                .all(|&v| v.abs() < 1e-12),
+            "roofs[].wall_specular_frac must not populate wall_specular_frac: {:?}",
+            omitted_layer.wall_specular_frac
+        );
+
+        // On an active SPARTACUS configuration (net_radiation = 1003), omitting
+        // walls[0].wall_specular_frac must be rejected by BR-03 even when
+        // roofs[0].wall_specular_frac is supplied.
+        let missing_wall_spec = fixture_with_options(1003, 5, |site| {
+            set_site_path(
+                site,
+                "properties.vertical_layers.roofs.0.wall_specular_frac",
+                "{value: 0.91}",
+            );
+            let walls = get_path_mut(site, &["properties", "vertical_layers", "walls"])
+                .unwrap()
+                .as_sequence_mut()
+                .unwrap();
+            walls[0]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String("wall_specular_frac".into()));
+        })
+        .expect_err("omitting walls[0].wall_specular_frac under SPARTACUS must fail");
+        assert!(
+            missing_wall_spec.contains("walls[0]")
+                && missing_wall_spec.contains("wall_specular_frac"),
+            "unexpected error: {missing_wall_spec}"
+        );
     }
 }

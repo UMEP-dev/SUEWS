@@ -1036,7 +1036,7 @@ def test_submodel_to_df_state_and_multisite_column_contracts():
 
     df_model = cfg.model.to_df_state(1)
     assert list(df_model.columns).count(("gridiv", "0")) == 3
-    assert df_model.shape == (1, 29)
+    assert df_model.shape == (1, 34)
     assert df_model.index.name == "grid"
     assert list(df_model.columns.names) == ["var", "ind_dim"]
 

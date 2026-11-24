@@ -706,22 +706,27 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: dqndt_prev ! dQ* per dt for 60 min [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(out) :: qn1_av_next ! weighted average of qn1 [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! dQ* per dt for 60 min [W m-2 h-1]
-      REAL(KIND(1D0)), PARAMETER :: window_hr = 2.0D0 ! memory timescale for dQ*/dt [h]
-      REAL(KIND(1D0)), PARAMETER :: tau1_max_s = REAL(sec_per_hour, KIND(1D0)) ! 1 h low-pass timescale [s]
+      ! First-moment (mean-age) matched time constants for the 2016 1 h boxcar + 2 h diff
+      ! (OHM_dqndt_cal): boxcar centroid T1/2 = 0.5 h and backward-diff centroid T2/2 = 1.0 h.
+      REAL(KIND(1D0)), PARAMETER :: tau1_hr = 0.5D0 ! stage-1 Q* low-pass timescale [h]
+      REAL(KIND(1D0)), PARAMETER :: tau2_hr = 1.0D0 ! stage-2 dQ*/dt low-pass timescale [h]
+      REAL(KIND(1D0)), PARAMETER :: sec_hr = REAL(sec_per_hour, KIND(1D0))
+      REAL(KIND(1D0)), PARAMETER :: tau1_max_s = tau1_hr*sec_hr ! 0.5 h low-pass timescale [s]
+      REAL(KIND(1D0)), PARAMETER :: tau2_s = tau2_hr*sec_hr ! 1.0 h tendency timescale [s]
       REAL(KIND(1D0)) :: dt_s, dt_hr, tau1_s, w1, w2
 
       dt_s = REAL(dt, KIND(1D0))
-      dt_hr = dt_s/tau1_max_s
+      dt_hr = dt_s/sec_hr
       IF (dt_since_start <= dt) THEN
          ! Cold start (step 1): initialise filter from current Q* with zero derivative
          qn1_av_next = qn1
          dqndt_next = 0.0D0
       ELSE
-         ! Exact zero-order-hold exponential weights preserve 1 h + 2 h filtering across dt
+         ! Exact zero-order-hold exponential weights preserve 0.5 h + 1.0 h filtering across dt
          tau1_s = MIN(tau1_max_s, REAL(dt_since_start, KIND(1D0)))
          w1 = EXP(-dt_s/tau1_s)
          qn1_av_next = w1*qn1_av_prev + (1.0D0 - w1)*qn1
-         w2 = EXP(-dt_s/(window_hr*tau1_max_s))
+         w2 = EXP(-dt_s/tau2_s)
          dqndt_next = w2*dqndt_prev + (1.0D0 - w2)*((qn1_av_next - qn1_av_prev)/dt_hr)
       END IF
 

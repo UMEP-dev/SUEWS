@@ -1,32 +1,27 @@
 {
   "build": {
     "compilers": {
-      "c": {
-        "full_version": "cc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)",
-        "id": "gcc",
-        "version": "11.5.0"
-      },
       "fortran": {
-        "full_version": "GNU Fortran (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)",
+        "full_version": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
         "id": "gcc",
-        "version": "11.5.0"
+        "version": "10.2.1"
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "5b33e722e",
-    "source_ref": "5b33e722e14a664bf80b968922b9e69b37e73b8e",
-    "source_tree": "c3956c4fd97428efb3c934ab186c1e6a6ea75eb9",
-    "supy_version": "2026.11.24.dev15"
+    "git_commit": "6c9e422",
+    "source_ref": "da78796e4f5143a9c7c432c1effbb10aa1e04de3",
+    "source_tree": "598d5249d6517b1f171dad05f26958ea4f049b09",
+    "supy_version": "2026.11.24.dev18"
   },
   "column_names_sha256": "1f6b28f98506b531b5c6531dd353feb033ee62d67e879e6dd941b7a63b26bc31",
   "columns": 113,
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-11-24T17:24:13Z",
+  "generated_utc": "2026-11-24T22:41:22Z",
   "platform": {
-    "libc": "glibc 2.34",
+    "libc": "glibc 2.17",
     "machine": "x86_64",
-    "pandas": "2.3.3",
+    "pandas": "2.3.2",
     "python": "3.12.12",
     "system": "Linux"
   },

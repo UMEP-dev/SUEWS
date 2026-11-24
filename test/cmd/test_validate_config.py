@@ -2236,3 +2236,87 @@ def test_snowalb_drop_survives_revalidation(tmp_path: Path) -> None:
     _write_yaml(again, updated)
     second = runner.invoke(validate_cli, [str(again), "--forcing", "off"])
     assert second.exit_code == 0, second.output
+
+
+def _unwrap_refvalues(node: Any) -> Any:
+    """Rewrite every ``{value: x, ref: ...}`` leaf as the bare ``x``."""
+    if isinstance(node, dict):
+        if "value" in node and set(node) <= {"value", "ref"}:
+            return _unwrap_refvalues(node["value"])
+        if node and set(node) == {"ref"}:
+            return None
+        return {key: _unwrap_refvalues(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_unwrap_refvalues(item) for item in node]
+    return node
+
+
+def test_abc_all_bare_scalar_multi_site_config_passes(tmp_path: Path) -> None:
+    """A fully bare-scalar, two-site config runs A, B and C without crashes (gh#2297).
+
+    Every RefValue leaf of the sample is written bare and the site is
+    duplicated, so each phase reads bare values on more than one site. No
+    rule may crash (``VALIDATOR.RULE_FAILED``) and Phase C must not fall
+    back to an unclassified pipeline failure.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    path = _copy_sample_data(tmp_path)
+    data = _unwrap_refvalues(yaml.safe_load(path.read_text(encoding="utf-8")))
+    second = copy.deepcopy(data["sites"][0])
+    second["gridiv"] = 2
+    second["name"] = f"{second.get('name') or 'site'}_copy"
+    data["sites"].append(second)
+    _write_yaml(path, data)
+
+    result = CliRunner().invoke(
+        validate_cli, [str(path), "-p", "ABC", "--format", "json"]
+    )
+
+    envelope = json.loads(result.output)
+    report = envelope["data"]["validation_report"]
+    codes = [
+        issue["code"] for phase in report["phases"] for issue in phase["issues"]
+    ]
+    assert not [code for code in codes if code.startswith("VALIDATOR.RULE_FAILED")]
+    assert "C.PIPELINE.UNKNOWN" not in codes
+    assert result.exit_code == 0, result.output
+    assert envelope["errors"] == []
+    assert envelope["data"]["phases_run"] == ["A", "B", "C"]
+    updated = yaml.safe_load(
+        (tmp_path / "updated_sample_config.yml").read_text(encoding="utf-8")
+    )
+    assert [site["gridiv"] for site in updated["sites"]] == [1, 2]
+
+
+def test_abc_reports_a_crashing_phase_b_rule(tmp_path: Path, monkeypatch) -> None:
+    """A Phase B rule that raises is reported as one error naming it, and B fails."""
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry
+
+    def _boom(context):
+        raise RuntimeError("rule exploded")
+
+    monkeypatch.setitem(RulesRegistry.rules, "boom", _boom)
+    path = _copy_sample_data(tmp_path)
+
+    result = CliRunner().invoke(
+        validate_cli, [str(path), "-p", "ABC", "--format", "json"]
+    )
+
+    assert result.exit_code != 0, result.output
+    envelope = json.loads(result.output)
+    phase_b = next(
+        phase
+        for phase in envelope["data"]["validation_report"]["phases"]
+        if phase["phase"] == "B"
+    )
+    assert phase_b["status"] == "FAILED"
+    crashed = [
+        issue for issue in phase_b["issues"]
+        if issue["code"] == "VALIDATOR.RULE_FAILED.BOOM"
+    ]
+    assert len(crashed) == 1
+    assert "rule exploded" in crashed[0]["message"]
+    # The registered rules still ran alongside the faulty one.
+    assert any(issue["code"].startswith("LAND_COVER.") for issue in phase_b["issues"])

@@ -177,6 +177,20 @@ def get_ref_or_bare(container, key: str, default=None):
     return entry
 
 
+def is_ref_only(entry) -> bool:
+    """Return True for a ref-only RefValue placeholder such as ``{"ref": {...}}``.
+
+    Such an entry carries no value (the model and the Rust bridge read it as
+    null), so nullifiers must leave it alone rather than descend into ``ref``.
+    """
+    return (
+        isinstance(entry, Mapping)
+        and "value" not in entry
+        and bool(entry)
+        and all(key == "ref" for key in entry)
+    )
+
+
 def set_ref_or_bare(container: dict, key: str, new_value) -> None:
     """Update ``container[key]`` while preserving RefValue metadata or bare format.
 
@@ -653,6 +667,10 @@ def nullify_co2_block_recursive(block: Any) -> None:
     - Robust to empty/missing keys and arbitrary shapes.
     """
     if isinstance(block, dict):
+        # Ref-only placeholder ({"ref": ...}): already value-less; leave its
+        # metadata intact rather than nullifying ref.desc / ref.DOI (gh#2297).
+        if is_ref_only(block):
+            return
         # Handle RefValue leaf ({"value": ...})
         if "value" in block:
             val = block["value"]
@@ -709,14 +727,17 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
     def _p(base: str, key: str) -> str:
         return f"{base}.{key}" if base else key
 
+    def _is_null(value: Any) -> bool:
+        # A list-valued RefValue is nullified element-wise ([None, None, ...]).
+        if isinstance(value, list):
+            return bool(value) and all(item in (None, "") for item in value)
+        return value in (None, "")
+
     # Dict vs Dict
     if isinstance(before, dict) and isinstance(after, dict):
         # RefValue leaf detection
         if "value" in before and "value" in after:
-            if before.get("value") not in (None, "") and after.get("value") in (
-                None,
-                "",
-            ):
+            if not _is_null(before.get("value")) and _is_null(after.get("value")):
                 paths.append(path or "value")
             return paths
 
@@ -800,17 +821,18 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
 
         surface_changed = False
         for param in params:
-            if param not in surface_props:
+            # Reads RefValue dicts and bare values alike; ref-only placeholders
+            # and nulls have no value to clear, so they are left as written.
+            current = get_ref_or_bare(surface_props, param)
+            if current is None:
                 continue
-            val = surface_props[param]
-            if isinstance(val, dict) and "value" in val:
-                if isinstance(val["value"], list):
-                    val["value"] = [None] * len(val["value"])
-                else:
-                    val["value"] = None
-                surface_props[param] = val
+            if isinstance(current, list):
+                if all(item is None for item in current):
+                    continue
+                cleared = [None] * len(current)
             else:
-                surface_props[param] = None
+                cleared = None
+            set_ref_or_bare(surface_props, param, cleared)
             surface_changed = True
 
         if surface_changed:

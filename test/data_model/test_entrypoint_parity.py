@@ -271,7 +271,7 @@ def _get_df_val(df: pd.DataFrame, col: tuple[str, str]) -> Any:
 
 
 def _scalar_entry(
-    df_col: tuple[str, str], yaml_path: str, owner: str = "#1991"
+    df_col: tuple[str, str], yaml_path: str, owner: str = "#2309"
 ) -> dict[str, Any]:
     return {
         "kind": "scalar",
@@ -286,7 +286,7 @@ def _vector_entry(
     df_indices: list[str],
     df_col_label: str,
     yaml_path: str,
-    owner: str = "#1991",
+    owner: str = "#2309",
 ) -> dict[str, Any]:
     return {
         "kind": "vector",
@@ -484,7 +484,7 @@ def _single_surface_mappings(surf_idx: int, surf_name: str) -> list[dict[str, An
             "#2077",
         ),
         _scalar_entry(
-            ("soildensity", f"({surf_idx},)"), f"{base}.soil_density", "#1991"
+            ("soildensity", f"({surf_idx},)"), f"{base}.soil_density", "#2309"
         ),
         _scalar_entry(("snowpacklimit", f"({surf_idx},)"), f"{base}.snowpack_limit"),
         _scalar_entry((f"irrfrac{surf_name}", "0"), f"{base}.irrigation_fraction"),
@@ -523,7 +523,7 @@ def _single_surface_mappings(surf_idx: int, surf_name: str) -> list[dict[str, An
                 [f"({surf_idx}, {i})" for i in range(5)],
                 f"({surf_idx}, 0..4)",
                 f"{base}.thermal_layers.{field}",
-                "#1991",
+                "#2309",
             )
         )
     if surf_name in ("paved", "bldgs", "bsoil", "water"):
@@ -614,10 +614,10 @@ def _vegetation_and_morphology_mappings() -> list[dict[str, Any]]:
             ("resp_a", "resp_a", "#2101"),
             ("resp_b", "resp_b", "#2101"),
             ("theta_bioco2", "theta_bio_co2", "#2101"),
-            ("maxconductance", "max_conductance", "#1991"),
+            ("maxconductance", "max_conductance", "#2309"),
             ("min_res_bioco2", "min_res_bioco2", "#2101"),
-            ("ie_a", "ie_a", "#1991"),
-            ("ie_m", "ie_m", "#1991"),
+            ("ie_a", "ie_a", "#2309"),
+            ("ie_m", "ie_m", "#2309"),
         ):
             entries.append(
                 _scalar_entry((col, f"({veg_idx},)"), f"{base}.{field}", owner)
@@ -627,9 +627,9 @@ def _vegetation_and_morphology_mappings() -> list[dict[str, Any]]:
             ("gddfull", "gdd_full", "#2001"),
             ("basete", "base_temperature_senescence", "#2001"),
             ("sddfull", "sdd_full", "#2001"),
-            ("laimin", "lai_min", "#1991"),
+            ("laimin", "lai_min", "#2309"),
             ("laimax", "lai_max", "#2101"),
-            ("laitype", "lai_type", "#1991"),
+            ("laitype", "lai_type", "#2309"),
         ):
             entries.append(
                 _scalar_entry((col, f"({veg_idx},)"), f"{base}.lai.{field}", owner)
@@ -684,7 +684,7 @@ def _vertical_layers_and_initial_state_mappings(nlayer: int) -> list[dict[str, A
                 _scalar_entry(
                     (f"soilstorecap_{facet}", f"({layer_idx},)"),
                     f"{base}.soil_store_capacity",
-                    "#1991",
+                    "#2309",
                 ),
                 _scalar_entry(
                     (f"wetthresh_{facet}", f"({layer_idx},)"),
@@ -702,7 +702,7 @@ def _vertical_layers_and_initial_state_mappings(nlayer: int) -> list[dict[str, A
                         [f"({layer_idx}, {i})" for i in range(5)],
                         f"({layer_idx}, 0..4)",
                         f"{base}.thermal_layers.{field}",
-                        "#1991",
+                        "#2309",
                     )
                 )
 
@@ -1857,7 +1857,7 @@ class TestDfStateEngineYamlParityRatchet:
                 "yaml_path": "sites[0].properties.lumps.raincover",
                 "df_value": 0.25,
                 "yaml_value": None,
-                "owner_issue": "#1991",
+                "owner_issue": "#2309",
             },
         ]
         observed_clean = _collect_df_yaml_divergences(df, engine, nlayer=1)

@@ -47,15 +47,15 @@
       "reason": "BuildingLayer soil_store_capacity has no default and no validator rule."
     },
     "debt_biogenic_co2": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Biogenic CO2 parameter used under biogenic emissions methods (11-46), not yet in DOC_REQUIRED_WHEN."
     },
     "debt_anthro_co2": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Anthropogenic CO2 parameter used under detailed CO2 emissions methods, not yet in DOC_REQUIRED_WHEN."
     },
     "debt_irrigation_no_default": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Irrigation parameter with default=None and no validator contract."
     },
     "debt_lai_power": {
@@ -63,7 +63,7 @@
       "reason": "LAI power coefficient used when laimethod=1 (MODELLED), not yet in DOC_REQUIRED_WHEN."
     },
     "debt_ohm_coefficients": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "OHM coefficient with default=None and no validator rule."
     },
     "debt_snow_no_default": {
@@ -90,23 +90,23 @@
       "reason": "Optional nested sub-model or temporal profile that may be None when its governing physics option is inactive."
     },
     "debt_opt_stebbs_archetype": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "STEBBS archetype numeric field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_stebbs_props": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "STEBBS numeric/enum field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_surface_thresholds": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Surface/snow threshold parameter typed Optional[FlexibleRefValue] with non-None default; explicit null bypasses DataModelBase null rejection."
     },
     "debt_opt_bioco2_enh": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Biogenic CO2 enhancement parameter typed Optional[FlexibleRefValue] with non-None default without active-method null guard."
     },
     "debt_opt_surface_init_temp": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "SurfaceInitialState temperature typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_building_layer_optical": {
@@ -114,7 +114,7 @@
       "reason": "BuildingLayer optical property typed Optional[FlexibleRefValue] with non-None default."
     },
     "debt_opt_plain_scalars": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Plain Optional scalar/metadata field carrying a non-None default (profiles, archetype_name, legacy Conductance.ref placeholder)."
     }
   },

@@ -119,8 +119,8 @@ def test_convert_table_rewrites_absolute_fileinputpath_and_preserves_fileoutputp
     out_rc = f90nml.read(str(out_rc_path))["runcontrol"]
     assert out_rc["fileinputpath"] == f"./{input_folder}/"
     assert out_rc["fileoutputpath"] == abs_output
-    assert (out_dir / out_rc["fileinputpath"]).resolve().is_relative_to(
-        out_dir.resolve()
+    assert (
+        (out_dir / out_rc["fileinputpath"]).resolve().is_relative_to(out_dir.resolve())
     )
     if to_ver == "2024a":
         assert "rslmethod" in out_rc
@@ -372,7 +372,10 @@ def test_convert_table_does_not_overwrite_source_when_to_dir_is_parent_of_source
 
     converted_site_select = proj_dir / "Input" / "SUEWS_SiteSelect.txt"
     assert converted_site_select.is_file()
-    assert converted_site_select.read_bytes() != shared_before[Path("SUEWS_SiteSelect.txt")]
+    assert (
+        converted_site_select.read_bytes()
+        != shared_before[Path("SUEWS_SiteSelect.txt")]
+    )
 
     out_rc = f90nml.read(str(proj_dir / "RunControl.nml"))["runcontrol"]
     assert out_rc["fileinputpath"] == "./Input/"
@@ -380,21 +383,119 @@ def test_convert_table_does_not_overwrite_source_when_to_dir_is_parent_of_source
 
 
 @pytest.mark.parametrize(
-    ("from_ver", "to_ver", "use_relative"),
+    ("from_ver", "to_ver", "layout"),
     [
-        pytest.param("2020a", "2020a", False, id="same-version-abs-direct-child"),
-        pytest.param("2020a", "2024a", False, id="chained-abs-direct-child"),
-        pytest.param("2020a", "2020a", True, id="same-version-parent-rel-direct-child"),
+        pytest.param(
+            "2020a", "2020a", "abs-direct-child", id="same-version-abs-direct-child"
+        ),
+        pytest.param(
+            "2020a", "2024a", "abs-direct-child", id="chained-abs-direct-child"
+        ),
+        pytest.param(
+            "2020a",
+            "2020a",
+            "parent-rel-direct-child",
+            id="same-version-parent-rel-direct-child",
+        ),
+        pytest.param(
+            "2020a",
+            "2020a",
+            "rel-inside-to-dir-same-source",
+            id="same-version-rel-inside-to-dir-same-source",
+        ),
+        pytest.param(
+            "2020a",
+            "2024a",
+            "rel-inside-to-dir-same-source",
+            id="chained-rel-inside-to-dir-same-source",
+        ),
     ],
 )
 def test_convert_table_avoids_source_collision_when_source_input_is_direct_child_of_to_dir(
-    tmp_path, from_ver, to_ver, use_relative
+    tmp_path, from_ver, to_ver, layout
 ):
     """Rewriting to ./<leaf>/ must not land on the source input folder under toDir."""
     proj_dir = tmp_path / "proj"
     src_dir = proj_dir / "run"
-    src_input = proj_dir / "Input"
-    file_input_path = "../Input/" if use_relative else f"{src_input.resolve().as_posix()}/"
+    if layout == "rel-inside-to-dir-same-source":
+        out_dir = proj_dir / "shared"
+        src_input = out_dir / "Input"
+        file_input_path = "../shared/Input/"
+    else:
+        out_dir = proj_dir
+        src_input = proj_dir / "Input"
+        file_input_path = (
+            "../Input/"
+            if layout == "parent-rel-direct-child"
+            else f"{src_input.resolve().as_posix()}/"
+        )
+
+    _build_run_dir(
+        from_ver,
+        src_dir,
+        tables_dir=src_input,
+        file_input_path=file_input_path,
+        file_output_path="./Output/",
+    )
+    if layout == "rel-inside-to-dir-same-source":
+        assert table_mod._is_relative_within_dir(file_input_path, out_dir)
+    source_before = _snapshot_dir_bytes(src_input)
+
+    convert_table(
+        str(src_dir),
+        str(out_dir),
+        from_ver,
+        to_ver,
+        validate_profiles=False,
+    )
+
+    assert _snapshot_dir_bytes(src_input) == source_before
+    converted_site_select = out_dir / "Input_input" / "SUEWS_SiteSelect.txt"
+    assert converted_site_select.is_file()
+    assert (
+        converted_site_select.read_bytes()
+        != source_before[Path("SUEWS_SiteSelect.txt")]
+    )
+
+    out_rc = f90nml.read(str(out_dir / "RunControl.nml"))["runcontrol"]
+    assert out_rc["fileinputpath"] == "./Input_input/"
+
+
+@pytest.mark.parametrize(
+    ("from_ver", "to_ver", "path_mode"),
+    [
+        pytest.param(
+            "2020a", "2020a", "abs-shared", id="same-version-abs-shared-as-to-dir"
+        ),
+        pytest.param(
+            "2020a", "2020a", "rel-shared", id="same-version-rel-shared-as-to-dir"
+        ),
+        pytest.param(
+            "2020a", "2021a", "abs-shared", id="single-step-abs-shared-as-to-dir"
+        ),
+        pytest.param("2020a", "2024a", "abs-shared", id="chained-abs-shared-as-to-dir"),
+        pytest.param("2020a", "2024a", "rel-shared", id="chained-rel-shared-as-to-dir"),
+        pytest.param(
+            "2020a", "2020a", "rel-child", id="same-version-rel-child-as-to-dir"
+        ),
+    ],
+)
+def test_convert_table_rejects_to_dir_equal_to_source_input_dir(
+    tmp_path, from_ver, to_ver, path_mode
+):
+    """Raise ValueError when fromDir != toDir and toDir resolves to source input dir."""
+    proj_dir = tmp_path / "proj"
+    src_dir = proj_dir / "run"
+    if path_mode == "rel-child":
+        src_input = src_dir / "Input"
+        file_input_path = "./Input/"
+    else:
+        src_input = proj_dir / "shared"
+        file_input_path = (
+            "../shared/"
+            if path_mode == "rel-shared"
+            else f"{src_input.resolve().as_posix()}/"
+        )
 
     _build_run_dir(
         from_ver,
@@ -404,22 +505,19 @@ def test_convert_table_avoids_source_collision_when_source_input_is_direct_child
         file_output_path="./Output/",
     )
     source_before = _snapshot_dir_bytes(src_input)
+    src_before = _snapshot_dir_bytes(src_dir)
 
-    convert_table(
-        str(src_dir),
-        str(proj_dir),
-        from_ver,
-        to_ver,
-        validate_profiles=False,
-    )
+    with pytest.raises(ValueError, match="source input directory"):
+        convert_table(
+            str(src_dir),
+            str(src_input),
+            from_ver,
+            to_ver,
+            validate_profiles=False,
+        )
 
     assert _snapshot_dir_bytes(src_input) == source_before
-    converted_site_select = proj_dir / "Input_input" / "SUEWS_SiteSelect.txt"
-    assert converted_site_select.is_file()
-    assert converted_site_select.read_bytes() != source_before[Path("SUEWS_SiteSelect.txt")]
-
-    out_rc = f90nml.read(str(proj_dir / "RunControl.nml"))["runcontrol"]
-    assert out_rc["fileinputpath"] == "./Input_input/"
+    assert _snapshot_dir_bytes(src_dir) == src_before
 
 
 @pytest.mark.parametrize(
@@ -472,8 +570,8 @@ def test_convert_table_avoids_escaping_symlink_inside_to_dir(
     assert (out_dir / "Input_input" / "SUEWS_SiteSelect.txt").is_file()
     out_rc = f90nml.read(str(out_dir / "RunControl.nml"))["runcontrol"]
     assert out_rc["fileinputpath"] == "./Input_input/"
-    assert (out_dir / out_rc["fileinputpath"]).resolve().is_relative_to(
-        out_dir.resolve()
+    assert (
+        (out_dir / out_rc["fileinputpath"]).resolve().is_relative_to(out_dir.resolve())
     )
 
 

@@ -964,25 +964,47 @@ def _rewrite_external_fileinputpath(
     return True
 
 
+def _check_output_dir_not_source_input(
+    path_from_dir: Path,
+    path_to_dir: Path,
+    source_input_dir: Path,
+) -> None:
+    """Reject ``toDir`` equal to ``source_input_dir`` when ``fromDir != toDir``."""
+    from_resolved = path_from_dir.resolve()
+    to_resolved = path_to_dir.resolve()
+    source_resolved = source_input_dir.resolve()
+    if from_resolved != to_resolved and to_resolved == source_resolved:
+        raise ValueError(
+            f"Output directory {to_resolved} resolves to source input directory "
+            f"{source_resolved}; choose a different toDir to avoid overwriting "
+            "source tables."
+        )
+
+
 def _prepare_output_dirs(
     path_to_dir: Path,
     source_input_dir: Path | None = None,
+    path_from_dir: Path | None = None,
 ) -> tuple[pd.Series, Path]:
     """Ensure ``FileInputPath`` sits inside ``path_to_dir`` and create output folders.
 
     ``FileOutputPath`` is left unchanged; its directory is created only when it
-    is relative and resolves inside ``path_to_dir``.
+    is relative and resolves inside ``path_to_dir``. When ``path_from_dir``
+    resolves to ``path_to_dir`` (in-place conversion), ``source_input_dir`` is
+    not treated as an overwrite collision.
     """
     path_runcontrol = Path(path_insensitive(path_to_dir / "RunControl.nml"))
-    source_resolved = (
-        source_input_dir.resolve() if source_input_dir is not None else None
-    )
+    base_resolved = path_to_dir.resolve()
+    source_resolved: Path | None = None
+    if source_input_dir is not None and (
+        path_from_dir is None or path_from_dir.resolve() != base_resolved
+    ):
+        source_resolved = source_input_dir.resolve()
     _rewrite_external_fileinputpath(
         path_runcontrol, path_to_dir, source_input_dir=source_resolved
     )
 
     ser_nml = load_SUEWS_nml_simple(str(path_runcontrol)).runcontrol
-    base_resolved = path_to_dir.resolve()
     path_input = (base_resolved / ser_nml["fileinputpath"].strip()).resolve()
     if not path_input.is_relative_to(base_resolved):
         raise ValueError(
@@ -1039,6 +1061,10 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
         # Relative path from fromDir
         input_dir = (Path(fromDir) / fileinputpath).resolve()
 
+    _check_output_dir_not_source_input(Path(fromDir), Path(toDir), input_dir)
+    if os.path.exists(toDir) is False:
+        os.mkdir(toDir)
+
     # Copy files from the actual input directory
     if input_dir.exists():
         _copy_and_clean_files(
@@ -1049,10 +1075,9 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     _copy_and_clean_files(fromDir, toDir, ["*.nml"], clean_txt=False)
 
     # Create the standard directory structure
-    source_input_dir = (
-        input_dir if Path(fromDir).resolve() != Path(toDir).resolve() else None
+    _, path_input = _prepare_output_dirs(
+        Path(toDir), source_input_dir=input_dir, path_from_dir=Path(fromDir)
     )
-    _, path_input = _prepare_output_dirs(Path(toDir), source_input_dir=source_input_dir)
 
     # Move table files to Input directory
     list_table_input = sorted(
@@ -1346,14 +1371,14 @@ def _apply_step_moves(toDir, harvested, fromVer, toVer):
 
 # a single conversion between two versions
 def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
-    # copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt
-    if os.path.exists(toDir) is False:
-        os.mkdir(toDir)
-
     # Special case: if fromVer == toVer, just copy and clean without conversion
     if fromVer == toVer:
         _handle_same_version_copy(fromDir, toDir, fromVer)
         return
+
+    # copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt
+    if os.path.exists(toDir) is False:
+        os.mkdir(toDir)
 
     # Normal conversion process continues below
     fileList = _build_file_list(fromDir, fromVer)
@@ -1757,9 +1782,11 @@ def convert_table(
            outside ``toDir`` (for example a ``../`` path or an escaping
            symlink), or would overwrite the source input directory, it is
            rewritten in the output ``RunControl.nml`` to a relative folder
-           inside ``toDir``. ``FileOutputPath`` is left unchanged and an
-           external ``FileOutputPath`` directory is not created. Forcing files
-           are not copied.
+           inside ``toDir``. Passing a ``toDir`` (different from ``fromDir``)
+           that resolves to the source input directory raises ``ValueError``
+           before any files are written. ``FileOutputPath`` is left unchanged
+           and an external ``FileOutputPath`` directory is not created. Forcing
+           files are not copied.
 
         With debug_dir specified, intermediate conversion steps are preserved for inspection.
 
@@ -1797,6 +1824,11 @@ def convert_table(
     logger_supy.info(f"working on chained conversion {len_chain} actions to take")
     logger_supy.info(f"chained list: {chain_ver[1:]} \n")
 
+    # Locate source input folder and reject toDir == source_input_dir before writing
+    ser_nml = load_SUEWS_nml_simple(str(Path(fromDir) / "RunControl.nml")).runcontrol
+    source_input_dir = (Path(fromDir) / ser_nml["fileinputpath"].strip()).resolve()
+    _check_output_dir_not_source_input(Path(fromDir), Path(toDir), source_input_dir)
+
     # Create debug directory if specified
     if debug_dir is not None:
         debug_path = Path(debug_dir)
@@ -1824,13 +1856,6 @@ def convert_table(
             os.mkdir(tempDir_2)
 
         # flatten all file structures in tempDir_1
-        # locate input folder
-        ser_nml = load_SUEWS_nml_simple(
-            str(Path(fromDir) / "RunControl.nml")
-        ).runcontrol
-        source_input_dir = (
-            Path(fromDir) / ser_nml["fileinputpath"].strip()
-        ).resolve()
         path_input = source_input_dir
         list_table_input = sorted(
             list(
@@ -2012,11 +2037,8 @@ def convert_table(
             rmtree(tempDir_2, ignore_errors=True)
 
     # cleaning and move input tables into the `input` folder
-    final_source_input = (
-        source_input_dir if Path(fromDir).resolve() != Path(toDir).resolve() else None
-    )
     ser_nml, path_input = _prepare_output_dirs(
-        Path(toDir), source_input_dir=final_source_input
+        Path(toDir), source_input_dir=source_input_dir, path_from_dir=Path(fromDir)
     )
 
     list_table_input = sorted(

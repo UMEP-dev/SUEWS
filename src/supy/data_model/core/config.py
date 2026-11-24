@@ -4969,35 +4969,35 @@ class SUEWSConfig(DataModelBase):
                                     ].append(site_name)
                                 has_issues = True
 
-                        # LAI range check for vegetation surfaces
-                        if (
-                            surface_type in ["grass", "dectr", "evetr"]
-                            and hasattr(surface, "lai")
-                            and surface.lai
-                        ):
-                            lai = surface.lai
+                        # # LAI range check for vegetation surfaces
+                        # if (
+                        #     surface_type in ["grass", "dectr", "evetr"]
+                        #     and hasattr(surface, "lai")
+                        #     and surface.lai
+                        # ):
+                        #     lai = surface.lai
 
-                            # Check lai_min vs lai_max
-                            if lai.lai_min is not None and lai.lai_max is not None:
-                                lai_min_val = (
-                                    lai.lai_min.value
-                                    if hasattr(lai.lai_min, "value")
-                                    else lai.lai_min
-                                )
-                                lai_max_val = (
-                                    lai.lai_max.value
-                                    if hasattr(lai.lai_max, "value")
-                                    else lai.lai_max
-                                )
+                        #     # Check lai_min vs lai_max
+                        #     if lai.lai_min is not None and lai.lai_max is not None:
+                        #         lai_min_val = (
+                        #             lai.lai_min.value
+                        #             if hasattr(lai.lai_min, "value")
+                        #             else lai.lai_min
+                        #         )
+                        #         lai_max_val = (
+                        #             lai.lai_max.value
+                        #             if hasattr(lai.lai_max, "value")
+                        #             else lai.lai_max
+                        #         )
 
-                                if lai_min_val > lai_max_val:
-                                    annotator.add_issue(
-                                        path=f"{path}/lai",
-                                        param="lai_min_lai_max",
-                                        message=f"LAI range invalid: lai_min ({lai_min_val}) > lai_max ({lai_max_val})",
-                                        fix="Set lai_min <= lai_max (typical values: lai_min=0.1-1.0, lai_max=3.0-8.0)",
-                                        level="WARNING",
-                                    )
+                        #         if lai_min_val > lai_max_val:
+                        #             annotator.add_issue(
+                        #                 path=f"{path}/lai",
+                        #                 param="lai_min_lai_max",
+                        #                 message=f"LAI range invalid: lai_min ({lai_min_val}) > lai_max ({lai_max_val})",
+                        #                 fix="Set lai_min <= lai_max (typical values: lai_min=0.1-1.0, lai_max=3.0-8.0)",
+                        #                 level="WARNING",
+                        #             )
 
                             # # Check base_temperature vs gddfull
                             # if lai.base_temperature is not None and lai.gdd_full is not None:

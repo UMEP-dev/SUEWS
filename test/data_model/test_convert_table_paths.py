@@ -14,7 +14,6 @@ import f90nml
 import pytest
 import yaml
 
-pytest.importorskip("supy")
 from supy.util.converter import convert_table, convert_to_yaml
 from supy.util.converter.table import table as table_mod
 
@@ -273,8 +272,8 @@ def test_convert_table_rewrites_windows_fileinputpath_on_flat_run_dir(tmp_path):
     """Windows drive FileInputPath is rewritten into toDir even on POSIX hosts."""
     src_dir = tmp_path / "winrun"
     out_dir = tmp_path / "winout"
-    win_input = r"C:\data\site\CustomInput\\"[:-1]
-    win_output = r"C:\data\site\Output\\"[:-1]
+    win_input = "C:\\data\\site\\CustomInput\\"
+    win_output = "C:\\data\\site\\Output\\"
 
     _build_run_dir(
         "2020a",
@@ -295,10 +294,10 @@ def test_convert_table_rewrites_windows_fileinputpath_on_flat_run_dir(tmp_path):
 @pytest.mark.parametrize(
     ("raw_input", "expected"),
     [
-        (r"C:\data\site\CustomInput" + "\\", "./CustomInput/"),
+        ("C:\\data\\site\\CustomInput\\", "./CustomInput/"),
         ("C:/data/site/CustomInput/", "./CustomInput/"),
-        (r"\\server\share\SiteInput" + "\\", "./SiteInput/"),
-        (r"..\shared\CustomInput" + "\\", "./CustomInput/"),
+        ("\\\\server\\share\\SiteInput\\", "./SiteInput/"),
+        ("..\\shared\\CustomInput\\", "./CustomInput/"),
         ("C:\\", "./Input/"),
         ("../shared/Input/", "./Input/"),
     ],
@@ -329,6 +328,153 @@ def test_rewrite_external_fileinputpath_windows_and_case_insensitive_lookup(
     assert patched["fileinputpath"] == expected
     assert patched["fileoutputpath"] == "/keep/me/Output/"
     assert "!keep comment" in rc_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("from_ver", "to_ver"),
+    [
+        pytest.param("2020a", "2020a", id="same-version-2020a"),
+        pytest.param("2020a", "2024a", id="chained-2020a-to-2024a"),
+    ],
+)
+def test_convert_table_does_not_overwrite_source_when_to_dir_is_parent_of_source(
+    tmp_path, from_ver, to_ver
+):
+    """When toDir is a parent of the source, an absolute FileInputPath inside toDir is still rewritten."""
+    proj_dir = tmp_path / "proj"
+    src_dir = proj_dir / "run"
+    src_input = proj_dir / "shared" / "Input"
+    src_output = src_dir / "Output"
+    abs_input = f"{src_input.resolve().as_posix()}/"
+    abs_output = f"{src_output.resolve().as_posix()}/"
+
+    _build_run_dir(
+        from_ver,
+        src_dir,
+        tables_dir=src_input,
+        file_input_path=abs_input,
+        file_output_path=abs_output,
+    )
+    shared_before = _snapshot_dir_bytes(src_input)
+    src_before = _snapshot_dir_bytes(src_dir)
+
+    convert_table(
+        str(src_dir),
+        str(proj_dir),
+        from_ver,
+        to_ver,
+        validate_profiles=False,
+    )
+
+    assert _snapshot_dir_bytes(src_input) == shared_before
+    assert _snapshot_dir_bytes(src_dir) == src_before
+    assert not src_output.exists()
+
+    converted_site_select = proj_dir / "Input" / "SUEWS_SiteSelect.txt"
+    assert converted_site_select.is_file()
+    assert converted_site_select.read_bytes() != shared_before[Path("SUEWS_SiteSelect.txt")]
+
+    out_rc = f90nml.read(str(proj_dir / "RunControl.nml"))["runcontrol"]
+    assert out_rc["fileinputpath"] == "./Input/"
+    assert out_rc["fileoutputpath"] == abs_output
+
+
+@pytest.mark.parametrize(
+    ("from_ver", "to_ver", "use_relative"),
+    [
+        pytest.param("2020a", "2020a", False, id="same-version-abs-direct-child"),
+        pytest.param("2020a", "2024a", False, id="chained-abs-direct-child"),
+        pytest.param("2020a", "2020a", True, id="same-version-parent-rel-direct-child"),
+    ],
+)
+def test_convert_table_avoids_source_collision_when_source_input_is_direct_child_of_to_dir(
+    tmp_path, from_ver, to_ver, use_relative
+):
+    """Rewriting to ./<leaf>/ must not land on the source input folder under toDir."""
+    proj_dir = tmp_path / "proj"
+    src_dir = proj_dir / "run"
+    src_input = proj_dir / "Input"
+    file_input_path = "../Input/" if use_relative else f"{src_input.resolve().as_posix()}/"
+
+    _build_run_dir(
+        from_ver,
+        src_dir,
+        tables_dir=src_input,
+        file_input_path=file_input_path,
+        file_output_path="./Output/",
+    )
+    source_before = _snapshot_dir_bytes(src_input)
+
+    convert_table(
+        str(src_dir),
+        str(proj_dir),
+        from_ver,
+        to_ver,
+        validate_profiles=False,
+    )
+
+    assert _snapshot_dir_bytes(src_input) == source_before
+    converted_site_select = proj_dir / "Input_input" / "SUEWS_SiteSelect.txt"
+    assert converted_site_select.is_file()
+    assert converted_site_select.read_bytes() != source_before[Path("SUEWS_SiteSelect.txt")]
+
+    out_rc = f90nml.read(str(proj_dir / "RunControl.nml"))["runcontrol"]
+    assert out_rc["fileinputpath"] == "./Input_input/"
+
+
+@pytest.mark.parametrize(
+    ("from_ver", "to_ver", "use_absolute"),
+    [
+        pytest.param("2020a", "2020a", False, id="same-version-relative-symlink"),
+        pytest.param("2020a", "2024a", False, id="chained-relative-symlink"),
+        pytest.param("2020a", "2020a", True, id="same-version-abs-symlink-collision"),
+    ],
+)
+def test_convert_table_avoids_escaping_symlink_inside_to_dir(
+    tmp_path, from_ver, to_ver, use_absolute
+):
+    """An existing symlink in toDir targeting outside toDir is never written through."""
+    src_dir = tmp_path / "run"
+    src_input = src_dir / "Input"
+    out_dir = tmp_path / "out"
+    outside_victim = tmp_path / "outside_victim"
+    outside_victim.mkdir()
+    sentinel = outside_victim / "sentinel.txt"
+    sentinel.write_text("keep-me\n", encoding="utf-8")
+
+    out_dir.mkdir()
+    try:
+        (out_dir / "Input").symlink_to(outside_victim, target_is_directory=True)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"Symlink creation unavailable on this platform: {exc}")
+
+    file_input_path = (
+        f"{src_input.resolve().as_posix()}/" if use_absolute else "./Input/"
+    )
+    _build_run_dir(
+        from_ver,
+        src_dir,
+        tables_dir=src_input,
+        file_input_path=file_input_path,
+        file_output_path="./Output/",
+    )
+    victim_before = _snapshot_dir_bytes(outside_victim)
+
+    convert_table(
+        str(src_dir),
+        str(out_dir),
+        from_ver,
+        to_ver,
+        validate_profiles=False,
+    )
+
+    assert _snapshot_dir_bytes(outside_victim) == victim_before
+    assert (out_dir / "Input_input" / "SUEWS_SiteSelect.txt").is_file()
+    out_rc = f90nml.read(str(out_dir / "RunControl.nml"))["runcontrol"]
+    assert out_rc["fileinputpath"] == "./Input_input/"
+    assert (out_dir / out_rc["fileinputpath"]).resolve().is_relative_to(
+        out_dir.resolve()
+    )
 
 
 def test_convert_to_yaml_preserves_absolute_fileoutputpath_and_source_tables(tmp_path):
@@ -362,3 +508,54 @@ def test_convert_to_yaml_preserves_absolute_fileoutputpath_and_source_tables(tmp
     payload = yaml.safe_load(out_yml.read_text(encoding="utf-8"))
     recorded_output_dir = payload["model"]["control"]["output"]["dir"]
     assert (out_yml.parent / recorded_output_dir).resolve() == src_output.resolve()
+
+
+@pytest.mark.parametrize(
+    "use_parent_relative",
+    [
+        pytest.param(False, id="absolute-external-fileinputpath"),
+        pytest.param(True, id="parent-relative-external-fileinputpath"),
+    ],
+)
+def test_convert_to_yaml_finds_forcing_in_external_fileinputpath(
+    tmp_path, use_parent_relative
+):
+    """convert_to_yaml finds forcing files kept in an external FileInputPath."""
+    src_dir = tmp_path / "yamlrun"
+    external_input = tmp_path / "external_data" / "CustomInput"
+    out_yml = tmp_path / "out" / "config.yml"
+    out_yml.parent.mkdir(parents=True, exist_ok=True)
+
+    file_input_path = (
+        "../external_data/CustomInput/"
+        if use_parent_relative
+        else f"{external_input.resolve().as_posix()}/"
+    )
+    _build_run_dir(
+        "2020a",
+        src_dir,
+        tables_dir=external_input,
+        file_input_path=file_input_path,
+        file_output_path="./Output/",
+    )
+
+    rc_data = f90nml.read(str(src_dir / "RunControl.nml"))["runcontrol"]
+    filecode = rc_data["filecode"]
+    dummy_forcing = external_input / f"{filecode}_2005_data_60.txt"
+    dummy_forcing.write_text("iy id it imin\n2005 1 0 0\n", encoding="utf-8")
+    external_before = _snapshot_dir_bytes(external_input)
+
+    convert_to_yaml(
+        str(src_dir / "RunControl.nml"),
+        str(out_yml),
+        from_ver="2020a",
+        validate_profiles=False,
+    )
+
+    assert _snapshot_dir_bytes(external_input) == external_before
+    payload = yaml.safe_load(out_yml.read_text(encoding="utf-8"))
+    forcing_entry = payload["model"]["control"]["forcing"]["file"]
+    recorded_forcing = (
+        forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry
+    )
+    assert (out_yml.parent / recorded_forcing).resolve() == dummy_forcing.resolve()

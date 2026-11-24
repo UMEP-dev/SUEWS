@@ -151,8 +151,8 @@ Path Resolution and File Location
 The converter handles various directory structures by reading the ``FileInputPath`` parameter from your ``RunControl.nml`` file:
 
 - **Configured paths**: The converter respects custom paths specified in ``RunControl.nml`` when reading source tables
-- **Absolute and parent-relative paths**: Used as specified when reading source tables (e.g., ``/home/user/data/inputs/`` or ``../shared/Input/``). When :func:`~supy.util.converter.convert_table` writes converted tables to ``toDir``, any ``FileInputPath`` that resolves outside ``toDir`` is rewritten in the output ``RunControl.nml`` to a relative folder inside ``toDir`` (e.g., ``./Input/``) so source files are not overwritten; ``FileOutputPath`` is left unchanged
-- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``) and preserved when inside ``toDir``
+- **Absolute and parent-relative paths**: Used as specified when reading source tables (e.g., ``/home/user/data/inputs/`` or ``../shared/Input/``). When :func:`~supy.util.converter.convert_table` writes converted tables to ``toDir``, any ``FileInputPath`` that is absolute, or resolving outside ``toDir`` (such as a ``../`` path or an escaping symlink), is rewritten in the output ``RunControl.nml`` to a relative folder inside ``toDir`` (e.g., ``./Input/``) so source files are not overwritten. ``FileOutputPath`` is left unchanged, and an external ``FileOutputPath`` directory is not created (only a relative ``FileOutputPath`` resolving inside ``toDir`` is created). Forcing files are not copied by ``convert_table``; ``suews convert`` still locates forcing files using the original ``RunControl.nml`` ``FileInputPath``
+- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``) and preserved when inside ``toDir`` (unless it would overwrite the source input directory or escape ``toDir`` via a symlink)
 - **Automatic fallback**: If files aren't found at the configured path, the converter automatically checks:
   
   1. The directory containing ``RunControl.nml``

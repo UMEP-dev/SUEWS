@@ -148,11 +148,11 @@ If auto-detection fails, you'll be prompted to specify the source version explic
 Path Resolution and File Location
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The converter intelligently handles various directory structures by reading the ``FileInputPath`` parameter from your ``RunControl.nml`` file:
+The converter handles various directory structures by reading the ``FileInputPath`` parameter from your ``RunControl.nml`` file:
 
-- **Configured paths**: The converter respects custom paths specified in ``RunControl.nml``
-- **Absolute paths**: Used directly as specified (e.g., ``/home/user/data/inputs/``)
-- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``)
+- **Configured paths**: The converter respects custom paths specified in ``RunControl.nml`` when reading source tables
+- **Absolute and parent-relative paths**: Used as specified when reading source tables (e.g., ``/home/user/data/inputs/`` or ``../shared/Input/``). When :func:`~supy.util.converter.convert_table` writes converted tables to ``toDir``, any ``FileInputPath`` that is absolute or resolves outside ``toDir`` (such as a ``../`` path or an escaping symlink) is rewritten in the output ``RunControl.nml`` to a relative folder inside ``toDir`` (e.g., ``./Input/``) so source files are not overwritten. Passing a ``toDir`` (different from ``fromDir``) that resolves to the source input directory raises a ``ValueError`` before any files are written. ``FileOutputPath`` is left unchanged, and an external ``FileOutputPath`` directory is not created (only a relative ``FileOutputPath`` resolving inside ``toDir`` is created). Forcing files are not copied by ``convert_table``; ``suews convert`` still locates forcing files using the original ``RunControl.nml`` ``FileInputPath``
+- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``) and preserved when inside ``toDir`` (unless it would overwrite the source input directory or escape ``toDir`` via a symlink)
 - **Automatic fallback**: If files aren't found at the configured path, the converter automatically checks:
   
   1. The directory containing ``RunControl.nml``

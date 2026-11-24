@@ -729,7 +729,13 @@ def test_flatten_physics_accepts_kdown_constant_direct_fraction():
 
     flatten_physics_in_config(data)
 
-    assert data["model"]["physics"] == {"kdown_split_method": {"value": 2}}
+    # The fraction is kept as the flat ModelPhysics field: the validator writes
+    # this flattened dict as its updated YAML, so dropping it would reset the
+    # fraction to the 0.5 default.
+    assert data["model"]["physics"] == {
+        "kdown_split_method": {"value": 2},
+        "sw_dn_direct_frac": 0.45,
+    }
 
 
 def test_model_physics_accepts_orthogonal_spartacus():

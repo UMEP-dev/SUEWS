@@ -553,24 +553,12 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
             if _is_absent_doy_mapping(enddls):
                 enddls = None
 
+            # The run year comes from the context, which already falls back to
+            # the forcing when start_time is not set; unknown year allows 366.
             max_dls_doy = 366
-            yaml_data = getattr(context, "yaml_data", None)
-            model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
-            control_cfg = (
-                model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
-            )
-            start_time = (
-                get_value_safe(control_cfg, "start_time")
-                if isinstance(control_cfg, Mapping)
-                else None
-            )
-            if start_time is not None:
-                try:
-                    year = int(str(start_time)[:4])
-                    if not calendar.isleap(year):
-                        max_dls_doy = 365
-                except (TypeError, ValueError):
-                    pass
+            year = getattr(context, "model_year", None)
+            if year is not None and not calendar.isleap(year):
+                max_dls_doy = 365
 
             for dls_name, dls_val in (("startdls", startdls), ("enddls", enddls)):
                 if dls_val is None:
@@ -652,7 +640,7 @@ def validate_irrigation_doy(
     ie_start: Optional[Union[int, float]],
     ie_end: Optional[Union[int, float]],
     lat: float,
-    model_year: int,
+    model_year: int | None,
     site_name: str,
 ) -> List[ValidationResult]:
     """
@@ -668,8 +656,9 @@ def validate_irrigation_doy(
         0 is only used as the internal df_state sentinel).
     lat : float
         Site latitude (used for hemisphere and tropical detection).
-    model_year : int
-        Simulation year (used for leap year detection).
+    model_year : int or None
+        Simulation year (used for leap year detection); None when the run
+        year is unknown, which allows DOY 366.
     site_name : str
         Site identifier for error messages.
 
@@ -690,7 +679,8 @@ def validate_irrigation_doy(
     from ....core.human_activity import coerce_integer_doy_scalar
 
     results = []
-    is_leap = calendar.isleap(model_year)
+    # Without a known run year, accept DOY 366 rather than guess a non-leap year.
+    is_leap = model_year is None or calendar.isleap(model_year)
     max_doy = 366 if is_leap else 365
 
     parsed: Dict[str, Optional[int]] = {}
@@ -735,9 +725,13 @@ def validate_irrigation_doy(
                     category="IRRIGATION",
                     parameter=f"{param_name} in site {site_name}",
                     message=f"{param_name}={param_value} is invalid. "
-                    f"Must be an integer day of year between 1 and {max_doy} for "
-                    f"{'leap' if is_leap else 'non-leap'} year {model_year}, "
-                    "or null/None to disable irrigation",
+                    f"Must be an integer day of year between 1 and {max_doy}"
+                    + (
+                        f" for {'leap' if is_leap else 'non-leap'} year {model_year}"
+                        if model_year is not None
+                        else ""
+                    )
+                    + ", or null/None to disable irrigation",
                     suggested_value=f"Valid range: 1-{max_doy}, or null/None to disable",
                 )
             )

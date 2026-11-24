@@ -1129,6 +1129,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     Notes
     -----
+    - Sites without buildings (bldgs.sfr == 0) are not checked.
     - The minimum allowed factor depends on building plan area fraction (equal to bldgs.sfr):
         - If bldgs.sfr >= 0.35:
             - z must be between 1.5* and 5* building mean height
@@ -1194,6 +1195,11 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         bldgs = _unwrap_nested_value(land_cover_raw.get("bldgs", {})) if isinstance(land_cover_raw, Mapping) else None
         bldgh = _as_float(_unwrap_nested_value(bldgs.get("bldgh"))) if isinstance(bldgs, Mapping) else None
         sfr = _as_float(_unwrap_nested_value(bldgs.get("sfr"))) if isinstance(bldgs, Mapping) else None
+
+        # A site without buildings (bldgs.sfr == 0) has no building height to
+        # scale z against, whatever bldgh holds: skip the check.
+        if sfr is not None and sfr <= 0.0:
+            continue
 
         # optional STEBBS archetype height (only when STEBBS is enabled)
         stebbs_height = None

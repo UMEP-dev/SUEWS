@@ -785,6 +785,104 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
 
     assert not any(r.status == "ERROR" for r in results)
 
+def test_phase_b_forcing_height_skips_site_without_buildings(registry):
+    """A site with ``bldgs.sfr == 0`` has no building height to scale z by.
+
+    The sample's bldgh stays at 22 m when buildings are removed, which used
+    to give "z=40 below 2* mean building height" as an ERROR.
+    """
+    yaml_data = {
+        "model": {"physics": {"net_radiation": {"value": 3}}},
+        "sites": [
+            {
+                "name": "Grassland",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 10.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 22.0}, "sfr": {"value": 0.0}},
+                    },
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    assert not results, results
+
+
+@pytest.mark.parametrize(
+    ("lat", "lng", "expected"),
+    [
+        (-33.87, 151.21, 10),  # Sydney: January is summer time (UTC+11)
+        (28.61, 77.21, 5.5),  # Delhi: half-hour offset
+        (51.51, -0.13, 0),  # London: northern winter, whole hours
+        (53.35, -6.26, 0),  # Dublin: pytz models Irish winter as negative DST
+        (-31.55, 159.08, 10.5),  # Lord Howe: half-hour DST shift
+    ],
+)
+def test_dls_check_standard_offset(lat, lng, expected):
+    """The suggested timezone is the standard (non-DST) offset, unrounded."""
+    from supy.data_model.validation.core.yaml_helpers import (
+        HAS_TIMEZONE_FINDER,
+        DLSCheck,
+    )
+
+    if not HAS_TIMEZONE_FINDER:
+        pytest.skip("No timezone finder installed")
+    _, _, offset = DLSCheck(lat=lat, lng=lng, year=2012).compute_dst_transitions()
+    assert offset == expected
+    assert type(offset) is type(expected)
+
+
+def test_resolve_simulation_parameters_without_bounds_or_forcing(tmp_path):
+    """No bounds and no readable forcing: warn and skip, do not fail."""
+    from supy.data_model.validation.pipeline.phase_b import (
+        resolve_simulation_parameters,
+        run_scientific_adjustment_pipeline,
+    )
+
+    yaml_data = {
+        "model": {
+            "control": {
+                "start_time": None,
+                "end_time": None,
+                "forcing": {"file": None},
+            }
+        },
+        "sites": [],
+    }
+    model_year, start_date, end_date, notes = resolve_simulation_parameters(
+        yaml_data, tmp_path
+    )
+    assert (model_year, start_date, end_date) == (None, None, None)
+    assert [n.status for n in notes] == ["WARNING"]
+    assert "season-dependent checks" in notes[0].message
+
+    # The date-free adjustment steps still run.
+    run_scientific_adjustment_pipeline(yaml_data, start_date, model_year)
+
+
+def test_resolve_simulation_parameters_rejects_unparsable_bound(tmp_path):
+    """A bound that is set but unparsable is still an error."""
+    from supy.data_model.validation.pipeline.phase_b import (
+        resolve_simulation_parameters,
+    )
+
+    yaml_data = {"model": {"control": {"start_time": "soon", "end_time": None}}}
+    with pytest.raises(ValueError, match="start_time"):
+        resolve_simulation_parameters(yaml_data, tmp_path)
+
+
+def test_irrigation_doy_366_allowed_when_year_unknown():
+    """With no known run year, DOY 366 is accepted rather than rejected."""
+    from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
+        validate_irrigation_doy,
+    )
+
+    results = validate_irrigation_doy(150, 366, 10.0, None, "Site")
+    assert not [r for r in results if r.status == "ERROR"], results
+
+
 def test_phase_b_forcing_height_only_spartacus_top(registry):
     """
     Test that validate_forcing_height_vs_buildings uses SPARTACUS top height if present,

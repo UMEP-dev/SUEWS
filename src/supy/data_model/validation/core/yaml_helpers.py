@@ -631,10 +631,19 @@ class DLSCheck(BaseModel):
             except Exception:
                 return None
 
-        # Get standard UTC offset (in winter)
+        # Standard (non-DST) UTC offset: the smaller of the mid-January and
+        # mid-July offsets, so southern-hemisphere summer time (Sydney in
+        # January) is not taken as standard. Comparing offsets avoids
+        # ``dst()``, which pytz reports as negative in Irish winter. Fractional
+        # offsets (India +5.5, Nepal +5.75) are kept, not truncated.
         try:
-            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
-            utc_offset_hours = int(std_dt.utcoffset().total_seconds() / 3600)
+            std_offset = min(
+                tz.localize(datetime(self.year, month, 15), is_dst=False).utcoffset()
+                for month in (1, 7)
+            )
+            utc_offset_hours = std_offset.total_seconds() / 3600
+            if utc_offset_hours.is_integer():
+                utc_offset_hours = int(utc_offset_hours)
             logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
         except Exception as e:
             logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
@@ -1186,12 +1195,24 @@ def _bound_as_date(value, name: str, errors: List[str]) -> Optional[str]:
     return ts.strftime("%Y-%m-%d")
 
 
-def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
+def parse_simulation_bounds(
+    data: dict, allow_missing: bool = False
+) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
     """Read ``model.control.start_time`` / ``end_time`` for the validators.
 
     Both fields accept a date or a timestamp (see ``ModelControl``). The
     validators only need the calendar day, so each bound is returned as a
     ``YYYY-MM-DD`` string together with the model year taken from the start.
+
+    Parameters
+    ----------
+    data : dict
+        Raw YAML configuration.
+    allow_missing : bool, optional
+        When True, a null or absent bound is returned as None without an
+        error; ``ModelControl`` documents both as optional (the run then uses
+        the forcing bounds). A bound that is set but unparsable is still an
+        error. By default both bounds are required.
 
     Returns
     -------
@@ -1201,8 +1222,17 @@ def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optio
     """
     control = data.get("model", {}).get("control", {})
     errors: List[str] = []
-    start_date = _bound_as_date(control.get("start_time"), "start_time", errors)
-    end_date = _bound_as_date(control.get("end_time"), "end_time", errors)
+    bounds = {}
+    for name in ("start_time", "end_time"):
+        value = control.get(name)
+        if isinstance(value, Mapping) and "value" in value:
+            value = value["value"]
+        if value is None and allow_missing:
+            bounds[name] = None
+        else:
+            bounds[name] = _bound_as_date(value, name, errors)
+    start_date = bounds["start_time"]
+    end_date = bounds["end_time"]
     model_year = int(start_date[:4]) if start_date is not None else None
     return errors, model_year, start_date, end_date
 

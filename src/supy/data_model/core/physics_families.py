@@ -493,10 +493,11 @@ def flatten_physics_in_config(data: Any) -> Any:
 
     with suppress(TypeError, ValueError):
         fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+    # Keep the constant split fraction as the flat ModelPhysics field: Phase B
+    # writes this flattened dict as the updated YAML, and dropping it would
+    # silently reset the fraction to its 0.5 default on the next run.
     with suppress(TypeError, ValueError):
-        fold_kdown_split_constant_direct_fraction(
-            physics, "ModelPhysics", store_fraction=False
-        )
+        fold_kdown_split_constant_direct_fraction(physics, "ModelPhysics")
 
     for field_name in MODEL_PHYSICS_ENUM_FIELDS:
         if field_name not in physics:

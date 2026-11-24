@@ -283,10 +283,24 @@ class DayProfile(DataModelBase):
         return cls(**params)
 
 
+_WEEKLY_DF_STATE_INDEX: dict[str, int] = {
+    "sunday": 0,
+    "monday": 1,
+    "tuesday": 2,
+    "wednesday": 3,
+    "thursday": 4,
+    "friday": 5,
+    "saturday": 6,
+}
+
+
 class WeeklyProfile(DataModelBase):
     """Seven daily values keyed by lowercase weekday names, Monday to Sunday.
 
-    See :doc:`/inputs/yaml/temporal-profiles` for storage order and field uses.
+    Legacy ``df_state`` arrays and ``SUEWS_Irrigation.txt`` columns
+    (``DayWat(1)``..``DayWat(7)``) store the seven days Sunday first
+    (``0=sunday`` .. ``6=saturday``). See :doc:`/inputs/yaml/temporal-profiles`
+    for storage order and field uses.
     """
 
     model_config = ConfigDict(title="Weekly Profile")
@@ -302,18 +316,9 @@ class WeeklyProfile(DataModelBase):
     ref: Optional[Reference] = None
 
     def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
-        day_map = {
-            "monday": 0,
-            "tuesday": 1,
-            "wednesday": 2,
-            "thursday": 3,
-            "friday": 4,
-            "saturday": 5,
-            "sunday": 6,
-        }
         cols = {("gridiv", "0"): grid_id}
-        for day, idx in day_map.items():
-            cols[(param_name, f"({idx},)")] = getattr(self, day)
+        for day, idx in _WEEKLY_DF_STATE_INDEX.items():
+            cols[param_name, f"({idx},)"] = getattr(self, day)
         return cols
 
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:
@@ -345,24 +350,11 @@ class WeeklyProfile(DataModelBase):
         Returns:
             WeeklyProfile: Instance of WeeklyProfile
         """
-        # Map days to their index
-        day_map = {
-            "monday": 0,
-            "tuesday": 1,
-            "wednesday": 2,
-            "thursday": 3,
-            "friday": 4,
-            "saturday": 5,
-            "sunday": 6,
-        }
-
-        # Extract values from DataFrame for each day
         params = {
             day: df.loc[grid_id, (param_name, f"({idx},)")]
-            for day, idx in day_map.items()
+            for day, idx in _WEEKLY_DF_STATE_INDEX.items()
         }
 
-        # Create an instance of WeeklyProfile
         return cls(**params)
 
 

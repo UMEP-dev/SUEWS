@@ -2448,13 +2448,13 @@ def test_multisite_siteless_root_diagnostic_unattributed(tmp_path: Path) -> None
 
 
 _DAYWAT_SLOTS: tuple[str, ...] = (
+    "sunday",
     "monday",
     "tuesday",
     "wednesday",
     "thursday",
     "friday",
     "saturday",
-    "sunday",
 )
 
 
@@ -2511,10 +2511,10 @@ def _h_maintain_eligible_dates(
 ) -> tuple[date, ...]:
     """Return simulation dates on which Fortran ``update_WaterUse`` uses ``h_maintain``.
 
-    Mirrors ``src/suews/src/suews_phys_dailystate.f95:195-201,589-602``:
+    Mirrors ``src/suews/src/suews_phys_dailystate.f95`` (``SUEWS_cal_DailyState`` / ``update_WaterUse``):
     1. ``water_use`` is modelled (``0`` or ``"modelled"``).
     2. The run reaches the daily update on ``d`` and ``DayWat(wd) == 1.0``, where ``wd`` is the
-       Fortran ``Day_Of_Week`` index (``1..7``) indexing ``[monday..sunday]``.
+       Fortran ``Day_Of_Week`` index (``DOW_SUNDAY=1..DOW_SATURDAY=7``) indexing ``[sunday..saturday]``.
     3. ``doy`` passes the hemispheric ``(lat, ie_start, ie_end)`` season test.
     """
     raw_wu = _unwrap(doc["model"]["physics"]["water_use"])
@@ -2659,10 +2659,10 @@ def test_h_maintain_season_and_weekday_gate_controls() -> None:
     closed_wd_res = _export_engine_dict(SUEWSConfig.from_dict(closed_weekday))
     assert _h_maintain_eligible_dates(closed_wd_res, dates=april_window) == ()
 
-    # ACT / ASSERT 4: single open weekday matching Apr 11 (Wed -> Fortran wd=4 -> DayWat(4)=thursday)
+    # ACT / ASSERT 4: single open weekday matching Apr 11 (Wed -> Fortran wd=DOW_WEDNESDAY=4 -> wednesday)
     open_one_weekday = copy.deepcopy(closed_weekday)
     open_one_weekday["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 0.0
-    open_one_weekday["sites"][0]["properties"]["irrigation"]["daywat"]["thursday"] = 1.0
+    open_one_weekday["sites"][0]["properties"]["irrigation"]["daywat"]["wednesday"] = 1.0
     open_wd_res = _export_engine_dict(SUEWSConfig.from_dict(open_one_weekday))
     assert _h_maintain_eligible_dates(open_wd_res, dates=april_window) == (
         date(2012, 4, 11),

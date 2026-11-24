@@ -40,6 +40,28 @@ MODULE PhysConstants
    USE module_ctrl_const_physconst
 END MODULE PhysConstants
 
+!----------------------------------------------------------------------------------
+MODULE module_ctrl_const_calendar
+
+   IMPLICIT NONE
+
+   ! Number of days in a week and 1-based weekday indices matching Day_Of_Week
+   ! (suews_util_time.f95) and legacy SUEWS_Irrigation DayWat(1:7) ordering.
+   INTEGER, PARAMETER :: NDAYS_WEEK = 7
+   INTEGER, PARAMETER :: DOW_SUNDAY = 1
+   INTEGER, PARAMETER :: DOW_MONDAY = 2
+   INTEGER, PARAMETER :: DOW_TUESDAY = 3
+   INTEGER, PARAMETER :: DOW_WEDNESDAY = 4
+   INTEGER, PARAMETER :: DOW_THURSDAY = 5
+   INTEGER, PARAMETER :: DOW_FRIDAY = 6
+   INTEGER, PARAMETER :: DOW_SATURDAY = 7
+
+   ! Day-type indices for two-day-type diurnal profiles (working day / weekend).
+   INTEGER, PARAMETER :: DAYTYPE_WEEKDAY = 1
+   INTEGER, PARAMETER :: DAYTYPE_WEEKEND = 2
+
+END MODULE module_ctrl_const_calendar
+
 ! sg feb 2012 - added some comments
 ! sg feb 2012 - changed number of surfaces to allocatable array
 ! lj jun 2012 - snow part added

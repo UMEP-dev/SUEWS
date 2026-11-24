@@ -2,6 +2,9 @@
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
+   USE module_ctrl_const_calendar, ONLY: &
+      NDAYS_WEEK, DOW_SUNDAY, DOW_MONDAY, DOW_TUESDAY, DOW_WEDNESDAY, &
+      DOW_THURSDAY, DOW_FRIDAY, DOW_SATURDAY
    USE module_ctrl_error_state, ONLY: supy_error_flag
 
    use module_phys_lai, only: update_gddlai
@@ -87,6 +90,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
 
       REAL(KIND(1D0)), DIMENSION(4, nvegsurf) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK) :: DayWat ! Days of watering allowed (DOW_SUNDAY..DOW_SATURDAY) [-]
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK) :: DayWatPer ! Fraction of properties irrigating (DOW_SUNDAY..DOW_SATURDAY) [-]
 
       TYPE(PHENOLOGY_STATE) :: phenState_prev
 
@@ -185,20 +190,6 @@ CONTAINS
                Ie_a => irrPrm%Ie_a, &
                Ie_m => irrPrm%Ie_m, &
                H_maintain => irrPrm%H_maintain, &
-               DayWatPer => [irrPrm%irr_daywater%monday_percent, &
-                             irrPrm%irr_daywater%tuesday_percent, &
-                             irrPrm%irr_daywater%wednesday_percent, &
-                             irrPrm%irr_daywater%thursday_percent, &
-                             irrPrm%irr_daywater%friday_percent, &
-                             irrPrm%irr_daywater%saturday_percent, &
-                             irrPrm%irr_daywater%sunday_percent], &
-               DayWat => [irrPrm%irr_daywater%monday_flag, &
-                          irrPrm%irr_daywater%tuesday_flag, &
-                          irrPrm%irr_daywater%wednesday_flag, &
-                          irrPrm%irr_daywater%thursday_flag, &
-                          irrPrm%irr_daywater%friday_flag, &
-                          irrPrm%irr_daywater%saturday_flag, &
-                          irrPrm%irr_daywater%sunday_flag], &
                AlbMax_EveTr => evetrPrm%Alb_Max, &
                AlbMin_EveTr => evetrPrm%Alb_Min, &
                evetrLAIPower => evetrPrm%lai%lai_power, &
@@ -241,6 +232,24 @@ CONTAINS
                                 waterPrm%soil%soil_store_capacity], &
                grassLAIPower => grassPrm%lai%lai_power &
                )
+
+               ! Pack weekday irrigation schedules by named day-of-week index
+               ! (DOW_SUNDAY=1 .. DOW_SATURDAY=7) to match DayofWeek_id(1) (gh#2049).
+               DayWat(DOW_SUNDAY) = irrPrm%irr_daywater%sunday_flag
+               DayWat(DOW_MONDAY) = irrPrm%irr_daywater%monday_flag
+               DayWat(DOW_TUESDAY) = irrPrm%irr_daywater%tuesday_flag
+               DayWat(DOW_WEDNESDAY) = irrPrm%irr_daywater%wednesday_flag
+               DayWat(DOW_THURSDAY) = irrPrm%irr_daywater%thursday_flag
+               DayWat(DOW_FRIDAY) = irrPrm%irr_daywater%friday_flag
+               DayWat(DOW_SATURDAY) = irrPrm%irr_daywater%saturday_flag
+
+               DayWatPer(DOW_SUNDAY) = irrPrm%irr_daywater%sunday_percent
+               DayWatPer(DOW_MONDAY) = irrPrm%irr_daywater%monday_percent
+               DayWatPer(DOW_TUESDAY) = irrPrm%irr_daywater%tuesday_percent
+               DayWatPer(DOW_WEDNESDAY) = irrPrm%irr_daywater%wednesday_percent
+               DayWatPer(DOW_THURSDAY) = irrPrm%irr_daywater%thursday_percent
+               DayWatPer(DOW_FRIDAY) = irrPrm%irr_daywater%friday_percent
+               DayWatPer(DOW_SATURDAY) = irrPrm%irr_daywater%saturday_percent
 
                ! before
                ! Set the flag based on i_iter
@@ -551,8 +560,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(12), INTENT(IN) :: HDD_id
       REAL(KIND(1D0)), DIMENSION(NVegSurf), INTENT(IN) :: Ie_a !Coefficients for automatic irrigation models
       REAL(KIND(1D0)), DIMENSION(NVegSurf), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: DayWatPer !% of houses following daily water
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: DayWat !Days of watering allowed
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK), INTENT(IN) :: DayWatPer ! Fraction of properties following daily water (DOW_SUNDAY..DOW_SATURDAY) [-]
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK), INTENT(IN) :: DayWat ! Days of watering allowed (DOW_SUNDAY..DOW_SATURDAY) [-]
 
       ! ponding control related
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: state_surf ! surface wetness [mm]
@@ -569,7 +578,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(3) :: WUDay_M !manual irrigation [mm]
       REAL(KIND(1D0)), DIMENSION(3) :: WUDay_total !Coefficients for manual irrigation models
 
-      INTEGER :: wd !Water use calculation is done when calc = 1
+      INTEGER :: wd ! Day of week index (DOW_SUNDAY..DOW_SATURDAY)
       INTEGER :: calc !Water use calculation is done when calc = 1
       INTEGER :: i
 

@@ -993,7 +993,7 @@
         "wrapped_null": "null_or_empty"
       },
       "category": "active_gap",
-      "active_condition": "Active whenever at least one actual simulation date satisfies water_use=modelled (WaterUseMethod==0), Fortran DayWat(wd)==1.0 (wd from Day_Of_Week: 1=Sun..7=Sat indexed into [monday..sunday]), AND Fortran hemispheric season (lat>=0: ie_start-1 <= doy <= ie_end+1; lat<0: not(ie_end <= doy <= ie_start)), independent of faut or irrigation_fraction: update_WaterUse (suews_phys_dailystate.f95:589-631) adds ponding demand WUDay_P unconditionally to WUDay_A/WUDay_total.",
+      "active_condition": "Active whenever at least one actual simulation date satisfies water_use=modelled (WaterUseMethod==0), Fortran DayWat(wd)==1.0 (wd from Day_Of_Week: 1=Sun..7=Sat indexed into [sunday..saturday]), AND Fortran hemispheric season (lat>=0: ie_start-1 <= doy <= ie_end+1; lat<0: not(ie_end <= doy <= ie_start)), independent of faut or irrigation_fraction: update_WaterUse (suews_phys_dailystate.f95) adds ponding demand WUDay_P unconditionally to WUDay_A/WUDay_total.",
       "owner_issue": "#1991",
       "related_issues": [
         "#1991",

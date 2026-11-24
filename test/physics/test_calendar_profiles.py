@@ -16,11 +16,9 @@ from calendar selection:
   disjoint weekday morning vs weekend evening water delivery, plus permutation
   non-invariance under swap.
 - Weekly irrigation schedules (``daywat``, ``daywatper``): single-day watering
-  is not permutation-invariant and scales linearly with ``daywatper`` when
-  ponding demand is zero.
-- Pinned ``xfail(strict=True)`` regression for UMEP-dev/SUEWS#2049, where
-  ``DailyState`` evaluates Monday-first ``daywat`` using Sunday-first
-  ``DayofWeek_id(1)``.
+  is not permutation-invariant, scales linearly with ``daywatper`` when
+  ponding demand is zero, and applies each named weekday on its own calendar
+  day (regression for UMEP-dev/SUEWS#2049).
 """
 
 from __future__ import annotations
@@ -470,79 +468,64 @@ def test_asymmetric_weekly_daywat_schedule_is_not_permutation_invariant(calendar
     )
 
 
-class _Issue2049DayWatDefectError(AssertionError):
-    """Targeted failure for the UMEP-dev/SUEWS#2049 Monday/Sunday DayWat index bug."""
-
-
-@pytest.mark.xfail(
-    strict=True,
-    raises=_Issue2049DayWatDefectError,
-    reason=(
-        "UMEP-dev/SUEWS#2049: update_WaterUse packs daywat/daywatper Monday-first "
-        "but indexes them with Sunday-first DayofWeek_id(1), so enabling only "
-        "monday records non-zero DailyState WU_Grass1 on Sunday instead of Monday"
-    ),
-)
+@pytest.mark.core
 def test_weekly_daywat_dailystate_matches_named_weekday_gh2049(calendar_base):
     """Enabling only ``monday`` must record DailyState water use on Monday, not Sunday.
 
-    Pinned ``xfail(strict=True, raises=_Issue2049DayWatDefectError)`` regression
-    witness for UMEP-dev/SUEWS#2049: setup, execution, and active finiteness
-    checks raise ordinary exceptions, and only the Monday-vs-Sunday ``WU_Grass1``
-    assertion raises ``_Issue2049DayWatDefectError``.
+    Regression for UMEP-dev/SUEWS#2049: ``update_WaterUse`` previously packed
+    ``DayWat`` and ``DayWatPer`` Monday-first while indexing them with
+    Sunday-first ``DayofWeek_id(1)`` (1=Sunday..7=Saturday), shifting every
+    named weekday one day earlier.
     """
     # ARRANGE
     base_cfg, base_day = calendar_base
+    # 2012-01-05 (Thu) .. 2012-01-14 (Sat): contains a complete Sun..Sat cycle
+    # with Sunday 2012-01-08 and Monday 2012-01-09.
     df_forcing = _make_repeated_forcing(base_day, "2012-01-05", n_days=10)
     midday = _hourly_window_profile({11, 12, 13, 14}, weight=0.25)
 
-    cfg = _configure_modelled_irrigation(
+    cfg_mon = _configure_modelled_irrigation(
         base_cfg,
         daywat_enabled={"monday": 1.0},
         daywatper_values={"monday": 1.0},
         working_profile=midday,
         holiday_profile=midday,
     )
+    cfg_sun = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"sunday": 1.0},
+        daywatper_values={"sunday": 1.0},
+        working_profile=midday,
+        holiday_profile=midday,
+    )
 
     # ACT
-    df_out, _ = _run_config(cfg, df_forcing)
+    df_out_mon, _ = _run_config(cfg_mon, df_forcing)
+    df_out_sun, _ = _run_config(cfg_sun, df_forcing)
 
-    # ASSERT (ordinary assertions stay outside the narrowed xfail exception type)
-    ds_all = df_out.loc[1, "DailyState"]
-    df_daily = ds_all.loc[expected_dailystate_mask(ds_all.index, tstep=300)]
-    assert len(df_daily) == 10
-    wu_by_day = strict_groupby_reduce(
-        df_daily["WU_Grass1"],
-        _interval_day(df_daily.index),
-        agg="sum",
-        label="DailyState.WU_Grass1",
-    )
-    monday = pd.Timestamp("2012-01-09")
-    sunday = pd.Timestamp("2012-01-08")
-    monday_val = float(wu_by_day.loc[monday])
-    sunday_val = float(wu_by_day.loc[sunday])
-
-    if not (monday_val > 0.0 and np.array_equal(sunday_val, 0.0)):
-        raise _Issue2049DayWatDefectError(
-            f"DailyState WU_Grass1 on Monday ({monday.date()}) was {monday_val}; "
-            f"Sunday ({sunday.date()}) was {sunday_val} (gh#2049)"
+    # ASSERT
+    for label, df_out, active_day in (
+        ("monday", df_out_mon, pd.Timestamp("2012-01-09")),
+        ("sunday", df_out_sun, pd.Timestamp("2012-01-08")),
+    ):
+        ds_all = df_out.loc[1, "DailyState"]
+        df_daily = ds_all.loc[expected_dailystate_mask(ds_all.index, tstep=300)]
+        assert len(df_daily) == 10
+        wu_by_day = strict_groupby_reduce(
+            df_daily["WU_Grass1"],
+            _interval_day(df_daily.index),
+            agg="sum",
+            label=f"DailyState.WU_Grass1[{label}]",
         )
-
-
-@pytest.mark.core
-def test_gh2049_xfail_marker_narrows_to_defect_subclass():
-    """The #2049 xfail marker must only absorb ``_Issue2049DayWatDefectError``."""
-    marks = [
-        m
-        for m in getattr(
-            test_weekly_daywat_dailystate_matches_named_weekday_gh2049,
-            "pytestmark",
-            [],
+        cycle_days = pd.date_range("2012-01-07", "2012-01-13", freq="D")
+        assert float(wu_by_day.loc[active_day]) > 0.0, (
+            f"Expected positive DailyState WU_Grass1 on {label} ({active_day.date()}), "
+            f"got {wu_by_day.loc[cycle_days].to_dict()}"
         )
-        if m.name == "xfail"
-    ]
-    assert len(marks) == 1
-    assert marks[0].kwargs.get("strict") is True
-    assert marks[0].kwargs.get("raises") is _Issue2049DayWatDefectError
-    for unrelated in (KeyError, AttributeError, ValueError, AssertionError):
-        assert not issubclass(unrelated, _Issue2049DayWatDefectError)
+        for other_day in cycle_days:
+            if other_day == active_day:
+                continue
+            assert abs(float(wu_by_day.loc[other_day])) <= 1e-12, (
+                f"Expected zero DailyState WU_Grass1 on {other_day.date()} when only "
+                f"{label} is enabled, got {wu_by_day.loc[cycle_days].to_dict()}"
+            )

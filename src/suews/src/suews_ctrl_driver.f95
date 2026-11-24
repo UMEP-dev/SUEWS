@@ -72,6 +72,9 @@ MODULE SUEWS_Driver
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_const_mathconst, ONLY: pi
    USE module_ctrl_const_physconst, ONLY: C2K, SBConst, sec_per_day
+   USE module_ctrl_const_calendar, ONLY: &
+      NDAYS_WEEK, DOW_SUNDAY, DOW_MONDAY, DOW_TUESDAY, DOW_WEDNESDAY, &
+      DOW_THURSDAY, DOW_FRIDAY, DOW_SATURDAY
    IMPLICIT NONE
 
    ! Make error state accessors public for the C-ABI driver
@@ -5275,8 +5278,8 @@ CONTAINS
       INTEGER, INTENT(IN) :: Ie_end !ending time of water use [DOY]
       INTEGER, INTENT(IN) :: Ie_start !starting time of water use [DOY]
       REAL(KIND(1D0)), INTENT(IN) :: InternalWaterUse_h !Internal water use [mm h-1]
-      REAL(KIND(1D0)), DIMENSION(7), INTENT(IN) :: DayWat !Irrigation flag: 1 for on and 0 for off [-]
-      REAL(KIND(1D0)), DIMENSION(7), INTENT(IN) :: DayWatPer !Fraction of properties using irrigation for each day of a week [-]
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK), INTENT(IN) :: DayWat !Irrigation flag: 1 for on and 0 for off (DOW_SUNDAY..DOW_SATURDAY) [-]
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK), INTENT(IN) :: DayWatPer !Fraction of properties using irrigation (DOW_SUNDAY..DOW_SATURDAY) [-]
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(IN) :: WUProfA_24hr !Hourly profile values used in automatic irrigation[-]
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(IN) :: WUProfM_24hr !Hourly profile values used in manual irrigation[-]
 
@@ -5799,20 +5802,20 @@ CONTAINS
       irrPrm%ie_start = Ie_start
       irrPrm%ie_end = Ie_end
       irrPrm%internalwateruse_h = InternalWaterUse_h
-      irrPrm%irr_daywater%monday_flag = DayWat(1)
-      irrPrm%irr_daywater%monday_percent = DayWatPer(1)
-      irrPrm%irr_daywater%tuesday_flag = DayWat(2)
-      irrPrm%irr_daywater%tuesday_percent = DayWatPer(2)
-      irrPrm%irr_daywater%wednesday_flag = DayWat(3)
-      irrPrm%irr_daywater%wednesday_percent = DayWatPer(3)
-      irrPrm%irr_daywater%thursday_flag = DayWat(4)
-      irrPrm%irr_daywater%thursday_percent = DayWatPer(4)
-      irrPrm%irr_daywater%friday_flag = DayWat(5)
-      irrPrm%irr_daywater%friday_percent = DayWatPer(5)
-      irrPrm%irr_daywater%saturday_flag = DayWat(6)
-      irrPrm%irr_daywater%saturday_percent = DayWatPer(6)
-      irrPrm%irr_daywater%sunday_flag = DayWat(7)
-      irrPrm%irr_daywater%sunday_percent = DayWatPer(7)
+      irrPrm%irr_daywater%sunday_flag = DayWat(DOW_SUNDAY)
+      irrPrm%irr_daywater%sunday_percent = DayWatPer(DOW_SUNDAY)
+      irrPrm%irr_daywater%monday_flag = DayWat(DOW_MONDAY)
+      irrPrm%irr_daywater%monday_percent = DayWatPer(DOW_MONDAY)
+      irrPrm%irr_daywater%tuesday_flag = DayWat(DOW_TUESDAY)
+      irrPrm%irr_daywater%tuesday_percent = DayWatPer(DOW_TUESDAY)
+      irrPrm%irr_daywater%wednesday_flag = DayWat(DOW_WEDNESDAY)
+      irrPrm%irr_daywater%wednesday_percent = DayWatPer(DOW_WEDNESDAY)
+      irrPrm%irr_daywater%thursday_flag = DayWat(DOW_THURSDAY)
+      irrPrm%irr_daywater%thursday_percent = DayWatPer(DOW_THURSDAY)
+      irrPrm%irr_daywater%friday_flag = DayWat(DOW_FRIDAY)
+      irrPrm%irr_daywater%friday_percent = DayWatPer(DOW_FRIDAY)
+      irrPrm%irr_daywater%saturday_flag = DayWat(DOW_SATURDAY)
+      irrPrm%irr_daywater%saturday_percent = DayWatPer(DOW_SATURDAY)
       irrPrm%wuprofa_24hr_working = WUProfA_24hr(:, 1)
       irrPrm%wuprofa_24hr_holiday = WUProfA_24hr(:, 2)
       irrPrm%wuprofm_24hr_working = WUProfM_24hr(:, 1)

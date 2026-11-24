@@ -1314,14 +1314,25 @@ def test_saved_local_alias_helper_and_escape_writes_fail_closed_while_linter_acc
 
 
 @pytest.mark.parametrize(
-    "snippet",
+    ("snippet", "annotation_eval"),
     [
-        'witness: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})',
-        'def _ann(x: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})):\n    pass',
-        'def _ret() -> ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"}):\n    pass',
+        (
+            'witness: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})',
+            "import sys as _ann_sys; _ = _ann_sys.modules[__name__].__annotations__",
+        ),
+        (
+            'def _ann(x: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})):\n    pass',
+            "_ = _ann.__annotations__",
+        ),
+        (
+            'def _ret() -> ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"}):\n    pass',
+            "_ = _ret.__annotations__",
+        ),
     ],
 )
-def test_saved_local_evaluated_annotation_writes_fail_closed(tree, snippet):
+def test_saved_local_evaluated_annotation_writes_fail_closed(
+    tree, snippet, annotation_eval
+):
     _write_fortran_sample(tree)
     linter_path = tree / "scripts/lint/check_saved_fortran_locals.py"
     source = linter_path.read_text(encoding="utf-8").replace(
@@ -1332,14 +1343,24 @@ def test_saved_local_evaluated_annotation_writes_fail_closed(tree, snippet):
     linter_path.write_text(
         source.replace(intro, f"{intro}\n{snippet}"), encoding="utf-8"
     )
-    linter_run = _run_saved_locals_linter(tree)
-    assert linter_run.returncode == 0, linter_run.stdout + linter_run.stderr
-    assert "(1 allowlisted)" in linter_run.stdout
+    # Fail closed on the bare annotation on every Python version: SUEWS supports
+    # Python 3.12+, where annotations without future-import execute eagerly, and
+    # on 3.14+ (PEP 649) they still execute whenever __annotations__ is read.
     assert checker.main(["--root", str(tree), "--strict"]) == 1
     assert any(
         "unsupported mutation of constant ALLOWED" in e
         for e in checker.check_tree(tree)["errors"]
     )
+    # Prove the real linter accepts the runtime witness. On Python 3.14+, PEP 649
+    # defers annotation evaluation until __annotations__ is accessed.
+    if sys.version_info >= (3, 14):
+        linter_path.write_text(
+            source.replace(intro, f"{intro}\n{snippet}\n{annotation_eval}"),
+            encoding="utf-8",
+        )
+    linter_run = _run_saved_locals_linter(tree)
+    assert linter_run.returncode == 0, linter_run.stdout + linter_run.stderr
+    assert "(1 allowlisted)" in linter_run.stdout
 
 
 def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allowed(

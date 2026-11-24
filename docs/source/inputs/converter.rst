@@ -89,10 +89,10 @@ If auto-detection fails, you can specify the source version explicitly with ``-f
 Path Handling
 -------------
 
-The converter respects path configurations in ``RunControl.nml``:
+The converter respects path configurations in ``RunControl.nml`` when reading source tables:
 
-- **Absolute paths**: Used directly as specified
-- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml``
+- **Absolute and parent-relative paths**: Used as configured to locate the source tables. When :func:`~supy.util.converter.convert_table` writes converted tables to ``toDir``, any ``FileInputPath`` that resolves outside ``toDir`` (for example an absolute path or a ``../`` path) is rewritten in the output ``RunControl.nml`` to a relative folder inside ``toDir`` (such as ``./Input/``) so source tables are not overwritten; ``FileOutputPath`` is left unchanged.
+- **Relative paths inside the run directory**: Resolved relative to the directory containing ``RunControl.nml`` and preserved in ``convert_table`` output.
 - **Automatic fallback**: If files aren't found at the configured path, the converter checks:
 
   1. The directory containing ``RunControl.nml``

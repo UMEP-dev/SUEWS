@@ -2041,8 +2041,9 @@ class SUEWSConfig(DataModelBase):
 
         This method validates the LAI parameters for all vegetated surface types
         (grass, dectr, evetr) within the provided land cover. It checks that:
-        - lai_min <= lai_max
-        - base_temperature <= gddfull
+        - 0 < lai_min <= lai_max
+        - gdd_base >= 0
+        - sdd_base <= 0
 
         Returns
         -------
@@ -2107,33 +2108,46 @@ class SUEWSConfig(DataModelBase):
                                     f"{site_name} {surface_type}: lai_min ({lai_min_val}) must be <= lai_max ({lai_max_val})"
                                 )
                                 has_issues = True
+
+                            # lai cannot be negative
+                            if lai_min_val < 0:
+                                self._validation_summary["total_warnings"] += 1
+                                self._validation_summary["issue_types"].add(
+                                    "LAI range validation"
+                                )
+                                self._validation_summary["detailed_messages"].append(
+                                    f"{site_name} {surface_type}: lai_min ({lai_min_val}) must be >= 0"
+                                )
+                                has_issues = True
                         
 
-                        # # Check base_temperature vs gddfull
-                        # if (
-                        #     hasattr(lai, "base_temperature")
-                        #     and lai.base_temperature is not None
-                        #     and hasattr(lai, "gdd_full")
-                        #     and lai.gdd_full is not None
-                        # ):
-                        #     baset_val = (
-                        #         lai.base_temperature.value
-                        #         if hasattr(lai.base_temperature, "value")
-                        #         else lai.base_temperature
-                        #     )
-                        #     gddfull_val = (
-                        #         lai.gdd_full.value
-                        #         if hasattr(lai.gdd_full, "value")
-                        #         else lai.gdd_full
-                        #     )
+                        # Check gdd base is positive
+                        if hasattr(lai, "gdd_base") and lai.gdd_base is not None:
 
-                        #     if baset_val > gddfull_val:
-                        #         self._validation_summary["total_warnings"] += 1
-                        #         self._validation_summary["issue_types"].add(
-                        #             "LAI range validation"
-                        #         )
+                            gdd_base = lai.gdd_base.value if hasattr(lai.gdd_base, "value") else lai.gdd_base
+
+                            if gdd_base < 0:
+                                self._validation_summary["total_warnings"] += 1
+                                self._validation_summary["issue_types"].add(
+                                    "LAI range validation"
+                                )
                                 self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: base_temperature ({baset_val}) must be <= gddfull ({gddfull_val})"
+                                    f"{site_name} {surface_type}: gdd_base must be >= 0"
+                                )
+                                has_issues = True
+
+                        # Check sdd base is negative
+                        if hasattr(lai, "sdd_base") and lai.sdd_base is not None:
+
+                            sdd_base = lai.sdd_base.value if hasattr(lai.sdd_base, "value") else lai.sdd_base
+
+                            if sdd_base > 0:
+                                self._validation_summary["total_warnings"] += 1
+                                self._validation_summary["issue_types"].add(
+                                    "LAI range validation"
+                                )
+                                self._validation_summary["detailed_messages"].append(
+                                    f"{site_name} {surface_type}: sdd_base must be <= 0"
                                 )
                                 has_issues = True
 

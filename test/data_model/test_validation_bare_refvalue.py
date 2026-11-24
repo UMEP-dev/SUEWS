@@ -1006,3 +1006,45 @@ def test_phase_a_file_run_reports_and_inserts_under_later_site(tmp_path):
     assert "sites[1].properties.not_a_field" in report
     assert "vertical_layers" not in report
     assert len(updated["sites"][1]["properties"]["vertical_layers"]["roofs"]) == 2
+
+
+def test_find_missing_parameters_exempts_bare_nlayer_arrays_on_any_site():
+    """Bare vertical_layers arrays with fewer entries than a bare template are not missing."""
+    standard = {
+        "sites": [
+            {
+                "gridiv": 1,
+                "properties": {
+                    "pipe_capacity": 100.0,
+                    "vertical_layers": {
+                        "nlayer": 3,
+                        "height": [0.0, 10.0, 20.0, 30.0],
+                        "veg_frac": [0.1, 0.1, 0.1],
+                        "building_frac": [0.4, 0.3, 0.2],
+                    },
+                },
+            }
+        ]
+    }
+    user = {
+        "sites": [
+            deepcopy(standard["sites"][0]),
+            {
+                "gridiv": 2,
+                "properties": {
+                    "vertical_layers": {
+                        "nlayer": 2,
+                        "height": [0.0, 10.0, 20.0],
+                        "veg_frac": [0.1, 0.1],
+                        "building_frac": [0.4, 0.3],
+                    },
+                },
+            },
+        ]
+    }
+
+    missing = find_missing_parameters(user, standard, _normalised=True)
+
+    assert [path for path, _value, _physics in missing] == [
+        "sites[1].properties.pipe_capacity"
+    ]

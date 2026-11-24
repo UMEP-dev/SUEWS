@@ -859,9 +859,9 @@ _SITES_LIST_PATH = "sites"
 _NLAYER_DEPENDENT_ARRAY_RE = re.compile(
     r"^sites\[\d+\]\.(?:"
     r"properties\.vertical_layers\."
-    r"(?:height|veg_frac|veg_scale|veg_ext|building_frac|building_scale)\.value"
-    r"|properties\.vertical_layers\.(?:roofs|walls)"
-    r"|initial_states\.(?:roofs|walls)"
+    r"(?:height|veg_frac|veg_scale|veg_ext|building_frac|building_scale)(?:\.value)?$"
+    r"|properties\.vertical_layers\.(?:roofs|walls)(?:$|\.|\[)"
+    r"|initial_states\.(?:roofs|walls)(?:$|\.|\[)"
     r")"
 )
 

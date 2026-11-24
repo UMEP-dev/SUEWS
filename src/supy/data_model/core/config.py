@@ -2107,30 +2107,31 @@ class SUEWSConfig(DataModelBase):
                                     f"{site_name} {surface_type}: lai_min ({lai_min_val}) must be <= lai_max ({lai_max_val})"
                                 )
                                 has_issues = True
+                        
 
-                        # Check base_temperature vs gddfull
-                        if (
-                            hasattr(lai, "base_temperature")
-                            and lai.base_temperature is not None
-                            and hasattr(lai, "gdd_full")
-                            and lai.gdd_full is not None
-                        ):
-                            baset_val = (
-                                lai.base_temperature.value
-                                if hasattr(lai.base_temperature, "value")
-                                else lai.base_temperature
-                            )
-                            gddfull_val = (
-                                lai.gdd_full.value
-                                if hasattr(lai.gdd_full, "value")
-                                else lai.gdd_full
-                            )
+                        # # Check base_temperature vs gddfull
+                        # if (
+                        #     hasattr(lai, "base_temperature")
+                        #     and lai.base_temperature is not None
+                        #     and hasattr(lai, "gdd_full")
+                        #     and lai.gdd_full is not None
+                        # ):
+                        #     baset_val = (
+                        #         lai.base_temperature.value
+                        #         if hasattr(lai.base_temperature, "value")
+                        #         else lai.base_temperature
+                        #     )
+                        #     gddfull_val = (
+                        #         lai.gdd_full.value
+                        #         if hasattr(lai.gdd_full, "value")
+                        #         else lai.gdd_full
+                        #     )
 
-                            if baset_val > gddfull_val:
-                                self._validation_summary["total_warnings"] += 1
-                                self._validation_summary["issue_types"].add(
-                                    "LAI range validation"
-                                )
+                        #     if baset_val > gddfull_val:
+                        #         self._validation_summary["total_warnings"] += 1
+                        #         self._validation_summary["issue_types"].add(
+                        #             "LAI range validation"
+                        #         )
                                 self._validation_summary["detailed_messages"].append(
                                     f"{site_name} {surface_type}: base_temperature ({baset_val}) must be <= gddfull ({gddfull_val})"
                                 )
@@ -4984,27 +4985,27 @@ class SUEWSConfig(DataModelBase):
                                         level="WARNING",
                                     )
 
-                            # Check base_temperature vs gddfull
-                            if lai.base_temperature is not None and lai.gdd_full is not None:
-                                baset_val = (
-                                    lai.base_temperature.value
-                                    if hasattr(lai.base_temperature, "value")
-                                    else lai.base_temperature
-                                )
-                                gddfull_val = (
-                                    lai.gdd_full.value
-                                    if hasattr(lai.gdd_full, "value")
-                                    else lai.gdd_full
-                                )
+                            # # Check base_temperature vs gddfull
+                            # if lai.base_temperature is not None and lai.gdd_full is not None:
+                            #     baset_val = (
+                            #         lai.base_temperature.value
+                            #         if hasattr(lai.base_temperature, "value")
+                            #         else lai.base_temperature
+                            #     )
+                            #     gddfull_val = (
+                            #         lai.gdd_full.value
+                            #         if hasattr(lai.gdd_full, "value")
+                            #         else lai.gdd_full
+                            #     )
 
-                                if baset_val > gddfull_val:
-                                    annotator.add_issue(
-                                        path=f"{path}/lai",
-                                        param="base_temperature_gddfull",
-                                        message=f"GDD range invalid: base_temperature ({baset_val}) > gddfull ({gddfull_val})",
-                                        fix="Set base_temperature <= gddfull (typical values: base_temperature=5-10 C, gddfull=200-1000 C.day)",
-                                        level="WARNING",
-                                    )
+                            #     if baset_val > gddfull_val:
+                            #         annotator.add_issue(
+                            #             path=f"{path}/lai",
+                            #             param="base_temperature_gddfull",
+                            #             message=f"GDD range invalid: base_temperature ({baset_val}) > gddfull ({gddfull_val})",
+                            #             fix="Set base_temperature <= gddfull (typical values: base_temperature=5-10 C, gddfull=200-1000 C.day)",
+                            #             level="WARNING",
+                            #         )
 
                         # Check vegetation parameters for biogenic CO2 calculations
                         if (

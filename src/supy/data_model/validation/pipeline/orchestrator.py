@@ -822,21 +822,11 @@ def run_pipeline(
         )
     )
     try:
-        standard = workspace / "standard.yml"
-        if "A" in pipeline or "B" in pipeline:
-            standard.write_text(
-                (
-                    importlib.resources.files(supy)
-                    / "sample_data"
-                    / "sample_config.yml"
-                ).read_text(encoding="utf-8"),
-                encoding="utf-8",
-            )
         cb = progress or (lambda _message: None)
         if pipeline == "ABC" and final_yaml_name is None and not continue_on_error:
             return _run_abc_staged(
                 user_yaml_file,
-                str(standard),
+                None,
                 workspace,
                 mode,
                 forcing,
@@ -846,7 +836,7 @@ def run_pipeline(
             )
         return _run_pipeline_staged(
             user_yaml_file,
-            str(standard),
+            None,
             workspace,
             pipeline=pipeline,
             mode=mode,
@@ -889,7 +879,7 @@ def run_abc_pipeline(
 
 def _run_abc_staged(
     user_yaml_file: str,
-    standard_yaml_file: str,
+    standard_yaml_file: str | None,
     workspace: Path,
     mode: str,
     forcing: str,
@@ -914,7 +904,7 @@ def _run_abc_staged(
 
 def _run_pipeline_staged(
     user_yaml_file: str,
-    standard_yaml_file: str,
+    standard_yaml_file: str | None,
     workspace: Path,
     *,
     pipeline: str,
@@ -1158,7 +1148,7 @@ def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report
 
 def run_phase_a(
     user_yaml_file: str,
-    standard_yaml_file: str,
+    standard_yaml_file: str | None,
     uptodate_file: str,
     report_file: str,
     mode: str = "public",
@@ -1263,7 +1253,7 @@ def run_phase_a(
 def run_phase_b(
     user_yaml_file: str,
     uptodate_file: str,
-    standard_yaml_file: str,
+    standard_yaml_file: str | None,
     science_yaml_file: str,
     science_report_file: str,
     phase_a_report_file: str,
@@ -1571,14 +1561,6 @@ Modes:
         # Step 1: Validate input file
         user_yaml_file = validate_input_file(user_yaml_file)
 
-        # Step 2: Setup paths
-        # Use importlib.resources for robust package resource access
-        sample_data_files = importlib.resources.files(supy) / "sample_data"
-        with importlib.resources.as_file(
-            sample_data_files / "sample_config.yml"
-        ) as standard_yaml_path:
-            standard_yaml_file = str(standard_yaml_path)
-
         # Print workflow header (after variables are defined)
         phase_desc = {
             "A": "Phase A",
@@ -1593,7 +1575,6 @@ Modes:
         print(f"SUEWS YAML Configuration Processor")
         print(f"==================================")
         print(f"YAML user file: {user_yaml_file}")
-        print(f"Standard file: {standard_yaml_file}")
         print(f"Processor Selected Mode: {phase_desc[phase]}")
         print(
             f"User Mode: {'Developer' if internal_mode.lower() == 'dev' else 'Public'}"
@@ -1674,12 +1655,6 @@ Modes:
                 )
                 print("Continuing with normal validation...")
                 print()
-
-        if not os.path.exists(standard_yaml_file):
-            print()
-            print(f"[X] Standard YAML file not found: {standard_yaml_file}")
-            print("Make sure you're running from the SUEWS root directory")
-            return 1
 
         if phase not in VALID_PIPELINES:
             print(f"[X] Unknown validation option {phase!r}")

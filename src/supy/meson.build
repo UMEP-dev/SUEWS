@@ -191,6 +191,7 @@ py.install_sources(
             'data_model/validation/pipeline/__init__.py',
             'data_model/validation/pipeline/document.py',
             'data_model/validation/pipeline/orchestrator.py',
+            'data_model/validation/pipeline/patches.py',
             'data_model/validation/pipeline/phase_a.py',
             'data_model/validation/pipeline/phase_b.py',
             'data_model/validation/pipeline/phase_c.py',

@@ -1001,7 +1001,8 @@ def test_phase_a_file_run_reports_and_inserts_under_later_site(tmp_path):
     updated = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
     report = report_file.read_text(encoding="utf-8")
     assert updated["sites"][0]["properties"]["conductance"]["g_max"] == {"value": 3.5}
-    assert updated["sites"][1]["properties"]["conductance"]["g_max"] == {"value": None}
+    # Omitted optional fields are reported without injecting null placeholders.
+    assert "g_max" not in updated["sites"][1]["properties"]["conductance"]
     assert "sites[1].properties.conductance.g_max" in report
     assert "sites[1].properties.not_a_field" in report
     assert "vertical_layers" not in report

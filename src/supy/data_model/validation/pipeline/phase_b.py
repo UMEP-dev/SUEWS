@@ -16,57 +16,56 @@ Phase B assumes Phase A has completed successfully and builds upon clean YAML ou
 without duplicating parameter detection or YAML structure validation.
 """
 
-import math
-import yaml
-import os
-import calendar
-from collections.abc import Mapping
-from typing import Dict, List, Optional, Union, Any, Tuple
-from dataclasses import dataclass
-from datetime import datetime
 from copy import deepcopy
-import pandas as pd
-import numpy as np
+from dataclasses import dataclass
+import os
+from typing import Any, List, Optional, Tuple
+import yaml
 
 # Import from validation package
 from .. import logger_supy
-from .report_writer import REPORT_WRITER
-from ..core.yaml_helpers import (
-    get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
-    get_monthly_air_temperature_diffmax as _get_monthly_air_temperature_diffmax,
-    get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
-    nullify_co2_block_recursive,
-    collect_nullified_paths,
-    _nullify_biogenic_in_props,
-    DLSCheck,
-    get_ref_or_bare,
-    get_value_safe,
-    is_ref_only as _is_ref_only,
-    set_ref_or_bare,
-    get_stebbs_block as _get_stebbs_block,
-    get_stebbsmethod_value as _get_stebbsmethod_value,
-    HAS_TIMEZONE_FINDER,
-    load_user_yaml_normalised,
-    parse_simulation_bounds,
-)
 from ...core._yaml_io import safe_load_yaml
 from ...core.field_renames import normalise_yaml_renames
 from ...core.profile import normalise_hourly_profile_keys_in_raw_config
-
+from ..core.yaml_helpers import (
+    DLSCheck,
+    get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
+    get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
+    get_monthly_air_temperature_diffmax as _get_monthly_air_temperature_diffmax,
+    get_ref_or_bare,
+    load_user_yaml_normalised,
+    parse_simulation_bounds,
+    set_ref_or_bare,
+)
+from .patches import (
+    PatchPlan,
+    PlannedAdjustment,
+    get_season,
+    get_season_from_doy,
+    plan_land_cover_fraction_patches,
+    plan_model_dependent_nullification_patches,
+    plan_rcmethod_patches,
+    plan_seasonal_patches,
+    plan_setpointmethod_patches,
+    plan_stebbsmethod_wwr_patches,
+    plan_surface_temperature_patches,
+)
+from .phase_b_rules import (
+    SFR_FRACTION_TOL,
+    RulesRegistry,
+    ValidationContext,
+    ValidationResult,
+)
 from .phase_b_rules.other_rules import (
     _check_surface_parameters as _rules_check_surface_parameters,
     check_missing_vegetation_albedo as _rules_check_missing_vegetation_albedo,
     validate_geographic_parameters as _rules_validate_geographic_parameters,
-    validate_irrigation_doy as validate_irrigation_doy,
+    validate_irrigation_doy,
     validate_irrigation_parameters as _rules_validate_irrigation_parameters,
 )
 from .phase_b_rules.rules_core import rule_crash_result
-from .phase_b_rules import (
-    RulesRegistry,
-    ValidationResult,
-    ValidationContext,
-    SFR_FRACTION_TOL,
-)
+from .report_schema import PhaseReport
+from .report_writer import REPORT_WRITER
 
 @dataclass
 class ScientificAdjustment:
@@ -579,32 +578,26 @@ def get_mean_annual_air_temperature(
             raise
 
 
+def _to_scientific_adjustments(
+    planned: List[PlannedAdjustment],
+) -> List[ScientificAdjustment]:
+    return [
+        ScientificAdjustment(
+            parameter=item.parameter,
+            site_index=item.site_index,
+            site_gridid=item.site_gridid,
+            old_value=item.old_value,
+            new_value=item.new_value,
+            reason=item.reason,
+        )
+        for item in planned
+    ]
+
+
 def update_temperature_parameters(
     element: dict, avg_temp: float
 ) -> Tuple[dict, List[str]]:
-    """
-    Update temperature-related parameters ('temperature', 'tsfc', 'tin') in a dictionary element.
-
-    Parameters
-    ----------
-    element : dict
-        Dictionary containing temperature parameters to be updated.
-    avg_temp : float
-        Target temperature value to set for the parameters.
-
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated element dictionary.
-            - list of str: Names of parameters that were updated.
-
-    Notes
-    -----
-    - 'temperature' is set to a list of five values, each equal to `avg_temp`.
-    - 'tsfc' and 'tin' are set to `avg_temp` as a scalar.
-    - Only parameters whose values differ from the target are updated and reported.
-    """
+    """Update temperature-related parameters ('temperature', 'tsfc', 'tin') in a dict element."""
     updated_params = []
 
     if "temperature" in element:
@@ -631,1303 +624,185 @@ def update_temperature_parameters(
 def adjust_surface_temperatures(
     yaml_data: dict, start_date: str
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Set initial surface temperatures based on location and season.
-
-    This function updates the initial surface temperature parameters for each site
-    using climatological data (CRU TS4.06) based on the site's latitude, longitude,
-    and the simulation start month. It adjusts the following parameters for each
-    surface type and building element:
-        - 'temperature' (list of 5 values)
-        - 'tsfc' (scalar)
-        - 'tin' (scalar)
-    It also updates STEBBS-related temperature parameters and applies annual and
-    monthly temperature corrections where available.
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing site configurations.
-    start_date : str
-        Simulation start date in 'YYYY-MM-DD' format.
-
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated YAML data with adjusted surface temperatures.
-            - list of ScientificAdjustment: Records of all adjustments applied.
-
-    Notes
-    -----
-    - If CRU data is unavailable for a site, temperature adjustments are skipped for that site.
-    - Only parameters whose values differ from the climatological value are updated.
-    - Adjustments are recorded for reporting purposes.
-    """
-    adjustments = []
-    month = datetime.strptime(start_date, "%Y-%m-%d").month
-    physics = yaml_data.get("model", {}).get("physics", {})
-    # With STEBBS switched off its block is nullified later in the pipeline,
-    # so initialising its temperatures here would only suggest values that are
-    # immediately discarded.
-    stebbs_enabled = _get_stebbsmethod_value(physics) != 0
-
-    sites = yaml_data.get("sites", [])
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        initial_states = site.get("initial_states", {})
-        stebbs = props.get("stebbs", {})
-        site_gridid = get_site_gridid(site)
-
-        lat_entry = props.get("lat", {})
-        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-
-        if lat is None:
-            continue  # Skip if no latitude (will be caught by validation)
-
-        lng_entry = props.get("lng", {})
-        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
-
-        if lng is None:
-            continue  # Skip if no longitude (will be caught by validation)
-
-        avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
-
-        # Skip temperature validation if CRU data not available
-        if avg_temp is None:
-            logger_supy.debug(
-                "Skipping temperature validation - CRU data not available"
-            )
-            continue
-
-        surface_types = ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
-
-        for surface_type in surface_types:
-            surf = initial_states.get(surface_type, {})
-            if not isinstance(surf, dict):
-                continue
-
-            surf, updated_params = update_temperature_parameters(surf, avg_temp)
-
-            if updated_params:
-                param_list = ", ".join(updated_params)
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter=f"initial_states.{surface_type}",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=param_list,
-                        new_value=f"{avg_temp} C",
-                        reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
-                    )
-                )
-
-            initial_states[surface_type] = surf
-
-        # Update STEBBS temperature parameter values to avg_temp
-        if stebbs_enabled and isinstance(stebbs, dict):
-            for key in (
-                "temperature_air_outdoor_initial",
-                "temperature_air_indoor_initial",
-            ):
-                if key in stebbs:
-                    old_val = get_ref_or_bare(stebbs, key)
-                    if old_val != avg_temp:
-                        set_ref_or_bare(stebbs, key, avg_temp)
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter=f"stebbs.{key}",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(old_val),
-                                new_value=f"{avg_temp} C",
-                                reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
-                            )
-                        )
-
-        # Update temperature_air_month_mean_diffmax in stebbs if present
-        diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
-        if diffmax_val is None:
-            logger_supy.debug("Skipping diffmax update - CRU data not available")
-        elif stebbs_enabled and isinstance(stebbs, dict):
-            for key in ("temperature_air_month_mean_diffmax",):
-                if key in stebbs:
-                    old_val = get_ref_or_bare(stebbs, key)
-                    if old_val != diffmax_val:
-                        set_ref_or_bare(stebbs, key, diffmax_val)
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter=f"stebbs.{key}",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(old_val),
-                                new_value=f"{diffmax_val} C",
-                                reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f})",
-                            )
-                        )
-
-        # Update STEBBS temperature_air_annual_mean using annual mean from CRU data
-        annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if (
-            annual_temp is not None
-            and stebbs_enabled and isinstance(stebbs, dict)
-            and "temperature_air_annual_mean" in stebbs
-        ):
-            old_annual_val = get_ref_or_bare(stebbs, "temperature_air_annual_mean")
-            if old_annual_val != annual_temp:
-                set_ref_or_bare(stebbs, "temperature_air_annual_mean", annual_temp)
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter="stebbs.temperature_air_annual_mean",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=str(old_annual_val),
-                        new_value=f"{annual_temp} C",
-                        reason=f"Set from CRU annual mean (1991-2020 normals) for coordinates ({lat:.2f}, {lng:.2f})",
-                    )
-                )
-
-        # Update temperatures in roofs and walls arrays
-        for array_name in ["roofs", "walls"]:
-            if array_name in initial_states:
-                array = initial_states[array_name]
-                if isinstance(array, list):
-                    for element_idx, element in enumerate(array):
-                        if not isinstance(element, dict):
-                            continue
-
-                        element, updated_params = update_temperature_parameters(
-                            element, avg_temp
-                        )
-
-                        if updated_params:
-                            param_list = ", ".join(updated_params)
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter=f"initial_states.{array_name}[{element_idx}]",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=param_list,
-                                    new_value=f"{avg_temp} C",
-                                    reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
-                                )
-                            )
-
-        # Save back to site
-        site["initial_states"] = initial_states
-        props["stebbs"] = stebbs
-        yaml_data["sites"][site_idx] = site
-
-    return yaml_data, adjustments
+    """Set initial surface temperatures based on location and season (delegates to ``patches``)."""
+    plan = plan_surface_temperature_patches(
+        yaml_data,
+        start_date,
+        get_monthly_temp=get_mean_monthly_air_temperature,
+        get_diffmax_temp=get_monthly_air_temperature_diffmax,
+        get_annual_temp=get_mean_annual_air_temperature,
+    )
+    plan.apply_to_dict(yaml_data, in_place=True)
+    return yaml_data, _to_scientific_adjustments(plan.adjustments)
 
 
 def adjust_land_cover_fractions(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Auto-fix small floating point errors in surface fractions.
-
-    This function ensures that the sum of all land cover surface fractions (sfr)
-    for each site is exactly 1.0, within a small tolerance. If the sum is slightly
-    less than or greater than 1.0 (within SFR_FRACTION_TOL), the largest surface
-    fraction is adjusted to compensate for the floating point error.
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing site configurations.
-
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated YAML data with corrected surface fractions.
-            - list of ScientificAdjustment: Records of all adjustments applied.
-
-    Notes
-    -----
-    - Only small floating point errors are auto-corrected (within SFR_FRACTION_TOL).
-    - The largest surface fraction is adjusted to ensure the sum is exactly 1.0.
-    - All corrections are recorded in the adjustments list.
-    """
-    adjustments = []
-    sites = yaml_data.get("sites", [])
-
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        land_cover = props.get("land_cover")
-        site_gridid = get_site_gridid(site)
-
-        if not land_cover:
-            continue
-
-        # Calculate sum of all surface fractions
-        surface_fractions = {}
-        sfr_sum = 0.0
-
-        for surface_type, surface_props in land_cover.items():
-            if isinstance(surface_props, Mapping):
-                sfr_value = get_ref_or_bare(surface_props, "sfr")
-                if sfr_value is not None:
-                    surface_fractions[surface_type] = sfr_value
-                    sfr_sum += sfr_value
-
-        correction_applied = False
-
-        lower = 1.0 - SFR_FRACTION_TOL
-        upper = 1.0 + SFR_FRACTION_TOL
-
-        # Auto-correct only small floating point errors (same as precheck logic)
-        if lower <= sfr_sum < 1.0:
-            max_surface = max(
-                surface_fractions.keys(), key=lambda k: surface_fractions[k]
-            )
-            correction = 1.0 - sfr_sum
-            old_value = surface_fractions[max_surface]
-            new_value = old_value + correction
-
-            set_ref_or_bare(land_cover[max_surface], "sfr", new_value)
-            correction_applied = True
-
-            # Always report adjustments, but use appropriate format based on visibility
-            if abs(correction) >= 1e-6:  # If change is visible at 6 decimal places
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter=f"{max_surface}.sfr",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=f"{old_value:.6f}",
-                        new_value=f"{new_value:.6f}",
-                        reason=f"Auto-corrected {max_surface}.sfr to have sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
-                    )
-                )
-            else:  # Tiny correction not visible at display precision
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter=f"{max_surface}.sfr",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value="rounded to achieve sum of land cover fractions equal to 1.0",
-                        new_value=f"tolerance level: {abs(correction):.2e}",
-                        reason="Small floating point rounding applied to surface with max surface fraction value",
-                    )
-                )
-
-        elif 1.0 < sfr_sum <= upper:
-            max_surface = max(
-                surface_fractions.keys(), key=lambda k: surface_fractions[k]
-            )
-            correction = sfr_sum - 1.0
-            old_value = surface_fractions[max_surface]
-            new_value = old_value - correction
-
-            set_ref_or_bare(land_cover[max_surface], "sfr", new_value)
-            correction_applied = True
-
-            # Always report adjustments, but use appropriate format based on visibility
-            if abs(correction) >= 1e-6:  # If change is visible at 6 decimal places
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter=f"{max_surface}.sfr",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=f"{old_value:.6f}",
-                        new_value=f"{new_value:.6f}",
-                        reason=f"Auto-corrected {max_surface}.sfr to have sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
-                    )
-                )
-            else:  # Tiny correction not visible at display precision
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter=f"{max_surface}.sfr",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value="rounded to achieve sum of land cover fractions equal to 1.0",
-                        new_value=f"tolerance level: {abs(correction):.2e}",
-                        reason="Small floating point rounding applied to surface with max surface fraction value",
-                    )
-                )
-
-        if correction_applied:
-            site["properties"] = props
-            yaml_data["sites"][site_idx] = site
-
-    return yaml_data, adjustments
+    """Auto-fix small floating-point errors in surface fractions (delegates to ``patches``)."""
+    plan = plan_land_cover_fraction_patches(yaml_data)
+    plan.apply_to_dict(yaml_data, in_place=True)
+    return yaml_data, _to_scientific_adjustments(plan.adjustments)
 
 
 def adjust_model_dependent_nullification(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Nullify parameters for disabled model options.
-
-    This function automatically sets to None (nullifies) parameters that are not relevant
-    when certain model physics options are disabled. For example, if 'stebbsmethod' is 0,
-    all STEBBS and building_archetype parameters are nullified. If 'emissionsmethod' is 0-6,
-    all anthropogenic CO2 and biogenic dectr parameters are nullified.
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing the model configuration.
-
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated YAML data with nullified parameters.
-            - list of ScientificAdjustment: Records of all adjustments applied.
-
-    Notes
-    -----
-    - This function is called as part of the scientific adjustment pipeline.
-    - Nullification is performed recursively for nested blocks.
-    - All changes are recorded in the adjustments list for reporting.
-    """
-    adjustments = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    # --- STEBBS ---
-    stebbsmethod = _get_stebbsmethod_value(physics)
-
-    if stebbsmethod == 0:
-        sites = yaml_data.get("sites", [])
-
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            site_gridid = get_site_gridid(site)
-
-            def _nullify_block(block_name: str, block: Union[dict, list]) -> bool:
-                if not isinstance(block, (dict, list)) or not block:
-                    return False
-
-                nullified_params: List[str] = []
-                from ...core.site import ArchetypeProperties
-
-                bridge_only = ArchetypeProperties._BRIDGE_ONLY_FIELDS
-
-                def _recursive_nullify(node: Any, path: str):
-                    if isinstance(node, dict):
-                        if _is_ref_only(node):
-                            # Ref-only placeholder: already value-less; never
-                            # descend into its ``ref`` metadata (gh#2297).
-                            return
-                        if "value" in node:
-                            inner = node.get("value")
-                            if isinstance(inner, list):
-                                if any(item is not None for item in inner):
-                                    node["value"] = [None] * len(inner)
-                                    nullified_params.append(path)
-                            else:
-                                if inner is not None:
-                                    node["value"] = None
-                                    nullified_params.append(path)
-                        else:
-                            for key, val in node.items():
-                                # These internal bridge descriptors remain wired
-                                # through even when STEBBS is disabled (#2001).
-                                if path == "building_archetype" and key in bridge_only:
-                                    continue
-                                child_path = f"{path}.{key}" if path else key
-                                if isinstance(val, (dict, list)):
-                                    _recursive_nullify(val, child_path)
-                                else:
-                                    if val is not None:
-                                        node[key] = None
-                                        nullified_params.append(child_path)
-                    elif isinstance(node, list):
-                        for idx, item in enumerate(node):
-                            child_path = f"{path}[{idx}]" if path else f"[{idx}]"
-                            if isinstance(item, (dict, list)):
-                                _recursive_nullify(item, child_path)
-                            else:
-                                if item is not None:
-                                    node[idx] = None
-                                    nullified_params.append(child_path)
-
-                _recursive_nullify(block, block_name)
-                if nullified_params:
-                    param_list = ", ".join(nullified_params)
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter=block_name,
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value=f"stebbsmethod is switched off, nullified {len(nullified_params)} related parameters - {param_list}",
-                            new_value="null",
-                            reason=f"stebbsmethod switched off, nullified {len(nullified_params)} related parameters",
-                        )
-                    )
-                    return True
-
-                return False
-
-            site_updated = False
-            for block_name in ("stebbs", "building_archetype"):
-                block = props.get(block_name)
-                if _nullify_block(block_name, block):
-                    props[block_name] = block
-                    site_updated = True
-
-            if site_updated:
-                site["properties"] = props
-                yaml_data["sites"][site_idx] = site
-
-    # --- ANTHROPOGENIC CO2 ---
-    emissionsmethod = get_value_safe(physics, "emissions")
-
-    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4, 5, 6]:
-        sites = yaml_data.get("sites", [])
-
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            anth_emis = props.get("anthropogenic_emissions", {})
-            co2_block = anth_emis.get("co2", {})
-            site_gridid = get_site_gridid(site)
-
-            if co2_block:
-                before_snapshot = deepcopy(co2_block)
-                try:
-                    nullify_co2_block_recursive(co2_block)
-                except Exception:
-                    logger_supy.exception(
-                        "[precheck] failed to nullify co2 block with shared helper"
-                    )
-
-                nullified_params = collect_nullified_paths(before_snapshot, co2_block)
-                if nullified_params:
-                    param_list = ", ".join(nullified_params)
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter="anthropogenic_emissions.co2",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value=f"emissionsmethod 0..6 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
-                            new_value="null",
-                            reason=f"emissionsmethod 0..6 (CO2 disabled), nullified {len(nullified_params)} related parameters",
-                        )
-                    )
-
-                anth_emis["co2"] = co2_block
-                props["anthropogenic_emissions"] = anth_emis
-                site["properties"] = props
-                yaml_data["sites"][site_idx] = site
-
-            # Nullify biogenic dectr params here as well (same canonical helper)
-            try:
-                if _nullify_biogenic_in_props(props):
-                    yaml_data["sites"][site_idx]["properties"] = props
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter="land_cover.dectr.biogenic_params",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value="biogenic dectr params present",
-                            new_value="null",
-                            reason="emissionsmethod 0..6 (CO2 disabled) - nullified dectr biogenic parameters",
-                        )
-                    )
-            except Exception:
-                logger_supy.exception(
-                    "[phase_b] failed to nullify dectr biogenic params for site %d",
-                    site_idx,
-                )
-
-    return yaml_data, adjustments
-
-
-def get_season_from_doy(doy: int, lat: float) -> str:
-    """
-    Determine the season based on day of year and latitude.
-
-    Parameters
-    ----------
-    doy : int
-        Day of year (1-365 or 1-366).
-    lat : float
-        Latitude in degrees.
-
-    Returns
-    -------
-    str
-        Season string: one of 'equatorial', 'tropical', 'summer', 'winter', 'spring', or 'fall'.
-
-    Notes
-    -----
-    - For |lat| <= 10, returns 'equatorial'.
-    - For 10 < |lat| < 23.5, returns 'tropical'.
-    - For |lat| >= 23.5, returns a temperate season based on hemisphere and doy.
-    - Northern Hemisphere (lat >= 0):
-        - 'summer': doy 151-249
-        - 'spring': doy 61-150
-        - 'fall': doy 250-334
-        - 'winter': otherwise
-    - Southern Hemisphere (lat < 0):
-        - 'winter': doy 151-249
-        - 'fall': doy 61-150
-        - 'spring': doy 250-334
-        - 'summer': otherwise
-    """
-    abs_lat = abs(lat)
-
-    if abs_lat <= 10:
-        return "equatorial"
-    if 10 < abs_lat < 23.5:
-        return "tropical"
-
-    if lat >= 0:  # Northern Hemisphere
-        if 150 < doy < 250:
-            return "summer"
-        elif 60 < doy <= 150:
-            return "spring"
-        elif 250 <= doy < 335:
-            return "fall"
-        else:
-            return "winter"
-    else:  # Southern Hemisphere
-        if 150 < doy < 250:
-            return "winter"
-        elif 60 < doy <= 150:
-            return "fall"
-        elif 250 <= doy < 335:
-            return "spring"
-        else:
-            return "summer"
-
-
-def get_season(start_date: str, lat: float) -> str:
-    """
-    Determine the season based on simulation start date and latitude.
-
-    Parameters
-    ----------
-    start_date : str
-        Simulation start date in 'YYYY-MM-DD' format.
-    lat : float
-        Latitude in degrees.
-
-    Returns
-    -------
-    str
-        Season string: one of 'equatorial', 'tropical', 'summer', 'winter', 'spring', or 'fall'.
-
-    Raises
-    ------
-    ValueError
-        If start_date is not in 'YYYY-MM-DD' format.
-
-    Notes
-    -----
-    - Uses day of year from start_date and latitude to determine the season.
-    - Delegates to get_season_from_doy for actual season logic.
-    """
-    try:
-        start = datetime.strptime(start_date, "%Y-%m-%d").timetuple().tm_yday
-    except ValueError:
-        raise ValueError("start_date must be in YYYY-MM-DD format")
-
-    return get_season_from_doy(start, lat)
-
-
-def _get_range_and_id(surf_props: dict, surf_state: dict) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    """
-    Extracts albedo parameter range and current value for a surface.
-
-    Parameters
-    ----------
-    surf_props : dict
-        Dictionary containing the properties of a surface (e.g., from land_cover).
-    surf_state : dict
-        Dictionary containing the state parameters of a surface (e.g., from initial_states).
-
-    Returns
-    -------
-    tuple of (float or None, float or None, float or None)
-        - alb_min : float or None
-            Minimum albedo value for the surface (from surf_props).
-        - alb_max : float or None
-            Maximum albedo value for the surface (from surf_props).
-        - alb_id : float or None
-            Current albedo value for the surface (from surf_state).
-    """
-    alb_min = get_value_safe(surf_props, "alb_min")
-    alb_max = get_value_safe(surf_props, "alb_max")
-    alb_id = get_value_safe(surf_state, "alb_id")
-    return alb_min, alb_max, alb_id
-
-
-def _set_alb_id(
-    initial_states: dict,
-    surf_key: str,
-    new_alb_id: Optional[float],
-):
-    if new_alb_id is None:
-        return False, None, None
-    if surf_key not in initial_states:
-        initial_states[surf_key] = {}
-    surf_state = initial_states[surf_key]
-    if not isinstance(surf_state, dict):
-        return False, None, None
-    old_val = get_value_safe(surf_state, "alb_id")
-    if old_val is not None and math.isclose(old_val, new_alb_id):
-        return False, old_val, new_alb_id
-    set_ref_or_bare(surf_state, "alb_id", new_alb_id)
-    return True, old_val, new_alb_id
+    """Nullify parameters for disabled model options (delegates to ``patches``)."""
+    plan = plan_model_dependent_nullification_patches(yaml_data)
+    plan.apply_to_dict(yaml_data, in_place=True)
+    return yaml_data, _to_scientific_adjustments(plan.adjustments)
 
 
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Apply seasonal adjustments to site parameters including LAI, snowalb, and DLS calculations.
+    """Apply seasonal LAI, snowalb, vegetation albedo, DLS, and timezone patches."""
+    plan = plan_seasonal_patches(yaml_data, start_date, model_year, dls_cls=DLSCheck)
+    plan.apply_to_dict(yaml_data, in_place=True)
+    return yaml_data, _to_scientific_adjustments(plan.adjustments)
 
-    This function updates site parameters based on the simulation start date and latitude,
-    applying seasonal logic to LAI (Leaf Area Index), snow albedo, and daylight saving time (DLS)
-    parameters. It also adjusts vegetation albedo for grass, deciduous, and evergreen trees.
 
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing site configurations.
-    start_date : str
-        Simulation start date in 'YYYY-MM-DD' format.
-    model_year : int
-        Simulation year for leap year and DLS calculations.
+def adjust_model_option_rcmethod(
+    yaml_data: dict,
+) -> Tuple[dict, List[ScientificAdjustment]]:
+    """Adjust outer heat-capacity fractions when ``capacitance == 0`` (delegates to ``patches``)."""
+    plan = plan_rcmethod_patches(yaml_data)
+    plan.apply_to_dict(yaml_data, in_place=True)
+    return yaml_data, _to_scientific_adjustments(plan.adjustments)
 
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated YAML data with seasonal adjustments applied.
-            - list of ScientificAdjustment: Records of all adjustments performed.
 
-    Notes
-    -----
-    - LAI is set based on season: summer uses laimax, winter uses laimin, spring/fall use the mean.
-    - snowalb is removed for summer/tropical/equatorial seasons, so the default applies.
-    - Vegetation albedo (alb_id) is set based on season and surface type.
-    - DLS (startdls, enddls) and timezone are calculated and set if missing or outdated.
-    - All changes are recorded for reporting.
-    """
-    adjustments = []
-    sites = yaml_data.get("sites", [])
+def adjust_model_option_setpointmethod(
+    yaml_data: dict,
+) -> Tuple[dict, List[ScientificAdjustment]]:
+    """Nullify unused setpoint scalars or profiles based on ``stebbs.setpoint``."""
+    plan = plan_setpointmethod_patches(yaml_data, skip_when_stebbs_off=False)
+    plan.apply_to_dict(yaml_data, in_place=True)
+    return yaml_data, _to_scientific_adjustments(plan.adjustments)
 
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        initial_states = site.get("initial_states", {})
-        site_gridid = get_site_gridid(site)
 
-        # Get site coordinates
-        lat_entry = props.get("lat", {})
-        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-        lng = get_value_safe(props, "lng")
+def adjust_model_option_stebbsmethod(
+    yaml_data: dict,
+) -> Tuple[dict, List[ScientificAdjustment]]:
+    """Nullify WWR-dependent window or external wall parameters when STEBBS is active."""
+    plan = plan_stebbsmethod_wwr_patches(yaml_data)
+    plan.apply_to_dict(yaml_data, in_place=True)
+    return yaml_data, _to_scientific_adjustments(plan.adjustments)
 
-        if lat is None:
-            continue  # Skip if no latitude
 
-        try:
-            season = get_season(start_date, lat)
-        except Exception as e:
-            continue  # Skip on season detection error
+_DEFAULT_ADJUST_FUNCS = {
+    "adjust_surface_temperatures": adjust_surface_temperatures,
+    "adjust_land_cover_fractions": adjust_land_cover_fractions,
+    "adjust_model_dependent_nullification": adjust_model_dependent_nullification,
+    "adjust_seasonal_parameters": adjust_seasonal_parameters,
+    "adjust_model_option_rcmethod": adjust_model_option_rcmethod,
+    "adjust_model_option_setpointmethod": adjust_model_option_setpointmethod,
+    "adjust_model_option_stebbsmethod": adjust_model_option_stebbsmethod,
+}
 
-        if (
-            season in ("summer", "tropical", "equatorial")
-            and "snowalb" in initial_states
-        ):
-            # Drop the key rather than writing null: snowalb rejects null,
-            # and an omitted key takes the documented default (gh#2001).
-            removed = initial_states.pop("snowalb")
-            current_snowalb = (
-                removed.get("value") if isinstance(removed, dict) else removed
-            )
-            adjustments.append(
-                ScientificAdjustment(
-                    parameter="snowalb",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    old_value=str(current_snowalb),
-                    new_value="omitted (model default applies)",
-                    reason=f"Removed for {season} season (no snow expected)",
-                )
-            )
 
-        land_cover = props.get("land_cover", {})
-        dectr = land_cover.get("dectr", {})
-        if dectr:
-            sfr = get_ref_or_bare(dectr, "sfr", 0)
-
-            if sfr is not None and sfr > 0:
-                lai = dectr.get("lai", {})
-                laimin = get_value_safe(lai, "lai_min")
-                if laimin is None:
-                    laimin = get_value_safe(lai, "laimin")
-                laimax = get_value_safe(lai, "lai_max")
-                if laimax is None:
-                    laimax = get_value_safe(lai, "laimax")
-
-                if laimin is not None and laimax is not None:
-                    if season == "summer":
-                        lai_val = laimax
-                    elif season == "winter":
-                        lai_val = laimin
-                    elif season in ("spring", "fall"):
-                        lai_val = (laimax + laimin) / 2
-                    else:  # tropical/equatorial
-                        lai_val = laimax
-
-                    if "dectr" not in initial_states:
-                        initial_states["dectr"] = {}
-
-                    current_lai = get_value_safe(initial_states["dectr"], "lai_id")
-                    if current_lai != lai_val:
-                        set_ref_or_bare(initial_states["dectr"], "lai_id", lai_val)
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter="dectr.lai_id",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(current_lai)
-                                if current_lai is not None
-                                else "undefined",
-                                new_value=str(lai_val),
-                                reason=f"Set seasonal LAI for {season} (laimin={laimin}, laimax={laimax})",
-                            )
-                        )
-            # Note: When sfr=0, we don't nullify lai_id - we simply skip validation
-            # The warning "Parameters not checked because surface fraction is 0" covers this
-
-        # Seasonal adjustment of vegetation albedo ranges (alb_id only)
-        vegetated_surfaces = (
-            ("grass", "grass"),
-            ("dectr", "deciduous trees"),
-            ("evetr", "evergreen trees"),
-        )
-
-        for surf_key, label in vegetated_surfaces:
-            surf_props = land_cover.get(surf_key, {})
-            # Check surface fraction:
-            sfr = get_ref_or_bare(surf_props, "sfr", 0)
-            if not sfr:
-                continue  # Skip albedo adjustment if surface fraction is zero
-
-            surf_state = initial_states.get(surf_key, {})
-            alb_min, alb_max, alb_id_val = _get_range_and_id(surf_props, surf_state)
-            if alb_min is None or alb_max is None:
-                continue
-            if season in ("summer", "tropical", "equatorial"):
-                target = alb_min if surf_key == "grass" else alb_max
-            elif season == "winter":
-                target = alb_max if surf_key == "grass" else alb_min
-            else:
-                if alb_id_val is None:
-                    continue
-                target = 0.5 * (alb_min + alb_max)
-            changed, old_val, new_alb_id = _set_alb_id(
-                initial_states,
-                surf_key,
-                target,
-            )
-            if changed:
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter=f"{surf_key}.alb_id",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=str(old_val),
-                        new_value=str(new_alb_id),
-                        reason=f"Set seasonal albedo for {season} on {label} based on (alb_min, alb_max)",
-                    )
-                )
-
-        if lat is not None and lng is not None:
-            try:
-                dls = DLSCheck(lat=lat, lng=lng, year=model_year)
-                start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
-
-                anthro_emissions = props.get("anthropogenic_emissions")
-                if (
-                    isinstance(anthro_emissions, dict)
-                    and anthro_emissions
-                    and start_dls
-                    and end_dls
-                ):
-                    from ...core.human_activity import coerce_integer_doy_scalar
-
-                    max_dls_doy = (
-                        366
-                        if (model_year is None or calendar.isleap(model_year))
-                        else 365
-                    )
-
-                    def _classify_doy_entry(
-                        section: dict, key: str
-                    ) -> tuple[str, Optional[int]]:
-                        if key not in section:
-                            return "absent", None
-                        raw = section[key]
-                        if raw is None:
-                            return "absent", None
-                        if isinstance(raw, dict):
-                            if not (set(raw.keys()) <= {"value", "ref"}):
-                                return "invalid", None
-                            if raw.get("value") is None:
-                                return "absent", None
-                            raw = raw["value"]
-                        try:
-                            val = coerce_integer_doy_scalar(raw, key)
-                        except ValueError:
-                            return "invalid", None
-                        if not (1 <= val <= max_dls_doy):
-                            return "invalid", None
-                        return "valid", val
-
-                    s_state, current_startdls = _classify_doy_entry(
-                        anthro_emissions, "startdls"
-                    )
-                    e_state, current_enddls = _classify_doy_entry(
-                        anthro_emissions, "enddls"
-                    )
-                    if not (
-                        (s_state == "absent" and e_state == "absent")
-                        or s_state == "invalid"
-                        or e_state == "invalid"
-                    ):
-
-                        dls_updated = False
-                        if current_startdls != start_dls:
-                            set_ref_or_bare(anthro_emissions, "startdls", start_dls)
-                            dls_updated = True
-
-                        if current_enddls != end_dls:
-                            set_ref_or_bare(anthro_emissions, "enddls", end_dls)
-                            dls_updated = True
-
-                        if dls_updated:
-                            # Add separate adjustments for each parameter
-                            if current_startdls != start_dls:
-                                adjustments.append(
-                                    ScientificAdjustment(
-                                        parameter="anthropogenic_emissions.startdls",
-                                        site_index=site_idx,
-                                        site_gridid=site_gridid,
-                                        old_value=str(current_startdls),
-                                        new_value=str(start_dls),
-                                        reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
-                                    )
-                                )
-                            if current_enddls != end_dls:
-                                adjustments.append(
-                                    ScientificAdjustment(
-                                        parameter="anthropogenic_emissions.enddls",
-                                        site_index=site_idx,
-                                        site_gridid=site_gridid,
-                                        old_value=str(current_enddls),
-                                        new_value=str(end_dls),
-                                        reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
-                                    )
-                                )
-                            logger_supy.debug(
-                                f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
-                            )
-
-                if tz_offset is not None:
-                    current_timezone = get_ref_or_bare(props, "timezone")
-                    if current_timezone != tz_offset:
-                        set_ref_or_bare(props, "timezone", tz_offset)
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter="timezone",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(current_timezone),
-                                new_value=str(tz_offset),
-                                reason=f"Calculated timezone offset for coordinates ({lat:.2f}, {lng:.2f})",
-                            )
-                        )
-                        logger_supy.debug(
-                            f"[site #{site_idx}] Timezone set to {tz_offset}"
-                        )
-
-            except Exception as e:
-                logger_supy.debug(f"[site #{site_idx}] DLS calculation failed: {e}")
-                pass
-
-        # Save back to site
-        site["properties"] = props
-        site["initial_states"] = initial_states
-        yaml_data["sites"][site_idx] = site
-
-    return yaml_data, adjustments
-
-def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
-
-    If the model physics option 'capacitance' is set to 0, this function sets
-    'fraction_heat_capacity_roof_external' and 'fraction_heat_capacity_wall_external' to
-    0.5 for all sites' building_archetype blocks, as required by the model
-    specification.
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing the model configuration.
-
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated YAML data with adjusted parameters.
-            - list of ScientificAdjustment: Records of all adjustments applied.
-
-    Notes
-    -----
-    - Only applies the adjustment if 'capacitance' is exactly 0.
-    - Records each parameter change in the adjustments list for reporting.
-    """
-    adjustments = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
-    rcmethod_value = get_value_safe(_get_stebbs_block(physics), "capacitance")
-
-    # With STEBBS switched off, adjust_model_dependent_nullification has already
-    # nullified building_archetype; do not restore these fractions.
-    if rcmethod_value == 0 and _get_stebbsmethod_value(physics) != 0:
-        sites = yaml_data.get("sites", [])
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            building_archetype = props.get("building_archetype", {})
-            site_gridid = get_site_gridid(site)
-
-            # fraction_heat_capacity_roof_external
-            old_roof_frac = get_ref_or_bare(
-                building_archetype, "fraction_heat_capacity_roof_external"
-            )
-            if old_roof_frac != 0.5:
-                set_ref_or_bare(
-                    building_archetype, "fraction_heat_capacity_roof_external", 0.5
-                )
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter="building_archetype.fraction_heat_capacity_roof_external",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=str(old_roof_frac),
-                        new_value="0.5",
-                        reason="capacitance == 0, set fraction_heat_capacity_roof_external to 0.5"
-                    )
-                )
-
-            # fraction_heat_capacity_wall_external
-            old_wall_frac = get_ref_or_bare(
-                building_archetype, "fraction_heat_capacity_wall_external"
-            )
-            if old_wall_frac != 0.5:
-                set_ref_or_bare(
-                    building_archetype, "fraction_heat_capacity_wall_external", 0.5
-                )
-                adjustments.append(
-                    ScientificAdjustment(
-                        parameter="building_archetype.fraction_heat_capacity_wall_external",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=str(old_wall_frac),
-                        new_value="0.5",
-                        reason="capacitance == 0, set fraction_heat_capacity_wall_external to 0.5"
-                    )
-                )
-
-            props["building_archetype"] = building_archetype
-            site["properties"] = props
-            yaml_data["sites"][site_idx] = site
-
-    return yaml_data, adjustments
-
-def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    If setpoint == 0 or 1, set all entries in profile_setpoint_temperature_heating_air and
-    profile_setpoint_temperature_cooling_air in building_archetype to null for all sites.
-    If setpoint == 2, set setpoint_temperature_heating_air and setpoint_temperature_cooling_air
-    in building_archetype to null for all sites (they are not needed).
-    """
-    adjustments = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
-    setpointmethod = get_value_safe(_get_stebbs_block(physics), "setpoint")
-
-    sites = yaml_data.get("sites", [])
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        building_archetype = props.get("building_archetype", {})
-        site_gridid = get_site_gridid(site)
-
-        if setpointmethod == 2 and isinstance(building_archetype, dict):
-            for param in [
-                "setpoint_temperature_heating_air",
-                "setpoint_temperature_cooling_air",
-            ]:
-                if param in building_archetype:
-                    old_val = get_ref_or_bare(building_archetype, param)
-                    if old_val is not None:
-                        set_ref_or_bare(building_archetype, param, None)
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter=f"building_archetype.{param}",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(old_val),
-                                new_value="null",
-                                reason="setpoint == 2, parameter not needed",
-                            )
-                        )
-        elif setpointmethod == 0 or setpointmethod == 1:
-            for prof_param in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
-                profile = building_archetype.get(prof_param)
-                if isinstance(profile, dict):
-                    for daytype in ("working_day", "holiday"):
-                        day_profile = profile.get(daytype)
-                        if isinstance(day_profile, dict):
-                            changed_slice = []
-                            for slice_str, temp_val in day_profile.items():
-                                if temp_val is not None:
-                                    old_val = temp_val
-                                    day_profile[slice_str] = None
-                                    changed_slice.append(slice_str)
-                            if changed_slice:
-                                adjustments.append(
-                                    ScientificAdjustment(
-                                        parameter=f"building_archetype.{prof_param}.{daytype}",
-                                        site_index=site_idx,
-                                        site_gridid=site_gridid,
-                                        old_value="non-null profile entries",
-                                        new_value="null",
-                                        reason="setpoint == 0 or 1, profile entries not needed",
-                                    )
-                                )
-        props["building_archetype"] = building_archetype
-        site["properties"] = props
-        yaml_data["sites"][site_idx] = site
-
-    return yaml_data, adjustments
-
-def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Adjust STEBBS-related parameters based on the 'stebbsmethod' and 'WWR' options.
-
-    This function nullifies window or external wall parameters in the STEBBS and
-    building_archetype blocks depending on the Window-to-Wall Ratio (WWR) when
-    'stebbsmethod' is set to 1.
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing the model configuration.
-
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated YAML data with adjusted parameters.
-            - list of ScientificAdjustment: Records of all adjustments applied.
-
-    Notes
-    -----
-    - If 'stebbsmethod' == 1 and 'WWR' == 0.0, all window-related parameters are set to None.
-    - If 'stebbsmethod' == 1 and 'WWR' == 1.0, all external wall-related parameters are set to None.
-    - All changes are recorded in the adjustments list for reporting.
-    """
-    adjustments = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = _get_stebbsmethod_value(physics)
-
-    if stebbsmethod == 1:
-        sites = yaml_data.get("sites", [])
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            stebbs = props.get("stebbs", {})
-            bldgarc = props.get("building_archetype", {})
-
-            site_gridid = get_site_gridid(site)
-
-            wwr_entry = bldgarc.get("ratio_window_to_wall", {})
-            wwr = wwr_entry.get("value") if isinstance(wwr_entry, dict) else wwr_entry
-
-            if wwr == 0.0:
-                window_params_stebbs = [
-                    "convection_coefficient_window_internal",
-                    "convection_coefficient_window_external",
-                ]
-                window_params_bldgarc = [
-                    "thickness_window",
-                    "conductivity_window",
-                    "density_window",
-                    "specific_heat_capacity_window",
-                    "emissivity_window_external",
-                    "emissivity_window_internal",
-                    "transmissivity_window_external",
-                    "absorptivity_window_external",
-                    "reflectivity_window_external",
-                ]
-                # Nullify in stebbs
-                if isinstance(stebbs, dict):
-                    for param in window_params_stebbs:
-                        if param in stebbs:
-                            old_val = get_ref_or_bare(stebbs, param)
-                            if old_val is not None:
-                                set_ref_or_bare(stebbs, param, None)
-                                adjustments.append(
-                                    ScientificAdjustment(
-                                        parameter=f"stebbs.{param}",
-                                        site_index=site_idx,
-                                        site_gridid=site_gridid,
-                                        old_value=str(old_val),
-                                        new_value="null",
-                                        reason="WWR == 0, window parameter nullified",
-                                    )
-                                )
-                # Nullify in building_archetype
-                if isinstance(bldgarc, dict):
-                    for param in window_params_bldgarc:
-                        if param in bldgarc:
-                            old_val = get_ref_or_bare(bldgarc, param)
-                            if old_val is not None:
-                                set_ref_or_bare(bldgarc, param, None)
-                                adjustments.append(
-                                    ScientificAdjustment(
-                                        parameter=f"building_archetype.{param}",
-                                        site_index=site_idx,
-                                        site_gridid=site_gridid,
-                                        old_value=str(old_val),
-                                        new_value="null",
-                                        reason="WWR == 0, window parameter nullified",
-                                    )
-                                )
-                props["stebbs"] = stebbs
-                props["building_archetype"] = bldgarc
-                site["properties"] = props
-                yaml_data["sites"][site_idx] = site
-
-            elif wwr == 1.0:
-                # Nullify external wall parameters in stebbs and building_archetype
-                wall_params_stebbs = [
-                    "convection_coefficient_wall_external",
-                    "convection_coefficient_wall_internal",
-                    ]
-                wall_params_bldgarc = [
-                    "emissivity_wall_external",
-                    "emissivity_wall_internal",
-                    "transmissivity_wall_external",
-                    "absorptivity_wall_external",
-                    "reflectivity_wall_external",
-                    "thickness_wall",
-                    "conductivity_wall",
-                    "density_wall",
-                    "specific_heat_capacity_wall",
-                    ]
-                if isinstance(stebbs, dict):
-                    for param in wall_params_stebbs:
-                        if param in stebbs:
-                            old_val = get_ref_or_bare(stebbs, param)
-                            if old_val is not None:
-                                set_ref_or_bare(stebbs, param, None)
-                                adjustments.append(
-                                    ScientificAdjustment(
-                                        parameter=f"stebbs.{param}",
-                                        site_index=site_idx,
-                                        site_gridid=site_gridid,
-                                        old_value=str(old_val),
-                                        new_value="null",
-                                        reason="WWR == 1, external wall parameter nullified",
-                                    )
-                                )
-                if isinstance(bldgarc, dict):
-                    for param in wall_params_bldgarc:
-                        if param in bldgarc:
-                            old_val = get_ref_or_bare(bldgarc, param)
-                            if old_val is not None:
-                                set_ref_or_bare(bldgarc, param, None)
-                                adjustments.append(
-                                    ScientificAdjustment(
-                                        parameter=f"building_archetype.{param}",
-                                        site_index=site_idx,
-                                        site_gridid=site_gridid,
-                                        old_value=str(old_val),
-                                        new_value="null",
-                                        reason="WWR == 1, external wall parameter nullified",
-                                    )
-                                )
-                props["stebbs"] = stebbs
-                props["building_archetype"] = bldgarc
-                site["properties"] = props
-                yaml_data["sites"][site_idx] = site
-
-    return yaml_data, adjustments
-
-def run_scientific_adjustment_pipeline(
+def _plan_all_scientific_patches(
     yaml_data: dict,
     start_date: str,
     model_year: int,
+    *,
     errors: Optional[List[ValidationResult]] = None,
-) -> Tuple[dict, List[ScientificAdjustment]]:
+    apply_changes: bool = False,
+) -> Tuple[Optional[dict], List[ScientificAdjustment]]:
+    """Run all seven Phase B planners cleanly with optional single-pass application.
+
+    Uses pure read-only planners (zero ``deepcopy`` in suggest mode, single copy
+    in apply mode) unless a test has monkeypatched one of the ``adjust_*``
+    symbols on this module, in which case that override runs on an isolated copy.
     """
-    Apply automatic scientific corrections and adjustments.
+    steps = [
+        (
+            "adjust_surface_temperatures",
+            lambda data: plan_surface_temperature_patches(
+                data,
+                start_date,
+                get_monthly_temp=get_mean_monthly_air_temperature,
+                get_diffmax_temp=get_monthly_air_temperature_diffmax,
+                get_annual_temp=get_mean_annual_air_temperature,
+            ),
+            (start_date,),
+        ),
+        (
+            "adjust_land_cover_fractions",
+            plan_land_cover_fraction_patches,
+            (),
+        ),
+        (
+            "adjust_model_dependent_nullification",
+            plan_model_dependent_nullification_patches,
+            (),
+        ),
+        (
+            "adjust_seasonal_parameters",
+            lambda data: plan_seasonal_patches(
+                data, start_date, model_year, dls_cls=DLSCheck
+            ),
+            (start_date, model_year),
+        ),
+        (
+            "adjust_model_option_rcmethod",
+            plan_rcmethod_patches,
+            (),
+        ),
+        (
+            "adjust_model_option_setpointmethod",
+            lambda data: plan_setpointmethod_patches(
+                data, skip_when_stebbs_off=True
+            ),
+            (),
+        ),
+        (
+            "adjust_model_option_stebbsmethod",
+            plan_stebbsmethod_wwr_patches,
+            (),
+        ),
+    ]
 
-    This function runs the scientific adjustment pipeline, applying a series of
-    automatic corrections to the YAML configuration based on climatological data,
-    model physics options, and seasonal logic.
+    # Fast pure path when no adjust_* helper was monkeypatched.
+    any_override = any(
+        globals()[name] is not _DEFAULT_ADJUST_FUNCS[name] for name, _, _ in steps
+    )
 
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing the model configuration.
-    start_date : str
-        Simulation start date in 'YYYY-MM-DD' format.
-    model_year : int
-        Simulation year for leap year and seasonal calculations.
-    errors : list of ValidationResult, optional
-        When given, an adjustment step that raises is rolled back and reported
-        here as one ERROR naming the step; the remaining steps still run.
-        Without it the exception propagates.
+    if not any_override:
+        combined = PatchPlan()
+        for step_name, planner, _extra_args in steps:
+            if errors is None:
+                combined.extend(planner(yaml_data))
+                continue
+            try:
+                combined.extend(planner(yaml_data))
+            except Exception as exc:
+                logger_supy.debug(
+                    "Phase B adjustment %s failed", step_name, exc_info=True
+                )
+                errors.append(
+                    rule_crash_result(f"adjustment '{step_name}'", step_name, exc)
+                )
+        adjustments = _to_scientific_adjustments(combined.adjustments)
+        if not apply_changes:
+            return None, adjustments
+        return combined.apply_to_dict(yaml_data, in_place=False), adjustments
 
-    Returns
-    -------
-    tuple
-        A tuple containing:
-            - dict: The updated YAML data with all scientific adjustments applied.
-            - list of ScientificAdjustment: Records of all adjustments performed.
-
-    Notes
-    -----
-    The pipeline applies the following adjustments in order:
-        1. Surface temperature initialization from climatology.
-        2. Land cover fraction normalization.
-        3. Nullification of parameters for disabled model options.
-        4. Seasonal parameter adjustments (LAI, snow albedo, DLS, vegetation albedo).
-        5. Model option-dependent adjustments (e.g., rcmethod, stebbsmethod).
-    All changes are recorded for reporting.
-    """
+    # Fallback path preserving test monkeypatches on phase_b.adjust_* with rollback.
     updated_data = deepcopy(yaml_data)
-    adjustments = []
-
-    for adjust_func, args in [
-        (adjust_surface_temperatures, (updated_data, start_date)),
-        (adjust_land_cover_fractions, (updated_data,)),
-        (adjust_model_dependent_nullification, (updated_data,)),
-        (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
-        (adjust_model_option_rcmethod, (updated_data,)),
-        (adjust_model_option_setpointmethod, (updated_data,)),
-        (adjust_model_option_stebbsmethod, (updated_data,))
-    ]:
+    adjustments: List[ScientificAdjustment] = []
+    for step_name, _planner, extra_args in steps:
+        adjust_func = globals()[step_name]
         if errors is None:
-            updated_data, adj = adjust_func(*args)
+            updated_data, adj = adjust_func(updated_data, *extra_args)
             adjustments.extend(adj)
             continue
         snapshot = deepcopy(updated_data)
         try:
-            updated_data, adj = adjust_func(updated_data, *args[1:])
+            updated_data, adj = adjust_func(updated_data, *extra_args)
         except Exception as exc:
             logger_supy.debug(
-                "Phase B adjustment %s failed", adjust_func.__name__, exc_info=True
+                "Phase B adjustment %s failed", step_name, exc_info=True
             )
             updated_data = snapshot
             errors.append(
@@ -1937,7 +812,24 @@ def run_scientific_adjustment_pipeline(
             )
             continue
         adjustments.extend(adj)
+    return (updated_data if apply_changes else None), adjustments
 
+
+def run_scientific_adjustment_pipeline(
+    yaml_data: dict,
+    start_date: str,
+    model_year: int,
+    errors: Optional[List[ValidationResult]] = None,
+) -> Tuple[dict, List[ScientificAdjustment]]:
+    """Apply automatic scientific corrections in a single patch pass."""
+    updated_data, adjustments = _plan_all_scientific_patches(
+        yaml_data,
+        start_date,
+        model_year,
+        errors=errors,
+        apply_changes=True,
+    )
+    assert updated_data is not None
     return updated_data, adjustments
 
 
@@ -1947,15 +839,13 @@ def collect_science_suggestions(
     model_year: int,
     errors: Optional[List[ValidationResult]] = None,
 ) -> List[ScienceSuggestion]:
-    """
-    Collect scientific initialisation suggestions without mutating the input data.
-
-    The underlying adjustment functions operate on a deep copy, so callers can use
-    this in the default validator path without silently overwriting user-provided
-    or scientifically curated values.
-    """
-    _, adjustments = run_scientific_adjustment_pipeline(
-        yaml_data, start_date, model_year, errors=errors
+    """Collect scientific initialisation suggestions without copying or mutating *yaml_data*."""
+    _, adjustments = _plan_all_scientific_patches(
+        yaml_data,
+        start_date,
+        model_year,
+        errors=errors,
+        apply_changes=False,
     )
     return [_adjustment_to_suggestion(adjustment) for adjustment in adjustments]
 
@@ -1967,13 +857,7 @@ def apply_science_suggestions(
     model_year: int,
     errors: Optional[List[ValidationResult]] = None,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Apply the scientific transformation pipeline explicitly requested by the user.
-
-    The suggestions argument anchors the public API around the collect/apply split;
-    the transformations are recalculated from the same input data to avoid path
-    mutation code that would duplicate the existing domain logic.
-    """
+    """Apply the scientific transformation pipeline explicitly requested by the user."""
     del suggestions
     return run_scientific_adjustment_pipeline(
         yaml_data, start_date, model_year, errors=errors
@@ -2371,7 +1255,7 @@ def create_science_yaml_header(phase_a_performed: bool = True) -> str:
 def run_science_check(
     uptodate_yaml_file: str,
     user_yaml_file: str,
-    standard_yaml_file: str,
+    standard_yaml_file: Optional[str] = None,
     science_yaml_file: str = None,
     science_report_file: str = None,
     phase_a_report_file: str = None,
@@ -2379,7 +1263,7 @@ def run_science_check(
     mode: str = "public",
     phase: str = "B",
     science_fixes: str = "suggest",
-) -> Tuple[dict, "PhaseReport"]:
+) -> Tuple[dict, PhaseReport]:
     """
     Main Phase B workflow: perform scientific validation and scientific adjustments.
 

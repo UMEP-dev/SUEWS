@@ -540,7 +540,7 @@ class LAIParams(DataModelBase):
             "display_name": "Senescence Degree Days for Leaf Off",
         },
     )
-    # fa - lai min is not an optional parameter so does not need a default?
+
     lai_min: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Leaf-off wintertime LAI value",

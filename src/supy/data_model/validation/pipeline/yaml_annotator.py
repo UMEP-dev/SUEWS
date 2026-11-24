@@ -85,11 +85,11 @@ class ValidationIssue:
                 },
                 "gdd_base": {
                     "value": 100.0,
-                    "_comment": "accumulated growing degree days required for leaf growth (degC d)",
+                    "_comment": "accumulated growing degree days required for leaf growth (degC)",
                 },
                 "sdd_base": {
                     "value": 300.0,
-                    "_comment": "accumulated senescence degree days required for leaf-off (degC d)",
+                    "_comment": "accumulated senescence degree days required for leaf-off (degC)",
                 },
             },
             "g_max": {"value": 3.5, "_comment": "surface conductance scaling coefficient (dimensionless)"},
@@ -114,11 +114,11 @@ class ValidationIssue:
             },
             "gdd_base": {
                 "value": 100.0,
-                "_comment": "accumulated growing degree days required for leaf growth (degC d)",
+                "_comment": "accumulated growing degree days required for leaf growth (degC)",
             },
             "sdd_base": {
                 "value": 300.0,
-                "_comment": "accumulated senescence degree days required for leaf-off (degC d)",
+                "_comment": "accumulated senescence degree days required for leaf-off (degC)",
             },
             "fai_evergreen_tree": {
                 "value": 0.5,

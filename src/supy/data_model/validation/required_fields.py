@@ -100,20 +100,20 @@ LAI_REQUIRED: RequirementTable = {
 # Required only when leaf area index is modelled rather than observed.
 LAI_CALCULATED_ONLY_REQUIRED: RequirementTable = {
     "base_temperature": (
-        "Base temperature is required for active vegetation",
+        "Growth base temperature is required for active vegetation",
         "Add the base temperature for growing degree day accumulation",
     ),
     "base_temperature_senescence": (
         "Senescence base temperature is required for active vegetation",
         "Add the base temperature for senescence degree day accumulation",
     ),
-    "gdd_full": (
-        "Growing degree days for full LAI are required for active vegetation",
-        "Add the growing degree day threshold for full leaf-on conditions",
+    "gdd_base": (
+        "Base growing degree day threshold is required for active vegetation",
+        "Add the growing degree day threshold required to initiate LAI growth",
     ),
-    "sdd_full": (
-        "Senescence degree days are required for active vegetation",
-        "Add the senescence degree day threshold for leaf-off conditions",
+    "sdd_base": (
+        "Base senescence degree day threshold is required for active vegetation",
+        "Add the senescence degree day threshold required to initiate LAI decline",
     ),
 }
 

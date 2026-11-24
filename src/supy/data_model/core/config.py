@@ -3584,7 +3584,7 @@ class SUEWSConfig(DataModelBase):
         - For each vegetated surface (``dectr`` / ``evetr`` / ``grass``)
           with ``sfr > 0``, the surface's ``lai`` block must carry
           non-None values for ``lai_max``, ``base_temperature``,
-          ``base_temperature_senescence``, ``gdd_full``, ``sdd_full``.
+          ``base_temperature_senescence``, ``gdd_base``, ``sdd_base``.
         - For ``bldgs`` with ``sfr > 0``: ``bldgh`` and ``faibldg`` must
           be non-None.
         - For ``evetr`` with ``sfr > 0``: ``height_evergreen_tree`` and

@@ -39,8 +39,8 @@ pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE", "C-BALANCE
 
 HOURS_PER_DAY = 24
 SECONDS_PER_HOUR = 3600
-OHM_TAU1_MAX_S = 3600.0
-OHM_WINDOW_HR = 2.0
+OHM_TAU1_MAX_S = 0.5 * float(SECONDS_PER_HOUR)
+OHM_TAU2_S = 1.0 * float(SECONDS_PER_HOUR)
 TSTEP_5MIN = 300
 TSTEP_60MIN = 3600
 ENERGY_CLOSURE_TOLERANCE_W_M2 = 1.0e-12
@@ -61,8 +61,8 @@ def _c2_exp_cascaded_recurrence(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Evaluate ``c2_exp_cascaded_1h_2h`` once per timestep from cold start."""
     dt_s = float(tstep)
-    dt_hr = dt_s / OHM_TAU1_MAX_S
-    w2 = math.exp(-dt_s / (OHM_WINDOW_HR * OHM_TAU1_MAX_S))
+    dt_hr = dt_s / float(SECONDS_PER_HOUR)
+    w2 = math.exp(-dt_s / OHM_TAU2_S)
 
     n_steps = len(qn_series)
     qn_av_out = np.empty(n_steps, dtype=float)
@@ -376,12 +376,44 @@ def test_5min_vs_60min_dqndt_consistency_under_smooth_diurnal_forcing():
             dqndt_exp,
             rtol=1.0e-10,
             atol=1.0e-9,
-            err_msg=f"{tstep} s dqndt diverges from exact c2_exp_cascaded_1h_2h recurrence",
+            err_msg=f"{tstep} s dqndt diverges from exact moment-matched 0.5 h + 1.0 h recurrence",
         )
         eb_res = _energy_balance_max_residual(suews_df, snow=False)
         assert eb_res <= ENERGY_CLOSURE_TOLERANCE_W_M2, (
             f"{tstep} s: energy balance residual {eb_res:.3e} W m-2 exceeds tolerance"
         )
+
+
+@pytest.mark.core
+def test_moment_matched_diurnal_phase_lag_matches_2016_centroid():
+    """Cascaded 0.5 h + 1.0 h weights must match the ~1.5 h lag of 2016 OHM, not ~2.8 h."""
+    n_days = 4
+    df_template = _load_sample_forcing(tstep=TSTEP_5MIN, n_hours=n_days * HOURS_PER_DAY)
+    df_forcing = _make_smooth_diurnal_forcing(df_template, TSTEP_5MIN, n_days)
+    cfg = copy.deepcopy(sp.SUEWSSimulation.from_sample_data().config)
+    cfg.model.control.tstep = TSTEP_5MIN
+    cfg.model.control.output.freq = TSTEP_5MIN
+    cfg.model.physics.storage_heat = StorageHeatMethod.OHM_WITHOUT_QF
+    cfg.model.physics.ohm_inc_qf = 0
+    cfg.model.physics.net_radiation = 1
+
+    _, df_out = _run_config(cfg, df_forcing)
+    # Inspect the last full day (post-spinup) to locate the Q* peak and dQ*/dt zero-crossing.
+    last_day = df_out.loc[1].iloc[-288:]
+    qn = last_day["SUEWS", "QN"].to_numpy(dtype=float)
+    dq = last_day["debug", "dqndt"].to_numpy(dtype=float)
+    hrs = np.arange(len(qn), dtype=float) * (TSTEP_5MIN / float(SECONDS_PER_HOUR))
+    peak_hr = float(hrs[int(np.argmax(qn))])
+    zc_hr = float("nan")
+    for i in range(len(hrs) - 1):
+        if 10.0 <= hrs[i] <= 17.0 and dq[i] >= 0.0 and dq[i + 1] <= 0.0 and dq[i] != dq[i + 1]:
+            zc_hr = float(hrs[i] + (0.0 - dq[i]) * (hrs[i + 1] - hrs[i]) / (dq[i + 1] - dq[i]))
+            break
+    lag_hr = zc_hr - peak_hr
+    assert 1.0 <= lag_hr <= 1.85, (
+        f"Expected diurnal phase lag near 1.5 h (moment-matched to 2016 OHM), got {lag_hr:.2f} h "
+        f"(Q* peak {peak_hr:.2f} h, dQ*/dt zero-crossing {zc_hr:.2f} h)"
+    )
 
 
 def _compile_ohm_dqndt_cal_probe(tmp_path: Path):

@@ -5078,18 +5078,6 @@ def test_phase_b_structured_result_and_rule_order():
     assert ordered_rule_names[: len(expected_prefix)] == expected_prefix
 
 
-def test_supy_validation_backward_compatibility_warns():
-    import supy.validation as legacy_validation
-
-    with pytest.warns(DeprecationWarning):
-        result = legacy_validation.validate_suews_config_conditional(
-            {"model": {"physics": {}}, "sites": []}
-        )
-
-    assert result["errors"] == result.errors
-    assert "errors" in result.to_dict()
-
-
 def test_suews_validate_help_exposes_science_fixes(cli_runner):
     from supy.cmd.validate_config import cli as validate_cli
 

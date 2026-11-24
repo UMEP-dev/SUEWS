@@ -37,9 +37,9 @@ __all__ = [
     "util",
     "data_model",
     # Validation
-    "validate_suews_config_conditional",
-    "ValidationController",
-    "ValidationResult",
+    "validate_config",
+    "ValidationEngine",
+    "ValidationReport",
     # Modern interface
     "SUEWSSimulation",
     "SUEWSCheckpoint",
@@ -117,26 +117,20 @@ def __getattr__(name):
 
     # Validation functionality
     if name in {
-        "validate_suews_config_conditional",
-        "ValidationController",
-        "ValidationResult",
+        "validate_config",
+        "ValidationEngine",
+        "ValidationReport",
     }:
-        try:
-            from .data_model.validation import (
-                ValidationController,
-                ValidationResult,
-                validate_suews_config_conditional,
-            )
+        from .data_model.validation import (
+            ValidationEngine,
+            ValidationReport,
+            validate_config,
+        )
 
-            _lazy_cache["validate_suews_config_conditional"] = (
-                validate_suews_config_conditional
-            )
-            _lazy_cache["ValidationController"] = ValidationController
-            _lazy_cache["ValidationResult"] = ValidationResult
-            return _lazy_cache[name]
-        except ImportError:
-            _lazy_cache[name] = None
-            return None
+        _lazy_cache["validate_config"] = validate_config
+        _lazy_cache["ValidationEngine"] = ValidationEngine
+        _lazy_cache["ValidationReport"] = ValidationReport
+        return _lazy_cache[name]
 
     # Modern simulation interface
     if name == "SUEWSSimulation":

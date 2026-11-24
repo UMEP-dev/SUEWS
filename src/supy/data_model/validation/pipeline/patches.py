@@ -228,6 +228,18 @@ def collect_nullifiable_paths(
     return paths
 
 
+def _collect_profile_scalar_paths(
+    cur: Mapping[str, Any], cur_path: str
+) -> list[str]:
+    """Return profile field paths whose values are non-empty non-container scalars."""
+    found: list[str] = []
+    for profile_key in ("working_day", "holiday"):
+        val = cur.get(profile_key)
+        if not isinstance(val, (Mapping, list, tuple)) and val not in (None, ""):
+            found.append(f"{cur_path}.{profile_key}" if cur_path else profile_key)
+    return found
+
+
 def _collect_co2_nullifiable_paths(node: Any, prefix: str = "") -> list[str]:
     """Pure read-only twin of ``collect_nullified_paths(before, nullify_co2(before))``."""
     paths: list[str] = []
@@ -239,23 +251,26 @@ def _collect_co2_nullifiable_paths(node: Any, prefix: str = "") -> list[str]:
             if "value" in cur:
                 inner = cur.get("value")
                 if isinstance(inner, (list, tuple)):
-                    if any(item is not None for item in inner):
+                    if any(item not in (None, "") for item in inner):
                         paths.append(cur_path)
-                elif inner is not None:
+                elif inner not in (None, ""):
                     paths.append(cur_path)
+                return
+            if "working_day" in cur or "holiday" in cur:
+                paths.extend(_collect_profile_scalar_paths(cur, cur_path))
                 return
             for key, val in cur.items():
                 child_path = f"{cur_path}.{key}" if cur_path else str(key)
                 if isinstance(val, (Mapping, list, tuple)):
                     _walk(val, child_path)
-                elif val is not None:
+                elif val not in (None, ""):
                     paths.append(child_path)
         elif isinstance(cur, (list, tuple)):
             for idx, item in enumerate(cur):
                 child_path = f"{cur_path}[{idx}]" if cur_path else f"[{idx}]"
                 if isinstance(item, (Mapping, list, tuple)):
                     _walk(item, child_path)
-                elif item is not None:
+                elif item not in (None, ""):
                     paths.append(child_path)
 
     _walk(node, prefix)

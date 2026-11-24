@@ -1589,45 +1589,9 @@ Modes:
                     user_yaml_data = safe_load_yaml(f)
                 flatten_physics_in_config(user_yaml_data)
 
-                # Check public mode restrictions.
-                # Read physics keys via helpers that accept both the new
-                # snake_case name and its legacy alias — the Pydantic shim
-                # accepts both, so this gate must as well.
-                from supy.data_model.core.field_renames import read_physics_key
-                from supy.data_model.validation.core.yaml_helpers import (
-                    get_stebbsmethod_value,
-                )
+                from ..engine import check_public_mode_restrictions
 
-                physics = (
-                    user_yaml_data.get("model", {}).get("physics", {})
-                    if isinstance(user_yaml_data, dict)
-                    else {}
-                )
-                restrictions_violated = []
-
-                # gh#1456: use the shared composer so nested bool-like strings
-                # (`off`, `false`, `0`, etc.) follow Pydantic semantics.
-                try:
-                    stebbsmethod = get_stebbsmethod_value(physics)
-                except ValueError as exc:
-                    restrictions_violated.append(
-                        f"Invalid STEBBS physics configuration: {exc}"
-                    )
-                    stebbsmethod = None
-                if stebbsmethod is not None and stebbsmethod != 0:
-                    restrictions_violated.append(
-                        "STEBBS is enabled (stebbs.enabled is true)"
-                    )
-
-                snowuse = read_physics_key(physics, "snow_use")
-                if snowuse is not None and snowuse != 0:
-                    restrictions_violated.append(
-                        "Snow calculations are enabled (snow_use != 0)"
-                    )
-
-                # Add more restriction checks here as needed
-                # if other_dev_feature_enabled:
-                #     restrictions_violated.append("Other developer feature is enabled")
+                restrictions_violated = check_public_mode_restrictions(user_yaml_data)
 
                 # If any restrictions are violated, halt execution
                 if restrictions_violated:

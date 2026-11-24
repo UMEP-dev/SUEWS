@@ -15,9 +15,12 @@ What the Validator Does
 
 The validation system performs three groups of checks:
 
-- **Completeness check**: detects missing parameters, updates deprecated parameter
-  names to current snake_case names, and validates forcing data (see
-  :doc:`/inputs/forcing-data` for forcing data validation details).
+- **Completeness check**: detects missing critical physics parameters and
+  omitted optional parameters directly against the ``SUEWSConfig`` schema,
+  updates deprecated parameter names to current snake_case names without
+  padding omitted optional fields with ``null`` placeholders, and validates
+  forcing data (see :doc:`/inputs/forcing-data` for forcing data validation
+  details).
 - **Scientific validation**: checks physics options, land-cover fractions,
   geography, irrigation, STEBBS, radiation, albedo, emissivity, and forcing-height
   consistency. Scientific initialisation transformations are suggestions by
@@ -49,12 +52,17 @@ Basic Usage
     # Run Phase B scientific checks without suggestions or scientific updates
     suews validate --science-fixes off config.yml
 
-    # Check one or more files against the schema without writing files
-    suews validate -p C --dry-run config.yml
-
-    # Same schema-only check, restricted to a single file (phases A and B
-    # do not run and --forcing is ignored)
+    # Run full read-only in-memory validation (Phases A, B, and C) without writing files
     suews validate --dry-run config.yml
+
+    # Run read-only validation including forcing-file checks
+    suews validate --dry-run --forcing on config.yml
+
+    # Check one or more files against the schema and model only without writing files
+    suews validate -p C --dry-run config1.yml config2.yml
+
+    # Continue running downstream read-only phases after an upstream failure
+    suews validate --continue-on-error config.yml
 
 For complete usage options and advanced features, use:
 

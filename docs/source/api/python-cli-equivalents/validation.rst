@@ -42,64 +42,24 @@ Quick schema validation for checking configuration files:
 Python Equivalent (Full Validation Pipeline)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Complete validation including all phases (A→B→C) for thorough checking:
+Complete in-memory validation across all phases (A, B, and C) with zero disk
+writes using :func:`supy.validate_config`:
 
 .. code-block:: python
 
-    import importlib.resources
     import supy
-    from supy.data_model.validation.pipeline.orchestrator import (
-        validate_input_file,
-        setup_output_paths,
-        run_phase_a,
-        run_phase_b,
-        run_phase_c
-    )
 
-    # Validate and get standard config
-    user_yaml_file = validate_input_file("config.yml")
-    sample_data = importlib.resources.files(supy) / "sample_data"
-    with importlib.resources.as_file(sample_data / "sample_config.yml") as path:
-        standard_yaml_file = str(path)
+    # Validate a YAML file, dict, or SUEWSConfig purely in memory
+    report = supy.validate_config("config.yml")
 
-    # Setup output paths
-    (uptodate_file, report_file,
-     science_yaml_file, science_report_file,
-     pydantic_yaml_file, pydantic_report_file,
-     dirname) = setup_output_paths(user_yaml_file, pipeline="ABC")
-
-    # Run phases A → B → C
-    a_ok = run_phase_a(
-        user_yaml_file, standard_yaml_file, uptodate_file,
-        report_file, mode="public", phase="ABC", silent=False, forcing="on"
-    )
-
-    if not a_ok:
-        print(f"✗ Phase A failed")
-        print(f"  Report: {report_file}")
-        print(f"  Updated YAML: {uptodate_file}")
+    if not report.is_valid:
+        for error in report.errors:
+            print(f"[{error.code}] {error.yaml_path}: {error.message}")
     else:
-        b_ok = run_phase_b(
-            user_yaml_file, uptodate_file, standard_yaml_file,
-            science_yaml_file, science_report_file, report_file,
-            phase_a_performed=True, mode="public", phase="ABC", silent=False
-        )
+        print("Configuration is valid!")
 
-        if not b_ok:
-            print(f"✗ Phase B failed")
-            print(f"  Report: {science_report_file}")
-            print(f"  Updated YAML: {uptodate_file}")
-        else:
-            c_ok = run_phase_c(
-                science_yaml_file, pydantic_yaml_file, pydantic_report_file,
-                mode="public", phases_run=["A", "B", "C"], silent=False
-            )
+    # Render the canonical text report
+    print(report.to_text())
 
-            if not c_ok:
-                print(f"✗ Phase C failed")
-                print(f"  Report: {pydantic_report_file}")
-                print(f"  Updated YAML: {science_yaml_file}")
-            else:
-                print(f"✓ All phases passed!")
-                print(f"  Report: {pydantic_report_file}")
-                print(f"  Updated YAML: {pydantic_yaml_file}")
+    # Pass write_outputs=True to also publish updated_config.yml and reports
+    report = supy.validate_config("config.yml", write_outputs=True)

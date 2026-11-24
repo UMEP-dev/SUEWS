@@ -356,8 +356,10 @@ def test_installed_commands_use_working_tree_validator_sources(source, tmp_path,
         "supy.cmd.validate_config": "src/supy/cmd/validate_config.py",
         "supy.data_model.validation.pipeline.orchestrator":
             "src/supy/data_model/validation/pipeline/orchestrator.py",
-        "supy.data_model.validation.core.feedback":
-            "src/supy/data_model/validation/core/feedback.py",
+        "supy.data_model.validation.engine":
+            "src/supy/data_model/validation/engine.py",
+        "supy.data_model.validation.pipeline.document":
+            "src/supy/data_model/validation/pipeline/document.py",
         "supy.data_model.validation.core.yaml_helpers":
             "src/supy/data_model/validation/core/yaml_helpers.py",
     }

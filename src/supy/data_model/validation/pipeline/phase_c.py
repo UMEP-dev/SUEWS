@@ -272,7 +272,7 @@ def _collect_model_defaults(
 
 
 def validate_phase_c(
-    input_yaml_file: str,
+    input_yaml_file: str | None = None,
     *,
     raw_data: dict[str, Any] | None = None,
 ) -> PhaseCResult:

@@ -54,20 +54,18 @@ from .core import (
     TimezoneOffset,
 )
 
-# Import from new validation module
+# Import from validation module
 try:
     from .validation import (
-        ValidationController,
-        ValidationResult,
-        validate_suews_config_conditional,
-        run_precheck,
+        ValidationEngine,
+        ValidationReport,
+        validate_config,
     )
 except ImportError:
     # Fallback if validation module not available
-    ValidationController = None
-    ValidationResult = None
-    validate_suews_config_conditional = None
-    run_precheck = None
+    ValidationEngine = None
+    ValidationReport = None
+    validate_config = None
 
 # Export everything
 __all__ = [
@@ -111,8 +109,7 @@ __all__ = [
     "SurfaceType",
     "TimezoneOffset",
     # Validation
-    "ValidationController",
-    "ValidationResult",
-    "validate_suews_config_conditional",
-    "run_precheck",
+    "validate_config",
+    "ValidationEngine",
+    "ValidationReport",
 ]

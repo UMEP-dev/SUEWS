@@ -419,6 +419,114 @@ def _emit_validation_envelope(
     return all_valid
 
 
+def _append_dry_run_engine_errors(
+    path: Path,
+    *,
+    pipeline: str,
+    mode: str,
+    forcing: str,
+    errors: List,
+    target_is_current: bool,
+) -> None:
+    """Augment dry-run errors with unified public-mode and in-memory Phase A/B checks."""
+    if not target_is_current:
+        return
+
+    # Skip downstream checks when YAML itself failed to load or does not exist.
+    if ErrorCode is not None:
+        fatal_codes = {ErrorCode.INVALID_YAML, ErrorCode.FILE_NOT_FOUND}
+        if any(
+            getattr(err, "code", None) in fatal_codes for err in errors
+        ):
+            return
+
+    from ..data_model.validation.engine import (
+        ValidationEngine,
+        check_public_mode_restrictions,
+    )
+
+    try:
+        raw_data = safe_load_yaml(path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+
+    if mode == "public":
+        for restriction in check_public_mode_restrictions(raw_data):
+            msg = (
+                f"{restriction} (restricted in public mode; "
+                "use --mode dev or disable this feature)"
+            )
+            if ValidationError and ErrorCode:
+                errors.append(
+                    ValidationError(
+                        code=ErrorCode.VALIDATION_FAILED,
+                        message=msg,
+                        field="model.physics",
+                        location=str(path),
+                        details={"code": "experimental_features_restricted"},
+                    )
+                )
+            else:
+                errors.append(msg)
+
+    if pipeline != "ABC":
+        return
+
+    ab_report = ValidationEngine().validate(
+        path,
+        pipeline="AB",
+        mode="dev",
+        forcing=forcing,
+        science_fixes="off",
+        continue_on_error=True,
+    )
+    if not ab_report.has_errors:
+        return
+
+    covered_missing_fields = {
+        getattr(err, "field", None)
+        for err in errors
+        if ErrorCode is not None
+        and getattr(err, "code", None) == ErrorCode.MISSING_REQUIRED_FIELD
+    }
+    existing_messages = [
+        getattr(err, "message", str(err)) for err in errors
+    ]
+
+    for issue in ab_report.errors:
+        if (
+            issue.code == "A.MISSING_PARAM.CRITICAL"
+            and issue.yaml_path in covered_missing_fields
+        ):
+            continue
+        if issue.code in {
+            "A.PIPELINE.FILE_NOT_FOUND",
+            "A.PIPELINE.YAML_PARSE_ERROR",
+            "B.PIPELINE.FILE_NOT_FOUND",
+            "B.PIPELINE.YAML_PARSE_ERROR",
+        }:
+            continue
+        if any(issue.message in existing for existing in existing_messages):
+            continue
+        if ValidationError and ErrorCode:
+            errors.append(
+                ValidationError(
+                    code=ErrorCode.VALIDATION_FAILED,
+                    message=issue.message,
+                    field=issue.yaml_path or f"phase_{issue.phase.lower()}",
+                    location=str(path),
+                    details={
+                        "phase": issue.phase,
+                        "issue_code": issue.code,
+                    },
+                )
+            )
+        else:
+            prefix = f"{issue.yaml_path}: " if issue.yaml_path else ""
+            errors.append(f"{prefix}{issue.message}")
+        existing_messages.append(issue.message)
+
+
 @click.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=True))
 @click.option(
@@ -500,6 +608,15 @@ def cli(
             ctx.exit(2)
 
         target_version = schema_version
+        target_is_current = (
+            target_version is None or target_version == CURRENT_SCHEMA_VERSION
+        )
+        forcing_source = ctx.get_parameter_source("forcing")
+        dry_run_forcing = (
+            forcing
+            if forcing_source == click.core.ParameterSource.COMMANDLINE
+            else "off"
+        )
         schema = generate_json_schema(version=target_version)
 
         # Pipeline C: allow multiple files; ABC: single file
@@ -522,6 +639,15 @@ def cli(
                         show_details=True,
                         schema_version=target_version,
                     )
+                    _append_dry_run_engine_errors(
+                        path,
+                        pipeline="C",
+                        mode=mode,
+                        forcing="off",
+                        errors=errors,
+                        target_is_current=target_is_current,
+                    )
+                    is_valid = len(errors) == 0
                 if not is_valid:
                     all_valid = False
 
@@ -561,7 +687,7 @@ def cli(
 
             ctx.exit(0 if all_valid else 1)
 
-        # pipeline == ABC dry-run
+        # pipeline == ABC dry-run: read-only in-memory A+B+C checks without file writes
         if len(files) != 1:
             console.print(
                 _status_text("Provide exactly one YAML file for -p ABC --dry-run", ok=False)
@@ -575,6 +701,15 @@ def cli(
                 show_details=True,
                 schema_version=target_version,
             )
+            _append_dry_run_engine_errors(
+                path,
+                pipeline="ABC",
+                mode=mode,
+                forcing=dry_run_forcing,
+                errors=errors,
+                target_is_current=target_is_current,
+            )
+            is_valid = len(errors) == 0
 
         # Convert ValidationError objects to dicts for JSON serialization
         error_list = []
@@ -650,38 +785,9 @@ def _experimental_features_restriction_with_data(user_yaml_file, mode):
     except Exception as e:
         return False, [], f"Error reading YAML file: {e}", _PRELOADED_YAML_UNSET
 
-    # Read physics keys via helpers that accept both the new snake_case name
-    # and its legacy alias — the Pydantic shim accepts both, so this gate must
-    # as well.
-    from ..data_model.core.field_renames import read_physics_key
-    from ..data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+    from ..data_model.validation.engine import check_public_mode_restrictions
 
-    # This gate checks feature policy, not structure. Leave malformed mappings
-    # to the selected validation phase so it can report their YAML locations.
-    if not isinstance(user_yaml_data, dict):
-        return True, [], None, user_yaml_data
-    model = user_yaml_data.get("model", {})
-    if not isinstance(model, dict):
-        return True, [], None, user_yaml_data
-    physics = model.get("physics", {})
-    if not isinstance(physics, dict):
-        return True, [], None, user_yaml_data
-    restrictions_violated = []
-
-    # gh#1456: use the shared composer so nested bool-like strings (`off`,
-    # `false`, `0`, etc.) follow the same semantics as Pydantic.
-    try:
-        stebbsmethod = get_stebbsmethod_value(physics)
-    except ValueError as exc:
-        restrictions_violated.append(f"Invalid STEBBS physics configuration: {exc}")
-        stebbsmethod = None
-    if stebbsmethod is not None and stebbsmethod != 0:
-        restrictions_violated.append("STEBBS is enabled (stebbs.enabled is true)")
-
-    snowuse = read_physics_key(physics, "snow_use")
-    if snowuse is not None and snowuse != 0:
-        restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
-
+    restrictions_violated = check_public_mode_restrictions(user_yaml_data)
     if restrictions_violated:
         return False, restrictions_violated, None, user_yaml_data
 

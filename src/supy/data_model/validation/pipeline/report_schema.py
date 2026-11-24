@@ -146,6 +146,66 @@ class ValidationReport:
             return "WARNING"
         return "PASSED"
 
+    @property
+    def is_valid(self) -> bool:
+        """Return True when no phase recorded a blocking error."""
+        return not any(p.has_errors for p in self.phases)
+
+    @property
+    def has_errors(self) -> bool:
+        """Return True when any phase recorded a blocking error."""
+        return any(p.has_errors for p in self.phases)
+
+    @property
+    def has_warnings(self) -> bool:
+        """Return True when any phase recorded a warning."""
+        return any(p.has_warnings for p in self.phases)
+
+    @property
+    def issues(self) -> List[Issue]:
+        """Flat list of every issue emitted across all executed phases."""
+        return [issue for phase in self.phases for issue in phase.issues]
+
+    @property
+    def errors(self) -> List[Issue]:
+        """All blocking ERROR issues across executed phases."""
+        return [i for i in self.issues if i.severity == SEVERITY_ERROR]
+
+    @property
+    def warnings(self) -> List[Issue]:
+        """All WARNING issues across executed phases."""
+        return [i for i in self.issues if i.severity == SEVERITY_WARNING]
+
+    @property
+    def suggestions(self) -> List[Issue]:
+        """All Phase B SUGGESTION issues across executed phases."""
+        return [i for i in self.issues if i.severity == SEVERITY_SUGGESTION]
+
+    @property
+    def applied_fixes(self) -> List[Issue]:
+        """All APPLIED_FIX issues across executed phases."""
+        return [i for i in self.issues if i.severity == SEVERITY_APPLIED_FIX]
+
+    @property
+    def info(self) -> List[Issue]:
+        """All INFO issues across executed phases."""
+        return [i for i in self.issues if i.severity == SEVERITY_INFO]
+
+    def to_text(
+        self,
+        *,
+        mode: str = "public",
+        science_fixes: str = "suggest",
+    ) -> str:
+        """Render this report into the canonical ASCII text report format."""
+        from .renderers import render_text_report
+
+        return render_text_report(
+            self.phases,
+            mode=mode,
+            science_fixes=science_fixes,
+        )
+
     def to_dict(self) -> dict:
         return {
             "overall_status": self.overall_status,

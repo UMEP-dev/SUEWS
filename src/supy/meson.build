@@ -24,7 +24,6 @@ py.install_sources(
         'suews_output.py',
         'suews_sim.py',
         'units.py',
-        'validation.py',
         'code2file.json',
         'checker_rules_indiv.json',
         'checker_rules_joint.json',
@@ -177,9 +176,8 @@ py.install_sources(
         ],
         [
             'data_model/validation/__init__.py',
+            'data_model/validation/engine.py',
             'data_model/validation/core/__init__.py',
-            'data_model/validation/core/controller.py',
-            'data_model/validation/core/feedback.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
             'data_model/validation/derived_fields.py',

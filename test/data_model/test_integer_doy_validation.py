@@ -749,104 +749,10 @@ def test_suews_validate_science_fixes_apply_preserves_explicitly_disabled_dls(
                 assert current is None
 
 
-def test_run_precheck_preserves_disabled_and_does_not_mask_invalid_dls(
+def test_cli_nonleap_2023_rejects_dls_366_under_science_fixes_apply(
     sample_config_dict: dict, tmp_path: Path
 ) -> None:
-    """Exported ``run_precheck`` preserves disabled DLS pairs and leaves invalid DOYs for rejection."""
-    from supy.data_model import run_precheck
-
-    # 1. Disabled pairs across omitted, null, empty, ref-only, and null-with-ref stay disabled.
-    disabled_cases = [
-        (_OMIT_DOY, _OMIT_DOY),
-        (None, None),
-        ({}, {}),
-        ({"ref": {"desc": "disabled"}}, {"ref": {"desc": "disabled"}}),
-        (
-            {"value": None, "ref": {"desc": "disabled"}},
-            {"value": None, "ref": {"desc": "disabled"}},
-        ),
-        ({"ref": {"desc": "disabled"}}, _OMIT_DOY),
-    ]
-    for idx, (start_entry, end_entry) in enumerate(disabled_cases):
-        cfg = copy.deepcopy(sample_config_dict)
-        anthro = cfg["sites"][0]["properties"]["anthropogenic_emissions"]
-        if start_entry is _OMIT_DOY:
-            anthro.pop("startdls", None)
-        else:
-            anthro["startdls"] = copy.deepcopy(start_entry)
-        if end_entry is _OMIT_DOY:
-            anthro.pop("enddls", None)
-        else:
-            anthro["enddls"] = copy.deepcopy(end_entry)
-        path = tmp_path / f"precheck_disabled_{idx}.yml"
-        path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-
-        prechecked = run_precheck(str(path))
-        out_anthro = prechecked["sites"][0]["properties"]["anthropogenic_emissions"]
-        for key, expected in (("startdls", start_entry), ("enddls", end_entry)):
-            if expected is _OMIT_DOY:
-                assert key not in out_anthro
-            else:
-                assert out_anthro[key] == expected
-
-        loaded = SUEWSConfig.from_yaml(str(tmp_path / f"py0_{path.name}"))
-        loaded_anthro = loaded.sites[0].properties.anthropogenic_emissions
-        for attr, expected in (("startdls", start_entry), ("enddls", end_entry)):
-            current = getattr(loaded_anthro, attr)
-            if isinstance(expected, dict) and "ref" in expected:
-                assert isinstance(current, RefValue)
-                assert current.value is None
-                assert current.ref is not None
-                assert current.ref.desc == "disabled"
-            else:
-                assert current is None
-
-    # 2. Invalid fractional, boolean, out-of-range, and empty-string DLS entries
-    #    must not be overwritten or converted to disabled None before SUEWSConfig
-    #    validation rejects them.
-    for idx, bad_dls in enumerate((20.5, True, 0, 367, {"value": 20.5}, "", {"value": ""})):
-        cfg = copy.deepcopy(sample_config_dict)
-        cfg["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = bad_dls
-        path = tmp_path / f"precheck_invalid_{idx}.yml"
-        path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-
-        prechecked = run_precheck(str(path))
-        assert (
-            prechecked["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"]
-            == bad_dls
-        )
-        with pytest.raises((ValidationError, ValueError), match="startdls"):
-            SUEWSConfig.from_yaml(str(tmp_path / f"py0_{path.name}"))
-
-    # Paired empty-string DOYs (both DLS and irrigation) must stay invalid strings.
-    for idx, empty_form in enumerate(("", {"value": ""})):
-        cfg_empty = copy.deepcopy(sample_config_dict)
-        cfg_empty["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = (
-            copy.deepcopy(empty_form)
-        )
-        cfg_empty["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
-            copy.deepcopy(empty_form)
-        )
-        cfg_empty["sites"][0]["properties"]["irrigation"]["ie_start"] = copy.deepcopy(
-            empty_form
-        )
-        cfg_empty["sites"][0]["properties"]["irrigation"]["ie_end"] = copy.deepcopy(
-            empty_form
-        )
-        path_empty = tmp_path / f"precheck_empty_pair_{idx}.yml"
-        path_empty.write_text(yaml.safe_dump(cfg_empty, sort_keys=False), encoding="utf-8")
-
-        prechecked_empty = run_precheck(str(path_empty))
-        out_props = prechecked_empty["sites"][0]["properties"]
-        assert out_props["anthropogenic_emissions"]["startdls"] == empty_form
-        assert out_props["anthropogenic_emissions"]["enddls"] == empty_form
-        assert out_props["irrigation"]["ie_start"] == empty_form
-        assert out_props["irrigation"]["ie_end"] == empty_form
-        with pytest.raises((ValidationError, ValueError)):
-            SUEWSConfig.from_yaml(str(tmp_path / f"py0_{path_empty.name}"))
-
-    # 3. Non-leap-year (2023) startdls=366 must be rejected in Phase B / --science-fixes
-    #    apply AND preserved unmasked by run_precheck for SUEWSConfig rejection.
+    """Non-leap-year (2023) startdls=366 is rejected in Phase B / --science-fixes apply."""
     cfg_2023 = copy.deepcopy(sample_config_dict)
     cfg_2023["model"]["control"]["start_time"] = "2023-01-01"
     cfg_2023["model"]["control"]["end_time"] = "2023-12-31"
@@ -862,11 +768,6 @@ def test_run_precheck_preserves_disabled_and_does_not_mask_invalid_dls(
     )
     assert res_2023.exit_code != 0, res_2023.output
     assert "365" in res_2023.output and "startdls" in res_2023.output
-
-    prechecked_2023 = run_precheck(str(path_2023))
-    assert prechecked_2023["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] == 366
-    with pytest.raises((ValidationError, ValueError), match="startdls"):
-        SUEWSConfig.from_yaml(str(tmp_path / f"py0_{path_2023.name}"))
 
 
 def test_suews_convert_cli_rejects_fractional_doy_and_accepts_ref_only(

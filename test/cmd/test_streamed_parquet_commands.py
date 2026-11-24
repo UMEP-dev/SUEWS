@@ -721,7 +721,7 @@ def _assert_full_summary_matches_monolithic(dir_whole: Path, dir_stream: Path) -
     assert rc_whole == 0 and env_whole["status"] == "success", env_whole
     assert rc_stream == 0 and env_stream["status"] == "success", env_stream
     assert env_whole["data"]["n_steps"] == 48
-    assert env_stream["data"]["n_steps"] == 50
+    assert env_stream["data"]["n_steps"] == 48
     assert env_stream["data"]["period"] == env_whole["data"]["period"]
 
     df_whole = _run_output_module._load_run_output_dataframe(dir_whole, flatten=False)
@@ -762,11 +762,10 @@ def _assert_streamed_matches_monolithic_summary(
 ) -> None:
     """Compare streamed vs monolithic summaries across selected and full columns.
 
-    Streamed output honours ``output_cfg.groups=["SUEWS", "DailyState"]`` and
-    stamps the two DailyState rows at native ``23:55:00`` (50 rows = 48 hourly
-    SUEWS rows + 2 DailyState-only rows), whereas monolithic ``sim.save()``
-    aligns DailyState onto the ``23:00:00`` hourly rows (48 rows) across all
-    groups.
+    Both streamed output (honouring ``output_cfg.groups=["SUEWS", "DailyState"]``)
+    and monolithic ``sim.save()`` resample ``DailyState`` with the shared
+    ``closed="right", label="right"`` rule onto the ``00:00:00`` (``D+1 00:00``)
+    hourly rows (48 rows total, zero NaN SUEWS rows).
     """
     rc_whole_sel, env_whole_sel = _invoke_cli([
         "summarise",
@@ -783,7 +782,7 @@ def _assert_streamed_matches_monolithic_summary(
     assert rc_whole_sel == 0 and env_whole_sel["status"] == "success", env_whole_sel
     assert rc_stream_sel == 0 and env_stream_sel["status"] == "success", env_stream_sel
     assert env_whole_sel["data"]["n_steps"] == 48
-    assert env_stream_sel["data"]["n_steps"] == 50
+    assert env_stream_sel["data"]["n_steps"] == 48
     assert env_stream_sel["data"]["period"] == {
         "start": "2012-01-01 01:00:00",
         "end": "2012-01-03 00:00:00",
@@ -801,7 +800,7 @@ def _assert_streamed_matches_monolithic_summary(
                 entry_whole[stat], rel=1e-12, abs=1e-12
             )
         assert entry_whole["nan_pct"] == pytest.approx(0.0, abs=1e-12)
-        assert entry_stream["nan_pct"] == pytest.approx(4.0, abs=1e-12)
+        assert entry_stream["nan_pct"] == pytest.approx(0.0, abs=1e-12)
 
     _assert_full_summary_matches_monolithic(dir_whole, dir_stream)
 

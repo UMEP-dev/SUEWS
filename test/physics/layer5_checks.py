@@ -439,27 +439,17 @@ def _validate_multiindex_grid_frame(
 def _expected_dailystate_bins(
     eod_stamps: pd.DatetimeIndex,
     *,
+    origin: pd.Timestamp,
     tstep: int,
     output_step: int | None,
 ) -> pd.DatetimeIndex:
-    """Map native DailyState occurrence timestamps to their expected output bins."""
-    if len(eod_stamps) == 0:
-        return pd.DatetimeIndex([], dtype=eod_stamps.dtype)
-    if output_step is None or output_step == tstep:
-        return pd.DatetimeIndex(eod_stamps).unique().sort_values()
-
-    unit = eod_stamps.unit
-    tick = pd.Timedelta(1, unit).as_unit(unit)
-    step = pd.Timedelta(seconds=output_step).as_unit(unit)
-    day = pd.Timedelta(days=1).as_unit(unit)
-    ds_origin = eod_stamps.min().normalize()
-    period_ends = (eod_stamps.normalize() + day) - tick
-    # DailyState covers calendar day D ending at (D + 1 day) - 1 tick and uses
-    # closed="right", label="left" at fixed frequencies, anchored at the
-    # earliest populated DailyState day's midnight (matching supy._post).
-    ds_bin_number = ((period_ends - ds_origin) - tick) // step
-    labels = pd.DatetimeIndex(ds_origin + ds_bin_number * step).as_unit(unit)
-    return labels.unique().sort_values()
+    """Map native DailyState occurrence timestamps to their right-labelled output bins."""
+    return _expected_right_labelled_bins(
+        eod_stamps,
+        origin=origin,
+        tstep=tstep,
+        output_step=output_step,
+    )
 
 
 def _expected_right_labelled_bins(
@@ -540,7 +530,9 @@ def _extract_native_group_evidence(
     """Derive per-group columns and expected resampled bins from native output."""
     _validate_multiindex_grid_frame(native_grid, label=label, kind="native")
     assert len(native_grid) > 0, f"{label}: native DataFrame must be non-empty"
-    origin = native_grid.index[0].normalize()
+    origin = (
+        native_grid.index.min() - pd.Timedelta(1, native_grid.index.unit)
+    ).normalize()
     evidence: dict[str, _NativeGroupEvidence] = {}
     for group_name in native_grid.columns.get_level_values(0).unique():
         native_group = native_grid[group_name]
@@ -549,7 +541,7 @@ def _extract_native_group_evidence(
         )
         if group_name == "DailyState":
             expected_bins = _expected_dailystate_bins(
-                native_stamps, tstep=tstep, output_step=output_step
+                native_stamps, origin=origin, tstep=tstep, output_step=output_step
             )
         else:
             expected_bins = _expected_right_labelled_bins(
@@ -672,8 +664,9 @@ def _expected_cloud_bins(
       anchored at ``forcing.index[0].normalize()`` and averages finite cloud
       observations per bin while retaining all-missing bins as ``NaN``.
     - Combined ``SUEWS`` + ``DailyState`` resampled frames map each end-of-day
-      step to its left-labelled ``DailyState`` bin (which may either overlap a
-      SUEWS bin or sit outside ``suews_index`` as an exclusive structural row).
+      step to its right-labelled ``DailyState`` bin sharing the same fixed
+      origin as ``SUEWS`` (aligned onto ``suews_index`` with zero exclusive
+      structural rows for forcing-aligned EOD timestamps).
       Returns ``(expected_suews, expected_ds_all, expected_ds_only)``.
     """
     index = forcing.index
@@ -704,7 +697,7 @@ def _expected_cloud_bins(
 
     unit = index.unit
     tick = pd.Timedelta(1, unit).as_unit(unit)
-    origin = index[0].normalize()
+    origin = (index.min() - tick).normalize()
     step = pd.Timedelta(seconds=output_step).as_unit(unit)
     bin_labels = pd.DatetimeIndex(
         origin + (((index - origin) - tick) // step + 1) * step
@@ -712,7 +705,7 @@ def _expected_cloud_bins(
     # Every occupied measurement bin survives, including all-missing bins (NaN).
     expected_suews = expected_native.groupby(bin_labels, sort=True).mean()
     expected_ds_all = _expected_dailystate_bins(
-        eod_stamps, tstep=tstep, output_step=output_step
+        eod_stamps, origin=origin, tstep=tstep, output_step=output_step
     )
     expected_ds_only = _dailystate_only_timestamps(
         expected_ds_all, expected_suews.index
@@ -987,10 +980,10 @@ def assert_dailystate_group_occurrence(
     (``(grid, datetime)`` ``MultiIndex``) output frames. Each grid is checked
     independently: every native row holding at least one valid (finite,
     non-``-999.0``) ``DailyState`` observation is mapped to its fixed-frequency
-    left-labelled bin (or retained verbatim at native cadence), and the
-    corresponding output bin -- whether exclusive or overlapping a ``SUEWS``
-    measurement bin -- must hold at least one valid ``DailyState`` observation,
-    while all other output rows must remain ``NaN`` in ``DailyState``.
+    right-labelled bin sharing the grid's origin (or retained verbatim at
+    native cadence), and the corresponding output bin must hold at least one
+    valid ``DailyState`` observation, while all other output rows must remain
+    ``NaN`` in ``DailyState``.
 
     Scoped strictly to populated-group existence rather than per-field
     completeness across all 47 fields under every physical configuration.
@@ -1002,8 +995,11 @@ def assert_dailystate_group_occurrence(
         _validate_multiindex_grid_frame(obs_grid, label=grid_label, kind="output")
         obs_ds = _extract_required_group(obs_grid, "DailyState")
         native_stamps = _extract_native_dailystate_stamps(nat_grid, label=grid_label)
+        origin = (
+            nat_grid.index.min() - pd.Timedelta(1, nat_grid.index.unit)
+        ).normalize()
         expected_bins = _expected_dailystate_bins(
-            native_stamps, tstep=tstep, output_step=output_step
+            native_stamps, origin=origin, tstep=tstep, output_step=output_step
         )
         if len(expected_bins) > 0:
             missing_cols = sorted(
@@ -1032,10 +1028,10 @@ def assert_output_group_occurrence(
 
     Supports both single-grid (``DatetimeIndex``) and multi-grid
     (``(grid, datetime)`` ``MultiIndex``) output frames. Each grid is compared
-    against its native evidence across ``DailyState`` (left-labelled) and every
+    against its native evidence across ``DailyState`` and every
     non-``DailyState`` group (``SUEWS``, ``BEERS``, ``RSL``, ``debug``, plus
     enabled ``snow``, ``ESTM``, ``EHC``, ``SPARTACUS``, ``STEBBS``, ``NHood``,
-    ``BL``, right-labelled):
+    ``BL``, all right-labelled under the shared per-grid origin):
 
     - Every active group in ``native`` must remain present in ``observed`` with
       all native columns retained, holding at least one finite non-``-999.0``
@@ -1131,14 +1127,12 @@ def assert_forcing_cloud(
     The writer binds ``Fcld`` to ``forcing%f_cloud`` (``suews_ctrl_driver.f95``),
     not ``atmState%f_cloud``. Native rows retain the forcing clock with no extra
     rows. Fixed-frequency aggregates preserve every required right-closed,
-    right-labelled SUEWS measurement bin (including all-missing bins) and accept
-    extra structural rows only at the exact left-labelled ``DailyState``
-    timestamps outside the SUEWS bin index. On those structural rows ``Fcld``
-    (and every non-``DailyState`` group when a DataFrame is passed) must remain
-    ``NaN``, required SUEWS bins must stay distinguishable as SUEWS
-    observations, and whenever ``observed`` carries a ``DailyState`` group,
-    every expected ``DailyState`` bin (both exclusive and overlapping a SUEWS
-    bin) must hold at least one valid observation while all other rows remain
+    right-labelled SUEWS measurement bin (including all-missing bins) and place
+    ``DailyState`` on the same right-labelled bin grid (leaving zero extra
+    structural rows when native EOD steps sit on the forcing clock). Required
+    SUEWS bins must stay distinguishable as SUEWS observations, and whenever
+    ``observed`` carries a ``DailyState`` group, every expected ``DailyState``
+    bin must hold at least one valid observation while all other rows remain
     ``NaN`` in ``DailyState``. Multi-group frames also enforce group occurrence
     and column retention for active non-``DailyState`` groups (always-active
     ``BEERS``, ``RSL``, ``debug``, plus enabled optional groups such as

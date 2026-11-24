@@ -1,36 +1,17 @@
 {
   "description": "Per-file counts of gated Fortran literal kinds; see scripts/lint/check_fortran_literals.py. Counts may only go down.",
   "totals": {
-    "degree_radian": 49,
-    "kelvin_offset": 2,
-    "pi": 3,
+    "pi": 1,
     "seconds_per_day": 2,
     "seconds_per_hour": 2
   },
   "files": {
-    "src/suews/src/suews_phys_bluews.f95": {
-      "kelvin_offset": 1
-    },
-    "src/suews/src/suews_phys_narp.f95": {
-      "degree_radian": 45,
-      "pi": 1
-    },
     "src/suews/src/suews_phys_snow.f95": {
       "pi": 1
-    },
-    "src/suews/src/suews_phys_spartacus.f95": {
-      "degree_radian": 3
-    },
-    "src/suews/src/suews_phys_stebbs.f95": {
-      "degree_radian": 1,
-      "kelvin_offset": 1
     },
     "src/suews/src/suews_util_datetime.f95": {
       "seconds_per_day": 2,
       "seconds_per_hour": 2
-    },
-    "src/suews/src/suews_util_time.f95": {
-      "pi": 1
     }
   }
 }

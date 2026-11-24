@@ -78,6 +78,8 @@ The tool automatically detects the configuration format based on file extension:
 
 ``suews run`` does not hand your YAML file to the physics engine as written. It first loads it through the SUEWS data model, the same path as :class:`~supy.SUEWSSimulation`: the configuration is validated, any parameter you leave out takes its documented data-model default, and the result is passed to the engine as a complete, resolved configuration. Errors in the YAML are therefore reported by the data model, naming the field concerned, before any simulation starts.
 
+Set ``model.control.output.dir`` in source YAML to choose where ``suews run`` writes results. The command uses the legacy ``model.control.output_file.path`` only when the ``model.control.output`` block is absent. If the selected directory is missing, null or an empty string, the command writes to the directory where you invoked it. A non-empty relative path starts from the source YAML file's directory. Use ``.`` to write beside the source file.
+
 Resolved input is the caller contract: defaults belong in the data model, and callers must pass the engine a complete, resolved configuration. Enforcement of this contract at the engine boundary is still being completed; some omitted values can still retain legacy bridge fallbacks. Acceptance by the engine does not establish that an incomplete configuration is valid.
 
 The resolved ``model.control.forcing.timestamp_reference`` must explicitly contain
@@ -86,6 +88,26 @@ The engine rejects missing, null, malformed and unknown values with the full
 field path. The source configuration still defaults to ``local_standard_time``
 through the data model. The values ``follow`` and ``daylight`` apply only to
 ``model.control.output.timestamp_reference``, which labels saved output.
+
+The resolved ``model.physics.storage_heat`` must also be present as a valid
+storage-heat selector (integer code, accepted scheme name, family form or
+supported legacy alias, bare or in a ``value`` wrapper). Missing, null,
+non-finite, fractional, out-of-range-integer or wrong-type values are rejected
+with the field path ``model.physics.storage_heat`` instead of silently falling
+back to ``0`` (observed storage heat). Source configurations still default to
+``1`` (``ohm`` / ``OHM_WITHOUT_QF``) through the data model.
+
+Resolved physics input also requires explicit values for the four aerodynamic
+selectors ``model.physics.roughness_length_momentum``,
+``model.physics.roughness_length_heat``, ``model.physics.roughness_sublayer``
+and ``model.physics.roughness_sublayer_level`` (an integer, ``value`` wrapper or
+registered readable name). All four values are required, including
+``roughness_sublayer_level`` under MOST (``roughness_sublayer=0``). For missing,
+null, non-finite or malformed numeric values, the error identifies the full
+field path. For an unrecognised scheme name, the error identifies the selector
+and the name supplied. Source YAML continues to receive the data
+model defaults (``2``/``variable``, ``2``/``kawai``, ``2``/``variable`` and
+``0``/``none``).
 
 If you kept a resolved file from an earlier release, run the original source
 configuration with ``suews run source.yml``. To save a new resolved file for
@@ -108,9 +130,19 @@ beside the source so supplied relative paths still resolve correctly:
 
    The SuPy package also contains a ``suews-engine`` binary, the Rust runtime that ``suews run`` drives. It is a developer and test tool, not a user command: ``suews-engine run`` expects a configuration that has already been resolved in this way, and does not perform data-model validation or resolution for a hand-written YAML file. To run a configuration, use ``suews run``.
 
-   File execution requires a string at ``model.control.output.dir`` (a ``value`` wrapper is also accepted). Export with ``config_to_engine_yaml`` from ``supy._run_rust``. When the source omits the output directory, the export captures the absolute process working directory. A saved export retains that destination even when launched from another directory. Supplied paths are preserved: ``.`` and relative paths resolve against the engine configuration file's directory, and absolute paths remain absolute. Keep the export beside its source configuration to retain the base for supplied relative paths.
+   File execution requires a string at ``model.control.output.dir`` (a ``value`` wrapper is also accepted). Export with ``config_to_engine_yaml`` from ``supy._run_rust``. If the selected source directory is missing or null, the export records the absolute working directory of the process that calls ``config_to_engine_yaml``. The engine writes there even when launched from another directory.
+
+   With an explicit empty string (``dir: ""``), the engine writes beside the exported YAML. A relative path, including ``.``, also starts from the exported file's directory. Keep the export beside its source to preserve that base. An absolute path keeps its original destination.
+
+   A standalone file containing only the legacy ``model.control.output_file.path`` is rejected. Move its value to ``model.control.output.dir`` before running the file.
 
    Ordinary model dumps and ``to_yaml()`` remain portable source exports and leave an omitted directory unset. Buffer-only library calls return arrays and leave an omitted directory unset, including when the current working directory is unavailable. The public Python ``save(path)`` argument still takes precedence over the configured directory.
+
+   Each resolved site must supply all four LUMPS parameters in
+   ``sites[].properties.lumps``, including ``raincover``, ``rainmaxres``,
+   ``drainrt`` and ``veg_type``. When an ordinary source configuration omits
+   the block or a field, SuPy supplies the documented defaults during export.
+   Regenerate an incomplete engine input from its source configuration.
 
 For detailed usage and examples, see the :doc:`/workflow` guide.
 
@@ -152,12 +184,15 @@ Show a compact, read-only overview of a YAML configuration: per-site coordinates
 suews summarise
 ~~~~~~~~~~~~~~~
 
-Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory.
+Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory. For multi-group Parquet outputs, each ``(group, variable)`` series is preserved independently and labelled with its group in both text and JSON output.
 
 .. code-block:: bash
 
     suews summarise path/to/run_dir
     suews summarise path/to/run_dir --variables QH,QE,QN
+    suews summarise path/to/run_dir --variables SUEWS.QS,ESTM.QS
+
+Use bare variable names (such as ``QH`` or ``Kdown``) for unambiguous selections, or ``<group>.<variable>`` (such as ``SUEWS.QS`` or ``ESTM.QS``) to request a specific group when a name recurs across groups. Passing a bare colliding name summarises every matching group and records an advisory note showing the qualified names.
 
 suews compare
 ~~~~~~~~~~~~~

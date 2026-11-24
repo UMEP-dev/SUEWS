@@ -10,7 +10,9 @@ See gh#1301, gh#1304.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import calendar
+from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -46,6 +48,7 @@ from ...data_model.core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
+from ...data_model.core.state import validate_sdd_id
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
 from ...data_model.validation.required_fields import (
@@ -1631,10 +1634,15 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         logs.append(f"{key} -> soil_moisture; original method {method}")
     if active:
         # Validate all sites against the current schema using a throwaway copy
-        # stripped of legacy seven-zero radiation placeholders; the returned
-        # dev9 mapping stays intact for later deltas and single-pass logging.
+        # stripped of legacy radiation, continuation-state placeholders,
+        # pre-dev16 non-finite sdd_id values, and pre-dev17 non-integer DOYs;
+        # the returned dev9 mapping stays intact for later deltas and
+        # single-pass logging.
         from ...data_model.core.config import SUEWSConfig
         candidate, _ = _drop_legacy_radiation_memory_zeros(result)
+        candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
+        _clear_nonfinite_sdd_for_dev9_candidate(candidate)
+        _clear_noninteger_doy_for_dev9_candidate(candidate)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -2170,6 +2178,557 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, _target)] = _with_radiation_memory_delta(_handler)
 _HANDLERS[("2026.6.dev12", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev12_to_2026_6_dev13
 
+
+def _is_bool_like(value: object) -> bool:
+    """Return True for Python ``bool`` and NumPy ``bool_`` scalars."""
+    return isinstance(value, bool) or type(value).__name__ == "bool_"
+
+
+def _is_real_zero(value: object) -> bool:
+    """Return True when ``value`` is a non-boolean real zero."""
+    return isinstance(value, numbers.Real) and not _is_bool_like(value) and value == 0
+
+
+def _is_real_equal(value: object, expected: float) -> bool:
+    """Return True when ``value`` is a finite non-boolean real equal to ``expected``."""
+    if not isinstance(value, numbers.Real) or _is_bool_like(value):
+        return False
+    try:
+        numeric = float(value)
+    except OverflowError:
+        return False
+    return math.isfinite(numeric) and numeric == expected
+
+
+def _extract_control_tstep(cfg: dict) -> float | None:
+    """Extract numeric ``model.control.tstep`` when present and finite."""
+    model = cfg.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    raw = control.get("tstep") if isinstance(control, dict) else None
+    if isinstance(raw, dict):
+        raw = raw.get("value")
+    if isinstance(raw, numbers.Real) and not _is_bool_like(raw):
+        try:
+            numeric = float(raw)
+        except OverflowError:
+            return None
+        if math.isfinite(numeric):
+            return numeric
+    return None
+
+
+def _is_legacy_zero_wu(wu: object) -> bool:
+    """Return True when ``wu`` is a legacy all-zero WaterUse placeholder mapping."""
+    if not isinstance(wu, dict):
+        return False
+    allowed_keys = {"wu_total", "wu_auto", "wu_manual", "ref"}
+    if not set(wu.keys()).issubset(allowed_keys):
+        return False
+    if wu.get("ref") is not None:
+        return False
+    for field in ("wu_total", "wu_auto", "wu_manual"):
+        if field not in wu:
+            continue
+        entry = wu[field]
+        if _is_real_zero(entry):
+            continue
+        if (
+            isinstance(entry, dict)
+            and set(entry.keys()).issubset({"value", "ref"})
+            and "value" in entry
+            and entry.get("ref") is None
+            and _is_real_zero(entry["value"])
+        ):
+            continue
+        return False
+    return True
+
+
+def _drop_legacy_continuation_state_placeholders(cfg: dict) -> tuple[dict, list[str]]:
+    """Drop legacy continuation-state placeholders without mutating ``cfg``.
+
+    Returns the copied mapping and pending log messages; refuses non-placeholder
+    values with ``YamlUpgradeError`` so restart state is never silently dropped.
+    """
+    cfg = deepcopy(cfg)
+    pending_logs: list[str] = []
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg, pending_logs
+    control_tstep = _extract_control_tstep(cfg)
+    zero_only_fields = ("dt_since_start", "l_mod", "ustar", "ra_h", "rb", "rs")
+    for index, site in enumerate(sites):
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for name in zero_only_fields:
+            if name not in states:
+                continue
+            path = f"sites[{index}].initial_states.{name}"
+            if not _is_real_zero(states[name]):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states[name]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "continuation state is formed internally during cold start"
+            )
+        if "tair_av" in states:
+            path = f"sites[{index}].initial_states.tair_av"
+            val = states["tair_av"]
+            if not (_is_real_zero(val) or _is_real_equal(val, 273.15)):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy cold-start placeholders (0 or 273.15) can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states["tair_av"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy cold-start placeholder; "
+                "tair_av is formed internally during cold start"
+            )
+        if "tstep_prev" in states:
+            path = f"sites[{index}].initial_states.tstep_prev"
+            val = states["tstep_prev"]
+            allowed_tstep = control_tstep is not None and _is_real_equal(val, control_tstep)
+            if not (_is_real_zero(val) or allowed_tstep):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy cold-start placeholders (0 or model.control.tstep) "
+                    "can be migrated. Remove the field to cold-start, or use a "
+                    "complete checkpoint for continuation."
+                )
+            del states["tstep_prev"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy cold-start placeholder; "
+                "tstep_prev is seeded from model.control.tstep during cold start"
+            )
+        for veg in ("evetr", "dectr", "grass"):
+            veg_state = states.get(veg)
+            if not isinstance(veg_state, dict) or "wu" not in veg_state:
+                continue
+            path = f"sites[{index}].initial_states.{veg}.wu"
+            if not _is_legacy_zero_wu(veg_state["wu"]):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise irrigation memory for a fresh run. "
+                    "Only legacy zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del veg_state["wu"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "irrigation memory is formed internally during cold start"
+            )
+    return cfg, pending_logs
+
+
+def _migrate_2026_6_dev13_to_2026_6_dev14(cfg: dict) -> dict:
+    """Remove legacy continuation-state placeholders without discarding restart values."""
+    cfg, pending_logs = _drop_legacy_continuation_state_placeholders(cfg)
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_continuation_state_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev13_to_2026_6_dev14(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev13")] = _handler
+        _HANDLERS[(_source, _target)] = _with_continuation_state_delta(_handler)
+_HANDLERS[("2026.6.dev13", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev13_to_2026_6_dev14
+
+
+def _migrate_2026_6_dev14_to_2026_6_dev15(cfg: dict) -> dict:
+    """Preserve supplied drainage coefficients; never infer them from omission."""
+    result = deepcopy(cfg)
+    sites = result.get("sites")
+    if not isinstance(sites, list):
+        return result
+    missing = []
+    for i, site in enumerate(sites):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        for name in NON_WATER_SURFACES:
+            surface = land_cover.get(name)
+            if not isinstance(surface, dict) or _active_surface_sfr(surface) is None:
+                continue
+            params = surface.get("storage_drain_params", surface.get("storedrainprm"))
+            if params is None:
+                # Migration also serves partial configuration/annotation work.
+                # Preserve omission; engine validation requires the block later.
+                continue
+            if (
+                not isinstance(params, dict)
+                or _unwrap_scalar(params.get("drain_eq")) not in (1, 2, 3)
+            ):
+                continue
+            for coef in ("drain_coef_1", "drain_coef_2"):
+                if _unwrap_scalar(params.get(coef)) is None:
+                    missing.append(
+                        f"sites[{i}].properties.land_cover.{name}.storage_drain_params.{coef}"
+                    )
+    if missing:
+        raise YamlUpgradeError(
+            "Cannot migrate drainage coefficients to schema 2026.6.dev15: "
+            + "; ".join(missing)
+            + ". Supply the missing drainage block or coefficients before migration. "
+            "Explicit zero is allowed; omission does not establish a zero coefficient."
+        )
+    return result
+
+
+def _with_drainage_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev14_to_2026_6_dev15(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev14")] = _handler
+        _HANDLERS[(_source, _target)] = _with_drainage_delta(_handler)
+_HANDLERS[("2026.6.dev14", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev14_to_2026_6_dev15
+
+
+def _clear_nonfinite_sdd_for_dev9_candidate(candidate: dict) -> None:
+    """Keep pre-dev16 SDD representations out of the throwaway dev9 validation copy."""
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    for site in sites:
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for veg in ("evetr", "dectr", "grass"):
+            surface = states.get(veg)
+            if not isinstance(surface, dict) or "sdd_id" not in surface:
+                continue
+            raw = _unwrap_scalar(surface["sdd_id"])
+            if type(raw).__module__ == "numpy" and hasattr(raw, "item"):
+                raw = raw.item()
+            if isinstance(raw, bool):
+                surface.pop("sdd_id")
+                continue
+            if isinstance(raw, numbers.Real) or type(raw).__module__ == "numpy":
+                with suppress(TypeError, ValueError, OverflowError):
+                    if not math.isfinite(float(raw)):
+                        surface.pop("sdd_id")
+                continue
+            if isinstance(raw, str):
+                with suppress(ValueError):
+                    if not math.isfinite(float(raw)):
+                        surface.pop("sdd_id")
+
+
+def _max_dls_doy_for_config(cfg: dict) -> int:
+    """Return 365 for non-leap-year start_time and 366 for leap or unknown years.
+
+    Mirrors ``SUEWSConfig.validate_dls_parameters``.
+    """
+    model = cfg.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    start_time = (
+        _unwrap_scalar(control.get("start_time")) if isinstance(control, dict) else None
+    )
+    if start_time is not None:
+        with suppress(ValueError, TypeError):
+            year = int(str(start_time)[:4])
+            if not calendar.isleap(year):
+                return 365
+    return 366
+
+
+def _clear_noninteger_doy_for_dev9_candidate(candidate: dict) -> None:
+    """Replace pre-dev17 valid DOY values on a throwaway dev9 validation copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy with the
+    current ``SUEWSConfig`` model, which enforces dev17 integer-only DOY rules.
+    Historical targets ``dev9``..``dev16`` still accepted ``float`` DOYs (with
+    ``ge=1, le=366`` already enforced on ``startdls``/``enddls`` and no bounds
+    on ``ie_start``/``ie_end``). Replace only values that were historically
+    valid before dev17 on that throwaway copy with ``1`` (preserving pair
+    invariants) so historical targets keep pre-dev17 behaviour without relaxing
+    pre-existing DLS bounds or mutating the returned config.
+    """
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    max_dls_doy = float(_max_dls_doy_for_config(candidate))
+    doy_specs = (
+        ("irrigation", "ie_start", False),
+        ("irrigation", "ie_end", False),
+        ("anthropogenic_emissions", "startdls", True),
+        ("anthropogenic_emissions", "enddls", True),
+    )
+    for site in sites:
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, field_name, has_pre_dev17_bounds in doy_specs:
+            section = props.get(section_name)
+            if not isinstance(section, dict) or field_name not in section:
+                continue
+            entry = section[field_name]
+            if isinstance(entry, dict) and not (set(entry.keys()) <= {"value", "ref"}):
+                continue
+            raw = _unwrap_scalar(entry)
+            if type(raw).__module__ == "numpy" and hasattr(raw, "item"):
+                raw = raw.item()
+            if isinstance(raw, bool):
+                # Pre-dev17 float fields accepted True (1.0) on both irrigation
+                # and DLS, and False (0.0) only on unbounded irrigation fields.
+                if not has_pre_dev17_bounds or raw is True:
+                    section[field_name] = 1
+                continue
+            if isinstance(raw, numbers.Real) or type(raw).__module__ == "numpy":
+                with suppress(TypeError, ValueError, OverflowError):
+                    fval = float(raw)
+                    if has_pre_dev17_bounds:
+                        if math.isfinite(fval) and 1.0 <= fval <= max_dls_doy and not fval.is_integer():
+                            section[field_name] = 1
+                    elif (
+                        not math.isfinite(fval)
+                        or not fval.is_integer()
+                        or not (1 <= int(fval) <= 366)
+                    ):
+                        section[field_name] = 1
+                continue
+            if isinstance(raw, str):
+                with suppress(ValueError):
+                    fval = float(raw)
+                    if not has_pre_dev17_bounds or (
+                        math.isfinite(fval) and 1.0 <= fval <= max_dls_doy
+                    ):
+                        section[field_name] = 1
+
+
+def validate_vegetation_sdd_raw(cfg: dict) -> None:
+    """Report every explicitly invalid vegetation SDD without changing its source."""
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return
+    problems = []
+    for index, site in enumerate(sites):
+        if not isinstance(site, dict) or not isinstance(site.get("initial_states"), dict):
+            continue
+        grid = site.get("gridiv")
+        location = f"sites[{index}]" if grid is None else f"sites[{index}] (gridiv={grid})"
+        for name in ("evetr", "dectr", "grass"):
+            surface = site["initial_states"].get(name)
+            if not isinstance(surface, dict) or "sdd_id" not in surface:
+                continue
+            value = _unwrap_scalar(surface["sdd_id"])
+            field_path = f"{location}.initial_states.{name}.sdd_id"
+            if isinstance(value, Mapping):
+                problems.append(
+                    f"{field_path} must be a finite number in K d. Supply the initial value "
+                    "from this vegetation type's site or restart record. Omit the field "
+                    "only when initialising it at zero is intended."
+                )
+                continue
+            # The public model also accepts quoted numbers. Preserve the source form.
+            if isinstance(value, str):
+                with suppress(ValueError):
+                    value = float(value)
+            try:
+                validate_sdd_id(value, field_path)
+            except ValueError as error:
+                problems.append(str(error))
+    if problems:
+        raise YamlUpgradeError("\n".join(problems))
+
+
+def _with_senescence_check(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(handler, cfg, migration_context=migration_context)
+        validate_vegetation_sdd_raw(cfg)
+        return cfg
+    return migrate
+
+
+def _migrate_2026_6_dev15_to_2026_6_dev16(cfg: dict) -> dict:
+    validate_vegetation_sdd_raw(cfg)
+    return deepcopy(cfg)
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev15")] = _handler
+        _HANDLERS[(_source, _target)] = _with_senescence_check(_handler)
+_HANDLERS[("2026.6.dev15", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev15_to_2026_6_dev16
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_senescence_check(_identity)
+
+
+def _check_and_normalise_integer_doys(cfg: dict) -> dict:
+    """Normalise whole-number float DOYs to ``int`` and refuse fractional/invalid values.
+
+    Day-of-year fields (``ie_start``, ``ie_end``, ``startdls``, ``enddls``) are
+    integers in ``1..366`` (gh#2101). Legacy whole-number floats such as
+    ``86.0`` are normalised to ``86`` without altering model semantics;
+    fractional floats (such as ``20.5``), booleans, non-finite numbers,
+    malformed strings, or out-of-range integers fail with ``YamlUpgradeError``
+    so users replace them explicitly rather than silently truncating or zeroing.
+    """
+    from ...data_model.core.human_activity import coerce_integer_doy_scalar
+
+    cfg = deepcopy(cfg)
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    max_dls_doy = _max_dls_doy_for_config(cfg)
+    doy_specs = (
+        ("irrigation", "ie_start", 366),
+        ("irrigation", "ie_end", 366),
+        ("anthropogenic_emissions", "startdls", max_dls_doy),
+        ("anthropogenic_emissions", "enddls", max_dls_doy),
+    )
+    pending_logs: list[str] = []
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, field_name, max_doy in doy_specs:
+            section = props.get(section_name)
+            if not isinstance(section, dict) or field_name not in section:
+                continue
+            entry = section[field_name]
+            path = f"sites[{index}].properties.{section_name}.{field_name}"
+            if (
+                isinstance(entry, Mapping)
+                and "value" not in entry
+                and all(key == "ref" for key in entry)
+            ):
+                # Empty or ref-only mapping (``{}`` / ``{ref: ...}``): disabled window.
+                continue
+            if isinstance(entry, Mapping) and "value" in entry:
+                raw = entry["value"]
+                wrapped = True
+            else:
+                raw = entry
+                wrapped = False
+
+            if raw is None:
+                continue
+
+            try:
+                coerced = coerce_integer_doy_scalar(raw, path)
+            except ValueError as exc:
+                raise YamlUpgradeError(
+                    f"{exc} Replace fractional or invalid day-of-year values "
+                    f"manually with an integer day of year (1..{max_doy}) before upgrading."
+                ) from exc
+
+            if not (1 <= coerced <= max_doy):
+                raise YamlUpgradeError(
+                    f"{path} has out-of-range day-of-year value {coerced}; "
+                    f"day-of-year field {field_name} requires an integer day of "
+                    f"year between 1 and {max_doy}."
+                )
+
+            if type(raw) is not int:
+                if wrapped:
+                    entry["value"] = coerced
+                else:
+                    section[field_name] = coerced
+                pending_logs.append(
+                    f"[yaml-upgrade] normalised {path}: {raw!r} -> {coerced} "
+                    "(integer day of year)"
+                )
+
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _migrate_2026_6_dev16_to_2026_6_dev17(cfg: dict) -> dict:
+    """Enforce integer day-of-year fields (1..366) for irrigation and DLS."""
+    validate_vegetation_sdd_raw(cfg)
+    return _check_and_normalise_integer_doys(cfg)
+
+
+def _with_integer_doy_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(handler, cfg, migration_context=migration_context)
+        return _check_and_normalise_integer_doys(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev16")] = _handler
+        _HANDLERS[(_source, _target)] = _with_integer_doy_delta(_handler)
+_HANDLERS[("2026.6.dev16", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev16_to_2026_6_dev17
+
+
+def _migrate_2026_6_dev17_to_2026_6_dev18(cfg: dict) -> dict:
+    """Record the default EHC surface-coupling change for storage_heat=5 YAMLs."""
+    physics = (cfg.get("model") or {}).get("physics") or {}
+    storage_heat = physics.get("storage_heat", physics.get("storageheatmethod"))
+    if isinstance(storage_heat, dict):
+        storage_heat = storage_heat.get("value", storage_heat)
+    is_ehc = storage_heat in (5, "5", "ehc", "EHC") or (
+        isinstance(storage_heat, dict) and "ehc" in storage_heat
+    )
+    if is_ehc and "ehc_surface_coupling" not in physics:
+        _log(
+            "[yaml-upgrade] model.physics.ehc_surface_coupling omitted with storage_heat=5: "
+            "2026.6.dev18 defaults to implicit coupling; set ehc_surface_coupling: explicit "
+            "to retain legacy explicit coupling"
+        )
+    return cfg
+
+
+def _with_ehc_implicit_default_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev17_to_2026_6_dev18(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev17")] = _handler
+        _HANDLERS[(_source, _target)] = _with_ehc_implicit_default_delta(_handler)
+_HANDLERS[("2026.6.dev17", "2026.6.dev17")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev17", CURRENT_SCHEMA_VERSION)] = _with_ehc_implicit_default_delta(
+    _with_integer_doy_delta(_with_senescence_check(_identity))
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
 
 # ---------------------------------------------------------------------------
 # Public API

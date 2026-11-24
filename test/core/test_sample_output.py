@@ -23,6 +23,7 @@ physics validation.
 """
 
 import functools
+import json
 import os
 from pathlib import Path
 import platform
@@ -55,6 +56,7 @@ from sample_output_io import (  # noqa: E402
     REFERENCE_FLOAT_FORMAT,
     column_names_sha256,
     read_reference_provenance,
+    reference_file_digest,
     shard_identities,
 )
 
@@ -192,9 +194,10 @@ def _write_run_inputs(
 ) -> tuple[Path, int]:
     """Write a config and forcing prefix into run_dir; return the config and row count.
 
-    The config is redirected to write its output into run_dir. The forcing file is
-    truncated to the rows the requested window needs, because the engine runs the
-    whole forcing file it is given.
+    The config is redirected to write its output into run_dir. When ``truncated``
+    is true, the forcing file keeps one extra row past ``validation_steps`` for
+    boundary-free interpolation and ``model.control.end_time`` is aligned to the
+    exact ``validation_steps`` horizon so the engine enforces a covered period.
 
     The engine expects resolved YAML, so the config written here is the one
     ``suews run`` hands the bridge: validated through the data model, with every
@@ -212,6 +215,11 @@ def _write_run_inputs(
     control = cfg["model"]["control"]
     tstep = int(control.get("tstep", 300))
     control["output"]["dir"] = str(run_dir)
+    if truncated:
+        end_ts = pd.Timestamp(control["start_time"]) + pd.Timedelta(
+            seconds=validation_steps * tstep
+        )
+        control["end_time"] = end_ts.strftime("%Y-%m-%d %H:%M:%S")
 
     config_path = run_dir / "sample_config.yml"
     config_path.write_text(
@@ -1317,6 +1325,21 @@ class TestSTEBBSOutput(TestCase):
         )
         config_path = stebbs_test_dir / "sample_config.yml"
         reference_output_path = stebbs_test_dir / "sample_output_stebbs.csv"
+
+        provenance = json.loads(
+            (stebbs_test_dir / "provenance.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            provenance["files"],
+            {
+                name: reference_file_digest(stebbs_test_dir / name)[0]
+                for name in (
+                    config_path.name,
+                    "test_2017_data_15_mp.txt",
+                    reference_output_path.name,
+                )
+            },
+        )
 
         print(f"\nLoading STEBBS test configuration from: {config_path}")
 

@@ -1,14 +1,15 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_rslprof
+   USE module_ctrl_const_mathconst, ONLY: pi
    USE module_phys_atmmoiststab, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
    USE meteo, ONLY: RH2qa, qa2RH
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
    USE module_ctrl_const_physconst, ONLY: eps_fp
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_type, ONLY: error_state
    USE module_ctrl_error, ONLY: ErrorHint
-   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, ieee_is_finite
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
@@ -292,7 +293,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40 ! von karman constant
 
       REAL(KIND(1D0)), PARAMETER :: beta_N = 0.40 ! H&F beta coefficient in neutral conditions from Theeuwes et al., 2019 BLM
-      REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0), r = 0.1
+      REAL(KIND(1D0)), PARAMETER :: r = 0.1
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
 
       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
@@ -487,6 +488,10 @@ CONTAINS
                   psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
                   zH_RSL, L_MOD_RSL, & ! output
                   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
+               IF (supy_error_flag()) THEN
+                  dataoutLineRSL = -999.0D0
+                  RETURN
+               END IF
 
             ELSE
                ! ========== MOST APPROACH ==========
@@ -1122,7 +1127,6 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: cd_tree = 1.2 ! drag coefficient tree canopy !!!!needs adjusting!!!
       REAL(KIND(1D0)), PARAMETER :: a_tree = 0.05 ! the foliage area per unit volume !!!!needs adjusting!!!
       REAL(KIND(1D0)), PARAMETER :: beta_N = 0.40 ! H&F beta coefficient in neutral conditions from Theeuwes et al., 2019 BLM
-      REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0)
 
       REAL(KIND(1D0)), PARAMETER :: planF_low = 1E-6
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40 ! von karman constant
@@ -1130,6 +1134,16 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
       REAL(KIND(1D0)), PARAMETER :: Zh_min = 0.4 ! limit for minimum canyon height used in RSL module
       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+
+      ! Reject non-finite inputs before MAX/MIN clamps can erase NaN into finite defaults.
+      IF (.NOT. ieee_is_finite(L_MOD)) THEN
+         CALL fail_rsl_prms('RSL_cal_prms: non-finite Obukhov length L_MOD')
+         RETURN
+      END IF
+      IF (.NOT. (ieee_is_finite(zh) .AND. ieee_is_finite(FAI) .AND. ieee_is_finite(PAI))) THEN
+         CALL fail_rsl_prms('RSL_cal_prms: non-finite canopy geometry input (zh, FAI, or PAI)')
+         RETURN
+      END IF
 
       ! zH_RSL
       zH_RSL = MAX(zh, Zh_min)
@@ -1150,6 +1164,11 @@ CONTAINS
       ! LB Oct2021 - replaced PAI with sfr(BldgSurf) since the parameter should represent the solid fraction (and trees have negligible solid fraction).
       ! TS 18 Jun 2022 - changed sfr_surf(BldgSurf) back to PAI to account for trees with PAI updated by accounting for porosity.
       Lc = (1.-PAI)/FAI_use*Zh_RSL
+      ! Guard non-finite raw Lc before MERGE can replace overflow with a finite Lc_min.
+      IF (.NOT. ieee_is_finite(Lc)) THEN
+         CALL fail_rsl_prms('RSL_cal_prms: non-finite canopy drag length scale Lc')
+         RETURN
+      END IF
 
       ! set a minimum threshold (of 0.5*Zh_RSL) for Lc to avoid numerical diffulties when FAI is too large (e.g., FAI>10)
       ! Lc = MERGE(Lc, 0.5*Zh_RSL, Lc > 0.5*Zh_RSL)
@@ -1157,6 +1176,11 @@ CONTAINS
       ! Note: the horizontal building size and street+building unit size is calculated assuming a regular array of cuboids with the same x and y dimension but with height that can be different
       dim_bluffbody = Zh_RSL*PAI/FAI_use
       Lc_min = dim_bluffbody*PAI**(-0.5)/3.
+      ! Guard non-finite Lc_min (e.g. PAI <= 0 or overflow) before MERGE selects between Lc and Lc_min.
+      IF (.NOT. ieee_is_finite(Lc_min)) THEN
+         CALL fail_rsl_prms('RSL_cal_prms: non-finite canopy drag length scale Lc_min')
+         RETURN
+      END IF
       Lc = MERGE(Lc, Lc_min, Lc > Lc_min)
 
       ! a normalised scale with a physcially valid range between [-2,2] (Harman 2012, BLM)
@@ -1165,6 +1189,10 @@ CONTAINS
          lc_over_L = SIGN(2.D0, L_MOD)
       ELSE
          lc_over_L = Lc/L_MOD
+         IF (.NOT. ieee_is_finite(lc_over_L)) THEN
+            CALL fail_rsl_prms('RSL_cal_prms: non-finite stability ratio lc_over_L = Lc/L_MOD')
+            RETURN
+         END IF
          IF (lc_over_L > 0) THEN
             lc_over_L = MIN(2., lc_over_L)
          ELSE
@@ -1173,10 +1201,18 @@ CONTAINS
       END IF
       ! correct L_MOD_RSL
       L_MOD_RSL = Lc/lc_over_L
+      IF (.NOT. ieee_is_finite(L_MOD_RSL)) THEN
+         CALL fail_rsl_prms('RSL_cal_prms: non-finite clamped Obukhov length L_MOD_RSL')
+         RETURN
+      END IF
 
       ! Step 2:
       ! Parameterise beta according to Harman 2012 with upper limit of 0.5
       beta = cal_beta_RSL(StabilityMethod, zH_RSL, zStd, FAI, PAI, sfr_tr, lc_over_L)
+      IF (supy_error_flag()) THEN
+         CALL set_rsl_prms_sentinel_outputs()
+         RETURN
+      END IF
 
       ! Schmidt number Harman and Finnigan 2008: assuming the same for heat and momemntum
       Scc = 0.5 + 0.3*TANH(2.*lc_over_L)
@@ -1189,7 +1225,15 @@ CONTAINS
       elm = cal_elm_RSL(beta, Lc)
 
       CALL cal_ch(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD_RSL, Scc, fx, c2h, ch)
+      IF (supy_error_flag()) THEN
+         CALL set_rsl_prms_sentinel_outputs()
+         RETURN
+      END IF
       CALL cal_cm(StabilityMethod, zH_RSL, zd_RSL, Lc, beta, L_MOD_RSL, c2m, cm)
+      IF (supy_error_flag()) THEN
+         CALL set_rsl_prms_sentinel_outputs()
+         RETURN
+      END IF
 
       ! Calculate blending height zR - the height at which RSL influences both momentum and heat # Issue338
       ! ref: eqn 21 in Grimmond (1999, JAM)
@@ -1223,6 +1267,10 @@ CONTAINS
                                     z_top, z_mid, z_btm, &
                                     cm, c2m, &
                                     zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
+         IF (supy_error_flag()) THEN
+            CALL set_rsl_prms_sentinel_outputs()
+            RETURN
+         END IF
          !zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
          IF (z_btm < zR) THEN
             psihatm_array(iz - 2) = psihatm_btm
@@ -1240,6 +1288,10 @@ CONTAINS
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
                                     zH_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
+         IF (supy_error_flag()) THEN
+            CALL set_rsl_prms_sentinel_outputs()
+            RETURN
+         END IF
          IF (z_btm < zR) THEN
             psihath_array(iz - 2) = psihath_btm
          ELSE
@@ -1255,6 +1307,32 @@ CONTAINS
       ! calculate z0 iteratively
       psihatm_Zh = psihatm_array(1)
       z0_RSL = cal_z0_RSL(StabilityMethod, zh_RSL, zd_RSL, beta, L_MOD_RSL, psihatm_Zh)
+      IF (supy_error_flag()) THEN
+         CALL set_rsl_prms_sentinel_outputs()
+         RETURN
+      END IF
+
+   CONTAINS
+
+      SUBROUTINE set_rsl_prms_sentinel_outputs()
+         psihatm_array = -999.0D0
+         psihath_array = -999.0D0
+         zH_RSL = -999.0D0
+         L_MOD_RSL = -999.0D0
+         Lc = -999.0D0
+         beta = -999.0D0
+         zd_RSL = -999.0D0
+         z0_RSL = -999.0D0
+         elm = -999.0D0
+         Scc = -999.0D0
+         fx = -999.0D0
+      END SUBROUTINE set_rsl_prms_sentinel_outputs
+
+      SUBROUTINE fail_rsl_prms(reason)
+         CHARACTER(LEN=*), INTENT(IN) :: reason
+         CALL set_supy_error(114, reason)
+         CALL set_rsl_prms_sentinel_outputs()
+      END SUBROUTINE fail_rsl_prms
 
    END SUBROUTINE RSL_cal_prms
 

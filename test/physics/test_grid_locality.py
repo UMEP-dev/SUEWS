@@ -75,6 +75,7 @@ def _run_sites(
         output.df,
         expected_grids=order,
         expected_timestamps=df_forcing.index,
+        forcing=sim.forcing.df,
         tstep=300,
     )
     return {

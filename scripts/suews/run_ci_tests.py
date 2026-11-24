@@ -58,10 +58,24 @@ def main() -> int:
     # The cp312 manylinux reference lane also owns the analytic Fortran
     # probes. Wheel builds can use a temporary source tree, so provide the
     # libraries in the test tree explicitly and make missing probes fatal.
+    # The physics shard jobs download those libraries, built once in the same
+    # manylinux image (SUEWS_FORTRAN_PROBES_PREBUILT=1), instead of each
+    # shard compiling them again.
     if os.environ.get("SUEWS_REFERENCE_LANE") == "1":
-        rc = subprocess.call(["make", "-C", str(project_dir / "src/suews"), "all", "-j2"])
-        if rc != 0:
-            return rc
+        if os.environ.get("SUEWS_FORTRAN_PROBES_PREBUILT") == "1":
+            libraries = project_dir / "src/suews/lib"
+            if not (libraries / "libsuewsphys.a").is_file():
+                print(
+                    f"SUEWS_FORTRAN_PROBES_PREBUILT=1 but {libraries} has no libsuewsphys.a",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            rc = subprocess.call(
+                ["make", "-C", str(project_dir / "src/suews"), "all", "-j2"]
+            )
+            if rc != 0:
+                return rc
         pytest_environment["SUEWS_REQUIRE_FORTRAN_PROBES"] = "1"
 
     # Run pytest

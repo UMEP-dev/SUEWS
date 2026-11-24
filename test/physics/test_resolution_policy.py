@@ -14,7 +14,11 @@ and output frequency (``output.freq``) interact through ``SUEWSSimulation``
   ``DailyState`` writes one row per day, and the kernel checkpoint records the
   configured ``tstep``.
 - Explicit ``model.control.output.freq`` settings write matching ``_SUEWS_<min>``
-  output files and ``.units.json`` intervals, conserving daily rainfall totals.
+  output files and ``.units.json`` intervals, conserving daily rainfall totals
+  and preserving single-grid saved ``Fcld`` timestamps, missing ``-999.0000``
+  sentinels, and ``%.4f`` rounding on disk.
+- Targeted writer-layer damage controls verify that saved-file ``Fcld`` checks
+  reject writer-only mutations even while in-memory output frames remain intact.
 - Incompatible settings (``output.freq`` not a multiple of ``tstep``, or
   forcing resolution not divisible by ``tstep``) fail loudly.
 """
@@ -25,6 +29,10 @@ import json
 from pathlib import Path
 
 from layer5_checks import (
+    assert_dailystate_group_occurrence,
+    assert_forcing_cloud,
+    assert_output_group_occurrence,
+    assert_saved_suews_txt_cloud,
     assert_simulation_output_finiteness,
     expected_dailystate_mask,
     strict_sum,
@@ -35,7 +43,10 @@ import pandas as pd
 import pytest
 import yaml
 
-from supy import SUEWSSimulation
+from supy import (
+    SUEWSSimulation,
+    _save as supy_save,  # ruff: ignore[import-private-name]
+)
 from supy.data_model import SUEWSConfig
 
 pytestmark = [
@@ -47,6 +58,206 @@ WATER_CLOSURE_TOLERANCE_MM = 1e-4
 N_DAYS = 2
 N_HOURLY_ROWS = 24 * N_DAYS
 SUPPORTED_TSTEPS_S = (300, 600, 900, 1800, 3600)
+
+_NATIVE_5MIN_WINDOW_STEPS = 36  # 3 hours crossing midnight (23:05..02:00)
+_NATIVE_5MIN_MIXED_CLOUD: tuple[float, ...] = (
+    # 23:05..23:30 -> mean 1.6 / 6 = 0.266666... -> saved 0.2667 (rounds up)
+    0.1,
+    0.2,
+    0.5,
+    0.1,
+    0.2,
+    0.5,
+    # 23:35..00:00 -> partial missing, mean 1.6 / 4 = 0.4000 (midnight/DOY rollover)
+    0.0,
+    -999.0,
+    0.17,
+    -999.0,
+    0.43,
+    1.0,
+    # 00:05..00:30 -> all missing -> saved -999.0000
+    -999.0,
+    -999.0,
+    -999.0,
+    -999.0,
+    -999.0,
+    -999.0,
+    # 00:35..01:00 -> exact zero -> saved 0.0000
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    # 01:05..01:30 -> partial missing, mean 0.4 / 3 = 0.133333... -> saved 0.1333
+    0.1,
+    0.1,
+    0.2,
+    -999.0,
+    -999.0,
+    -999.0,
+    # 01:35..02:00 -> exact one -> saved 1.0000
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+)
+_NATIVE_5MIN_MIXED_EXPECTED_30M_TOKENS: tuple[str, ...] = (
+    "0.2667",
+    "0.4000",
+    "-999.0000",
+    "0.0000",
+    "0.1333",
+    "1.0000",
+)
+
+
+def _read_raw_forcing_cloud_frame(forcing_path: Path) -> pd.DataFrame:
+    """Parse timestamps and raw ``fcld`` directly from a SUEWS forcing text file."""
+    df_raw = pd.read_csv(forcing_path, sep=r"\s+")
+    stamps = [
+        pd.Timestamp(year=int(y), month=1, day=1)
+        + pd.Timedelta(days=int(d) - 1, hours=int(h), minutes=int(m))
+        for y, d, h, m in zip(
+            df_raw["iy"], df_raw["id"], df_raw["it"], df_raw["imin"], strict=True
+        )
+    ]
+    return pd.DataFrame(
+        {"fcld": df_raw["fcld"].to_numpy(dtype=float)},
+        index=pd.DatetimeIndex(stamps, name="datetime"),
+    )
+
+
+def _write_native_5min_forcing(
+    base_raw: pd.DataFrame, path_out: Path, mode: str
+) -> Path:
+    """Write a 3-hour midnight-crossing 5-minute forcing file with known ``fcld``."""
+    # Rows 23..25 cover 2012-01-01 23:00..2012-01-02 02:00 (interval ends 00:00..02:00).
+    three_hours = base_raw.iloc[23:26].copy()
+    expanded = three_hours.loc[three_hours.index.repeat(12)].reset_index(drop=True)
+    stamps = pd.date_range(
+        "2012-01-01 23:05:00", periods=_NATIVE_5MIN_WINDOW_STEPS, freq="300s"
+    )
+    expanded["iy"] = stamps.year
+    expanded["id"] = stamps.day_of_year
+    expanded["it"] = stamps.hour
+    expanded["imin"] = stamps.minute
+    expanded["rain"] = expanded["rain"].astype(float) / 12.0
+    if mode == "missing":
+        expanded["fcld"] = -999.0
+    elif mode == "finite":
+        expanded["fcld"] = np.linspace(0.05, 0.95, _NATIVE_5MIN_WINDOW_STEPS)
+    elif mode == "mixed":
+        expanded["fcld"] = np.asarray(_NATIVE_5MIN_MIXED_CLOUD, dtype=float)
+    else:
+        raise ValueError(f"Unsupported cloud mode: {mode!r}")
+    expanded.to_csv(path_out, sep=" ", index=False)
+    return path_out
+
+
+def _saved_suews_txt_path(saved_paths: list[Path], expected_suffix: str) -> Path:
+    """Locate the single saved ``_SUEWS_<min>.txt`` path and verify its suffix."""
+    suews_txt = [p for p in saved_paths if "_SUEWS_" in p.name and p.suffix == ".txt"]
+    assert len(suews_txt) == 1
+    assert suews_txt[0].name.endswith(f"_SUEWS{expected_suffix}.txt")
+    return suews_txt[0]
+
+
+def _mutate_writer_cloud(df_year: pd.DataFrame, kind: str) -> pd.DataFrame:
+    """Apply one named writer-layer ``Fcld`` or clock mutation to a copy."""
+    mutated = df_year.copy()
+    if kind == "overwrite_all_01234":
+        mutated["Fcld"] = 0.1234
+    elif kind == "fill_missing_zero":
+        mutated.loc[pd.Timestamp("2012-01-02 00:30:00"), "Fcld"] = 0.0
+    elif kind == "erase_finite_to_nan":
+        mutated.loc[pd.Timestamp("2012-01-01 23:30:00"), "Fcld"] = np.nan
+    elif kind == "off_by_one_4dp_ulp":
+        mutated.loc[pd.Timestamp("2012-01-01 23:30:00"), "Fcld"] = 0.2666
+    elif kind == "swap_two_rows":
+        first = pd.Timestamp("2012-01-01 23:30:00")
+        other = pd.Timestamp("2012-01-02 01:00:00")
+        mutated.loc[first, "Fcld"], mutated.loc[other, "Fcld"] = (
+            mutated.loc[other, "Fcld"],
+            mutated.loc[first, "Fcld"],
+        )
+    elif kind == "shift_timestamps_plus_30m":
+        mutated.index += pd.Timedelta(minutes=30)
+    else:
+        raise ValueError(f"Unsupported writer mutation kind: {kind!r}")
+    return mutated
+
+
+def _corrupt_saved_txt_file(src: Path, dst: Path, kind: str) -> Path:
+    """Create a post-write damaged copy of an intact saved ``_SUEWS_*.txt`` file."""
+    lines = src.read_text(encoding="utf-8").splitlines()
+    headers = lines[0].split()
+    fcld_idx = headers.index("Fcld")
+    dectime_idx = headers.index("Dectime")
+    out_lines = [lines[0]]
+    for row_idx, line in enumerate(lines[1:]):
+        fields = line.split()
+        if kind == "literal_nan_token" and row_idx == 2:
+            fields[fcld_idx] = "nan"
+        elif kind == "truncated_3dp_token" and row_idx == 0:
+            fields[fcld_idx] = "0.267"
+        elif kind == "corrupted_dectime" and row_idx == 1:
+            fields[dectime_idx] = "1.5000"
+        elif kind == "dropped_fcld_column":
+            del fields[fcld_idx]
+        elif kind == "dropped_missing_row" and row_idx == 2:
+            continue
+        out_lines.append("\t".join(fields))
+    if kind == "dropped_fcld_column":
+        del headers[fcld_idx]
+        out_lines[0] = "\t".join(headers)
+    dst.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+    return dst
+
+
+def _assert_writer_mutation_caught(
+    sim: SUEWSSimulation,
+    output,
+    raw_forcing: pd.DataFrame,
+    intact_text: str,
+    out_dir: Path,
+    kind: str,
+    monkeypatch,
+) -> None:
+    """Prove writer-layer damage fails saved-file checks while memory stays intact."""
+    original_writer = supy_save.save_df_grid_group
+    hits = 0
+
+    def damaged_writer(df_year, grid, group, *args, **kwargs):
+        nonlocal hits
+        if group == "SUEWS" and "Fcld" in df_year:
+            hits += 1
+            df_year = _mutate_writer_cloud(df_year, kind)
+        return original_writer(df_year, grid, group, *args, **kwargs)
+
+    with monkeypatch.context() as scoped_patch:
+        scoped_patch.setattr(supy_save, "save_df_grid_group", damaged_writer)
+        damaged_paths = sim.save(out_dir)
+    assert hits == 1, f"Writer mutation hook did not fire for {kind}"
+    damaged_txt = _saved_suews_txt_path(damaged_paths, "_30")
+    assert damaged_txt.read_text(encoding="utf-8") != intact_text, (
+        f"Writer mutation {kind} left saved text identical to intact file"
+    )
+    # In-memory native and resampled frames remain completely intact.
+    assert_forcing_cloud(output.df.loc[1], raw_forcing, tstep=300)
+    assert_forcing_cloud(
+        output.resample(freq="1800s").df.loc[1],
+        raw_forcing,
+        tstep=300,
+        output_step=1800,
+        native=output.df.loc[1],
+    )
+    with pytest.raises(AssertionError, match="Fcld"):
+        assert_saved_suews_txt_cloud(
+            damaged_txt, raw_forcing, tstep=300, output_step=1800
+        )
 
 
 def _write_yaml_case(
@@ -93,13 +304,29 @@ def two_day_hourly_fixture(short_sample_yaml_path, tmp_path_factory):
     return raw_yaml, forcing_2d, df_raw, raw_rain_total
 
 
+@pytest.fixture(scope="module", params=["missing", "finite", "mixed"])
+def two_day_hourly_cloud_fixture(two_day_hourly_fixture, tmp_path_factory, request):
+    """Two-day hourly forcing across missing, finite, and mixed cloud modes."""
+    raw_yaml, base_forcing, base_raw, raw_rain_total = two_day_hourly_fixture
+    if request.param == "missing":
+        return raw_yaml, base_forcing, base_raw, raw_rain_total
+    work_dir = tmp_path_factory.mktemp(f"resolution_policy_{request.param}")
+    forcing_2d = work_dir / f"forcing_2d_60_{request.param}.txt"
+    df_raw = base_raw.copy()
+    df_raw["fcld"] = np.linspace(0.1, 0.9, len(df_raw))
+    if request.param == "mixed":
+        df_raw.loc[df_raw.index[::3], "fcld"] = -999.0
+    df_raw.to_csv(forcing_2d, sep=" ", index=False)
+    return raw_yaml, forcing_2d, df_raw, raw_rain_total
+
+
 @pytest.mark.core
 def test_default_tstep_and_output_freq_policy_when_omitted_from_yaml(
-    two_day_hourly_fixture, tmp_path
+    two_day_hourly_cloud_fixture, tmp_path
 ):
     """Omitting ``tstep`` and ``output.freq`` defaults to 300 s kernel and 3600 s save."""
     # ARRANGE
-    raw_yaml, forcing_2d, _, raw_rain_total = two_day_hourly_fixture
+    raw_yaml, forcing_2d, _, raw_rain_total = two_day_hourly_cloud_fixture
     cfg_path = _write_yaml_case(
         raw_yaml,
         tmp_path / "default_resolution.yml",
@@ -127,6 +354,7 @@ def test_default_tstep_and_output_freq_policy_when_omitted_from_yaml(
         output.df,
         expected_grids=(1,),
         expected_timestamps=expected_timestamps,
+        forcing=sim.forcing.df,
         tstep=300,
     )
     suews = output.df.loc[1, "SUEWS"]
@@ -140,25 +368,24 @@ def test_default_tstep_and_output_freq_policy_when_omitted_from_yaml(
     assert timer["tstep"] == 300
     assert timer["dt_since_start"] == N_DAYS * 86400 + 300
 
-    suews_txt = [p for p in saved_paths if "_SUEWS_" in p.name and p.suffix == ".txt"]
-    assert len(suews_txt) == 1
-    assert suews_txt[0].name.endswith("_SUEWS_60.txt")
+    suews_txt = _saved_suews_txt_path(saved_paths, "_60")
     units_meta = json.loads(
-        (tmp_path / "saved_default" / f"{suews_txt[0].name}.units.json").read_text(
+        (tmp_path / "saved_default" / f"{suews_txt.name}.units.json").read_text(
             encoding="utf-8"
         )
     )
     assert units_meta["columns"]["Rain"]["interval"] == "1 hour"
+    assert_saved_suews_txt_cloud(suews_txt, sim.forcing.df, tstep=300, output_step=3600)
 
 
 @pytest.mark.core
 @pytest.mark.parametrize("tstep", SUPPORTED_TSTEPS_S, ids=lambda s: f"tstep-{s}s")
 def test_supported_tstep_intervals_conserve_rain_and_close_water_balance(
-    two_day_hourly_fixture, tmp_path, tstep
+    two_day_hourly_cloud_fixture, tmp_path, tstep
 ):
     """Every hourly-divisor ``tstep`` must align forcing, conserve rain, and close water."""
     # ARRANGE
-    raw_yaml, forcing_2d, df_raw, raw_rain_total = two_day_hourly_fixture
+    raw_yaml, forcing_2d, df_raw, raw_rain_total = two_day_hourly_cloud_fixture
     cfg_path = _write_yaml_case(
         raw_yaml,
         tmp_path / f"cfg_{tstep}.yml",
@@ -202,12 +429,19 @@ def test_supported_tstep_intervals_conserve_rain_and_close_water_balance(
             rtol=0.0,
             atol=1e-12,
         )
+        np.testing.assert_allclose(
+            sim.forcing.df["fcld"].to_numpy(),
+            df_raw["fcld"].to_numpy(),
+            rtol=0.0,
+            atol=1e-12,
+        )
 
     # ASSERT: active-variable & EOD finiteness, rain conservation, water closure, timer
     assert_simulation_output_finiteness(
         output.df,
         expected_grids=(1,),
         expected_timestamps=expected_timestamps,
+        forcing=sim.forcing.df,
         tstep=tstep,
     )
     suews = output.df.loc[1, "SUEWS"]
@@ -232,6 +466,45 @@ def test_supported_tstep_intervals_conserve_rain_and_close_water_balance(
     assert timer["dt_since_start"] == expected_rows * tstep + tstep
 
 
+def _assert_aggregated_overlap_erasure_rejected(
+    aggregated_grid: pd.DataFrame,
+    native_grid: pd.DataFrame,
+    forcing: pd.DataFrame,
+    *,
+    tstep: int,
+    output_freq: int,
+) -> None:
+    """Prove erasing day-2 DailyState or BEERS fails while Fcld and Rain stay intact."""
+    overlap_ts = pd.Timestamp("2012-01-03 00:00:00")
+    for group_name in ("DailyState", "BEERS"):
+        erased = aggregated_grid.copy()
+        for col in erased[group_name].columns:
+            erased.at[overlap_ts, (group_name, col)] = np.nan
+        with pytest.raises(AssertionError, match=group_name):
+            assert_forcing_cloud(
+                erased,
+                forcing,
+                tstep=tstep,
+                output_step=output_freq,
+                native=native_grid,
+            )
+        with pytest.raises(AssertionError, match=group_name):
+            assert_output_group_occurrence(
+                erased,
+                native_grid,
+                tstep=tstep,
+                output_step=output_freq,
+            )
+        if group_name == "DailyState":
+            with pytest.raises(AssertionError, match="DailyState"):
+                assert_dailystate_group_occurrence(
+                    erased,
+                    native_grid,
+                    tstep=tstep,
+                    output_step=output_freq,
+                )
+
+
 @pytest.mark.core
 @pytest.mark.parametrize(
     ("tstep", "output_freq", "expected_suffix", "expected_interval"),
@@ -244,7 +517,7 @@ def test_supported_tstep_intervals_conserve_rain_and_close_water_balance(
     ids=["300-to-300", "600-to-1800", "1800-to-3600", "3600-to-3600"],
 )
 def test_output_freq_policy_writes_configured_cadence_and_conserves_rain(
-    two_day_hourly_fixture,
+    two_day_hourly_cloud_fixture,
     tmp_path,
     tstep,
     output_freq,
@@ -253,7 +526,7 @@ def test_output_freq_policy_writes_configured_cadence_and_conserves_rain(
 ):
     """Explicit ``output.freq`` writes the configured file cadence and conserves rainfall."""
     # ARRANGE
-    raw_yaml, forcing_2d, _, raw_rain_total = two_day_hourly_fixture
+    raw_yaml, forcing_2d, _, raw_rain_total = two_day_hourly_cloud_fixture
     cfg_path = _write_yaml_case(
         raw_yaml,
         tmp_path / f"cfg_{tstep}_{output_freq}.yml",
@@ -264,21 +537,59 @@ def test_output_freq_policy_writes_configured_cadence_and_conserves_rain(
 
     # ACT
     sim = SUEWSSimulation(str(cfg_path))
-    sim.run(n_jobs=1)
+    output = sim.run(n_jobs=1)
+    native_grid = output.df.loc[1]
+    aggregated_grid = output.resample(freq=f"{output_freq}s").df.loc[1]
+    assert_forcing_cloud(
+        aggregated_grid,
+        sim.forcing.df,
+        tstep=tstep,
+        output_step=output_freq,
+        native=native_grid,
+    )
+    assert_dailystate_group_occurrence(
+        aggregated_grid,
+        native_grid,
+        tstep=tstep,
+        output_step=output_freq,
+    )
+    assert_output_group_occurrence(
+        aggregated_grid,
+        native_grid,
+        tstep=tstep,
+        output_step=output_freq,
+    )
+    if output_freq > tstep:
+        _assert_aggregated_overlap_erasure_rejected(
+            aggregated_grid,
+            native_grid,
+            sim.forcing.df,
+            tstep=tstep,
+            output_freq=output_freq,
+        )
     out_dir = tmp_path / f"out_{tstep}_{output_freq}"
     saved_paths = sim.save(out_dir)
 
     # ASSERT
-    suews_txt = [p for p in saved_paths if "_SUEWS_" in p.name and p.suffix == ".txt"]
-    assert len(suews_txt) == 1
-    assert suews_txt[0].name.endswith(f"_SUEWS{expected_suffix}.txt")
+    suews_txt = _saved_suews_txt_path(saved_paths, expected_suffix)
 
     units_meta = json.loads(
-        (out_dir / f"{suews_txt[0].name}.units.json").read_text(encoding="utf-8")
+        (out_dir / f"{suews_txt.name}.units.json").read_text(encoding="utf-8")
     )
     assert units_meta["columns"]["Rain"]["interval"] == expected_interval
 
-    df_saved = pd.read_csv(suews_txt[0], sep=r"\s+")
+    assert_saved_suews_txt_cloud(
+        suews_txt, sim.forcing.df, tstep=tstep, output_step=output_freq
+    )
+    if tstep == 3600:
+        assert_saved_suews_txt_cloud(
+            suews_txt,
+            _read_raw_forcing_cloud_frame(forcing_2d),
+            tstep=tstep,
+            output_step=output_freq,
+        )
+
+    df_saved = pd.read_csv(suews_txt, sep=r"\s+")
     assert len(df_saved) == N_DAYS * (86400 // output_freq)
     # Saved Rain is an interval rate [mm s-1]; integrate over output_freq to recover mm.
     saved_rain_total = (
@@ -286,6 +597,131 @@ def test_output_freq_policy_writes_configured_cadence_and_conserves_rain(
         * output_freq
     )
     assert saved_rain_total == pytest.approx(raw_rain_total, rel=1e-3, abs=1e-2)
+
+
+@pytest.mark.core
+@pytest.mark.parametrize(
+    ("mode", "tstep", "output_freq", "expected_suffix"),
+    [
+        ("mixed", 300, 300, "_5"),
+        ("mixed", 300, 1800, "_30"),
+        ("missing", 300, 1800, "_30"),
+        ("finite", 300, 1800, "_30"),
+    ],
+    ids=[
+        "mixed-native-300-to-300",
+        "mixed-agg-300-to-1800",
+        "missing-agg-300-to-1800",
+        "finite-agg-300-to-1800",
+    ],
+)
+def test_saved_suews_txt_cloud_equivalence_classes_from_native_forcing_file(
+    two_day_hourly_fixture, tmp_path, mode, tstep, output_freq, expected_suffix
+):
+    """Saved ``_SUEWS_<min>.txt`` preserves Fcld directly from raw native forcing files."""
+    raw_yaml, _, base_raw, _ = two_day_hourly_fixture
+    forcing_path = _write_native_5min_forcing(
+        base_raw, tmp_path / f"forcing_5m_{mode}.txt", mode
+    )
+    raw_forcing = _read_raw_forcing_cloud_frame(forcing_path)
+    cfg_path = _write_yaml_case(
+        raw_yaml,
+        tmp_path / f"cfg_native_{mode}_{output_freq}.yml",
+        forcing_path=forcing_path,
+        tstep=tstep,
+        output_freq=output_freq,
+    )
+
+    sim = SUEWSSimulation(str(cfg_path))
+    output = sim.run(n_jobs=1)
+    saved_paths = sim.save(tmp_path / f"saved_{mode}_{output_freq}")
+
+    np.testing.assert_allclose(
+        sim.forcing.df["fcld"].to_numpy(),
+        raw_forcing["fcld"].to_numpy(),
+        rtol=0.0,
+        atol=0.0,
+    )
+    assert_forcing_cloud(output.df.loc[1], raw_forcing, tstep=tstep)
+    saved_txt = _saved_suews_txt_path(saved_paths, expected_suffix)
+    assert_saved_suews_txt_cloud(
+        saved_txt, raw_forcing, tstep=tstep, output_step=output_freq
+    )
+
+    if mode == "mixed" and output_freq == 1800:
+        lines = saved_txt.read_text(encoding="utf-8").splitlines()
+        fcld_idx = lines[0].split().index("Fcld")
+        tokens = tuple(line.split()[fcld_idx] for line in lines[1:] if line.strip())
+        assert tokens == _NATIVE_5MIN_MIXED_EXPECTED_30M_TOKENS
+
+
+@pytest.mark.core
+def test_saved_suews_txt_cloud_catches_writer_damage_with_intact_memory(
+    two_day_hourly_fixture, tmp_path, monkeypatch
+):
+    """Saved-file checks pass intact output and reject writer-only and format damage."""
+    raw_yaml, _, base_raw, _ = two_day_hourly_fixture
+    forcing_path = _write_native_5min_forcing(
+        base_raw, tmp_path / "forcing_5m_mixed.txt", "mixed"
+    )
+    raw_forcing = _read_raw_forcing_cloud_frame(forcing_path)
+    cfg_path = _write_yaml_case(
+        raw_yaml,
+        tmp_path / "cfg_writer_control.yml",
+        forcing_path=forcing_path,
+        tstep=300,
+        output_freq=1800,
+    )
+
+    sim = SUEWSSimulation(str(cfg_path))
+    output = sim.run(n_jobs=1)
+
+    # Intact positive control: both memory and saved text file pass.
+    intact_paths = sim.save(tmp_path / "intact")
+    intact_txt = _saved_suews_txt_path(intact_paths, "_30")
+    assert_forcing_cloud(output.df.loc[1], raw_forcing, tstep=300)
+    assert_forcing_cloud(
+        output.resample(freq="1800s").df.loc[1],
+        raw_forcing,
+        tstep=300,
+        output_step=1800,
+        native=output.df.loc[1],
+    )
+    assert_saved_suews_txt_cloud(intact_txt, raw_forcing, tstep=300, output_step=1800)
+    intact_text = intact_txt.read_text(encoding="utf-8")
+
+    for kind in (
+        "overwrite_all_01234",
+        "fill_missing_zero",
+        "erase_finite_to_nan",
+        "off_by_one_4dp_ulp",
+        "swap_two_rows",
+        "shift_timestamps_plus_30m",
+    ):
+        _assert_writer_mutation_caught(
+            sim,
+            output,
+            raw_forcing,
+            intact_text,
+            tmp_path / f"writer_{kind}",
+            kind,
+            monkeypatch,
+        )
+
+    for kind in (
+        "literal_nan_token",
+        "truncated_3dp_token",
+        "corrupted_dectime",
+        "dropped_fcld_column",
+        "dropped_missing_row",
+    ):
+        corrupted = _corrupt_saved_txt_file(
+            intact_txt, tmp_path / f"format_{kind}.txt", kind
+        )
+        with pytest.raises(AssertionError, match="Fcld"):
+            assert_saved_suews_txt_cloud(
+                corrupted, raw_forcing, tstep=300, output_step=1800
+            )
 
 
 @pytest.mark.core

@@ -13,7 +13,8 @@ ASCII-only test artefacts outside ``src/suews_bridge/c_api/``:
 
 The Fortran observer calls each real ``*_unpack`` routine into a fresh kernel
 derived-type instance and reads back every named component directly via typed
-Fortran helpers, never relying on ``*_shadow`` or ``*_pack`` roundtrips.
+Fortran helpers. For ``SUEWS_FORCING``, it exercises the driver routine that
+loads each meteorological input row into the same kernel type.
 
 Use ``--check`` in CI and tests to verify committed generated files match
 fresh output byte for byte. This script is intentionally stdlib-only.
@@ -106,6 +107,8 @@ class LeafField:
     bounds: tuple[DimBound, ...]
     bridged: bool
     unbridged_reason: str | None
+    parent_alloc_guard: str | None = None
+    parent_alloc_min_size: int = 1
 
 
 @dataclass(frozen=True)
@@ -119,6 +122,138 @@ class DirectUnpackSpec:
         str, ...
     ]  # (), ("nlayer",), ("nlayer", "ndepth"), ("nlayer", "nspec")
     slug: str
+
+
+@dataclass(frozen=True)
+class ReversePackSpec:
+    """Binding specification for a type packed out of Fortran in production."""
+
+    capi_file: str
+    capi_module: str
+    pack_sub: str
+    dim_args: tuple[str, ...]  # (), ("nlayer",), ("nlayer", "ndepth")
+    slug: str
+    has_buildings_count: bool = False
+
+
+# Explicit, reviewed specifications for all 13 individual types packed from real
+# Fortran kernel derived types back to flat output buffers in production
+# (`driver.f95::pack_timer`, `driver.f95::pack_*_state`, `c_api/ohm.f95::ohm_state_pack`),
+# plus aggregate `SUEWS_STATE` via `driver.f95::pack_state_to_output`.
+REVERSE_PACK_SPECS: dict[str, ReversePackSpec] = {
+    "anthroemis_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_anthroemis_state",
+        (),
+        "anthroemis_state",
+    ),
+    "atm_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_atm_state",
+        (),
+        "atm_state",
+    ),
+    "flag_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_flag_state",
+        (),
+        "flag_state",
+    ),
+    "heat_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_heat_state",
+        ("nlayer", "ndepth"),
+        "heat_state",
+    ),
+    "hydro_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_hydro_state",
+        ("nlayer",),
+        "hydro_state",
+    ),
+    "nhood_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_nhood_state",
+        (),
+        "nhood_state",
+    ),
+    "ohm_state": ReversePackSpec(
+        "ohm.f95",
+        "module_c_api_ohm",
+        "ohm_state_pack",
+        (),
+        "ohm_state",
+    ),
+    "phenology_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_phenology_state",
+        (),
+        "phenology_state",
+    ),
+    "roughness_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_roughness_state",
+        (),
+        "roughness_state",
+    ),
+    "snow_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_snow_state",
+        (),
+        "snow_state",
+    ),
+    "solar_state": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_solar_state",
+        (),
+        "solar_state",
+    ),
+    "stebbs_state": ReversePackSpec(
+        "stebbs_state.f95",
+        "module_c_api_stebbs_state",
+        "stebbs_state_pack_real",
+        ("bldg_nlayer",),
+        "stebbs_state",
+        has_buildings_count=True,
+    ),
+    "suews_timer": ReversePackSpec(
+        "driver.f95",
+        "module_c_api_driver",
+        "pack_timer",
+        (),
+        "suews_timer",
+    ),
+}
+
+# Non-state helper pack subroutines inside `driver.f95` exempt from individual
+# reverse-state type registration (audited separately or helper-only).
+DRIVER_PACK_HELPERS: frozenset[str] = frozenset({
+    "pack_vec_inline",
+    "pack_mat_inline",
+    "pack_kernel_warnings",
+    "pack_state_to_output",
+})
+
+# Reviewed components whose allocation count (not element payload) is packed out
+# by the reverse packer (so reverse static audit requires the component to be read).
+REVIEWED_REVERSE_COUNT_ONLY_COMPONENTS: dict[tuple[str, str], str] = {}
+
+# Runtime-owned SUEWS_FORCING members that SUEWS_load_forcing_row must preserve
+# untouched while assigning all other scalar forcing inputs.
+FORCING_RUNTIME_OWNED_COMPONENTS: frozenset[str] = frozenset({
+    "tair_av_5d",
+    "ts5mindata_ir",
+})
 
 
 # Explicit, reviewed specifications for all 30 types exposing a public
@@ -324,7 +459,7 @@ DIRECT_UNPACK_SPECS: dict[str, DirectUnpackSpec] = {
         "stebbs_state.f95",
         "module_c_api_stebbs_state",
         "stebbs_state_unpack",
-        (),
+        ("nlayer",),
         "stebbs_state",
     ),
     "surf_store_prm": DirectUnpackSpec(
@@ -359,6 +494,7 @@ NESTED_IN_PARENT_SPECS: dict[str, tuple[str, ...]] = {
         "LC_EVETR_PRM%ohm%ohm_coef_lc",
         "LC_GRASS_PRM%ohm%ohm_coef_lc",
         "LC_WATER_PRM%ohm%ohm_coef_lc",
+        "SNOW_PRM%ohm%ohm_coef_lc",
     ),
     "ohm_prm": (
         "LC_PAVED_PRM%ohm",
@@ -368,6 +504,7 @@ NESTED_IN_PARENT_SPECS: dict[str, tuple[str, ...]] = {
         "LC_EVETR_PRM%ohm",
         "LC_GRASS_PRM%ohm",
         "LC_WATER_PRM%ohm",
+        "SNOW_PRM%ohm",
     ),
     "soil_prm": (
         "LC_PAVED_PRM%soil",
@@ -435,8 +572,8 @@ NON_UNPACKED_SPECS: dict[str, str] = {
         "only with no c_api unpack routine (gh#2096)."
     ),
     "suews_forcing": (
-        "Per-timestep forcing struct has only shadow default facade; driver.f95 "
-        "unpacks forcing as a 32-column metforcing_block matrix directly (gh#2096)."
+        "No C-API flat unpacker. The typed forcing-row observer exercises the production "
+        "SUEWS_Driver::SUEWS_load_forcing_row matrix reader (gh#2096)."
     ),
     "suews_state_block": (
         "Sequence of SUEWS_STATE snapshots; Rust CompositeCodec only with no "
@@ -446,31 +583,28 @@ NON_UNPACKED_SPECS: dict[str, str] = {
 
 # Reviewed unbridged kernel components inside DIRECT_UNPACK_SPECS types.
 # Any unlisted component missing from *_unpack fails generation loudly.
-REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {
+REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {}
+
+# Reviewed unused legacy CHARACTER components inside bridged derived-type arrays.
+# The flat f64 C-API carries numeric, integer, and logical state only; any
+# unlisted CHARACTER component in an unpacked type fails generation loudly.
+REVIEWED_NON_NUMERIC_LEAF_COMPONENTS: dict[tuple[str, str], str] = {
     (
-        "heat_state",
-        "temp_surf_ehc_fast",
-    ): "Internal EHC fast thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989).",
+        "stebbs_bldg",
+        "building_type",
+    ): "Unused legacy CHARACTER(len=256) label on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
     (
-        "heat_state",
-        "temp_surf_ehc_slow",
-    ): "Internal EHC slow thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989).",
+        "stebbs_bldg",
+        "building_name",
+    ): "Unused legacy CHARACTER(len=256) label on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
     (
-        "heat_state",
-        "ehc_iter_dif_tsfc",
-    ): "Intra-timestep EHC convergence diagnostic written per iteration in kernel (gh#1574, gh#1989).",
+        "stebbs_bldg",
+        "fnml_lbm",
+    ): "Unused legacy CHARACTER(len=256) namelist path on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
     (
-        "heat_state",
-        "ehc_iter_dif_qh",
-    ): "Intra-timestep EHC residual-vs-resistance QH diagnostic written in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "ehc_iter_score",
-    ): "Intra-timestep EHC iteration quality score written in kernel (gh#1574, gh#1989).",
-    (
-        "stebbs_state",
-        "buildings",
-    ): "Internal STEBBS_BLDG allocatable working array allocated by driver; flat buffer stores read-only buildings_count (gh#1989, gh#1991).",
+        "stebbs_bldg",
+        "case_id",
+    ): "Unused legacy CHARACTER(len=256) case label on STEBBS_BLDG; never read in online SUEWS (gh#2107).",
 }
 
 # Reviewed derived-only components inside driver-private types.
@@ -1193,9 +1327,19 @@ def expand_type_leaves(
     root_key = type_name.lower()
     leaves: list[LeafField] = []
 
-    def _walk(cur_type_key: str, prefix: str) -> None:
+    def _walk(
+        cur_type_key: str,
+        prefix: str,
+        parent_guard: str | None = None,
+        parent_min_size: int = 1,
+    ) -> None:
         tdef = types_by_lower[cur_type_key]
         for comp in tdef.components:
+            if (
+                cur_type_key,
+                comp.name.lower(),
+            ) in REVIEWED_NON_NUMERIC_LEAF_COMPONENTS:
+                continue
             path = f"{prefix}%{comp.name}" if prefix else comp.name
             unbridged_reason = unbridged_map.get((
                 root_key,
@@ -1219,14 +1363,38 @@ def expand_type_leaves(
                             bounds=comp.bounds,
                             bridged=unbridged_reason is None,
                             unbridged_reason=unbridged_reason,
+                            parent_alloc_guard=parent_guard,
+                            parent_alloc_min_size=parent_min_size,
                         )
                     )
+                    if comp.allocatable and unbridged_reason is None:
+                        if comp.rank != 1:
+                            raise FortranSyntaxError(
+                                f"unsupported allocatable rank-{comp.rank} bridged derived-type array {type_name}%{path}"
+                            )
+                        for elem_idx in (1, 2):
+                            _walk(
+                                sub_key,
+                                f"{path}({elem_idx})",
+                                parent_guard=path,
+                                parent_min_size=elem_idx,
+                            )
                 elif comp.rank == 0:
-                    _walk(sub_key, path)
+                    _walk(
+                        sub_key,
+                        path,
+                        parent_guard=parent_guard,
+                        parent_min_size=parent_min_size,
+                    )
                 elif comp.rank == 1:
                     b0 = comp.bounds[0]
                     for idx in range(b0.lower, b0.upper + 1):
-                        _walk(sub_key, f"{path}({idx})")
+                        _walk(
+                            sub_key,
+                            f"{path}({idx})",
+                            parent_guard=parent_guard,
+                            parent_min_size=parent_min_size,
+                        )
                 else:
                     raise FortranSyntaxError(
                         f"unsupported rank-{comp.rank} nested derived-type array {type_name}%{path}"
@@ -1242,6 +1410,8 @@ def expand_type_leaves(
                         bounds=comp.bounds,
                         bridged=unbridged_reason is None,
                         unbridged_reason=unbridged_reason,
+                        parent_alloc_guard=parent_guard,
+                        parent_alloc_min_size=parent_min_size,
                     )
                 )
 
@@ -1466,6 +1636,142 @@ def audit_driver_private_unpackers(
     _audit_driver_site_and_state(source, types_by_lower)
 
 
+def audit_reverse_packers(
+    capi_dir: Path,
+    types_by_lower: dict[str, FortranTypeDef],
+    leaves_by_type: dict[str, list[LeafField]],
+) -> None:
+    """Statically audit every production reverse packer in ``driver.f95`` and ``ohm.f95``."""
+    _audit_exclusion_keys_exist(
+        REVIEWED_REVERSE_COUNT_ONLY_COMPONENTS,
+        set(REVERSE_PACK_SPECS),
+        types_by_lower,
+        "REVIEWED_REVERSE_COUNT_ONLY_COMPONENTS",
+    )
+
+    driver_source = (capi_dir / "driver.f95").read_text(encoding="utf-8")
+    driver_pack_subs = {
+        m.group(1).lower()
+        for m in re.finditer(
+            r"(?im)^\s*subroutine\s+(pack_[A-Za-z]\w*)\s*\(", driver_source
+        )
+    }
+    expected_driver_pack_subs = {
+        spec.pack_sub.lower()
+        for spec in REVERSE_PACK_SPECS.values()
+        if spec.capi_file == "driver.f95"
+    }
+    unregistered = sorted(
+        driver_pack_subs - expected_driver_pack_subs - DRIVER_PACK_HELPERS
+    )
+    if unregistered:
+        raise CoverageInventoryError(
+            f"driver.f95 pack_* routines not registered in REVERSE_PACK_SPECS: {unregistered}"
+        )
+
+    errors: list[str] = []
+    for key, spec in sorted(REVERSE_PACK_SPECS.items()):
+        tdef = types_by_lower[key]
+        src_path = capi_dir / spec.capi_file
+        if not src_path.is_file():
+            raise CoverageInventoryError(f"missing c_api file: {src_path}")
+        source = (
+            driver_source
+            if spec.capi_file == "driver.f95"
+            else src_path.read_text(encoding="utf-8")
+        )
+        _, body = _extract_subroutine_body(source, spec.pack_sub, spec.capi_file)
+        var_match = re.search(
+            rf"(?im)type\s*\(\s*{re.escape(tdef.name)}\s*\).*?intent\s*\(\s*in\s*\)\s*::\s*([A-Za-z]\w*)",
+            body,
+        )
+        if not var_match:
+            raise CoverageInventoryError(
+                f"{spec.capi_file}::{spec.pack_sub}: could not find INTENT(IN) {tdef.name} dummy"
+            )
+        state_var = var_match.group(1)
+        refs = _referenced_component_paths(body, state_var)
+
+        for leaf in leaves_by_type[key]:
+            norm_path = re.sub(r"\([^)]*\)", "", leaf.path).lower()
+            is_touched = _path_is_referenced(refs, norm_path)
+            is_count_only = (key, norm_path) in REVIEWED_REVERSE_COUNT_ONLY_COMPONENTS
+            if leaf.bridged or is_count_only:
+                if not is_touched:
+                    errors.append(
+                        f"{tdef.name}%{leaf.path} is not read by {spec.capi_file}::{spec.pack_sub}"
+                    )
+            elif is_touched:
+                errors.append(
+                    f"{tdef.name}%{leaf.path} IS read by {spec.capi_file}::{spec.pack_sub} "
+                    "but still listed as excluded (remove stale exclusion)"
+                )
+
+    _, state_pack_body = _extract_subroutine_body(
+        driver_source, "pack_state_to_output", "driver.f95"
+    )
+    state_pack_refs = _referenced_component_paths(state_pack_body, "state")
+    for comp in types_by_lower["suews_state"].components:
+        ckey = ("suews_state", comp.name.lower())
+        excluded = ckey in REVIEWED_DRIVER_EXCLUDED_COMPONENTS
+        touched = _path_is_referenced(state_pack_refs, comp.name.lower())
+        if excluded:
+            if touched:
+                errors.append(
+                    f"SUEWS_STATE%{comp.name} is read in driver.f95::pack_state_to_output; "
+                    "remove stale exclusion"
+                )
+            continue
+        assert comp.derived_type is not None
+        if comp.derived_type.lower() not in REVERSE_PACK_SPECS:
+            errors.append(
+                f"SUEWS_STATE%{comp.name} type {comp.derived_type} not in REVERSE_PACK_SPECS"
+            )
+        if not touched:
+            errors.append(
+                f"SUEWS_STATE%{comp.name} missing from driver.f95::pack_state_to_output"
+            )
+
+    if errors:
+        raise CoverageInventoryError("\n".join(errors))
+
+
+def audit_forcing_row_loader(
+    kernel_src_dir: Path,
+    types_by_lower: dict[str, FortranTypeDef],
+) -> None:
+    """Statically audit ``SUEWS_load_forcing_row`` against ``TYPE(SUEWS_FORCING)``."""
+    driver_path = kernel_src_dir / "suews_ctrl_driver.f95"
+    if not driver_path.is_file():
+        raise CoverageInventoryError(f"missing kernel driver source: {driver_path}")
+    source = driver_path.read_text(encoding="utf-8")
+    match = re.search(
+        r"(?ims)^\s*module\s+procedure\s+suews_load_forcing_row\b(.*?)^\s*end\s+procedure\s+suews_load_forcing_row\b",
+        source,
+    )
+    if not match:
+        raise CoverageInventoryError(
+            "could not locate MODULE PROCEDURE SUEWS_load_forcing_row in suews_ctrl_driver.f95"
+        )
+    refs = _referenced_component_paths(match.group(1), "forcing")
+    errors: list[str] = []
+    for comp in types_by_lower["suews_forcing"].components:
+        cname = comp.name.lower()
+        is_runtime = cname in FORCING_RUNTIME_OWNED_COMPONENTS
+        touched = _path_is_referenced(refs, cname)
+        if is_runtime and touched:
+            errors.append(
+                f"SUEWS_FORCING%{comp.name} is runtime-owned and must not be overwritten "
+                "by SUEWS_load_forcing_row"
+            )
+        if not is_runtime and not touched:
+            errors.append(
+                f"SUEWS_FORCING%{comp.name} missing from SUEWS_load_forcing_row"
+            )
+    if errors:
+        raise CoverageInventoryError("\n".join(errors))
+
+
 def _audit_category_completeness(
     manifest_entries: list[dict[str, str]],
     types_by_lower: dict[str, FortranTypeDef],
@@ -1569,10 +1875,13 @@ def audit_manifest_and_inventory(
     manifest_path: Path,
     types_by_lower: dict[str, FortranTypeDef],
     capi_dir: Path,
+    kernel_src_dir: Path = KERNEL_SRC_DIR,
 ) -> tuple[list[dict[str, str]], dict[str, list[LeafField]]]:
     """Validate 100% manifest coverage across all 49 bridged types and their leaves."""
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest_entries: list[dict[str, str]] = manifest["types"]
+    manifest_entries: list[dict[str, str]] = [
+        entry for entry in manifest["types"] if entry.get("status") != "excluded"
+    ]
 
     _audit_category_completeness(manifest_entries, types_by_lower)
     _audit_capi_unpack_registry(capi_dir)
@@ -1605,7 +1914,27 @@ def audit_manifest_and_inventory(
             tdef.name, types_by_lower, all_unbridged
         )
 
+    # Audit all production reverse packers and the forcing-row loader statically.
+    audit_reverse_packers(capi_dir, types_by_lower, leaves_by_type)
+    audit_forcing_row_loader(kernel_src_dir, types_by_lower)
+
+    leaves_by_type["suews_forcing"] = expand_type_leaves(
+        "SUEWS_FORCING", types_by_lower, {}
+    )
     return manifest_entries, leaves_by_type
+
+
+def _forcing_scalars(leaves: list[LeafField]) -> list[LeafField]:
+    """All scalar members plus the separately observed legacy runtime array exhaust this type."""
+    scalars = [leaf for leaf in leaves if leaf.kind == "real" and leaf.rank == 0]
+    others = [
+        (leaf.path.lower(), leaf.kind, leaf.rank, leaf.allocatable)
+        for leaf in leaves
+        if leaf not in scalars
+    ]
+    if others != [("ts5mindata_ir", "real", 1, True)]:
+        raise CoverageInventoryError(f"unreviewed SUEWS_FORCING components: {others}")
+    return scalars
 
 
 def emit_fortran_observer(
@@ -1618,25 +1947,50 @@ def emit_fortran_observer(
         "module module_test_capi_field_observer",
         "   use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double",
         "   use module_c_api_common, only: SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER",
+        "   use module_ctrl_const_allocate, only: nsurf",
     ])
 
     # Group kernel TYPE USE imports deterministically by module name.
     kernel_uses: dict[str, list[str]] = {}
-    for key in sorted((*DIRECT_UNPACK_SPECS, *DRIVER_PRIVATE_UNPACK_SPECS)):
+    for key in sorted((
+        *DIRECT_UNPACK_SPECS,
+        *DRIVER_PRIVATE_UNPACK_SPECS,
+        "suews_forcing",
+    )):
         tdef = types_by_lower[key]
         kernel_uses.setdefault(tdef.module, []).append(tdef.name)
     for mod_name in sorted(kernel_uses):
         names = ", ".join(sorted(kernel_uses[mod_name]))
         lines.append(f"   use {mod_name}, only: {names}")
 
-    # Import every public *_unpack routine plus the driver aggregate unpackers.
+    # Import every public *_unpack routine, reverse packers, and driver aggregate codecs.
+    capi_uses: dict[str, list[str]] = {}
     for key in sorted(DIRECT_UNPACK_SPECS):
         spec = DIRECT_UNPACK_SPECS[key]
-        lines.append(f"   use {spec.capi_module}, only: {spec.unpack_sub}")
-    lines.append(
-        "   use module_c_api_driver, only: unpack_config, unpack_timer, "
-        "unpack_site_scalars, unpack_site_members, unpack_state_members"
+        capi_uses.setdefault(spec.capi_module, []).append(spec.unpack_sub)
+    for key in sorted(REVERSE_PACK_SPECS):
+        spec = REVERSE_PACK_SPECS[key]
+        if spec.capi_module != "module_c_api_driver":
+            capi_uses.setdefault(spec.capi_module, []).append(spec.pack_sub)
+    for mod_name in sorted(capi_uses):
+        syms = ", ".join(dict.fromkeys(capi_uses[mod_name]))
+        lines.append(f"   use {mod_name}, only: {syms}")
+
+    driver_pack_syms = sorted(
+        spec.pack_sub
+        for spec in REVERSE_PACK_SPECS.values()
+        if spec.capi_module == "module_c_api_driver"
     )
+    driver_syms = [
+        "unpack_config",
+        "unpack_timer",
+        "unpack_site_scalars",
+        "unpack_site_members",
+        "unpack_state_members",
+        "pack_state_to_output",
+        *driver_pack_syms,
+    ]
+    lines.append(f"   use module_c_api_driver, only: {', '.join(driver_syms)}")
 
     lines.extend([
         "",
@@ -1654,6 +2008,10 @@ def emit_fortran_observer(
         lines.append(f"   public :: suews_obs_unpack_{spec.slug}")
     for key in sorted(DRIVER_PRIVATE_UNPACK_SPECS):
         lines.append(f"   public :: suews_obs_unpack_{key}")
+    for key in sorted(REVERSE_PACK_SPECS):
+        spec = REVERSE_PACK_SPECS[key]
+        lines.append(f"   public :: suews_obs_rev_pack_{spec.slug}")
+    lines.append("   public :: suews_obs_rev_pack_suews_state")
 
     lines.extend([
         "",
@@ -1954,9 +2312,119 @@ def emit_fortran_observer(
         lines.extend(_emit_fortran_type_observer(tdef, spec, leaves))
 
     lines.extend(_emit_fortran_driver_observers(types_by_lower, leaves_by_type))
+    lines.extend(_emit_fortran_reverse_observers(types_by_lower, leaves_by_type))
+    lines.extend([
+        "end module module_test_capi_field_observer",
+        "",
+        "submodule (SUEWS_Driver) test_forcing_rows",
+        "   use, intrinsic :: iso_c_binding, only: c_double",
+        "   implicit none",
+        "contains",
+    ])
 
-    lines.append("end module module_test_capi_field_observer")
+    # Keep component names independent of the column numbers consumed by the real driver.
+    scalars = _forcing_scalars(leaves_by_type["suews_forcing"])
+    lines.extend([
+        "   subroutine suews_obs_forcing_rows(block, observed, ts5) bind(C)",
+        "      real(c_double), intent(in) :: block(2, 32)",
+        "      integer :: row",
+        f"      real(c_double), intent(out) :: observed({len(scalars)}, 2), ts5(2, 2)",
+        "      type(SUEWS_FORCING) :: actual",
+        "",
+        "      actual%Tair_av_5d = -7.25d0",
+        "      actual%Ts5mindata_ir = [-3.5d0, 4.75d0]",
+        "      do row = 1, 2",
+        "         call SUEWS_load_forcing_row(actual, block, row)",
+    ])
+    for index, leaf in enumerate(scalars, 1):
+        lines.append(f"         observed({index}, row) = actual%{leaf.path}")
+    lines.extend([
+        "         ts5(:, row) = 0.0d0",
+        "         if (allocated(actual%Ts5mindata_ir)) then",
+        "            if (lbound(actual%Ts5mindata_ir, 1) == 1 .and. ubound(actual%Ts5mindata_ir, 1) == 2) then",
+        "               ts5(:, row) = actual%Ts5mindata_ir",
+        "            end if",
+        "         end if",
+        "      end do",
+        "   end subroutine suews_obs_forcing_rows",
+        "",
+    ])
+    lines.append("end submodule test_forcing_rows")
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def _emit_single_leaf_lines(
+    tdef: FortranTypeDef,
+    leaf: LeafField,
+    common_tail: str,
+) -> list[str]:
+    """Emit the unguarded Fortran read-back lines for one expanded leaf."""
+    expr = f"actual%{leaf.path}"
+    fid = f"{leaf.field_id}_c_int"
+    if leaf.kind == "derived":
+        if leaf.allocatable:
+            return [
+                f"      if (allocated({expr})) then",
+                f"         call obs_emit_alloc_bounds_1d({fid}, int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), out_meta, n_meta, err)",
+                "      else",
+                f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                "      end if",
+            ]
+        # Non-allocatable excluded derived component (e.g. SUEWS_STATE%errorState):
+        # Fortran cannot call allocated() on a non-allocatable component, so emit a
+        # constant metadata sentinel here. Unpacking exclusions are enforced statically
+        # by audit_driver_private_unpackers (and driver.f95 rejects non-zero TOC spans).
+        return [f"      call obs_emit_unallocated({fid}, out_meta, n_meta, err)"]
+
+    if leaf.rank == 0:
+        helper = {
+            "real": "obs_emit_real_scalar",
+            "integer": "obs_emit_int_scalar",
+            "logical": "obs_emit_logical_scalar",
+        }.get(leaf.kind)
+        if helper is None:
+            raise FortranSyntaxError(
+                f"unsupported scalar observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+            )
+        return [f"      call {helper}({fid}, {expr}, {common_tail})"]
+
+    if leaf.rank == 1:
+        helper = {
+            "real": "obs_emit_real_1d",
+            "integer": "obs_emit_int_1d",
+        }.get(leaf.kind)
+        if helper is None:
+            raise FortranSyntaxError(
+                f"unsupported rank-1 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+            )
+        emit_call = (
+            f"call {helper}({fid}, {expr}, "
+            f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), {common_tail})"
+        )
+    elif leaf.rank == 2:
+        if leaf.kind != "real":
+            raise FortranSyntaxError(
+                f"unsupported rank-2 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+            )
+        emit_call = (
+            f"call obs_emit_real_2d({fid}, {expr}, "
+            f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), "
+            f"int(lbound({expr}, 2), c_int), int(ubound({expr}, 2), c_int), {common_tail})"
+        )
+    else:
+        raise FortranSyntaxError(
+            f"unsupported rank {leaf.rank} on {tdef.name}%{leaf.path}"
+        )
+
+    if leaf.allocatable:
+        return [
+            f"      if (allocated({expr})) then",
+            f"         {emit_call}",
+            "      else",
+            f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+            "      end if",
+        ]
+    return [f"      {emit_call}"]
 
 
 def _emit_leaf_observations(tdef: FortranTypeDef, leaves: list[LeafField]) -> list[str]:
@@ -1967,85 +2435,27 @@ def _emit_leaf_observations(tdef: FortranTypeDef, leaves: list[LeafField]) -> li
         "out_meta, n_meta, cap, pos, err"
     )
     for leaf in leaves:
-        expr = f"actual%{leaf.path}"
         fid = f"{leaf.field_id}_c_int"
-        if leaf.kind == "derived":
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         call obs_emit_alloc_bounds_1d({fid}, int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), out_meta, n_meta, err)",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                # Non-allocatable excluded derived component (e.g. SUEWS_STATE%errorState):
-                # Fortran cannot call allocated() on a non-allocatable component, so emit a
-                # constant metadata sentinel here. Unpacking exclusions are enforced statically
-                # by audit_driver_private_unpackers (and driver.f95 rejects non-zero TOC spans).
-                lines.append(
-                    f"      call obs_emit_unallocated({fid}, out_meta, n_meta, err)"
-                )
-            continue
-
-        if leaf.rank == 0:
-            helper = {
-                "real": "obs_emit_real_scalar",
-                "integer": "obs_emit_int_scalar",
-                "logical": "obs_emit_logical_scalar",
-            }.get(leaf.kind)
-            if helper is None:
-                raise FortranSyntaxError(
-                    f"unsupported scalar observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            lines.append(f"      call {helper}({fid}, {expr}, {common_tail})")
-        elif leaf.rank == 1:
-            helper = {
-                "real": "obs_emit_real_1d",
-                "integer": "obs_emit_int_1d",
-            }.get(leaf.kind)
-            if helper is None:
-                raise FortranSyntaxError(
-                    f"unsupported rank-1 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            emit_call = (
-                f"call {helper}({fid}, {expr}, "
-                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), {common_tail})"
-            )
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         {emit_call}",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                lines.append(f"      {emit_call}")
-        elif leaf.rank == 2:
-            if leaf.kind != "real":
-                raise FortranSyntaxError(
-                    f"unsupported rank-2 observer leaf kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
-                )
-            emit_call = (
-                f"call obs_emit_real_2d({fid}, {expr}, "
-                f"int(lbound({expr}, 1), c_int), int(ubound({expr}, 1), c_int), "
-                f"int(lbound({expr}, 2), c_int), int(ubound({expr}, 2), c_int), {common_tail})"
-            )
-            if leaf.allocatable:
-                lines.extend([
-                    f"      if (allocated({expr})) then",
-                    f"         {emit_call}",
-                    "      else",
-                    f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
-                    "      end if",
-                ])
-            else:
-                lines.append(f"      {emit_call}")
+        leaf_lines = _emit_single_leaf_lines(tdef, leaf, common_tail)
+        if leaf.parent_alloc_guard is not None:
+            guard_expr = f"actual%{leaf.parent_alloc_guard}"
+            min_sz = leaf.parent_alloc_min_size
+            lines.extend([
+                f"      if (allocated({guard_expr})) then",
+                f"         if (size({guard_expr}) >= {min_sz}) then",
+            ])
+            for line in leaf_lines:
+                lines.append(f"      {line}")
+            lines.extend([
+                "         else",
+                f"            call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                "         end if",
+                "      else",
+                f"         call obs_emit_unallocated({fid}, out_meta, n_meta, err)",
+                "      end if",
+            ])
         else:
-            raise FortranSyntaxError(
-                f"unsupported rank {leaf.rank} on {tdef.name}%{leaf.path}"
-            )
+            lines.extend(leaf_lines)
     return lines
 
 
@@ -2310,6 +2720,383 @@ def _emit_fortran_driver_observers(
     return lines
 
 
+def _emit_seed_entry_subroutine(
+    sub_name: str,
+    tdef: FortranTypeDef,
+    leaves: list[LeafField],
+) -> list[str]:
+    """Emit a single-entry private Fortran helper seeding one named component of ``actual``.
+
+    Separating single-entry dispatch from the caller loop avoids quadratic GCC
+    ``-O2`` alias-analysis blowup on large derived types (e.g. ``SUEWS_STATE``).
+    """
+    lines: list[str] = [
+        f"   subroutine {sub_name}(actual, fid, fkind, i1, i2, val_f64, val_i64, err)",
+        "      implicit none",
+        f"      type({tdef.name}), intent(inout) :: actual",
+        "      integer(c_int), intent(in) :: fid",
+        "      integer(c_int), intent(in) :: fkind",
+        "      integer(c_int), intent(in) :: i1",
+        "      integer(c_int), intent(in) :: i2",
+        "      real(c_double), intent(in) :: val_f64",
+        "      integer(c_int64_t), intent(in) :: val_i64",
+        "      integer(c_int), intent(inout) :: err",
+        "      select case (fid)",
+    ]
+    for leaf in leaves:
+        if not leaf.bridged or leaf.kind == "derived":
+            continue
+        expr = f"actual%{leaf.path}"
+        lines.append(f"      case ({leaf.field_id}_c_int)")
+        if leaf.parent_alloc_guard is not None:
+            guard_expr = f"actual%{leaf.parent_alloc_guard}"
+            lines.extend([
+                f"         if (.not. allocated({guard_expr})) then",
+                "            err = SUEWS_CAPI_BAD_BUFFER",
+                "            return",
+                "         end if",
+                f"         if (size({guard_expr}) < {leaf.parent_alloc_min_size}) then",
+                "            err = SUEWS_CAPI_BAD_BUFFER",
+                "            return",
+                "         end if",
+            ])
+        if leaf.rank == 0:
+            if leaf.kind == "real":
+                lines.extend([
+                    "         if (fkind /= OBS_KIND_REAL) then",
+                    "            err = SUEWS_CAPI_BAD_BUFFER",
+                    "            return",
+                    "         end if",
+                    f"         {expr} = real(val_f64, kind(1d0))",
+                ])
+            elif leaf.kind == "integer":
+                lines.extend([
+                    "         if (fkind /= OBS_KIND_INT) then",
+                    "            err = SUEWS_CAPI_BAD_BUFFER",
+                    "            return",
+                    "         end if",
+                    f"         {expr} = int(val_i64)",
+                ])
+            elif leaf.kind == "logical":
+                lines.extend([
+                    "         if (fkind /= OBS_KIND_LOGICAL) then",
+                    "            err = SUEWS_CAPI_BAD_BUFFER",
+                    "            return",
+                    "         end if",
+                    f"         {expr} = (val_i64 /= 0_c_int64_t)",
+                ])
+            else:
+                raise FortranSyntaxError(
+                    f"unsupported scalar reverse-seed kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+                )
+        elif leaf.rank == 1:
+            expected_kind = {
+                "real": "OBS_KIND_REAL",
+                "integer": "OBS_KIND_INT",
+            }.get(leaf.kind)
+            if expected_kind is None:
+                raise FortranSyntaxError(
+                    f"unsupported rank-1 reverse-seed kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+                )
+            if leaf.allocatable:
+                lines.extend([
+                    f"         if (.not. allocated({expr})) then",
+                    "            err = SUEWS_CAPI_BAD_BUFFER",
+                    "            return",
+                    "         end if",
+                ])
+            lines.extend([
+                f"         if (fkind /= {expected_kind} .or. &",
+                f"             i1 < int(lbound({expr}, 1), c_int) .or. &",
+                f"             i1 > int(ubound({expr}, 1), c_int)) then",
+                "            err = SUEWS_CAPI_BAD_BUFFER",
+                "            return",
+                "         end if",
+            ])
+            if leaf.kind == "real":
+                lines.append(f"         {expr}(i1) = real(val_f64, kind(1d0))")
+            else:
+                lines.append(f"         {expr}(i1) = int(val_i64)")
+        elif leaf.rank == 2:
+            if leaf.kind != "real":
+                raise FortranSyntaxError(
+                    f"unsupported rank-2 reverse-seed kind {leaf.kind!r} on {tdef.name}%{leaf.path}"
+                )
+            if leaf.allocatable:
+                lines.extend([
+                    f"         if (.not. allocated({expr})) then",
+                    "            err = SUEWS_CAPI_BAD_BUFFER",
+                    "            return",
+                    "         end if",
+                ])
+            lines.extend([
+                "         if (fkind /= OBS_KIND_REAL .or. &",
+                f"             i1 < int(lbound({expr}, 1), c_int) .or. &",
+                f"             i1 > int(ubound({expr}, 1), c_int) .or. &",
+                f"             i2 < int(lbound({expr}, 2), c_int) .or. &",
+                f"             i2 > int(ubound({expr}, 2), c_int)) then",
+                "            err = SUEWS_CAPI_BAD_BUFFER",
+                "            return",
+                "         end if",
+                f"         {expr}(i1, i2) = real(val_f64, kind(1d0))",
+            ])
+        else:
+            raise FortranSyntaxError(
+                f"unsupported reverse-seed rank {leaf.rank} on {tdef.name}%{leaf.path}"
+            )
+    lines.extend([
+        "      case default",
+        "         err = SUEWS_CAPI_BAD_BUFFER",
+        "      end select",
+        f"   end subroutine {sub_name}",
+        "",
+    ])
+    return lines
+
+
+def _emit_fortran_reverse_pack_observer(
+    tdef: FortranTypeDef,
+    spec: ReversePackSpec,
+    leaves: list[LeafField],
+) -> list[str]:
+    """Emit one ``BIND(C)`` reverse observer seeding named kernel components before packing."""
+    seed_sub = f"obs_seed_{spec.slug}"
+    sub_name = f"suews_obs_rev_pack_{spec.slug}"
+    extra_params: list[str] = list(spec.dim_args)
+    if spec.has_buildings_count:
+        extra_params.append("bldg_count")
+    sig_parts = [
+        "in_fid",
+        "in_kind",
+        "in_i1",
+        "in_i2",
+        "in_f64",
+        "in_i64",
+        "n_in",
+        *extra_params,
+        "flat_out",
+        "n_flat_out",
+        "err",
+    ]
+    lines: list[str] = _emit_seed_entry_subroutine(seed_sub, tdef, leaves)
+    lines.extend([
+        f"   subroutine {sub_name}( &",
+        f"      {', '.join(sig_parts)}) bind(C, name='{sub_name}')",
+        "      implicit none",
+        "      integer(c_int), intent(in) :: in_fid(*)",
+        "      integer(c_int), intent(in) :: in_kind(*)",
+        "      integer(c_int), intent(in) :: in_i1(*)",
+        "      integer(c_int), intent(in) :: in_i2(*)",
+        "      real(c_double), intent(in) :: in_f64(*)",
+        "      integer(c_int64_t), intent(in) :: in_i64(*)",
+        "      integer(c_int), value, intent(in) :: n_in",
+    ])
+    for param in extra_params:
+        lines.append(f"      integer(c_int), value, intent(in) :: {param}")
+    lines.extend([
+        "      real(c_double), intent(out) :: flat_out(*)",
+        "      integer(c_int), value, intent(in) :: n_flat_out",
+        "      integer(c_int), intent(out) :: err",
+        f"      type({tdef.name}) :: actual",
+        "      integer(c_int) :: k",
+        "      integer(c_int) :: pack_err",
+        "",
+        "      err = SUEWS_CAPI_OK",
+        "      pack_err = SUEWS_CAPI_OK",
+        "      if (n_in < 0_c_int) then",
+        "         err = SUEWS_CAPI_BAD_BUFFER",
+        "         return",
+        "      end if",
+    ])
+    if spec.dim_args == ("nlayer",):
+        lines.extend([
+            "      if (nlayer < 0_c_int) then",
+            "         err = SUEWS_CAPI_BAD_BUFFER",
+            "         return",
+            "      end if",
+            "      if (nlayer > 0_c_int) call actual%allocate(int(nlayer))",
+        ])
+    elif spec.dim_args == ("nlayer", "ndepth"):
+        lines.extend([
+            "      if (nlayer < 0_c_int .or. ndepth < 0_c_int .or. (nlayer > 0_c_int .and. ndepth == 0_c_int)) then",
+            "         err = SUEWS_CAPI_BAD_BUFFER",
+            "         return",
+            "      end if",
+            "      if (nlayer > 0_c_int) call actual%allocate(nsurf, int(nlayer), int(ndepth))",
+        ])
+    if spec.has_buildings_count:
+        if spec.dim_args == ("bldg_nlayer",):
+            lines.extend([
+                "      if (bldg_nlayer < 0_c_int .or. bldg_count < 0_c_int) then",
+                "         err = SUEWS_CAPI_BAD_BUFFER",
+                "         return",
+                "      end if",
+                "      if (bldg_count > 0_c_int) then",
+                "         if (bldg_nlayer > 0_c_int) then",
+                "            call actual%allocate(int(bldg_count), int(bldg_nlayer))",
+                "         else",
+                "            allocate(actual%buildings(int(bldg_count)))",
+                "         end if",
+                "      end if",
+            ])
+        else:
+            lines.extend([
+                "      if (bldg_count < 0_c_int) then",
+                "         err = SUEWS_CAPI_BAD_BUFFER",
+                "         return",
+                "      end if",
+                "      if (bldg_count > 0_c_int) allocate(actual%buildings(int(bldg_count)))",
+            ])
+
+    lines.extend([
+        "      do k = 1_c_int, n_in",
+        f"         call {seed_sub}(actual, in_fid(k), in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)",
+        "         if (err /= SUEWS_CAPI_OK) return",
+        "      end do",
+    ])
+    pack_args = ["actual", *spec.dim_args, "flat_out", "n_flat_out", "pack_err"]
+    lines.extend([
+        f"      call {spec.pack_sub}({', '.join(pack_args)})",
+        "      err = pack_err",
+        f"   end subroutine {sub_name}",
+        "",
+    ])
+    return lines
+
+
+def _emit_fortran_reverse_state_observer(
+    tdef: FortranTypeDef,
+    types_by_lower: dict[str, FortranTypeDef],
+    leaves_by_type: dict[str, list[LeafField]],
+) -> list[str]:
+    """Emit ``suews_obs_rev_pack_suews_state`` delegating to per-member seed helpers."""
+    sub_name = "suews_obs_rev_pack_suews_state"
+    state_leaves = leaves_by_type["suews_state"]
+
+    # Map each active SUEWS_STATE member component to its contiguous fid span and
+    # standalone helper subroutine so aggregate seeding reuses the exact per-member helpers.
+    member_ranges: list[tuple[str, str, int, int]] = []
+    for comp in tdef.components:
+        if ("suews_state", comp.name.lower()) in REVIEWED_DRIVER_EXCLUDED_COMPONENTS:
+            continue
+        assert comp.derived_type is not None
+        member_key = comp.derived_type.lower()
+        spec = REVERSE_PACK_SPECS[member_key]
+        prefix = f"{comp.name}%"
+        matching = [leaf for leaf in state_leaves if leaf.path.startswith(prefix)]
+        member_leaves = leaves_by_type[member_key]
+        if len(matching) != len(member_leaves):
+            raise CoverageInventoryError(
+                f"SUEWS_STATE%{comp.name} leaf count mismatch ({len(matching)} vs {len(member_leaves)})"
+            )
+        start_id = matching[0].field_id
+        end_id = matching[-1].field_id
+        if end_id - start_id + 1 != len(matching):
+            raise CoverageInventoryError(
+                f"SUEWS_STATE%{comp.name} leaf IDs are not contiguous ({start_id}..{end_id})"
+            )
+        for offset, (s_leaf, m_leaf) in enumerate(zip(matching, member_leaves), 1):
+            if s_leaf.path != f"{prefix}{m_leaf.path}" or m_leaf.field_id != offset:
+                raise CoverageInventoryError(
+                    f"SUEWS_STATE%{comp.name} leaf order mismatch at {s_leaf.path}"
+                )
+        member_ranges.append((comp.name, f"obs_seed_{spec.slug}", start_id, end_id))
+
+    lines: list[str] = [
+        f"   subroutine {sub_name}( &",
+        "      in_fid, in_kind, in_i1, in_i2, in_f64, in_i64, n_in, &",
+        "      nlayer, ndepth, bldg_count, state_out_flat, state_out_len, &",
+        f"      state_toc, state_toc_len, state_member_count, err) bind(C, name='{sub_name}')",
+        "      implicit none",
+        "      integer(c_int), intent(in) :: in_fid(*)",
+        "      integer(c_int), intent(in) :: in_kind(*)",
+        "      integer(c_int), intent(in) :: in_i1(*)",
+        "      integer(c_int), intent(in) :: in_i2(*)",
+        "      real(c_double), intent(in) :: in_f64(*)",
+        "      integer(c_int64_t), intent(in) :: in_i64(*)",
+        "      integer(c_int), value, intent(in) :: n_in",
+        "      integer(c_int), value, intent(in) :: nlayer",
+        "      integer(c_int), value, intent(in) :: ndepth",
+        "      integer(c_int), value, intent(in) :: bldg_count",
+        "      real(c_double), intent(out) :: state_out_flat(*)",
+        "      integer(c_int), value, intent(in) :: state_out_len",
+        "      integer(c_int), intent(in) :: state_toc(*)",
+        "      integer(c_int), value, intent(in) :: state_toc_len",
+        "      integer(c_int), value, intent(in) :: state_member_count",
+        "      integer(c_int), intent(out) :: err",
+        f"      type({tdef.name}) :: actual",
+        "      integer(c_int) :: k",
+        "      integer(c_int) :: fid",
+        "      integer(c_int) :: pack_err",
+        "",
+        "      err = SUEWS_CAPI_OK",
+        "      pack_err = SUEWS_CAPI_OK",
+        "      if (n_in < 0_c_int .or. nlayer < 0_c_int .or. ndepth < 0_c_int .or. bldg_count < 0_c_int) then",
+        "         err = SUEWS_CAPI_BAD_BUFFER",
+        "         return",
+        "      end if",
+        "      if (nlayer > 0_c_int .and. ndepth == 0_c_int) then",
+        "         err = SUEWS_CAPI_BAD_BUFFER",
+        "         return",
+        "      end if",
+        "      if (nlayer > 0_c_int) call actual%allocate(int(nlayer), int(ndepth))",
+        "      if (bldg_count > 0_c_int) then",
+        "         if (nlayer > 0_c_int) then",
+        "            call actual%stebbsState%allocate(int(bldg_count), int(nlayer))",
+        "         else",
+        "            allocate(actual%stebbsState%buildings(int(bldg_count)))",
+        "         end if",
+        "      end if",
+        "      do k = 1_c_int, n_in",
+        "         fid = in_fid(k)",
+    ]
+    for idx, (comp_name, seed_sub, start_id, end_id) in enumerate(member_ranges):
+        kw = "if" if idx == 0 else "else if"
+        base = start_id - 1
+        lines.append(
+            f"         {kw} (fid >= {start_id}_c_int .and. fid <= {end_id}_c_int) then"
+        )
+        lines.append(
+            f"            call {seed_sub}(actual%{comp_name}, fid - {base}_c_int, "
+            "in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)"
+        )
+    lines.extend([
+        "         else",
+        "            err = SUEWS_CAPI_BAD_BUFFER",
+        "         end if",
+        "         if (err /= SUEWS_CAPI_OK) return",
+        "      end do",
+        "      call pack_state_to_output( &",
+        "         actual, int(nlayer), int(ndepth), &",
+        "         state_out_flat, state_out_len, state_toc, state_toc_len, state_member_count, pack_err)",
+        "      err = pack_err",
+        f"   end subroutine {sub_name}",
+        "",
+    ])
+    return lines
+
+
+def _emit_fortran_reverse_observers(
+    types_by_lower: dict[str, FortranTypeDef],
+    leaves_by_type: dict[str, list[LeafField]],
+) -> list[str]:
+    """Emit all 13 individual reverse observers plus the aggregate SUEWS_STATE reverse observer."""
+    lines: list[str] = []
+    for key in sorted(REVERSE_PACK_SPECS):
+        spec = REVERSE_PACK_SPECS[key]
+        lines.extend(
+            _emit_fortran_reverse_pack_observer(
+                types_by_lower[key], spec, leaves_by_type[key]
+            )
+        )
+    lines.extend(
+        _emit_fortran_reverse_state_observer(
+            types_by_lower["suews_state"], types_by_lower, leaves_by_type
+        )
+    )
+    return lines
+
+
 def _rs_str(text: str) -> str:
     """Format an ASCII string as a Rust string literal."""
     escaped = text.replace("\\", "\\\\").replace('"', '\\"')
@@ -2448,7 +3235,53 @@ def emit_rust_manifest(
         "    );",
     ])
 
-    lines.extend(["}", "", "pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &["])
+    for key in sorted(REVERSE_PACK_SPECS):
+        spec = REVERSE_PACK_SPECS[key]
+        lines.extend([
+            f"    pub fn suews_obs_rev_pack_{spec.slug}(",
+            "        in_fid: *const i32,",
+            "        in_kind: *const i32,",
+            "        in_i1: *const i32,",
+            "        in_i2: *const i32,",
+            "        in_f64: *const f64,",
+            "        in_i64: *const i64,",
+            "        n_in: i32,",
+        ])
+        for dim_arg in spec.dim_args:
+            lines.append(f"        {dim_arg}: i32,")
+        if spec.has_buildings_count:
+            lines.append("        bldg_count: i32,")
+        lines.extend([
+            "        flat_out: *mut f64,",
+            "        n_flat_out: i32,",
+            "        err: *mut i32,",
+            "    );",
+        ])
+    lines.extend([
+        "    pub fn suews_obs_rev_pack_suews_state(",
+        "        in_fid: *const i32,",
+        "        in_kind: *const i32,",
+        "        in_i1: *const i32,",
+        "        in_i2: *const i32,",
+        "        in_f64: *const f64,",
+        "        in_i64: *const i64,",
+        "        n_in: i32,",
+        "        nlayer: i32,",
+        "        ndepth: i32,",
+        "        bldg_count: i32,",
+        "        state_out_flat: *mut f64,",
+        "        state_out_len: i32,",
+        "        state_toc: *const i32,",
+        "        state_toc_len: i32,",
+        "        state_member_count: i32,",
+        "        err: *mut i32,",
+        "    );",
+    ])
+
+    lines.extend(["}", "", "pub const REVERSE_PACKED_TYPES: &[&str] = &["])
+    for key in sorted((*REVERSE_PACK_SPECS, "suews_state")):
+        lines.append(f"    {_rs_str(key)},")
+    lines.extend(["];", "", "pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &["])
     for entry in sorted(manifest_entries, key=lambda item: item["name"].lower()):
         name = entry["name"]
         key = name.lower()
@@ -2521,6 +3354,21 @@ def emit_rust_manifest(
             ])
         lines.extend(["];", ""])
 
+    scalars = _forcing_scalars(leaves_by_type["suews_forcing"])
+    lines.extend(["pub const FORCING_SCALARS: &[&str] = &["])
+    lines.extend(f'    "{leaf.path.lower()}",' for leaf in scalars)
+    lines.extend([
+        "];",
+        "",
+        'extern "C" {',
+        "    pub fn suews_obs_forcing_rows(",
+        "        block: *const f64,",
+        "        observed: *mut f64,",
+        "        ts5: *mut f64,",
+        "    );",
+        "}",
+        "",
+    ])
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
@@ -2532,7 +3380,7 @@ def generate_all(
     """Parse kernel types, audit coverage, and return ``(fortran_src, rust_src)``."""
     _, types_by_lower = load_kernel_types(kernel_src_dir)
     manifest_entries, leaves_by_type = audit_manifest_and_inventory(
-        manifest_path, types_by_lower, capi_dir
+        manifest_path, types_by_lower, capi_dir, kernel_src_dir
     )
     fortran_src = emit_fortran_observer(types_by_lower, leaves_by_type)
     rust_src = emit_rust_manifest(manifest_entries, leaves_by_type)
@@ -2596,7 +3444,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(
             f"[OK] C-API field observer artefacts are up to date "
-            f"({len(DIRECT_UNPACK_SPECS)} direct + {len(DRIVER_PRIVATE_UNPACK_SPECS)} driver-aggregate live observers, "
+            f"({len(DIRECT_UNPACK_SPECS)} direct + {len(DRIVER_PRIVATE_UNPACK_SPECS)} driver-aggregate + "
+            f"{len(REVERSE_PACK_SPECS) + 1} reverse-pack + 1 forcing-row live observer, "
             f"{len(DIRECT_UNPACK_SPECS) + len(NESTED_IN_PARENT_SPECS) + len(DRIVER_PRIVATE_UNPACK_SPECS) + len(NON_UNPACKED_SPECS)} "
             "manifest types covered)."
         )

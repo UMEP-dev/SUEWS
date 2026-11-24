@@ -3,6 +3,7 @@
 from importlib import import_module
 
 import numpy as np
+from pydantic import ValidationError
 import pytest
 import yaml
 
@@ -28,10 +29,13 @@ def test_non_finite_material_crosses_model_boundary_then_is_rejected(wrapped, ba
     # carries it as absent instead of rejecting it.
     dict_config["model"]["physics"]["storage_heat"] = {"value": 5}
     values = [0.03, bad, 0.1, 0.1, 0.1]
-    layers = ThermalLayers(dz={"value": values} if wrapped else values)
-    dict_config["sites"][0]["properties"]["land_cover"]["paved"]["thermal_layers"] = (
-        layers.model_dump(exclude_none=True, mode="json")
-    )
+    # Data-model validation rejects non-finite material layers up front.
+    with pytest.raises(ValidationError, match="thermal layer"):
+        ThermalLayers(dz={"value": values} if wrapped else values)
+    # Direct YAML input bypassing Pydantic is still rejected by the Rust bridge.
+    dict_config["sites"][0]["properties"]["land_cover"]["paved"]["thermal_layers"][
+        "dz"
+    ] = {"value": values} if wrapped else values
     forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:1])
     with pytest.raises(RuntimeError) as exc:
         _run_rust._check_rust_available().run_suews(

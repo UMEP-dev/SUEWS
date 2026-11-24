@@ -75,7 +75,7 @@ Quick Start: Sample Data Tutorial
    print(f"Output groups: {sim.results.columns.get_level_values('group').unique().tolist()}")
 
    # Extract key variables using get_variable() helper
-   # (Results use MultiIndex columns with (group, variable) structure)
+   # (Results use MultiIndex columns with levels 'group' and 'var')
    qn = sim.get_variable('QN', group='SUEWS')
    qh = sim.get_variable('QH', group='SUEWS')
    print("\nSample energy flux statistics:")
@@ -186,7 +186,7 @@ The simulation produces comprehensive urban climate data:
 
 **Working with Results (Important!)**
 
-Results are stored with MultiIndex columns ``(group, variable)``. Always use ``sim.get_variable()`` to extract data:
+Results are stored with MultiIndex columns with levels ``group`` and ``var``. Always use ``sim.get_variable()`` to extract data:
 
 .. code-block:: python
 
@@ -382,8 +382,20 @@ that the preceding run was equilibrated.
 
 Cold starts retain every requested output interval, using available forcing
 without additional antecedent weather, weather cycling or a discarded prefix.
-The initial radiation memories are internal; early results can retain startup
-influence. No elapsed-time threshold declares the result fully warmed.
+Internal continuation memories (surface radiation histories ``qn_surfs`` and
+``dqndt_surf``, vegetation daily irrigation memories ``evetr``/``dectr``/``grass.wu``,
+and running timer/atmosphere diagnostics ``dt_since_start``, ``tair_av``,
+``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb`` and ``rs``) are rejected
+on fresh YAML runs and restored solely through complete checkpoints. Other
+unconfigured kernel state members follow fixed cold-start conventions: running
+step-1 diagnostics are overwritten before use, AnOHM buffers start at ``-999`` /
+``0`` / ``false``, ``tmin_id`` and ``tmax_id`` default to ``0`` assuming a
+midnight start, DyOHM (storage heat methods 6--8) dynamic coefficients stay at
+``0`` until the first midnight with ``t2_prev`` and ``temp_surf_dyohm`` at
+``0`` degC (requiring warm-up), and STEBBS with ``NetRadiationMethod < 1000``
+sees ``0`` W m-2 BEERS roof/wall radiation on step 1 before BEERS runs at the
+end of the step. Early results can therefore retain startup influence, and no
+elapsed-time threshold declares a run fully warmed.
 
 The same initialisation record is written to ``provenance.json`` under ``run``
 by ``sim.save()`` and ``suews run``, including streamed runs. Keep that sidecar

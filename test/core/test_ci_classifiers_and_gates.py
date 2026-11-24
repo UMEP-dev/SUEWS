@@ -484,6 +484,31 @@ def test_path_filters_positive_only_and_closes_classifier_gaps() -> None:
     assert not _matches_category(filters, "rust_capi_observer", "docs/source/index.rst")
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "test/fixtures/bridge/sample_resolved.yml",
+        "test/fixtures/bridge/stebbs_resolved.yml",
+        "src/supy/data_model/output/version.py",
+        "src/supy/data_model/output/artefacts/2.0.0/catalogue.json",
+    ],
+)
+def test_rust_observer_runs_when_its_input_data_changes(path: str) -> None:
+    """Both PR routes must run the witness when only its input changes."""
+    workflow = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/rust-capi-observer.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    triggers = workflow[True] if True in workflow else workflow["on"]
+    standalone = triggers["pull_request"]["paths"]
+    assert any(_match_picomatch_pattern(path, pattern) for pattern in standalone)
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+    assert _matches_category(filters, "rust_capi_observer", path)
+
+
 def _sample_paths_for_workflow_glob(pattern: str) -> list[str]:
     """Generate representative concrete repo-relative paths for a GitHub paths glob."""
     if pattern == "**.py":
@@ -1110,7 +1135,9 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
     }
 
     pr_gate = caller["jobs"]["pr-gate"]
-    pr_gate_step = next(s for s in pr_gate["steps"] if "run" in s)
+    pr_gate_step = next(
+        s for s in pr_gate["steps"] if s.get("name") == "Check build results"
+    )
     assert pr_gate_step["env"]["EVENT_NAME"] == "${{ github.event_name }}"
     report_needs = set(caller["jobs"]["report_scheduled_run"]["needs"])
 
@@ -1213,13 +1240,13 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
                 65,
             ),
             _synth_job(
-                "Build and test (manylinux x86_64) / cp312-manylinux x86_64",
+                "Build and test (manylinux x86_64) / wheel | cp312 | manylinux x86_64",
                 20,
                 22,
                 100,
             ),
             _synth_job(
-                "Build and test (manylinux x86_64) / API cross-CPython tests / cp312-manylinux x86_64",
+                "Build and test (manylinux x86_64) / API cross-CPython tests / api | cp312 | manylinux x86_64",
                 100,
                 102,
                 140,
@@ -1303,3 +1330,169 @@ def test_reusable_workflows_with_concurrency_isolate_group_by_workflow() -> None
         "rust-test.yml",
         "schema-version-audit.yml",
     } <= set(checked)
+
+
+# ---- Three-layer platform layout: Linux-first PRs and queue ----
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh runs under bash on Linux CI only",
+)
+def test_pull_requests_run_linux_only_unless_labelled_full_matrix(
+    tmp_path: Path,
+) -> None:
+    """Every PR is Linux only; 0-ci:full-matrix opts it into the three PR platforms.
+
+    The label widens the platforms whatever the PR changes (CI- or test-only
+    PRs have failed only on Windows), and never changes the tier.
+    """
+    linux = [["ubuntu-latest", "manylinux", "x86_64"]]
+    cases = {
+        "draft-fortran": {"IS_DRAFT": "true", "FORTRAN_CHANGED": "true"},
+        "draft-build": {"IS_DRAFT": "true", "BUILD_CHANGED": "true"},
+        "draft-python": {"IS_DRAFT": "true", "PYTHON_CHANGED": "true"},
+        "ready-fortran": {"FORTRAN_CHANGED": "true"},
+        "ready-build": {"BUILD_CHANGED": "true"},
+        "ready-ci": {"CI_CHANGED": "true"},
+        "ready-tests": {"TESTS_CHANGED": "true"},
+        "ready-physics": {"FORTRAN_CHANGED": "true", "PHYSICS_CHANGE": "true"},
+    }
+    for name, overrides in cases.items():
+        plain = _run_determine_matrix(
+            tmp_path, {"EVENT_NAME": "pull_request", **overrides}
+        )
+        labelled = _run_determine_matrix(
+            tmp_path,
+            {"EVENT_NAME": "pull_request", "FULL_MATRIX": "true", **overrides},
+        )
+        assert json.loads(plain["buildplat"]) == linux, name
+        assert json.loads(plain["api_buildplat"]) == linux, name
+        assert [p[1] for p in json.loads(labelled["buildplat"])] == [
+            "manylinux",
+            "macosx",
+            "win",
+        ], name
+        assert labelled["api_buildplat"] == labelled["buildplat"], name
+        assert labelled["test_tier"] == plain["test_tier"], name
+        assert labelled["api_python"] == plain["api_python"], name
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh runs under bash on Linux CI only",
+)
+def test_merge_queue_runs_linux_full_and_windows_smoke_without_macos(
+    tmp_path: Path,
+) -> None:
+    """The queue: Linux full tier plus api, Windows wheel at smoke, no macOS.
+
+    The label is not read on merge_group, and a tests-only group stays Linux
+    only. The nightly and tag releases keep the full matrix.
+    """
+    for overrides, tier in (
+        ({"FORTRAN_CHANGED": "true"}, "standard"),
+        ({"CI_CHANGED": "true"}, "standard"),
+        ({"PYTHON_CHANGED": "true", "FULL_MATRIX": "true"}, "standard"),
+        ({"FORTRAN_CHANGED": "true", "PHYSICS_CHANGE": "true"}, "physics-full"),
+    ):
+        mq = _run_determine_matrix(tmp_path, {"EVENT_NAME": "merge_group", **overrides})
+        assert [p[1] for p in json.loads(mq["buildplat"])] == ["manylinux", "win"]
+        assert [p[1] for p in json.loads(mq["api_buildplat"])] == ["manylinux"]
+        assert mq["test_tier"] == tier
+    tests_only = _run_determine_matrix(
+        tmp_path, {"EVENT_NAME": "merge_group", "TESTS_CHANGED": "true"}
+    )
+    assert [p[1] for p in json.loads(tests_only["buildplat"])] == ["manylinux"]
+
+    for event in ("schedule", "push"):
+        full = _run_determine_matrix(
+            tmp_path, {"EVENT_NAME": event, "GITHUB_REF": "refs/tags/v2026.11.22"}
+        )
+        assert len(json.loads(full["buildplat"])) == 4, event
+        assert [p[1] for p in json.loads(full["api_buildplat"])] == [
+            "manylinux",
+            "macosx",
+            "win",
+        ], event
+        assert full["test_tier"] == "all", event
+
+    caller = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    jobs = caller["jobs"]
+    # Windows runs the smoke tier in the queue; every other cell keeps the
+    # tier determine_matrix chose.
+    assert jobs["build_wheels"]["with"]["test_tier"] == (
+        "${{ github.event_name == 'merge_group' && matrix.buildplat[1] == 'win' "
+        "&& 'smoke' || needs.determine_matrix.outputs.test_tier }}"
+    )
+    # The api lane is Linux only in the queue even while determine_matrix
+    # still runs an older base-branch script.
+    assert jobs["build_wheels"]["with"]["run_api_tests"].endswith(
+        "&& !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}"
+    )
+    # The label is read live from the API on pull requests and fed to the script.
+    steps = jobs["determine_matrix"]["steps"]
+    label_step = next(s for s in steps if s.get("id") == "full-matrix-label")
+    assert label_step["if"] == "github.event_name == 'pull_request'"
+    assert "0-ci:full-matrix" in label_step["run"]
+    set_matrix = next(s for s in steps if s.get("id") == "set-matrix")
+    assert set_matrix["env"]["FULL_MATRIX"] == (
+        "${{ steps.full-matrix-label.outputs.found || 'false' }}"
+    )
+    # PR build validation is still the one consolidated gate and its inputs
+    # do not depend on the platform count.
+    assert jobs["pr-gate"]["name"] == "PR build validation"
+
+
+def test_nested_leaf_job_names_say_what_the_job_does() -> None:
+    """The wheel build and the api lane under one caller group have distinct leaves.
+
+    The checks list shows "<caller group> / <leaf>", and both reusable jobs
+    used to name their leaf "cp312-<platform> <arch>", so the wheel build and
+    the api cell read the same. Render both leaves for one cell and check that
+    they differ, that each says what it does, and that the critical-path needs
+    map tells them apart.
+    """
+    cell = {
+        "${{ matrix.python }}": "cp312",
+        "${{ matrix.cell.python_version }}": "cp312",
+        "${{ matrix.buildplat[1] }}": "win",
+        "${{ matrix.buildplat[2] }}": "AMD64",
+        "${{ matrix.cell.shard && format(' shard {0}', matrix.cell.shard) || '' }}": "",
+    }
+
+    def render(workflow: str, job: str) -> str:
+        data = yaml.safe_load(
+            (REPO_ROOT / ".github/workflows" / workflow).read_text(encoding="utf-8")
+        )
+        name = data["jobs"][job]["name"]
+        for expr, value in cell.items():
+            name = name.replace(expr, value)
+        assert "${{" not in name, name
+        return name
+
+    wheel_leaf = render("build-wheels-reusable.yml", "build")
+    api_leaf = render("test-api-cross-python-reusable.yml", "api_cross_python")
+    assert wheel_leaf != api_leaf
+    assert wheel_leaf.startswith("wheel") and api_leaf.startswith("api")
+    for leaf in (wheel_leaf, api_leaf):
+        assert "cp312" in leaf and "win AMD64" in leaf
+        assert leaf.isascii()
+
+    needs = json.loads(
+        (REPO_ROOT / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    group = "Build and test (win AMD64)"
+    wheel_job = f"{group} / {wheel_leaf}"
+    api_job = f"{group} / API cross-CPython tests / {api_leaf}"
+    api_deps = {d for k, deps in needs.items() if fnmatchcase(api_job, k) for d in deps}
+    # The api cell waits on its own platform's wheel build, and no wheel
+    # pattern mistakes the api cell for a wheel build.
+    assert any(fnmatchcase(wheel_job, d) for d in api_deps)
+    wheel_patterns = {d for deps in needs.values() for d in deps if "/ wheel" in d}
+    assert wheel_patterns
+    assert not any(fnmatchcase(api_job, d) for d in wheel_patterns)

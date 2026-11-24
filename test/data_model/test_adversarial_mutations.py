@@ -1405,7 +1405,7 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         # Active site-scalar, drainage, hdd_id array, and LAI TypeError gaps
         ("sites[0].properties.lng", ("omit",)),
         (
-            "sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_1",
+            "sites[0].properties.land_cover.paved.storage_drain_params.store_max",
             ("omit",),
         ),
         ("sites[0].initial_states.hdd_id[0]", ("omit",)),
@@ -1440,10 +1440,10 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "snow_cold": (
         # Conforming active snow control (#2011: snowalb -> 0.5)
         ("sites[0].initial_states.snowalb", ("omit",)),
-        # Active snow gaps (#1982/#2101), unwired snow OHM (#2109), output.groups, inactive CO2
+        # Active snow gaps (#1982/#2101), active snow winter_wet OHM (#2101), output.groups, inactive CO2
         ("sites[0].properties.snow.snow_density_min", ("omit",)),
         ("sites[0].properties.land_cover.paved.snowpack_limit", ("wrapped_null",)),
-        ("sites[0].properties.snow.ohm_coef.summer_dry.a1", ("omit",)),
+        ("sites[0].properties.snow.ohm_coef.winter_wet.a1", ("omit",)),
         ("sites[0].properties.snow.ohm_threshold_summer_winter", ("bare_null",)),
         ("model.control.output.groups[0]", ("omit",)),
         (
@@ -1590,6 +1590,9 @@ def test_expected_emitted_defaults_match_pydantic_schema() -> None:
     expected_defaults = load_expected_defaults()
     default_site = Site()
     default_site.properties.soil_observation = SoilObservationConfig(layer_depth=0.5)
+    # An all-default StorageDrainParams is a placeholder that suppresses factory
+    # defaults on dump; populate one field so drain_eq/store_min defaults emit.
+    default_site.properties.land_cover.paved.storage_drain_params.store_max = 1.0
     default_doc = SUEWSConfig(sites=[default_site]).model_dump(mode="json")
 
     # ACT / ASSERT: expand wildcard patterns across concrete surfaces and verify exact match
@@ -1828,12 +1831,7 @@ def test_documented_known_good_and_known_open_controls(tmp_path: Path) -> None:
 
 
 def test_nonfinite_yaml_nan_control_on_sdd_id(tmp_path: Path) -> None:
-    """Verify Layer 2 catches ``sdd_id: {value: .nan}`` exporting ``null`` while finite values survive.
-
-    On current master, ``dectr.sdd_id: {value: null}`` raises a mutation-attributed
-    ``ValueError``, whereas ``{value: .nan}`` loads without raising and exports
-    ``null`` to ``config_to_engine_yaml()`` (tracked under #1991/#2001/#2002).
-    """
+    """Dev16 rejects a non-finite senescence value and preserves a finite one."""
     # ARRANGE
     base_data = build_anchor_dict("all_surfaces_baseline")
     entries = load_ledger()["entries"]
@@ -1846,8 +1844,7 @@ def test_nonfinite_yaml_nan_control_on_sdd_id(tmp_path: Path) -> None:
         sentinel_doc["sites"][0]["initial_states"]["dectr"]["sdd_id"]
     ) == pytest.approx(22.0)
 
-    # ACT 2: explicit YAML `.nan` is caught as non-conforming (`null_or_empty` or
-    # `invalid_type_or_nonfinite`) and fails `check_results_against_ledger`.
+    # ACT 2: explicit YAML .nan must be rejected at the mutated vegetation field.
     nan_res = evaluate_mutation(
         "all_surfaces_baseline",
         base_data,
@@ -1856,13 +1853,8 @@ def test_nonfinite_yaml_nan_control_on_sdd_id(tmp_path: Path) -> None:
         tmp_path / "sdd_nan.yml",
         via_yaml=True,
     )
-    assert nan_res.outcome in {"null_or_empty", "invalid_type_or_nonfinite"}, (
-        f"Expected Layer 2 to flag .nan on dectr.sdd_id as non-conforming, "
-        f"got {nan_res.outcome} ({nan_res.detail})"
-    )
-    nan_report = check_results_against_ledger([nan_res], entries)
-    assert not nan_report.ok
-    assert "sites[0].initial_states.dectr.sdd_id" in nan_report.format_failure()
+    assert nan_res.outcome == "rejected", nan_res
+    assert check_results_against_ledger([nan_res], entries).ok
 
 
 def test_site_scalar_omission_and_null_controls(tmp_path: Path) -> None:

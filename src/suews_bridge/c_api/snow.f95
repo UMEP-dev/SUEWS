@@ -17,8 +17,8 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_LEN = 78_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_SCHEMA_VERSION = 2_c_int
 
 type :: snow_state_shadow
    real(c_double) :: snowfall_cum = 0.0_c_double
@@ -33,7 +33,6 @@ type :: snow_state_shadow
    real(c_double) :: swe = 0.0_c_double
    real(c_double) :: z0v_snow = 0.0_c_double
    real(c_double) :: ra_snow = 0.0_c_double
-   real(c_double) :: s_ice_hpa = 0.0_c_double
    real(c_double), dimension(2) :: snow_removal = 0.0_c_double
    real(c_double), dimension(nsurf) :: ice_frac = 0.0_c_double
    real(c_double), dimension(nsurf) :: snow_density = 0.0_c_double
@@ -120,7 +119,6 @@ subroutine snow_state_pack(state, flat, n_flat, err)
    flat(idx) = state%swe; idx = idx + 1
    flat(idx) = state%z0v_snow; idx = idx + 1
    flat(idx) = state%ra_snow; idx = idx + 1
-   flat(idx) = state%s_ice_hpa; idx = idx + 1
 
    do i = 1, 2
       flat(idx) = state%snow_removal(i)
@@ -207,7 +205,6 @@ subroutine snow_state_unpack(flat, n_flat, state, err)
    state%swe = flat(idx); idx = idx + 1_c_int
    state%z0v_snow = flat(idx); idx = idx + 1_c_int
    state%ra_snow = flat(idx); idx = idx + 1_c_int
-   state%s_ice_hpa = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
       state%snow_removal(i) = flat(idx)

@@ -36,6 +36,7 @@ NON_GATING_JOB_PATTERNS = (
     "Cost-marker drift*",
     "Python coverage*",
     "* / Python coverage*",
+    "RSS growth*",
 )
 
 BAD_CONCLUSIONS = ("failure", "cancelled", "timed_out")
@@ -76,9 +77,8 @@ def summarise_run(
         "url": run.get("html_url"),
         "gating_failures": sorted(set(gating_failures)),
         "recording_failures": sorted(set(recording_failures)),
-        # The alert (report_scheduled_run) opens or keeps open the tracking
-        # issue whenever one of the jobs it needs is not a success. A gating
-        # failure anywhere in the run is the observable form of that.
+        # The alert (scheduled-run-tracker.yml) opens or keeps open the
+        # tracking issue whenever the run does not conclude success.
         "alert_expected": conclusion != "success" or bool(gating_failures),
     }
 
@@ -118,22 +118,25 @@ def _gh_json(args: list[str]) -> Any:
 
 def fetch(repo: str, workflow: str, limit: int) -> tuple[list, dict]:
     """Fetch the most recent scheduled runs and their jobs through gh."""
-    payload = _gh_json(
-        [
-            "gh",
-            "api",
-            f"repos/{repo}/actions/workflows/{workflow}/runs"
-            f"?event=schedule&per_page={limit}",
-        ]
-    )
+    payload = _gh_json([
+        "gh",
+        "api",
+        f"repos/{repo}/actions/workflows/{workflow}/runs"
+        f"?event=schedule&per_page={limit}",
+    ])
     runs = payload.get("workflow_runs", [])[:limit]
     if limit > 100:
-        raise SystemExit("--limit is capped at 100: the runs API returns one page of at most 100")
+        raise SystemExit(
+            "--limit is capped at 100: the runs API returns one page of at most 100"
+        )
     jobs_by_run_id = {}
     for run in runs:
-        jobs_payload = _gh_json(
-            ["gh", "api", "--paginate", f"repos/{repo}/actions/runs/{run['id']}/jobs"]
-        )
+        jobs_payload = _gh_json([
+            "gh",
+            "api",
+            "--paginate",
+            f"repos/{repo}/actions/runs/{run['id']}/jobs",
+        ])
         jobs_by_run_id[run["id"]] = jobs_payload.get("jobs", [])
     return runs, jobs_by_run_id
 
@@ -169,7 +172,7 @@ def render(summary: dict[str, Any], workflow: str) -> str:
         "",
         f"Green streak from the newest run: {summary['green_streak']}",
         "A run is green when it concluded success and no gating job failed;",
-        "that is when the report_scheduled_run alert stays silent (a needed job",
+        "that is when the scheduled-run-tracker alert stays silent (a needed job",
         "that was skipped counts as green here, but its upstream failure reddens the",
         "run conclusion, so the two views agree in practice).",
     ]

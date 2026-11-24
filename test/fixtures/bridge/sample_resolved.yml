@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: 2026.6.dev13
+schema_version: 2026.6.dev18
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
   configuration
 strict_initial_state_bounds: true
@@ -40,6 +40,13 @@ model:
       value: 1
     ohm_inc_qf:
       value: 0
+    ehc_surface_coupling:
+      value: 1
+    control_ehc_stability:
+      value: 0
+    control_ehc_initial_profile: true
+    resistance_ehc_indoor_roof: 0.1
+    resistance_ehc_indoor_wall: 0.13
     roughness_length_momentum:
       value: 1
     roughness_length_heat:
@@ -1869,9 +1876,9 @@ sites:
       faut:
         value: 0.0
       ie_start:
-        value: 1.0
+        value: 1
       ie_end:
-        value: 366.0
+        value: 366
       internalwateruse_h:
         value: 0.0
       daywatper:
@@ -1994,9 +2001,9 @@ sites:
           '24': -999.0
     anthropogenic_emissions:
       startdls:
-        value: 86.0
+        value: 86
       enddls:
-        value: 303.0
+        value: 303
       heat:
         qf0_beu:
           working_day: 0.88
@@ -3655,13 +3662,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     dectr:
       state:
         value: 0.0
@@ -3696,13 +3696,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
       porosity_id:
         value: 0.6
       decidcap_id:
@@ -3741,13 +3734,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     bsoil:
       state:
         value: 0.0
@@ -3894,14 +3880,11 @@ sites:
         value: 5.0
     dqndt: 0.0
     dqnsdt: 0.0
-    dt_since_start: 0.0
     lenday_id: 0
     qn_av: 0.0
     qn_s_av: 0.0
-    tair_av: 0.0
     tmax_id: 0.0
     tmin_id: 0.0
-    tstep_prev: 0.0
     snowfallcum: 0.0
     hdd_id:
       hdd_accum: 13.5
@@ -3916,15 +3899,10 @@ sites:
       temp_5day_mean: 13.5
       precip_daily_total: 13.5
       days_since_rain: 13.5
-    l_mod: 0.0
-    ustar: 0.0
-    ra_h: 0.0
-    rb: 0.0
-    rs: 0.0
 _auto_generate_annotated: false
 _yaml_raw:
   name: sample_config
-  schema_version: 2026.6.dev13
+  schema_version: 2026.6.dev18
   description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
     configuration
   model:
@@ -3964,6 +3942,11 @@ _yaml_raw:
       storage_heat:
         ohm:
           include_qf: false
+      ehc_surface_coupling: implicit
+      control_ehc_stability: 'off'
+      control_ehc_initial_profile: true
+      resistance_ehc_indoor_roof: 0.1
+      resistance_ehc_indoor_wall: 0.13
       roughness_length_momentum: fixed
       roughness_length_heat: K09
       stability: CN98
@@ -7552,13 +7535,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
       dectr:
         state:
           value: 0.0
@@ -7593,13 +7569,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
         porosity_id:
           value: 0.6
         decidcap_id:
@@ -7638,13 +7607,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
       bsoil:
         state:
           value: 0.0

@@ -65,7 +65,7 @@ No `rust-toolchain.toml` -- uses system Rust. CI installs via rustup.
 - `python-extension` -- enables `python` and PyO3's extension-module linking
 - `python` -- enables PyO3; the dependency selects the Python 3.12+ stable ABI
 - `arrow-output` -- enables Apache Arrow IPC output format
-- `capi-observer` -- test-only feature (implies `physics`; mutually exclusive with `python-extension` in `build.rs`) that compiles `test_observer/capi_field_observer.f95` for the `capi_field_observer` integration test [fact: git grep -n "capi-observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs]
+- `capi-observer` -- test-only feature (implies `physics`; mutually exclusive with `python-extension` in `build.rs`) that compiles the forward field observers and the reverse neighbourhood-state observer for the `capi_field_observer` integration test [fact: git grep -n "capi-observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs]
 
 The maturin build uses `python-extension` + `physics`.
 
@@ -194,23 +194,36 @@ than relying on `*_shadow` or `*_pack` round trips.
   feature and never enters shipped wheels or default CLI builds
   [fact: git grep -n "capi-observer\|suews_capi_observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs].
 - **Coverage and harness.** `src/suews_bridge/tests/capi_field_observer.rs`
-  holds 38 `#[test]` functions across all 49 bridged types inventoried in
+  holds the `#[test]` suite across all 49 bridged types inventoried in
   `src/suews_bridge/bridge-manifest.json`: 30 direct `*_unpack` runtime
   observers, 4 driver-aggregate runtime observers (`SUEWS_CONFIG`,
   `SUEWS_TIMER`, `SUEWS_SITE`, `SUEWS_STATE`, exercising the 8 nested derived
-  types live inside their parent unpackers), 1 manifest-coverage check over all
+  types live inside their parent unpackers), reverse-pack and forcing-row
+  runtime observers, 1 manifest-coverage check over all
   49 entries, 1 standalone nested-type codec round-trip check
   (`standalone_nested_type_codecs_roundtrip_distinct_sentinels`), 1 inventory
   and codec check for the 7 non-unpacked types
   (`non_unpacked_types_inventory_and_codecs`), and 1 truncated-buffer rejection
   check (`observer_rejects_truncated_flat_buffer`)
   [fact: python3 scripts/suews/gen_capi_field_observer.py --check && git grep -c "^#\[test" src/suews_bridge/tests/capi_field_observer.rs].
-  Thus 42 types have live receiver coverage (30 direct + 8 nested + 4 driver
+  In the original field-binding tests, 42 types have live receiver coverage (30 direct + 8 nested + 4 driver
   aggregates); the 7 non-unpacked types have inventory/schema/default/codec
   checks, not live receiver evidence
   [fact: inspect `manifest_covers_all_49_bridged_types_with_zero_gaps` and
   `non_unpacked_types_inventory_and_codecs` in
   [the harness](../../../src/suews_bridge/tests/capi_field_observer.rs)].
+- **Reverse neighbourhood binding.** In the same integration target,
+  `tests/reverse_nhood/mod.rs` checks the five named `NHOOD_STATE` members
+  returned by the driver packer and the short-buffer error. The hand-written
+  `test_observer/reverse_nhood_observer.f95` assigns values directly to the
+  kernel type before calling the production packer
+  [fact: git grep -n "reverse_nhood" src/suews_bridge/build.rs src/suews_bridge/tests].
+- The same integration target runs two reverse-checkpoint cases in
+  `tests/reverse_checkpoint_leaves/mod.rs`. Its feature-only Fortran witness
+  seeds three STEBBS temperatures and all 27 stored heat/hydro allocatable
+  arrays before the production aggregate packer. The tests check both the
+  Rust return state and the state reopened from a disk checkpoint
+  [fact: git grep -n "SUEWS_CAPI_OBSERVER\|mod reverse_checkpoint_leaves" src/suews_bridge].
 - **Regenerate and verify** after changing any bridged Fortran `TYPE`,
   `c_api/*_unpack` routine, Rust struct/codec, or `bridge-manifest.json` entry
   (update `tests/capi_field_observer.rs` as well if struct fields or bridged
@@ -223,9 +236,9 @@ python3 scripts/suews/gen_capi_field_observer.py
 # Verify committed artefacts match fresh generator output byte for byte
 python3 scripts/suews/gen_capi_field_observer.py --check
 
-# Build Fortran kernel libraries and run all 38 observer tests
+# Build Fortran kernel libraries and run the complete observer target
 make -C src/suews all
-cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer
+cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer --test snapshot_native
 ```
 
 ---

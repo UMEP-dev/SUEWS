@@ -19,11 +19,10 @@ Every active perturbation checks three properties:
 2. Physically expected sign where deterministic, and
 3. Surface energy-balance conservation on both baseline and perturbed runs, plus
    water-balance conservation except where a documented pre-existing hydrology
-   exception applies (snow-path runs under gh#1905/#1927/#1958, and combined
-   EHC + SPARTACUS building-facet runs where ``SUEWS_cal_QE`` routes building
-   storage through ``cal_water_storage_building`` and divides
-   ``soilstore_building / capStore_builing`` (``0/0`` leaving ``SMDBldgs``,
-   ``SMD``, and ``TotCh`` as ``NaN`` when ``bldgs.sfr == 0``)).
+   exception applies (snow-path runs under gh#1905/#1927/#1958, and active
+   ``bldgs.sfr > 0`` combined EHC + SPARTACUS runs where ``SUEWS_cal_QE``
+   routes building storage through ``cal_water_storage_building`` rather than
+   the 7-surface soil-store ledger checked by ``water_balance_residual_mm``).
 
 Every inactive perturbation (disabled physics module or ``sfr == 0`` surface)
 verifies strict invariance (``max|dFlux| == 0.0``) across grid-level fluxes.
@@ -35,7 +34,6 @@ import copy
 
 from conftest import TIMESTEPS_PER_DAY
 from layer5_checks import (
-    SUEWS_ABSENT_OBSERVED_LDOWN,
     SUEWS_MISSING_SENTINEL,
     assert_active_output_finiteness,
     assert_simulation_output_finiteness,
@@ -126,15 +124,19 @@ def _run_and_verify_conservation(
     snow_use = int(getattr(phys.snow_use, "value", phys.snow_use))
     nlayer_cfg = config.sites[0].properties.vertical_layers.nlayer
     nlayer = int(getattr(nlayer_cfg, "value", nlayer_cfg))
+    bldg_sfr_cfg = config.sites[0].properties.land_cover.bldgs.sfr
+    has_buildings = float(getattr(bldg_sfr_cfg, "value", bldg_sfr_cfg)) > 0.0
     assert_simulation_output_finiteness(
         df_out,
         expected_grids=(1,),
         expected_timestamps=df_forcing.index,
+        forcing=sim.forcing.df,
         tstep=300,
         storage_heat=storage_heat,
         net_radiation=net_radiation,
         snow_use=snow_use,
         nlayer=nlayer,
+        has_buildings=has_buildings,
     )
 
     suews = df_out.loc[1, "SUEWS"]
@@ -290,7 +292,9 @@ def test_aerodynamics_building_height_sensitivity_increases_ustar(sensitivity_en
     assert strict_max_abs(d_ustar, label="bldgh.dUStar") > 0.02
     assert strict_mean(d_ustar, label="bldgh.dUStar") > 0.02
     assert strict_max_abs(d_u10, label="bldgh.dU10") > 0.1
-    assert strict_max_abs(d_qh, label="bldgh.dQH") > 0.5
+    # With OHM_STATE%iter_safe = .FALSE., static OHM QS is invariant to iteration-count
+    # differences (dQS = 0.0), leaving the true aerodynamic dQH = -dQE (~0.28 W m-2).
+    assert strict_max_abs(d_qh, label="bldgh.dQH") > 0.2
 
 
 @pytest.mark.core
@@ -474,6 +478,8 @@ def test_spartacus_roof_albedo_sensitivity_increases_kup_and_reduces_qn(
     # ARRANGE
     cfg_base = copy.deepcopy(sensitivity_env["base_cfg"])
     cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+    cfg_base.model.physics.storage_heat = StorageHeatMethod.STEBBS
+    cfg_base.model.physics.stebbs.enabled = True
     vl_base = cfg_base.sites[0].properties.vertical_layers
     vl_base.building_frac.value[0] = cfg_base.sites[
         0
@@ -649,6 +655,8 @@ def test_zero_area_surface_radiation_perturbation_invariant_across_coupled_schem
         cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_AIR_SURFACE
     elif scheme == "spartacus_1003":
         cfg_base.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+        cfg_base.model.physics.storage_heat = StorageHeatMethod.STEBBS
+        cfg_base.model.physics.stebbs.enabled = True
         vl = cfg_base.sites[0].properties.vertical_layers
         vl.building_frac.value[0] = cfg_base.sites[
             0
@@ -790,12 +798,18 @@ def test_ehc_spartacus_absent_building_facets_leave_grid_fluxes_invariant(
     for roof in cfg_pert.sites[0].properties.vertical_layers.roofs:
         roof.alb.value = 0.80
         roof.emis.value = 0.70
+        roof.state_limit.value = 25.0
+        roof.soil_store_capacity = 200.0
+        roof.wet_threshold.value = 2.0
         roof.thermal_layers.k.value = [20.0] * 5
         roof.thermal_layers.rho_cp.value = [5.0e6] * 5
         roof.thermal_layers.dz.value = [0.02] * 5
     for wall in cfg_pert.sites[0].properties.vertical_layers.walls:
         wall.alb.value = 0.80
         wall.emis.value = 0.70
+        wall.state_limit.value = 25.0
+        wall.soil_store_capacity = 200.0
+        wall.wet_threshold.value = 2.0
         wall.thermal_layers.k.value = [20.0] * 5
         wall.thermal_layers.rho_cp.value = [5.0e6] * 5
         wall.thermal_layers.dz.value = [0.02] * 5
@@ -808,62 +822,82 @@ def test_ehc_spartacus_absent_building_facets_leave_grid_fluxes_invariant(
     df_facet["U"] = np.where(np.arange(len(df_facet)) < 144, 3.5, 15.0)
     df_facet["Tair"] = np.where(np.arange(len(df_facet)) < 144, 20.0, 0.0)
 
-    # ACT
-    # Run directly rather than through full-frame finiteness: SUEWS_cal_QE:3631
-    # has a pre-existing 0/0 in soilstore_building/capStore_builing when
-    # bldgs.sfr == 0 (leaving SMDBldgs, SMD, and TotCh as NaN), while every
-    # other active SUEWS output column and energy-balance closure remain finite.
-    excluded_suews_cols = set(SUEWS_ABSENT_OBSERVED_LDOWN) | {
-        "SMDBldgs",
-        "SMD",
-        "TotCh",
-    }
-    outputs = []
-    checked_suews_cols: list[str] = []
-    for label, cfg in (("base", cfg_base), ("pert", cfg_pert)):
-        sim = SUEWSSimulation()
-        sim.update_config(cfg, auto_load_forcing=False)
-        sim.update_forcing(df_facet)
-        df_out = sim.run(
-            start_date=df_facet.index[0],
-            end_date=df_facet.index[-1],
-            n_jobs=1,
-        ).df
-        suews = df_out.loc[1, "SUEWS"]
-        assert suews.index.equals(df_facet.index)
-        assert excluded_suews_cols.issubset(suews.columns)
-        checked_suews_cols = [
-            col for col in suews.columns if col not in excluded_suews_cols
-        ]
-        for col in checked_suews_cols:
-            strict_finite_array(
-                suews[col], label=f"ehc_spartacus_bldg0.{label}.{col}"
-            )
-        strict_finite_array(
-            df_out.loc[1, ("debug", "iter")],
-            label=f"ehc_spartacus_bldg0.{label}.iter",
-        )
-        eb_residual = (
-            suews["QN"] + suews["QF"] - suews["QH"] - suews["QE"] - suews["QS"]
-        )
-        assert (
-            strict_max_abs(eb_residual, label=f"ehc_spartacus_bldg0.{label}.eb")
-            < ENERGY_CLOSURE_TOLERANCE_W_M2
-        )
-        outputs.append(df_out)
-    df_out_base, df_out_pert = outputs
+    # ACT: assert full active-output finiteness (including SMDBldgs, SMD, TotCh,
+    # debug.ss_Bldgs_next, EHC, and SPARTACUS) and strict energy/water closure.
+    df_out_base = _run_and_verify_conservation(cfg_base, df_facet)
+    df_out_pert = _run_and_verify_conservation(cfg_pert, df_facet)
 
-    # ASSERT: every active SUEWS column (all columns except Fcld and the three
-    # documented capStore_builing 0/0 columns) and debug.iter stay bit-identical.
+    # ASSERT: every active SUEWS column (all columns except Fcld, explicitly
+    # including SMDBldgs, SMD, and TotCh), debug.ss_Bldgs_next, and debug.iter
+    # stay bit-identical under absent building-facet perturbations.
+    suews_base = df_out_base.loc[1, "SUEWS"]
+    active_suews_cols = [col for col in suews_base.columns if col != "Fcld"]
+    assert {"SMDBldgs", "SMD", "TotCh"}.issubset(active_suews_cols)
     np.testing.assert_array_equal(
-        df_out_pert.loc[1, "SUEWS"][checked_suews_cols].to_numpy(),
-        df_out_base.loc[1, "SUEWS"][checked_suews_cols].to_numpy(),
+        df_out_pert.loc[1, "SUEWS"][active_suews_cols].to_numpy(),
+        suews_base[active_suews_cols].to_numpy(),
         err_msg="Absent building-facet perturbation changed SUEWS outputs under EHC + SPARTACUS",
+    )
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, ("debug", "ss_Bldgs_next")].to_numpy(),
+        df_out_base.loc[1, ("debug", "ss_Bldgs_next")].to_numpy(),
+        err_msg="Absent building-facet perturbation changed building soil store under EHC + SPARTACUS",
     )
     np.testing.assert_array_equal(
         df_out_pert.loc[1, ("debug", "iter")].to_numpy(),
         df_out_base.loc[1, ("debug", "iter")].to_numpy(),
         err_msg="Absent building-facet perturbation changed iteration counts under EHC + SPARTACUS",
+    )
+    ehc_water_cols = [
+        f"{prefix}_{i}"
+        for prefix in (
+            "QE_Roof",
+            "St_Roof",
+            "SS_Roof",
+            "QE_Wall",
+            "St_Wall",
+            "SS_Wall",
+        )
+        for i in range(1, len(vl.roofs) + 1)
+    ]
+    np.testing.assert_array_equal(
+        df_out_pert.loc[1, "EHC"][ehc_water_cols].to_numpy(),
+        df_out_base.loc[1, "EHC"][ehc_water_cols].to_numpy(),
+        err_msg="Absent building-facet perturbation changed EHC roof/wall water outputs",
+    )
+
+
+@pytest.mark.core
+def test_ehc_spartacus_zero_facet_soil_capacity_keeps_soil_outputs_finite(
+    sensitivity_env,
+):
+    """When ``bldgs.sfr > 0`` has zero roof/wall soil capacity, EHC + SPARTACUS must avoid 0/0 NaN."""
+    # ARRANGE
+    cfg = copy.deepcopy(sensitivity_env["base_cfg"])
+    cfg.model.physics.net_radiation = NetRadiationMethod.LDOWN_SS_AIR
+    cfg.model.physics.storage_heat = StorageHeatMethod.EHC
+    bldg_sfr = cfg.sites[0].properties.land_cover.bldgs.sfr.value
+    assert bldg_sfr > 0.0
+    vl = cfg.sites[0].properties.vertical_layers
+    vl.building_frac.value[0] = bldg_sfr
+    vl.veg_frac.value[2] = 0.0
+    vl.veg_scale.value[2] = 0.0
+    for roof in vl.roofs:
+        roof.soil_store_capacity = 0.0
+    for wall in vl.walls:
+        wall.soil_store_capacity = 0.0
+
+    # ACT & ASSERT: full active-output finiteness (including SMDBldgs, SMD,
+    # TotCh, and debug.ss_Bldgs_next) and strict surface energy-balance closure.
+    df_out = _run_and_verify_conservation(
+        cfg, sensitivity_env["df_rain_day"], check_water_balance=False
+    )
+    suews = df_out.loc[1, "SUEWS"]
+    for col in ("SMDBldgs", "SMD", "TotCh"):
+        strict_finite_array(suews[col], label=f"ehc_spartacus_zero_cap.{col}")
+    strict_finite_array(
+        df_out.loc[1, ("debug", "ss_Bldgs_next")],
+        label="ehc_spartacus_zero_cap.ss_Bldgs_next",
     )
 
 
@@ -965,8 +999,8 @@ def test_disabled_module_parameter_perturbation_is_invariant(
     df_out_pert = _run_and_verify_conservation(cfg_pert, df_rain)
 
     # ASSERT
-    s_base = df_out_base.loc[1, "SUEWS"].drop(columns=list(SUEWS_ABSENT_OBSERVED_LDOWN))
-    s_pert = df_out_pert.loc[1, "SUEWS"].drop(columns=list(SUEWS_ABSENT_OBSERVED_LDOWN))
+    s_base = df_out_base.loc[1, "SUEWS"]
+    s_pert = df_out_pert.loc[1, "SUEWS"]
     if check_all_suews:
         np.testing.assert_array_equal(
             s_pert.to_numpy(),
@@ -1007,41 +1041,50 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
     # ARRANGE: intact 2-day (576-row) single-grid and MultiIndex positive controls
     day1_grid = sensitivity_env["out_rain_base"].loc[1]
     two_day_grid = _make_two_day_grid_frame(day1_grid)
-    expected_576 = two_day_grid.index
+    forcing = _make_two_day_grid_frame(sensitivity_env["df_rain_day"])
+    expected_576 = forcing.index
     assert len(expected_576) == 2 * TIMESTEPS_PER_DAY
 
     # Positive controls: intact 576-row output and valid large negative flux (-950.0) pass.
     assert_active_output_finiteness(
-        two_day_grid, expected_timestamps=expected_576, tstep=300
+        two_day_grid, expected_timestamps=expected_576, forcing=forcing, tstep=300
     )
     neg_flux_ok = two_day_grid.copy()
     neg_flux_ok.iloc[12, neg_flux_ok.columns.get_loc(("SUEWS", "QH"))] = -950.0
     assert_active_output_finiteness(
-        neg_flux_ok, expected_timestamps=expected_576, tstep=300
+        neg_flux_ok, expected_timestamps=expected_576, forcing=forcing, tstep=300
     )
 
     # Negative controls 1-3: truncated 12/576, missing day 1, and duplicate day fail.
     with pytest.raises(AssertionError, match="row count mismatch"):
         assert_active_output_finiteness(
-            two_day_grid.iloc[:12], expected_timestamps=expected_576, tstep=300
+            two_day_grid.iloc[:12],
+            expected_timestamps=expected_576,
+            forcing=forcing,
+            tstep=300,
         )
     with pytest.raises(AssertionError, match="row count mismatch"):
         assert_active_output_finiteness(
             two_day_grid.iloc[TIMESTEPS_PER_DAY:],
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
     dup_day = pd.concat([day1_grid, day1_grid])
     assert len(dup_day) == len(expected_576)
     with pytest.raises(AssertionError, match="duplicate timestamps"):
         assert_active_output_finiteness(
-            dup_day, expected_timestamps=expected_576, tstep=300
+            dup_day, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
     # Negative controls 4-5: wrong grid ID and duplicate (grid, datetime) fail.
     multi_ok = pd.concat({1: two_day_grid}, names=["grid", "datetime"])
     assert_simulation_output_finiteness(
-        multi_ok, expected_grids=(1,), expected_timestamps=expected_576, tstep=300
+        multi_ok,
+        expected_grids=(1,),
+        expected_timestamps=expected_576,
+        forcing=forcing,
+        tstep=300,
     )
     multi_wrong_grid = pd.concat({99: two_day_grid}, names=["grid", "datetime"])
     with pytest.raises(AssertionError, match="grid IDs mismatch"):
@@ -1049,12 +1092,17 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
             multi_wrong_grid,
             expected_grids=(1,),
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
     multi_dup = pd.concat([multi_ok, multi_ok.iloc[:1]])
     with pytest.raises(AssertionError, match="duplicate"):
         assert_simulation_output_finiteness(
-            multi_dup, expected_grids=(1,), expected_timestamps=expected_576, tstep=300
+            multi_dup,
+            expected_grids=(1,),
+            expected_timestamps=expected_576,
+            forcing=forcing,
+            tstep=300,
         )
 
     # Negative controls 6-7: missing required columns QH or QE/QN/Kup fail.
@@ -1062,6 +1110,7 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
         assert_active_output_finiteness(
             two_day_grid.drop(columns=[("SUEWS", "QH")]),
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
     with pytest.raises(AssertionError, match="Kup"):
@@ -1070,25 +1119,18 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
                 columns=[("SUEWS", "QE"), ("SUEWS", "QN"), ("SUEWS", "Kup")]
             ),
             expected_timestamps=expected_576,
+            forcing=forcing,
             tstep=300,
         )
 
     # Negative controls 8-12: exact -999 sentinel, active NaN, EOD NaN, non-EOD write, Fcld.
-    bad_sentinel = two_day_grid.copy()
-    bad_sentinel.iloc[12, bad_sentinel.columns.get_loc(("SUEWS", "QH"))] = (
-        SUEWS_MISSING_SENTINEL
-    )
-    with pytest.raises(AssertionError, match="QH"):
-        assert_active_output_finiteness(
-            bad_sentinel, expected_timestamps=expected_576, tstep=300
-        )
-
-    bad_nan = two_day_grid.copy()
-    bad_nan.iloc[12, bad_nan.columns.get_loc(("SUEWS", "QH"))] = np.nan
-    with pytest.raises(AssertionError, match="QH"):
-        assert_active_output_finiteness(
-            bad_nan, expected_timestamps=expected_576, tstep=300
-        )
+    for bad_val in (SUEWS_MISSING_SENTINEL, np.nan):
+        bad_qh = two_day_grid.copy()
+        bad_qh.iloc[12, bad_qh.columns.get_loc(("SUEWS", "QH"))] = bad_val
+        with pytest.raises(AssertionError, match="QH"):
+            assert_active_output_finiteness(
+                bad_qh, expected_timestamps=expected_576, forcing=forcing, tstep=300
+            )
 
     bad_ds_eod = two_day_grid.copy()
     eod_idx = int(np.flatnonzero(expected_dailystate_mask(expected_576, tstep=300))[0])
@@ -1097,21 +1139,21 @@ def test_active_finiteness_rejects_truncation_duplicates_missing_columns_and_sen
     ] = np.nan
     with pytest.raises(AssertionError, match="LAI_Grass"):
         assert_active_output_finiteness(
-            bad_ds_eod, expected_timestamps=expected_576, tstep=300
+            bad_ds_eod, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
     bad_ds_mid = two_day_grid.copy()
     bad_ds_mid.iloc[0, bad_ds_mid.columns.get_loc(("DailyState", "LAI_Grass"))] = 1.0
     with pytest.raises(AssertionError, match="non-EOD"):
         assert_active_output_finiteness(
-            bad_ds_mid, expected_timestamps=expected_576, tstep=300
+            bad_ds_mid, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
     bad_absent = two_day_grid.copy()
     bad_absent.iloc[0, bad_absent.columns.get_loc(("SUEWS", "Fcld"))] = 0.5
     with pytest.raises(AssertionError, match="Fcld"):
         assert_active_output_finiteness(
-            bad_absent, expected_timestamps=expected_576, tstep=300
+            bad_absent, expected_timestamps=expected_576, forcing=forcing, tstep=300
         )
 
 

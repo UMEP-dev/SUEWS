@@ -20,25 +20,36 @@
 //!    swaps, drops, clobbers, TOC misrouting, and array-stride transposes).
 // contract: C-CAPI, C-CODEC, C-SCHEMA
 
+mod reverse_checkpoint_leaves;
+
 use std::collections::{BTreeMap, BTreeSet};
 
+mod reverse_nhood;
+
 use suews_bridge::{
-    encode_site_members_flat, encode_site_scalars_flat, encode_state_members_flat,
-    error_entry_default_from_fortran, error_entry_schema_info, error_state_default_from_fortran,
-    error_state_schema_info, output_block_schema_info, output_line_schema_info,
-    suews_debug_default_from_fortran, suews_debug_schema_info, suews_forcing_schema_info,
-    suews_site_schema_info, suews_state_block_default_from_fortran, suews_state_block_schema_info,
-    suews_state_schema_info, AnthroEmisPrm, AnthroEmisState, AnthroHeatPrm, AtmState, BioCo2Prm,
-    BuildingArchetypePrm, ConductancePrm, EhcPrm, ErrorState, FlagState, HeatState, HydroState,
-    IrrigDaywater, IrrigationPrm, LaiPrm, LcBldgPrm, LcBsoilPrm, LcDectrPrm, LcEvetrPrm,
-    LcGrassPrm, LcPavedPrm, LcWaterPrm, LumpsPrm, NhoodState, OhmCoefLc, OhmPrm, OhmState,
-    OutputLine, PhenologyState, RoughnessState, SiteScalars, SnowPrm, SnowState, SoilPrm,
-    SolarState, SpartacusLayerPrm, SpartacusPrm, StebbsPrm, StebbsState, SuewsConfig, SuewsSite,
-    SuewsState, SuewsTimer, SurfStorePrm, WaterDistPrm, ANOHM_MAX_SAMPLES,
-    ANTHROEMIS_STATE_HDD_LEN, BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
-    BUILDING_ARCHETYPE_PRM_PROFILE_STEPS, NSURF, PHENOLOGY_STATE_NVEGSURF,
-    PHENOLOGY_STATE_STORE_DRAIN_ROWS, SNOW_STATE_REMOVAL_LEN, STEBBS_PRM_PROFILE_GROUPS,
-    STEBBS_PRM_PROFILE_STEPS, STEBBS_STATE_RSL_LEN,
+    decode_state_members, encode_site_members_flat, encode_site_scalars_flat,
+    encode_state_members_flat, error_entry_default_from_fortran, error_entry_schema_info,
+    error_state_default_from_fortran, error_state_schema_info, heat_state_expected_flat_len,
+    output_block_schema_info, output_line_schema_info, stebbs_state_expected_flat_len,
+    suews_checkpoint_from_json, suews_checkpoint_to_json, suews_debug_default_from_fortran,
+    suews_debug_schema_info, suews_forcing_schema_info, suews_site_schema_info,
+    suews_state_block_default_from_fortran, suews_state_block_schema_info,
+    suews_state_default_from_fortran, suews_state_schema_info, AnthroEmisPrm, AnthroEmisState,
+    AnthroHeatPrm, AtmState, BioCo2Prm, BridgeError, BuildingArchetypePrm, CheckpointTimer,
+    ConductancePrm, EhcPrm, ErrorState, FlagState, HeatState, HydroState, IrrigDaywater,
+    IrrigationPrm, LaiPrm, LcBldgPrm, LcBsoilPrm, LcDectrPrm, LcEvetrPrm, LcGrassPrm, LcPavedPrm,
+    LcWaterPrm, LumpsPrm, NhoodState, OhmCoefLc, OhmPrm, OhmState, OutputLine, PhenologyState,
+    RoughnessState, SiteScalars, SnowPrm, SnowState, SoilPrm, SolarState, SpartacusLayerPrm,
+    SpartacusPrm, StebbsBldg, StebbsPrm, StebbsState, SuewsConfig, SuewsSite, SuewsState,
+    SuewsTimer, SurfStorePrm, WaterDistPrm, ANOHM_MAX_SAMPLES, ANTHROEMIS_STATE_FLAT_LEN,
+    ANTHROEMIS_STATE_HDD_LEN, ATM_STATE_FLAT_LEN, BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS,
+    BUILDING_ARCHETYPE_PRM_PROFILE_STEPS, FLAG_STATE_FLAT_LEN, HYDRO_STATE_BASE_FLAT_LEN,
+    NHOOD_STATE_FLAT_LEN, NSURF, OHM_STATE_FLAT_LEN, PHENOLOGY_STATE_FLAT_LEN,
+    PHENOLOGY_STATE_NVEGSURF, PHENOLOGY_STATE_STORE_DRAIN_ROWS, ROUGHNESS_STATE_FLAT_LEN,
+    SNOW_STATE_FLAT_LEN, SNOW_STATE_REMOVAL_LEN, SOLAR_STATE_FLAT_LEN,
+    STEBBS_BLDG_ENERGY_EXCHANGES_LEN, STEBBS_BLDG_PROFILE_GROUPS, STEBBS_BLDG_PROFILE_STEPS,
+    STEBBS_PRM_PROFILE_GROUPS, STEBBS_PRM_PROFILE_STEPS, STEBBS_STATE_RSL_LEN,
+    SUEWS_TIMER_FLAT_LEN,
 };
 
 #[allow(dead_code)]
@@ -58,9 +69,10 @@ use observer_manifest::{
     OBS_FIELDS_SPARTACUS_LAYER_PRM, OBS_FIELDS_SPARTACUS_PRM, OBS_FIELDS_STEBBS_PRM,
     OBS_FIELDS_STEBBS_STATE, OBS_FIELDS_SUEWS_CONFIG, OBS_FIELDS_SUEWS_SITE,
     OBS_FIELDS_SUEWS_STATE, OBS_FIELDS_SUEWS_TIMER, OBS_FIELDS_SURF_STORE_PRM,
+    REVERSE_PACKED_TYPES,
 };
 
-const OBS_CAPACITY: usize = 8192;
+const OBS_CAPACITY: usize = 16384;
 const SUEWS_CAPI_OK: i32 = 0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -226,6 +238,12 @@ impl ExpectedStruct {
         val
     }
 
+    fn int_explicit(&mut self, path: &str, val: i32) -> i32 {
+        self.record_bounds(path, ExpectedBounds::scalar());
+        self.record_int_elem(path, 0, 0, i64::from(val));
+        val
+    }
+
     /// For Rust fields typed `f64` whose Fortran kernel component is `INTEGER`.
     fn int_as_f64(&mut self, path: &str) -> f64 {
         f64::from(self.int(path))
@@ -237,6 +255,15 @@ impl ExpectedStruct {
             .values
             .insert((path.to_string(), 0, 0), ExpectedVal::Logical(val));
         assert!(prev.is_none(), "duplicate expected logical '{path}'");
+        val
+    }
+
+    fn int_enum(&mut self, path: &str, val: i32) -> i32 {
+        self.record_bounds(path, ExpectedBounds::scalar());
+        let prev = self
+            .values
+            .insert((path.to_string(), 0, 0), ExpectedVal::Int(i64::from(val)));
+        assert!(prev.is_none(), "duplicate expected enum int '{path}'");
         val
     }
 
@@ -720,8 +747,9 @@ fn assert_observed_matches(
             ));
         }
 
-        // Fixed-shape kernel arrays must preserve exact declared Fortran lbound/ubound.
-        if !desc.allocatable && desc.rank == 1 {
+        // Fixed-shape kernel arrays must preserve exact declared Fortran lbound/ubound
+        // whenever their containing allocatable derived parent (if any) is allocated.
+        if exp_meta.allocated && !desc.allocatable && desc.rank == 1 {
             let (lb1, ub1) = desc.fixed_bounds[0];
             assert_eq!(
                 (exp_meta.lb1, exp_meta.ub1),
@@ -729,7 +757,7 @@ fn assert_observed_matches(
                 "{type_name}%{}: test expectation bounds do not match Fortran declaration",
                 desc.path
             );
-        } else if !desc.allocatable && desc.rank == 2 {
+        } else if exp_meta.allocated && !desc.allocatable && desc.rank == 2 {
             let (lb1, ub1) = desc.fixed_bounds[0];
             let (lb2, ub2) = desc.fixed_bounds[1];
             assert_eq!(
@@ -1505,14 +1533,15 @@ fn build_ohm_state(
         a3: exp.real(&p("a3")),
         t2_prev: exp.real(&p("t2_prev")),
         ws_rav: exp.real(&p("ws_rav")),
-        tair_prev: exp.real(&p("tair_prev")),
         qn_rav: exp.real_arr_1d::<NSURF>(&p("qn_rav"), 1),
         dyn_a1,
         dyn_a2,
         dyn_a3,
         iter_safe: exp.logical(&p("iter_safe"), iter_safe),
         anohm_working_day: exp.int(&p("anohm_working_day")),
-        anohm_working_count: exp.int(&p("anohm_working_count")),
+        // OhmState::from_flat enforces 0 <= sample count <= ANOHM_MAX_SAMPLES (48);
+        // keep distinct non-zero in-domain sentinels disjoint from exp.int() (>= 101).
+        anohm_working_count: exp.int_explicit(&p("anohm_working_count"), 17),
         anohm_working_t_hr: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_tHr"), 1),
         anohm_working_sd: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_sd"), 1),
         anohm_working_ta: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_ta"), 1),
@@ -1521,7 +1550,7 @@ fn build_ohm_state(
         anohm_working_ws: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_ws"), 1),
         anohm_working_ah: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_working_ah"), 1),
         anohm_coeff_day: exp.int(&p("anohm_coeff_day")),
-        anohm_coeff_count: exp.int(&p("anohm_coeff_count")),
+        anohm_coeff_count: exp.int_explicit(&p("anohm_coeff_count"), 31),
         anohm_coeff_ready: exp.logical(&p("anohm_coeff_ready"), anohm_coeff_ready),
         anohm_coeff_t_hr: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_tHr"), 1),
         anohm_coeff_sd: exp.real_arr_1d::<ANOHM_MAX_SAMPLES>(&p("anohm_coeff_sd"), 1),
@@ -1616,6 +1645,7 @@ fn build_snow_prm(exp: &mut ExpectedStruct, prefix: &str) -> SnowPrm {
         tau_refreezing_snow: exp.real(&p("tau_r")),
         temp_melt_factor: exp.real(&p("temperature_melt_factor")),
         rad_melt_factor: exp.real(&p("radiation_melt_factor")),
+        ohm: build_ohm_prm(exp, &p("ohm")),
     }
 }
 
@@ -1634,7 +1664,6 @@ fn build_snow_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> 
         swe: exp.real(&p("swe")),
         z0v_snow: exp.real(&p("z0v_snow")),
         ra_snow: exp.real(&p("ra_snow")),
-        sice_hpa: exp.real(&p("s_ice_hpa")),
         snow_removal: exp.real_arr_1d::<SNOW_STATE_REMOVAL_LEN>(&p("snow_removal"), 1),
         icefrac: exp.real_arr_1d::<NSURF>(&p("ice_frac"), 1),
         snowdens: exp.real_arr_1d::<NSURF>(&p("snow_density"), 1),
@@ -1780,8 +1809,282 @@ fn build_stebbs_prm(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> 
     }
 }
 
-fn build_stebbs_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -> StebbsState {
+fn build_stebbs_bldg(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    bldg_nlayer: usize,
+    wall_active: bool,
+    window_active: bool,
+    iter_safe: bool,
+) -> StebbsBldg {
     let p = |f: &str| join_path(prefix, f);
+    StebbsBldg {
+        id_lbm: exp.int(&p("id_lbm")),
+        appliance_totalnumber: exp.int(&p("appliance_totalnumber")),
+        qhload_heating_tstep_fa: exp.real(&p("QHload_heating_tstepFA")),
+        qhload_cooling_tstep_fa: exp.real(&p("QHload_cooling_tstepFA")),
+        qh_metabolism: exp.real(&p("QH_metabolism")),
+        qe_metabolism: exp.real(&p("QE_metabolism")),
+        qhload_dhw_tstep_fa: exp.real(&p("QHload_dhw_tstepFA")),
+        qloss_drain_tstep_fa: exp.real(&p("Qloss_drain_tstepFA")),
+        ratio_window_wall: exp.real(&p("ratio_window_wall")),
+        a_footprint: exp.real(&p("a_footprint")),
+        height_building: exp.real(&p("height_building")),
+        wall_external_area: exp.real(&p("wall_external_area")),
+        internal_volume_ratio: exp.real(&p("internal_volume_ratio")),
+        thickness_wall: exp.real(&p("thickness_wall")),
+        thickness_wallext: exp.real(&p("thickness_wallext")),
+        thickness_roof: exp.real(&p("thickness_roof")),
+        thickness_roofext: exp.real(&p("thickness_roofext")),
+        thickness_groundfloor: exp.real(&p("thickness_groundfloor")),
+        depth_ground: exp.real(&p("depth_ground")),
+        thickness_window: exp.real(&p("thickness_window")),
+        conv_coeff_intwall: exp.real(&p("conv_coeff_intwall")),
+        conv_coeff_introof: exp.real(&p("conv_coeff_introof")),
+        conv_coeff_indoormass: exp.real(&p("conv_coeff_indoormass")),
+        conv_coeff_intgroundfloor: exp.real(&p("conv_coeff_intgroundfloor")),
+        conv_coeff_intwindow: exp.real(&p("conv_coeff_intwindow")),
+        conv_coeff_extwall: exp.real(&p("conv_coeff_extwall")),
+        conv_coeff_extroof: exp.real(&p("conv_coeff_extroof")),
+        conv_coeff_extwindow: exp.real(&p("conv_coeff_extwindow")),
+        conductivity_wall: exp.real(&p("conductivity_wall")),
+        conductivity_wallext: exp.real(&p("conductivity_wallext")),
+        conductivity_roof: exp.real(&p("conductivity_roof")),
+        conductivity_roofext: exp.real(&p("conductivity_roofext")),
+        conductivity_groundfloor: exp.real(&p("conductivity_groundfloor")),
+        conductivity_window: exp.real(&p("conductivity_window")),
+        conductivity_ground: exp.real(&p("conductivity_ground")),
+        density_wall: exp.real(&p("density_wall")),
+        density_wallext: exp.real(&p("density_wallext")),
+        density_roof: exp.real(&p("density_roof")),
+        density_roofext: exp.real(&p("density_roofext")),
+        weighting_factor_heatcapacity_wall: exp.real(&p("weighting_factor_heatcapacity_wall")),
+        weighting_factor_heatcapacity_roof: exp.real(&p("weighting_factor_heatcapacity_roof")),
+        density_groundfloor: exp.real(&p("density_groundfloor")),
+        density_window: exp.real(&p("density_window")),
+        density_indoormass: exp.real(&p("density_indoormass")),
+        density_air_ind: exp.real(&p("density_air_ind")),
+        cp_wall: exp.real(&p("cp_wall")),
+        cp_wallext: exp.real(&p("cp_wallext")),
+        cp_roof: exp.real(&p("cp_roof")),
+        cp_roofext: exp.real(&p("cp_roofext")),
+        cp_groundfloor: exp.real(&p("cp_groundfloor")),
+        cp_window: exp.real(&p("cp_window")),
+        cp_indoormass: exp.real(&p("cp_indoormass")),
+        cp_air_ind: exp.real(&p("cp_air_ind")),
+        emissivity_extwall: exp.real(&p("emissivity_extwall")),
+        emissivity_extroof: exp.real(&p("emissivity_extroof")),
+        emissivity_intwall: exp.real(&p("emissivity_intwall")),
+        emissivity_introof: exp.real(&p("emissivity_introof")),
+        emissivity_indoormass: exp.real(&p("emissivity_indoormass")),
+        emissivity_extwindow: exp.real(&p("emissivity_extwindow")),
+        emissivity_intwindow: exp.real(&p("emissivity_intwindow")),
+        window_transmissivity: exp.real(&p("window_transmissivity")),
+        window_absorptivity: exp.real(&p("window_absorptivity")),
+        window_reflectivity: exp.real(&p("window_reflectivity")),
+        wall_transmissivity_state: exp.real(&p("wall_transmissivity_state")),
+        wall_absorptivity: exp.real(&p("wall_absorptivity")),
+        wall_reflectivity: exp.real(&p("wall_reflectivity")),
+        roof_transmissivity_state: exp.real(&p("roof_transmissivity_state")),
+        roof_absorptivity: exp.real(&p("roof_absorptivity")),
+        roof_reflectivity: exp.real(&p("roof_reflectivity")),
+        occupants_state: exp.real(&p("occupants_state")),
+        metabolic_rate: exp.real(&p("metabolic_rate")),
+        metabolism_threshold: exp.real(&p("metabolism_threshold")),
+        ratio_metabolic_latent_sensible: exp.real(&p("ratio_metabolic_latent_sensible")),
+        internal_shading: exp.int(&p("internal_shading")),
+        reduction_factor_shading: exp.real(&p("reduction_factor_shading")),
+        temperature_threshold_shading: exp.real(&p("temperature_threshold_shading")),
+        radiation_threshold_shading: exp.real(&p("radiation_threshold_shading")),
+        appliance_power_rating: exp.real(&p("appliance_power_rating")),
+        lighting_power_rating: exp.real(&p("lighting_power_rating")),
+        frac_hotwater: exp.real(&p("frac_hotwater")),
+        maxheatingpower_air: exp.real(&p("maxheatingpower_air")),
+        heating_efficiency_air: exp.real(&p("heating_efficiency_air")),
+        destination_waste_heat: exp.int(&p("destination_waste_heat")),
+        fraction_convective_heating: exp.real(&p("fraction_convective_heating")),
+        maxcoolingpower_air: exp.real(&p("maxcoolingpower_air")),
+        coeff_performance_cooling: exp.real(&p("coeff_performance_cooling")),
+        vair_ind: exp.real(&p("Vair_ind")),
+        ventilation_rate: exp.real(&p("ventilation_rate")),
+        a_wall: exp.real(&p("a_wall")),
+        a_roof: exp.real(&p("a_roof")),
+        v_wall: exp.real(&p("v_wall")),
+        v_roof: exp.real(&p("v_roof")),
+        v_ground_floor: exp.real(&p("v_ground_floor")),
+        a_window: exp.real(&p("a_window")),
+        v_window: exp.real(&p("v_window")),
+        v_indoor_mass: exp.real(&p("v_indoor_mass")),
+        a_indoor_mass: exp.real(&p("a_indoor_mass")),
+        tair_ind: exp.real(&p("Tair_ind")),
+        t_indoor_mass: exp.real(&p("t_indoor_mass")),
+        t_int_wall: exp.real(&p("t_int_wall")),
+        t_int_roof: exp.real(&p("t_int_roof")),
+        t_ext_wall: exp.real(&p("t_ext_wall")),
+        t_ext_roof: exp.real(&p("t_ext_roof")),
+        t_int_window: exp.real(&p("t_int_window")),
+        t_ext_window: exp.real(&p("t_ext_window")),
+        t_int_ground_floor: exp.real(&p("t_int_ground_floor")),
+        t_ext_ground_floor: exp.real(&p("t_ext_ground_floor")),
+        twater_tank: exp.real(&p("Twater_tank")),
+        tintwall_tank: exp.real(&p("Tintwall_tank")),
+        textwall_tank: exp.real(&p("Textwall_tank")),
+        thickness_tankwall: exp.real(&p("thickness_tankwall")),
+        tincomingwater_tank: exp.real(&p("Tincomingwater_tank")),
+        vwater_tank: exp.real(&p("Vwater_tank")),
+        asurf_tank: exp.real(&p("Asurf_tank")),
+        vwall_tank: exp.real(&p("Vwall_tank")),
+        settwater_tank: exp.real(&p("setTwater_tank")),
+        init_wt_ts: exp.real(&p("init_wtTs")),
+        twater_vessel: exp.real(&p("Twater_vessel")),
+        tintwall_vessel: exp.real(&p("Tintwall_vessel")),
+        textwall_vessel: exp.real(&p("Textwall_vessel")),
+        thickness_wall_vessel: exp.real(&p("thickness_wall_vessel")),
+        vwater_vessel: exp.real(&p("Vwater_vessel")),
+        awater_vessel: exp.real(&p("Awater_vessel")),
+        vwall_vessel: exp.real(&p("Vwall_vessel")),
+        flowrate_water_supply: exp.real(&p("flowrate_water_supply")),
+        flowrate_water_supply_profile: exp
+            .real_arr_2d_col_major::<STEBBS_BLDG_PROFILE_GROUPS, STEBBS_BLDG_PROFILE_STEPS>(
+                &p("flowrate_water_supply_profile"),
+                0,
+                1,
+            ),
+        single_flowrate_water_supply: exp.real(&p("single_flowrate_water_supply")),
+        single_flowrate_water_drain: exp.real(&p("single_flowrate_water_drain")),
+        cp_water: exp.real(&p("cp_water")),
+        cp_wall_tank: exp.real(&p("cp_wall_tank")),
+        cp_wall_vessel: exp.real(&p("cp_wall_vessel")),
+        density_water: exp.real(&p("density_water")),
+        density_wall_tank: exp.real(&p("density_wall_tank")),
+        density_wall_vessel: exp.real(&p("density_wall_vessel")),
+        bvf_tank: exp.real(&p("BVF_tank")),
+        mvf_tank: exp.real(&p("MVF_tank")),
+        conductivity_wall_tank: exp.real(&p("conductivity_wall_tank")),
+        conv_coeff_intwall_tank: exp.real(&p("conv_coeff_intwall_tank")),
+        conv_coeff_extwall_tank: exp.real(&p("conv_coeff_extwall_tank")),
+        emissivity_extwall_tank: exp.real(&p("emissivity_extwall_tank")),
+        conductivity_wall_vessel: exp.real(&p("conductivity_wall_vessel")),
+        conv_coeff_intwall_vessel: exp.real(&p("conv_coeff_intwall_vessel")),
+        conv_coeff_extwall_vessel: exp.real(&p("conv_coeff_extwall_vessel")),
+        emissivity_extwall_vessel: exp.real(&p("emissivity_extwall_vessel")),
+        maxheatingpower_water: exp.real(&p("maxheatingpower_water")),
+        heating_efficiency_water: exp.real(&p("heating_efficiency_water")),
+        min_vwater_vessel: exp.real(&p("minVwater_vessel")),
+        max_vwater_vessel: exp.real(&p("maxVwater_vessel")),
+        min_heating_power_dhw: exp.real(&p("minHeatingPower_DHW")),
+        heating_power_dhw: exp.real(&p("HeatingPower_DHW")),
+        qfm_dom: exp.real(&p("qfm_dom")),
+        qheat_dom: exp.real(&p("qheat_dom")),
+        qcool_dom: exp.real(&p("qcool_dom")),
+        qfb_hw_dom: exp.real(&p("qfb_hw_dom")),
+        qfb_dom_air: exp.real(&p("qfb_dom_air")),
+        dom_temp: exp.real(&p("dom_temp")),
+        qn_bldg_tstep_fa: exp.real(&p("QN_bldg_tstepFA")),
+        qec_bldg_tstep_fa: exp.real(&p("QEC_bldg_tstepFA")),
+        qs_total_tstep_fa: exp.real(&p("QS_total_tstepFA")),
+        qh_bldg_tstep_fa: exp.real(&p("QH_bldg_tstepFA")),
+        qbae_bldg_tstep_fa: exp.real(&p("QBAE_bldg_tstepFA")),
+        qwaste_bldg_tstep_fa: exp.real(&p("QWaste_bldg_tstepFA")),
+        qs_bldg_tstep_fa: exp.real(&p("QS_bldg_tstepFA")),
+        qs_dhw_tstep_fa: exp.real(&p("QS_dhw_tstepFA")),
+        qs_ground_tstep_fa: exp.real(&p("QS_ground_tstepFA")),
+        qec_heating_tstep_fa: exp.real(&p("QEC_heating_tstepFA")),
+        qec_cooling_tstep_fa: exp.real(&p("QEC_cooling_tstepFA")),
+        qec_dhw_tstep_fa: exp.real(&p("QEC_dhw_tstepFA")),
+        ts: exp.real_arr_1d::<2>(&p("ts"), 1),
+        init_ts: exp.real_arr_1d::<2>(&p("initTs"), 1),
+        h_i: exp.real_arr_1d::<5>(&p("h_i"), 1),
+        k_eff: exp.real_arr_1d::<5>(&p("k_eff"), 1),
+        h_o: exp.real_arr_1d::<3>(&p("h_o"), 1),
+        rho: exp.real_arr_1d::<6>(&p("rho"), 1),
+        cp: exp.real_arr_1d::<6>(&p("cp"), 1),
+        emis: exp.real_arr_1d::<7>(&p("emis"), 1),
+        witar: exp.real_arr_1d::<3>(&p("witar"), 1),
+        wa_tar: exp.real_arr_1d::<3>(&p("waTAR"), 1),
+        roof_tar: exp.real_arr_1d::<3>(&p("roofTAR"), 1),
+        h_ts_average: exp.real_arr_1d::<3>(&p("h_ts_average"), 1),
+        hw_ts_average: exp.real_arr_1d::<3>(&p("HWTsAverage"), 1),
+        hw_power_average: exp.real_arr_1d::<3>(&p("hw_power_average"), 1),
+        energy_exchanges: exp.real_arr_1d::<STEBBS_BLDG_ENERGY_EXCHANGES_LEN>(
+            &p("energy_exchanges"),
+            1,
+        ),
+        textwall_c: exp.real_vec_1d(&p("Textwall_C"), bldg_nlayer),
+        textroof_c: exp.real_vec_1d(&p("Textroof_C"), bldg_nlayer),
+        wall_surface_active: exp.logical(&p("wall_surface_active"), wall_active),
+        window_surface_active: exp.logical(&p("window_surface_active"), window_active),
+        iter_safe: exp.logical(&p("iter_safe"), iter_safe),
+    }
+}
+
+fn build_stebbs_state(
+    exp: &mut ExpectedStruct,
+    prefix: &str,
+    bldg_nlayer: usize,
+    num_buildings: usize,
+    iter_safe: bool,
+    wall_active: bool,
+    window_active: bool,
+) -> StebbsState {
+    let p = |f: &str| join_path(prefix, f);
+    let mut buildings = Vec::with_capacity(num_buildings);
+    if num_buildings == 0 {
+        exp.record_bounds(&p("buildings"), ExpectedBounds::unallocated());
+        for slot_prefix in ["buildings(1)%", "buildings(2)%"] {
+            for desc in OBS_FIELDS_STEBBS_STATE {
+                if let Some(sub) = desc.path.strip_prefix(slot_prefix) {
+                    exp.record_bounds(
+                        &p(&format!("{slot_prefix}{sub}")),
+                        ExpectedBounds::unallocated(),
+                    );
+                }
+            }
+        }
+    } else {
+        exp.record_bounds(&p("buildings"), ExpectedBounds::rank1(1, num_buildings as i32));
+        let b1_prefix = p("buildings(1)");
+        buildings.push(build_stebbs_bldg(
+            exp,
+            &b1_prefix,
+            bldg_nlayer,
+            wall_active,
+            window_active,
+            !iter_safe,
+        ));
+        if num_buildings >= 2 {
+            let b2_prefix = p("buildings(2)");
+            buildings.push(build_stebbs_bldg(
+                exp,
+                &b2_prefix,
+                bldg_nlayer,
+                !wall_active,
+                !window_active,
+                iter_safe,
+            ));
+        } else {
+            for desc in OBS_FIELDS_STEBBS_STATE {
+                if let Some(sub) = desc.path.strip_prefix("buildings(2)%") {
+                    exp.record_bounds(
+                        &p(&format!("buildings(2)%{sub}")),
+                        ExpectedBounds::unallocated(),
+                    );
+                }
+            }
+        }
+        for idx in 2..num_buildings {
+            let mut extra = StebbsBldg::with_nlayer(bldg_nlayer);
+            extra.id_lbm = 900 + idx as i32;
+            extra.tair_ind = 350.25 + idx as f64;
+            for (k, v) in extra.textwall_c.iter_mut().enumerate() {
+                *v = 40.5 + idx as f64 + k as f64 * 0.25;
+            }
+            for (k, v) in extra.textroof_c.iter_mut().enumerate() {
+                *v = 50.5 + idx as f64 + k as f64 * 0.25;
+            }
+            buildings.push(extra);
+        }
+    }
     StebbsState {
         kdown2d: exp.real(&p("kdown_2d")),
         kup2d: exp.real(&p("kup_2d")),
@@ -1823,9 +2126,8 @@ fn build_stebbs_state(exp: &mut ExpectedStruct, prefix: &str, iter_safe: bool) -
         internal_wall_dhw_vessel_temperature: exp.real(&p("internal_wall_dhw_vessel_temperature")),
         external_wall_dhw_vessel_temperature: exp.real(&p("external_wall_dhw_vessel_temperature")),
         qs_stebbs: exp.real(&p("QS_stebbs")),
-        // Read-only count in flat buffer; Fortran unpack skips it and leaves
-        // STEBBS_STATE%buildings unallocated (verified by unbridged invariant).
-        buildings_count: 7,
+        bldg_nlayer: if num_buildings == 0 { 0 } else { bldg_nlayer },
+        buildings,
         iter_safe: exp.logical(&p("iter_safe"), iter_safe),
     }
 }
@@ -2295,13 +2597,28 @@ fn observe_stebbs_prm() {
 
 #[test]
 fn observe_stebbs_state() {
-    for iter_safe in [false, true] {
+    for (bldg_nlayer, num_buildings, iter_safe, wall_active, window_active) in [
+        (3_usize, 0_usize, false, false, false),
+        (0_usize, 1_usize, false, true, true),
+        (3_usize, 1_usize, false, true, false),
+        (5_usize, 1_usize, true, false, true),
+        (3_usize, 2_usize, true, true, true),
+    ] {
         let mut exp = ExpectedStruct::new();
-        let val = build_stebbs_state(&mut exp, "", iter_safe);
+        let val = build_stebbs_state(
+            &mut exp,
+            "",
+            bldg_nlayer,
+            num_buildings,
+            iter_safe,
+            wall_active,
+            window_active,
+        );
         let flat = val.to_flat();
-        let observed = call_observer_0d(
+        let observed = call_observer_1d(
             observer_manifest::suews_obs_unpack_stebbs_state,
             &flat,
+            bldg_nlayer,
             OBS_FIELDS_STEBBS_STATE,
         );
         assert_observed_matches("STEBBS_STATE", OBS_FIELDS_STEBBS_STATE, &exp, &observed);
@@ -2328,9 +2645,18 @@ fn observe_surf_store_prm() {
 
 #[test]
 fn observe_suews_config() {
-    for (use_sw_direct_albedo, flag_test) in
-        [(false, false), (false, true), (true, false), (true, true)]
-    {
+    for (
+        use_sw_direct_albedo,
+        flag_test,
+        ehc_surface_coupling,
+        control_ehc_stability,
+        control_ehc_initial_profile,
+    ) in [
+        (false, false, 0, 0, false),
+        (false, true, 1, 1, true),
+        (true, false, 0, 2, true),
+        (true, true, 1, 0, false),
+    ] {
         let mut exp = ExpectedStruct::new();
         let cfg = SuewsConfig {
             rsl_method: exp.int("RSLMethod"),
@@ -2357,6 +2683,14 @@ fn observe_suews_config() {
             flag_test: exp.logical("flag_test", flag_test),
             kdown_split_method: exp.int("KdownSplitMethod"),
             forcing_timestamp_reference: exp.int("ForcingTimestampReference"),
+            ehc_surface_coupling: exp.int_enum("EHCSurfaceCoupling", ehc_surface_coupling),
+            control_ehc_initial_profile: exp.logical(
+                "control_ehc_initial_profile",
+                control_ehc_initial_profile,
+            ),
+            resistance_ehc_indoor_roof: exp.real("resistance_ehc_indoor_roof"),
+            resistance_ehc_indoor_wall: exp.real("resistance_ehc_indoor_wall"),
+            control_ehc_stability: exp.int_enum("control_ehc_stability", control_ehc_stability),
         };
         let flat = cfg.to_flat();
         assert_eq!(SuewsConfig::from_flat(&flat).unwrap(), cfg);
@@ -2407,60 +2741,66 @@ fn observe_suews_site() {
     let ndepth = 5_usize;
     let nspec = 1_usize;
 
-    let mut exp = ExpectedStruct::new();
-    let scalars = SiteScalars {
-        lat: exp.real("lat"),
-        lon: exp.real("lon"),
-        alt: exp.real("alt"),
-        timezone: exp.real("timezone"),
-        surfacearea: exp.real("surfacearea"),
-        z: exp.real("z"),
-        z0m_in: exp.real("z0m_in"),
-        zdm_in: exp.real("zdm_in"),
-        pipecapacity: exp.real("pipecapacity"),
-        runofftowater: exp.real("runofftowater"),
-        narp_trans_site: exp.real("narp_trans_site"),
-        co2_point_source: exp.real("CO2PointSource"),
-        flowchange: exp.real("flow_change"),
-        n_buildings: exp.real("n_buildings"),
-        h_std: exp.real("h_std"),
-        lambda_c: exp.real("lambda_c"),
-        sfr_surf: exp.real_arr_1d::<NSURF>("sfr_surf", 1),
-        gridiv: exp.int("gridiv"),
-    };
-    let site = SuewsSite {
-        spartacus: build_spartacus_prm(&mut exp, "spartacus", nlayer),
-        lumps: build_lumps_prm(&mut exp, "lumps"),
-        ehc: build_ehc_prm(&mut exp, "ehc", nlayer, ndepth),
-        spartacus_layer: build_spartacus_layer_prm(&mut exp, "spartacus_layer", nlayer, nspec),
-        surf_store: build_surf_store_prm(&mut exp, "surf_store"),
-        irrigation: build_irrigation_prm(&mut exp, "irrigation"),
-        anthroemis: build_anthro_emis_prm(&mut exp, "anthroemis"),
-        snow: build_snow_prm(&mut exp, "snow"),
-        conductance: build_conductance_prm(&mut exp, "conductance"),
-        lc_paved: build_lc_paved_prm(&mut exp, "lc_paved"),
-        lc_bldg: build_lc_bldg_prm(&mut exp, "lc_bldg"),
-        lc_dectr: build_lc_dectr_prm(&mut exp, "lc_dectr"),
-        lc_evetr: build_lc_evetr_prm(&mut exp, "lc_evetr"),
-        lc_grass: build_lc_grass_prm(&mut exp, "lc_grass"),
-        lc_bsoil: build_lc_bsoil_prm(&mut exp, "lc_bsoil"),
-        lc_water: build_lc_water_prm(&mut exp, "lc_water"),
-        building_archtype: build_building_archetype_prm(&mut exp, "building_archtype", true),
-        stebbs: build_stebbs_prm(&mut exp, "stebbs", false),
-    };
+    for flip_logicals in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let scalars = SiteScalars {
+            lat: exp.real("lat"),
+            lon: exp.real("lon"),
+            alt: exp.real("alt"),
+            timezone: exp.real("timezone"),
+            surfacearea: exp.real("surfacearea"),
+            z: exp.real("z"),
+            z0m_in: exp.real("z0m_in"),
+            zdm_in: exp.real("zdm_in"),
+            pipecapacity: exp.real("pipecapacity"),
+            runofftowater: exp.real("runofftowater"),
+            narp_trans_site: exp.real("narp_trans_site"),
+            co2_point_source: exp.real("CO2PointSource"),
+            flowchange: exp.real("flow_change"),
+            n_buildings: exp.real("n_buildings"),
+            h_std: exp.real("h_std"),
+            lambda_c: exp.real("lambda_c"),
+            sfr_surf: exp.real_arr_1d::<NSURF>("sfr_surf", 1),
+            gridiv: exp.int("gridiv"),
+        };
+        let site = SuewsSite {
+            spartacus: build_spartacus_prm(&mut exp, "spartacus", nlayer),
+            lumps: build_lumps_prm(&mut exp, "lumps"),
+            ehc: build_ehc_prm(&mut exp, "ehc", nlayer, ndepth),
+            spartacus_layer: build_spartacus_layer_prm(&mut exp, "spartacus_layer", nlayer, nspec),
+            surf_store: build_surf_store_prm(&mut exp, "surf_store"),
+            irrigation: build_irrigation_prm(&mut exp, "irrigation"),
+            anthroemis: build_anthro_emis_prm(&mut exp, "anthroemis"),
+            snow: build_snow_prm(&mut exp, "snow"),
+            conductance: build_conductance_prm(&mut exp, "conductance"),
+            lc_paved: build_lc_paved_prm(&mut exp, "lc_paved"),
+            lc_bldg: build_lc_bldg_prm(&mut exp, "lc_bldg"),
+            lc_dectr: build_lc_dectr_prm(&mut exp, "lc_dectr"),
+            lc_evetr: build_lc_evetr_prm(&mut exp, "lc_evetr"),
+            lc_grass: build_lc_grass_prm(&mut exp, "lc_grass"),
+            lc_bsoil: build_lc_bsoil_prm(&mut exp, "lc_bsoil"),
+            lc_water: build_lc_water_prm(&mut exp, "lc_water"),
+            building_archtype: build_building_archetype_prm(
+                &mut exp,
+                "building_archtype",
+                !flip_logicals,
+            ),
+            stebbs: build_stebbs_prm(&mut exp, "stebbs", flip_logicals),
+        };
 
-    let scalars_flat = encode_site_scalars_flat(&scalars);
-    let (site_flat, site_toc) = encode_site_members_flat(&site).unwrap();
-    let observed = call_observer_site(
-        &scalars_flat,
-        &site_flat,
-        &site_toc,
-        18,
-        nlayer,
-        ndepth,
-        OBS_FIELDS_SUEWS_SITE,
-    );
-    assert_observed_matches("SUEWS_SITE", OBS_FIELDS_SUEWS_SITE, &exp, &observed);
+        let scalars_flat = encode_site_scalars_flat(&scalars);
+        let (site_flat, site_toc) = encode_site_members_flat(&site).unwrap();
+        let observed = call_observer_site(
+            &scalars_flat,
+            &site_flat,
+            &site_toc,
+            18,
+            nlayer,
+            ndepth,
+            OBS_FIELDS_SUEWS_SITE,
+        );
+        assert_observed_matches("SUEWS_SITE", OBS_FIELDS_SUEWS_SITE, &exp, &observed);
+    }
     assert_eq!(suews_site_schema_info().unwrap().member_names.len(), 18);
 }
 
@@ -2469,55 +2809,67 @@ fn observe_suews_state() {
     let nlayer = 3_usize;
     let ndepth = 5_usize;
 
-    let mut exp = ExpectedStruct::new();
-    let state = SuewsState {
-        error_state: ErrorState::default(),
-        flag_state: build_flag_state(&mut exp, "flagState", true, false, true),
-        anthroemis_state: build_anthroemis_state(&mut exp, "anthroemisState", false),
-        ohm_state: build_ohm_state(&mut exp, "ohmState", true, false),
-        solar_state: build_solar_state(&mut exp, "solarState", false),
-        atm_state: build_atm_state(&mut exp, "atmState", true),
-        phenology_state: build_phenology_state(&mut exp, "phenState", false),
-        snow_state: build_snow_state(&mut exp, "snowState", true),
-        hydro_state: build_hydro_state(&mut exp, "hydroState", nlayer, false),
-        heat_state: build_heat_state(&mut exp, "heatState", nlayer, ndepth, true),
-        roughness_state: build_roughness_state(&mut exp, "roughnessState", false),
-        stebbs_state: build_stebbs_state(&mut exp, "stebbsState", true),
-        nhood_state: build_nhood_state(&mut exp, "nhoodState", false),
-    };
+    for flip in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let state = SuewsState {
+            error_state: ErrorState::default(),
+            flag_state: build_flag_state(&mut exp, "flagState", !flip, flip, !flip),
+            anthroemis_state: build_anthroemis_state(&mut exp, "anthroemisState", flip),
+            ohm_state: build_ohm_state(&mut exp, "ohmState", !flip, flip),
+            solar_state: build_solar_state(&mut exp, "solarState", flip),
+            atm_state: build_atm_state(&mut exp, "atmState", !flip),
+            phenology_state: build_phenology_state(&mut exp, "phenState", flip),
+            snow_state: build_snow_state(&mut exp, "snowState", !flip),
+            hydro_state: build_hydro_state(&mut exp, "hydroState", nlayer, flip),
+            heat_state: build_heat_state(&mut exp, "heatState", nlayer, ndepth, !flip),
+            roughness_state: build_roughness_state(&mut exp, "roughnessState", flip),
+            stebbs_state: build_stebbs_state(
+                &mut exp,
+                "stebbsState",
+                nlayer,
+                1,
+                !flip,
+                !flip,
+                flip,
+            ),
+            nhood_state: build_nhood_state(&mut exp, "nhoodState", flip),
+        };
 
-    let (state_flat, state_toc) = encode_state_members_flat(&state).unwrap();
-    assert_eq!(
-        state_toc[1], 0,
-        "SUEWS_STATE%errorState TOC input length must be 0"
-    );
-    let observed = call_observer_state(
-        &state_flat,
-        &state_toc,
-        13,
-        nlayer,
-        ndepth,
-        OBS_FIELDS_SUEWS_STATE,
-    );
-    assert_observed_matches("SUEWS_STATE", OBS_FIELDS_SUEWS_STATE, &exp, &observed);
+        let (state_flat, state_toc) = encode_state_members_flat(&state).unwrap();
+        assert_eq!(
+            state_toc[1], 0,
+            "SUEWS_STATE%errorState TOC input length must be 0"
+        );
+        let observed = call_observer_state(
+            &state_flat,
+            &state_toc,
+            13,
+            nlayer,
+            ndepth,
+            OBS_FIELDS_SUEWS_STATE,
+        );
+        assert_observed_matches("SUEWS_STATE", OBS_FIELDS_SUEWS_STATE, &exp, &observed);
+
+        if !flip {
+            // Non-allocatable SUEWS_STATE%errorState cannot fail via Fortran allocated(); verify
+            // driver.f95::unpack_state_members rejects any non-zero errorState TOC payload at runtime.
+            let mut bad_toc = state_toc;
+            bad_toc[1] = 1;
+            let bad_obs = call_observer_state(
+                &state_flat,
+                &bad_toc,
+                13,
+                nlayer,
+                ndepth,
+                OBS_FIELDS_SUEWS_STATE,
+            );
+            assert_ne!(
+                bad_obs.err, SUEWS_CAPI_OK,
+                "non-zero SUEWS_STATE%errorState TOC span must be rejected by unpack_state_members"
+            );
+        }
+    }
     assert_eq!(suews_state_schema_info().unwrap().member_names.len(), 13);
-
-    // Non-allocatable SUEWS_STATE%errorState cannot fail via Fortran allocated(); verify
-    // driver.f95::unpack_state_members rejects any non-zero errorState TOC payload at runtime.
-    let mut bad_toc = state_toc;
-    bad_toc[1] = 1;
-    let bad_obs = call_observer_state(
-        &state_flat,
-        &bad_toc,
-        13,
-        nlayer,
-        ndepth,
-        OBS_FIELDS_SUEWS_STATE,
-    );
-    assert_ne!(
-        bad_obs.err, SUEWS_CAPI_OK,
-        "non-zero SUEWS_STATE%errorState TOC span must be rejected by unpack_state_members"
-    );
 }
 
 // =============================================================================
@@ -2638,22 +2990,22 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
                 );
                 direct_unbridged += 1;
             }
-            if desc.kind == ObsKind::Derived {
+            if desc.kind == ObsKind::Derived && !desc.allocatable {
                 assert!(
                     !desc.bridged,
-                    "{name}%{}: unexpected bridged derived leaf",
+                    "{name}%{}: unexpected bridged non-allocatable derived leaf",
                     desc.path
                 );
             }
         }
     }
     assert!(
-        direct_leaves > 700,
+        direct_leaves > 900,
         "unexpectedly small direct leaf count {direct_leaves}"
     );
     assert_eq!(
-        direct_unbridged, 6,
-        "expected exactly 6 reviewed unbridged leaves across the 30 direct types"
+        direct_unbridged, 0,
+        "expected zero unbridged leaves across the 30 direct types"
     );
 
     for (name, table) in all_driver_tables {
@@ -2672,6 +3024,824 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
                     desc.path
                 );
             }
+        }
+    }
+
+    assert_eq!(
+        REVERSE_PACKED_TYPES.len(),
+        14,
+        "expected all 14 production reverse-packed types (SUEWS_TIMER + 12 state members + SUEWS_STATE)"
+    );
+}
+
+// =============================================================================
+// 14 live generated reverse-pack observer tests (Fortran kernel -> real packer -> Rust decoder)
+// =============================================================================
+
+struct ReverseSeedPayload {
+    fid: Vec<i32>,
+    kind: Vec<i32>,
+    i1: Vec<i32>,
+    i2: Vec<i32>,
+    f64s: Vec<f64>,
+    i64s: Vec<i64>,
+}
+
+fn build_reverse_seed_payload(
+    type_name: &str,
+    descriptors: &[ObsFieldDescriptor],
+    expected: &ExpectedStruct,
+) -> ReverseSeedPayload {
+    let mut desc_by_path: BTreeMap<&str, &ObsFieldDescriptor> = BTreeMap::new();
+    for desc in descriptors {
+        desc_by_path.insert(desc.path, desc);
+    }
+
+    // Every bridged leaf must be seeded; unbridged leaves remain untouched.
+    let expected_paths: BTreeSet<&str> = expected.bounds.keys().map(String::as_str).collect();
+    let bridged_paths: BTreeSet<&str> = descriptors
+        .iter()
+        .filter(|d| d.bridged)
+        .map(|d| d.path)
+        .collect();
+    assert_eq!(
+        expected_paths, bridged_paths,
+        "{type_name} reverse seed paths diverge from bridged Fortran kernel leaves"
+    );
+
+    // Emit in BTreeMap path-sorted order (independent of flat-buffer order).
+    let mut payload = ReverseSeedPayload {
+        fid: Vec::with_capacity(expected.values.len()),
+        kind: Vec::with_capacity(expected.values.len()),
+        i1: Vec::with_capacity(expected.values.len()),
+        i2: Vec::with_capacity(expected.values.len()),
+        f64s: Vec::with_capacity(expected.values.len()),
+        i64s: Vec::with_capacity(expected.values.len()),
+    };
+
+    for ((path, i1, i2), &val) in &expected.values {
+        let desc = desc_by_path
+            .get(path.as_str())
+            .unwrap_or_else(|| panic!("{type_name}: unknown path {path} in reverse seed"));
+        payload.fid.push(desc.id);
+        payload.i1.push(*i1);
+        payload.i2.push(*i2);
+        match val {
+            ExpectedVal::Real(bits) => {
+                payload.kind.push(ObsKind::Real as i32);
+                payload.f64s.push(f64::from_bits(bits));
+                payload.i64s.push(0);
+            }
+            ExpectedVal::Int(v) => {
+                payload.kind.push(ObsKind::Int as i32);
+                payload.f64s.push(0.0);
+                payload.i64s.push(v);
+            }
+            ExpectedVal::Logical(v) => {
+                payload.kind.push(ObsKind::Logical as i32);
+                payload.f64s.push(0.0);
+                payload.i64s.push(i64::from(v));
+            }
+        }
+    }
+
+    payload
+}
+
+type RevPackFn0D = unsafe extern "C" fn(
+    *const i32,
+    *const i32,
+    *const i32,
+    *const i32,
+    *const f64,
+    *const i64,
+    i32,
+    *mut f64,
+    i32,
+    *mut i32,
+);
+
+type RevPackFn1D = unsafe extern "C" fn(
+    *const i32,
+    *const i32,
+    *const i32,
+    *const i32,
+    *const f64,
+    *const i64,
+    i32,
+    i32,
+    *mut f64,
+    i32,
+    *mut i32,
+);
+
+type RevPackFn2D = unsafe extern "C" fn(
+    *const i32,
+    *const i32,
+    *const i32,
+    *const i32,
+    *const f64,
+    *const i64,
+    i32,
+    i32,
+    i32,
+    *mut f64,
+    i32,
+    *mut i32,
+);
+
+fn call_rev_pack_0d(
+    func: RevPackFn0D,
+    seed: &ReverseSeedPayload,
+    reported_len: usize,
+    alloc_len: usize,
+) -> (Vec<f64>, i32) {
+    // Prefill with NaN so any dropped packer assignment is caught immediately.
+    let mut flat = vec![f64::NAN; alloc_len.max(reported_len)];
+    let mut err = -1_i32;
+    unsafe {
+        func(
+            seed.fid.as_ptr(),
+            seed.kind.as_ptr(),
+            seed.i1.as_ptr(),
+            seed.i2.as_ptr(),
+            seed.f64s.as_ptr(),
+            seed.i64s.as_ptr(),
+            seed.fid.len() as i32,
+            flat.as_mut_ptr(),
+            reported_len as i32,
+            &mut err,
+        );
+    }
+    (flat, err)
+}
+
+fn call_rev_pack_1d(
+    func: RevPackFn1D,
+    seed: &ReverseSeedPayload,
+    dim1: usize,
+    reported_len: usize,
+    alloc_len: usize,
+) -> (Vec<f64>, i32) {
+    let mut flat = vec![f64::NAN; alloc_len.max(reported_len)];
+    let mut err = -1_i32;
+    unsafe {
+        func(
+            seed.fid.as_ptr(),
+            seed.kind.as_ptr(),
+            seed.i1.as_ptr(),
+            seed.i2.as_ptr(),
+            seed.f64s.as_ptr(),
+            seed.i64s.as_ptr(),
+            seed.fid.len() as i32,
+            dim1 as i32,
+            flat.as_mut_ptr(),
+            reported_len as i32,
+            &mut err,
+        );
+    }
+    (flat, err)
+}
+
+fn call_rev_pack_2d(
+    func: RevPackFn2D,
+    seed: &ReverseSeedPayload,
+    dim1: usize,
+    dim2: usize,
+    reported_len: usize,
+    alloc_len: usize,
+) -> (Vec<f64>, i32) {
+    let mut flat = vec![f64::NAN; alloc_len.max(reported_len)];
+    let mut err = -1_i32;
+    unsafe {
+        func(
+            seed.fid.as_ptr(),
+            seed.kind.as_ptr(),
+            seed.i1.as_ptr(),
+            seed.i2.as_ptr(),
+            seed.f64s.as_ptr(),
+            seed.i64s.as_ptr(),
+            seed.fid.len() as i32,
+            dim1 as i32,
+            dim2 as i32,
+            flat.as_mut_ptr(),
+            reported_len as i32,
+            &mut err,
+        );
+    }
+    (flat, err)
+}
+
+fn build_suews_timer(exp: &mut ExpectedStruct) -> SuewsTimer {
+    SuewsTimer {
+        id: exp.int("id"),
+        imin: exp.int("imin"),
+        isec: exp.int("isec"),
+        it: exp.int("it"),
+        iy: exp.int("iy"),
+        tstep: exp.int("tstep"),
+        tstep_prev: exp.int("tstep_prev"),
+        dt_since_start: exp.int("dt_since_start"),
+        dt_since_start_prev: exp.int("dt_since_start_prev"),
+        nsh: exp.int("nsh"),
+        nsh_real: exp.real("nsh_real"),
+        tstep_real: exp.real("tstep_real"),
+        dectime: exp.real("dectime"),
+        dayofweek_id: exp.int_arr_1d::<3>("dayofWeek_id", 1),
+        dls: exp.int("DLS"),
+        new_day: exp.int("new_day"),
+    }
+}
+
+#[test]
+fn observe_reverse_suews_timer() {
+    let mut exp = ExpectedStruct::new();
+    let expected = build_suews_timer(&mut exp);
+    let seed = build_reverse_seed_payload("SUEWS_TIMER", OBS_FIELDS_SUEWS_TIMER, &exp);
+    let (flat, err) = call_rev_pack_0d(
+        observer_manifest::suews_obs_rev_pack_suews_timer,
+        &seed,
+        SUEWS_TIMER_FLAT_LEN,
+        SUEWS_TIMER_FLAT_LEN,
+    );
+    assert_eq!(err, SUEWS_CAPI_OK, "pack_timer failed");
+    let decoded = SuewsTimer::from_flat(&flat).unwrap();
+    assert_eq!(decoded, expected);
+
+    let (_, short_err) = call_rev_pack_0d(
+        observer_manifest::suews_obs_rev_pack_suews_timer,
+        &seed,
+        SUEWS_TIMER_FLAT_LEN - 1,
+        SUEWS_TIMER_FLAT_LEN,
+    );
+    assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+}
+
+#[test]
+fn observe_reverse_flag_state() {
+    for mask in 0_u8..8_u8 {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_flag_state(
+            &mut exp,
+            "",
+            (mask & 1) != 0,
+            (mask & 2) != 0,
+            (mask & 4) != 0,
+        );
+        let seed = build_reverse_seed_payload("flag_STATE", OBS_FIELDS_FLAG_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_flag_state,
+            &seed,
+            FLAG_STATE_FLAT_LEN,
+            FLAG_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_flag_state mask={mask}");
+        assert_eq!(FlagState::from_flat(&flat).unwrap(), expected);
+        if mask == 0 {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_flag_state,
+                &seed,
+                FLAG_STATE_FLAT_LEN - 1,
+                FLAG_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_anthroemis_state() {
+    for iter_safe in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_anthroemis_state(&mut exp, "", iter_safe);
+        let seed =
+            build_reverse_seed_payload("anthroEmis_STATE", OBS_FIELDS_ANTHROEMIS_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_anthroemis_state,
+            &seed,
+            ANTHROEMIS_STATE_FLAT_LEN,
+            ANTHROEMIS_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_anthroemis_state");
+        assert_eq!(AnthroEmisState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_anthroemis_state,
+                &seed,
+                ANTHROEMIS_STATE_FLAT_LEN - 1,
+                ANTHROEMIS_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_ohm_state() {
+    for (iter_safe, anohm_coeff_ready) in
+        [(false, false), (false, true), (true, false), (true, true)]
+    {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_ohm_state(&mut exp, "", iter_safe, anohm_coeff_ready);
+        let seed = build_reverse_seed_payload("OHM_STATE", OBS_FIELDS_OHM_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_ohm_state,
+            &seed,
+            OHM_STATE_FLAT_LEN,
+            OHM_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "ohm_state_pack");
+        assert_eq!(OhmState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe && !anohm_coeff_ready {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_ohm_state,
+                &seed,
+                OHM_STATE_FLAT_LEN - 1,
+                OHM_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+
+            // Domain invariant check: out-of-range sample count (> ANOHM_MAX_SAMPLES)
+            // packed by Fortran must be rejected cleanly by OhmState::from_flat.
+            exp.values.insert(
+                ("anohm_working_count".to_string(), 0, 0),
+                ExpectedVal::Int(i64::try_from(ANOHM_MAX_SAMPLES + 1).unwrap()),
+            );
+            let bad_seed = build_reverse_seed_payload("OHM_STATE", OBS_FIELDS_OHM_STATE, &exp);
+            let (bad_flat, bad_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_ohm_state,
+                &bad_seed,
+                OHM_STATE_FLAT_LEN,
+                OHM_STATE_FLAT_LEN,
+            );
+            assert_eq!(bad_err, SUEWS_CAPI_OK);
+            assert_eq!(
+                OhmState::from_flat(&bad_flat).unwrap_err(),
+                BridgeError::BadState
+            );
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_solar_state() {
+    for iter_safe in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_solar_state(&mut exp, "", iter_safe);
+        let seed = build_reverse_seed_payload("solar_State", OBS_FIELDS_SOLAR_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_solar_state,
+            &seed,
+            SOLAR_STATE_FLAT_LEN,
+            SOLAR_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_solar_state");
+        assert_eq!(SolarState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_solar_state,
+                &seed,
+                SOLAR_STATE_FLAT_LEN - 1,
+                SOLAR_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_atm_state() {
+    for iter_safe in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_atm_state(&mut exp, "", iter_safe);
+        let seed = build_reverse_seed_payload("atm_state", OBS_FIELDS_ATM_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_atm_state,
+            &seed,
+            ATM_STATE_FLAT_LEN,
+            ATM_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_atm_state");
+        assert_eq!(AtmState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_atm_state,
+                &seed,
+                ATM_STATE_FLAT_LEN - 1,
+                ATM_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_phenology_state() {
+    for iter_safe in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_phenology_state(&mut exp, "", iter_safe);
+        let seed = build_reverse_seed_payload("PHENOLOGY_STATE", OBS_FIELDS_PHENOLOGY_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_phenology_state,
+            &seed,
+            PHENOLOGY_STATE_FLAT_LEN,
+            PHENOLOGY_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_phenology_state");
+        assert_eq!(PhenologyState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_phenology_state,
+                &seed,
+                PHENOLOGY_STATE_FLAT_LEN - 1,
+                PHENOLOGY_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_snow_state() {
+    for iter_safe in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_snow_state(&mut exp, "", iter_safe);
+        let seed = build_reverse_seed_payload("SNOW_STATE", OBS_FIELDS_SNOW_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_snow_state,
+            &seed,
+            SNOW_STATE_FLAT_LEN,
+            SNOW_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_snow_state");
+        assert_eq!(SnowState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_snow_state,
+                &seed,
+                SNOW_STATE_FLAT_LEN - 1,
+                SNOW_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_hydro_state() {
+    for (nlayer, iter_safe) in [(3_usize, false), (5_usize, true)] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_hydro_state(&mut exp, "", nlayer, iter_safe);
+        let seed = build_reverse_seed_payload("HYDRO_STATE", OBS_FIELDS_HYDRO_STATE, &exp);
+        let flat_len = HYDRO_STATE_BASE_FLAT_LEN + 6 * nlayer;
+        let (flat, err) = call_rev_pack_1d(
+            observer_manifest::suews_obs_rev_pack_hydro_state,
+            &seed,
+            nlayer,
+            flat_len,
+            flat_len,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_hydro_state nlayer={nlayer}");
+        let decoded = HydroState::from_flat_with_lens(&flat, [nlayer; 6]).unwrap();
+        assert_eq!(decoded, expected);
+        if nlayer == 3 {
+            let (_, short_err) = call_rev_pack_1d(
+                observer_manifest::suews_obs_rev_pack_hydro_state,
+                &seed,
+                nlayer,
+                flat_len - 1,
+                flat_len,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_heat_state() {
+    for (nlayer, ndepth, iter_safe) in [(3_usize, 5_usize, false), (4_usize, 2_usize, true)] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_heat_state(&mut exp, "", nlayer, ndepth, iter_safe);
+        let seed = build_reverse_seed_payload("HEAT_STATE", OBS_FIELDS_HEAT_STATE, &exp);
+        let flat_len = heat_state_expected_flat_len(nlayer, ndepth).unwrap();
+        let (flat, err) = call_rev_pack_2d(
+            observer_manifest::suews_obs_rev_pack_heat_state,
+            &seed,
+            nlayer,
+            ndepth,
+            flat_len,
+            flat_len,
+        );
+        assert_eq!(
+            err, SUEWS_CAPI_OK,
+            "pack_heat_state ({nlayer},{ndepth}) iter_safe={iter_safe}"
+        );
+        let decoded = HeatState::from_flat_with_dims(&flat, nlayer, ndepth).unwrap();
+        assert_eq!(decoded, expected);
+        if nlayer == 3 {
+            let (_, short_err) = call_rev_pack_2d(
+                observer_manifest::suews_obs_rev_pack_heat_state,
+                &seed,
+                nlayer,
+                ndepth,
+                flat_len - 1,
+                flat_len,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_roughness_state() {
+    for iter_safe in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_roughness_state(&mut exp, "", iter_safe);
+        let seed = build_reverse_seed_payload("ROUGHNESS_STATE", OBS_FIELDS_ROUGHNESS_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_roughness_state,
+            &seed,
+            ROUGHNESS_STATE_FLAT_LEN,
+            ROUGHNESS_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_roughness_state");
+        assert_eq!(RoughnessState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_roughness_state,
+                &seed,
+                ROUGHNESS_STATE_FLAT_LEN - 1,
+                ROUGHNESS_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_stebbs_state() {
+    for (bldg_nlayer, bldg_count, iter_safe, wall_active, window_active) in [
+        (3_usize, 0_usize, false, false, false),
+        (0_usize, 1_usize, true, true, false),
+        (3_usize, 1_usize, false, false, true),
+        (5_usize, 2_usize, true, true, true),
+    ] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_stebbs_state(
+            &mut exp,
+            "",
+            bldg_nlayer,
+            bldg_count,
+            iter_safe,
+            wall_active,
+            window_active,
+        );
+        let seed = build_reverse_seed_payload("STEBBS_STATE", OBS_FIELDS_STEBBS_STATE, &exp);
+        let flat_len = stebbs_state_expected_flat_len(bldg_count, bldg_nlayer).unwrap();
+        let (flat, err) = call_rev_pack_2d(
+            observer_manifest::suews_obs_rev_pack_stebbs_state,
+            &seed,
+            bldg_nlayer,
+            bldg_count,
+            flat_len,
+            flat_len,
+        );
+        assert_eq!(
+            err, SUEWS_CAPI_OK,
+            "stebbs_state_pack_real bldg_nlayer={bldg_nlayer} bldg_count={bldg_count} iter_safe={iter_safe}"
+        );
+        assert_eq!(
+            StebbsState::from_flat_with_bldg_nlayer(&flat, bldg_nlayer).unwrap(),
+            expected
+        );
+        if bldg_count == 0 || bldg_count == 2 {
+            let (_, short_err) = call_rev_pack_2d(
+                observer_manifest::suews_obs_rev_pack_stebbs_state,
+                &seed,
+                bldg_nlayer,
+                bldg_count,
+                flat_len - 1,
+                flat_len,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_nhood_state() {
+    for iter_safe in [false, true] {
+        let mut exp = ExpectedStruct::new();
+        let expected = build_nhood_state(&mut exp, "", iter_safe);
+        let seed = build_reverse_seed_payload("NHOOD_STATE", OBS_FIELDS_NHOOD_STATE, &exp);
+        let (flat, err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_nhood_state,
+            &seed,
+            NHOOD_STATE_FLAT_LEN,
+            NHOOD_STATE_FLAT_LEN,
+        );
+        assert_eq!(err, SUEWS_CAPI_OK, "pack_nhood_state");
+        assert_eq!(NhoodState::from_flat(&flat).unwrap(), expected);
+        if !iter_safe {
+            let (_, short_err) = call_rev_pack_0d(
+                observer_manifest::suews_obs_rev_pack_nhood_state,
+                &seed,
+                NHOOD_STATE_FLAT_LEN - 1,
+                NHOOD_STATE_FLAT_LEN,
+            );
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+        }
+    }
+}
+
+#[test]
+fn observe_reverse_suews_state_and_checkpoint() {
+    // Full 12-member aggregate reverse proof (all bridged leaves including STEBBS buildings(:))
+    // across asymmetric shapes, flipped logical polarities, and schema-v3 checkpoint JSON roundtrip.
+    for (nlayer, ndepth, bldg_count, flip, new_day) in [
+        (3_usize, 5_usize, 0_usize, false, 0_i32),
+        (4_usize, 2_usize, 2_usize, true, 1_i32),
+    ] {
+        let mut exp = ExpectedStruct::new();
+        let stebbs_expected = build_stebbs_state(
+            &mut exp,
+            "stebbsState",
+            nlayer,
+            bldg_count,
+            !flip,
+            flip,
+            !flip,
+        );
+        let expected_state = SuewsState {
+            error_state: ErrorState::default(),
+            flag_state: build_flag_state(&mut exp, "flagState", !flip, flip, !flip),
+            anthroemis_state: build_anthroemis_state(&mut exp, "anthroemisState", flip),
+            ohm_state: build_ohm_state(&mut exp, "ohmState", !flip, flip),
+            solar_state: build_solar_state(&mut exp, "solarState", flip),
+            atm_state: build_atm_state(&mut exp, "atmState", !flip),
+            phenology_state: build_phenology_state(&mut exp, "phenState", flip),
+            snow_state: build_snow_state(&mut exp, "snowState", !flip),
+            hydro_state: build_hydro_state(&mut exp, "hydroState", nlayer, flip),
+            heat_state: build_heat_state(&mut exp, "heatState", nlayer, ndepth, !flip),
+            roughness_state: build_roughness_state(&mut exp, "roughnessState", flip),
+            stebbs_state: stebbs_expected,
+            nhood_state: build_nhood_state(&mut exp, "nhoodState", flip),
+        };
+        let seed = build_reverse_seed_payload("SUEWS_STATE", OBS_FIELDS_SUEWS_STATE, &exp);
+
+        // Derive the TOC solely from a zeroed shape template, never from expected_state.
+        let mut zero_template = suews_state_default_from_fortran().unwrap();
+        let heat_len = heat_state_expected_flat_len(nlayer, ndepth).unwrap();
+        zero_template.heat_state =
+            HeatState::from_flat_with_dims(&vec![0.0; heat_len], nlayer, ndepth).unwrap();
+        let hydro_len = HYDRO_STATE_BASE_FLAT_LEN + 6 * nlayer;
+        zero_template.hydro_state =
+            HydroState::from_flat_with_lens(&vec![0.0; hydro_len], [nlayer; 6]).unwrap();
+        let stebbs_nlayer = if bldg_count == 0 { 0 } else { nlayer };
+        zero_template.stebbs_state.bldg_nlayer = stebbs_nlayer;
+        zero_template.stebbs_state.buildings = (0..bldg_count)
+            .map(|_| StebbsBldg::with_nlayer(stebbs_nlayer))
+            .collect();
+        let (zero_flat, state_toc) = encode_state_members_flat(&zero_template).unwrap();
+
+        let mut packed = vec![f64::NAN; zero_flat.len()];
+        let mut err = -1_i32;
+        unsafe {
+            observer_manifest::suews_obs_rev_pack_suews_state(
+                seed.fid.as_ptr(),
+                seed.kind.as_ptr(),
+                seed.i1.as_ptr(),
+                seed.i2.as_ptr(),
+                seed.f64s.as_ptr(),
+                seed.i64s.as_ptr(),
+                seed.fid.len() as i32,
+                nlayer as i32,
+                ndepth as i32,
+                bldg_count as i32,
+                packed.as_mut_ptr(),
+                packed.len() as i32,
+                state_toc.as_ptr(),
+                state_toc.len() as i32,
+                13,
+                &mut err,
+            );
+        }
+        assert_eq!(
+            err, SUEWS_CAPI_OK,
+            "pack_state_to_output ({nlayer},{ndepth}) flip={flip}"
+        );
+
+        let decoded_state = decode_state_members(
+            &zero_template,
+            &packed,
+            &state_toc,
+            nlayer,
+            ndepth,
+            nlayer,
+        )
+        .unwrap();
+        assert_eq!(decoded_state, expected_state);
+
+        // Also reverse-pack a checkpoint-valid SUEWS_TIMER through driver.f95::pack_timer
+        // and verify complete JSON checkpoint round-trip without touching expected_state.to_flat().
+        let mut timer_exp = ExpectedStruct::new();
+        let mut expected_timer = build_suews_timer(&mut timer_exp);
+        expected_timer.tstep = 300;
+        expected_timer.dt_since_start_prev = 600;
+        expected_timer.dt_since_start = 900;
+        expected_timer.new_day = new_day;
+        timer_exp.values.insert(
+            ("tstep".to_string(), 0, 0),
+            ExpectedVal::Int(i64::from(expected_timer.tstep)),
+        );
+        timer_exp.values.insert(
+            ("dt_since_start_prev".to_string(), 0, 0),
+            ExpectedVal::Int(i64::from(expected_timer.dt_since_start_prev)),
+        );
+        timer_exp.values.insert(
+            ("dt_since_start".to_string(), 0, 0),
+            ExpectedVal::Int(i64::from(expected_timer.dt_since_start)),
+        );
+        timer_exp.values.insert(
+            ("new_day".to_string(), 0, 0),
+            ExpectedVal::Int(i64::from(expected_timer.new_day)),
+        );
+        let timer_seed =
+            build_reverse_seed_payload("SUEWS_TIMER", OBS_FIELDS_SUEWS_TIMER, &timer_exp);
+        let (timer_flat, timer_err) = call_rev_pack_0d(
+            observer_manifest::suews_obs_rev_pack_suews_timer,
+            &timer_seed,
+            SUEWS_TIMER_FLAT_LEN,
+            SUEWS_TIMER_FLAT_LEN,
+        );
+        assert_eq!(timer_err, SUEWS_CAPI_OK);
+        let decoded_timer = SuewsTimer::from_flat(&timer_flat).unwrap();
+        assert_eq!(decoded_timer, expected_timer);
+
+        let json = suews_checkpoint_to_json(&decoded_state, &decoded_timer).unwrap();
+        let restored = suews_checkpoint_from_json(&json).unwrap();
+        assert_eq!(restored.state, expected_state);
+        assert_eq!(
+            restored.timer,
+            CheckpointTimer {
+                dt_since_start: expected_timer.dt_since_start,
+                dt_since_start_prev: expected_timer.dt_since_start_prev,
+                tstep: expected_timer.tstep,
+                new_day: expected_timer.new_day,
+            }
+        );
+
+        // Negative bounds: truncated flat buffer and truncated member TOC span must fail cleanly.
+        if !flip {
+            let mut short_out = vec![f64::NAN; packed.len()];
+            let mut short_err = -1_i32;
+            unsafe {
+                observer_manifest::suews_obs_rev_pack_suews_state(
+                    seed.fid.as_ptr(),
+                    seed.kind.as_ptr(),
+                    seed.i1.as_ptr(),
+                    seed.i2.as_ptr(),
+                    seed.f64s.as_ptr(),
+                    seed.i64s.as_ptr(),
+                    seed.fid.len() as i32,
+                    nlayer as i32,
+                    ndepth as i32,
+                    bldg_count as i32,
+                    short_out.as_mut_ptr(),
+                    (packed.len() - 1) as i32,
+                    state_toc.as_ptr(),
+                    state_toc.len() as i32,
+                    13,
+                    &mut short_err,
+                );
+            }
+            assert_eq!(BridgeError::from_code(short_err), BridgeError::BadBuffer);
+
+            let mut bad_toc = state_toc.clone();
+            // Shorten member 2 (flag_state) span by 1 slot.
+            bad_toc[3] -= 1;
+            let mut toc_err = -1_i32;
+            unsafe {
+                observer_manifest::suews_obs_rev_pack_suews_state(
+                    seed.fid.as_ptr(),
+                    seed.kind.as_ptr(),
+                    seed.i1.as_ptr(),
+                    seed.i2.as_ptr(),
+                    seed.f64s.as_ptr(),
+                    seed.i64s.as_ptr(),
+                    seed.fid.len() as i32,
+                    nlayer as i32,
+                    ndepth as i32,
+                    bldg_count as i32,
+                    short_out.as_mut_ptr(),
+                    packed.len() as i32,
+                    bad_toc.as_ptr(),
+                    bad_toc.len() as i32,
+                    13,
+                    &mut toc_err,
+                );
+            }
+            assert_eq!(BridgeError::from_code(toc_err), BridgeError::BadBuffer);
         }
     }
 }
@@ -2776,3 +3946,102 @@ fn observer_rejects_truncated_flat_buffer() {
     assert_ne!(obs_state.err, SUEWS_CAPI_OK);
     assert!(obs_state.values.is_empty());
 }
+
+#[test]
+fn forcing_matrix_rows_reach_the_named_kernel_members() {
+    use observer_manifest::{suews_obs_forcing_rows, FORCING_SCALARS};
+    use suews_bridge::{SuewsField, FORCING_BLOCK_STRIDE};
+
+    // Fields are named by the production Rust registry. The output names and order
+    // come separately from the kernel TYPE declaration in the generated observer.
+    let inputs = [
+        (SuewsField::qn1_obs, [55.0, 82.5]),
+        (SuewsField::qs_obs, [14.0, 18.0]),
+        (SuewsField::qf_obs, [3.5, 4.5]),
+        (SuewsField::u, [2.0, 2.25]),
+        (SuewsField::rh, [67.0, 73.0]),
+        (SuewsField::temp_c, [12.5, 13.25]),
+        (SuewsField::pres, [1002.5, 1005.0]),
+        (SuewsField::rain, [0.0625, 0.125]),
+        (SuewsField::kdown, [400.0, 475.0]),
+        (SuewsField::snowfrac, [0.25, 0.375]),
+        (SuewsField::ldown, [301.0, 311.0]),
+        (SuewsField::fcld, [0.5, 0.75]),
+        (SuewsField::xsmd, [7.5, 8.25]),
+        (SuewsField::lai_evetr, [2.5, 2.625]),
+        (SuewsField::lai_dectr, [1.125, 1.375]),
+        (SuewsField::lai_grass, [0.875, 0.9375]),
+        (SuewsField::wu_mm_paved, [0.012, 0.014]),
+        (SuewsField::wu_mm_bldgs, [0.021, 0.023]),
+        (SuewsField::wu_mm_evetr, [0.031, 0.029]),
+        (SuewsField::wu_mm_dectr, [0.042, 0.048]),
+        (SuewsField::wu_mm_grass, [0.055, 0.051]),
+        (SuewsField::wu_mm_bsoil, [0.063, 0.067]),
+        (SuewsField::wu_mm_water, [0.074, 0.078]),
+        (SuewsField::kdiff, [131.0, 145.0]),
+        (SuewsField::kdir, [352.0, 388.0]),
+    ];
+    let mut block = [[0.0; 2]; FORCING_BLOCK_STRIDE];
+    block[..4].copy_from_slice(&[[2012.0, 2012.0], [121.0, 121.0], [11.0, 12.0], [55.0, 0.0]]);
+    let mut expected = BTreeMap::new();
+    for (field, rows) in inputs {
+        block[field.index()] = rows;
+        let kernel_name = match field {
+            SuewsField::snowfrac => "snow_fraction",
+            SuewsField::ldown => "l_down",
+            SuewsField::fcld => "f_cloud",
+            _ => field.name(),
+        };
+        assert!(expected.insert(kernel_name, rows).is_none());
+    }
+    // Runtime-owned members must survive both assignments.
+    expected.insert("tair_av_5d", [-7.25; 2]);
+    assert_eq!(expected.len(), FORCING_SCALARS.len());
+
+    // Observed QH/QE and bulk water occupy input slots but have no matching
+    // typed receiver here. Change only these three columns on the second pass.
+    for scale in [1.0, 2.0] {
+        block[SuewsField::qh.index()] = [27.0 * scale, 31.0 * scale];
+        block[SuewsField::qe.index()] = [36.0 * scale, 41.0 * scale];
+        block[SuewsField::wu_mm.index()] = [0.38 * scale, 0.41 * scale];
+        let mut actual = vec![f64::NAN; 2 * FORCING_SCALARS.len()];
+        let mut ts5 = [[f64::NAN; 2]; 2];
+        // Rust stores the two values of each column next to one another, as
+        // Fortran does in block(2,32). Both output buffers hold two full rows.
+        unsafe {
+            suews_obs_forcing_rows(
+                block.as_ptr().cast(),
+                actual.as_mut_ptr(),
+                ts5.as_mut_ptr().cast(),
+            );
+        }
+        for (row, values) in actual
+            .as_chunks::<{ FORCING_SCALARS.len() }>()
+            .0
+            .iter()
+            .enumerate()
+        {
+            for (&name, &value) in FORCING_SCALARS.iter().zip(values) {
+                assert_eq!(
+                    value,
+                    expected[name][row],
+                    "row {} SUEWS_FORCING%{name}",
+                    row + 1
+                );
+            }
+            assert_eq!(
+                ts5[row],
+                [-3.5, 4.75],
+                "row {} SUEWS_FORCING%Ts5mindata_ir",
+                row + 1
+            );
+        }
+    }
+}
+
+// Hand-maintained diagnostic fixtures and assertions share this CI test entry.
+#[path = "diagnostics/mod.rs"]
+mod diagnostics;
+
+#[path = "../test_observer/output_groups.rs"]
+mod output_groups;

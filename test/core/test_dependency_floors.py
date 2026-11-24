@@ -181,17 +181,57 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
             encoding="utf-8"
         )
     )
-    wheel_job = build_wf["jobs"]["lowest_direct_deps"]
+    # The floor job is chained inside the Linux build_wheels call, behind that
+    # wheel only, so it starts when the wheel exists; its result rolls into
+    # build_wheels, which report_scheduled_run and pr-gate read.
+    wheels_wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheel_job = wheels_wf["jobs"]["lowest_direct_deps"]
     assert wheel_job["name"] == "Lowest-direct dependency smoke tests (Linux cp312)"
-    assert {"detect-changes", "build_wheels"} <= set(wheel_job["needs"])
-    assert "dependency-audit-changed == 'true'" in wheel_job["if"]
-    assert "github.event_name == 'schedule'" in wheel_job["if"]
-    assert "inputs.lowest_direct_deps == true" in wheel_job["if"]
+    assert wheel_job["needs"] == "build"
+    assert wheel_job["if"] == "inputs.run_lowest_direct_deps"
     assert "continue-on-error" not in wheel_job
-    assert "lowest_direct_deps" in build_wf["jobs"]["report_scheduled_run"]["needs"]
+    upload_marker = next(
+        step
+        for step in wheel_job["steps"]
+        if str(step.get("uses", "")).startswith("actions/upload-artifact@")
+    )
+    assert upload_marker["with"]["name"] == "lowest-direct-deps-result"
+    assert upload_marker["with"]["path"] == "lowest-direct-deps-result.json"
+    assert upload_marker["with"]["if-no-files-found"] == "error"
+
+    guard_job = wheels_wf["jobs"]["lowest_direct_deps_guard"]
+    assert guard_job["name"] == "Require lowest-direct dependency smoke tests"
+    assert guard_job["needs"] == ["build", "lowest_direct_deps"]
+    assert (
+        guard_job["if"]
+        == "always() && inputs.run_lowest_direct_deps && needs.build.result == 'success'"
+    )
+    assert "continue-on-error" not in guard_job
+
+    trigger = build_wf["jobs"]["build_wheels"]["with"]["run_lowest_direct_deps"]
+    assert "matrix.buildplat[1] == 'manylinux'" in trigger
+    assert "dependency-audit-changed == 'true'" in trigger
+    assert "github.event_name == 'schedule'" in trigger
+    assert "inputs.lowest_direct_deps == true" in trigger
+    assert "lowest_direct_deps" not in build_wf["jobs"]
+    assert "build_wheels" in build_wf["jobs"]["report_scheduled_run"]["needs"]
+
+    set_matrix_step = next(
+        step
+        for step in build_wf["jobs"]["determine_matrix"]["steps"]
+        if step.get("id") == "set-matrix"
+    )
+    assert (
+        set_matrix_step["env"]["INPUT_LOWEST_DIRECT_DEPS"]
+        == "${{ inputs.lowest_direct_deps }}"
+    )
 
     pr_gate = build_wf["jobs"]["pr-gate"]
-    assert "lowest_direct_deps" in pr_gate["needs"]
+    assert "build_wheels" in pr_gate["needs"]
     pr_gate_checkout = next(
         step
         for step in pr_gate["steps"]
@@ -201,10 +241,27 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
         pr_gate_checkout["with"]["ref"]
         == "${{ github.event.pull_request.base.sha || github.sha }}"
     )
-    pr_gate_step = next(step for step in pr_gate["steps"] if "run" in step)
+    marker_download = next(
+        step
+        for step in pr_gate["steps"]
+        if str(step.get("uses", "")).startswith("actions/download-artifact@")
+        and step.get("with", {}).get("name") == "lowest-direct-deps-result"
+    )
+    assert marker_download["continue-on-error"] is True
+    assert (
+        marker_download["if"]
+        == "needs.build_wheels.result == 'success' && needs.detect-changes.outputs.dependency-audit-changed == 'true'"
+    )
+    resolve_step = next(
+        step for step in pr_gate["steps"] if step.get("id") == "lowest-direct-result"
+    )
+    assert "lowest-direct-deps-result.json" in resolve_step["run"]
+    pr_gate_step = next(
+        step for step in pr_gate["steps"] if step.get("name") == "Check build results"
+    )
     assert (
         pr_gate_step["env"]["LOWEST_DIRECT_DEPS_RESULT"]
-        == "${{ needs.lowest_direct_deps.result }}"
+        == "${{ steps.lowest-direct-result.outputs.result }}"
     )
     assert (
         pr_gate_step["env"]["LOWEST_DIRECT_DEPS_REQUIRED"]
@@ -231,11 +288,169 @@ def test_ci_workflows_wire_lowest_direct_resolution_and_smoke_tests() -> None:
     declared_needs = json.loads(
         (REPO_ROOT / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
-    assert wheel_job["name"] in declared_needs
-    assert (
-        "Build and test (manylinux x86_64) / cp*" in declared_needs[wheel_job["name"]]
+    leaf = f"Build and test (manylinux x86_64) / {wheel_job['name']}"
+    assert leaf in declared_needs
+    assert "Build and test (manylinux x86_64) / wheel | *" in declared_needs[leaf]
+    guard_leaf = f"Build and test (manylinux x86_64) / {guard_job['name']}"
+    assert guard_leaf in declared_needs
+    assert leaf in declared_needs[guard_leaf]
+    # The gate reaches it through the build_wheels group.
+    assert "Build and test (*) / *" in declared_needs["PR build validation"]
+
+
+@pytest.mark.core
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="pr-gate and determine-matrix shell steps run under bash on Linux CI",
+)
+def test_pr_gate_independent_lowest_direct_result_fails_closed_on_wheel_pass_floor_skip(
+    tmp_path: Path,
+) -> None:
+    """When build_wheels passes on a dependency-audit change without the floor marker, pr-gate fails closed (#2284)."""
+    build_wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
     )
-    assert wheel_job["name"] in declared_needs["PR build validation"]
+    resolve_step = next(
+        step
+        for step in build_wf["jobs"]["pr-gate"]["steps"]
+        if step.get("id") == "lowest-direct-result"
+    )
+    resolve_script = resolve_step["run"]
+
+    def _resolve(workdir: Path, *, wheel_result: str, dep_changed: str) -> str:
+        out_file = workdir / "gh_output.txt"
+        out_file.write_text("", encoding="utf-8")
+        env = {
+            **os.environ,
+            "GITHUB_OUTPUT": str(out_file),
+            "BUILD_WHEELS_RESULT": wheel_result,
+            "DEPENDENCY_AUDIT_CHANGED": dep_changed,
+        }
+        subprocess.run(
+            ["bash", "-euo", "pipefail", "-c", resolve_script],
+            cwd=workdir,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return _parse_github_output(out_file)["result"]
+
+    # Case 1: wheel succeeded, dependency-audit changed, but floor job was skipped (no marker) -> skipped -> pr-gate fails.
+    case_skip = tmp_path / "wheel_pass_floor_skip"
+    case_skip.mkdir()
+    resolved_skip = _resolve(case_skip, wheel_result="success", dep_changed="true")
+    assert resolved_skip == "skipped"
+
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+    pipeline_skip = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name="pull_request",
+        changed_paths=["pyproject.toml"],
+        tmp_path=tmp_path,
+        case_tag="wheel_pass_floor_skip_gate",
+        pyproject_flags=(False, True, False),
+        build_wheels_outcome="success",
+        lowest_direct_outcome=resolved_skip,
+    )
+    assert pipeline_skip["lowest_direct_required"] is True
+    assert pipeline_skip["gate_returncode"] == 1, pipeline_skip["gate_stdout"]
+
+    # Case 2: wheel succeeded and floor job uploaded valid success marker -> success -> pr-gate passes.
+    case_ok = tmp_path / "wheel_pass_floor_ok"
+    marker_dir = case_ok / "_lowest_direct_deps"
+    marker_dir.mkdir(parents=True)
+    (marker_dir / "lowest-direct-deps-result.json").write_text(
+        '{"result": "success"}\n', encoding="utf-8"
+    )
+    resolved_ok = _resolve(case_ok, wheel_result="success", dep_changed="true")
+    assert resolved_ok == "success"
+    pipeline_ok = _run_workflow_path_pipeline(
+        build_wf,
+        filters,
+        event_name="pull_request",
+        changed_paths=["pyproject.toml"],
+        tmp_path=tmp_path,
+        case_tag="wheel_pass_floor_ok_gate",
+        pyproject_flags=(False, True, False),
+        build_wheels_outcome="success",
+        lowest_direct_outcome=resolved_ok,
+    )
+    assert pipeline_ok["gate_returncode"] == 0, pipeline_ok["gate_stdout"]
+
+    # Case 3: corrupted/non-success marker payload also fails closed.
+    case_bad = tmp_path / "wheel_pass_floor_bad_marker"
+    bad_dir = case_bad / "_lowest_direct_deps"
+    bad_dir.mkdir(parents=True)
+    (bad_dir / "lowest-direct-deps-result.json").write_text(
+        '{"result": "skipped"}\n', encoding="utf-8"
+    )
+    assert _resolve(case_bad, wheel_result="success", dep_changed="true") == "skipped"
+
+
+@pytest.mark.core
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh runs under bash on Linux CI",
+)
+def test_custom_dispatch_rejects_lowest_direct_deps_without_linux(
+    tmp_path: Path,
+) -> None:
+    """Custom workflow_dispatch with lowest_direct_deps=true must include Linux (#2284)."""
+    out_file = tmp_path / "matrix_out.txt"
+    base_env = {
+        **os.environ,
+        "GITHUB_OUTPUT": str(out_file),
+        "EVENT_NAME": "workflow_dispatch",
+        "INPUT_MATRIX_CONFIG": "custom",
+        "INPUT_PLAT_MACOS_INTEL": "false",
+        "INPUT_PLAT_MACOS_ARM": "false",
+        "INPUT_PLAT_WINDOWS": "true",
+        "INPUT_PY312": "true",
+        "INPUT_PY313": "false",
+        "INPUT_PY314": "false",
+        "INPUT_PY315": "false",
+        "INPUT_TEST_TIER": "smoke",
+        "INPUT_LOWEST_DIRECT_DEPS": "true",
+        "FORTRAN_CHANGED": "false",
+        "RUST_CHANGED": "false",
+        "PYTHON_CHANGED": "false",
+        "UTIL_CHANGED": "false",
+        "BUILD_CHANGED": "false",
+        "PR_PYPROJECT": str(REPO_ROOT / "pyproject.toml"),
+    }
+
+    out_file.write_text("", encoding="utf-8")
+    proc_no_linux = subprocess.run(
+        ["bash", str(REPO_ROOT / ".github/scripts/determine-matrix.sh")],
+        env={**base_env, "INPUT_PLAT_LINUX": "false"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert proc_no_linux.returncode == 1
+    assert "lowest_direct_deps=true requires plat_linux=true" in (
+        proc_no_linux.stdout + proc_no_linux.stderr
+    )
+
+    out_file.write_text("", encoding="utf-8")
+    proc_with_linux = subprocess.run(
+        ["bash", str(REPO_ROOT / ".github/scripts/determine-matrix.sh")],
+        env={**base_env, "INPUT_PLAT_LINUX": "true"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert proc_with_linux.returncode == 0, proc_with_linux.stdout + proc_with_linux.stderr
+    matrix_out = _parse_github_output(out_file)
+    assert ["ubuntu-latest", "manylinux", "x86_64"] in json.loads(
+        matrix_out["buildplat"]
+    )
 
 
 @pytest.mark.core
@@ -513,8 +728,7 @@ def test_path_classification_and_gate_triggers_for_normal_docs_and_gate_only_cha
     assert (
         "needs.detect-changes.outputs.dependency-audit-changed == 'true'" in dep_job_if
     )
-    wheel_job_if = build_wf["jobs"]["lowest_direct_deps"]["if"]
-    assert "needs.build_wheels.result == 'success'" in wheel_job_if
+    wheel_job_if = build_wf["jobs"]["build_wheels"]["with"]["run_lowest_direct_deps"]
     assert "pull_request" in wheel_job_if and "merge_group" in wheel_job_if
     assert (
         "needs.detect-changes.outputs.dependency-audit-changed == 'true'"
@@ -592,7 +806,7 @@ def test_path_classification_and_gate_triggers_for_normal_docs_and_gate_only_cha
         assert gate_only["decide"]["needs-build"] == "true"
         buildplat = json.loads(gate_only["matrix"]["buildplat"])
         assert ["ubuntu-latest", "manylinux", "x86_64"] in buildplat
-        assert len(buildplat) == (1 if event_name == "pull_request" else 3)
+        assert len(buildplat) == (1 if event_name == "pull_request" else 2)
         assert json.loads(gate_only["matrix"]["python"]) == ["cp312"]
         assert gate_only["matrix"]["test_tier"] == "standard"
         assert gate_only["lowest_direct_triggered"] is True

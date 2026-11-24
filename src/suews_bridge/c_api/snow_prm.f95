@@ -16,8 +16,24 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_PRM_LEN = 71_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_PRM_LEN = 88_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_PRM_SCHEMA_VERSION = 2_c_int
+
+type :: ohm_coef_lc_shadow
+   real(c_double) :: summer_dry = 0.0_c_double
+   real(c_double) :: summer_wet = 0.0_c_double
+   real(c_double) :: winter_dry = 0.0_c_double
+   real(c_double) :: winter_wet = 0.0_c_double
+end type ohm_coef_lc_shadow
+
+type :: ohm_prm_shadow
+   real(c_double) :: ch_anohm = 0.0_c_double
+   real(c_double) :: cp_anohm = 0.0_c_double
+   real(c_double) :: kk_anohm = 0.0_c_double
+   real(c_double) :: ohm_threshsw = 0.0_c_double
+   real(c_double) :: ohm_threshwd = 0.0_c_double
+   type(ohm_coef_lc_shadow), dimension(3) :: ohm_coef_lc
+end type ohm_prm_shadow
 
 type :: snow_prm_shadow
    real(c_double) :: water_holding_capacity_max = 0.0_c_double
@@ -39,6 +55,7 @@ type :: snow_prm_shadow
    real(c_double) :: tau_r = 0.0_c_double
    real(c_double) :: temperature_melt_factor = 0.0_c_double
    real(c_double) :: radiation_melt_factor = 0.0_c_double
+   type(ohm_prm_shadow) :: ohm
 end type snow_prm_shadow
 
 public :: suews_snow_prm_len
@@ -132,7 +149,19 @@ subroutine snow_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%tau_f; idx = idx + 1
    flat(idx) = state%tau_r; idx = idx + 1
    flat(idx) = state%temperature_melt_factor; idx = idx + 1
-   flat(idx) = state%radiation_melt_factor
+   flat(idx) = state%radiation_melt_factor; idx = idx + 1
+
+   flat(idx) = state%ohm%ch_anohm; idx = idx + 1
+   flat(idx) = state%ohm%cp_anohm; idx = idx + 1
+   flat(idx) = state%ohm%kk_anohm; idx = idx + 1
+   flat(idx) = state%ohm%ohm_threshsw; idx = idx + 1
+   flat(idx) = state%ohm%ohm_threshwd; idx = idx + 1
+   do i = 1, 3
+      flat(idx) = state%ohm%ohm_coef_lc(i)%summer_dry; idx = idx + 1
+      flat(idx) = state%ohm%ohm_coef_lc(i)%summer_wet; idx = idx + 1
+      flat(idx) = state%ohm%ohm_coef_lc(i)%winter_dry; idx = idx + 1
+      flat(idx) = state%ohm%ohm_coef_lc(i)%winter_wet; idx = idx + 1
+   end do
 
    err = SUEWS_CAPI_OK
 
@@ -186,7 +215,19 @@ subroutine snow_prm_unpack(flat, n_flat, state, err)
    state%tau_f = flat(idx); idx = idx + 1_c_int
    state%tau_r = flat(idx); idx = idx + 1_c_int
    state%temperature_melt_factor = flat(idx); idx = idx + 1_c_int
-   state%radiation_melt_factor = flat(idx)
+   state%radiation_melt_factor = flat(idx); idx = idx + 1_c_int
+
+   state%ohm%ch_anohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%cp_anohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%kk_anohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%ohm_threshsw = flat(idx); idx = idx + 1_c_int
+   state%ohm%ohm_threshwd = flat(idx); idx = idx + 1_c_int
+   do i = 1_c_int, 3_c_int
+      state%ohm%ohm_coef_lc(i)%summer_dry = flat(idx); idx = idx + 1_c_int
+      state%ohm%ohm_coef_lc(i)%summer_wet = flat(idx); idx = idx + 1_c_int
+      state%ohm%ohm_coef_lc(i)%winter_dry = flat(idx); idx = idx + 1_c_int
+      state%ohm%ohm_coef_lc(i)%winter_wet = flat(idx); idx = idx + 1_c_int
+   end do
 
    err = SUEWS_CAPI_OK
 

@@ -204,6 +204,8 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (1, "dependent", ()),
         (2, "scheduled", ()),
     ],
+    "ehc_surface_coupling": [(0, "explicit", ()), (1, "implicit", ())],
+    "control_ehc_stability": [(0, "off", ()), (1, "relax", ()), (2, "secant", ())],
     "same_albedo_wall": [(0, "disabled", ()), (1, "enabled", ())],
     "same_albedo_roof": [(0, "disabled", ()), (1, "enabled", ())],
     "same_emissivity_wall": [(0, "disabled", ()), (1, "enabled", ())],
@@ -216,6 +218,8 @@ MODEL_PHYSICS_ENUM_FIELDS: tuple[str, ...] = (
     "emissions",
     "storage_heat",
     "ohm_inc_qf",
+    "ehc_surface_coupling",
+    "control_ehc_stability",
     "roughness_length_momentum",
     "roughness_length_heat",
     "stability",
@@ -489,10 +493,11 @@ def flatten_physics_in_config(data: Any) -> Any:
 
     with suppress(TypeError, ValueError):
         fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+    # Keep the constant split fraction as the flat ModelPhysics field: Phase B
+    # writes this flattened dict as the updated YAML, and dropping it would
+    # silently reset the fraction to its 0.5 default on the next run.
     with suppress(TypeError, ValueError):
-        fold_kdown_split_constant_direct_fraction(
-            physics, "ModelPhysics", store_fraction=False
-        )
+        fold_kdown_split_constant_direct_fraction(physics, "ModelPhysics")
 
     for field_name in MODEL_PHYSICS_ENUM_FIELDS:
         if field_name not in physics:

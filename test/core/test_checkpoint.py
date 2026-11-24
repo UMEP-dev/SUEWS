@@ -183,6 +183,44 @@ def test_checkpoint_continuation_reports_invalid_value_path(short_sample_sim):
         _run_loaded(sim_second)
 
 
+@pytest.mark.parametrize(
+    ("member", "legacy_version", "legacy_len"),
+    [
+        ("ohm_state", 1, 53),
+        ("ohm_state", 2, 751),
+        ("snow_state", 1, 79),
+    ],
+)
+def test_checkpoint_continuation_rejects_legacy_member_schemas(
+    short_sample_sim, member, legacy_version, legacy_len
+):
+    """Legacy OHM_STATE v1/v2 and SNOW_STATE v1 checkpoint members are rejected."""
+    sim_first = short_sample_sim()
+    forcing = sim_first.forcing.df.iloc[:24]
+    sim_first.update_forcing(forcing.iloc[:12])
+    _run_loaded(sim_first)
+
+    dict_grid_states = {
+        grid_id: json.loads(state_json)
+        for grid_id, state_json in sim_first.checkpoint.grid_states.items()
+    }
+    first_grid_id = next(iter(dict_grid_states))
+    dict_grid_states[first_grid_id]["state"]["members"][member] = {
+        "schema_version": legacy_version,
+        "values": [0.0] * legacy_len,
+    }
+    checkpoint = SUEWSCheckpoint.from_grid_states(
+        dict_grid_states,
+        last_timestamp=sim_first.checkpoint.last_timestamp,
+    )
+
+    sim_second = SUEWSSimulation.from_checkpoint(sim_first.config, checkpoint)
+    sim_second.update_forcing(forcing.iloc[12:24])
+
+    with pytest.raises(RuntimeError, match="invalid state payload"):
+        _run_loaded(sim_second)
+
+
 def test_external_checkpoint_matches_continuous_run_across_day_boundary(
     short_sample_sim,
 ):

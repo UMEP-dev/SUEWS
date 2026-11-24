@@ -23,6 +23,7 @@ See :doc:`../inputs/yaml/index` for configuration details.
    :caption: Variable Reference
 
    variables/index
+   ehc
 
 .. toctree::
    :maxdepth: 1

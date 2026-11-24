@@ -53,6 +53,7 @@ endif
 
 # Consolidate flags
 export FC
+export CONST_FFLAGS
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(DEBUGFLAGS) $(LDFLAGS) -L../lib -lradsurf -lradtool -lutilities \

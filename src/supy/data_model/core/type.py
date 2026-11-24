@@ -1,8 +1,10 @@
+from collections.abc import Iterable, Sequence
 from enum import Enum
 import types
 from typing import (
     Annotated,
     Any,
+    Callable,
     ClassVar,
     Generic,
     Literal,
@@ -81,6 +83,8 @@ class RefValue(BaseModel, Generic[T]):
     ref: Optional[Reference] = None
     _non_null_field_name: Optional[str] = PrivateAttr(default=None)
     _non_null_expected_kind: str = PrivateAttr(default="value")
+    _reject_bool_field_name: Optional[str] = PrivateAttr(default=None)
+    _value_validator: Optional[Callable[[Any], Any]] = PrivateAttr(default=None)
 
     model_config = ConfigDict(
         # Configure serialization to handle the value field properly
@@ -150,15 +154,33 @@ class RefValue(BaseModel, Generic[T]):
         self._non_null_field_name = field_name
         self._non_null_expected_kind = expected_kind
 
+    def _bind_reject_bool(self, field_name: str) -> None:
+        """Bind this wrapper so ``.value = True`` / ``np.bool_`` fails before coercion."""
+        self._reject_bool_field_name = field_name
+
+    def _bind_value_validator(self, validator: Callable[[Any], Any]) -> None:
+        """Bind a scalar validator enforced before assignment to ``.value``."""
+        self._value_validator = validator
+
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "value" and value is None:
-            field_name = getattr(self, "_non_null_field_name", None)
-            if field_name is not None:
-                reject_null_value(
-                    None,
-                    field_name,
-                    expected_kind=getattr(self, "_non_null_expected_kind", "value"),
-                )
+        if name == "value":
+            if value is None:
+                field_name = getattr(self, "_non_null_field_name", None)
+                if field_name is not None:
+                    reject_null_value(
+                        None,
+                        field_name,
+                        expected_kind=getattr(
+                            self, "_non_null_expected_kind", "value"
+                        ),
+                    )
+            else:
+                bool_field = getattr(self, "_reject_bool_field_name", None)
+                if bool_field is not None:
+                    reject_bool_input(value, bool_field)
+                validator = getattr(self, "_value_validator", None)
+                if validator is not None:
+                    value = validator(value)
         super().__setattr__(name, value)
 
     @field_validator("value", mode="before")
@@ -309,6 +331,32 @@ def reject_null_value(value, field_name: str, *, expected_kind: str = "number"):
 # reads it so Phase A never writes a null placeholder over a field whose
 # omission already supplies a model default (gh#2001, gh#2087).
 NULL_REJECTED_FIELDS: set[str] = set()
+
+
+def reject_bool_input(value, field_name: str):
+    """Reject booleans in a numeric field before Pydantic coerces them.
+
+    In lax mode Pydantic turns ``True``/``False`` into ``1.0``/``0.0`` for a
+    ``float`` field, so a check that runs after validation can no longer see
+    that the input was a boolean. Used as a ``mode="before"`` validator on
+    numeric inputs that have no boolean meaning; accepts a bare scalar, a list,
+    a ``{value: ...}`` mapping or a ``RefValue``.
+
+    Raises
+    ------
+    ValueError
+        If the value, or any element of a list value, is a boolean.
+    """
+    inner = value.value if isinstance(value, RefValue) else value
+    if isinstance(inner, dict) and "value" in inner:
+        inner = inner["value"]
+    items = inner if isinstance(inner, (list, tuple)) else [inner]
+    for item in items:
+        if isinstance(item, (bool, np.bool_)):
+            raise ValueError(
+                f"{field_name} must be numeric; boolean {item!r} is not accepted"
+            )
+    return value
 
 
 def _unwrap_annotated(annotation: Any) -> Any:
@@ -478,10 +526,107 @@ def null_rejecting_validator(field_name: str):
     return field_validator(field_name, mode="after")(_reject)
 
 
-def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
+# pandas 2.x sorts unioned columns in DataFrame.combine_first(), while pandas 3.x
+# preserves left-then-right column order. Probe the active runtime once so
+# combine_df_states() matches DataFrame.combine_first() across both major versions.
+_COMBINE_FIRST_COLUMN_SORT: Literal[False] | None = (
+    None
+    if pd.DataFrame({"z": [1]}).combine_first(pd.DataFrame({"a": [2]})).columns[0]
+    == "a"
+    else False
+)
+
+
+def combine_df_states(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
+    """Fill missing state values without aligning every disjoint profile column.
+
+    State components normally share an index and only the grid identifier.
+    Keep pandas' null and dtype resolution for shared columns; columns present
+    on just one side need no element-wise combination. Unusual axes retain the
+    general pandas operation. No input frame is mutated or cached.
+    """
+    if (
+        not left.index.equals(right.index)
+        or not left.columns.is_unique
+        or not right.columns.is_unique
+        or left.empty
+        or right.empty
+    ):
+        return left.combine_first(right)
+    sort = _COMBINE_FIRST_COLUMN_SORT
+    shared = left.columns.intersection(right.columns, sort=sort)
+    left_only = left.columns.difference(right.columns, sort=sort)
+    right_only = right.columns.difference(left.columns, sort=sort)
+    parts = [left.loc[:, left_only]]
+    if len(shared):
+        parts.append(left.loc[:, shared].combine_first(right.loc[:, shared]))
+    parts.append(right.loc[:, right_only])
+    return pd.concat(parts, axis=1).reindex(
+        columns=left.columns.union(right.columns, sort=sort)
+    )
+
+
+def merge_df_state_cols(
+    target: dict, source: dict, *, fill_na: bool = False
+) -> None:
+    """Merge single-grid column entries into *target* without intermediate frames.
+
+    With ``fill_na=False`` (default), preserves first-seen values matching
+    ``pd.concat(..., axis=1)`` followed by ``~columns.duplicated(keep="first")``.
+    With ``fill_na=True``, fills missing or NA values matching
+    ``combine_df_states`` on aligned single-row frames.
+    """
+    if not fill_na:
+        for k, v in source.items():
+            target.setdefault(k, v)
+        return
+    for k, v in source.items():
+        if k not in target:
+            target[k] = v
+        else:
+            cur = target[k]
+            if pd.api.types.is_scalar(cur) and pd.isna(cur):
+                target[k] = v
+
+
+def merge_df_state_col_items(
+    items: Iterable[tuple[tuple[str, str], Any]],
+) -> dict[tuple[str, str], Any]:
+    """Deduplicate ordered ``(col_key, value)`` pairs preserving first occurrence."""
+    cols: dict[tuple[str, str], Any] = {}
+    for k, v in items:
+        cols.setdefault(k, v)
+    return cols
+
+
+def df_from_col_items(
+    items: Sequence[tuple[tuple[str, str], Any]],
+    index: pd.Index,
+    *,
+    column_names: Sequence[str | None] | None = ("var", "ind_dim"),
+) -> pd.DataFrame:
+    """Build a single-row state DataFrame from ordered ``(col_key, value)`` items.
+
+    Preserves exact column order, per-column dtypes, and duplicate-column
+    multiplicity matching ``pd.concat(..., axis=1)`` without allocating
+    intermediate DataFrames.
+    """
+    col_keys = [k for k, _ in items]
+    col_data = {pos: [v] for pos, (_, v) in enumerate(items)}
+    df_state = pd.DataFrame(col_data, index=index)
+    df_state.columns = pd.MultiIndex.from_tuples(col_keys, names=column_names)
+    return df_state
+
+
+def df_from_cols(
+    cols: dict,
+    index: pd.Index,
+    *,
+    column_names: Sequence[str | None] | None = ("var", "ind_dim"),
+) -> pd.DataFrame:
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(
-        df_state.columns, names=["var", "ind_dim"]
+        df_state.columns, names=column_names
     )
     return df_state
 

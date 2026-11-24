@@ -42,6 +42,26 @@ def _unwrap(value):
     return value["value"] if isinstance(value, dict) else value
 
 
+@pytest.mark.parametrize("supplied", [None, {"rainmaxres": {"value": 2.5}}])
+def test_public_source_resolves_lumps_defaults(short_sample_yaml_path, supplied):
+    """A source can omit the block and still supply all four native inputs."""
+    source = yaml.safe_load(short_sample_yaml_path.read_text(encoding="utf-8"))
+    props = source["sites"][0]["properties"]
+    if supplied is None:
+        del props["lumps"]
+    else:
+        props["lumps"] = supplied
+    resolved = yaml.safe_load(config_to_engine_yaml(SUEWSConfig.from_dict(source)))
+    lumps = resolved["sites"][0]["properties"]["lumps"]
+    expected = {
+        "raincover": 0.25,
+        "rainmaxres": 0.25 if supplied is None else 2.5,
+        "drainrt": 0.25,
+        "veg_type": 1,
+    }
+    assert {key: _unwrap(lumps[key]) for key in expected} == expected
+
+
 @pytest.mark.parametrize(
     "store_max", [0.0, 2.0, {"value": 2.0, "ref": {"desc": "Maximum source"}}]
 )

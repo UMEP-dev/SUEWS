@@ -148,10 +148,20 @@ def test_missing_rule_block_is_an_error() -> None:
 
 
 @pytest.mark.core
-def test_real_rule_records_an_empty_delta_today() -> None:
-    """The committed rule parses and, as its prose states, records nothing."""
+def test_real_rule_records_the_continuation_matrix() -> None:
+    """The committed rule parses and, as its prose states, records the matrix."""
     rule_text = (REPO_ROOT / checker.RULE_PATH).read_text(encoding="utf-8")
+    matrix = "test/physics/test_continuation_matrix.py"
 
-    assert checker.parse_recorded_nodes(rule_text) == []
-    assert checker.check_against_rule([], REPO_ROOT).ok
+    assert checker.parse_recorded_nodes(rule_text) == [
+        f"{matrix}::test_continuation_matrix[*]",
+        f"{matrix}::test_checkpoint_perturbation_is_detected",
+    ]
+    assert checker.check_against_rule(
+        [
+            f"{matrix}::test_continuation_matrix[chunk-default]",
+            f"{matrix}::test_checkpoint_perturbation_is_detected",
+        ],
+        REPO_ROOT,
+    ).ok
     assert not checker.check_against_rule([UNRECORDED_NODE], REPO_ROOT).ok

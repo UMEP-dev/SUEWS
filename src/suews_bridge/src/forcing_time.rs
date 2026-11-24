@@ -58,6 +58,48 @@ pub fn days_in_year(year: i32) -> i64 {
     }
 }
 
+/// Return the number of calendar days in `(year, month)` for 1-based `month`,
+/// or `None` when `month` is outside `1..=12`.
+pub fn days_in_month(year: i32, month: u32) -> Option<u32> {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => Some(31),
+        4 | 6 | 9 | 11 => Some(30),
+        2 => Some(if is_leap_year(year) { 29 } else { 28 }),
+        _ => None,
+    }
+}
+
+/// Convert Gregorian `(year, month, day)` (1-based) to 1-based day-of-year,
+/// returning `None` for invalid calendar dates.
+pub fn ymd_to_doy(year: i32, month: u32, day: u32) -> Option<i32> {
+    let max_day = days_in_month(year, month)?;
+    if day == 0 || day > max_day {
+        return None;
+    }
+    let mut doy: u32 = 0;
+    for m in 1..month {
+        doy += days_in_month(year, m)?;
+    }
+    Some((doy + day) as i32)
+}
+
+/// Convert `(year, doy)` (1-based day-of-year) to 1-based `(month, day)`,
+/// returning `None` when `doy` is outside the calendar year.
+pub fn doy_to_ymd(year: i32, doy: i32) -> Option<(u32, u32)> {
+    if doy < 1 || i64::from(doy) > days_in_year(year) {
+        return None;
+    }
+    let mut remaining = doy as u32;
+    for month in 1..=12 {
+        let dim = days_in_month(year, month)?;
+        if remaining <= dim {
+            return Some((month, remaining));
+        }
+        remaining -= dim;
+    }
+    None
+}
+
 /// Convert (year, day-of-year, hour, minute) to seconds since Jan 1 00:00 of `base_year`.
 pub fn to_seconds(iy: i32, id: i32, it: i32, imin: i32, base_year: i32) -> i64 {
     let mut days: i64 = 0;
@@ -134,6 +176,37 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn ymd_and_doy_conversions_respect_gregorian_leap_years() {
+        assert_eq!(days_in_month(2012, 2), Some(29));
+        assert_eq!(days_in_month(2013, 2), Some(28));
+        assert_eq!(days_in_month(2000, 2), Some(29));
+        assert_eq!(days_in_month(1900, 2), Some(28));
+        assert_eq!(days_in_month(2012, 0), None);
+        assert_eq!(days_in_month(2012, 13), None);
+
+        assert_eq!(ymd_to_doy(2012, 2, 29), Some(60));
+        assert_eq!(ymd_to_doy(2012, 3, 1), Some(61));
+        assert_eq!(ymd_to_doy(2012, 12, 31), Some(366));
+        assert_eq!(ymd_to_doy(2013, 2, 29), None);
+        assert_eq!(ymd_to_doy(2013, 3, 1), Some(60));
+        assert_eq!(ymd_to_doy(2013, 12, 31), Some(365));
+        assert_eq!(ymd_to_doy(1900, 2, 29), None);
+        assert_eq!(ymd_to_doy(2000, 2, 29), Some(60));
+        assert_eq!(ymd_to_doy(2012, 4, 31), None);
+        assert_eq!(ymd_to_doy(2012, 1, 0), None);
+
+        for year in [1900, 2000, 2012, 2013, 2100] {
+            let max_doy = days_in_year(year) as i32;
+            for doy in 1..=max_doy {
+                let (m, d) = doy_to_ymd(year, doy).expect("valid doy");
+                assert_eq!(ymd_to_doy(year, m, d), Some(doy));
+            }
+            assert_eq!(doy_to_ymd(year, 0), None);
+            assert_eq!(doy_to_ymd(year, max_doy + 1), None);
         }
     }
 }

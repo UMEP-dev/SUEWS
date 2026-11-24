@@ -49,6 +49,7 @@ Data crosses four layers during a simulation:
 | 2. Rust bridge crate (src/suews_bridge/src/)                                |
 |    yaml_config.rs + field_renames.rs -> RunConfig (config/timer/site/state) |
 |    forcing_io.rs + forcing_time.rs   -> row-major forcing (engine CLI only) |
+|    run_period.rs                     -> file-run period check & slicing     |
 |    checkpoint.rs + suews_state.rs    -> validated restart state + timer     |
 |    sim.rs                            -> flat buffers + TOCs + FFI checks    |
 |    ffi.rs                            -> unsafe extern "C" declarations      |
@@ -113,7 +114,9 @@ parameter, see [dev-ref/RUST_BRIDGE_ADD_PARAMETER.md](../../dev-ref/RUST_BRIDGE_
   `src/forcing_time.rs` implement the engine's own meteorological text-file
   reader, `kPa -> hPa` pressure conversion (`* 10.0`), optional-column `-999.0`
   fill/sentinel handling and instantaneous/average/sum interpolation
-  (`interpolate_forcing`). Because this reader is separate from SuPy's Python
+  (`interpolate_forcing`), followed by `src/run_period.rs` enforcing
+  `model.control.start_time` and `model.control.end_time` on the forcing clock
+  before kernel execution. Because this reader is separate from SuPy's Python
   forcing pipeline, resampling and missing-value handling are scoped to each
   entry point rather than guaranteed identical across odd resolutions or
   missing-data edge cases (see the forcing boundary notes in
@@ -175,7 +178,7 @@ side, [`_output_columns`](../supy/_run_rust.py) obtains the labels
 
 ## File-by-file role map
 
-Verified against the repository layout (`61` Rust modules under `src/`, `48`
+Verified against the repository layout (`62` Rust modules under `src/`, `48`
 Fortran facades under `c_api/`, and `49` bridged derived types in
 `bridge-manifest.json`).
 
@@ -219,7 +222,8 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 | `src/checkpoint.rs` | Version-2 restart envelope (`CheckpointTimer` + `SuewsCheckpointData`) serialising/deserialising JSON with exact `float_roundtrip` parsing and strict version/timer checks. |
 | `src/forcing.rs` | Single-timestep `SuewsForcing` flat codec (`SUEWS_FORCING`). |
 | `src/forcing_io.rs` | Standalone engine (`suews-engine run`) meteorological forcing file reader, `kPa -> hPa` pressure conversion (`* 10.0`), optional-column `-999.0` sentinel handling and timestep interpolation (`physics`-gated; separate from SuPy's Python forcing preparation). |
-| `src/forcing_time.rs` | Gregorian leap-year and signed-second calendar conversions (`to_seconds` / `from_seconds`) and `TimeColumns` indices used by `forcing_io.rs`. |
+| `src/forcing_time.rs` | Gregorian leap-year and signed-second calendar conversions (`to_seconds` / `from_seconds`, `days_in_month` / `ymd_to_doy` / `doy_to_ymd`) and `TimeColumns` indices used by `forcing_io.rs` and `run_period.rs`. |
+| `src/run_period.rs` | Standalone file-run simulation period parsing (`model.control.start_time` / `end_time`), row selection and forcing-coverage checks on the forcing clock before kernel evolution. |
 | `src/output_line.rs` | Single-timestep `OutputLine` flat codec across datetime and all 11 output groups using build-time `$OUT_DIR/output_cols.rs` widths. |
 | `src/output_block.rs` | Dimension-bearing `OutputBlock` / `OutputBlockMatrix` codec (11 per-group 2D matrices); distinct from the direct-output `OutputMatrix` view in `sim.rs`. |
 | `src/output_io.rs` | Optional Apache Arrow IPC file writer (`write_output_arrow` -> `suews_output.arrow`, gated by `physics` + `arrow-output`), encoding `SUEWS_OUTPUT_NAMES`, indexed non-SUEWS names and `group_layout` schema metadata, with a unit test pinning parity against `src/supy/data_model/output/`. |
@@ -282,6 +286,14 @@ for longitude. In an old standalone input that uses `lon`, replace that key
 with `lng` and retain the intended longitude value. Zero coordinates, altitude
 and UTC offset remain valid. The public data model supplies the source defaults
 when exporting a configuration through `supy._run_rust.config_to_engine_yaml`.
+
+Resolved physics input also requires explicit integer values (bare, `{value: N}`
+or registered readable names) for the four unconditional aerodynamic selectors:
+`model.physics.roughness_length_momentum`, `model.physics.roughness_length_heat`,
+`model.physics.roughness_sublayer` and `model.physics.roughness_sublayer_level`.
+Missing, null, non-finite or malformed values fail before execution instead of
+falling back to zero. Source YAML defaults (`variable`, `kawai`, `variable`,
+`none`) remain owned by the data model.
 
 To build a runnable engine (needs the SUEWS physics library, e.g. `make dev`):
 

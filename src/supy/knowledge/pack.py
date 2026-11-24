@@ -688,12 +688,63 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def pack_input_paths(repo_root: Path) -> list[Path]:
+    """Return the existing files a rebuilt pack would read or record.
+
+    These are the Ninja depfile inputs of the Meson pack target: every packed
+    source file, the version file behind ``suews_version``, and the Git files
+    that move when the tracked file list (``index``) or ``HEAD`` (``HEAD``,
+    its reflog and the checked-out branch ref) changes. Missing files are
+    dropped, because Ninja treats a missing depfile input as permanently dirty.
+    """
+    path_repo = Path(repo_root).resolve()
+    paths = [path_repo / source.path for source in _collect_sources(path_repo)]
+    paths.append(path_repo / "src/supy/_version_scm.py")
+    git_names = ["index", "HEAD", "logs/HEAD"]
+    branch_ref = _run_git(path_repo, ["symbolic-ref", "-q", "HEAD"])
+    if branch_ref:
+        git_names.append(branch_ref)
+    for name in git_names:
+        resolved = _run_git(path_repo, ["rev-parse", "--git-path", name])
+        if resolved:
+            path_git = Path(resolved)
+            paths.append(path_git if path_git.is_absolute() else path_repo / path_git)
+    return [path for path in paths if path.is_file()]
+
+
+def _write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
+    """Write ``depfile`` with the shared Meson helper.
+
+    ``pack.py`` runs as a standalone script during the Meson build, before
+    ``supy`` is importable, so the helper is loaded by file path as in
+    ``build_rust_bridge.py``.
+    """
+    import importlib.util
+
+    path_helper = Path(__file__).resolve().parent.parent / "_build_depfile.py"
+    spec = importlib.util.spec_from_file_location("_suews_build_depfile", path_helper)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load depfile helper from {path_helper}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.write_depfile(depfile, target, deps)
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the SUEWS knowledge pack.")
     parser.add_argument("repo_root", type=Path)
     parser.add_argument("output_dir", type=Path)
     parser.add_argument("--git-sha")
     parser.add_argument("--command", default="meson knowledge-pack build")
+    parser.add_argument(
+        "--depfile",
+        type=Path,
+        help="Write a Ninja depfile listing the pack inputs (Meson @DEPFILE@).",
+    )
+    parser.add_argument(
+        "--depfile-target",
+        help="Target named in the depfile (Meson @OUTPUT0@); defaults to the manifest path.",
+    )
     args = parser.parse_args(argv)
     manifest = build_pack(
         repo_root=args.repo_root,
@@ -701,6 +752,9 @@ def _main(argv: list[str] | None = None) -> int:
         git_sha=args.git_sha,
         command=args.command,
     )
+    if args.depfile is not None:
+        target = args.depfile_target or str(args.output_dir / MANIFEST_FILE_NAME)
+        _write_depfile(args.depfile, target, pack_input_paths(args.repo_root))
     print(json.dumps({"manifest": str(args.output_dir / MANIFEST_FILE_NAME), "content_hash": manifest["content_hash"]}))
     return 0
 

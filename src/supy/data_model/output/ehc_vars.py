@@ -232,6 +232,48 @@ LEGACY_EHC_DEFS = [
     ("SS_Wall_13", "kg m-2", "Soil water store for walls in vertical layer 13", 0),
     ("SS_Wall_14", "kg m-2", "Soil water store for walls in vertical layer 14", 0),
     ("SS_Wall_15", "kg m-2", "Soil water store for walls in vertical layer 15", 0),
+    (
+        "dUdt_EHC",
+        "W m-2",
+        "Rate of change of heat content of all EHC conduction columns, plan-area weighted over the grid",
+        0,
+    ),
+    (
+        "QBot_EHC",
+        "W m-2",
+        "Conductive heat flux leaving the EHC conduction columns at their lower boundaries (deep soil and indoor), positive downward, plan-area weighted",
+        0,
+    ),
+    (
+        "QIndoor_EHC",
+        "W m-2",
+        "Conductive heat flux from the indoor boundary into the building columns (roofs and walls, or the building surface of the plan-area slab), plan-area weighted",
+        0,
+    ),
+    (
+        "QF_Bldg",
+        "W m-2",
+        "Building energy-use part of the anthropogenic heat flux QF (with observed QF: QF0_BEU times QF)",
+        0,
+    ),
+    (
+        "QF_Air",
+        "W m-2",
+        "Part of QF entering the air directly rather than any surface energy balance (implicit coupling: QF minus QIndoor_EHC)",
+        0,
+    ),
+    (
+        "T_Indoor_EHC",
+        "degC",
+        "Indoor boundary temperature of the EHC building columns (implicit coupling only)",
+        0,
+    ),
+    (
+        "T_Deep_EHC",
+        "degC",
+        "Lower boundary temperature of the EHC ground columns, area-weighted over the non-building surfaces",
+        0,
+    ),
 ]
 
 EHC_VARIABLES = [

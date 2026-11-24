@@ -1,0 +1,92 @@
+{
+  "build": {
+    "compilers": {
+      "fortran": {
+        "full_version": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
+        "id": "gcc",
+        "version": "10.2.1"
+      }
+    },
+    "fortran_build_profile": "release",
+    "git_commit": "57bb43e",
+    "supy_version": "2026.11.23.dev51"
+  },
+  "cases": {
+    "ehc_facets": {
+      "annual_rows": 105408,
+      "capped_steps": 0,
+      "columns": [
+        "SUEWS|QN",
+        "SUEWS|QF",
+        "SUEWS|QS",
+        "SUEWS|QH",
+        "SUEWS|QE",
+        "SUEWS|Ts",
+        "SUEWS|RA",
+        "EHC|dUdt_EHC",
+        "EHC|QBot_EHC",
+        "EHC|QIndoor_EHC",
+        "EHC|QF_Air",
+        "EHC|T_Indoor_EHC",
+        "EHC|T_Deep_EHC",
+        "debug|iter"
+      ],
+      "config_sha256": "f1f23b055c9fa6b3276177a618de8380a21a33c51ffcaad1a0462c8bf0eba321",
+      "negative_qf_air_steps": 94,
+      "rows": 2591,
+      "sha256": "0ba2efc1c1522b69c17b91f1b2753cd78d39d6a8646233e581b6dd7acf9baf6f"
+    },
+    "ehc_slab": {
+      "annual_rows": 105408,
+      "capped_steps": 0,
+      "columns": [
+        "SUEWS|QN",
+        "SUEWS|QF",
+        "SUEWS|QS",
+        "SUEWS|QH",
+        "SUEWS|QE",
+        "SUEWS|Ts",
+        "SUEWS|RA",
+        "EHC|dUdt_EHC",
+        "EHC|QBot_EHC",
+        "EHC|QIndoor_EHC",
+        "EHC|QF_Air",
+        "EHC|T_Indoor_EHC",
+        "EHC|T_Deep_EHC",
+        "debug|iter"
+      ],
+      "config_sha256": "1931a4779f8adbdbdf87cd75f87a1bd5fb65db291deed9f68762a0769194bea6",
+      "negative_qf_air_steps": 0,
+      "rows": 2591,
+      "sha256": "23c23a1852b2c3eb0589bb160a0119e2bed0bd48ee1d97db26d50772bb1be072"
+    }
+  },
+  "float_format": "%.7g",
+  "format_version": 1,
+  "generated_utc": "2026-11-23T16:49:54.523026+00:00",
+  "platform": {
+    "libc": "glibc 2.17",
+    "machine": "x86_64",
+    "pandas": "2.3.2",
+    "python": "3.12.12",
+    "system": "Linux"
+  },
+  "windows_exclusive_end": [
+    [
+      "2012-01-01",
+      "2012-01-03"
+    ],
+    [
+      "2012-02-01",
+      "2012-02-04"
+    ],
+    [
+      "2012-08-09",
+      "2012-08-10"
+    ],
+    [
+      "2012-08-17",
+      "2012-08-20"
+    ]
+  ]
+}

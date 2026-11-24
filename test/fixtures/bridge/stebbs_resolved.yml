@@ -1,5 +1,5 @@
 name: test
-schema_version: 2026.6.dev13
+schema_version: 2026.6.dev18
 description: grid 21_25_00_00
 strict_initial_state_bounds: true
 model:
@@ -33,6 +33,11 @@ model:
       value: 7
     ohm_inc_qf:
       value: 0
+    ehc_surface_coupling: 1
+    control_ehc_stability: 0
+    control_ehc_initial_profile: true
+    resistance_ehc_indoor_roof: 0.1
+    resistance_ehc_indoor_wall: 0.13
     roughness_length_momentum:
       value: 1
     roughness_length_heat:
@@ -1853,9 +1858,9 @@ sites:
       faut:
         value: 0.0
       ie_start:
-        value: 1.0
+        value: 1
       ie_end:
-        value: 366.0
+        value: 366
       internalwateruse_h:
         value: 0.0
       daywatper:
@@ -1978,9 +1983,9 @@ sites:
           '24': -999.0
     anthropogenic_emissions:
       startdls:
-        value: 85.0
+        value: 85
       enddls:
-        value: 302.0
+        value: 302
       heat:
         qf0_beu:
           working_day: 0.88
@@ -3615,13 +3620,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     dectr:
       state:
         value: 0.0
@@ -3656,13 +3654,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
       porosity_id:
         value: 0.6
       decidcap_id:
@@ -3701,13 +3692,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     bsoil:
       state:
         value: 0.0
@@ -3854,14 +3838,11 @@ sites:
         value: 17.540002822875977
     dqndt: 0.0
     dqnsdt: 0.0
-    dt_since_start: 0.0
     lenday_id: 0
     qn_av: 0.0
     qn_s_av: 0.0
-    tair_av: 0.0
     tmax_id: 0.0
     tmin_id: 0.0
-    tstep_prev: 0.0
     snowfallcum: 0.0
     hdd_id:
       hdd_accum: 13.5
@@ -3876,11 +3857,6 @@ sites:
       temp_5day_mean: 13.5
       precip_daily_total: 13.5
       days_since_rain: 13.5
-    l_mod: 0.0
-    ustar: 0.0
-    ra_h: 0.0
-    rb: 0.0
-    rs: 0.0
 _auto_generate_annotated: false
 _yaml_raw:
   name: test
@@ -7454,13 +7430,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
       dectr:
         state:
           value: 0.0
@@ -7495,13 +7464,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
         porosity_id:
           value: 0.6
         decidcap_id:
@@ -7540,13 +7502,6 @@ _yaml_raw:
           value: 0.0
         sdd_id:
           value: -450.0
-        wu:
-          wu_total:
-            value: 0.0
-          wu_auto:
-            value: 0.0
-          wu_manual:
-            value: 0.0
       bsoil:
         state:
           value: 0.0

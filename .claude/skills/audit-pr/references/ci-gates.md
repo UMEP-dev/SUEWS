@@ -36,9 +36,13 @@ the log supplies one, quote the operative sentence into the finding rather than
 paraphrasing from memory. Some failure paths print only the cause -- there, derive
 the remedy from the catalogue below, or say plainly that it needs a maintainer.
 
-Also read the `<!-- ci-build-plan -->` bot comment on the PR. It states which
-platforms, Python versions, and test tier this PR's paths selected, which explains
-why a check some other PR ran is absent here.
+Also read the `<!-- ci-build-plan -->` bot comment and any other CI bot comments
+(such as `<!-- cost-markers:start -->`) on the PR. `<!-- ci-build-plan -->`
+states which platforms, Python versions, and test tier this PR's paths selected,
+which explains why a check some other PR ran is absent here; check against
+`.claude/rules/review-convergence.md` ("Pre-enqueue CI coverage and advisory
+audit") whether any target platform the PR claims to fix was skipped, and list
+any non-gating advisory findings explicitly rather than dropping them silently.
 
 ## Step 2 -- required is not the same as blocking
 
@@ -110,6 +114,10 @@ Fold CI findings into the same severity vocabulary as the rest of the review:
   all; the observability jobs (`Post CI summary comment`, `CI observability
   summary`) carry no such guard and can genuinely go red.
 - Pending required checks at review time -> note in the summary, not a finding.
+- Skipped target platform that the PR claims to fix, or an unresolved CI bot
+  advisory -> surface explicitly as a named gap/disposition per
+  `.claude/rules/review-convergence.md` ("Pre-enqueue CI coverage and advisory
+  audit").
 
 Each CI finding states, in one line: the check name, what it is enforcing, why it
 is red *for this diff*, the remedy, and who can apply it.
@@ -269,7 +277,7 @@ workflow's `on:` / `paths:` rather than assuming.
 - **`Physics-change label`** (`check_physics_label` in `build-publish_to_pypi.yml`)
   - Enforces `.claude/rules/physics-change-evidence.md` (`needs:` of `PR build validation`):
     fails if stored reference outputs (`test/fixtures/data_test/sample_output_2012-*.csv`,
-    `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change
+    `provenance.json`, `stebbs_test/sample_output_stebbs.csv`, `w16_most.csv`) change
     without **exactly one** of `0-physics:change` or `0-numerics:change`, fails if a PR
     carries both labels simultaneously or if a labelled ready PR / `merge_group` run did not
     execute `test_tier=physics-full` (and `PR build validation` requires `build_wheels == success`

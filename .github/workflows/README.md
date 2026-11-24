@@ -42,13 +42,68 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   selected Python versions. Each platform's api lane is chained behind that
   platform's wheel build (one `build-wheels-reusable.yml` call per platform),
   so it starts as soon as its own wheel exists.
-- On pull requests the api lane runs no macOS cell, and the Windows cp312
-  cell runs as two shards (`cp312-win AMD64 shard 1-of-2` and `2-of-2`),
-  each taking half of the selected tests by SHA-256 of the node id
-  (`scripts/suews/pytest_shard.py`). The merge queue (cp312 on all three OS
-  families) and the nightly (every bookend) keep the macOS api cells and run
-  every cell whole. The `pr_api_lane` dispatch input applies the
-  pull-request layout to a dispatch, so it can be measured on a branch.
+- **Three layers.** Pull requests build and test on Linux only. The merge
+  queue runs Linux at its full tier (standard, or physics-full for a physics-
+  or numerics-change PR) with the cp312 api lane, and in parallel builds the
+  Windows wheel and runs only its smoke tier, with no Windows api lane; macOS
+  is not in the queue (a tests-only queue group stays Linux only). The
+  nightly keeps the full matrix on master; its tracking issue
+  (`report_scheduled_run`) names the PRs merged since the last green night (#2241). Tag releases build
+  and test the full matrix, and every publish job needs `build_wheels` to
+  succeed, so the full matrix is the release gate.
+- **Linux tests run in parallel on ready pull requests and in the merge
+  queue.** The Linux wheel uploads untested (`CIBW_TEST_SKIP`), then its
+  tests fan out at once:
+  - `physics | cp312 | manylinux x86_64 shard K-of-2` (`K-of-3` for
+    physics-full) runs the physics tier in the same manylinux2014 image the
+    wheel is built in, with the reference lane on, so the exact sample-output
+    reproduction runs where it always has; `fortran probes | cp312 | manylinux
+    x86_64` builds the Fortran probe libraries once, in parallel with the
+    wheel;
+  - `api | cp312 | manylinux x86_64 shard K-of-4` runs the build Python's api
+    tier in four shards;
+  - on a pull request, `api | cp315 | manylinux x86_64` runs the
+    `core-bookend` api tier (every core api test, slow ones included, plus
+    smoke) in one job; the non-core api tests on the newer Python wait for the
+    nightly, and the merge queue runs the build Python only.
+
+  `test layout` (`scripts/suews/ci_test_layout.py`) turns the call's inputs
+  into those jobs; draft tiers keep the physics run inside the wheel job and
+  are never sharded, and the nightly and releases are unchanged. The api lane
+  and the physics shards install with uv and a cache. The lowest-direct
+  dependency smoke tests run inside the Linux call as soon as its wheel exists.
+- **Core tests always pass on Linux before a merge.** The `Core-test guard
+  (Linux)` job (`scripts/suews/check_core_guard.py`) runs on every ready-tier
+  run (standard or physics-full: ready pull requests and the merge queue) and
+  `PR build validation` requires it. It reads the Linux lanes' per-test
+  metrics and the suite inventory the Linux cp312 api cell records with no
+  `-m` (`scripts/suews/pytest_inventory.py`), and fails unless:
+  - each Linux lane ran exactly what its tier selects, with every shard
+    present, disjoint and in its own hash bucket;
+  - every `core` test of the lane's axis has the outcome `passed`; a skip is
+    accepted only by exact node id with a reason in
+    `scripts/suews/core_guard_allowlist.json`, and an entry that no longer
+    applies fails;
+  - `test_sample_run_reproduces_reference_exactly` passed in the physics lane.
+
+  Two kinds of test cannot run in a Linux lane, and each needs its own
+  allowlist entry: a core test marked `qgis` (no tier before merge runs
+  `qgis`), by node id with the outcome `not run`, and a test module that skips
+  while it is collected (`pytest.importorskip`), which contributes no node ids
+  at all, by module path. **The single exemption** is a run whose paths need no build
+  (`needs-build` false and no physics or numerics label), in practice a
+  documentation-only change: it builds no wheel and runs no tests, so neither
+  the lanes nor the guard run. Draft tiers run a subset by design and are not
+  guarded; the ready run and the merge queue are.
+- The `0-ci:full-matrix` label opts a pull request into every PR platform
+  (Linux, macOS arm64, Windows); use it for build-system, Fortran I/O and
+  path-handling changes. It is read live when the run starts, so add it and
+  then re-run the workflow (or push). On such a PR the api lane runs no macOS
+  cell, and the Windows cp312 cell runs as two shards (`api | cp312 | win AMD64
+  shard 1-of-2` and `2-of-2`), each taking half of the selected tests by SHA-256 of
+  the node id (`scripts/suews/pytest_shard.py`). The `pr_api_lane` dispatch
+  input applies that pull-request api layout to a dispatch, so it can be
+  measured on a branch.
 - The nightly `Tolerance spread` group (`tolerance-spread-reusable.yml`, also on
   dispatch with the `tolerance_spread` input) installs the built wheel on the
   two CPython bookends per platform and records the zero-tolerance spread of
@@ -64,6 +119,14 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   `standard` includes non-slow tests plus essential `core` regressions even
   when they are slow. All normal tiers exclude `qgis`; `all` is reserved for
   scheduled builds, tagged releases, and explicit manual validation.
+- On `standard`-tier pull requests, the report-only `Test duration guard (Linux
+  cp312)` job (`scripts/lint/check_test_duration.py`) scales each API and
+  physics shard relative to the unchanged reference-test cohort in
+  `scripts/lint/test_duration_baseline.json` and warns when a lane grows by more
+  than 10% relative to that cohort or a changed test exceeds the cost-marker
+  thresholds without the matching marker. It never gates merges. Regenerate the
+  baseline after deliberate suite growth or hotspot speed-ups with
+  `python scripts/lint/check_test_duration.py --write-baseline <run_dirs...>`.
 - UMEP/QGIS tests are `api + qgis`: they are not physics backend tests, and
   run only when `all` reaches the Windows + Python 3.12 compatibility cell or
   when selected explicitly.

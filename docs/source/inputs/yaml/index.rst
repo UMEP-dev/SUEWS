@@ -41,6 +41,8 @@ Quick Start
    # Run simulation
    output = sim.run()
 
+See :doc:`EHC coupling and heat diagnostics <../../outputs/ehc>` for method-5 defaults, initial temperatures and explicit compatibility settings.
+
 Configuration Structure
 -----------------------
 
@@ -128,6 +130,17 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
 
 Parameter Documentation
 -----------------------
+
+Vegetation initial senescence degree days,
+``sites[].initial_states.{evetr,dectr,grass}.sdd_id``, must be finite numbers
+in K d. Negative, zero and positive values are accepted; omission keeps the
+default of 0. Both scalar and ``value``/``ref`` forms are supported, with
+reference metadata retained. NaN and either infinity are rejected rather than
+being serialised as null or reaching the engine as zero. Explicit null remains
+invalid. SuPy checks this field when loading configuration or dataframe state
+and again before exporting or running a configuration that has been edited in
+memory. Errors identify the site, vegetation surface and field. For the
+migration procedure, see :ref:`schema_dev16_vegetation_senescence`.
 
 Before configuring height-dependent roof and wall properties, read
 :ref:`layer_conventions`. It defines the SPARTACUS vertical-layer geometry and,

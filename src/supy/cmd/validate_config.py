@@ -9,14 +9,18 @@ import click
 import yaml
 import sys
 import os
-from contextlib import nullcontext as _nullcontext
+from contextlib import nullcontext as _nullcontext, redirect_stdout
+import io
+import logging
 from copy import deepcopy
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
 import jsonschema
+from rich import box
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 
 from ..data_model.validation.pipeline.report_writer import (
     REPORT_WRITER,
@@ -63,6 +67,7 @@ except Exception:
 
 # Import from supy modules
 try:
+    from ..data_model.core._yaml_io import safe_load_yaml
     from ..data_model.core.config import SUEWSConfig
     from ..data_model.core.field_renames import (
         read_physics_key,
@@ -78,6 +83,7 @@ except ImportError:
     import sys
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
+    from supy.data_model.core._yaml_io import safe_load_yaml
     from supy.data_model.core.config import SUEWSConfig
     from supy.data_model.core.field_renames import (
         read_physics_key,
@@ -92,8 +98,24 @@ except ImportError:
 # Sentinel used by the critical-physics-presence check below; module-level
 # so identity comparison stays stable across calls.
 _PHYSICS_KEY_MISSING = object()
+# Capture the default function object so monkeypatching ``check_migration_needed``
+# in tests still calls the patched 1-argument callable directly.
+_DEFAULT_CHECK_MIGRATION_NEEDED = check_migration_needed
 
 console = Console()
+
+
+def _console_text(value: str, style: str = "") -> Text:
+    """Keep user text literal, escaping every non-ASCII character as ``\\uXXXX``.
+
+    Validator output is ASCII-only (0x00..0x7F) whatever the stream encoding.
+    """
+    return Text(value.encode("ascii", errors="backslashreplace").decode("ascii"), style=style)
+
+
+def _status_text(message: str, ok: bool) -> Text:
+    marker = "[OK]" if ok else "[X]"
+    return _console_text(f"{marker} {message}", "green" if ok else "red")
 
 
 def validate_single_file(
@@ -114,8 +136,7 @@ def validate_single_file(
     try:
         # Load configuration
         with open(file_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-        flatten_physics_in_config(config)
+            config = safe_load_yaml(f)
 
         target_is_current = (
             schema_version is None or schema_version == CURRENT_SCHEMA_VERSION
@@ -123,19 +144,30 @@ def validate_single_file(
 
         # Only flag migration pressure when validating against the current
         # schema. An explicit older target version is a schema-only check.
-        if target_is_current and check_migration_needed(str(file_path)):
-            if ValidationError:
-                errors.append(
-                    ValidationError(
-                        code=ErrorCode.SCHEMA_VERSION_MISMATCH,
-                        message="Configuration uses old schema version and may need migration",
-                        location=str(file_path),
-                    )
+        # Reuse the already-parsed document before flattening when the default
+        # helper is active, avoiding a duplicate full YAML parse.
+        if target_is_current:
+            if check_migration_needed is _DEFAULT_CHECK_MIGRATION_NEEDED:
+                needs_migration = check_migration_needed(
+                    str(file_path), _parsed_config=config
                 )
             else:
-                errors.append(
-                    "Configuration uses old schema version and may need migration"
-                )
+                needs_migration = check_migration_needed(str(file_path))
+            if needs_migration:
+                if ValidationError:
+                    errors.append(
+                        ValidationError(
+                            code=ErrorCode.SCHEMA_VERSION_MISMATCH,
+                            message="Configuration uses old schema version and may need migration",
+                            location=str(file_path),
+                        )
+                    )
+                else:
+                    errors.append(
+                        "Configuration uses old schema version and may need migration"
+                    )
+
+        flatten_physics_in_config(config)
 
         # Validate against schema
         validator = jsonschema.Draft7Validator(schema)
@@ -174,7 +206,12 @@ def validate_single_file(
         # aliases (e.g. `netradiationmethod`) are recognised the same way the
         # full SUEWSConfig.from_yaml path recognises them — otherwise this
         # check would false-negative on configurations the pipeline accepts.
-        if target_is_current and CRITICAL_PHYSICS_PARAMS:
+        if (
+            target_is_current
+            and CRITICAL_PHYSICS_PARAMS
+            and isinstance(config, dict)
+            and isinstance(config.get("model", {}), dict)
+        ):
             user_physics = (
                 (config or {}).get("model", {}).get("physics") or {}
             )
@@ -289,6 +326,23 @@ def validate_single_file(
                 ],
             )
         return (False, [f"Unexpected error: {e}"])
+
+
+def _validation_issues_text(errors: list[dict | str]) -> Text:
+    """Render issue paths and reasons literally, retaining the summary limit."""
+    lines = []
+    for error in errors[:3]:
+        if isinstance(error, dict):
+            path = error.get("path") or error.get("field") or error.get("location")
+            message = error.get("message", "")
+            lines.append(f"{path}: {message}" if path else message)
+        else:
+            lines.append(error)
+    if len(errors) > 3:
+        lines.append(f"... and {len(errors) - 3} more")
+    # Field paths and validator messages can contain brackets. They are data,
+    # not Rich markup (for example RefValue[int] or [type=int_parsing]).
+    return _console_text("\n".join(lines))
 
 
 def _emit_validation_envelope(
@@ -436,7 +490,7 @@ def cli(
         # Only support C and ABC for now
         if pipeline not in ("C", "ABC"):
             console.print(
-                "[red]✗ --dry-run is supported for pipeline C or ABC only[/red]"
+                _status_text("--dry-run is supported for pipeline C or ABC only", ok=False)
             )
             ctx.exit(2)
 
@@ -447,7 +501,7 @@ def cli(
         if pipeline == "C":
             if not files:
                 console.print(
-                    "[red]✗ Provide one or more YAML files for -p C --dry-run[/red]"
+                    _status_text("Provide one or more YAML files for -p C --dry-run", ok=False)
                 )
                 ctx.exit(2)
             results = []
@@ -487,24 +541,14 @@ def cli(
                     results, target_version, started_at
                 )
             else:
-                table = Table(title="Validation Results")
+                table = Table(title="Validation Results", box=box.ASCII)
                 table.add_column("File", style="cyan")
                 table.add_column("Status", justify="center")
                 table.add_column("Issues", style="yellow")
                 for r in results:
-                    status = (
-                        "[green]✓ Valid[/green]"
-                        if r["valid"]
-                        else "[red]✗ Invalid[/red]"
-                    )
-                    issues = (
-                        ""
-                        if r["valid"]
-                        else ("\n".join(r["errors"][:3]) if r["errors"] else "")
-                    )
-                    if not r["valid"] and len(r["errors"]) > 3:
-                        issues += f"\n... and {len(r['errors']) - 3} more"
-                    table.add_row(Path(r["file"]).name, status, issues)
+                    status = _status_text("Valid" if r["valid"] else "Invalid", r["valid"])
+                    issues = _validation_issues_text(r["errors"])
+                    table.add_row(_console_text(Path(r["file"]).name), status, issues)
                 console.print(table)
                 console.print(
                     f"\n[bold]Summary:[/bold] {sum(1 for r in results if r['valid'])}/{len(results)} files valid"
@@ -515,7 +559,7 @@ def cli(
         # pipeline == ABC dry-run
         if len(files) != 1:
             console.print(
-                "[red]✗ Provide exactly one YAML file for -p ABC --dry-run[/red]"
+                _status_text("Provide exactly one YAML file for -p ABC --dry-run", ok=False)
             )
             ctx.exit(2)
         path = Path(files[0])
@@ -547,17 +591,13 @@ def cli(
             started_at = _now_iso()
             _emit_validation_envelope(result, target_version, started_at)
         else:
-            table = Table(title="Validation Results")
+            table = Table(title="Validation Results", box=box.ASCII)
             table.add_column("File", style="cyan")
             table.add_column("Status", justify="center")
             table.add_column("Issues", style="yellow")
-            status = (
-                "[green]✓ Valid[/green]" if is_valid else "[red]✗ Invalid[/red]"
-            )
-            issues = "" if is_valid else ("\n".join(errors[:3]) if errors else "")
-            if not is_valid and len(errors) > 3:
-                issues += f"\n... and {len(errors) - 3} more"
-            table.add_row(path.name, status, issues)
+            status = _status_text("Valid" if is_valid else "Invalid", is_valid)
+            issues = _validation_issues_text(result[0]["errors"])
+            table.add_row(_console_text(path.name), status, issues)
             console.print(table)
             console.print(
                 f"\n[bold]Summary:[/bold] {1 if is_valid else 0}/1 files valid"
@@ -567,7 +607,7 @@ def cli(
     # Non-dry-run: execute pipeline with file writes
     if len(files) != 1:
         console.print(
-            "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
+            _status_text("Provide exactly one YAML FILE for pipeline execution", ok=False)
         )
         ctx.exit(2)
     code = _execute_pipeline(
@@ -581,21 +621,28 @@ def cli(
     ctx.exit(code)
 
 
-def _experimental_features_restriction(user_yaml_file, mode):
-    """Return public-mode experimental-feature violations.
+_PRELOADED_YAML_UNSET = object()
 
-    Returns:
-        tuple: ``(ok, restrictions, read_error)`` where ``ok`` is false
-        when validation should halt.
+
+def _experimental_features_restriction_with_data(user_yaml_file, mode):
+    """Return public-mode experimental-feature violations and parsed YAML data.
+
+    Returns
+    -------
+    tuple
+        ``(ok, restrictions, read_error, parsed_data)`` where ``parsed_data`` is
+        the unmutated parsed YAML document in public mode (so a single CLI
+        invocation can hand it to Phase A without re-parsing the same file), or
+        ``_PRELOADED_YAML_UNSET`` when the file was not parsed.
     """
     if mode != "public":
-        return True, [], None  # Dev mode allows all features
+        return True, [], None, _PRELOADED_YAML_UNSET  # Dev mode allows all features
 
     try:
         with open(user_yaml_file, "r", encoding="utf-8") as f:
-            user_yaml_data = yaml.safe_load(f)
+            user_yaml_data = safe_load_yaml(f)
     except Exception as e:
-        return False, [], f"Error reading YAML file: {e}"
+        return False, [], f"Error reading YAML file: {e}", _PRELOADED_YAML_UNSET
 
     # Read physics keys via helpers that accept both the new snake_case name
     # and its legacy alias — the Pydantic shim accepts both, so this gate must
@@ -603,11 +650,16 @@ def _experimental_features_restriction(user_yaml_file, mode):
     from ..data_model.core.field_renames import read_physics_key
     from ..data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 
-    physics = (
-        user_yaml_data.get("model", {}).get("physics", {})
-        if isinstance(user_yaml_data, dict)
-        else {}
-    )
+    # This gate checks feature policy, not structure. Leave malformed mappings
+    # to the selected validation phase so it can report their YAML locations.
+    if not isinstance(user_yaml_data, dict):
+        return True, [], None, user_yaml_data
+    model = user_yaml_data.get("model", {})
+    if not isinstance(model, dict):
+        return True, [], None, user_yaml_data
+    physics = model.get("physics", {})
+    if not isinstance(physics, dict):
+        return True, [], None, user_yaml_data
     restrictions_violated = []
 
     # gh#1456: use the shared composer so nested bool-like strings (`off`,
@@ -625,18 +677,31 @@ def _experimental_features_restriction(user_yaml_file, mode):
         restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
 
     if restrictions_violated:
-        return False, restrictions_violated, None
+        return False, restrictions_violated, None, user_yaml_data
 
-    return True, [], None
+    return True, [], None, user_yaml_data
+
+
+def _experimental_features_restriction(user_yaml_file, mode):
+    """Return public-mode experimental-feature violations.
+
+    Returns:
+        tuple: ``(ok, restrictions, read_error)`` where ``ok`` is false
+        when validation should halt.
+    """
+    ok, restrictions, read_error, _ = _experimental_features_restriction_with_data(
+        user_yaml_file, mode
+    )
+    return ok, restrictions, read_error
 
 
 def _print_experimental_features_restriction(restrictions_violated):
     """Print the legacy table-mode experimental-feature restriction message."""
     console.print(
-        "[red]✗ Configuration contains experimental features restricted in public mode:[/red]"
+        _status_text("Configuration contains experimental features restricted in public mode:", ok=False)
     )
     for restriction in restrictions_violated:
-        console.print(f"  • {restriction}")
+        console.print(_console_text(f"  - {restriction}"))
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")
@@ -655,7 +720,7 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
     if ok:
         return True
     if read_error:
-        console.print(f"[red]✗ {read_error}[/red]")
+        console.print(_status_text(read_error, ok=False))
     else:
         _print_experimental_features_restriction(restrictions_violated)
     return False
@@ -730,11 +795,11 @@ def _emit_pipeline_result(
     command: str = "suews validate",
     started_at: Optional[str] = None,
 ) -> int:
-    """Emit the pipeline outcome and return the exit code (gh#1409 follow-up).
+    """Prepare legacy non-ABC reports, then render the outcome and exit code.
 
-    Replaces the bespoke ``console.print(...)`` + ``return 0/1`` block at
-    the end of every pipeline branch in :func:`_execute_pipeline` so all
-    branches funnel through one place. Honours ``out_format``:
+    ABC uses the shared staged publisher and calls the read-only renderer
+    directly. Other pipelines retain their existing finalisation here.
+    Honours ``out_format``:
 
     - ``"table"`` (default) — preserves the legacy text output: status
       banner + ``Report:`` / ``Updated YAML:`` lines printed to console.
@@ -760,13 +825,6 @@ def _emit_pipeline_result(
     started_at
         ISO 8601 start timestamp for envelope provenance.
     """
-    from ..data_model.validation.pipeline.report_schema import (
-        ValidationReport,
-    )
-
-    has_errors = any(p.has_errors for p in phases)
-    ok = not has_errors
-
     # gh#1467: in a consolidated run the per-phase intermediate artefacts
     # (temp_report*_ reports, updated*_ YAMLs) are merged into and deleted in
     # favour of the single final report/YAML. Their in-memory PhaseReport
@@ -799,12 +857,30 @@ def _emit_pipeline_result(
     # output modes (the sidecar is a disk artefact, independent of stdout).
     _write_consolidated_sidecar(phases, report_path)
 
+    return _render_pipeline_result(
+        phases,
+        report_path if out_format == "json" or (report_path and Path(report_path).exists()) else None,
+        yaml_path if out_format == "json" or (yaml_path and Path(yaml_path).exists()) else None,
+        out_format=out_format,
+        command=command, started_at=started_at,
+    )
+
+
+def _render_pipeline_result(
+    phases: list, report_path, yaml_path, *, out_format: str = "table",
+    command: str = "suews validate", started_at: str | None = None,
+    evidence_dir: Path | None = None, cleanup_warning: str | None = None,
+) -> int:
+    """Render this invocation's result without reading or writing published files."""
+    from ..data_model.validation.pipeline.report_schema import ValidationReport
+
+    ok = not any(phase.has_errors for phase in phases)
     if out_format == "json":
         validation_report = ValidationReport(phases=list(phases))
         data = {
             "validation_report": validation_report.to_dict(),
             "report_file": str(report_path),
-            "updated_yaml": str(yaml_path),
+            "updated_yaml": str(yaml_path) if yaml_path else None,
             "phases_run": [p.phase for p in phases],
         }
         warnings = [
@@ -819,6 +895,14 @@ def _emit_pipeline_result(
             for issue in p.issues
             if issue.severity == "WARNING"
         ]
+        if evidence_dir:
+            data["evidence_dir"] = str(evidence_dir)
+        if cleanup_warning:
+            warnings.append({
+                "code": "temporary_cleanup_failed",
+                "message": f"Outputs published; temporary cleanup failed: {cleanup_warning}",
+                "path": str(evidence_dir) if evidence_dir else None,
+            })
         if ok:
             Envelope.success(
                 data=data,
@@ -847,16 +931,17 @@ def _emit_pipeline_result(
             ).emit()
         return 0 if ok else 1
 
-    # Default: legacy text output, preserved verbatim.
-    console.print(
-        "[green]✓ Validation completed[/green]"
-        if ok
-        else "[red]✗ Validation failed[/red]"
-    )
-    if Path(report_path).exists():
-        console.print(f"Report: {report_path}")
-    if Path(yaml_path).exists():
-        console.print(f"Updated YAML: {yaml_path}")
+    console.print(_status_text("Validation completed" if ok else "Validation failed", ok))
+    if cleanup_warning:
+        console.print(_console_text(
+            f"Warning: Outputs published; temporary cleanup failed: {cleanup_warning}"
+        ))
+    if evidence_dir:
+        console.print(_console_text(f"Phase evidence: {evidence_dir}"), soft_wrap=True)
+    if report_path:
+        console.print(_console_text(f"Report: {report_path}"), soft_wrap=True)
+    if yaml_path:
+        console.print(_console_text(f"Updated YAML: {yaml_path}"), soft_wrap=True)
     return 0 if ok else 1
 
 
@@ -878,8 +963,23 @@ def _emit_pipeline_startup_error(
             started_at=started_at,
         ).emit()
     else:
-        console.print(f"[red]✗ {message}[/red]")
+        # Soft wrap keeps long output paths intact for copying.
+        console.print(_status_text(message, ok=False), soft_wrap=True)
+        if data and data.get("evidence_dir"):
+            console.print(_console_text(f"Phase evidence: {data['evidence_dir']}"), soft_wrap=True)
     return 1
+
+
+def _interrupted_publication_message(exc) -> str:
+    """Describe outputs an interrupted ABC publication could not restore."""
+    lines = [str(exc)]
+    for item in exc.unrestored:
+        recovery = (
+            f"previous copy kept at {item.backup}" if item.backup
+            else "no previous copy existed; delete it"
+        )
+        lines.append(f"  {item.path}: {item.error} ({recovery})")
+    return "\n".join(lines)
 
 
 def _execute_pipeline(
@@ -947,9 +1047,12 @@ def _execute_pipeline(
             data={"file": str(file)},
         )
 
-    ok_experimental, restrictions_violated, read_error = (
-        _experimental_features_restriction(user_yaml_file, mode)
-    )
+    (
+        ok_experimental,
+        restrictions_violated,
+        read_error,
+        preloaded_user_data,
+    ) = _experimental_features_restriction_with_data(user_yaml_file, mode)
     if not ok_experimental:
         if read_error:
             return _emit_pipeline_startup_error(
@@ -975,6 +1078,77 @@ def _execute_pipeline(
             )
         _print_experimental_features_restriction(restrictions_violated)
         return 1
+
+    phase_a_preload_kwargs = (
+        {"_preloaded_user_data": preloaded_user_data}
+        if preloaded_user_data is not _PRELOADED_YAML_UNSET
+        else {}
+    )
+
+    if pipeline == "ABC":
+        from ..data_model.validation.pipeline.orchestrator import (
+            ABCOutputError, ABCPublicationInterrupted, run_abc_pipeline,
+        )
+
+        logger = logging.getLogger("SuPy")
+        was_disabled = logger.disabled
+        try:
+            if out_format == "json":
+                # The configured handler may hold the original stdout stream,
+                # beyond redirect_stdout. Typed reports carry these diagnostics.
+                logger.disabled = True
+            # Reports carry the diagnostics. Legacy phase progress must never
+            # contaminate the one public JSON envelope on stdout.
+            with redirect_stdout(io.StringIO()), silent_supy_logger():
+                result = run_abc_pipeline(
+                    user_yaml_file, mode=mode, forcing=forcing,
+                    science_fixes=science_fixes,
+                    **phase_a_preload_kwargs,
+                )
+        except ABCPublicationInterrupted as exc:
+            # Name the outputs left inconsistent before the interrupt
+            # propagates; Click would otherwise print only "Aborted!".
+            logger.disabled = was_disabled
+            _emit_pipeline_startup_error(
+                _interrupted_publication_message(exc), out_format=out_format,
+                command=command_str, started_at=started_at,
+                code="output_publication_interrupted",
+                data={
+                    "file": user_yaml_file,
+                    "evidence_dir": str(exc.evidence_dir),
+                    "unrestored_outputs": [
+                        {
+                            "path": str(item.path),
+                            "error": item.error,
+                            "backup": str(item.backup) if item.backup else None,
+                        }
+                        for item in exc.unrestored
+                    ],
+                },
+            )
+            raise
+        except ABCOutputError as exc:
+            return _emit_pipeline_startup_error(
+                str(exc), out_format=out_format, command=command_str,
+                started_at=started_at, code="output_write_failed",
+                data={"file": user_yaml_file, "evidence_dir": str(exc.evidence_dir)},
+            )
+        except Exception as exc:
+            # Keep rollback-failure notes a non-OSError publication failure carries.
+            notes = [str(note) for note in getattr(exc, "__notes__", ())]
+            return _emit_pipeline_startup_error(
+                "; ".join([str(exc), *notes]), out_format=out_format,
+                command=command_str, started_at=started_at,
+                code="pipeline_execution_failed",
+                data={"file": user_yaml_file},
+            )
+        finally:
+            logger.disabled = was_disabled
+        return _render_pipeline_result(
+            result.phases, result.report_path, result.yaml_path,
+            out_format=out_format, command=command_str, started_at=started_at,
+            evidence_dir=result.evidence_dir, cleanup_warning=result.cleanup_warning,
+        )
 
     # Use importlib.resources for robust package resource access
     # Use string "supy" instead of module reference to avoid NameError
@@ -1014,6 +1188,7 @@ def _execute_pipeline(
             phase="A",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         return _emit_pipeline_result(
             phases=[phase_a_report],
@@ -1075,6 +1250,7 @@ def _execute_pipeline(
             phase="AB",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         a_ok = not a_ok_report.has_errors
         if not a_ok:
@@ -1123,7 +1299,7 @@ def _execute_pipeline(
                     shutil.move(str(uptodate_file), str(final_yaml))
                 else:
                     console.print(
-                        f"[yellow]Warning: Updated YAML not found: {uptodate_file}[/yellow]"
+                        _console_text(f"Warning: Updated YAML not found: {uptodate_file}", "yellow")
                     )
 
                 # Use Phase B report as final (contains the errors)
@@ -1141,7 +1317,7 @@ def _execute_pipeline(
                 ):
                     Path(science_yaml_file).unlink()
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[a_ok_report, b_ok_report],
@@ -1202,6 +1378,7 @@ def _execute_pipeline(
             phase="AC",
             silent=True,
             forcing=forcing,
+            **phase_a_preload_kwargs,
         )
         a_ok = not a_ok_report.has_errors
         if not a_ok:
@@ -1255,7 +1432,7 @@ def _execute_pipeline(
                 ):
                     Path(pydantic_yaml_file).unlink()
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[a_ok_report, c_ok_report],
@@ -1343,7 +1520,7 @@ def _execute_pipeline(
                         science_report_file, final_report, final_yaml
                     )
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[b_ok_report],
@@ -1428,7 +1605,7 @@ def _execute_pipeline(
                 ):
                     Path(pydantic_yaml_file).unlink()
             except Exception as e:
-                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+                console.print(_console_text(f"Warning during cleanup: {e}", "yellow"))
 
             return _emit_pipeline_result(
                 phases=[b_ok_report, c_ok_report],
@@ -1483,230 +1660,6 @@ def _execute_pipeline(
             started_at=started_at,
         )
 
-    # Default: ABC
-    a_ok_report = _processor_run_phase_a(
-        user_yaml_file,
-        standard_yaml_file,
-        uptodate_file,
-        report_file,
-        mode=mode,
-        phase="ABC",
-        silent=True,
-        forcing=forcing,
-    )
-    a_ok = not a_ok_report.has_errors
-    if not a_ok:
-        # Phase A failed in ABC - create final files from Phase A outputs
-        if debug:
-            print(f"[DEBUG] Phase A failed in ABC pipeline", file=sys.stderr)
-            print(f"[DEBUG]   report_file: {report_file}, exists: {Path(report_file).exists()}", file=sys.stderr)
-            if Path(report_file).exists():
-                print(f"[DEBUG]   report_file size: {os.path.getsize(report_file)} bytes", file=sys.stderr)
-            print(f"[DEBUG]   pydantic_report_file (target): {pydantic_report_file}", file=sys.stderr)
-
-        try:
-            # Use orchestrator helper to handle move/copy fallbacks consistently.
-            _processor_create_final_user_files(
-                user_yaml_file=str(file),
-                source_yaml=str(uptodate_file),
-                source_report=str(report_file),
-            )
-        except Exception as e:
-            if debug:
-                print(f"[DEBUG]   Move failed with exception: {e}", file=sys.stderr)
-            pass  # Don't fail if move doesn't work
-
-        return _emit_pipeline_result(
-            phases=[a_ok_report],
-            report_path=pydantic_report_file,
-            yaml_path=pydantic_yaml_file,
-            out_format=out_format,
-            command=command_str,
-            started_at=started_at,
-        )
-
-    b_ok_report = _processor_run_phase_b(
-        user_yaml_file,
-        uptodate_file,
-        standard_yaml_file,
-        science_yaml_file,
-        science_report_file,
-        report_file,
-        phase_a_performed=True,
-        mode=mode,
-        phase="ABC",
-        silent=True,
-        science_fixes=science_fixes,
-    )
-    b_ok = not b_ok_report.has_errors
-
-    if not b_ok:
-        # Phase B failed in ABC - create final files with mixed content
-        # Final YAML: from Phase A (last successful phase), Final Report: from Phase B (contains errors)
-        import shutil
-
-        try:
-            # Create final YAML from Phase A (last successful phase)
-            if Path(uptodate_file).exists():
-                shutil.copy2(
-                    uptodate_file, pydantic_yaml_file
-                )  # Copy updatedA → updated (keep intermediate)
-
-            # Create final Report from Phase B (contains the actual errors we need to show user)
-            if Path(science_report_file).exists():
-                _processor_move_report_with_json(
-                    science_report_file, pydantic_report_file, pydantic_yaml_file
-                )  # Move reportB -> report (don't keep intermediate)
-            elif Path(report_file).exists():
-                # Fallback to Phase A report if Phase B report doesn't exist
-                _processor_copy_report_with_json(
-                    report_file, pydantic_report_file, pydantic_yaml_file
-                )  # Copy reportA -> report (keep intermediate)
-
-            # Remove failed Phase B YAML
-            if Path(science_yaml_file).exists():
-                Path(science_yaml_file).unlink()  # Remove failed Phase B YAML
-        except Exception:
-            pass  # Don't fail if cleanup doesn't work
-
-        # Clean up intermediate files
-        try:
-            _processor_unlink_report_with_json(report_file)
-            if Path(uptodate_file).exists():
-                Path(uptodate_file).unlink()
-        except Exception:
-            pass
-
-        return _emit_pipeline_result(
-            phases=[a_ok_report, b_ok_report],
-            report_path=pydantic_report_file,
-            yaml_path=pydantic_yaml_file,
-            out_format=out_format,
-            command=command_str,
-            started_at=started_at,
-        )
-
-    # Both Phase A and B succeeded - extract and consolidate messages for Phase C
-    from ..data_model.validation.pipeline.orchestrator import (
-        extract_no_action_messages_from_report,
-    )
-
-    # Extract Phase A messages and clean up immediately (minimizes I/O time)
-    phase_a_messages = []
-    report_path = Path(report_file)
-    if report_path.exists():
-        phase_a_messages = extract_no_action_messages_from_report(report_file)
-    # Always run sidecar-aware cleanup: drops the .txt if present and any
-    # orphan temp_reportA_*.json that lingered after partial earlier cleanup.
-    _processor_unlink_report_with_json(report_file)
-
-    # Extract Phase B messages and clean up immediately (minimizes I/O time)
-    phase_b_messages = []
-    science_report_path = Path(science_report_file)
-    if science_report_path.exists():
-        phase_b_messages = extract_no_action_messages_from_report(science_report_file)
-    # Same idempotent cleanup for Phase B's text + temp_reportB_*.json sidecar.
-    _processor_unlink_report_with_json(science_report_file)
-
-    # Deduplicate messages efficiently and filter out incomplete headers
-    all_no_action_messages = []
-    seen_messages = set()
-
-    for msg in phase_a_messages + phase_b_messages:
-        if msg not in seen_messages:
-            # Skip incomplete header patterns that end with "to current standards:"
-            if msg.strip().startswith("- Updated (") and msg.strip().endswith(
-                "to current standards:"
-            ):
-                # This is an incomplete header, skip it
-                continue
-
-            all_no_action_messages.append(msg)
-            seen_messages.add(msg)
-
-    c_ok_report = _processor_run_phase_c(
-        science_yaml_file,
-        pydantic_yaml_file,
-        pydantic_report_file,
-        mode=mode,
-        phase_a_report_file=None,  # Files already cleaned up
-        science_report_file=None,  # Files already cleaned up
-        phases_run=["A", "B", "C"],
-        no_action_messages=all_no_action_messages,
-        silent=True,
-    )
-    c_ok = not c_ok_report.has_errors
-
-    if not c_ok:
-        # Phase C failed in ABC - create final files with mixed content
-        # Final YAML: from Phase B (last successful phase), Final Report: from Phase C (contains errors)
-        import shutil
-
-        try:
-            # Create final YAML from Phase B (last successful phase)
-            if Path(science_yaml_file).exists():
-                shutil.copy2(
-                    science_yaml_file, pydantic_yaml_file
-                )  # Copy updatedB → updated (keep intermediate)
-
-            # Final Report should be from Phase C (contains the actual errors), but Phase C might not create a file
-            # In this case, we'll rely on Phase C having already created pydantic_report_file, or use Phase B as fallback
-            if (
-                not Path(pydantic_report_file).exists()
-                and Path(science_report_file).exists()
-            ):
-                _processor_copy_report_with_json(
-                    science_report_file, pydantic_report_file, pydantic_yaml_file
-                )  # Fallback: copy reportB -> report
-        except Exception:
-            pass  # Don't fail if copy doesn't work
-
-        # Clean up intermediate files
-        try:
-            _processor_unlink_report_with_json(report_file)
-            if Path(uptodate_file).exists():
-                Path(uptodate_file).unlink()
-            _processor_unlink_report_with_json(science_report_file)
-            if Path(science_yaml_file).exists():
-                Path(science_yaml_file).unlink()
-        except Exception:
-            pass
-
-        return _emit_pipeline_result(
-            phases=[a_ok_report, b_ok_report, c_ok_report],
-            report_path=pydantic_report_file,
-            yaml_path=pydantic_yaml_file,
-            out_format=out_format,
-            command=command_str,
-            started_at=started_at,
-        )
-
-    # All phases succeeded - clean up intermediate files and don't show them
-    if debug:
-        report_exists = os.path.exists(pydantic_report_file)
-        report_size = os.path.getsize(pydantic_report_file) if report_exists else -1
-        print(f"[DEBUG] Final report state: exists={report_exists}, size={report_size} bytes", file=sys.stderr)
-
-    # The intermediate files are now cleaned up by run_phase_c during consolidation
-    # Clean up any remaining intermediate YAML files that weren't cleaned up
-    try:
-        uptodate_path = Path(uptodate_file)
-        if uptodate_path.exists():
-            uptodate_path.unlink()  # Remove updatedA_*
-        science_yaml_path = Path(science_yaml_file)
-        if science_yaml_path.exists():
-            science_yaml_path.unlink()  # Remove updatedB_*
-    except Exception:
-        pass  # Don't fail if cleanup doesn't work
-
-    return _emit_pipeline_result(
-        phases=[a_ok_report, b_ok_report, c_ok_report],
-        report_path=pydantic_report_file,
-        yaml_path=pydantic_yaml_file,
-        out_format=out_format,
-        command=command_str,
-        started_at=started_at,
-    )
 
 
 def main():

@@ -5,6 +5,7 @@ from .rules_core import (
 from collections.abc import Mapping
 from ...required_fields import stebbs_shading_requirements
 from ...core.yaml_helpers import (
+    get_ref_or_bare,
     get_value_safe,
     get_stebbs_block,
     get_stebbsmethod_value,
@@ -34,32 +35,42 @@ def check_archetype_radiation_properties(archetype_data, facet):
         Returns a ValidationResult with status "PASS" if the sum is 1, "ERROR" otherwise.
         Returns None if any property is missing.
     """
-    archetype_facet_reflectivity = archetype_data.get(f"{facet}_reflectivity")
-    archetype_facet_absorptivity = archetype_data.get(f"{facet}_absorptivity")
-    archetype_facet_transmissivity = archetype_data.get(f"{facet}_transmissivity")
+    # Canonical archetype names; ``normalise_yaml_renames`` rewrites
+    # the legacy ``{facet}_reflectivity`` spellings before the rules run.
+    keys = tuple(
+        f"{prop}_{facet}_external"
+        for prop in ("reflectivity", "absorptivity", "transmissivity")
+    )
+    values = [get_ref_or_bare(archetype_data, key) for key in keys]
 
-    # Skip validation if any radiation property is missing
-    if any(v is None for v in (archetype_facet_reflectivity, archetype_facet_absorptivity, archetype_facet_transmissivity)):
+    # Skip validation if any radiation property is missing or null
+    if any(v is None for v in values):
         return None
 
-    # Extract values from RefValue dicts if needed
-    if isinstance(archetype_facet_reflectivity, Mapping):
-        archetype_facet_reflectivity = archetype_facet_reflectivity.get("value", archetype_facet_reflectivity)
-    if isinstance(archetype_facet_absorptivity, Mapping):
-        archetype_facet_absorptivity = archetype_facet_absorptivity.get("value", archetype_facet_absorptivity)
-    if isinstance(archetype_facet_transmissivity, Mapping):
-        archetype_facet_transmissivity = archetype_facet_transmissivity.get("value", archetype_facet_transmissivity)
+    parameter = ", ".join(keys)
+    if not all(
+        isinstance(v, (int, float)) and not isinstance(v, bool) for v in values
+    ):
+        return ValidationResult(
+            status="ERROR",
+            category="Archetype",
+            parameter=parameter,
+            message=(
+                f"Facet {facet} reflectivity, absorptivity and transmissivity must "
+                f"be numbers. Current values = {values}"
+            ),
+        )
 
     result = ValidationResult(
         status="PASS",
         category="Archetype",
-        parameter=f"{facet}_reflectivity, {facet}_absorptivity, {facet}_transmissivity",
+        parameter=parameter,
     )
 
-    radiation_properties_total = archetype_facet_reflectivity + archetype_facet_absorptivity + archetype_facet_transmissivity
+    radiation_properties_total = sum(values)
 
-    if radiation_properties_total != 1.0:
-        result.status="ERROR"
+    if not math.isclose(radiation_properties_total, 1.0, rel_tol=0.0, abs_tol=1e-6):
+        result.status = "ERROR"
         result.message = f"Facet reflectivity, absorptivity and transmissivity must sum to 1. Current total = {radiation_properties_total}"
 
     return result

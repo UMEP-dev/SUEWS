@@ -51,6 +51,7 @@ def test_recording_job_failure_does_not_break_the_streak() -> None:
         [
             _job("Tolerance spread cp312-manylinux x86_64", "failure"),
             _job("Cost-marker drift (Linux cp312 CPU seconds)", "failure"),
+            _job("RSS growth (Linux cp312)", "failure"),
         ],
     )
 
@@ -58,6 +59,7 @@ def test_recording_job_failure_does_not_break_the_streak() -> None:
     assert record["gating_failures"] == []
     assert record["recording_failures"] == [
         "Cost-marker drift (Linux cp312 CPU seconds)",
+        "RSS growth (Linux cp312)",
         "Tolerance spread cp312-manylinux x86_64",
     ]
 

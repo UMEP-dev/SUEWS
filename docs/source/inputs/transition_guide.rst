@@ -219,6 +219,172 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev18_ehc_implicit:
+
+Upgrading to Schema 2026.6.dev18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When ``model.physics.storage_heat`` selects EHC (method 5), ``2026.6.dev18``
+defaults ``model.physics.ehc_surface_coupling`` to ``implicit`` rather than
+``explicit``, solving each facet's linearised surface energy balance together
+with backward Euler conduction. Four companion optional controls are added under
+``model.physics``: ``control_ehc_stability`` (default ``off``),
+``control_ehc_initial_profile`` (default ``true``),
+``resistance_ehc_indoor_roof`` (default ``0.10`` m2 K W-1), and
+``resistance_ehc_indoor_wall`` (default ``0.13`` m2 K W-1).
+
+Existing method-5 YAML files that omit ``ehc_surface_coupling`` remain valid
+and now run with implicit coupling. To retain the legacy explicit coupling and
+boundary treatment, set ``model.physics.ehc_surface_coupling: explicit`` (other
+storage heat methods ignore these fields). To migrate an older configuration
+explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev18
+
+See :doc:`../outputs/ehc` for boundary conditions, envelope initialisation, and
+the seven diagnostics appended in output contract ``2.1.0``.
+
+.. _schema_dev17_integer_doy:
+
+Upgrading to Schema 2026.6.dev17
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Day-of-year windows for irrigation
+(``sites[].properties.irrigation.ie_start``, ``ie_end``) and daylight saving
+time (``sites[].properties.anthropogenic_emissions.startdls``, ``enddls``) now
+require whole integers between ``1`` and ``366``, or ``null`` / omission when
+disabled. Earlier versions declared float fields and could silently truncate
+fractional values or turn invalid native inputs into zero.
+
+Migrating to ``2026.6.dev17`` normalises exact whole-number floats such as
+``86.0`` to ``86`` (preserving reference metadata) and leaves ``null``, empty
+mappings (``{}``), and reference-only mappings (``{ref: ...}``) as disabled
+windows. Fractional values (such as ``20.5``), explicit ``0``, booleans,
+non-finite numbers, and integers outside ``1..366`` stop migration with the
+affected site and field path so you can choose the intended calendar day
+explicitly:
+
+.. code-block:: console
+
+   suews schema migrate site.yml --target-version 2026.6.dev17 --dry-run
+   suews schema migrate site.yml --target-version 2026.6.dev17
+
+.. _schema_dev16_vegetation_senescence:
+
+Upgrading to Schema 2026.6.dev16
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Check the initial senescence degree days (``sdd_id``, in K d) under
+``sites[].initial_states.evetr``, ``dectr`` and ``grass``. Earlier SuPy
+versions could accept ``.nan``, ``.inf`` or ``-.inf`` and run with an
+initial zero. Migration now identifies the site and vegetation type for
+each invalid field. Recover the signed value for that site, vegetation
+type and start date from its initial-condition or restart record. If the
+intended initial value is zero, either supply ``0`` or omit that field.
+When the initial value is unknown, obtain it before migrating the file.
+
+For example, ``sites[0] (gridiv=27).initial_states.dectr.sdd_id`` identifies
+the deciduous trees on grid 27. A finite scalar or a mapping such as
+``{value: -450, ref: {desc: "archived start state"}}`` retains its value and
+reference. This example describes a particular initial condition. Choose
+the value for your own start date and vegetation. Water has no ``sdd_id``.
+
+Keep a copy of the old input and check the migration before saving it:
+
+.. code-block:: console
+
+   suews schema migrate site.yml --target-version 2026.6.dev16 --dry-run
+   suews schema migrate site.yml --target-version 2026.6.dev16
+
+The second command writes ``site.migrated.yml`` beside the original. An
+invalid value stops both commands. Correct the named field in a working
+copy and repeat the check. A successful migration preserves omission,
+explicit zero and signed finite values. To reproduce an earlier run that
+used a non-finite input, retain its original software version and input
+alongside any corrected run.
+
+.. _schema_dev15_drainage_coefficients:
+
+Upgrading to Schema 2026.6.dev15
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev12`` covers water routing, schema ``2026.6.dev13``
+removes fresh-run radiation memory (see :ref:`schema_dev13_radiation_memory`),
+and schema ``2026.6.dev14`` removes the remaining continuation-only initial
+states (see :ref:`schema_dev14_continuation_state`).
+Upgrading a dev11, dev12, dev13 or dev14 file to dev15 applies those earlier
+migrations before the drainage coefficient check. For a non-water land surface
+with ``sfr > 0`` and ``drain_eq`` equal to 1, 2 or 3, both
+``storage_drain_params.drain_coef_1`` and ``storage_drain_params.drain_coef_2``
+must be supplied as finite numbers.
+Previously an omitted coefficient silently reached the model as zero and could
+change runoff and evaporation. A coefficient explicitly set to zero remains
+valid; its meaning depends on the selected equation.
+
+Loading a configuration and running after an in-memory mutation both check this
+requirement. Python reports a missing coefficient on the first site's paved
+surface as ``sites[0].properties.land_cover.paved.storage_drain_params.drain_coef_1``.
+The standalone engine identifies the same surface by grid ID, for example
+``sites[gridiv=1].properties.land_cover.paved.storage_drain_params.drain_coef_1``.
+Water and zero-area surfaces can retain an omitted coefficient.
+
+Before execution, every active non-water surface must also provide its
+``storage_drain_params`` block. Sparse construction, loading, updates, annotation
+and DataFrame round-trips may retain an omitted block, including when the area
+is explicitly positive. They do not establish that the configuration can run.
+An empty mapping or a block containing only reference metadata or nulls also
+retains that incomplete status. Saving and reloading YAML preserves the
+reference attached to a null value. Engine YAML/JSON export and execution
+reject the unresolved block. DataFrame round-trips retain it as missing
+values. Neither conversion invents zero coefficients.
+
+Declared equations 1--3 with missing coefficients still fail configuration
+validation. Their errors join the existing diagnostic report so unrelated input
+defects remain visible and requested annotated YAML is still produced.
+Native resolved YAML must give ``sfr`` for each configured land surface;
+omission is not evidence of zero area.
+
+``drain_eq`` is an integer field. Whole-number floats such as ``3.0`` remain
+accepted; active-surface native input and mutable handoff now reject fractions,
+including near-integers. Previously native input could pass ``3.5`` through to
+Fortran, which truncates it with ``INT`` and executes equation 3. This could
+bypass an exact-selector coefficient check. The loader now reports the selector
+path before the kernel is called, without rounding or choosing an equation.
+
+This change does not assign scientific meaning to integer selectors outside
+1, 2 and 3, or turn ``0`` into a supported no-drainage option. Their existing
+transport is retained; a wet run with such a selector is not established as
+valid. Explicit zero coefficients retain their existing acceptance: for example,
+a zero exponent in equation 3 gives a constant rate before the existing water
+availability cap. No new default or sign restriction is introduced. The storage
+capacity fallback from ``store_max`` when ``store_cap`` is omitted is unchanged.
+
+With schema dev15 installed, upgrade a versioned dev11, dev12, dev13 or dev14 file
+beside its original. For a file named ``site.yml``, confirm that the first
+command wrote ``site.migrated.yml``, then check the saved configuration:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev15
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+The second command checks current water-routing, radiation-memory,
+continuation-state and drainage requirements. Explicitly selecting an older
+``--schema-version`` on the validation command checks the saved JSON Schema
+structure. A missing active runoff fraction, for example, can pass that
+historical structure check and fail model validation after migration.
+
+Migration preserves supplied coefficients, including legacy ``storedrainprm``
+input and reference metadata. For a declared equation 1, 2 or 3, a missing or
+null required coefficient stops migration with its path: supply the input and
+retry. When the entire block is absent, migration preserves that omission
+and the structural check above can pass. Before running that site, supply
+``storage_drain_params`` on each active non-water surface. Otherwise
+``suews run site.migrated.yml`` reports the missing block's path. Supplied
+malformed values remain subject to load-time validation.
+
 .. _schema_dev12_water_routing:
 
 Runoff from paved and building surfaces in schema 2026.6.dev12
@@ -249,12 +415,23 @@ With the corrected reader, both files give 8.416 mm and the balance closes.
 The size of the difference at another site depends on its surface fractions,
 drainage and weather.
 
-Migration removes the unused ``to_soilstore`` zero from this block. It keeps
-``to_runoff: 0.98``, ``to_grass: 0.02`` and any zero for an applicable
-destination, including a genuine zero runoff fraction. A previously valid
-paved or building block that already omitted the unused field needs no edit
-to its fractions for this correction.
+When you migrate from dev11 to dev12, check the following changes in each
+non-water surface's ``waterdist`` block. Migration removes an explicit numeric
+zero from a surface's route to itself (for example, ``grass.to_grass``), from
+``to_soilstore`` on ``paved`` and ``bldgs``, and from ``to_runoff`` on
+``evetr``, ``dectr``, ``grass`` and ``bsoil``. These rules also apply to
+wrapped zeros such as ``{value: 0.0}``. A non-zero fraction in any of these
+destinations causes migration to report the site, surface and field to correct.
 
+Migration keeps all fractions for applicable destinations, including zero.
+In the paved example above, the migrated file keeps ``to_runoff: 0.98``
+and ``to_grass: 0.02``. A paved surface with a genuine zero runoff fraction
+also keeps that zero. See :ref:`waterdist_yaml_rules` for the applicable
+destinations and the rules for zero-area surfaces.
+
+The following commands apply to an installation using schema dev12. With
+dev15 installed, follow :ref:`schema_dev15_drainage_coefficients` to check
+water routing, radiation memory, continuation state and drainage coefficients.
 Choose the command from the version recorded at the top of your YAML file.
 Keep the converted copy beside the original so relative forcing paths still
 point to the same files. Use a fresh output filename when you repeat a
@@ -500,10 +677,10 @@ to :meth:`~supy.SUEWSOutput.save` or :meth:`~supy.SUEWSSimulation.save` instead.
 For streamed output, set the configuration switch before calling
 :meth:`~supy.SUEWSSimulation.run`, because that call writes the files.
 
-The migration from ``2026.6.dev5`` stamps ``schema_version: '2026.6.dev6'``
-without changing content and does not turn the switch on; add it yourself
-if you rely on one of these groups. Earlier schemas still undergo their
-registered content migrations when upgraded with ``suews convert``.
+The ``2026.6.dev5`` -> ``2026.6.dev6`` step leaves content unchanged and
+does not turn the switch on; add it yourself if you rely on one of these
+groups. ``suews convert`` applies the registered content migrations through
+to the current schema and stamps the output with that version.
 Default output groups and non-streaming Parquet output are unchanged.
 
 .. _schema_dev5_shortwave_migration:
@@ -519,13 +696,14 @@ Use the schema converter to update an older YAML before loading it:
 
    suews convert -i old.yml -o current.yml
 
-The migration rewrites the retired text selector in both bare and
-``value``-wrapped forms under ``model.physics.kdown_split_method``. It
-preserves reference metadata and all other settings. Numeric option ``3``
-and its calculations remain unchanged; numeric selections and omitted
-selectors require no content changes. The output is stamped
-``schema_version: '2026.6.dev5'``. Merely changing the version stamp does
-not rename the old selector.
+The ``2026.6.dev4`` -> ``2026.6.dev5`` migration step rewrites the retired
+text selector in both bare and ``value``-wrapped forms under
+``model.physics.kdown_split_method``. It preserves reference metadata and
+all other settings. Numeric option ``3`` and its calculations remain
+unchanged; numeric selections and omitted selectors require no content
+changes in this step. ``suews convert`` then continues through the migration
+chain and stamps the output with the current schema version. Merely changing
+the version stamp does not rename the old selector.
 
 The new ``reindl`` option (numeric ``4``) is opt-in and needs no additional
 inputs. See :ref:`shortwave_partition` for both splitting methods.
@@ -637,10 +815,9 @@ building storage heat flux only. Other land-cover surfaces continue to use
 ordinary OHM, and DyOHM surface temperatures are not passed back to the
 radiation calculation.
 
-Existing ``2026.6.dev1`` YAMLs do not need content edits because the new
-selector is optional. The registered ``(2026.6.dev1 -> 2026.6.dev2)``
-handler is therefore a no-op content migration that stamps the new
-``schema_version``:
+Existing ``2026.6.dev1`` YAMLs do not need content edits for this step
+because the new selector is optional. The following command migrates to
+the current schema and stamps ``schema_version`` with that version:
 
 .. code-block:: bash
 
@@ -681,10 +858,9 @@ surface with default-backed controls:
   the vegetation extinction coefficient per vertical layer; ``-999``
   keeps the LAI-derived behaviour.
 
-Existing ``2026.5`` YAMLs do not need content edits because all new
-fields have defaults. The registered ``(2026.5 -> 2026.6.dev1)``
-handler is therefore a no-op content migration that stamps the new
-``schema_version``:
+Existing ``2026.5`` YAMLs do not need content edits for this step because
+all new fields have defaults. The following command migrates to the
+current schema and stamps ``schema_version`` with that version:
 
 .. code-block:: bash
 
@@ -744,7 +920,7 @@ Run the migrator to bring an existing YAML onto the new shape:
 
 For a combined legacy-table-plus-schema upgrade, use ``suews convert``,
 which runs the table conversion first and then walks the schema chain
-to the same shape.
+to the current schema and stamps the output with that version.
 
 The handler logs every field rename and drop via
 ``[yaml-upgrade]   renamed 'old' -> 'new'`` (and a human-readable
@@ -783,7 +959,7 @@ Run:
 
 The migrator accepts any registered intermediate (for example
 ``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
-further to the current 2026.5 schema, use
+further to the 2026.5 schema, use
 ``--target-version 2026.5`` (or omit the flag to reach the latest).
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
@@ -1080,3 +1256,40 @@ The checkpoint representation is unchanged. Its seven-surface order remains
 paved, bldg, evetr, dectr, grass, bsoil, water; mean radiation memory uses
 :math:`\mathrm{W\,m^{-2}}` and its rate uses
 :math:`\mathrm{W\,m^{-2}\,h^{-1}}`.
+
+.. _schema_dev14_continuation_state:
+
+Continuation-only initial state in the 2026.6.dev14 development schema
+----------------------------------------------------------------------
+
+The remaining 17 continuation-only ``initial_states`` inputs are no longer
+fresh-run inputs, including when set to zero or legacy default placeholders:
+
+- vegetation daily irrigation memories: ``initial_states.evetr.wu``,
+  ``initial_states.dectr.wu`` and ``initial_states.grass.wu``
+  (``wu_total``, ``wu_auto``, ``wu_manual``);
+- timer and atmospheric running diagnostics: ``dt_since_start``, ``tair_av``,
+  ``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb`` and ``rs``.
+
+Older signed configurations containing legacy cold-start placeholders (numeric
+zeros for all fields, ``tair_av: 273.15``, or ``tstep_prev`` matching
+``model.control.tstep``) are migrated with an explicit removal message. Other
+supplied values, including nulls and malformed mappings, are rejected rather
+than silently discarded. Remove these fields if a cold start is intended; use
+a complete checkpoint if continuation is intended. Legacy ``DFState`` adapters
+retain zero/cold-start placeholders and reject non-placeholder continuation
+values.
+
+To write an upgraded configuration explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev14
+
+Unsigned YAML is treated as current input by the Python loader. For an older
+unsigned file, run ``suews convert --from <known-source-version> -i old.yml
+-o new.yml`` rather than relabelling ``schema_version``. The native engine
+expects resolved current input and rejects these fields regardless of any
+version label.
+
+Numerical initialisation and the checkpoint payload format are unchanged.

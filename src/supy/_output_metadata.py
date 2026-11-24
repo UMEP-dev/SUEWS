@@ -30,6 +30,62 @@ def daily_water_variables() -> dict:
     }
 
 
+def strip_attrs(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a shallow frame sharing *df*'s data and axes with empty ``attrs``.
+
+    Uses ``pd.DataFrame(df, copy=False)``, which takes ``df``'s manager
+    directly via ``NDFrame.__init__`` without calling ``__finalize__`` (so
+    ``df.attrs`` is never deep-copied) on pandas 2.x and 3.x. Falls back to
+    ``df.copy(deep=False)`` only if a pandas release propagates ``attrs``
+    through the constructor.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Source frame; left unchanged.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Frame sharing *df*'s data and axes with an empty ``attrs`` dict.
+    """
+    if not df.attrs:
+        return df
+    df_bare = pd.DataFrame(df, copy=False)
+    if df_bare.attrs:
+        df_bare = df.copy(deep=False)
+        df_bare.attrs = {}
+    if not df.flags.allows_duplicate_labels:
+        df_bare.flags.allows_duplicate_labels = False
+    return df_bare
+
+
+def copy_attrs_except(
+    attrs: Mapping, exclude: set[str] | frozenset[str] = frozenset()
+) -> dict:
+    """Return a deep copy of *attrs* omitting keys in *exclude*.
+
+    Parameters
+    ----------
+    attrs : Mapping
+        Source ``DataFrame.attrs`` mapping.
+    exclude : set or frozenset of str, optional
+        Keys that will be replaced by the caller and need not be copied.
+
+    Returns
+    -------
+    dict
+        Independently owned deep copy of the retained entries.
+    """
+    if not attrs:
+        return {}
+    return {
+        key: deepcopy(value)
+        for key, value in attrs.items()
+        if key not in exclude
+    }
+
+
 def output_covered_seconds(df_output, interval_s=None):
     """Return actual row coverage, or the declared source step for native rows.
 
@@ -72,17 +128,21 @@ def with_daily_coverage(
         result = df_output.copy(deep=False)
         result.attrs[key] = None
         return result
-    dates = df_output.index.get_level_values("datetime")
-    grids = df_output.index.get_level_values("grid")
+    attrs_source = df_output.attrs
+    df_bare = strip_attrs(df_output)
+    dates = df_bare.index.get_level_values("datetime")
+    grids = df_bare.index.get_level_values("grid")
     counts = pd.Series(
         1, index=pd.MultiIndex.from_arrays([grids, dates.normalize()])
     ).groupby(level=[0, 1]).sum()
-    daily = df_output["DailyState"].notna().any(axis=1)
+    daily = df_bare["DailyState"].notna().any(axis=1)
     coverage = {}
-    for grid, date in df_output.index[daily]:
+    for grid, date in df_bare.index[daily]:
         count = counts.loc[grid, date.normalize()] if daily_steps is None else daily_steps[date.normalize()]
         coverage[f"{grid}|{date.isoformat()}"] = float(count * step_s)
-    result = df_output.copy(deep=False)
+    result = df_bare.copy(deep=False)
+    if attrs_source:
+        result.attrs = copy_attrs_except(attrs_source, {key})
     result.attrs[key] = coverage
     return result
 
@@ -275,22 +335,27 @@ def prepare_output(
         dict_targets[column] = target
     if not dict_targets:
         return df_output
-    df_result = df_output.copy(deep=False)
-    dict_units = deepcopy(df_output.attrs.get("supy_output_units", {}))
+    attrs_source = df_output.attrs
+    dict_units = deepcopy(attrs_source.get("supy_output_units", {}))
     list_water_columns = [
         column for column in dict_targets
         if (column if isinstance(column, tuple) else (group, column)) in dict_water
     ]
     if list_water_columns:
         output_interval_seconds(df_output, interval_s, required=False)
+    has_mm_water = any(
+        dict_metadata[column]["units"] == "mm" for column in list_water_columns
+    )
+    nominal_s = None
     ser_coverage = None
-    if any(dict_metadata[column]["units"] == "mm" for column in list_water_columns):
+    if has_mm_water:
         nominal_s = output_interval_seconds(
             df_output, interval_s,
-            required="supy_output_coverage_s" not in df_output.attrs,
+            required="supy_output_coverage_s" not in attrs_source,
         )
         ser_coverage = output_covered_seconds(df_output, nominal_s)
-        df_result.attrs["supy_output_interval_s"] = nominal_s
+    df_work = strip_attrs(df_output)
+    df_result = df_work.copy(deep=False)
     for column, target in dict_targets.items():
         metadata = dict_metadata[column]
         try:
@@ -300,16 +365,16 @@ def prepare_output(
             identity = column if isinstance(column, tuple) else (group, column)
             if identity in dict_water:
                 source = metadata["units"]
-                values = df_output[column]
+                values = df_work[column]
                 if source == "mm":
                     values = values / ser_coverage
                     source = "kg m-2 s-1"
                 values = unit_conversion.convert_water_rate(values, source, parsed)
             elif identity in daily_water_variables():
-                values = unit_conversion.convert_water_amount(df_output[column], metadata["units"], parsed)
+                values = unit_conversion.convert_water_amount(df_work[column], metadata["units"], parsed)
             else:
                 values = unit_conversion.convert(
-                    df_output[column], metadata.get("units"), parsed,
+                    df_work[column], metadata.get("units"), parsed,
                     units_metadata=metadata.get("units_metadata"),
                 )
         except unit_conversion.UnitError as exc:
@@ -317,6 +382,12 @@ def prepare_output(
         df_result[column] = values
         identity = column if isinstance(column, tuple) else (group, column)
         dict_units.setdefault(identity[0], {})[identity[1]] = target
+    replaced_keys = {"supy_water_rate_columns", "supy_output_units"}
+    if has_mm_water:
+        replaced_keys.add("supy_output_interval_s")
+    df_result.attrs = copy_attrs_except(attrs_source, replaced_keys)
+    if has_mm_water:
+        df_result.attrs["supy_output_interval_s"] = nominal_s
     df_result.attrs["supy_water_rate_columns"] = [
         identity for identity in dict_water
         if identity[1] in dict_units.get(identity[0], {})

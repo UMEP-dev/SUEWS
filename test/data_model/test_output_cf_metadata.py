@@ -40,13 +40,12 @@ def test_registry_cf_metadata(variable):
 
 
 def test_only_water_flux_fields_change_from_previous_contract():
-    """Keep stores, names and layouts unchanged across the rate migration."""
-    previous = json.loads(
-        importlib.resources.files("supy.data_model.output")
-        .joinpath("artefacts/1.1.9/catalogue.json").read_text(encoding="utf-8")
-    )
+    """Keep stores, names and layouts unchanged across 1.1.9 -> 2.0.0 and append only EHC diagnostics in 2.1.0."""
+    artefacts = importlib.resources.files("supy.data_model.output").joinpath("artefacts")
+    v119 = json.loads(artefacts.joinpath("1.1.9/catalogue.json").read_text(encoding="utf-8"))
+    v200 = json.loads(artefacts.joinpath("2.0.0/catalogue.json").read_text(encoding="utf-8"))
     current = get_output_contract_catalogue().model_dump(mode="json")
-    for before, after in zip(previous["variables"], current["variables"]):
+    for before, after in zip(v119["variables"], v200["variables"]):
         if before["unit"] == "mm" and before["group"] == "DailyState":
             assert after == dict(before, aggregation="S", interval_water_flux=False)
         elif before["unit"] == "mm":
@@ -58,7 +57,22 @@ def test_only_water_flux_fields_change_from_previous_contract():
             assert after == expected
         else:
             assert after == dict(before, interval_water_flux=False)
-    assert len(current["variables"]) == len(previous["variables"])
+    assert len(v200["variables"]) == len(v119["variables"])
+
+    v200_by_key = {(v["group"], v["name"]): v for v in v200["variables"]}
+    current_by_key = {(v["group"], v["name"]): v for v in current["variables"]}
+    for key, before in v200_by_key.items():
+        assert current_by_key[key] == before
+    added = set(current_by_key) - set(v200_by_key)
+    assert added == {
+        ("EHC", "dUdt_EHC"),
+        ("EHC", "QBot_EHC"),
+        ("EHC", "QIndoor_EHC"),
+        ("EHC", "QF_Bldg"),
+        ("EHC", "QF_Air"),
+        ("EHC", "T_Indoor_EHC"),
+        ("EHC", "T_Deep_EHC"),
+    }
 
 
 @pytest.mark.parametrize("name", ["Tg", "Tw"])

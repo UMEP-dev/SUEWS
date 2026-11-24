@@ -40,6 +40,7 @@ from ...core.field_renames import (
 )
 from ...core.physics_families import coerce_nested_to_flat, flatten_physics_in_config
 from ...core.physics_orthogonal import coerce_orthogonal_to_flat
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -131,7 +132,9 @@ def load_user_yaml_normalised(path: str) -> Any:
         ``normalise_yaml_renames``).
     """
     with open(path, "r", encoding="utf-8") as f:
-        return normalise_yaml_renames(yaml.safe_load(f))
+        data = normalise_yaml_renames(yaml.safe_load(f))
+    data, _ = normalise_hourly_profile_keys_in_raw_config(data)
+    return data
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -157,6 +160,55 @@ def get_value_safe(param_dict, param_key, default=None):
         return param["value"]  # RefValue format: {"value": 1}
     else:
         return param  # Plain format: 1
+
+
+def get_ref_or_bare(container, key: str, default=None):
+    """Read ``container[key]`` whether stored as ``{"value": x, ...}`` or bare ``x``.
+
+    Returns ``default`` when ``container`` is not a mapping, ``key`` is absent,
+    or the entry is a mapping without a ``"value"`` key (such as ``{}`` or a
+    ref-only dict).
+    """
+    if not isinstance(container, Mapping) or key not in container:
+        return default
+    entry = container[key]
+    if isinstance(entry, Mapping):
+        return entry.get("value", default)
+    return entry
+
+
+def is_ref_only(entry) -> bool:
+    """Return True for a ref-only RefValue placeholder such as ``{"ref": {...}}``.
+
+    Such an entry carries no value (the model and the Rust bridge read it as
+    null), so nullifiers must leave it alone rather than descend into ``ref``.
+    """
+    return (
+        isinstance(entry, Mapping)
+        and "value" not in entry
+        and bool(entry)
+        and all(key == "ref" for key in entry)
+    )
+
+
+def set_ref_or_bare(container: dict, key: str, new_value) -> None:
+    """Update ``container[key]`` while preserving RefValue metadata or bare format.
+
+    - Existing ``dict`` entries (e.g. ``{"value": old, "ref": ...}``) have their
+      ``"value"`` field updated in place so ``"ref"`` metadata is preserved.
+    - Existing non-mapping entries (bare scalars, lists, or ``None``) remain bare.
+    - Absent keys are inserted as ``{"value": new_value}``.
+    """
+    if key in container:
+        existing = container[key]
+        if isinstance(existing, dict):
+            existing["value"] = new_value
+        elif isinstance(existing, Mapping):
+            container[key] = {**existing, "value": new_value}
+        else:
+            container[key] = new_value
+    else:
+        container[key] = {"value": new_value}
 
 
 _STEBBS_MISSING = object()
@@ -579,10 +631,19 @@ class DLSCheck(BaseModel):
             except Exception:
                 return None
 
-        # Get standard UTC offset (in winter)
+        # Standard (non-DST) UTC offset: the smaller of the mid-January and
+        # mid-July offsets, so southern-hemisphere summer time (Sydney in
+        # January) is not taken as standard. Comparing offsets avoids
+        # ``dst()``, which pytz reports as negative in Irish winter. Fractional
+        # offsets (India +5.5, Nepal +5.75) are kept, not truncated.
         try:
-            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
-            utc_offset_hours = int(std_dt.utcoffset().total_seconds() / 3600)
+            std_offset = min(
+                tz.localize(datetime(self.year, month, 15), is_dst=False).utcoffset()
+                for month in (1, 7)
+            )
+            utc_offset_hours = std_offset.total_seconds() / 3600
+            if utc_offset_hours.is_integer():
+                utc_offset_hours = int(utc_offset_hours)
             logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
         except Exception as e:
             logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
@@ -615,6 +676,10 @@ def nullify_co2_block_recursive(block: Any) -> None:
     - Robust to empty/missing keys and arbitrary shapes.
     """
     if isinstance(block, dict):
+        # Ref-only placeholder ({"ref": ...}): already value-less; leave its
+        # metadata intact rather than nullifying ref.desc / ref.DOI (gh#2297).
+        if is_ref_only(block):
+            return
         # Handle RefValue leaf ({"value": ...})
         if "value" in block:
             val = block["value"]
@@ -671,14 +736,17 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
     def _p(base: str, key: str) -> str:
         return f"{base}.{key}" if base else key
 
+    def _is_null(value: Any) -> bool:
+        # A list-valued RefValue is nullified element-wise ([None, None, ...]).
+        if isinstance(value, list):
+            return bool(value) and all(item in (None, "") for item in value)
+        return value in (None, "")
+
     # Dict vs Dict
     if isinstance(before, dict) and isinstance(after, dict):
         # RefValue leaf detection
         if "value" in before and "value" in after:
-            if before.get("value") not in (None, "") and after.get("value") in (
-                None,
-                "",
-            ):
+            if not _is_null(before.get("value")) and _is_null(after.get("value")):
                 paths.append(path or "value")
             return paths
 
@@ -697,8 +765,9 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
                 paths.append(_p(path, "holiday"))
             return paths
 
-        # Recurse into keys
-        for k in set(list(before.keys()) + list(after.keys())):
+        # Preserve mapping order: set iteration made report text vary with
+        # PYTHONHASHSEED. New keys still follow the original input's keys.
+        for k in dict.fromkeys([*before, *after]):
             b = before.get(k)
             a = after.get(k)
             if b in (None, "") and a in (None, ""):
@@ -761,17 +830,18 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
 
         surface_changed = False
         for param in params:
-            if param not in surface_props:
+            # Reads RefValue dicts and bare values alike; ref-only placeholders
+            # and nulls have no value to clear, so they are left as written.
+            current = get_ref_or_bare(surface_props, param)
+            if current is None:
                 continue
-            val = surface_props[param]
-            if isinstance(val, dict) and "value" in val:
-                if isinstance(val["value"], list):
-                    val["value"] = [None] * len(val["value"])
-                else:
-                    val["value"] = None
-                surface_props[param] = val
+            if isinstance(current, list):
+                if all(item is None for item in current):
+                    continue
+                cleared = [None] * len(current)
             else:
-                surface_props[param] = None
+                cleared = None
+            set_ref_or_bare(surface_props, param, cleared)
             surface_changed = True
 
         if surface_changed:
@@ -1125,12 +1195,24 @@ def _bound_as_date(value, name: str, errors: List[str]) -> Optional[str]:
     return ts.strftime("%Y-%m-%d")
 
 
-def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
+def parse_simulation_bounds(
+    data: dict, allow_missing: bool = False
+) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
     """Read ``model.control.start_time`` / ``end_time`` for the validators.
 
     Both fields accept a date or a timestamp (see ``ModelControl``). The
     validators only need the calendar day, so each bound is returned as a
     ``YYYY-MM-DD`` string together with the model year taken from the start.
+
+    Parameters
+    ----------
+    data : dict
+        Raw YAML configuration.
+    allow_missing : bool, optional
+        When True, a null or absent bound is returned as None without an
+        error; ``ModelControl`` documents both as optional (the run then uses
+        the forcing bounds). A bound that is set but unparsable is still an
+        error. By default both bounds are required.
 
     Returns
     -------
@@ -1140,8 +1222,17 @@ def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optio
     """
     control = data.get("model", {}).get("control", {})
     errors: List[str] = []
-    start_date = _bound_as_date(control.get("start_time"), "start_time", errors)
-    end_date = _bound_as_date(control.get("end_time"), "end_time", errors)
+    bounds = {}
+    for name in ("start_time", "end_time"):
+        value = control.get(name)
+        if isinstance(value, Mapping) and "value" in value:
+            value = value["value"]
+        if value is None and allow_missing:
+            bounds[name] = None
+        else:
+            bounds[name] = _bound_as_date(value, name, errors)
+    start_date = bounds["start_time"]
+    end_date = bounds["end_time"]
     model_year = int(start_date[:4]) if start_date is not None else None
     return errors, model_year, start_date, end_date
 
@@ -1291,17 +1382,22 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
     """
 
     ignore_keys = {"control", "physics"}
+    doy_keys = {"ie_start", "ie_end", "startdls", "enddls"}
 
     def recurse(obj: Any, path=()):
         if isinstance(obj, dict):
             new = {}
             for k, v in obj.items():
                 sub_path = path + (k,)
-                if v == "" and not (
+                is_ignored_model = (
                     len(sub_path) >= 2
                     and sub_path[0] == "model"
                     and sub_path[1] in ignore_keys
-                ):
+                )
+                is_doy_value = k in doy_keys or (
+                    k == "value" and len(path) >= 1 and path[-1] in doy_keys
+                )
+                if v == "" and not is_ignored_model and not is_doy_value:
                     new[k] = None
                 else:
                     new[k] = recurse(v, sub_path)
@@ -1410,20 +1506,55 @@ def precheck_site_season_adjustments(
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                 start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
 
-                if start_dls and end_dls:
-                    props["anthropogenic_emissions"]["startdls"] = {"value": start_dls}
-                    props["anthropogenic_emissions"]["enddls"] = {"value": end_dls}
-                    logger_supy.debug(
-                        f"[site #{i}] DLS: start={start_dls}, end={end_dls}"
+                anthro_emissions = props.get("anthropogenic_emissions")
+                if isinstance(anthro_emissions, dict) and start_dls and end_dls:
+                    import calendar
+
+                    from ...core.human_activity import coerce_integer_doy_scalar
+
+                    max_dls_doy = (
+                        366
+                        if (model_year is None or calendar.isleap(model_year))
+                        else 365
                     )
+
+                    def _classify_doy_entry(section: dict, key: str) -> str:
+                        if key not in section:
+                            return "absent"
+                        raw = section[key]
+                        if raw is None:
+                            return "absent"
+                        if isinstance(raw, dict):
+                            if not (set(raw.keys()) <= {"value", "ref"}):
+                                return "invalid"
+                            if raw.get("value") is None:
+                                return "absent"
+                            raw = raw["value"]
+                        try:
+                            val = coerce_integer_doy_scalar(raw, key)
+                        except ValueError:
+                            return "invalid"
+                        return "valid" if 1 <= val <= max_dls_doy else "invalid"
+
+                    s_state = _classify_doy_entry(anthro_emissions, "startdls")
+                    e_state = _classify_doy_entry(anthro_emissions, "enddls")
+                    if not (
+                        (s_state == "absent" and e_state == "absent")
+                        or s_state == "invalid"
+                        or e_state == "invalid"
+                    ):
+                        anthro_emissions["startdls"] = {"value": start_dls}
+                        anthro_emissions["enddls"] = {"value": end_dls}
+                        logger_supy.debug(
+                            f"[site #{i}] DLS: start={start_dls}, end={end_dls}"
+                        )
+                        logger_supy.info(
+                            f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values."
+                        )
 
                 if tz_offset is not None:
                     props["timezone"] = {"value": tz_offset}
                     logger_supy.debug(f"[site #{i}] Timezone set to {tz_offset}")
-
-                logger_supy.info(
-                    f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values."
-                )
             except Exception as e:
                 logger_supy.warning(
                     f"[site #{i}] DLSCheck failed: {e}. DST will not be configured automatically."

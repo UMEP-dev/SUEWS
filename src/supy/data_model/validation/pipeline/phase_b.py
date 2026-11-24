@@ -20,10 +20,12 @@ import math
 import yaml
 import os
 import calendar
+from collections.abc import Mapping
 from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from copy import deepcopy
+from pathlib import Path
 import pandas as pd
 import numpy as np
 
@@ -38,7 +40,10 @@ from ..core.yaml_helpers import (
     collect_nullified_paths,
     _nullify_biogenic_in_props,
     DLSCheck,
+    get_ref_or_bare,
     get_value_safe,
+    is_ref_only as _is_ref_only,
+    set_ref_or_bare,
     get_stebbs_block as _get_stebbs_block,
     get_stebbsmethod_value as _get_stebbsmethod_value,
     HAS_TIMEZONE_FINDER,
@@ -46,7 +51,10 @@ from ..core.yaml_helpers import (
     parse_simulation_bounds,
 )
 from ...core.field_renames import normalise_yaml_renames
+from ...core.profile import normalise_hourly_profile_keys_in_raw_config
+from .phase_a import forcing_date_bounds
 
+from .phase_b_rules.rules_core import rule_crash_result
 from .phase_b_rules import (
     RulesRegistry,
     ValidationResult,
@@ -316,6 +324,7 @@ def validate_phase_b_inputs(
             # use load_user_yaml_normalised (the path-based canonical loader);
             # the normalise_yaml_renames call keeps it equivalent.
             uptodate_data = normalise_yaml_renames(yaml.safe_load(uptodate_content))
+            uptodate_data, _ = normalise_hourly_profile_keys_in_raw_config(uptodate_data)
 
         is_phase_a_output = "UP TO DATE YAML" in uptodate_content
 
@@ -371,6 +380,73 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     return model_year, start_date, end_date
 
 
+def resolve_simulation_parameters(
+    yaml_data: dict, yaml_dir: Path | None = None
+) -> tuple[int | None, str | None, str | None, list[ValidationResult]]:
+    """Return the run's year and calendar bounds, filling gaps from the forcing.
+
+    ``model.control.start_time`` and ``end_time`` are optional: a run without
+    them covers the forcing it is given. A missing bound is therefore taken
+    from the forcing file named in ``model.control`` (relative paths resolve
+    against ``yaml_dir``). When the start still cannot be established (forcing
+    supplied at runtime or unreadable), the start is returned as None and a
+    WARNING says which season-dependent checks are skipped.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Raw YAML configuration.
+    yaml_dir : Path, optional
+        Directory of the user YAML, used to resolve a relative forcing path.
+
+    Returns
+    -------
+    tuple
+        ``(model_year, start_date, end_date, notes)``; ``notes`` holds the
+        WARNING described above, if any.
+
+    Raises
+    ------
+    ValueError
+        If a bound is set but is neither a date nor a timestamp.
+    """
+    errors, model_year, start_date, end_date = parse_simulation_bounds(
+        yaml_data, allow_missing=True
+    )
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    if start_date is None or end_date is None:
+        forcing_start, forcing_end = forcing_date_bounds(
+            yaml_data, yaml_dir if yaml_dir is not None else Path.cwd()
+        )
+        start_date = start_date or forcing_start
+        end_date = end_date or forcing_end
+        if start_date is not None:
+            model_year = int(start_date[:4])
+
+    notes: list[ValidationResult] = []
+    if start_date is None:
+        notes.append(
+            ValidationResult(
+                status="WARNING",
+                category="SEASONAL",
+                parameter="model.control.start_time",
+                message=(
+                    "model.control.start_time is not set and the forcing could "
+                    "not be read, so the season-dependent checks and suggestions "
+                    "(initial temperatures, LAI, albedo, daylight saving, "
+                    "irrigation days) were skipped."
+                ),
+                suggested_value=(
+                    "Set model.control.start_time, or name a readable forcing "
+                    "file, to enable these checks."
+                ),
+            )
+        )
+    return model_year, start_date, end_date, notes
+
+
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
     """
     Check for missing or empty parameters in a surface configuration.
@@ -396,7 +472,7 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
 
             current_path = f"{path}.{key}" if path else key
 
-            if isinstance(value, dict):
+            if isinstance(value, Mapping):
                 if "value" in value:
                     param_value = value["value"]
                     if param_value in (None, "") or (
@@ -406,6 +482,10 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
                         missing_params.append(current_path)
                 else:
                     _check_recursively(value, current_path)
+            elif value in (None, "") or (
+                isinstance(value, list) and any(v in (None, "") for v in value)
+            ):
+                missing_params.append(current_path)
 
     _check_recursively(surface_props)
     return missing_params
@@ -532,10 +612,83 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
 
         anthro_emissions = props.get("anthropogenic_emissions", {})
         if anthro_emissions:
+            from ...core.human_activity import coerce_integer_doy_scalar
+
             startdls = get_value_safe(anthro_emissions, "startdls")
             enddls = get_value_safe(anthro_emissions, "enddls")
+            if (
+                isinstance(startdls, Mapping)
+                and "value" not in startdls
+                and all(k == "ref" for k in startdls)
+            ):
+                startdls = None
+            if (
+                isinstance(enddls, Mapping)
+                and "value" not in enddls
+                and all(k == "ref" for k in enddls)
+            ):
+                enddls = None
 
-            if startdls is None or enddls is None:
+            max_dls_doy = 366
+            model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
+            control_cfg = (
+                model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
+            )
+            start_time = (
+                get_value_safe(control_cfg, "start_time")
+                if isinstance(control_cfg, Mapping)
+                else None
+            )
+            if start_time is not None:
+                try:
+                    year = int(str(start_time)[:4])
+                    if not calendar.isleap(year):
+                        max_dls_doy = 365
+                except (TypeError, ValueError):
+                    pass
+
+            for dls_name, dls_val in (("startdls", startdls), ("enddls", enddls)):
+                if dls_val is None:
+                    continue
+                try:
+                    dls_int = coerce_integer_doy_scalar(dls_val, dls_name)
+                except ValueError as exc:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="GEOGRAPHY",
+                            parameter=f"anthropogenic_emissions.{dls_name}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=str(exc),
+                            suggested_value=(
+                                "Replace decimal or non-integer values with an "
+                                f"integer day of year between 1 and {max_dls_doy}"
+                            ),
+                        )
+                    )
+                    continue
+                if not (1 <= dls_int <= max_dls_doy):
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="GEOGRAPHY",
+                            parameter=f"anthropogenic_emissions.{dls_name}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                f"{dls_name}={dls_int} is invalid. Must be an "
+                                f"integer day of year between 1 and {max_dls_doy}."
+                            ),
+                            suggested_value=(
+                                f"Set an integer day of year between 1 and {max_dls_doy}, "
+                                "or omit both startdls and enddls to disable "
+                                "daylight saving"
+                            ),
+                        )
+                    )
+
+            if (startdls is None) != (enddls is None):
                 results.append(
                     ValidationResult(
                         status="WARNING",
@@ -543,8 +696,16 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                         parameter="anthropogenic_emissions.startdls,enddls",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates (see updated parameters)",
-                        suggested_value="Parameters will be set based on your location. You can also manually set startdls and enddls if you prefer specific values",
+                        message=(
+                            "Only one daylight saving parameter (startdls or enddls) "
+                            "is set - provide both integer days of year (1-366), or "
+                            "set both to null / omit both to disable daylight saving"
+                        ),
+                        suggested_value=(
+                            "Set both startdls and enddls (or let --science-fixes apply "
+                            "fill them from your coordinates), or disable daylight saving "
+                            "by setting both to null / omitting both"
+                        ),
                     )
                 )
 
@@ -563,8 +724,8 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
 
 
 def validate_irrigation_doy(
-    ie_start: Optional[float],
-    ie_end: Optional[float],
+    ie_start: Optional[Union[int, float]],
+    ie_end: Optional[Union[int, float]],
     lat: float,
     model_year: int,
     site_name: str,
@@ -574,10 +735,12 @@ def validate_irrigation_doy(
 
     Parameters
     ----------
-    ie_start : Optional[float]
-        Irrigation start day of year.
-    ie_end : Optional[float]
-        Irrigation end day of year.
+    ie_start : Optional[int]
+        Irrigation start integer day of year (1-366, or null/None to disable;
+        0 is only used as the internal df_state sentinel).
+    ie_end : Optional[int]
+        Irrigation end integer day of year (1-366, or null/None to disable;
+        0 is only used as the internal df_state sentinel).
     lat : float
         Site latitude (for hemisphere and tropical detection).
     model_year : int
@@ -594,23 +757,78 @@ def validate_irrigation_doy(
     -----
     This validator ensures irrigation timing parameters are logically consistent
     and appropriate for the site's location. It checks:
-    1. DOY values are within valid range (1-365 or 1-366 for leap years)
+    1. DOY values are whole integers within valid range (1-365 or 1-366 for leap years)
     2. Both parameters are set together or both disabled
     3. Warm season appropriateness based on hemisphere and latitude:
        - Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round
        - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
        - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
     """
+    from ...core.human_activity import coerce_integer_doy_scalar
+
     results = []
+    is_leap = calendar.isleap(model_year)
+    max_doy = 366 if is_leap else 365
 
-    # Helper: treat 0 and None as equivalent (both mean "disabled")
-    def is_disabled(value):
-        return value is None or value == 0 or value == 0.0
+    parsed: Dict[str, Optional[int]] = {}
+    has_type_error = False
+    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
+        if param_value is None or (
+            isinstance(param_value, Mapping)
+            and "value" not in param_value
+            and all(k == "ref" for k in param_value)
+        ):
+            parsed[param_name] = None
+            continue
+        try:
+            parsed[param_name] = coerce_integer_doy_scalar(param_value, param_name)
+        except ValueError as exc:
+            has_type_error = True
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"{param_name} in site {site_name}",
+                    message=str(exc),
+                    suggested_value=(
+                        f"Replace decimal or non-integer values with an integer "
+                        f"day of year (1-{max_doy}), or null/None to disable"
+                    ),
+                )
+            )
+    if has_type_error:
+        return results
 
-    start_disabled = is_disabled(ie_start)
-    end_disabled = is_disabled(ie_end)
+    ie_start_int = parsed["ie_start"]
+    ie_end_int = parsed["ie_end"]
 
-    # Case 1: Both disabled = valid (irrigation not configured)
+    # Range check first: reject explicit 0 and out-of-range integers (1..max_doy)
+    has_range_error = False
+    for param_name, param_value in [
+        ("ie_start", ie_start_int),
+        ("ie_end", ie_end_int),
+    ]:
+        if param_value is not None and (param_value < 1 or param_value > max_doy):
+            has_range_error = True
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"{param_name} in site {site_name}",
+                    message=f"{param_name}={param_value} is invalid. "
+                    f"Must be an integer day of year between 1 and {max_doy} for "
+                    f"{'leap' if is_leap else 'non-leap'} year {model_year}, "
+                    "or null/None to disable irrigation",
+                    suggested_value=f"Valid range: 1-{max_doy}, or null/None to disable",
+                )
+            )
+    if has_range_error:
+        return results
+
+    start_disabled = ie_start_int is None
+    end_disabled = ie_end_int is None
+
+    # Case 1: Both disabled (None/absent) = valid (irrigation not configured)
     if start_disabled and end_disabled:
         return results
 
@@ -621,32 +839,18 @@ def validate_irrigation_doy(
                 status="ERROR",
                 category="IRRIGATION",
                 parameter=f"irrigation in site {site_name}",
-                message="Both ie_start and ie_end must be specified together (both set to valid DOY), "
-                "or both left as None/0 (irrigation disabled). "
+                message="Both ie_start and ie_end must be specified together (both set to valid integer DOY), "
+                "or both left as null/None (irrigation disabled). "
                 f"Currently: ie_start={ie_start}, ie_end={ie_end}",
-                suggested_value="Set both to valid DOY (1-365/366) or both to None/0",
+                suggested_value="Set both to valid integer DOY (1-365/366) or both to null/None",
             )
         )
         return results
 
-    # Case 3: Both enabled = validate DOY range and hemisphere logic
-    is_leap = calendar.isleap(model_year)
-    max_doy = 366 if is_leap else 365
-
-    # Validate DOY range (must be 1-365/366, not 0)
-    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
-        if param_value < 1 or param_value > max_doy:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="IRRIGATION",
-                    parameter=f"{param_name} in site {site_name}",
-                    message=f"{param_name}={param_value} is invalid. "
-                    f"Must be between 1 and {max_doy} for {'leap' if is_leap else 'non-leap'} "
-                    f"year {model_year}, or 0/None to disable irrigation",
-                    suggested_value=f"Valid range: 1-{max_doy}, or 0/None to disable",
-                )
-            )
+    # Case 3: Both enabled = validate hemisphere logic
+    assert ie_start_int is not None and ie_end_int is not None
+    ie_start = ie_start_int
+    ie_end = ie_end_int
 
     # Seasonal validation based on hemisphere and latitude
     abs_lat = abs(lat)
@@ -762,11 +966,11 @@ def validate_irrigation_parameters(
     sites = yaml_data.get("sites", [])
 
     # Handle both list and dict formats for sites
-    if isinstance(sites, dict):
+    if isinstance(sites, Mapping):
         # Dict format: {site_name: {lat: ..., ...}, ...}
         sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, list):
-        # List format: [{name: site_name, lat: ..., ...}, ...]
+    elif isinstance(sites, (list, tuple)):
+        # List/frozen-tuple format: [{name: site_name, lat: ..., ...}, ...]
         sites_list = [
             (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
         ]
@@ -1058,22 +1262,22 @@ def update_temperature_parameters(
     """
     updated_params = []
 
-    if "temperature" in element and isinstance(element["temperature"], dict):
-        current_temp = element["temperature"].get("value")
+    if "temperature" in element:
+        current_temp = get_ref_or_bare(element, "temperature")
         if current_temp != [avg_temp] * 5:
-            element["temperature"]["value"] = [avg_temp] * 5
+            set_ref_or_bare(element, "temperature", [avg_temp] * 5)
             updated_params.append("temperature")
 
-    if "tsfc" in element and isinstance(element["tsfc"], dict):
-        current_tsfc = element["tsfc"].get("value")
+    if "tsfc" in element:
+        current_tsfc = get_ref_or_bare(element, "tsfc")
         if current_tsfc != avg_temp:
-            element["tsfc"]["value"] = avg_temp
+            set_ref_or_bare(element, "tsfc", avg_temp)
             updated_params.append("tsfc")
 
-    if "tin" in element and isinstance(element["tin"], dict):
-        current_tin = element["tin"].get("value")
+    if "tin" in element:
+        current_tin = get_ref_or_bare(element, "tin")
         if current_tin != avg_temp:
-            element["tin"]["value"] = avg_temp
+            set_ref_or_bare(element, "tin", avg_temp)
             updated_params.append("tin")
 
     return element, updated_params
@@ -1117,6 +1321,11 @@ def adjust_surface_temperatures(
     """
     adjustments = []
     month = datetime.strptime(start_date, "%Y-%m-%d").month
+    physics = yaml_data.get("model", {}).get("physics", {})
+    # With STEBBS switched off its block is nullified later in the pipeline,
+    # so initialising its temperatures here would only suggest values that are
+    # immediately discarded.
+    stebbs_enabled = _get_stebbsmethod_value(physics) != 0
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -1171,32 +1380,36 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        for key in ("temperature_air_outdoor_initial", "temperature_air_indoor_initial",):
-            if key in stebbs and isinstance(stebbs[key], dict):
-                old_val = stebbs[key].get("value")
-                if old_val != avg_temp:
-                    stebbs[key]["value"] = avg_temp
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter=f"stebbs.{key}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value=str(old_val),
-                            new_value=f"{avg_temp} C",
-                            reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+        if stebbs_enabled and isinstance(stebbs, dict):
+            for key in (
+                "temperature_air_outdoor_initial",
+                "temperature_air_indoor_initial",
+            ):
+                if key in stebbs:
+                    old_val = get_ref_or_bare(stebbs, key)
+                    if old_val != avg_temp:
+                        set_ref_or_bare(stebbs, key, avg_temp)
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"stebbs.{key}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value=f"{avg_temp} C",
+                                reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+                            )
                         )
-                    )
 
         # Update temperature_air_month_mean_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
-        else:
+        elif stebbs_enabled and isinstance(stebbs, dict):
             for key in ("temperature_air_month_mean_diffmax",):
-                if key in stebbs and isinstance(stebbs[key], dict):
-                    old_val = stebbs[key].get("value")
+                if key in stebbs:
+                    old_val = get_ref_or_bare(stebbs, key)
                     if old_val != diffmax_val:
-                        stebbs[key]["value"] = diffmax_val
+                        set_ref_or_bare(stebbs, key, diffmax_val)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter=f"stebbs.{key}",
@@ -1210,21 +1423,24 @@ def adjust_surface_temperatures(
 
         # Update STEBBS temperature_air_annual_mean using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if annual_temp is not None and "temperature_air_annual_mean" in stebbs:
-            if isinstance(stebbs["temperature_air_annual_mean"], dict):
-                old_annual_val = stebbs["temperature_air_annual_mean"].get("value")
-                if old_annual_val != annual_temp:
-                    stebbs["temperature_air_annual_mean"]["value"] = annual_temp
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter="stebbs.temperature_air_annual_mean",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value=str(old_annual_val),
-                            new_value=f"{annual_temp} C",
-                            reason=f"Set from CRU annual mean (1991-2020 normals) for coordinates ({lat:.2f}, {lng:.2f})",
-                        )
+        if (
+            annual_temp is not None
+            and stebbs_enabled and isinstance(stebbs, dict)
+            and "temperature_air_annual_mean" in stebbs
+        ):
+            old_annual_val = get_ref_or_bare(stebbs, "temperature_air_annual_mean")
+            if old_annual_val != annual_temp:
+                set_ref_or_bare(stebbs, "temperature_air_annual_mean", annual_temp)
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="stebbs.temperature_air_annual_mean",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_annual_val),
+                        new_value=f"{annual_temp} C",
+                        reason=f"Set from CRU annual mean (1991-2020 normals) for coordinates ({lat:.2f}, {lng:.2f})",
                     )
+                )
 
         # Update temperatures in roofs and walls arrays
         for array_name in ["roofs", "walls"]:
@@ -1305,8 +1521,8 @@ def adjust_land_cover_fractions(
         sfr_sum = 0.0
 
         for surface_type, surface_props in land_cover.items():
-            if isinstance(surface_props, dict):
-                sfr_value = surface_props.get("sfr", {}).get("value")
+            if isinstance(surface_props, Mapping):
+                sfr_value = get_ref_or_bare(surface_props, "sfr")
                 if sfr_value is not None:
                     surface_fractions[surface_type] = sfr_value
                     sfr_sum += sfr_value
@@ -1325,7 +1541,7 @@ def adjust_land_cover_fractions(
             old_value = surface_fractions[max_surface]
             new_value = old_value + correction
 
-            land_cover[max_surface]["sfr"]["value"] = new_value
+            set_ref_or_bare(land_cover[max_surface], "sfr", new_value)
             correction_applied = True
 
             # Always report adjustments, but use appropriate format based on visibility
@@ -1360,7 +1576,7 @@ def adjust_land_cover_fractions(
             old_value = surface_fractions[max_surface]
             new_value = old_value - correction
 
-            land_cover[max_surface]["sfr"]["value"] = new_value
+            set_ref_or_bare(land_cover[max_surface], "sfr", new_value)
             correction_applied = True
 
             # Always report adjustments, but use appropriate format based on visibility
@@ -1447,6 +1663,10 @@ def adjust_model_dependent_nullification(
 
                 def _recursive_nullify(node: Any, path: str):
                     if isinstance(node, dict):
+                        if _is_ref_only(node):
+                            # Ref-only placeholder: already value-less; never
+                            # descend into its ``ref`` metadata (gh#2297).
+                            return
                         if "value" in node:
                             inner = node.get("value")
                             if isinstance(inner, list):
@@ -1706,7 +1926,7 @@ def _set_alb_id(
     old_val = get_value_safe(surf_state, "alb_id")
     if old_val is not None and math.isclose(old_val, new_alb_id):
         return False, old_val, new_alb_id
-    surf_state["alb_id"] = {"value": new_alb_id}
+    set_ref_or_bare(surf_state, "alb_id", new_alb_id)
     return True, old_val, new_alb_id
 
 
@@ -1789,9 +2009,9 @@ def adjust_seasonal_parameters(
         land_cover = props.get("land_cover", {})
         dectr = land_cover.get("dectr", {})
         if dectr:
-            sfr = dectr.get("sfr", {}).get("value", 0)
+            sfr = get_ref_or_bare(dectr, "sfr", 0)
 
-            if sfr > 0:
+            if sfr is not None and sfr > 0:
                 lai = dectr.get("lai", {})
                 laimin = get_value_safe(lai, "lai_min")
                 if laimin is None:
@@ -1815,7 +2035,7 @@ def adjust_seasonal_parameters(
 
                     current_lai = get_value_safe(initial_states["dectr"], "lai_id")
                     if current_lai != lai_val:
-                        initial_states["dectr"]["lai_id"] = {"value": lai_val}
+                        set_ref_or_bare(initial_states["dectr"], "lai_id", lai_val)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter="dectr.lai_id",
@@ -1841,7 +2061,7 @@ def adjust_seasonal_parameters(
         for surf_key, label in vegetated_surfaces:
             surf_props = land_cover.get(surf_key, {})
             # Check surface fraction:
-            sfr = surf_props.get("sfr", {}).get("value", 0)
+            sfr = get_ref_or_bare(surf_props, "sfr", 0)
             if not sfr:
                 continue  # Skip albedo adjustment if surface fraction is zero
 
@@ -1879,52 +2099,96 @@ def adjust_seasonal_parameters(
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                 start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
 
-                anthro_emissions = props.get("anthropogenic_emissions", {})
-                if anthro_emissions and start_dls and end_dls:
-                    current_startdls = anthro_emissions.get("startdls", {}).get("value")
-                    current_enddls = anthro_emissions.get("enddls", {}).get("value")
+                anthro_emissions = props.get("anthropogenic_emissions")
+                if (
+                    isinstance(anthro_emissions, dict)
+                    and anthro_emissions
+                    and start_dls
+                    and end_dls
+                ):
+                    from ...core.human_activity import coerce_integer_doy_scalar
 
-                    dls_updated = False
-                    if current_startdls != start_dls:
-                        anthro_emissions["startdls"] = {"value": start_dls}
-                        dls_updated = True
+                    max_dls_doy = (
+                        366
+                        if (model_year is None or calendar.isleap(model_year))
+                        else 365
+                    )
 
-                    if current_enddls != end_dls:
-                        anthro_emissions["enddls"] = {"value": end_dls}
-                        dls_updated = True
+                    def _classify_doy_entry(
+                        section: dict, key: str
+                    ) -> tuple[str, Optional[int]]:
+                        if key not in section:
+                            return "absent", None
+                        raw = section[key]
+                        if raw is None:
+                            return "absent", None
+                        if isinstance(raw, dict):
+                            if not (set(raw.keys()) <= {"value", "ref"}):
+                                return "invalid", None
+                            if raw.get("value") is None:
+                                return "absent", None
+                            raw = raw["value"]
+                        try:
+                            val = coerce_integer_doy_scalar(raw, key)
+                        except ValueError:
+                            return "invalid", None
+                        if not (1 <= val <= max_dls_doy):
+                            return "invalid", None
+                        return "valid", val
 
-                    if dls_updated:
-                        # Add separate adjustments for each parameter
+                    s_state, current_startdls = _classify_doy_entry(
+                        anthro_emissions, "startdls"
+                    )
+                    e_state, current_enddls = _classify_doy_entry(
+                        anthro_emissions, "enddls"
+                    )
+                    if not (
+                        (s_state == "absent" and e_state == "absent")
+                        or s_state == "invalid"
+                        or e_state == "invalid"
+                    ):
+
+                        dls_updated = False
                         if current_startdls != start_dls:
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter="anthropogenic_emissions.startdls",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(current_startdls),
-                                    new_value=str(start_dls),
-                                    reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
-                                )
-                            )
+                            set_ref_or_bare(anthro_emissions, "startdls", start_dls)
+                            dls_updated = True
+
                         if current_enddls != end_dls:
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter="anthropogenic_emissions.enddls",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(current_enddls),
-                                    new_value=str(end_dls),
-                                    reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
+                            set_ref_or_bare(anthro_emissions, "enddls", end_dls)
+                            dls_updated = True
+
+                        if dls_updated:
+                            # Add separate adjustments for each parameter
+                            if current_startdls != start_dls:
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter="anthropogenic_emissions.startdls",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(current_startdls),
+                                        new_value=str(start_dls),
+                                        reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
+                                    )
                                 )
+                            if current_enddls != end_dls:
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter="anthropogenic_emissions.enddls",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(current_enddls),
+                                        new_value=str(end_dls),
+                                        reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
+                                    )
+                                )
+                            logger_supy.debug(
+                                f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
                             )
-                        logger_supy.debug(
-                            f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
-                        )
 
                 if tz_offset is not None:
-                    current_timezone = props.get("timezone", {}).get("value")
+                    current_timezone = get_ref_or_bare(props, "timezone")
                     if current_timezone != tz_offset:
-                        props["timezone"] = {"value": tz_offset}
+                        set_ref_or_bare(props, "timezone", tz_offset)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter="timezone",
@@ -1981,7 +2245,9 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
     rcmethod_value = get_value_safe(_get_stebbs_block(physics), "capacitance")
 
-    if rcmethod_value == 0:
+    # With STEBBS switched off, adjust_model_dependent_nullification has already
+    # nullified building_archetype; do not restore these fractions.
+    if rcmethod_value == 0 and _get_stebbsmethod_value(physics) != 0:
         sites = yaml_data.get("sites", [])
         for site_idx, site in enumerate(sites):
             props = site.get("properties", {})
@@ -1989,12 +2255,13 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
             site_gridid = get_site_gridid(site)
 
             # fraction_heat_capacity_roof_external
-            roof_frac_entry = building_archetype.get(
-                "fraction_heat_capacity_roof_external", {}
+            old_roof_frac = get_ref_or_bare(
+                building_archetype, "fraction_heat_capacity_roof_external"
             )
-            old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
             if old_roof_frac != 0.5:
-                building_archetype["fraction_heat_capacity_roof_external"] = {"value": 0.5}
+                set_ref_or_bare(
+                    building_archetype, "fraction_heat_capacity_roof_external", 0.5
+                )
                 adjustments.append(
                     ScientificAdjustment(
                         parameter="building_archetype.fraction_heat_capacity_roof_external",
@@ -2007,12 +2274,13 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                 )
 
             # fraction_heat_capacity_wall_external
-            wall_frac_entry = building_archetype.get(
-                "fraction_heat_capacity_wall_external", {}
+            old_wall_frac = get_ref_or_bare(
+                building_archetype, "fraction_heat_capacity_wall_external"
             )
-            old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
             if old_wall_frac != 0.5:
-                building_archetype["fraction_heat_capacity_wall_external"] = {"value": 0.5}
+                set_ref_or_bare(
+                    building_archetype, "fraction_heat_capacity_wall_external", 0.5
+                )
                 adjustments.append(
                     ScientificAdjustment(
                         parameter="building_archetype.fraction_heat_capacity_wall_external",
@@ -2048,13 +2316,15 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         building_archetype = props.get("building_archetype", {})
         site_gridid = get_site_gridid(site)
 
-        if setpointmethod == 2:
-            for param in ["setpoint_temperature_heating_air", "setpoint_temperature_cooling_air"]:
-                entry = building_archetype.get(param)
-                if isinstance(entry, dict):
-                    old_val = entry.get("value")
+        if setpointmethod == 2 and isinstance(building_archetype, dict):
+            for param in [
+                "setpoint_temperature_heating_air",
+                "setpoint_temperature_cooling_air",
+            ]:
+                if param in building_archetype:
+                    old_val = get_ref_or_bare(building_archetype, param)
                     if old_val is not None:
-                        building_archetype[param]["value"] = None
+                        set_ref_or_bare(building_archetype, param, None)
                         adjustments.append(
                             ScientificAdjustment(
                                 parameter=f"building_archetype.{param}",
@@ -2062,7 +2332,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                                 site_gridid=site_gridid,
                                 old_value=str(old_val),
                                 new_value="null",
-                                reason="setpoint == 2, parameter not needed"
+                                reason="setpoint == 2, parameter not needed",
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
@@ -2154,37 +2424,39 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "reflectivity_window_external",
                 ]
                 # Nullify in stebbs
-                for param in window_params_stebbs:
-                    if param in stebbs and isinstance(stebbs[param], dict):
-                        old_val = stebbs[param].get("value")
-                        if old_val is not None:
-                            stebbs[param]["value"] = None
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter=f"stebbs.{param}",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(old_val),
-                                    new_value="null",
-                                    reason="WWR == 0, window parameter nullified"
+                if isinstance(stebbs, dict):
+                    for param in window_params_stebbs:
+                        if param in stebbs:
+                            old_val = get_ref_or_bare(stebbs, param)
+                            if old_val is not None:
+                                set_ref_or_bare(stebbs, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"stebbs.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 0, window parameter nullified",
+                                    )
                                 )
-                            )
                 # Nullify in building_archetype
-                for param in window_params_bldgarc:
-                    if param in bldgarc and isinstance(bldgarc[param], dict):
-                        old_val = bldgarc[param].get("value")
-                        if old_val is not None:
-                            bldgarc[param]["value"] = None
-                            adjustments.append(
-                                ScientificAdjustment(
-                                    parameter=f"building_archetype.{param}",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value=str(old_val),
-                                    new_value="null",
-                                    reason="WWR == 0, window parameter nullified"
+                if isinstance(bldgarc, dict):
+                    for param in window_params_bldgarc:
+                        if param in bldgarc:
+                            old_val = get_ref_or_bare(bldgarc, param)
+                            if old_val is not None:
+                                set_ref_or_bare(bldgarc, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"building_archetype.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 0, window parameter nullified",
+                                    )
                                 )
-                            )
                 props["stebbs"] = stebbs
                 props["building_archetype"] = bldgarc
                 site["properties"] = props
@@ -2207,36 +2479,38 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "density_wall",
                     "specific_heat_capacity_wall",
                     ]
-                for param in wall_params_stebbs:
-                    entry = stebbs.get(param)
-                    if isinstance(entry, dict) and entry.get("value") is not None:
-                        old_val = entry["value"]
-                        entry["value"] = None
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter=f"stebbs.{param}",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(old_val),
-                                new_value="null",
-                                reason="WWR == 1, external wall parameter nullified"
-                            )
-                        )
-                for param in wall_params_bldgarc:
-                    entry = bldgarc.get(param)
-                    if isinstance(entry, dict) and entry.get("value") is not None:
-                        old_val = entry["value"]
-                        entry["value"] = None
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter=f"building_archetype.{param}",
-                                site_index=site_idx,
-                                site_gridid=site_gridid,
-                                old_value=str(old_val),
-                                new_value="null",
-                                reason="WWR == 1, external wall parameter nullified"
-                            )
-                        )
+                if isinstance(stebbs, dict):
+                    for param in wall_params_stebbs:
+                        if param in stebbs:
+                            old_val = get_ref_or_bare(stebbs, param)
+                            if old_val is not None:
+                                set_ref_or_bare(stebbs, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"stebbs.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 1, external wall parameter nullified",
+                                    )
+                                )
+                if isinstance(bldgarc, dict):
+                    for param in wall_params_bldgarc:
+                        if param in bldgarc:
+                            old_val = get_ref_or_bare(bldgarc, param)
+                            if old_val is not None:
+                                set_ref_or_bare(bldgarc, param, None)
+                                adjustments.append(
+                                    ScientificAdjustment(
+                                        parameter=f"building_archetype.{param}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value=str(old_val),
+                                        new_value="null",
+                                        reason="WWR == 1, external wall parameter nullified",
+                                    )
+                                )
                 props["stebbs"] = stebbs
                 props["building_archetype"] = bldgarc
                 site["properties"] = props
@@ -2245,7 +2519,10 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
     return yaml_data, adjustments
 
 def run_scientific_adjustment_pipeline(
-    yaml_data: dict, start_date: str, model_year: int
+    yaml_data: dict,
+    start_date: str,
+    model_year: int,
+    errors: Optional[List[ValidationResult]] = None,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Apply automatic scientific corrections and adjustments.
@@ -2262,6 +2539,10 @@ def run_scientific_adjustment_pipeline(
         Simulation start date in 'YYYY-MM-DD' format.
     model_year : int
         Simulation year for leap year and seasonal calculations.
+    errors : list of ValidationResult, optional
+        When given, an adjustment step that raises is rolled back and reported
+        here as one ERROR naming the step; the remaining steps still run.
+        Without it the exception propagates.
 
     Returns
     -------
@@ -2283,23 +2564,49 @@ def run_scientific_adjustment_pipeline(
     updated_data = deepcopy(yaml_data)
     adjustments = []
 
-    for adjust_func, args in [
-        (adjust_surface_temperatures, (updated_data, start_date)),
-        (adjust_land_cover_fractions, (updated_data,)),
-        (adjust_model_dependent_nullification, (updated_data,)),
-        (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
-        (adjust_model_option_rcmethod, (updated_data,)),
-        (adjust_model_option_setpointmethod, (updated_data,)),
-        (adjust_model_option_stebbsmethod, (updated_data,))
+    # Without a start date (no start_time and no readable forcing) the
+    # season-dependent steps have nothing to work from; the caller reports
+    # that they were skipped.
+    has_start = start_date is not None
+    for adjust_func, args, needs_start in [
+        (adjust_surface_temperatures, (updated_data, start_date), True),
+        (adjust_land_cover_fractions, (updated_data,), False),
+        (adjust_model_dependent_nullification, (updated_data,), False),
+        (adjust_seasonal_parameters, (updated_data, start_date, model_year), True),
+        (adjust_model_option_rcmethod, (updated_data,), False),
+        (adjust_model_option_setpointmethod, (updated_data,), False),
+        (adjust_model_option_stebbsmethod, (updated_data,), False),
     ]:
-        updated_data, adj = adjust_func(*args)
+        if needs_start and not has_start:
+            continue
+        if errors is None:
+            updated_data, adj = adjust_func(updated_data, *args[1:])
+            adjustments.extend(adj)
+            continue
+        snapshot = deepcopy(updated_data)
+        try:
+            updated_data, adj = adjust_func(updated_data, *args[1:])
+        except Exception as exc:
+            logger_supy.debug(
+                "Phase B adjustment %s failed", adjust_func.__name__, exc_info=True
+            )
+            updated_data = snapshot
+            errors.append(
+                rule_crash_result(
+                    f"adjustment '{adjust_func.__name__}'", adjust_func.__name__, exc
+                )
+            )
+            continue
         adjustments.extend(adj)
 
     return updated_data, adjustments
 
 
 def collect_science_suggestions(
-    yaml_data: dict, start_date: str, model_year: int
+    yaml_data: dict,
+    start_date: str,
+    model_year: int,
+    errors: Optional[List[ValidationResult]] = None,
 ) -> List[ScienceSuggestion]:
     """
     Collect scientific initialisation suggestions without mutating the input data.
@@ -2309,7 +2616,7 @@ def collect_science_suggestions(
     or scientifically curated values.
     """
     _, adjustments = run_scientific_adjustment_pipeline(
-        yaml_data, start_date, model_year
+        yaml_data, start_date, model_year, errors=errors
     )
     return [_adjustment_to_suggestion(adjustment) for adjustment in adjustments]
 
@@ -2319,6 +2626,7 @@ def apply_science_suggestions(
     suggestions: List[ScienceSuggestion],
     start_date: str,
     model_year: int,
+    errors: Optional[List[ValidationResult]] = None,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Apply the scientific transformation pipeline explicitly requested by the user.
@@ -2328,7 +2636,9 @@ def apply_science_suggestions(
     mutation code that would duplicate the existing domain logic.
     """
     del suggestions
-    return run_scientific_adjustment_pipeline(yaml_data, start_date, model_year)
+    return run_scientific_adjustment_pipeline(
+        yaml_data, start_date, model_year, errors=errors
+    )
 
 
 def create_science_report(
@@ -2783,7 +3093,11 @@ def run_science_check(
             uptodate_yaml_file, user_yaml_file, standard_yaml_file
         )
 
-        model_year, start_date, end_date = extract_simulation_parameters(uptodate_data)
+        model_year, start_date, end_date, bound_notes = (
+            resolve_simulation_parameters(
+                uptodate_data, Path(user_yaml_file).parent
+            )
+        )
 
         validation_context = ValidationContext(
             yaml_data=uptodate_data,
@@ -2791,7 +3105,7 @@ def run_science_check(
             model_year=model_year,
         )
 
-        validation_results = RulesRegistry(
+        validation_results = bound_notes + RulesRegistry(
             context=validation_context
         ).run_validation()
 
@@ -2860,23 +3174,36 @@ def run_science_check(
     critical_errors = [r for r in validation_results if r.status == "ERROR"]
     suggestions = []
     adjustments = []
+    # A crashing adjustment step is reported once (the apply path re-runs the
+    # same steps, so only its own run collects errors).
+    adjustment_errors: List[ValidationResult] = []
     if not critical_errors:
         if science_fixes == "apply":
             suggestions = collect_science_suggestions(
-                uptodate_data, start_date, model_year
+                uptodate_data, start_date, model_year, errors=[]
             )
             science_checked_data, adjustments = apply_science_suggestions(
-                uptodate_data, suggestions, start_date, model_year
+                uptodate_data,
+                suggestions,
+                start_date,
+                model_year,
+                errors=adjustment_errors,
             )
         elif science_fixes == "suggest":
             suggestions = collect_science_suggestions(
-                uptodate_data, start_date, model_year
+                uptodate_data, start_date, model_year, errors=adjustment_errors
             )
             science_checked_data = deepcopy(uptodate_data)
         else:
             science_checked_data = deepcopy(uptodate_data)
     else:
         science_checked_data = deepcopy(uptodate_data)
+    if adjustment_errors:
+        validation_results = [*validation_results, *adjustment_errors]
+        critical_errors = [*critical_errors, *adjustment_errors]
+        # Nothing is written once an error is present, so do not report the
+        # steps that did run as applied.
+        adjustments = []
 
     science_yaml_filename = (
         os.path.basename(science_yaml_file) if science_yaml_file else None

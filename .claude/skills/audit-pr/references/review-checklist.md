@@ -130,7 +130,7 @@ Detailed checklist for comprehensive PR review.
 
 ### CHANGELOG
 
-- [ ] Entry present under correct date
+- [ ] Fragment `changes/<number>.<category>.md` present (PRs do not edit `CHANGELOG.md`; see `changes/README.md`) and `python scripts/suews/fold_changelog.py --check` passes
 - [ ] Correct category used:
   - `[feature]` - New functionality
   - `[bugfix]` - Bug fixes (link issue)
@@ -262,7 +262,7 @@ PR can be merged when ALL of:
 - [ ] Code review approved
 - [ ] Scientific review approved (if physics changes)
 - [ ] Documentation updated
-- [ ] CHANGELOG entry present
+- [ ] CHANGELOG fragment present in `changes/`
 - [ ] No blocking issues
 
 ---

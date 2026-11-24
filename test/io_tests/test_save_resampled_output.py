@@ -5,7 +5,6 @@ import json
 import pandas as pd
 import pytest
 
-from supy import SUEWSSimulation
 from supy._save import save_df_output, save_df_output_parquet
 from supy.suews_output import SUEWSOutput
 
@@ -13,10 +12,9 @@ pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE", "C-RESAMPLE")]
 
 
 @pytest.fixture(scope="module")
-def output():
+def output(sample_config_run_cached):
     """Sample run from 1 January to 2 March 2012 01:15 (5-minute steps)."""
-    sim = SUEWSSimulation.from_sample_data()
-    return sim.run(start_date="2012-01-01", end_date="2012-03-02 01:15")
+    return sample_config_run_cached("2012-01-01", "2012-03-02 01:15")
 
 
 @pytest.mark.parametrize("freq", ["W", "MS", "ME", "YE"])

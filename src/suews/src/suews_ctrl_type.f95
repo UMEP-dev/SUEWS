@@ -79,6 +79,11 @@ MODULE module_ctrl_type
       INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
       INTEGER :: ForcingTimestampReference = 0 ! forcing timestamp reference: 0=local standard time, 1=UTC [-]
+      INTEGER :: EHCSurfaceCoupling = 1 ! EHC surface coupling: 0=explicit, 1=implicit (default) [-]
+      INTEGER :: control_ehc_stability = 0 ! late implicit iteration: 0=off, 1=relax QH, 2=secant QH [-]
+      LOGICAL :: control_ehc_initial_profile = .TRUE. ! fresh implicit envelope only [-]
+      REAL(KIND(1D0)) :: resistance_ehc_indoor_roof = 0.10D0 ! ISO 6946 upward [m2 K W-1]
+      REAL(KIND(1D0)) :: resistance_ehc_indoor_wall = 0.13D0 ! ISO 6946 horizontal [m2 K W-1]
    END TYPE SUEWS_CONFIG
 
    TYPE, PUBLIC :: SUEWS_SITE
@@ -602,6 +607,7 @@ CONTAINS
 
       CALL self%hydroState%DEALLOCATE()
       CALL self%heatState%DEALLOCATE()
+      CALL self%stebbsState%DEALLOCATE()
 
    END SUBROUTINE deallocSUEWSState_c
 
@@ -780,6 +786,10 @@ CONTAINS
 
       IF (.NOT. self%stebbsState%iter_safe) THEN
          self%stebbsState = ref_state%stebbsState
+         ! Keep stebbs_bldg_init synchronised with stebbsState%buildings(:) across
+         ! inner-iteration rollbacks so a Pass-1 initialisation cannot leave
+         ! stebbs_bldg_init = 1 while buildings(:) is rolled back (flagState%iter_safe is .TRUE.).
+         self%flagState%stebbs_bldg_init = ref_state%flagState%stebbs_bldg_init
       END IF
 
       IF (.NOT. self%nhoodState%iter_safe) THEN

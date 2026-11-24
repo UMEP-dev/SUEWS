@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev13"
+CURRENT_SCHEMA_VERSION = "2026.6.dev18"
 
 # Schema version history and descriptions.
 #
@@ -216,6 +216,48 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "placeholders are removed with an explicit migration message. "
         "Nonzero legacy values require an explicit choice of cold start "
         "or complete checkpoint continuation. Numerical seeds are unchanged."
+    ),
+    "2026.6.dev14": (
+        "Remaining continuation-only initial_states fields are internal to "
+        "cold starts (#2003). Fresh-run evetr/dectr/grass.wu, dt_since_start, "
+        "tair_av, tstep_prev, l_mod, ustar, ra_h, rb, and rs inputs are "
+        "rejected; legacy cold-start placeholders are removed with an "
+        "explicit migration message. Non-placeholder values require an "
+        "explicit choice of cold start or complete checkpoint continuation. "
+        "Numerical seeds and checkpoint payloads are unchanged."
+    ),
+    "2026.6.dev15": (
+        "Require finite drain_coef_1 and drain_coef_2 for active non-water "
+        "surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains "
+        "accepted. Diagnose missing active drainage blocks and fractional "
+        "native/mutable selectors without assigning new equation semantics. "
+        "Migration preserves supplied values and refuses to invent missing "
+        "blocks or coefficients; inactive surfaces and water are unchanged."
+    ),
+    "2026.6.dev16": (
+        "Initial vegetation senescence degree days (sdd_id) must be finite for "
+        "evergreen trees, deciduous trees and grass (#2001). Omission defaults "
+        "to zero. Migration preserves signed finite values and references and "
+        "reports each invalid site and vegetation type."
+    ),
+    "2026.6.dev17": (
+        "Day-of-year fields for irrigation (ie_start, ie_end) and daylight "
+        "saving time (startdls, enddls) require whole integers in 1..366 or "
+        "null/omission to disable (#2101, #2001, #2002). The "
+        "(2026.6.dev16 -> 2026.6.dev17) migration normalises exact "
+        "whole-number floats (e.g. 86.0 -> 86), preserves null and disabled "
+        "ref-only/empty mappings, and rejects fractional, boolean, non-finite "
+        "or out-of-range values rather than truncating or zeroing them."
+    ),
+    "2026.6.dev18": (
+        "Default storage_heat=5 (EHC) to implicit surface coupling (#2108). "
+        "Adds optional model.physics controls ehc_surface_coupling (default "
+        "implicit), control_ehc_stability (default off), "
+        "control_ehc_initial_profile (default true), "
+        "resistance_ehc_indoor_roof (default 0.10 m2 K W-1), and "
+        "resistance_ehc_indoor_wall (default 0.13 m2 K W-1). Existing EHC "
+        "YAMLs that omit ehc_surface_coupling now use implicit coupling; set "
+        "ehc_surface_coupling: explicit to retain legacy explicit coupling."
     ),
 }
 

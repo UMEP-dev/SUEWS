@@ -18,14 +18,20 @@ from ._env import _user_warning_stacklevel, logger_supy
 from ._load import load_SUEWS_dict_ModConfig
 from ._output_metadata import (
     HeldInterval,
+    copy_attrs_except,
     output_interval_seconds,
     prepare_output,
     resolve_held_interval,
+    strip_attrs,
     with_daily_coverage,
     write_output_parquet,
     write_text_metadata,
 )
 from ._post import _resample_output, df_var as df_var_out
+from ._run_output import (
+    _OUTPUT_TIMESTAMP_SUFFIXES,
+    _STREAMED_PARQUET_PART_RE as _PART_NAME,
+)
 from .data_model.output import PROVISIONAL_OUTPUT_GROUPS
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -66,12 +72,7 @@ def _normalise_forcing_timestamp_reference(timestamp_reference: object) -> str:
 def _timestamp_reference_filename_suffix(timestamp_reference: object) -> str:
     """Return the filename suffix for an explicit output reference."""
     label = _normalise_output_timestamp_reference(timestamp_reference)
-    return {
-        "follow": "",
-        "utc": "_UTC",
-        "local_standard_time": "_STANDARD",
-        "daylight": "_DAYLIGHT",
-    }[label]
+    return _OUTPUT_TIMESTAMP_SUFFIXES[label]
 
 
 def _state_scalar(
@@ -336,9 +337,10 @@ def _output_group_frequencies(
     """
     if groups is None:
         groups = df_output.columns.get_level_values("group").unique()
+    df_bare = strip_attrs(df_output)
     dict_group_frequency_s = {}
     for group in groups:
-        df_group = df_output[group]
+        df_group = df_bare[group]
         mask = _rows_with_data(df_group)
         if not mask.any():
             continue
@@ -548,7 +550,6 @@ class StreamedTextFiles:
         return False
 
 
-_PART_NAME = re.compile(r"^part-(?P<year>\d{4})-(?P<chunk>\d{3})\.parquet$")
 _PART_TMP_NAME = re.compile(r"^\.part-\d{4}-\d{3}\.parquet\.tmp$")
 
 
@@ -1011,20 +1012,28 @@ def _save_groups(
     allow_irregular_timestamps = (
         _normalise_output_timestamp_reference(timestamp_reference) == "daylight"
     )
+    attrs_save = df_save.attrs
+    df_save_bare = strip_attrs(df_save)
     list_path_save = []
     for grid in list_grid:
         for group in list_group:
-            df_group = df_save[group]
+            df_group = df_save_bare[group]
             df_group.index = index
             df_grid_group = df_group.xs(grid, level="grid")
+            daily_coverage_grid = None
             if group == "DailyState":
-                coverage = df_save.attrs.get("supy_output_daily_coverage_s")
-                coverage_index = index_final if index_final is not None else index
-                df_grid_group.attrs["supy_output_daily_coverage_s"] = {
-                    f"{grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
-                    for (old_grid, date), (_, new_date) in zip(df_save.index, coverage_index)
-                    if old_grid == grid and f"{grid}|{date.isoformat()}" in coverage
-                } if coverage is not None else None
+                coverage = attrs_save.get("supy_output_daily_coverage_s")
+                if coverage is not None:
+                    coverage_index = index_final if index_final is not None else index
+                    daily_coverage_grid = {
+                        f"{grid}|{new_date.isoformat()}": coverage[
+                            f"{grid}|{date.isoformat()}"
+                        ]
+                        for (old_grid, date), (_, new_date) in zip(
+                            df_save.index, coverage_index
+                        )
+                        if old_grid == grid and f"{grid}|{date.isoformat()}" in coverage
+                    }
             idx_asfreq = None if group == "DailyState" else _grid_asfreq_index(
                 df_grid_group.index, allow_irregular_timestamps
             )
@@ -1039,6 +1048,17 @@ def _save_groups(
                     step_s=step_s,
                 )
                 if df_year.shape[0] > 0:
+                    if group == "DailyState":
+                        df_year.attrs = copy_attrs_except(
+                            attrs_save, {"supy_output_daily_coverage_s"}
+                        )
+                        df_year.attrs["supy_output_daily_coverage_s"] = (
+                            daily_coverage_grid.copy()
+                            if daily_coverage_grid is not None
+                            else None
+                        )
+                    elif attrs_save:
+                        df_year.attrs = copy_attrs_except(attrs_save)
                     group_frequency_s = (
                         dict_group_frequency_s.get(group)
                         if dict_group_frequency_s is not None
@@ -1219,8 +1239,8 @@ def save_df_output(
             groups=["DailyState"],
             freq_source=freq_from_state,
         )
-        df_dailystate = _dailystate_rows(df_daily_rsmp)
-        df_dailystate.attrs = df_daily_rsmp.attrs.copy()
+        df_dailystate = _dailystate_rows(strip_attrs(df_daily_rsmp))
+        df_dailystate.attrs = copy_attrs_except(df_daily_rsmp.attrs)
     list_group_no_daily = [g for g in list_group_save if g != "DailyState"]
     if list_group_no_daily:
         # Only these groups are resampled to `freq_s`; DailyState rows are
@@ -1671,7 +1691,7 @@ def _parquet_chunk_frame(
 ) -> pd.DataFrame:
     """Return the rows one chunk of a streamed run writes to Parquet.
 
-    Every group — DailyState included — is resampled to *freq_save* using the
+    Every group -- DailyState included -- is resampled to *freq_save* using the
     shared ``closed="right", label="right"`` rule (left as it is at the model
     timestep *tstep_s*). Non-DailyState groups keep a row for every output
     interval even where they hold no value, as a run saved whole does;
@@ -1695,7 +1715,7 @@ def _parquet_chunk_frame(
             drop_empty_rows=False,
         )
         mask_main = df_main.columns.get_level_values("group").isin(list_main)
-        list_frame.append(df_main.loc[:, mask_main])
+        list_frame.append(strip_attrs(df_main).loc[:, mask_main])
     if "DailyState" in ser_group:
         df_daily = _resample_output(
             df_output,
@@ -1706,27 +1726,26 @@ def _parquet_chunk_frame(
         )
         if df_daily is df_output:
             df_daily_sel = (
-                df_output.loc[:, ser_group == "DailyState"]
+                strip_attrs(df_output).loc[:, ser_group == "DailyState"]
                 if list_main
-                else _dailystate_rows(df_output)
+                else _dailystate_rows(strip_attrs(df_output))
             )
         else:
             mask_daily = df_daily.columns.get_level_values("group") == "DailyState"
-            df_daily_sel = df_daily.loc[:, mask_daily]
+            df_daily_sel = strip_attrs(df_daily).loc[:, mask_daily]
         if df_daily_sel.empty and df_main is not None:
             df_daily_sel = df_daily_sel.reindex(df_main.index)
         list_frame.append(df_daily_sel)
     df_chunk = list_frame[0] if len(list_frame) == 1 else pd.concat(list_frame, axis=1)
     columns = df_output.columns[ser_group.isin(df_chunk.columns.get_level_values(0))]
     df_chunk = df_chunk.reindex(columns=columns).sort_index()
-    # Preserve SuPy-owned attributes across concat.
-    df_chunk.attrs = df_output.attrs.copy()
-    if df_main is not None:
-        df_chunk.attrs.update(df_main.attrs)
+    # Preserve SuPy-owned attributes across concat with independent ownership.
+    merged_attrs = {**df_output.attrs, **(df_main.attrs if df_main is not None else {})}
     if df_daily is not None and "supy_output_daily_coverage_s" in df_daily.attrs:
-        df_chunk.attrs["supy_output_daily_coverage_s"] = df_daily.attrs[
+        merged_attrs["supy_output_daily_coverage_s"] = df_daily.attrs[
             "supy_output_daily_coverage_s"
         ]
+    df_chunk.attrs = copy_attrs_except(merged_attrs, {"supy_output_interval_s"})
     df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
     return df_chunk
 

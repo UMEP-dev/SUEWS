@@ -4,8 +4,7 @@ paths:
   - src/suews/ext_lib/**/*
   - test/fixtures/data_test/sample_output_2012-*.csv
   - test/fixtures/data_test/provenance.json
-  - test/fixtures/data_test/stebbs_test/**
-  - test/fixtures/benchmark1/**
+  - test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv
   - test/fixtures/w16_most.csv
 ---
 
@@ -39,7 +38,6 @@ Vendored reference fixtures governed by this rule:
 
 - `test/fixtures/data_test/sample_output_2012-*.csv` and `test/fixtures/data_test/provenance.json` (main SuPy reference run, twelve monthly shards),
 - `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` (STEBBS reference run),
-- `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs),
 - `test/fixtures/w16_most.csv` (W16 atmospheric-stability reference run). [fact: git grep -n "w16_most" .github/workflows/build-publish_to_pypi.yml test/physics/test_stability_guards.py]
 
 ### Physics change (`0-physics:change`)
@@ -60,7 +58,7 @@ A PR is a **numerical change** -- and MUST carry `0-numerics:change` (unless ele
 
 ### Numerical threshold and Obukhov-length diagnostics
 
-Measure each variable against its own scale in each vendored reference fixture (`sample_output_2012-*.csv` combined across its twelve monthly shards, `sample_output_stebbs.csv`, each `benchmark1/*.pkl` file, and `w16_most.csv`), not as a pointwise ratio `|new_i - ref_i| / |ref_i|`: pointwise ratios blow up whenever a variable crosses or approaches zero (for example night-time `QN`, surface temperature differences, or cooling loads), turning round-off-sized absolute differences into large apparent percentages. [decision: software maintainer, 2026-11-18]
+Measure each variable against its own scale in each vendored reference fixture (`sample_output_2012-*.csv` combined across its twelve monthly shards, `sample_output_stebbs.csv`, and `w16_most.csv`), not as a pointwise ratio `|new_i - ref_i| / |ref_i|`: pointwise ratios blow up whenever a variable crosses or approaches zero (for example night-time `QN`, surface temperature differences, or cooling loads), turning round-off-sized absolute differences into large apparent percentages. [decision: software maintainer, 2026-11-18]
 Across all aligned samples `i` of a variable in a fixture, positions where both `ref_i` and `new_i` are `NaN` are ignored and any `NaN`/finite mismatch fails the threshold; over all remaining non-`NaN` samples `i` of that variable in that fixture: [decision: software maintainer, 2026-11-18]
 
 - **Maximum absolute difference:** `max_i |new_i - ref_i|` (`0` when no non-`NaN` samples remain).
@@ -213,7 +211,7 @@ A `0-numerics:change` PR requires **no** `## Scientific evidence` section and **
 Instead, it MUST carry: [decision: software maintainer, 2026-11-18]
 
 1. **The `0-numerics:change` label** (and not `0-physics:change`).
-2. **Reference-fixture refresh in the same PR** -- identical provenance and CI reference-lane artefact rules as item 3 above (`sample_output_2012-*.csv` + `provenance.json`, `sample_output_stebbs.csv`, `benchmark1/*.pkl`, `w16_most.csv` as applicable).
+2. **Reference-fixture refresh in the same PR** -- identical provenance and CI reference-lane artefact rules as item 3 above (`sample_output_2012-*.csv` + `provenance.json`, `sample_output_stebbs.csv`, `w16_most.csv` as applicable).
 3. **A short numerical change table in the PR body** stating what constant, unit conversion, or floating-point representation changed, confirming no process formulation changed, and reporting per moved variable the maximum absolute difference and scale-relative change (`max_i |new_i - ref_i| / max_i |ref_i|`) against the previous reference (for `Lob` / `L_MOD_RSL`, recording their own maximum absolute difference and scale-relative change for information while the `zL` / `zeta` row decides the class):
 
    ```markdown
@@ -303,7 +301,7 @@ label. `test/core/test_sample_output_exact.py` closes that gap:
   intended change.
 - It is `core` and `medium`, so it runs on draft PRs as well as ready PRs and
   the merge queue.
-- The `Physics-change label` job (`check_physics_label`) fails a `pull_request` or single-PR `merge_group` run (through `pr-gate`, which also requires `build_wheels == success` whenever either label is present) when stored references (`sample_output_2012-*.csv`, `provenance.json`, `stebbs_test/**`, `benchmark1/**`, `w16_most.csv`) change without **exactly one** of `0-physics:change` or `0-numerics:change`, when a PR carries both labels simultaneously, or when a labelled ready PR or `merge_group` run did not execute `test_tier=physics-full`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml && git grep -n "PHYSICS_CHANGE" .github/scripts/pr-gate.sh]
+- The `Physics-change label` job (`check_physics_label`) fails a `pull_request` or single-PR `merge_group` run (through `pr-gate`, which also requires `build_wheels == success` whenever either label is present) when stored reference outputs (`sample_output_2012-*.csv`, `provenance.json`, `stebbs_test/sample_output_stebbs.csv`, `w16_most.csv`) change without **exactly one** of `0-physics:change` or `0-numerics:change`, when a PR carries both labels simultaneously, or when a labelled ready PR or `merge_group` run did not execute `test_tier=physics-full`. [fact: git grep -n "0-numerics:change" .github/workflows/build-publish_to_pypi.yml && git grep -n "PHYSICS_CHANGE" .github/scripts/pr-gate.sh]
   It warns, without failing, when `suews_phys_*.f95` changes without either label: a verified formulation-preserving refactor with bit-identical output legitimately carries none, and one that moves reference output already fails the exact check.
   Both `determine_matrix` and `check_physics_label` query live PR labels via the GitHub API; because `build-publish_to_pypi.yml` keeps `master`'s event triggers (no automatic rerun on label events), adding or changing a classification label after `determine_matrix` has started requires clicking "Re-run all jobs" (or pushing a commit / closing and reopening the PR) so `determine_matrix` and `build_wheels` execute `physics-full`. [procedure: Principle 1]
   On `merge_group`, `gh-readonly-queue/<base>/pr-<n>-<sha>` identifies a single-PR diff when `<sha>` equals `merge_group.base_sha` (all single-entry `ALLGREEN` runs); multi-PR or unparsed queue refs keep `master`'s safe default of running `physics-full` and rely on the required `pull_request` `PR build validation` gate for per-PR label attribution (pre-merge squash queue commits have no `/commits/{sha}/pulls` mapping). [fact: git grep -n "ref_base_sha" .github/workflows/build-publish_to_pypi.yml]
@@ -312,16 +310,24 @@ Together: an output-moving change cannot merge without a refresh, and a refresh 
 
 ## What `physics-full` adds over `standard`
 
-Today: nothing. The physics axis of `standard` runs
+Today: the continuation matrix. The physics axis of `standard` runs
 `-m "physics and (core or not slow)"` and `physics-full` runs `-m physics`, so
 the only tests the label can add are those matching
-`physics and slow and not core`, and that expression collects zero nodes: on
-9 September 2026 (master at `ce29700498`) both tiers collected the same 178
-physics nodes, because the two `slow` physics regressions
+`physics and slow and not core`. That set is the module
+`test/physics/test_continuation_matrix.py`: the parametrised
+`test_continuation_matrix` (chunked, checkpoint-resumed and streamed
+runs against an uninterrupted run, crossed with the default,
+snow, SPARTACUS, STEBBS, dual-timescale EHC, irrigation and CO2 modes) and its
+negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
+not `core` on purpose: #2100 asks for this restart verification to be opt-in, so
+it runs on ready `0-physics:change` and `0-numerics:change` PRs and their
+merge-queue runs, in the nightly, tag and full-dispatch runs (`test_tier=all`),
+and not on every PR. [decision: software maintainer, 2026-11-22] The two `slow`
+physics regressions
 (`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`
-and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also
-`core` and already run in `standard`. The label's present value is the
-evidence and sign-off contract above, not extra test coverage.
+and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also `core`
+and run in `standard`. Before this module (9 September 2026, master at
+`ce29700498`) the two tiers collected the same 178 physics nodes.
 
 A collection check keeps this paragraph honest.
 `test/core/test_physics_tier_delta.py::test_physics_full_tier_adds_exactly_what_the_rule_records`
@@ -341,7 +347,8 @@ collect with.
 
 <!-- physics-full-only nodes: begin -->
 ```text
-(none)
+test/physics/test_continuation_matrix.py::test_continuation_matrix[*]
+test/physics/test_continuation_matrix.py::test_checkpoint_perturbation_is_detected
 ```
 <!-- physics-full-only nodes: end -->
 

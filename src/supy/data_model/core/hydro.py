@@ -21,6 +21,11 @@ from .type import (
     RefValue,
     SurfaceType,
 )
+from .unit_metadata import (
+    ConditionalUnitCase,
+    ConditionalUnitSpec,
+    conditional_unit_extra,
+)
 
 
 class WaterDistribution(DataModelBase):
@@ -395,23 +400,7 @@ class WaterDistribution(DataModelBase):
         if not math.isclose(total, 1.0, rel_tol=1e-5):
             raise ValueError(f"Water distribution sum must be 1.0, got {total}")
 
-    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
-        """Convert water distribution parameters to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-            surf_idx: Surface index (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil, 6=water)
-
-        Returns:
-            pd.DataFrame: DataFrame containing water distribution parameters with MultiIndex columns
-        """
-        # Create tuples for MultiIndex columns
-        param_tuples = []
-        values = []
-
-        # Add all non-None distribution parameters using a two-step process
-        # 1. Collect all non-None values (unwrapping RefValue so {value: null}
-        # behaves the same as None and never shadows the active terminal field)
+    def _to_df_state_cols(self, grid_id: int, surf_idx: int) -> dict:
         list_waterdist_value = []
         for attr in (
             "to_paved",
@@ -426,8 +415,6 @@ class WaterDistribution(DataModelBase):
             raw = value.value if isinstance(value, RefValue) else value
             list_waterdist_value.append(0.0 if raw is None else raw)
 
-        # Impervious surfaces route remainder to to_runoff; pervious surfaces to
-        # to_soilstore.
         to_soilstore = (
             self.to_soilstore.value
             if isinstance(self.to_soilstore, RefValue)
@@ -443,24 +430,30 @@ class WaterDistribution(DataModelBase):
             0.0 if to_soilstore_or_runoff is None else to_soilstore_or_runoff
         )
 
-        # 2. Create param_tuples and values - only add non-None values following the order of the list
-        for i, value in enumerate(list_waterdist_value):
-            if value is not None:
-                param_tuples.append(("waterdist", f"({i}, {surf_idx})"))
-                values.append(value)
+        return {
+            ("waterdist", f"({i}, {surf_idx})"): float(value)
+            for i, value in enumerate(list_waterdist_value)
+            if value is not None
+        }
 
-        # Create MultiIndex columns
-        columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
+    def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
+        """Convert water distribution parameters to DataFrame state format.
 
-        # Create DataFrame with single row
-        df = pd.DataFrame(
+        Args:
+            grid_id: Grid ID for the DataFrame index
+            surf_idx: Surface index (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil, 6=water)
+
+        Returns:
+            pd.DataFrame: DataFrame containing water distribution parameters with MultiIndex columns
+        """
+        cols = self._to_df_state_cols(grid_id, surf_idx)
+        columns = pd.MultiIndex.from_tuples(cols.keys(), names=["var", "ind_dim"])
+        return pd.DataFrame(
             index=pd.Index([grid_id], name="grid"),
             columns=columns,
-            data=[values],
+            data=[list(cols.values())],
             dtype=float,
         )
-
-        return df
 
     @classmethod
     def from_df_state(
@@ -524,6 +517,12 @@ class WaterDistribution(DataModelBase):
         return instance
 
 
+DRAINAGE_COEFFICIENT_REQUIREMENT = (
+    ". Required and finite on active non-water surfaces using equations "
+    "1, 2 or 3. Explicit zero is allowed."
+)
+
+
 class StorageDrainParams(DataModelBase):
     """Parameters for surface water storage drainage."""
 
@@ -584,9 +583,76 @@ class StorageDrainParams(DataModelBase):
         default=None,
         description=(
             "Drainage coefficient 1; interpretation and units depend on drain_eq"
+            + DRAINAGE_COEFFICIENT_REQUIREMENT
         ),
         json_schema_extra={
-            "unit": "equation-dependent",
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="drain_eq",
+                    selector_scope="sibling",
+                    selector_model="StorageDrainParams",
+                    selector_field="drain_eq",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="Threshold power law",
+                            kind="formula",
+                            expression="(kg m-2)^(1 - drain_coef_2) h-1",
+                            base_units=("kg m-2", "h"),
+                            depends_on=("drain_coef_2",),
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(state - store_cap)**drain_coef_2 / nsh_real "
+                                "for state >= store_cap, else 0"
+                            ),
+                            note=(
+                                "No fixed CF unit: the storage-unit exponent depends on "
+                                "the fitted dimensionless exponent drain_coef_2 "
+                                "(1 kg m-2 = 1 mm liquid water; "
+                                "nsh_real = 3600 / tstep is timesteps per hour)."
+                            ),
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="Modified Rutter exponential",
+                            kind="cf",
+                            unit="kg m-2 h-1",
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(exp(drain_coef_2 * state) - 1) / nsh_real"
+                            ),
+                            note=(
+                                "Hourly drainage flux scale (numerically equal to "
+                                "mm h-1 for liquid water; nsh_real = 3600 / tstep "
+                                "is timesteps per hour)."
+                            ),
+                        ),
+                        "3": ConditionalUnitCase(
+                            label="Power law without threshold",
+                            kind="formula",
+                            expression="(kg m-2)^(1 - drain_coef_2) h-1",
+                            base_units=("kg m-2", "h"),
+                            depends_on=("drain_coef_2",),
+                            formula=(
+                                "drain = drain_coef_1 * state**drain_coef_2 / nsh_real"
+                            ),
+                            note=(
+                                "No fixed CF unit: the storage-unit exponent depends on "
+                                "the fitted dimensionless exponent drain_coef_2 "
+                                "(1 kg m-2 = 1 mm liquid water; "
+                                "nsh_real = 3600 / tstep is timesteps per hour)."
+                            ),
+                        ),
+                    },
+                    activation_note=(
+                        "Applied to non-water surfaces with positive surface fraction "
+                        "(sfr > 0); ignored for water and inactive surfaces."
+                    ),
+                    inactive_note=(
+                        "drain_eq = 0 is an unset placeholder and any code outside "
+                        "{1, 2, 3} (including retired equation 4) selects no drainage "
+                        "branch in Fortran."
+                    ),
+                )
+            ),
             "display_name": "Drainage Coefficient 1",
         },
     )
@@ -594,14 +660,81 @@ class StorageDrainParams(DataModelBase):
         default=None,
         description=(
             "Drainage coefficient 2; interpretation and units depend on drain_eq"
+            + DRAINAGE_COEFFICIENT_REQUIREMENT
         ),
         json_schema_extra={
-            "unit": "equation-dependent",
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="drain_eq",
+                    selector_scope="sibling",
+                    selector_model="StorageDrainParams",
+                    selector_field="drain_eq",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="Threshold power law",
+                            kind="cf",
+                            unit="1",
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(state - store_cap)**drain_coef_2 / nsh_real "
+                                "for state >= store_cap, else 0"
+                            ),
+                            note="Dimensionless power-law exponent.",
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="Modified Rutter exponential",
+                            kind="cf",
+                            unit="m2 kg-1",
+                            formula=(
+                                "drain = drain_coef_1 * "
+                                "(exp(drain_coef_2 * state) - 1) / nsh_real"
+                            ),
+                            note=(
+                                "Inverse surface-water storage scale multiplying "
+                                "state in kg m-2 (numerically equal to mm-1 for "
+                                "liquid water)."
+                            ),
+                        ),
+                        "3": ConditionalUnitCase(
+                            label="Power law without threshold",
+                            kind="cf",
+                            unit="1",
+                            formula=(
+                                "drain = drain_coef_1 * state**drain_coef_2 / nsh_real"
+                            ),
+                            note="Dimensionless power-law exponent.",
+                        ),
+                    },
+                    activation_note=(
+                        "Applied to non-water surfaces with positive surface fraction "
+                        "(sfr > 0); ignored for water and inactive surfaces."
+                    ),
+                    inactive_note=(
+                        "drain_eq = 0 is an unset placeholder and any code outside "
+                        "{1, 2, 3} (including retired equation 4) selects no drainage "
+                        "branch in Fortran."
+                    ),
+                )
+            ),
             "display_name": "Drainage Coefficient 2",
         },
     )
 
     ref: Optional[Reference] = None
+
+    def is_placeholder(self) -> bool:
+        """Return whether the block provides no physical input beyond factory defaults."""
+        for name, field in type(self).model_fields.items():
+            if name == "ref":
+                continue
+            value = getattr(self, name)
+            if isinstance(value, RefValue):
+                value = value.value
+            if value is not None and (
+                name in self.model_fields_set or value != field.default
+            ):
+                return False
+        return True
 
     def _current_store_cap(self):
         """Resolve the capacity from the current inputs without changing them."""
@@ -615,6 +748,17 @@ class StorageDrainParams(DataModelBase):
 
     @model_serializer(mode="wrap")
     def _dump_storage(self, handler, info):
+        if self.is_placeholder():
+            # Preserve supplied metadata and nulls without emitting factory values.
+            supplied = {
+                k: v for k, v in handler(self).items() if k in self.model_fields_set
+            }
+            if info.round_trip:
+                # Dropping the value key leaves a wrapped null unreadable as a RefValue.
+                for name, leaf in supplied.items():
+                    if name != "ref" and isinstance(leaf, dict):
+                        leaf.setdefault("value", None)
+            return supplied
         # Saved YAML and partial updates must preserve the original input.
         # A resolved engine dump needs the capacity even when it was omitted.
         if info.round_trip or info.exclude_unset:
@@ -623,6 +767,37 @@ class StorageDrainParams(DataModelBase):
         if capacity is self.store_cap:
             return handler(self)
         return handler(self.model_copy(update={"store_cap": capacity}))
+
+    def _to_df_state_cols(self, grid_id: int, surf_idx: int) -> dict:
+        field_names = [
+            "store_min",
+            "drain_eq",
+            "drain_coef_1",
+            "drain_coef_2",
+            "store_max",
+            "store_cap",
+        ]
+        # An all-missing block is a partial-configuration marker, not an
+        # implicit equation/zero coefficient. Retain it across DF round-trips.
+        if self.is_placeholder():
+            return {
+                ("storedrainprm", f"({i}, {surf_idx})"): float("nan")
+                for i in range(len(field_names))
+            }
+        cols = {}
+        for i, var in enumerate(field_names):
+            field_val = (
+                self._current_store_cap() if var == "store_cap" else getattr(self, var)
+            )
+            if field_val is not None:
+                val = field_val.value if isinstance(field_val, RefValue) else field_val
+            else:
+                # Missing coefficients must not become executable zeros.
+                val = float("nan") if var in ("drain_coef_1", "drain_coef_2") else 0.0
+            cols[("storedrainprm", f"({i}, {surf_idx})")] = (
+                float("nan") if val is None else float(val)
+            )
+        return cols
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert storage and drain parameters to DataFrame state format.
@@ -634,46 +809,14 @@ class StorageDrainParams(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing storage and drain parameters with MultiIndex columns
         """
-        # Create tuples for MultiIndex columns
-        param_tuples = [
-            ("storedrainprm", f"({i}, {surf_idx})")
-            for i, _ in enumerate([
-                "store_min",
-                "drain_eq",
-                "drain_coef_1",
-                "drain_coef_2",
-                "store_max",
-                "store_cap",
-            ])
-        ]
-
-        # Create MultiIndex columns
-        columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
-
-        # Create DataFrame with single row
-        df = pd.DataFrame(
-            index=pd.Index([grid_id], name="grid"), columns=columns, dtype=float
+        cols = self._to_df_state_cols(grid_id, surf_idx)
+        columns = pd.MultiIndex.from_tuples(cols.keys(), names=["var", "ind_dim"])
+        return pd.DataFrame(
+            index=pd.Index([grid_id], name="grid"),
+            columns=columns,
+            data=[list(cols.values())],
+            dtype=float,
         )
-
-        # Fill values
-        for i, var in enumerate([
-            "store_min",
-            "drain_eq",
-            "drain_coef_1",
-            "drain_coef_2",
-            "store_max",
-            "store_cap",
-        ]):
-            field_val = (
-                self._current_store_cap() if var == "store_cap" else getattr(self, var)
-            )
-            if field_val is not None:
-                val = field_val.value if isinstance(field_val, RefValue) else field_val
-            else:
-                val = 0.0  # Default to 0.0 for DataFrame compatibility
-            df.loc[grid_id, ("storedrainprm", f"({i}, {surf_idx})")] = val
-
-        return df
 
     @classmethod
     def from_df_state(
@@ -706,8 +849,14 @@ class StorageDrainParams(DataModelBase):
             for param, idx in param_map.items()
         }
 
-        # Conver params to RefValue
-        params = {key: RefValue(value) for key, value in params.items()}
+        if all(pd.isna(value) for value in params.values()):
+            return cls()
+        # Missing coefficients stay absent; declared finite zeros stay values.
+        params = {
+            key: None if key in ("drain_coef_1", "drain_coef_2") and pd.isna(value)
+            else RefValue(value)
+            for key, value in params.items()
+        }
 
         # Create an instance using the extracted parameters
         return cls(**params)

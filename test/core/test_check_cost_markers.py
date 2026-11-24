@@ -405,3 +405,87 @@ def test_cli_restricts_to_test_files_and_writes_json(
     payload = json.loads(out_json.read_text(encoding="utf-8"))
     assert payload["restricted_to"] is None
     assert payload["flagged"] == 2
+
+
+def test_require_axis_rejects_partial_lane_metrics_and_workflow_wires_both_axes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Custom dispatches with only physics (or only api) metrics cannot report clean (#2284)."""
+    import yaml
+
+    metrics_dir = tmp_path / "ci-metrics"
+    physics_dir = metrics_dir / "physics"
+    api_dir = metrics_dir / "api"
+    physics_dir.mkdir(parents=True)
+    api_dir.mkdir(parents=True)
+
+    # Physics-only artefact, even carrying a dual-marked (api + physics) test, must NOT
+    # satisfy --require-axis api.
+    _artefact(
+        physics_dir / "physics-cp312-manylinux-x86_64-pytest.json",
+        [_record("test/physics/test_dual.py::test_x", call=0.2, markers=("api", "physics"))],
+    )
+    out_json = tmp_path / "cost-markers.json"
+    rc_partial = checker.main([
+        str(metrics_dir),
+        "--require-axis",
+        "api",
+        "--require-axis",
+        "physics",
+        "--json",
+        str(out_json),
+    ])
+    assert rc_partial == 2
+    assert not out_json.exists()
+    out = capsys.readouterr().out
+    assert "missing measured metrics for required axis/axes: api" in out
+
+    # An api artefact containing only skipped tests also fails closed.
+    _artefact(
+        api_dir / "api-cp312-manylinux-x86_64.json",
+        [_record("test/core/test_api.py::test_skip", call=0.0, outcome="skipped")],
+    )
+    rc_skipped_api = checker.main([
+        str(metrics_dir),
+        "--require-axis",
+        "api",
+        "--require-axis",
+        "physics",
+        "--json",
+        str(out_json),
+    ])
+    assert rc_skipped_api == 2
+    assert not out_json.exists()
+    capsys.readouterr()
+
+    # Once both axes carry measured tests, the check runs and writes the JSON report.
+    _artefact(
+        api_dir / "api-cp312-manylinux-x86_64.json",
+        [_record("test/core/test_api.py::test_ok", call=0.2, markers=("api",))],
+    )
+    rc_both = checker.main([
+        str(metrics_dir),
+        "--require-axis",
+        "api",
+        "--require-axis",
+        "physics",
+        "--json",
+        str(out_json),
+    ])
+    assert rc_both == 0
+    assert out_json.exists()
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert (payload["ok"], payload["flagged"], payload["measured"]) == (True, 0, 2)
+
+    wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    check_step = next(
+        step
+        for step in wf["jobs"]["cost_markers"]["steps"]
+        if step.get("name") == "Check cost markers against measured CPU seconds"
+    )
+    assert "--require-axis api" in check_step["run"]
+    assert "--require-axis physics" in check_step["run"]

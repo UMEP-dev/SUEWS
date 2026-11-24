@@ -104,12 +104,21 @@ class SchemaMigrator:
 
         # No migration needed if versions match
         if from_version == to_version:
-            if to_version == CURRENT_SCHEMA_VERSION:
+            if to_version in SCHEMA_VERSIONS:
+                from packaging.version import Version  # noqa: PLC0415
                 from ...util.converter.yaml_upgrade import (  # noqa: PLC0415
+                    _check_and_normalise_integer_doys,
                     validate_active_soil_depth_raw,
+                    validate_vegetation_sdd_raw,
                 )
 
-                validate_active_soil_depth_raw(config)
+                target_ver = Version(to_version)
+                if target_ver >= Version("2026.6.dev11"):
+                    validate_active_soil_depth_raw(config)
+                if target_ver >= Version("2026.6.dev16"):
+                    validate_vegetation_sdd_raw(config)
+                if target_ver >= Version("2026.6.dev17"):
+                    config = _check_and_normalise_integer_doys(config)
             logger.info(f"Configuration already at schema version {to_version}")
             return config
 
@@ -307,18 +316,29 @@ def migrate_config_file(
     logger.info(f"Migrated configuration saved to {output_file}")
 
 
-def check_migration_needed(config_path: str) -> bool:
+_UNSET = object()
+
+
+def check_migration_needed(
+    config_path: str, *, _parsed_config: Any = _UNSET
+) -> bool:
     """
     Check if a configuration file needs migration.
 
     Args:
         config_path: Path to YAML configuration file
+        _parsed_config: Optional pre-parsed YAML document from the same file
+            (internal fast path for callers that already loaded ``config_path``
+            via ``yaml.safe_load``).
 
     Returns:
         True if migration is needed, False otherwise
     """
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+    if _parsed_config is _UNSET:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+    else:
+        config = _parsed_config
 
     migrator = SchemaMigrator()
     detected_version = migrator.auto_detect_version(config)

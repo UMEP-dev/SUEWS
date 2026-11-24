@@ -107,13 +107,18 @@ def _unavailable_phase(phase: str) -> dict[str, Any]:
     }
 
 
-def read_pytest_metrics(path: Path) -> dict[str, Any]:
-    """Read pytest metrics or describe an earlier wheel-job failure."""
+def read_pytest_metrics(path: Path, *, tests_elsewhere: bool = False) -> dict[str, Any]:
+    """Read pytest metrics or describe why the wheel job has none."""
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
+    reason = (
+        "The physics tier runs in separate shard jobs on the uploaded wheel."
+        if tests_elsewhere
+        else "The wheel job failed before pytest metrics were written."
+    )
     return {
         "available": False,
-        "reason": "The wheel job failed before pytest metrics were written.",
+        "reason": reason,
         "schema_version": None,
         "result": None,
         "phases": None,
@@ -245,6 +250,11 @@ def _parser() -> argparse.ArgumentParser:
     finalise.add_argument("--pytest", type=Path, required=True)
     finalise.add_argument("--output", type=Path, required=True)
     finalise.add_argument("--job-name", required=True)
+    finalise.add_argument(
+        "--tests-elsewhere",
+        action="store_true",
+        help="The wheel job skipped its tests on purpose (the physics shard jobs run them)",
+    )
     return parser
 
 
@@ -264,7 +274,9 @@ def main() -> int:
             source=args.source,
         )
     else:
-        pytest_metrics = read_pytest_metrics(args.pytest)
+        pytest_metrics = read_pytest_metrics(
+            args.pytest, tests_elsewhere=args.tests_elsewhere
+        )
         evidence = finalise_evidence(
             state_path,
             pytest_metrics,

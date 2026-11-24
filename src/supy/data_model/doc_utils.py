@@ -139,7 +139,6 @@ class ModelDocExtractor:
         self.all_models: Dict[str, Type[BaseModel]] = {}
         self.internal_classes = {
             "HDD_ID",
-            "WaterUse",
             # Add other internal classes to skip
         }
 
@@ -303,6 +302,10 @@ class ModelDocExtractor:
             unit = field_info.json_schema_extra.get("unit")
             if unit:
                 field_doc["unit"] = unit
+
+            conditional_unit = field_info.json_schema_extra.get("conditional_unit")
+            if isinstance(conditional_unit, dict):
+                field_doc["conditional_unit"] = conditional_unit
 
             default_description = field_info.json_schema_extra.get(
                 "default_description"

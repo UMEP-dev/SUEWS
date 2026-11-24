@@ -1,16 +1,172 @@
-from pydantic import ConfigDict, Field, model_validator
-from pydantic_core import PydanticUndefined
-from typing import Optional, Union
-import pandas as pd
+from collections.abc import Mapping
+from dataclasses import dataclass
+import math
+from typing import Any, Optional, Union
 import warnings
-from .type import DataModelBase, RefValue, Reference, FlexibleRefValue, df_from_cols
-from .profile import HourlyProfile, WeeklyProfile, DayProfile
-from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
+
+import numpy as np
+import pandas as pd
+from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic_core import PydanticUndefined
+
 from ..validation.core.utils import (
-    warn_missing_params,
     check_missing_params,
     validate_only_when_complete,
+    warn_missing_params,
 )
+from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
+from .profile import DayProfile, HourlyProfile, WeeklyProfile
+from .type import (
+    DataModelBase,
+    FlexibleRefValue,
+    Reference,
+    RefValue,
+    df_from_cols,
+    merge_df_state_cols,
+)
+from .unit_metadata import (
+    ConditionalUnitCase,
+    ConditionalUnitSpec,
+    conditional_unit_extra,
+)
+
+
+def coerce_integer_doy_scalar(raw: Any, field_name: str) -> int:
+    """Validate and coerce a scalar day-of-year value to ``int`` (without range clamping).
+
+    Accepts Python/NumPy integers, exact whole-number finite floats (such as
+    ``86.0`` from legacy YAML or ``df_state`` float columns), and canonical
+    base-10 integer strings (such as ``"86"``). Rejects booleans, fractional
+    floats (such as ``20.5``), non-finite floats (``NaN``/``Inf``), malformed
+    strings, and non-numeric objects with an actionable message pointing the
+    caller to integer days of year (1..366).
+    """
+    if isinstance(raw, np.generic):
+        raw = raw.item()
+    if isinstance(raw, bool):
+        raise ValueError(
+            f"{field_name} must be an integer day of year (1..366), got boolean "
+            f"{raw!r}; specify a whole integer day of year between 1 and 366."
+        )
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float):
+        if not math.isfinite(raw):
+            raise ValueError(
+                f"{field_name} must be a finite integer day of year (1..366), "
+                f"got {raw!r}; specify a whole integer day of year between 1 and 366."
+            )
+        if not raw.is_integer():
+            raise ValueError(
+                f"{field_name} must be an integer day of year (1..366), got "
+                f"fractional value {raw!r}; replace decimal day-of-year values "
+                "with an integer day of year between 1 and 366."
+            )
+        return int(raw)
+    if isinstance(raw, str):
+        stripped = raw.strip()
+        if stripped and (
+            stripped.isdigit()
+            or (stripped.startswith("-") and len(stripped) > 1 and stripped[1:].isdigit())
+        ):
+            return int(stripped)
+        raise ValueError(
+            f"{field_name} must be an integer day of year (1..366), got string "
+            f"{raw!r}; specify a whole integer day of year between 1 and 366."
+        )
+    raise ValueError(
+        f"{field_name} must be an integer day of year (1..366), got "
+        f"{type(raw).__name__}; specify a whole integer day of year between 1 and 366."
+    )
+
+
+def _is_disabled_doy_mapping(value: Any) -> bool:
+    """Return True for empty (``{}``) or ref-only (``{"ref": ...}``) DOY mappings."""
+    return (
+        isinstance(value, Mapping)
+        and "value" not in value
+        and all(k == "ref" for k in value)
+    )
+
+
+def _validate_integer_doy_input(value: Any, field_name: str) -> Any:
+    """Pre-validator for ``Optional[FlexibleRefValue(int)]`` day-of-year fields."""
+    if value is None:
+        return None
+    if isinstance(value, RefValue):
+        if value.value is None:
+            return RefValue[int](value=None, ref=value.ref)
+        coerced = coerce_integer_doy_scalar(value.value, field_name)
+        return RefValue[int](value=coerced, ref=value.ref)
+    if isinstance(value, Mapping):
+        if "value" in value:
+            inner = value["value"]
+            if inner is None:
+                return dict(value)
+            coerced = coerce_integer_doy_scalar(inner, field_name)
+            return {**value, "value": coerced}
+        if _is_disabled_doy_mapping(value):
+            if not value:
+                return None
+            return {"value": None, "ref": value["ref"]}
+        return dict(value)
+    return coerce_integer_doy_scalar(value, field_name)
+
+
+@dataclass(frozen=True)
+class _IntegerDOYValueValidator:
+    """Picklable bound validator enforced on ``RefValue.value`` assignment."""
+
+    field_name: str
+
+    def __call__(self, raw: Any) -> int:
+        val = coerce_integer_doy_scalar(raw, self.field_name)
+        if not (1 <= val <= 366):
+            raise ValueError(
+                f"{self.field_name} must be an integer day of year between 1 "
+                "and 366 (greater than or equal to 1 and less than or equal to "
+                f"366), got {val}."
+            )
+        return val
+
+
+def _bind_doy_ref_validator(value: Any, field_name: str) -> Any:
+    """Attach strict integer-DOY assignment validation to a ``RefValue`` wrapper."""
+    if isinstance(value, RefValue):
+        value._bind_value_validator(_IntegerDOYValueValidator(field_name))
+    return value
+
+
+def _validate_and_bind_doy_assignment(value: Any, field_name: str) -> Any:
+    """Validate and bind live attribute assignment on an integer-DOY field."""
+    if value is None:
+        return None
+    validator = _IntegerDOYValueValidator(field_name)
+    if isinstance(value, RefValue):
+        inner = None if value.value is None else validator(value.value)
+        bound = RefValue[int](value=inner, ref=value.ref)
+        bound._bind_value_validator(validator)
+        return bound
+    if isinstance(value, Mapping):
+        if "value" in value:
+            inner = None if value["value"] is None else validator(value["value"])
+            bound = RefValue[int](**{**value, "value": inner})
+            bound._bind_value_validator(validator)
+            return bound
+        if _is_disabled_doy_mapping(value):
+            if not value:
+                return None
+            bound = RefValue[int](value=None, ref=value["ref"])
+            bound._bind_value_validator(validator)
+            return bound
+    return validator(value)
+
+
+def _is_zero_doy_sentinel(val: Any) -> bool:
+    """Return True when ``val`` is numeric zero (excluding booleans)."""
+    if isinstance(val, np.generic):
+        val = val.item()
+    return not isinstance(val, bool) and val == 0
 
 
 class IrrigationParams(
@@ -35,16 +191,35 @@ class IrrigationParams(
         ge=0.0,
         le=1.0,
     )
-    ie_start: Optional[FlexibleRefValue(float)] = Field(
+    ie_start: Optional[FlexibleRefValue(int)] = Field(
         default=None,
-        description="Day of year when irrigation starts",
+        ge=1,
+        le=366,
+        description="Integer day of year (1-366) when irrigation starts",
         json_schema_extra={"unit": "1", "display_name": "Irrigation Start Day"},
     )
-    ie_end: Optional[FlexibleRefValue(float)] = Field(
+    ie_end: Optional[FlexibleRefValue(int)] = Field(
         default=None,
-        description="Day of year when irrigation ends",
+        ge=1,
+        le=366,
+        description="Integer day of year (1-366) when irrigation ends",
         json_schema_extra={"unit": "1", "display_name": "Irrigation End Day"},
     )
+
+    @field_validator("ie_start", "ie_end", mode="before")
+    @classmethod
+    def _validate_irrigation_doy(cls, v: Any, info: ValidationInfo) -> Any:
+        return _validate_integer_doy_input(v, info.field_name or "ie_start/ie_end")
+
+    @field_validator("ie_start", "ie_end", mode="after")
+    @classmethod
+    def _bind_irrigation_doy_ref(cls, v: Any, info: ValidationInfo) -> Any:
+        return _bind_doy_ref_validator(v, info.field_name or "ie_start/ie_end")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in {"ie_start", "ie_end"}:
+            value = _validate_and_bind_doy_assignment(value, name)
+        super().__setattr__(name, value)
     internalwateruse_h: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Internal water use rate",
@@ -83,17 +258,7 @@ class IrrigationParams(
 
     ref: Optional[Reference] = None
 
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert irrigation parameters to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-
-        Returns:
-            pd.DataFrame: DataFrame containing irrigation parameters
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {
             ("gridiv", "0"): grid_id,
             ("h_maintain", "0"): (
@@ -109,16 +274,20 @@ class IrrigationParams(
             ("ie_start", "0"): (
                 self.ie_start.value
                 if isinstance(self.ie_start, RefValue)
+                and self.ie_start.value is not None
                 else self.ie_start
                 if self.ie_start is not None
-                else 0.0
+                and not isinstance(self.ie_start, RefValue)
+                else 0
             ),
             ("ie_end", "0"): (
                 self.ie_end.value
                 if isinstance(self.ie_end, RefValue)
+                and self.ie_end.value is not None
                 else self.ie_end
                 if self.ie_end is not None
-                else 0.0
+                and not isinstance(self.ie_end, RefValue)
+                else 0
             ),
             ("internalwateruse_h", "0"): (
                 self.internalwateruse_h.value
@@ -128,21 +297,33 @@ class IrrigationParams(
                 else 0.0
             ),
         }
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        merge_df_state_cols(
+            cols, self.daywatper._to_df_state_cols(grid_id, "daywatper"), fill_na=True
+        )
+        merge_df_state_cols(
+            cols, self.daywat._to_df_state_cols(grid_id, "daywat"), fill_na=True
+        )
+        merge_df_state_cols(
+            cols, self.wuprofa_24hr._to_df_state_cols(grid_id, "wuprofa_24hr"), fill_na=True
+        )
+        merge_df_state_cols(
+            cols, self.wuprofm_24hr._to_df_state_cols(grid_id, "wuprofm_24hr"), fill_na=True
+        )
+        return dict(sorted(cols.items()))
 
-        df_daywatper = self.daywatper.to_df_state(grid_id, "daywatper")
-        df_daywat = self.daywat.to_df_state(grid_id, "daywat")
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert irrigation parameters to DataFrame state format.
 
-        df_state = df_state.combine_first(df_daywatper)
-        df_state = df_state.combine_first(df_daywat)
+        Args:
+            grid_id: Grid ID for the DataFrame index
 
-        df_wuprofa_24hr = self.wuprofa_24hr.to_df_state(grid_id, "wuprofa_24hr")
-        df_wuprofm_24hr = self.wuprofm_24hr.to_df_state(grid_id, "wuprofm_24hr")
-
-        df_state = df_state.combine_first(df_wuprofa_24hr)
-        df_state = df_state.combine_first(df_wuprofm_24hr)
-
-        return df_state
+        Returns:
+            pd.DataFrame: DataFrame containing irrigation parameters
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "IrrigationParams":
@@ -159,15 +340,17 @@ class IrrigationParams(
         # Extract scalar attributes
         h_maintain = df.loc[grid_id, ("h_maintain", "0")]
         faut = df.loc[grid_id, ("faut", "0")]
-        ie_start = df.loc[grid_id, ("ie_start", "0")]
-        ie_end = df.loc[grid_id, ("ie_end", "0")]
+        ie_start_val = df.loc[grid_id, ("ie_start", "0")]
+        ie_end_val = df.loc[grid_id, ("ie_end", "0")]
         internalwateruse_h = df.loc[grid_id, ("internalwateruse_h", "0")]
 
-        # Conver to RefValue
+        # Convert to RefValue (treat 0 / 0.0 as None since to_df_state writes None as 0)
         h_maintain = RefValue(h_maintain)
         faut = RefValue(faut)
-        ie_start = RefValue(ie_start)
-        ie_end = RefValue(ie_end)
+        ie_start = (
+            None if _is_zero_doy_sentinel(ie_start_val) else RefValue(ie_start_val)
+        )
+        ie_end = None if _is_zero_doy_sentinel(ie_end_val) else RefValue(ie_end_val)
         internalwateruse_h = RefValue(internalwateruse_h)
 
         # Extract WeeklyProfile attributes
@@ -365,24 +548,11 @@ class AnthropogenicHeat(
 
     ref: Optional[Reference] = None
 
-    # DayProfile coulmns need to be fixed
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert anthropogenic heat parameters to DataFrame state format.
-
-        Args:
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            pd.DataFrame: DataFrame containing anthropogenic heat parameters.
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {
             ("gridiv", "0"): grid_id,
             ("popdensnighttime", "0"): self.popdensnighttime,
         }
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
         day_profiles = {
             "qf0_beu": self.qf0_beu,
             "qf_a": self.qf_a,
@@ -396,18 +566,33 @@ class AnthropogenicHeat(
             "popdensdaytime": self.popdensdaytime,
         }
         for param_name, profile in day_profiles.items():
-            df_day_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_day_profile)
-
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
         hourly_profiles = {
             "ahprof_24hr": self.ahprof_24hr,
             "popprof_24hr": self.popprof_24hr,
         }
         for param_name, profile in hourly_profiles.items():
-            df_hourly_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_hourly_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
+        return dict(sorted(cols.items()))
 
-        return df_state
+    # DayProfile coulmns need to be fixed
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert anthropogenic heat parameters to DataFrame state format.
+
+        Args:
+            grid_id (int): Grid ID for the DataFrame index.
+
+        Returns:
+            pd.DataFrame: DataFrame containing anthropogenic heat parameters.
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "AnthropogenicHeat":
@@ -570,8 +755,63 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
         description="Mean traffic activity; basis selected by type_traffic_rate",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": (
-                "vehicle km m-2 day-1 (type 1) or vehicle km cap-1 day-1 (type 2)"
+            **conditional_unit_extra(
+                ConditionalUnitSpec(
+                    selector="type_traffic_rate",
+                    selector_scope="sibling",
+                    selector_model="CO2Params",
+                    selector_field="type_traffic_rate",
+                    cases={
+                        "1": ConditionalUnitCase(
+                            label="Per area",
+                            kind="cf",
+                            unit="km m-2 d-1",
+                            formula=(
+                                "QF_traff = traffic_rate / 86400 * "
+                                "emission_factor_energy_vehicle * profile_traffic; "
+                                "Fc_traff = traffic_rate / 86400 * "
+                                "emission_factor_co2_vehicle * 1e9 / 44 * "
+                                "profile_traffic"
+                            ),
+                            note=(
+                                "Daily vehicle-km per m2 of grid area (counted "
+                                "vehicles leave the CF unit string; 86400 s d-1 "
+                                "converts per-day activity to per-second fluxes)."
+                            ),
+                        ),
+                        "2": ConditionalUnitCase(
+                            label="Per capita",
+                            kind="cf",
+                            unit="km d-1",
+                            formula=(
+                                "QF_traff = traffic_rate / 86400 * "
+                                "emission_factor_energy_vehicle * profile_traffic * "
+                                "(pop_density / 10000); "
+                                "Fc_traff = traffic_rate / 86400 * "
+                                "emission_factor_co2_vehicle * 1e9 / 44 * "
+                                "profile_traffic * (pop_density / 10000)"
+                            ),
+                            note=(
+                                "Daily vehicle-km per person (counted vehicles and "
+                                "people leave the CF unit string; pop_density in "
+                                "ha-1 is divided by 10000 m2 ha-1 to convert "
+                                "per-capita traffic to grid area)."
+                            ),
+                        ),
+                    },
+                    activation_note=(
+                        "Used only when model.physics.emissions selects a detailed "
+                        "anthropogenic branch (codes 4-6, 14-16, 24-26, 34-36, "
+                        "44-46); codes 4-6 still include traffic heat QF_traff "
+                        "while zeroing Fc_anthro in the driver."
+                    ),
+                    inactive_note=(
+                        "Ignored when model.physics.emissions is 0 or ends in 1-3; "
+                        "inside detailed emissions branches, any type_traffic_rate "
+                        "other than 1 or 2 (including unset/0) raises Fortran "
+                        "ErrorHint(75)."
+                    ),
+                )
             ),
             "display_name": "Traffic Rate",
         },
@@ -614,18 +854,7 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
 
     ref: Optional[Reference] = None
 
-    # DayProfile coulmns need to be fixed
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """
-        Convert CO2 parameters to DataFrame state format.
-
-        Args:
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            pd.DataFrame: DataFrame containing CO2 parameters.
-        """
-
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         scalar_params = {
             "co2pointsource": self.emission_co2_point_source.value
             if isinstance(self.emission_co2_point_source, RefValue)
@@ -681,25 +910,41 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
         cols = {("gridiv", "0"): grid_id}
         for param_name, value in scalar_params.items():
             cols[(param_name, "0")] = value
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         day_profiles = {
             "fcef_v_kgkm": self.emission_factor_co2_vehicle,
             "trafficrate": self.traffic_rate,
         }
         for param_name, profile in day_profiles.items():
-            df_day_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_day_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
 
         hourly_profiles = {
             "traffprof_24hr": self.profile_traffic_24hr,
             "humactivity_24hr": self.profile_human_activity_24hr,
         }
         for param_name, profile in hourly_profiles.items():
-            df_hourly_profile = profile.to_df_state(grid_id, param_name)
-            df_state = df_state.combine_first(df_hourly_profile)
+            merge_df_state_cols(
+                cols, profile._to_df_state_cols(grid_id, param_name), fill_na=True
+            )
 
-        return df_state
+        return dict(sorted(cols.items()))
+
+    # DayProfile coulmns need to be fixed
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """
+        Convert CO2 parameters to DataFrame state format.
+
+        Args:
+            grid_id (int): Grid ID for the DataFrame index.
+
+        Returns:
+            pd.DataFrame: DataFrame containing CO2 parameters.
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "CO2Params":
@@ -762,20 +1007,35 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
 class AnthropogenicEmissions(DataModelBase):
     model_config = ConfigDict(title="Anthropogenic Emissions")
 
-    startdls: Optional[FlexibleRefValue(float)] = Field(
+    startdls: Optional[FlexibleRefValue(int)] = Field(
         default=None,
         ge=1,
         le=366,
-        description="Start of daylight savings time in decimal day of year",
+        description="Start of daylight savings time in integer day of year (1-366)",
         json_schema_extra={"unit": "1", "display_name": "Daylight Saving Start"},
     )
-    enddls: Optional[FlexibleRefValue(float)] = Field(
+    enddls: Optional[FlexibleRefValue(int)] = Field(
         default=None,
         ge=1,
         le=366,
-        description="End of daylight savings time in decimal day of year",
+        description="End of daylight savings time in integer day of year (1-366)",
         json_schema_extra={"unit": "1", "display_name": "Daylight Saving End"},
     )
+
+    @field_validator("startdls", "enddls", mode="before")
+    @classmethod
+    def _validate_dls_doy(cls, v: Any, info: ValidationInfo) -> Any:
+        return _validate_integer_doy_input(v, info.field_name or "startdls/enddls")
+
+    @field_validator("startdls", "enddls", mode="after")
+    @classmethod
+    def _bind_dls_doy_ref(cls, v: Any, info: ValidationInfo) -> Any:
+        return _bind_doy_ref_validator(v, info.field_name or "startdls/enddls")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in {"startdls", "enddls"}:
+            value = _validate_and_bind_doy_assignment(value, name)
+        super().__setattr__(name, value)
     heat: AnthropogenicHeat = Field(
         description="Anthropogenic heat emission parameters",
         default_factory=AnthropogenicHeat,
@@ -789,6 +1049,32 @@ class AnthropogenicEmissions(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("startdls", "0"): (
+                self.startdls.value
+                if isinstance(self.startdls, RefValue)
+                and self.startdls.value is not None
+                else self.startdls
+                if self.startdls is not None
+                and not isinstance(self.startdls, RefValue)
+                else 0
+            ),
+            ("enddls", "0"): (
+                self.enddls.value
+                if isinstance(self.enddls, RefValue)
+                and self.enddls.value is not None
+                else self.enddls
+                if self.enddls is not None
+                and not isinstance(self.enddls, RefValue)
+                else 0
+            ),
+        }
+        merge_df_state_cols(cols, self.heat._to_df_state_cols(grid_id))
+        merge_df_state_cols(cols, self.co2._to_df_state_cols(grid_id))
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """
         Convert anthropogenic emissions parameters to DataFrame state format.
@@ -799,38 +1085,9 @@ class AnthropogenicEmissions(DataModelBase):
         Returns:
             pd.DataFrame: DataFrame containing anthropogenic emissions parameters.
         """
-        # Set start and end daylight saving times
-        cols = {
-            ("gridiv", "0"): grid_id,
-            ("startdls", "0"): (
-                self.startdls.value
-                if isinstance(self.startdls, RefValue)
-                else self.startdls
-                if self.startdls is not None
-                else 0.0
-            ),
-            ("enddls", "0"): (
-                self.enddls.value
-                if isinstance(self.enddls, RefValue)
-                else self.enddls
-                if self.enddls is not None
-                else 0.0
-            ),
-        }
-        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
-        # Add heat parameters
-        df_heat = self.heat.to_df_state(grid_id)
-
-        # Add CO2 parameters
-        df_co2 = self.co2.to_df_state(grid_id)
-
-        df_state = pd.concat([df_state, df_heat, df_co2], axis=1)
-
-        # Drop duplicate columns if necessary
-        df_state = df_state.loc[:, ~df_state.columns.duplicated()]
-
-        return df_state
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "AnthropogenicEmissions":
@@ -844,12 +1101,14 @@ class AnthropogenicEmissions(DataModelBase):
         Returns:
             AnthropogenicEmissions: Instance of AnthropogenicEmissions.
         """
-        # Treat 0.0 as None (since to_df_state writes None as 0.0)
+        # Treat 0 / 0.0 as None (since to_df_state writes None as 0)
         startdls_val = df.loc[grid_id, ("startdls", "0")]
         enddls_val = df.loc[grid_id, ("enddls", "0")]
 
-        startdls = None if startdls_val == 0.0 else RefValue(startdls_val)
-        enddls = None if enddls_val == 0.0 else RefValue(enddls_val)
+        startdls = (
+            None if _is_zero_doy_sentinel(startdls_val) else RefValue(startdls_val)
+        )
+        enddls = None if _is_zero_doy_sentinel(enddls_val) else RefValue(enddls_val)
 
         # Reconstruct heat parameters
         heat = AnthropogenicHeat.from_df_state(df, grid_id)

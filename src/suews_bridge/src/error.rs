@@ -9,6 +9,8 @@ pub enum BridgeError {
     BadTime,
     #[error("invalid C buffer")]
     BadBuffer,
+    #[error("invalid C buffer: {0}")]
+    BadBufferDetail(String),
     #[error("invalid state payload")]
     BadState,
     #[error("checkpoint state contains {value_kind} at {path}")]
@@ -23,6 +25,12 @@ pub enum BridgeError {
     LegacyCheckpointMissingTimer,
     #[error("unsupported checkpoint schema version {found}; expected version {expected}")]
     UnsupportedCheckpointVersion { found: u64, expected: u32 },
+    #[error(
+        "unsupported stebbs_state schema version {found} (expected {expected}); \
+         older checkpoints omit STEBBS buildings(:) state and cannot resume cleanly; \
+         regenerate the checkpoint with the current version"
+    )]
+    UnsupportedStebbsStateVersion { found: u32, expected: u32 },
     #[error("invalid checkpoint envelope: {message}")]
     InvalidCheckpointEnvelope { message: String },
     #[error("simulation failed (code {code}): {message}")]

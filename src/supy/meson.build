@@ -120,6 +120,7 @@ py.install_sources(
             'data_model/parameter_examples.py',
             'data_model/parameter_examples.json',
             'data_model/core/__init__.py',
+            'data_model/core/_yaml_io.py',
             'data_model/core/config.py',
             'data_model/core/df_column_renames.py',
             'data_model/core/field_renames.py',
@@ -136,6 +137,7 @@ py.install_sources(
             'data_model/core/surface.py',
             'data_model/core/timezone_enum.py',
             'data_model/core/type.py',
+            'data_model/core/unit_metadata.py',
             'data_model/configuration/__init__.py',
             'data_model/configuration/version.py',
             'data_model/configuration/migration.py',
@@ -223,22 +225,24 @@ knowledge_pack = custom_target(
     '@OUTDIR@',
     '--command',
     'meson knowledge-pack build',
+    '--depfile',
+    '@DEPFILE@',
+    '--depfile-target',
+    '@OUTPUT0@',
   ],
   output: [
     'manifest.json',
     'chunks.jsonl.gz',
   ],
-  depend_files: files('knowledge/pack.py'),
-  # Always rebuild on every build invocation (gh#1406). The pack
-  # content depends on every file under `src/suews/src`,
-  # `src/suews_bridge/src`, and `src/supy/` — declaring those
-  # individually as `depend_files` is brittle (meson `files()` does
-  # not glob), so we let ninja skip the deduplication and run the
-  # builder unconditionally. The pack-build script reads the source
-  # roots and writes deterministic JSON; runtime is on the order of
-  # seconds, well below the cost of carrying a stale pack into a
-  # release wheel.
-  build_always_stale: true,
+  depend_files: files('knowledge/pack.py', '_build_depfile.py'),
+  # The pack content depends on every packed file under `src/suews/src`,
+  # `src/suews_bridge/src` and `src/supy/`, plus the Git index and HEAD
+  # (gh#1406). Meson `files()` does not glob, so pack.py writes those
+  # inputs to a Ninja depfile instead. This replaces
+  # `build_always_stale: true`, which rebuilt the pack (several seconds)
+  # on every editable-install import, i.e. on every `python -c "import
+  # supy"` and every `suews` CLI call in tests.
+  depfile: 'suews_knowledge_pack.d',
   build_by_default: true,
   install: true,
   install_dir: py.get_install_dir() / 'supy/knowledge/pack/current',
@@ -258,7 +262,6 @@ src_f95_all = [
   'suews_phys_atmmoiststab.f95',
   'suews_phys_beers.f95',
   'suews_phys_biogenco2.f95',
-  'suews_phys_bluews.f95',
   'suews_phys_dailystate.f95',
   'suews_phys_ehc.f95',
   'suews_phys_evap.f95',

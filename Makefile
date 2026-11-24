@@ -219,7 +219,7 @@ TEST_DEFAULT_PATHS := test/test_api_surface.py test/core test/data_model test/ph
 # full-year DailyState tests materialises its own year of output (about 1 GB);
 # raise it on a machine with memory to spare: make test TEST_JOBS=8
 TEST_JOBS ?= 4
-test:
+test: lint-fortran-constants
 	@echo "Running everyday development tests (core, data model, physics, I/O)..."
 	@echo "NOTE: slow regressions and peripheral surfaces (cmd, mcp, docs,"
 	@echo "      knowledge, umep) are excluded - run 'make test-all' or the"
@@ -327,3 +327,16 @@ plugin:
 AGENT_PLUGIN_OUT ?= ../suews-agent
 agent-plugin:
 	$(PYTHON) scripts/build_agent_plugin.py --output $(AGENT_PLUGIN_OUT)
+
+# Linux-only real-physics witness; execute on remote compute or CI, not macOS.
+.PHONY: test-rss-growth test-rss-growth-contract
+RSS_GROWTH_ARGS ?= --output rss-growth
+test-rss-growth:
+	$(PYTHON) scripts/suews/rss_growth.py $(RSS_GROWTH_ARGS)
+
+test-rss-growth-contract:
+	$(PYTHON) -m pytest test/core/test_rss_growth.py -q
+
+.PHONY: lint-fortran-constants
+lint-fortran-constants:
+	$(PYTHON) scripts/lint/check_fortran_literals.py

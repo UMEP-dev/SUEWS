@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 import importlib.util
 import json
 from pathlib import Path
@@ -73,7 +74,11 @@ def test_manifest_classification_covers_all_49_types() -> None:
         gen.CAPI_DIR,
     )
     assert len(manifest_entries) == 49
-    assert len(leaves_by_type) == 34
+    assert set(leaves_by_type) == (
+        set(gen.DIRECT_UNPACK_SPECS)
+        | set(gen.DRIVER_PRIVATE_UNPACK_SPECS)
+        | {"suews_forcing"}
+    )
     assert len(gen.DIRECT_UNPACK_SPECS) == 30
     assert len(gen.NESTED_IN_PARENT_SPECS) == 8
     assert len(gen.DRIVER_PRIVATE_UNPACK_SPECS) == 4
@@ -457,3 +462,103 @@ def test_gitattributes_pins_observer_artefacts_to_lf() -> None:
             "src/suews_bridge/test_observer/observer_manifest.rs: text: set",
             "src/suews_bridge/test_observer/observer_manifest.rs: eol: lf",
         ]
+
+
+def test_reverse_pack_audit_rejects_dropped_component(tmp_path: Path) -> None:
+    """Dropping a field assignment in driver.f95::pack_atm_state or pack_timer fails audit loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    _, leaves_by_type = gen.audit_manifest_and_inventory(
+        gen.MANIFEST_PATH, types_by_lower, gen.CAPI_DIR, gen.KERNEL_SRC_DIR
+    )
+    shutil.copy2(gen.CAPI_DIR / "ohm.f95", tmp_path / "ohm.f95")
+    shutil.copy2(gen.CAPI_DIR / "stebbs_state.f95", tmp_path / "stebbs_state.f95")
+    orig_driver = (gen.CAPI_DIR / "driver.f95").read_text(encoding="utf-8")
+
+    mutated_atm = orig_driver.replace(
+        "flat(idx) = s%tair_av; idx = idx + 1_c_int",
+        "! dropped: flat(idx) = s%tair_av; idx = idx + 1_c_int",
+    )
+    assert mutated_atm != orig_driver
+    (tmp_path / "driver.f95").write_text(mutated_atm, encoding="utf-8")
+    with pytest.raises(gen.CoverageInventoryError, match=r"atm_state%Tair_av"):
+        gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
+
+    mutated_timer = orig_driver.replace(
+        "flat(17) = real(timer%DLS, c_double)",
+        "! dropped: flat(17) = real(timer%DLS, c_double)",
+    )
+    assert mutated_timer != orig_driver
+    (tmp_path / "driver.f95").write_text(mutated_timer, encoding="utf-8")
+    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_TIMER%DLS"):
+        gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
+
+    mutated_state = orig_driver.replace(
+        "call pack_snow_state(state%snowState,",
+        "! dropped: call pack_snow_state(state%snowState,",
+    )
+    assert mutated_state != orig_driver
+    (tmp_path / "driver.f95").write_text(mutated_state, encoding="utf-8")
+    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_STATE%snowState"):
+        gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
+
+
+def test_reverse_pack_audit_rejects_dropped_ohm_field_and_stale_exclusion(
+    tmp_path: Path,
+) -> None:
+    """Dropping a field in ohm_state_pack or touching an excluded EHC field fails audit loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    _, leaves_by_type = gen.audit_manifest_and_inventory(
+        gen.MANIFEST_PATH, types_by_lower, gen.CAPI_DIR, gen.KERNEL_SRC_DIR
+    )
+    shutil.copy2(gen.CAPI_DIR / "driver.f95", tmp_path / "driver.f95")
+    shutil.copy2(gen.CAPI_DIR / "stebbs_state.f95", tmp_path / "stebbs_state.f95")
+    orig_ohm = (gen.CAPI_DIR / "ohm.f95").read_text(encoding="utf-8")
+    mutated_ohm = orig_ohm.replace(
+        "flat(idx) = merge(1.0_c_double, 0.0_c_double, state%anohm_coeff_ready); idx = idx + 1",
+        "! dropped: anohm_coeff_ready",
+    )
+    assert mutated_ohm != orig_ohm
+    (tmp_path / "ohm.f95").write_text(mutated_ohm, encoding="utf-8")
+    with pytest.raises(
+        gen.CoverageInventoryError, match=r"OHM_STATE%anohm_coeff_ready"
+    ):
+        gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
+
+    shutil.copy2(gen.CAPI_DIR / "ohm.f95", tmp_path / "ohm.f95")
+    stale_leaves = {
+        **leaves_by_type,
+        "heat_state": [
+            replace(leaf, bridged=False) if leaf.path == "iter_safe" else leaf
+            for leaf in leaves_by_type["heat_state"]
+        ],
+    }
+    with pytest.raises(
+        gen.CoverageInventoryError,
+        match=r"HEAT_STATE%iter_safe.*remove stale exclusion",
+    ):
+        gen.audit_reverse_packers(tmp_path, types_by_lower, stale_leaves)
+
+
+def test_forcing_row_loader_audit_rejects_dropped_input_and_runtime_overwrite(
+    tmp_path: Path,
+) -> None:
+    """Dropping an input or overwriting a runtime member in SUEWS_load_forcing_row fails loudly."""
+    _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
+    orig = (gen.KERNEL_SRC_DIR / "suews_ctrl_driver.f95").read_text(encoding="utf-8")
+
+    dropped = orig.replace(
+        "forcing%kdir = MetForcingBlock(ir, 32)",
+        "! dropped: forcing%kdir = MetForcingBlock(ir, 32)",
+    )
+    assert dropped != orig
+    (tmp_path / "suews_ctrl_driver.f95").write_text(dropped, encoding="utf-8")
+    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_FORCING%kdir"):
+        gen.audit_forcing_row_loader(tmp_path, types_by_lower)
+
+    overwritten = orig.replace(
+        "forcing%kdir = MetForcingBlock(ir, 32)",
+        "forcing%kdir = MetForcingBlock(ir, 32)\n      forcing%Tair_av_5d = 0.0d0",
+    )
+    (tmp_path / "suews_ctrl_driver.f95").write_text(overwritten, encoding="utf-8")
+    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_FORCING%Tair_av_5d"):
+        gen.audit_forcing_row_loader(tmp_path, types_by_lower)

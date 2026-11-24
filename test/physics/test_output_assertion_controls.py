@@ -4,6 +4,13 @@ from functools import partial
 import re
 from types import SimpleNamespace
 
+import layer5_checks
+from layer5_checks import (
+    assert_active_output_finiteness,
+    assert_simulation_output_finiteness,
+    expected_dailystate_mask,
+    water_balance_residual_mm,
+)
 import numpy as np
 import pandas as pd
 import pytest
@@ -12,7 +19,12 @@ import test_dyohm_building as dyohm
 import test_option_sweep as sweep
 import test_rslprof as wind
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
+from supy import SUEWSSimulation
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.contract("C-BALANCE", "C-RESPONSE", "C-CLOCK", "C-OUTPUT"),
+]
 
 
 @pytest.fixture
@@ -40,7 +52,7 @@ def frames():
     )
     output["SUEWS", "Fcld"] = np.nan  # Documented unavailable sample forcing.
     output["RSL", "elm"] = np.nan  # Not applicable under MOST.
-    return output, state, pd.DataFrame(index=times)
+    return output, state, pd.DataFrame({"fcld": -999.0}, index=times)
 
 
 def _damage(output, column, defect):
@@ -278,3 +290,228 @@ def test_water_reports_field_and_grid_time(two_grids):
         AssertionError, match=r"ss_Bldgs_next.*grid=7.*2012-06-01 00:10:00"
     ):
         sweep.water_balance_residual_mm(output, state, grid=7)
+
+
+_STORAGE_UNIT_CASES: tuple[tuple[str, str | None], ...] = (
+    ("ns", "datetime"),
+    ("us", "datetime"),
+    ("ms", "time"),
+    ("s", None),
+)
+
+
+@pytest.fixture(scope="module")
+def storage_unit_clock_runs(short_sample_sim):
+    """Genuine public midnight-crossing runs across ns, us, ms, and s clocks."""
+    base_sim = short_sample_sim()
+    midnight_slice = base_sim.forcing.df.loc["2012-01-01 23:35":"2012-01-02 01:30"]
+    runs = {}
+    for unit, index_name in _STORAGE_UNIT_CASES:
+        forcing = midnight_slice.copy()
+        forcing.index = forcing.index.as_unit(unit).rename(index_name)
+        sim = SUEWSSimulation()
+        sim.update_config(
+            base_sim.config.model_copy(deep=True), auto_load_forcing=False
+        )
+        sim.update_forcing(forcing)
+        output = sim.run(
+            start_date=forcing.index[0], end_date=forcing.index[-1], n_jobs=1
+        )
+        runs[unit] = (sim.forcing.df.copy(), output, sim.state_init.copy())
+    return runs
+
+
+@pytest.mark.core
+def test_datetime_instant_equivalence_and_null_guards():
+    """Comparator equates valid units without downcasting and rejects NaT/tz drift."""
+    units = ("s", "ms", "us", "ns")
+    base = pd.date_range("2012-01-01 23:35", periods=24, freq="300s")
+    nat_vals = base.to_numpy(copy=True)
+    nat_vals[3] = np.datetime64("NaT")
+    with_nat = pd.DatetimeIndex(nat_vals)
+
+    expected_eod = expected_dailystate_mask(base.as_unit("ns"), tstep=300)
+    assert int(expected_eod.sum()) == 1
+    assert base[expected_eod][0] == pd.Timestamp("2012-01-01 23:55:00")
+
+    for left_u in units:
+        assert np.array_equal(
+            expected_dailystate_mask(base.as_unit(left_u), tstep=300), expected_eod
+        )
+        for right_u in units:
+            assert layer5_checks._same_datetime_instants(
+                base.as_unit(left_u), base.as_unit(right_u)
+            )
+            assert layer5_checks._same_datetime_instants(
+                base.as_unit(left_u).tz_localize("UTC"),
+                base.as_unit(right_u).tz_localize("UTC"),
+            )
+            assert not layer5_checks._same_datetime_instants(
+                with_nat.as_unit(left_u), with_nat.as_unit(right_u)
+            )
+            assert not layer5_checks._same_datetime_instants(
+                with_nat.as_unit(left_u), base.as_unit(right_u)
+            )
+            assert not layer5_checks._same_datetime_instants(
+                base.as_unit(left_u), with_nat.as_unit(right_u)
+            )
+
+    assert not layer5_checks._same_datetime_instants(base, base.tz_localize("UTC"))
+    assert not layer5_checks._same_datetime_instants(
+        base.tz_localize("UTC"), base.tz_localize("Asia/Kolkata")
+    )
+    assert not layer5_checks._same_datetime_instants(pd.RangeIndex(len(base)), base)
+    for fine_unit in ("ms", "us", "ns"):
+        shifted = (base.as_unit(fine_unit) + pd.Timedelta(1, fine_unit)).as_unit(
+            fine_unit
+        )
+        assert not layer5_checks._same_datetime_instants(base.as_unit("s"), shifted)
+    oob = pd.date_range("2500-01-01", periods=2, freq="300s", unit="s")
+    assert not layer5_checks._same_datetime_instants(oob, base.as_unit("ns")[:2])
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("unit", ["ns", "us", "ms", "s"])
+def test_storage_unit_clocks_match_native_finiteness_and_water_balance(
+    storage_unit_clock_runs, unit
+):
+    """Real public runs with s, ms, us, ns clocks match finiteness and water checks."""
+    _, ns_output, _ = storage_unit_clock_runs["ns"]
+    forcing, output, state_init = storage_unit_clock_runs[unit]
+
+    assert forcing.index.unit == unit
+    pd.testing.assert_frame_equal(output.df, ns_output.df)
+    assert_simulation_output_finiteness(
+        output.df,
+        expected_grids=(1,),
+        expected_timestamps=forcing.index,
+        forcing=forcing,
+        tstep=300,
+    )
+    assert water_balance_residual_mm(output.df, state_init) < 1e-4
+
+    for expected_unit in ("s", "ms", "us", "ns"):
+        expected_clock = forcing.index.as_unit(expected_unit)
+        assert_active_output_finiteness(
+            output.df.loc[1],
+            expected_timestamps=expected_clock,
+            forcing=forcing,
+            tstep=300,
+        )
+        assert (
+            water_balance_residual_mm(
+                output.df, state_init, expected_timestamps=expected_clock
+            )
+            < 1e-4
+        )
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("expected_unit", ["s", "ns", None])
+def test_water_balance_rejects_matching_missing_timestamps(
+    storage_unit_clock_runs, expected_unit
+):
+    """A missing interval label invalidates even a numerically closed budget."""
+    _, output, initial_state = storage_unit_clock_runs["s"]
+    base_times = output.df.index.get_level_values("datetime").as_unit("s")
+    grids = output.df.index.get_level_values("grid")
+
+    for pos in (0, len(base_times) // 2, len(base_times) - 1):
+        times = base_times.to_numpy(copy=True)
+        times[pos] = np.datetime64("NaT")
+        clock = pd.DatetimeIndex(times)
+        frame = output.df.copy()
+        frame.index = pd.MultiIndex.from_arrays([grids, clock], names=frame.index.names)
+        expected = None if expected_unit is None else clock.as_unit(expected_unit)
+        with pytest.raises(AssertionError, match="NaT"):
+            water_balance_residual_mm(
+                frame, initial_state, expected_timestamps=expected
+            )
+        if expected_unit is not None:
+            with pytest.raises(AssertionError, match="expected forcing timestamps"):
+                water_balance_residual_mm(
+                    output.df, initial_state, expected_timestamps=expected
+                )
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("fine_unit", ["ms", "us", "ns"])
+def test_native_clock_shift_nat_and_subsecond_negative_controls(
+    storage_unit_clock_runs, fine_unit
+):
+    """Shifted, sub-second, NaT, and non-datetime clocks still fail across units."""
+    forcing_s, output_s, state_init = storage_unit_clock_runs["s"]
+    grid_s = output_s.df.loc[1]
+    tick = pd.Timedelta(1, fine_unit)
+    shifted_sub = (forcing_s.index.as_unit(fine_unit) + tick).as_unit(fine_unit)
+    shifted_300 = (
+        forcing_s.index.as_unit(fine_unit)
+        + pd.Timedelta(seconds=300).as_unit(fine_unit)
+    ).as_unit(fine_unit)
+
+    for bad_expected in (shifted_sub, shifted_300):
+        with pytest.raises(AssertionError, match="do not match forcing-derived"):
+            assert_active_output_finiteness(
+                grid_s,
+                expected_timestamps=bad_expected,
+                forcing=forcing_s,
+                tstep=300,
+            )
+        with pytest.raises(AssertionError, match="expected forcing timestamps"):
+            water_balance_residual_mm(
+                output_s.df, state_init, expected_timestamps=bad_expected
+            )
+
+    nat_vals = forcing_s.index.as_unit(fine_unit).to_numpy(copy=True)
+    nat_vals[0] = np.datetime64("NaT")
+    nat_clock = pd.DatetimeIndex(nat_vals)
+    nat_grid = grid_s.copy()
+    nat_grid.index = nat_clock
+
+    with pytest.raises(AssertionError, match="NaT"):
+        assert_active_output_finiteness(
+            grid_s, expected_timestamps=nat_clock, forcing=forcing_s, tstep=300
+        )
+    with pytest.raises(AssertionError, match="NaT"):
+        assert_active_output_finiteness(
+            nat_grid,
+            expected_timestamps=forcing_s.index,
+            forcing=forcing_s,
+            tstep=300,
+        )
+    with pytest.raises(AssertionError, match="NaT"):
+        assert_active_output_finiteness(
+            nat_grid, expected_timestamps=nat_clock, forcing=forcing_s, tstep=300
+        )
+
+    non_dt_grid = grid_s.copy()
+    non_dt_grid.index = pd.RangeIndex(len(grid_s))
+    with pytest.raises(AssertionError, match="DatetimeIndex"):
+        assert_active_output_finiteness(
+            non_dt_grid,
+            expected_timestamps=forcing_s.index,
+            forcing=forcing_s,
+            tstep=300,
+        )
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("defect", [None, 0.5, -999.0, "missing"])
+def test_option_sweep_rejects_cloud_damage(monkeypatch, frames, defect):
+    """Option-sweep cloud verification passes intact and rejects Fcld mutations."""
+    output, state, forcing = frames
+    damaged = _damage(output, ("SUEWS", "Fcld"), defect)
+    monkeypatch.setattr(sweep, "patch_physics", lambda *a: state)
+    monkeypatch.setattr(sweep, "run_simulation", lambda *a, **kw: (damaged, None))
+    run = partial(
+        sweep.test_option_value_runs_finite_and_conserves_water,
+        "control",
+        SimpleNamespace(name="control"),
+        None,
+        (state, forcing),
+    )
+    if defect is None:
+        run()
+    else:
+        with pytest.raises(AssertionError, match="Fcld"):
+            run()

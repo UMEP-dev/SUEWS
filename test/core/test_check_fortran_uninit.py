@@ -918,6 +918,20 @@ def _load_snan_summariser():
 def test_summarise_snan_report_flags_nan_failures_and_respects_strict(tmp_path, capsys):
     """JUnit summariser classifies NaN/non-finite failures and gates only in --strict."""
     summariser = _load_snan_summariser()
+    expected_path = tmp_path / "expected_failures.json"
+    expected_path.write_text(
+        json.dumps({
+            "description": "Synthetic allowlist fixture for advisory vs strict mode.",
+            "entries": [
+                {
+                    "node": "test.physics.test_option_sweep::test_option_value_runs_finite_and_conserves_water[roughness_length_momentum=ALTERNATIVE]",
+                    "issue": "#2105",
+                    "reason": "Synthetic allowlisted failure",
+                }
+            ],
+        }),
+        encoding="utf-8",
+    )
     xml_path = tmp_path / "junit.xml"
     xml_path.write_text(
         """\
@@ -939,6 +953,8 @@ def test_summarise_snan_report_flags_nan_failures_and_respects_strict(tmp_path, 
     rc_advisory = summariser.main([
         "summarise_snan_report",
         str(xml_path),
+        "--expected-failures",
+        str(expected_path),
         "--pytest-exit-code",
         "1",
         "--markdown",
@@ -957,6 +973,8 @@ def test_summarise_snan_report_flags_nan_failures_and_respects_strict(tmp_path, 
     rc_strict = summariser.main([
         "summarise_snan_report",
         str(xml_path),
+        "--expected-failures",
+        str(expected_path),
         "--pytest-exit-code",
         "1",
         "--strict",
@@ -1136,26 +1154,83 @@ def test_summarise_snan_report_fails_hard_on_mixed_pass_and_xdist_worker_error(
 def test_summarise_snan_report_allowlist_passes_known_and_fails_new_failure(
     tmp_path, capsys
 ):
-    """Only allowlisted #2105 failures stay advisory; any NEW failure exits 1."""
+    """Only allowlisted failures stay advisory; any NEW failure exits 1."""
     summariser = _load_snan_summariser()
-    expected_path = (
+    committed_expected_path = (
         REPO_ROOT / "scripts" / "lint" / "fortran_snan_expected_failures.json"
     )
-    expected = summariser.load_expected_failures(expected_path)
-    known_node = next(iter(expected))
-    assert "roughness_length_momentum=ALTERNATIVE" in known_node
+    # After gh#2105 is fixed, the committed sNaN allowlist has no remaining entries.
+    assert summariser.load_expected_failures(committed_expected_path) == {}
 
-    # Known #2105 + NEW unexpected failure -> advisory mode MUST exit 1
+    known_node = (
+        "test.physics.test_example::test_known_snan_case[example=ALLOWLISTED]"
+    )
+    synthetic_expected = tmp_path / "expected_failures.json"
+    synthetic_expected.write_text(
+        json.dumps({
+            "description": "Synthetic allowlist fixture for summarise_snan_report tests.",
+            "entries": [
+                {
+                    "node": known_node,
+                    "issue": "#9999",
+                    "reason": "Synthetic allowlisted failure",
+                }
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    # Allowlisted-only failure -> advisory mode exits 0, --strict exits 1
+    allowlisted_xml = tmp_path / "allowlisted_only.xml"
+    allowlisted_xml.write_text(
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="10" errors="0" failures="1" skipped="0" time="5.0">
+    <testcase classname="test.physics.test_example"
+              name="test_known_snan_case[example=ALLOWLISTED]"
+              time="1.2">
+      <failure message="RuntimeError: simulation failed (code 110): non-finite value">tb</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+    rc_advisory = summariser.main([
+        "summarise_snan_report",
+        str(allowlisted_xml),
+        "--expected-failures",
+        str(synthetic_expected),
+        "--pytest-exit-code",
+        "1",
+    ])
+    assert rc_advisory == 0
+    capsys.readouterr()
+
+    rc_strict = summariser.main([
+        "summarise_snan_report",
+        str(allowlisted_xml),
+        "--expected-failures",
+        str(synthetic_expected),
+        "--pytest-exit-code",
+        "1",
+        "--strict",
+    ])
+    assert rc_strict == 1
+    capsys.readouterr()
+
+    # Known allowlisted + NEW unexpected failure -> advisory mode MUST exit 1
     mixed_xml = tmp_path / "mixed_failures.xml"
     mixed_xml.write_text(
         """\
 <?xml version="1.0" encoding="utf-8"?>
 <testsuites>
   <testsuite name="pytest" tests="10" errors="0" failures="2" skipped="0" time="5.0">
-    <testcase classname="test.physics.test_option_sweep"
-              name="test_option_value_runs_finite_and_conserves_water[roughness_length_momentum=ALTERNATIVE]"
+    <testcase classname="test.physics.test_example"
+              name="test_known_snan_case[example=ALLOWLISTED]"
               time="1.2">
-      <failure message="RuntimeError: simulation failed (code 110): non-finite roughness length">tb</failure>
+      <failure message="RuntimeError: simulation failed (code 110): non-finite value">tb</failure>
     </testcase>
     <testcase classname="test.physics.test_new_regression"
               name="test_unexpected_nan"
@@ -1170,6 +1245,8 @@ def test_summarise_snan_report_allowlist_passes_known_and_fails_new_failure(
     rc_new = summariser.main([
         "summarise_snan_report",
         str(mixed_xml),
+        "--expected-failures",
+        str(synthetic_expected),
         "--pytest-exit-code",
         "1",
         "--github-annotations",
@@ -1194,6 +1271,8 @@ def test_summarise_snan_report_allowlist_passes_known_and_fails_new_failure(
     rc_pass = summariser.main([
         "summarise_snan_report",
         str(all_pass_xml),
+        "--expected-failures",
+        str(synthetic_expected),
         "--pytest-exit-code",
         "0",
     ])

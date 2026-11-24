@@ -53,11 +53,12 @@ jobs:
     # leaf under the same caller group in the checks list.
     name: api | ${{ matrix.cell.python_version }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}${{ matrix.cell.shard && format(' shard {0}', matrix.cell.shard) || '' }}
     runs-on: ${{ matrix.buildplat[0] }}
-    # Guardrail: a healthy api-test cell finishes well within this (the `all`
-    # tier is ~15-30 min). The cap exists so a hung test fails fast instead of
-    # running to GitHub's 6h default and serialising the scarce macOS runner
-    # pool into a ~12h zombie run (gh#1522 legacy-table round-trip hang).
-    timeout-minutes: 45
+    # Guardrail: a healthy api-test cell finishes well within this (unsharded
+    # nightly `all`-tier Windows cells run up to ~44 min on slow runners,
+    # gh#2307). The cap exists so a hung test fails fast instead of running to
+    # GitHub's 6h default and serialising the scarce macOS runner pool into a
+    # ~12h zombie run (gh#1522 legacy-table round-trip hang).
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

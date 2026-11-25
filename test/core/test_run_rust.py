@@ -1,8 +1,17 @@
 from importlib import import_module
+from importlib.resources import files
+from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
+
+from supy import SUEWSSimulation
+from supy.data_model import SUEWSConfig
+from supy.data_model.core.model import SMDMethod
+from supy.data_model.core.type import RefValue
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-OUTPUT")]
 
@@ -169,3 +178,98 @@ def test_prepare_forcing_block_prefers_per_surface_wuh():
     assert block.shape == (len(df_forcing), _run_rust.MET_FORCING_COLS)
     for offset, name in enumerate(per_surface):
         np.testing.assert_allclose(block[:, 23 + offset], df_forcing[name])
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected"),
+    [
+        (RefValue(SMDMethod.MODELLED), 0),
+        (RefValue(SMDMethod.OBSERVED), 1),
+        (SMDMethod.MODELLED, 0),
+        (SMDMethod.OBSERVED, 1),
+        (RefValue(0), 0),
+        (RefValue(1), 1),
+        (0, 0),
+        (1, 1),
+    ],
+)
+def test_soil_moisture_method_unwraps_refvalue_enum_and_int(raw_value, expected):
+    """Unwrap RefValue, bare SMDMethod enum, and plain int soil_moisture values (#2192)."""
+    fake_cfg = SimpleNamespace(
+        model=SimpleNamespace(physics=SimpleNamespace(soil_moisture=raw_value))
+    )
+    assert _run_rust._soil_moisture_method(fake_cfg) == expected
+
+
+@pytest.mark.parametrize("bad_value", [None, RefValue(None), True, False, "observed"])
+def test_soil_moisture_method_rejects_non_integer_values(bad_value):
+    """Reject missing, boolean, or non-integer soil_moisture values loudly (#2192)."""
+    fake_cfg = SimpleNamespace(
+        model=SimpleNamespace(physics=SimpleNamespace(soil_moisture=bad_value))
+    )
+    with pytest.raises(ValueError, match="soil_moisture"):
+        _run_rust._soil_moisture_method(fake_cfg)
+
+
+def _sample_config_omitting_soil_moisture(tmp_path: Path) -> SUEWSConfig:
+    """Load sample YAML with ``model.physics.soil_moisture`` omitted so Pydantic supplies the bare enum default."""
+    raw = yaml.safe_load(
+        files("supy")
+        .joinpath("sample_data", "sample_config.yml")
+        .read_text(encoding="utf-8")
+    )
+    raw["model"]["physics"].pop("soil_moisture", None)
+    raw["model"]["physics"].pop("smdmethod", None)
+    cfg_path = tmp_path / "omitted_soil_moisture.yml"
+    cfg_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    cfg = SUEWSConfig.from_yaml(str(cfg_path))
+    assert type(cfg.model.physics.soil_moisture) is SMDMethod
+    return cfg
+
+
+def test_run_rust_entrypoints_accept_omitted_yaml_soil_moisture(
+    tmp_path: Path, sample_forcing_parsed
+):
+    """All Rust execution entry points handle bare enum soil_moisture defaults (#2192)."""
+    cfg = _sample_config_omitting_soil_moisture(tmp_path)
+    _, df_forcing = sample_forcing_parsed(4)
+
+    # 1. Public SUEWSSimulation path (exercises run_suews_rust_chunked -> run_suews_rust_multi)
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_forcing)
+    out_sim = sim.run(
+        start_date=df_forcing.index[0], end_date=df_forcing.index[-1], n_jobs=1
+    ).df
+    assert len(out_sim) == len(df_forcing)
+
+    # 2. Direct single-grid, multi-grid, state-injected, and chunked _run_rust entry points
+    out_single, state_single, _ = _run_rust.run_suews_rust(
+        cfg, df_forcing.iloc[:2], grid_id=1
+    )
+    assert len(out_single) == 2
+    assert isinstance(state_single, str) and state_single
+
+    out_with_state, state_next, _ = _run_rust.run_suews_rust_with_state(
+        cfg, df_forcing.iloc[2:4], grid_id=1, state_json=state_single
+    )
+    assert len(out_with_state) == 2
+    assert isinstance(state_next, str) and state_next
+
+    out_multi, states_multi, _ = _run_rust.run_suews_rust_multi(
+        cfg, df_forcing.iloc[:2], serial_mode=True
+    )
+    assert len(out_multi) == 2
+    assert states_multi is not None and 1 in states_multi
+
+    out_multi_state, _, _ = _run_rust.run_suews_rust_multi_with_state(
+        cfg, df_forcing.iloc[2:4], states_multi, serial_mode=True
+    )
+    assert len(out_multi_state) == 2
+
+    # 3. Multi-chunk path (chunk_day=1 across a 2-day slice triggers run_suews_rust_chunked loop)
+    _, df_two_days = sample_forcing_parsed(289)
+    out_chunked, _, _ = _run_rust.run_suews_rust_chunked(
+        cfg, df_two_days, chunk_day=1, serial_mode=True
+    )
+    assert len(out_chunked) == len(df_two_days)

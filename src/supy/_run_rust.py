@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
+from enum import Enum
 from functools import cache
 from importlib import import_module
 import json
@@ -18,6 +19,7 @@ from ._env import logger_supy, warn_platform_support
 from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
 from ._post import df_var, gen_index
 from ._run_period import canonicalise_resolved_bound
+from .data_model.core.type import RefValue
 from .suews_checkpoint import _format_duplicate_grid_key_error
 
 if TYPE_CHECKING:
@@ -297,6 +299,20 @@ def _normalise_grid_id(grid_id: Any) -> int:
     if hasattr(grid_id, "value"):
         return int(grid_id.value)
     return int(grid_id)
+
+
+def _soil_moisture_method(config: SUEWSConfig) -> int:
+    """Return the integer soil-moisture method code from a FlexibleRefValue field."""
+    raw: Any = config.model.physics.soil_moisture
+    if isinstance(raw, RefValue):
+        raw = raw.value
+    if isinstance(raw, Enum):
+        raw = raw.value
+    if isinstance(raw, bool) or not isinstance(raw, (int, np.integer)):
+        raise ValueError(
+            f"model.physics.soil_moisture must resolve to an integer code, got {raw!r}"
+        )
+    return int(raw)
 
 
 def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
@@ -1004,7 +1020,9 @@ def run_suews_rust(
 
     _, list_config_jsons = _grid_config_jsons(config)
     config_yaml = list_config_jsons[0]
-    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
+    forcing_block = _prepare_forcing_block(
+        df_forcing, soil_moisture_method=_soil_moisture_method(config)
+    )
 
     df_output, state_json, raw_warnings = _run_grid_into(
         rust_module, config_yaml, forcing_block, len(df_forcing), grid_id
@@ -1080,7 +1098,9 @@ def run_suews_rust_multi(
     _check_max_workers(max_workers)
 
     # --- Prepare shared data once ---
-    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
+    forcing_block = _prepare_forcing_block(
+        df_forcing, soil_moisture_method=_soil_moisture_method(config)
+    )
     len_forcing = len(df_forcing)
     list_grid_ids, list_config_jsons = _grid_config_jsons(config)
 
@@ -1266,7 +1286,9 @@ def run_suews_rust_multi_with_state(
         raise ValueError("forcing data is empty")
     _check_max_workers(max_workers)
 
-    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
+    forcing_block = _prepare_forcing_block(
+        df_forcing, soil_moisture_method=_soil_moisture_method(config)
+    )
     len_forcing = len(df_forcing)
     list_grid_ids, list_config_jsons = _grid_config_jsons(config)
     list_state_jsons = [dict_state_json_by_grid[grid_id] for grid_id in list_grid_ids]
@@ -1311,7 +1333,9 @@ def run_suews_rust_with_state(
 
     _, list_config_jsons = _grid_config_jsons(config)
     config_yaml = list_config_jsons[0]
-    forcing_block = _prepare_forcing_block(df_forcing, soil_moisture_method=int(config.model.physics.soil_moisture.value.value))
+    forcing_block = _prepare_forcing_block(
+        df_forcing, soil_moisture_method=_soil_moisture_method(config)
+    )
 
     df_output, new_state_json, raw_warnings = _run_grid_into(
         rust_module, config_yaml, forcing_block, len(df_forcing), grid_id, state_json
@@ -1493,7 +1517,9 @@ def run_suews_rust_chunked(
         dict_state_json_chunk, warnings_chunk = _write_grids_output(
             rust_module,
             list_config_jsons,
-            _prepare_forcing_block(df_forcing_chunk, soil_moisture_method=int(config.model.physics.soil_moisture.value.value)),
+            _prepare_forcing_block(
+                df_forcing_chunk, soil_moisture_method=_soil_moisture_method(config)
+            ),
             len_chunk,
             list_grid_ids,
             list_state_jsons,

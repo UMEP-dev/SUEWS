@@ -76,13 +76,12 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("ohm_threshold_wet_dry", "ohm_threshwd"),
     // LAIParams (8)
     ("base_temperature", "baset"),
-    ("gdd_full", "gddfull"),
     ("base_temperature_senescence", "basete"),
-    ("sdd_full", "sddfull"),
     ("lai_min", "laimin"),
     ("lai_max", "laimax"),
     ("lai_power", "laipower"),
-    ("lai_type", "laitype"),
+    ("gdd_base", "gddbase"),
+    ("sdd_base", "sddbase"),
     // VegetatedSurfaceProperties (4)
     ("max_conductance", "maxconductance"),
     ("beta_bio_co2", "beta_bioco2"),

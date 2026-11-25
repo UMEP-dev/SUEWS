@@ -16,7 +16,7 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_LC_DECTR_PRM_LEN = 63_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_LC_DECTR_PRM_LEN = 60_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_LC_DECTR_PRM_SCHEMA_VERSION = 1_c_int
 
 type :: ohm_coef_lc_shadow
@@ -54,13 +54,10 @@ end type bioco2_prm_shadow
 
 type :: lai_prm_shadow
    real(c_double) :: base_temperature = 0.0_c_double
-   real(c_double) :: gdd_full = 0.0_c_double
    real(c_double) :: base_temperature_senescence = 0.0_c_double
-   real(c_double) :: sdd_full = 0.0_c_double
    real(c_double) :: lai_min = 0.0_c_double
    real(c_double) :: lai_max = 0.0_c_double
    real(c_double), dimension(4) :: lai_power = 0.0_c_double
-   integer(c_int) :: lai_type = 0_c_int
    real(c_double) :: gdd_base = 0.0_c_double
    real(c_double) :: sdd_base = 0.0_c_double
 end type lai_prm_shadow
@@ -201,15 +198,12 @@ subroutine lc_dectr_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%max_conductance; idx = idx + 1
 
    flat(idx) = state%lai%base_temperature; idx = idx + 1
-   flat(idx) = state%lai%gdd_full; idx = idx + 1
    flat(idx) = state%lai%base_temperature_senescence; idx = idx + 1
-   flat(idx) = state%lai%sdd_full; idx = idx + 1
    flat(idx) = state%lai%lai_min; idx = idx + 1
    flat(idx) = state%lai%lai_max; idx = idx + 1
    do i = 1, 4
       flat(idx) = state%lai%lai_power(i); idx = idx + 1
    end do
-   flat(idx) = real(state%lai%lai_type, c_double); idx = idx + 1
    flat(idx) = state%lai%gdd_base; idx = idx + 1
    flat(idx) = state%lai%sdd_base; idx = idx + 1
 !FA
@@ -287,16 +281,13 @@ subroutine lc_dectr_prm_unpack(flat, n_flat, state, err)
    state%max_conductance = flat(idx); idx = idx + 1_c_int
 
    state%lai%base_temperature = flat(idx); idx = idx + 1_c_int
-   state%lai%gdd_full = flat(idx); idx = idx + 1_c_int
    state%lai%base_temperature_senescence = flat(idx); idx = idx + 1_c_int
-   state%lai%sdd_full = flat(idx); idx = idx + 1_c_int
    state%lai%lai_min = flat(idx); idx = idx + 1_c_int
    state%lai%lai_max = flat(idx); idx = idx + 1_c_int
    do i = 1_c_int, 4_c_int
       state%lai%lai_power(i) = flat(idx)
       idx = idx + 1_c_int
    end do
-   state%lai%lai_type = int(nint(flat(idx))); idx = idx + 1_c_int
    state%lai%gdd_base = flat(idx); idx = idx + 1_c_int
    state%lai%sdd_base = flat(idx); idx = idx + 1_c_int
    

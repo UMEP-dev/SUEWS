@@ -2,7 +2,7 @@ use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 
-pub const LAI_PRM_FLAT_LEN: usize = 13;
+pub const LAI_PRM_FLAT_LEN: usize = 10;
 pub const LAI_PRM_SCHEMA_VERSION: u32 = 1;
 
 pub type LaiPrmSchema = crate::codec::SimpleSchema;
@@ -12,13 +12,10 @@ pub type LaiPrmValuesPayload = ValuesPayload;
 #[derive(Debug, Clone, PartialEq)]
 pub struct LaiPrm {
     pub base_temperature: f64,
-    pub gdd_full: f64,
     pub base_temperature_senescence: f64,
-    pub sdd_full: f64,
     pub lai_min: f64,
     pub lai_max: f64,
     pub lai_power: [f64; 4],
-    pub lai_type: i32,
     pub gdd_base: f64,
     pub sdd_base: f64,
 }
@@ -27,13 +24,10 @@ impl Default for LaiPrm {
     fn default() -> Self {
         Self {
             base_temperature: 0.0,
-            gdd_full: 0.0,
             base_temperature_senescence: 0.0,
-            sdd_full: 0.0,
             lai_min: 0.0,
             lai_max: 0.0,
             lai_power: [0.0; 4],
-            lai_type: 0,
             gdd_base: 0.0,
             sdd_base: 0.0,
         }
@@ -62,31 +56,25 @@ impl LaiPrm {
         validate_flat_len(flat, LAI_PRM_FLAT_LEN)?;
         Ok(Self {
             base_temperature: flat[0],
-            gdd_full: flat[1],
-            base_temperature_senescence: flat[2],
-            sdd_full: flat[3],
-            lai_min: flat[4],
-            lai_max: flat[5],
-            lai_power: [flat[6], flat[7], flat[8], flat[9]],
-            lai_type: decode_int(flat[10])?,
-            gdd_base: flat[11],
-            sdd_base: flat[12],
+            base_temperature_senescence: flat[1],
+            lai_min: flat[2],
+            lai_max: flat[3],
+            lai_power: [flat[4], flat[5], flat[6], flat[7]],
+            gdd_base: flat[8],
+            sdd_base: flat[9],
         })
     }
 
     pub fn to_flat(&self) -> Vec<f64> {
         vec![
             self.base_temperature,
-            self.gdd_full,
             self.base_temperature_senescence,
-            self.sdd_full,
             self.lai_min,
             self.lai_max,
             self.lai_power[0],
             self.lai_power[1],
             self.lai_power[2],
             self.lai_power[3],
-            self.lai_type as f64,
             self.gdd_base,
             self.sdd_base,
         ]
@@ -115,16 +103,13 @@ impl StateCodec for LaiPrm {
 pub fn lai_prm_field_names() -> Vec<String> {
     vec![
         "baset".to_string(),
-        "gddfull".to_string(),
         "basete".to_string(),
-        "sddfull".to_string(),
         "laimin".to_string(),
         "laimax".to_string(),
         "laipower_1".to_string(),
         "laipower_2".to_string(),
         "laipower_3".to_string(),
         "laipower_4".to_string(),
-        "laitype".to_string(),
 //fa where do these names come from?? - seem to be an older format name?
         "gdd_base".to_string(),
         "sdd_base".to_string(),

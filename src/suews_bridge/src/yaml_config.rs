@@ -1667,7 +1667,7 @@ fn apply_waterdist_overrides(
 ///   `lai_max` are required for all three vegetated surfaces. Active vegetated
 ///   surfaces (`sfr > 0.0`) additionally require `lai_max > 0.0` (#2149, #2083)
 ///   while explicit `lai_max == 0.0` on `sfr == 0.0` remains permitted.
-/// - `lai_power` (all four entries) and integer `lai_type` are only read inside
+/// - `lai_power` (all four entries) are only read inside
 ///   `calculate_lai` when `laimethod != 0`, across all three vegetated surfaces
 ///   regardless of `sfr`; they may be omitted/null only when `laimethod == 0`,
 ///   while explicit non-null malformed values still fail cleanly (#2002).
@@ -1730,9 +1730,6 @@ fn apply_lai_overrides(
         phenology_required,
     )? {
         lai.lai_power[3] = v;
-    }
-    if let Some(v) = require_if_active_i32(lc_root, &["lai", "laitype"], at, phenology_required)? {
-        lai.lai_type = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "gdd_base"]) {
         lai.gdd_base = v;
@@ -11062,7 +11059,6 @@ mod tests {
                 vec!["lai_power", "senescence_sdd"],
                 "lai.lai_power.senescence_sdd",
             ),
-            (vec!["lai_type"], "lai.lai_type"),
         ] {
             let mut root: Value =
                 serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");

@@ -35,7 +35,7 @@ use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
 
 //fa update lengths to accomodate new values
-pub const LC_EVETR_PRM_FLAT_LEN: usize = 59;
+pub const LC_EVETR_PRM_FLAT_LEN: usize = 56;
 pub const LC_EVETR_PRM_SCHEMA_VERSION: u32 = 1;
 
 pub type LcEvetrPrmSchema = crate::codec::SimpleSchema;
@@ -101,8 +101,8 @@ impl LcEvetrPrm {
             wet_threshold: flat[28],
             bioco2: BioCo2Prm::from_flat(&flat[29..37])?,
             max_conductance: flat[37],
-            lai: LaiPrm::from_flat(&flat[38..51])?,
-            waterdist: WaterDistPrm::from_flat(&flat[51..59])?,
+            lai: LaiPrm::from_flat(&flat[38..48])?,
+            waterdist: WaterDistPrm::from_flat(&flat[48..56])?,
         })
     }
 

@@ -4950,6 +4950,7 @@ def _phase_b_science_fixture():
     ("emissions_method", "expects_error"),
     [
         (5, False),
+        (7, False),
         (11, True),
     ],
 )

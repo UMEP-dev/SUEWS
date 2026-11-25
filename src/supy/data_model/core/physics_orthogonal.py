@@ -367,6 +367,14 @@ def _normalise_net_radiation_shape(value: Mapping[str, Any]) -> Mapping[str, Any
 
 
 def _emissions_code(heat: str, anthropogenic: str, biogenic: str) -> int:
+    if heat == "stebbs":
+        if anthropogenic == "none" and biogenic == "none":
+            return 7
+        raise ValueError(
+            "STEBBS building heat (emissions.heat=stebbs) does not support CO2 "
+            "coupling; set both emissions.co2 axes to 'none'."
+        )
+
     if heat == "observed":
         if anthropogenic == "none" and biogenic == "none":
             return 0
@@ -379,7 +387,7 @@ def _emissions_code(heat: str, anthropogenic: str, biogenic: str) -> int:
     if heat_code is None:
         raise ValueError(
             "'emissions.heat' must be one of 'observed', 'l11', 'j11', "
-            "or 'l11_updated'."
+            "'l11_updated', or 'stebbs'."
         )
 
     if anthropogenic == "none" and biogenic == "none":

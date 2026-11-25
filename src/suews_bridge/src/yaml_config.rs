@@ -3122,9 +3122,10 @@ fn apply_conductance_overrides(
 ///   every timestep by `update_DailyState_Day` (for `HDD_id(1)` / `HDD_id(2)`),
 ///   so both `working_day` and `holiday` are always required regardless of
 ///   `EmissionsMethod`.
-/// - When `EmissionsMethod == 0`, `AnthropogenicEmissions` is never called, so
+/// - When `EmissionsMethod` is 0 or 7, `AnthropogenicEmissions` is never called, so
 ///   all other `heat.*` and `co2.*` fields are inactive.
-/// - When `EmissionsMethod != 0` (`sub = EmissionsMethod % 10` in `1..=6`):
+///   Method 7 supplies anthropogenic heat flux calculated by STEBBS.
+/// - For legacy modelled emissions (`sub = EmissionsMethod % 10` in `1..=6`):
 ///   - `popdensdaytime`, `popdensnighttime`, and `qf0_beu` are required across
 ///     all modelled methods (`1..=6`, `11..=46`).
 ///   - Heat basis: `qf_a`/`qf_b`/`qf_c` are required for J11 (`sub` in
@@ -3135,15 +3136,15 @@ fn apply_conductance_overrides(
 ///     `MaxFCMetab`), building CO2 (`EF_umolCO2perJ`, `FrFossilFuel_Heat`,
 ///     `FrFossilFuel_NonHeat`), and vehicle CO2 (`EnEF_v_Jkm` — including
 ///     dividing `QF_traff / EnEF_v_Jkm` on `sub` in `1..=3` — and `FcEF_v_kgkm`)
-///     for every `EmissionsMethod != 0` before the driver zeroes `Fc_*` for
+///     for every legacy modelled method before the driver zeroes `Fc_*` for
 ///     `1..=6`, and `QF_metab` also feeds the `ErrorHint(69)` check on
 ///     `sub` in `1..=3`. All nine `co2.*` parameters are therefore required
-///     whenever `EmissionsMethod != 0`.
+///     whenever the legacy anthropogenic calculation is active.
 ///   - Hourly profiles: `AnthropogenicEmissions` unconditionally reads all four
 ///     24-hour profiles (`heat.ahprof_24hr`, `heat.popprof_24hr`,
 ///     `co2.profile_traffic_24hr`, `co2.profile_human_activity_24hr`) whenever
-///     `EmissionsMethod != 0`, so all four require complete finite `working_day`
-///     and `holiday` mappings when active.
+///     the legacy anthropogenic calculation is active. All four then require
+///     complete finite `working_day` and `holiday` mappings.
 ///   - Detailed methods (`sub` in `{4, 5, 6}`): additionally require
 ///     `co2.traffic_rate` and `co2.type_traffic_rate` (unused on `sub` in
 ///     `{1, 2, 3}`).
@@ -3160,7 +3161,7 @@ fn apply_anthro_emis_overrides(
     validate_optional_mapping(site_root, &[base[0], base[1], "heat"], &site_at)?;
     validate_optional_mapping(site_root, &[base[0], base[1], "co2"], &site_at)?;
 
-    let anthro_on = emissions_method != 0;
+    let anthro_on = emissions_method != 0 && emissions_method != 7;
     let sub = emissions_method % 10;
     let j11_method = anthro_on && matches!(sub, 2 | 5);
     let l11_or_updated = anthro_on && matches!(sub, 1 | 3 | 4 | 6);
@@ -3449,7 +3450,8 @@ fn apply_config_overrides(
     if !is_valid_emissions_method(emissions_method) {
         return Err(format!(
             "`model.physics.emissions` has unsupported value {emissions_method}; valid values are 0 \
-             (observed), 1..=6 (modelled heat), or 11..=16, 21..=26, 31..=36, 41..=46 \
+             (observed), 1..=6 (modelled heat), 7 (STEBBS anthropogenic heat), or \
+             11..=16, 21..=26, 31..=36, 41..=46 \
              (biogenic CO2)"
         ));
     }
@@ -3472,6 +3474,20 @@ fn apply_config_overrides(
     config.lai_method = require_i32(root, &["model", "physics", "laimethod"], "")?;
     config.rsl_level = require_i32(root, &["model", "physics", "rsllevel"], "")?;
     config.stebbs_method = require_i32(root, &["model", "physics", "stebbsmethod"], "")?;
+    if emissions_method == 7 {
+        if config.storage_heat_method != 7 {
+            return Err("`model.physics.emissions=7` requires storage_heat=7".to_string());
+        }
+        if !matches!(config.stebbs_method, 1 | 2) {
+            return Err("`model.physics.emissions=7` requires STEBBS enabled".to_string());
+        }
+        if !(1001..=1003).contains(&config.net_radiation_method) {
+            return Err(
+                "`model.physics.emissions=7` requires SPARTACUS (net_radiation=1001..1003)"
+                    .to_string(),
+            );
+        }
+    }
     if config.stebbs_method != 0 {
         config.rc_method = require_i32(root, &["model", "physics", "rcmethod"], "")
             .map_err(&map_stebbs_err)?;
@@ -4840,12 +4856,11 @@ fn apply_state_overrides(
 /// `src/suews/src/suews_phys_biogenco2.f95`:
 /// - `0`: observed `qf` from forcing
 /// - `1..=6`: modelled anthropogenic heat (CO2 fluxes zeroed by driver)
+/// - `7`: anthropogenic heat flux calculated by the building energy model STEBBS
 /// - `11..=16`, `21..=26`, `31..=36`, `41..=46`: biogenic CO2 families 1..=4
 ///   paired with anthropogenic heat/CO2 branches 1..=6.
 pub(crate) fn is_valid_emissions_method(emissions_method: i32) -> bool {
-    emissions_method == 0
-        || (1..=6).contains(&emissions_method)
-        || emissions_method_uses_co2_point_source(emissions_method)
+    (0..=7).contains(&emissions_method) || emissions_method_uses_co2_point_source(emissions_method)
 }
 
 /// Whether the CO2 point source reaches the model output under this
@@ -8705,7 +8720,7 @@ mod tests {
 
     #[test]
     fn emissions_method_allowlist_accepts_every_valid_code_and_rejects_holes() {
-        let mut expected_valid = vec![0, 1, 2, 3, 4, 5, 6];
+        let mut expected_valid = vec![0, 1, 2, 3, 4, 5, 6, 7];
         for family in [10, 20, 30, 40] {
             for sub in 1..=6 {
                 expected_valid.push(family + sub);
@@ -8732,8 +8747,8 @@ mod tests {
             assert_eq!(run_cfg.config.emissions_method, code);
         }
 
-        // Invalid holes (including 17, 7..10, 18..20, 27..30, 37..40, 47, -1) fail loudly.
-        for bad in [-1, 7, 8, 9, 10, 17, 18, 19, 20, 27, 30, 37, 40, 47, 51, 999] {
+        // Invalid holes (including 17, 8..10, 18..20, 27..30, 37..40, 47, -1) fail loudly.
+        for bad in [-1, 8, 9, 10, 17, 18, 19, 20, 27, 30, 37, 40, 47, 51, 999] {
             let mut root: Value =
                 serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture should parse");
             *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
@@ -8756,6 +8771,73 @@ mod tests {
                 load_run_config_from_value(&mut root).is_err(),
                 "malformed emissions={malformed} must be rejected"
             );
+        }
+    }
+
+    #[test]
+    fn stebbs_qf_requires_coupled_building_configuration() {
+        for (path, replacement, expected) in [
+            (
+                &["model", "physics", "storage_heat"][..],
+                "{value: 1}",
+                "storage_heat=7",
+            ),
+            (
+                &["model", "physics", "stebbs", "enabled"][..],
+                "{value: false}",
+                "STEBBS enabled",
+            ),
+            (
+                &["model", "physics", "net_radiation"][..],
+                "{value: 3}",
+                "SPARTACUS",
+            ),
+        ] {
+            let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str("{value: 7}").unwrap();
+            *get_path_mut(&mut root, path).unwrap() = serde_yaml::from_str(replacement).unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("STEBBS QF must reject an incompatible configuration");
+            assert!(
+                err.contains("model.physics.emissions") && err.contains(expected),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn stebbs_qf_omits_legacy_anthro_inputs_but_keeps_daily_base_temperatures() {
+        let mut root: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+        *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+            serde_yaml::from_str("{value: 7}").unwrap();
+        let ae = get_path_mut(
+            first_site_mut(&mut root).unwrap(),
+            &["properties", "anthropogenic_emissions"],
+        )
+        .unwrap();
+        let heat = ae["heat"].as_mapping_mut().unwrap();
+        heat.retain(|key, _| matches!(key.as_str(), Some("baset_heating" | "baset_cooling")));
+        remove_key(ae, "co2");
+        remove_key(ae, "startdls");
+        remove_key(ae, "enddls");
+        let cfg = load_run_config_from_value(&mut root.clone()).expect(
+            "building-only STEBBS QF must not require SAHP, traffic or SUEWS metabolism inputs",
+        );
+        assert_eq!(cfg.config.emissions_method, 7);
+        assert_eq!(cfg.config.to_flat()[1], 7.0);
+
+        for base_temperature in ["baset_heating", "baset_cooling"] {
+            let mut missing = root.clone();
+            let heat = get_path_mut(
+                first_site_mut(&mut missing).unwrap(),
+                &["properties", "anthropogenic_emissions", "heat"],
+            )
+            .unwrap();
+            remove_key(heat, base_temperature);
+            let err = load_run_config_from_value(&mut missing)
+                .expect_err("DailyState still needs heating/cooling base temperatures");
+            assert!(err.contains(base_temperature), "{err}");
         }
     }
 

@@ -326,7 +326,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                 # If emissionsmethod disables CO2, skip biogenic params for relevant surfaces
                 if (
                     emissionsmethod is not None
-                    and emissionsmethod in [0, 1, 2, 3, 4, 5, 6]
+                    and emissionsmethod in range(8)
                     and surface_type in biogenic_surfaces
                 ):
                     missing_params = [

@@ -1746,7 +1746,7 @@ mod tests {
         row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
         row[16] = 350.0;
 
-        for invalid_code in [7, 17, 20, 47] {
+        for invalid_code in [8, 17, 20, 47] {
             let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
             // Bypass YAML allowlist to exercise the Fortran kernel guard directly.
             input.config.emissions_method = invalid_code;

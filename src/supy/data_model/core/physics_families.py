@@ -55,6 +55,7 @@ PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
     "emissions": {
         "observed": frozenset({0}),
         "simple": frozenset({1, 2, 3, 4, 5, 6}),
+        "stebbs": frozenset({7}),
         "biogenic_rectangular": frozenset({11, 12, 13, 14, 15, 16}),
         "biogenic_bellucco_local": frozenset({21, 22, 23, 24, 25, 26}),
         "biogenic_bellucco_general": frozenset({31, 32, 33, 34, 35, 36}),
@@ -103,6 +104,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (4, "j19", ()),
         (5, "j19_updated", ()),
         (6, "l11_updated_detailed", ()),
+        (7, "stebbs", ()),
         (11, "biogen_rect_l11", ()),
         (12, "biogen_rect_j11", ()),
         (13, "biogen_rect_l11_updated", ()),

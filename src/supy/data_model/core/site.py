@@ -562,6 +562,33 @@ class LAIParams(DataModelBase):
             "display_name": "LAI Calculation Method",
         },
     )
+    gdd_base: FlexibleRefValue(float) = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Growing degree days (GDD) that must accumulate in the growth half "
+            "of the year before leaf growth starts. The default of 0 means no "
+            "threshold: growth may start on the first day with positive GDD."
+        ),
+        json_schema_extra={
+            "unit": "K d",
+            "display_name": "Growing Degree Days to Start Leaf Growth",
+        },
+    )
+    sdd_base: FlexibleRefValue(float) = Field(
+        default=0.0,
+        le=0.0,
+        description=(
+            "Senescence degree days (SDD, negative by convention) that must "
+            "accumulate in the senescence half of the year before leaf off "
+            "starts. The default of 0 means no threshold: leaf off may start on "
+            "the first day with negative SDD."
+        ),
+        json_schema_extra={
+            "unit": "K d",
+            "display_name": "Senescence Degree Days to Start Leaf Off",
+        },
+    )
 
     ref: Optional[Reference] = None
 
@@ -582,6 +609,8 @@ class LAIParams(DataModelBase):
             "laimin": self.lai_min,
             "laimax": self.lai_max,
             "laitype": self.lai_type,
+            "gdd_base": self.gdd_base,
+            "sdd_base": self.sdd_base,
         }
         cols = {("gridiv", "0"): grid_id}
         for param, value in lai_params.items():
@@ -653,6 +682,11 @@ class LAIParams(DataModelBase):
             "lai_max": get_df_value("laimax", (veg_idx,)),
             "lai_type": int(get_df_value("laitype", (veg_idx,))),
         }
+        # Degree-day onset thresholds: older df_state tables predate these
+        # columns, so fall back to the field defaults when they are absent.
+        for key in ("gdd_base", "sdd_base"):
+            if (key, str((veg_idx,))) in df.columns:
+                lai_params[key] = get_df_value(key, (veg_idx,))
 
         # Convert scalar parameters to RefValue
         lai_params = {key: RefValue(value) for key, value in lai_params.items()}

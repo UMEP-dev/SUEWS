@@ -25,6 +25,8 @@ module module_type_vegetation
       REAL(KIND(1D0)) :: lai_max = 0.0D0 ! Maximum LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(4) :: lai_power = 0.0D0 ! Coefficients for LAI equation: 1,2 - leaf growth; 3,4 - leaf off [-]
       INTEGER :: lai_type = 0 ! LAI equation to use: original (0) or new (1) [-]
+      REAL(KIND(1D0)) :: gdd_base = 0.0D0 ! Growing degree days that must accumulate before leaf growth starts; valid range >= 0 [degC d]
+      REAL(KIND(1D0)) :: sdd_base = 0.0D0 ! Senescence degree days that must accumulate before leaf off starts; valid range <= 0 [degC d]
    END TYPE LAI_PRM
 
    TYPE, PUBLIC :: PHENOLOGY_STATE

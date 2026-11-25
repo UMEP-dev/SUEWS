@@ -1,6 +1,6 @@
 //! `LC_EVETR_PRM`: evergreen-tree land-cover parameters, a *composite* type.
 //!
-//! The flat buffer (57 values) is the scalars of this type interleaved with
+//! The flat buffer (59 values) is the scalars of this type interleaved with
 //! whole nested types, in the order of the Fortran facade
 //! `c_api/lc_evetr_prm.f95` (`lc_evetr_prm_pack` / `lc_evetr_prm_unpack`):
 //!
@@ -12,8 +12,8 @@
 //! | 26..29 | `state_limit`, `irrfracevetr`, `wet_threshold` | 3 |
 //! | 29..37 | `bioco2` (`BioCo2Prm`) | 8 |
 //! | 37 | `max_conductance` | 1 |
-//! | 38..49 | `lai` (`LaiPrm`) | 11 |
-//! | 49..57 | `waterdist` (`WaterDistPrm`) | 8 |
+//! | 38..51 | `lai` (`LaiPrm`) | 13 |
+//! | 51..59 | `waterdist` (`WaterDistPrm`) | 8 |
 //!
 //! The slice bounds in `from_flat` are hard-coded. Adding a field to a nested
 //! type (say `OhmPrm`) changes its length, so in **every** parent that embeds
@@ -34,8 +34,8 @@ use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
 
-pub const LC_EVETR_PRM_FLAT_LEN: usize = 57;
-pub const LC_EVETR_PRM_SCHEMA_VERSION: u32 = 1;
+pub const LC_EVETR_PRM_FLAT_LEN: usize = 59;
+pub const LC_EVETR_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type LcEvetrPrmSchema = crate::codec::SimpleSchema;
 
@@ -100,8 +100,8 @@ impl LcEvetrPrm {
             wet_threshold: flat[28],
             bioco2: BioCo2Prm::from_flat(&flat[29..37])?,
             max_conductance: flat[37],
-            lai: LaiPrm::from_flat(&flat[38..49])?,
-            waterdist: WaterDistPrm::from_flat(&flat[49..57])?,
+            lai: LaiPrm::from_flat(&flat[38..51])?,
+            waterdist: WaterDistPrm::from_flat(&flat[51..59])?,
         })
     }
 

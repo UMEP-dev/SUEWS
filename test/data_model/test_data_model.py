@@ -1059,17 +1059,18 @@ def test_submodel_to_df_state_and_multisite_column_contracts():
         assert list(df_veg.columns.names) == [None, None]
 
     df_lc = site.properties.land_cover.to_df_state(1)
-    assert df_lc.shape == (1, 562)
+    # 562 + gdd_base and sdd_base for each of the three vegetated surfaces.
+    assert df_lc.shape == (1, 568)
     assert df_lc.index.name is None
     assert list(df_lc.columns.names) == [None, None]
 
     df_props = site.properties.to_df_state(1)
-    assert df_props.shape == (1, 2748)
+    assert df_props.shape == (1, 2754)
     assert df_props.index.name is None
     assert list(df_props.columns.names) == [None, None]
 
     df_site = site.to_df_state(1)
-    assert df_site.shape == (1, 2852)
+    assert df_site.shape == (1, 2858)
     assert df_site.index.name is None
     assert list(df_site.columns.names) == [None, None]
 

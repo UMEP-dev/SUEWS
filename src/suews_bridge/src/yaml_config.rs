@@ -1738,6 +1738,9 @@ fn apply_waterdist_overrides(
 ///   `calculate_lai` when `laimethod != 0`, across all three vegetated surfaces
 ///   regardless of `sfr`; they may be omitted/null only when `laimethod == 0`,
 ///   while explicit non-null malformed values still fail cleanly (#2002).
+/// - `gdd_base` and `sdd_base` (the degree-day thresholds for the onset of
+///   leaf growth and leaf off) follow the same `laimethod != 0` gate as
+///   `lai_power`.
 fn apply_lai_overrides(
     lai: &mut crate::lai::LaiPrm,
     lc_root: &Value,
@@ -1800,6 +1803,12 @@ fn apply_lai_overrides(
     }
     if let Some(v) = require_if_active_i32(lc_root, &["lai", "laitype"], at, phenology_required)? {
         lai.lai_type = v;
+    }
+    if let Some(v) = require_if_active_numeric(lc_root, &["lai", "gdd_base"], at, phenology_required)? {
+        lai.gdd_base = v;
+    }
+    if let Some(v) = require_if_active_numeric(lc_root, &["lai", "sdd_base"], at, phenology_required)? {
+        lai.sdd_base = v;
     }
     Ok(())
 }
@@ -11326,6 +11335,8 @@ mod tests {
                 "lai.lai_power.senescence_sdd",
             ),
             (vec!["lai_type"], "lai.lai_type"),
+            (vec!["gdd_base"], "lai.gdd_base"),
+            (vec!["sdd_base"], "lai.sdd_base"),
         ] {
             let mut root: Value =
                 serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
@@ -11387,9 +11398,11 @@ mod tests {
                     get_path_mut(site, &["properties", "land_cover", surface, "lai"]).unwrap();
                 remove_key(lc_lai, "lai_power");
                 remove_key(lc_lai, "lai_type");
+                remove_key(lc_lai, "gdd_base");
+                remove_key(lc_lai, "sdd_base");
             }
             load_run_config_from_value(&mut root.clone())
-                .expect("laimethod=0 allows omitted lai_power and lai_type");
+                .expect("laimethod=0 allows omitted lai_power, lai_type, gdd_base and sdd_base");
 
             for required_key in [
                 "base_temperature",

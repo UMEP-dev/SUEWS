@@ -231,6 +231,30 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev19_irrigation_weekdays:
+
+Upgrading to Schema 2026.6.dev19
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev19`` aligns ``WeeklyProfile`` irrigation fields
+(``sites[].properties.irrigation.daywat`` and ``daywatper``) with the
+Sunday-first calendar convention used by legacy ``SUEWS_Irrigation.txt``
+tables, ``df_state`` arrays (``0=sunday`` .. ``6=saturday``), and the Fortran
+kernel (#2049). Earlier versions mapped ``monday`` to slot ``0`` and ``sunday``
+to slot ``6``, shifting asymmetric weekday irrigation schedules by one day on
+``df_state`` round-trips and legacy table conversions.
+
+Existing YAML files remain structurally valid. Upgrading to ``2026.6.dev19``
+does not rotate or alter weekday keys automatically, because a YAML edited by
+hand may already carry the intended weekday names. Instead, migration logs an
+advisory whenever a site defines an asymmetric ``daywat`` or ``daywatper``
+schedule so users who converted from legacy ``SUEWS_Irrigation.txt`` tables
+under an earlier schema can verify that each weekday holds the intended value:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev19
+
 .. _schema_dev18_ehc_implicit:
 
 Upgrading to Schema 2026.6.dev18

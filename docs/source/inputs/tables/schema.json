@@ -13910,7 +13910,7 @@
       "type": "integer"
     },
     "WeeklyProfile": {
-      "description": "Seven daily values keyed by lowercase weekday names, Monday to Sunday.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for storage order and field uses.",
+      "description": "Seven daily values keyed by lowercase weekday names, Monday to Sunday.\n\nLegacy ``df_state`` arrays and ``SUEWS_Irrigation.txt`` columns\n(``DayWat(1)``..``DayWat(7)``) store the seven days Sunday first\n(``0=sunday`` .. ``6=saturday``). See :doc:`/inputs/yaml/temporal-profiles`\nfor storage order and field uses.",
       "properties": {
         "monday": {
           "anyOf": [
@@ -14013,7 +14013,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev18. Default storage_heat=5 (EHC) to implicit surface coupling (#2108). Adds optional model.physics controls ehc_surface_coupling (default implicit), control_ehc_stability (default off), control_ehc_initial_profile (default true), resistance_ehc_indoor_roof (default 0.10 m2 K W-1), and resistance_ehc_indoor_wall (default 0.13 m2 K W-1). Existing EHC YAMLs that omit ehc_surface_coupling now use implicit coupling; set ehc_surface_coupling: explicit to retain legacy explicit coupling.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev19. Align irrigation WeeklyProfile (daywat, daywatper) weekday slots with the Sunday-first calendar convention used by legacy SUEWS_Irrigation.txt tables, df_state arrays (0=sunday .. 6=saturday), and the Fortran kernel (#2049, #2324). Existing YAML files remain structurally valid and migration leaves weekday keys unchanged, logging an advisory when a site defines an asymmetric irrigation weekday schedule so users who converted from legacy tables under an earlier schema can verify their weekday assignments.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -14066,20 +14066,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev18",
+  "title": "SUEWS Configuration Schema v2026.6.dev19",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev18.json",
-  "version": "2026.6.dev18",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev19.json",
+  "version": "2026.6.dev19",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev18"
+    "schema_version": "2026.6.dev19"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev18",
+      "schema_version": "2026.6.dev19",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

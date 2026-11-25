@@ -11,6 +11,7 @@ Covers:
     via the shared `-i/-o/-f` flag set.
 """
 
+from copy import deepcopy
 import json
 from pathlib import Path
 
@@ -19,9 +20,10 @@ import pytest
 import yaml
 
 from supy.cmd.table_converter import convert_table_cmd
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
+from supy.data_model.configuration.migration import SchemaMigrator
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.field_renames import CO2PARAMS_RENAMES
-from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
     upgrade_soil_observation,
@@ -1228,3 +1230,123 @@ def test_pre_dev9_routes_refuse_active_method_two_transactionally(destination):
         with pytest.raises(YamlUpgradeError, match=SOIL_MIGRATION_MESSAGE):
             SchemaMigrator().migrate(cfg, to_version=destination)
         assert cfg == before
+
+
+def test_dev18_to_dev19_advisory_for_asymmetric_irrigation_preserves_keys(capsys):
+    """2026.6.dev18 -> 2026.6.dev19 logs an advisory for asymmetric schedules without rotating keys."""
+    migrator = SchemaMigrator()
+    asymmetric_daywat = {
+        "monday": 0.0,
+        "tuesday": 0.0,
+        "wednesday": 1.0,
+        "thursday": 0.0,
+        "friday": 0.0,
+        "saturday": 0.0,
+        "sunday": 0.0,
+    }
+    cfg = {
+        "schema_version": "2026.6.dev18",
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": deepcopy(asymmetric_daywat),
+                        "daywatper": {"sunday": 1.0},
+                    }
+                }
+            }
+        ],
+    }
+
+    migrated = migrator.migrate(cfg, to_version="2026.6.dev19")
+    err = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev19"
+    assert (
+        migrated["sites"][0]["properties"]["irrigation"]["daywat"] == asymmetric_daywat
+    )
+    assert migrated["sites"][0]["properties"]["irrigation"]["daywatper"] == {
+        "sunday": 1.0
+    }
+    assert (
+        "sites[0].properties.irrigation.daywat has an asymmetric weekday schedule"
+        in err
+    )
+    assert (
+        "sites[0].properties.irrigation.daywatper has an asymmetric weekday schedule"
+        in err
+    )
+
+    # Re-migrating an already-dev19 config is idempotent and does not repeat the advisory.
+    remigrated = migrator.migrate(migrated, to_version="2026.6.dev19")
+    err_repeat = capsys.readouterr().err
+    assert remigrated == migrated
+    assert "asymmetric weekday schedule" not in err_repeat
+
+
+def test_dev18_to_dev19_uniform_irrigation_is_silent(capsys):
+    """Uniform or omitted irrigation weekday schedules emit no dev19 advisory."""
+    migrator = SchemaMigrator()
+    uniform = dict.fromkeys(
+        ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"),
+        0.5,
+    )
+    cfg = {
+        "schema_version": "2026.6.dev18",
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": uniform,
+                        "daywatper": {"monday": 0, "tuesday": 0.0},
+                    }
+                }
+            },
+            {"properties": {}},
+        ],
+    }
+
+    migrated = migrator.migrate(cfg, to_version="2026.6.dev19")
+    err = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev19"
+    assert migrated["sites"][0]["properties"]["irrigation"]["daywat"] == uniform
+    assert "asymmetric weekday schedule" not in err
+
+
+@pytest.mark.parametrize("source_version", ["2026.5", "2026.6.dev17"])
+def test_chained_pre_dev18_to_dev19_preserves_dev18_boundary_and_logs_advisory(
+    source_version, capsys
+):
+    """Chained pre-dev18 -> dev19 runs dev19 advisory, while targeting dev18 does not."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": source_version,
+        "model": {"physics": {"storage_heat": 5}},
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": {"monday": 1.0, "sunday": 0.0},
+                    }
+                }
+            }
+        ],
+    }
+
+    to_dev18 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev18")
+    err_18 = capsys.readouterr().err
+    assert to_dev18["schema_version"] == "2026.6.dev18"
+    assert "ehc_surface_coupling omitted with storage_heat=5" in err_18
+    assert "asymmetric weekday schedule" not in err_18
+
+    to_dev19 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev19")
+    err_19 = capsys.readouterr().err
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert to_dev19["sites"][0]["properties"]["irrigation"]["daywat"] == {
+        "monday": 1.0,
+        "sunday": 0.0,
+    }
+    assert "ehc_surface_coupling omitted with storage_heat=5" in err_19
+    assert (
+        "sites[0].properties.irrigation.daywat has an asymmetric weekday schedule"
+        in err_19
+    )

@@ -1018,11 +1018,11 @@ def run_suews_rust(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    _, list_config_jsons = _grid_config_jsons(config)
-    config_yaml = list_config_jsons[0]
     forcing_block = _prepare_forcing_block(
         df_forcing, soil_moisture_method=_soil_moisture_method(config)
     )
+    _, list_config_jsons = _grid_config_jsons(config)
+    config_yaml = list_config_jsons[0]
 
     df_output, state_json, raw_warnings = _run_grid_into(
         rust_module, config_yaml, forcing_block, len(df_forcing), grid_id
@@ -1331,11 +1331,11 @@ def run_suews_rust_with_state(
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    _, list_config_jsons = _grid_config_jsons(config)
-    config_yaml = list_config_jsons[0]
     forcing_block = _prepare_forcing_block(
         df_forcing, soil_moisture_method=_soil_moisture_method(config)
     )
+    _, list_config_jsons = _grid_config_jsons(config)
+    config_yaml = list_config_jsons[0]
 
     df_output, new_state_json, raw_warnings = _run_grid_into(
         rust_module, config_yaml, forcing_block, len(df_forcing), grid_id, state_json

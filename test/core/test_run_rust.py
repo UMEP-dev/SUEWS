@@ -1,7 +1,6 @@
 from importlib import import_module
 from importlib.resources import files
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -10,7 +9,7 @@ import yaml
 
 from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
-from supy.data_model.core.model import SMDMethod
+from supy.data_model.core.model import ModelPhysics, SMDMethod
 from supy.data_model.core.type import RefValue
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-OUTPUT")]
@@ -181,34 +180,95 @@ def test_prepare_forcing_block_prefers_per_surface_wuh():
 
 
 @pytest.mark.parametrize(
-    ("raw_value", "expected"),
+    "raw_value",
     [
-        (RefValue(SMDMethod.MODELLED), 0),
-        (RefValue(SMDMethod.OBSERVED), 1),
-        (SMDMethod.MODELLED, 0),
-        (SMDMethod.OBSERVED, 1),
-        (RefValue(0), 0),
-        (RefValue(1), 1),
-        (0, 0),
-        (1, 1),
+        RefValue(SMDMethod.MODELLED),
+        SMDMethod.MODELLED,
+        RefValue(0),
+        0,
     ],
 )
-def test_soil_moisture_method_unwraps_refvalue_enum_and_int(raw_value, expected):
-    """Unwrap RefValue, bare SMDMethod enum, and plain int soil_moisture values (#2192)."""
-    fake_cfg = SimpleNamespace(
-        model=SimpleNamespace(physics=SimpleNamespace(soil_moisture=raw_value))
-    )
-    assert _run_rust._soil_moisture_method(fake_cfg) == expected
+def test_run_suews_rust_accepts_modelled_soil_moisture_representations(
+    raw_value, sample_config_loaded, sample_forcing_parsed
+):
+    """Real configs with wrapped, bare enum, or plain int soil_moisture=0 run cleanly (#2192)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    cfg.model.physics.soil_moisture = raw_value
+    _, df_forcing = sample_forcing_parsed(2)
+
+    df_out, state_json, _ = _run_rust.run_suews_rust(cfg, df_forcing, grid_id=1)
+
+    assert len(df_out) == 2
+    assert isinstance(state_json, str) and state_json
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [
+        RefValue(SMDMethod.OBSERVED),
+        SMDMethod.OBSERVED,
+        RefValue(1),
+        1,
+    ],
+)
+def test_run_suews_rust_routes_observed_soil_moisture_representations_to_method_1(
+    raw_value, sample_config_loaded, sample_forcing_parsed
+):
+    """Real observed-soil configs with wrapped, bare enum, or plain int soil_moisture=1 run method=1 (#2192)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    props = cfg.sites[0].properties
+    props.soil_observation = {
+        "layer_top": 0.0,
+        "layer_depth": 0.2,
+        "soil_not_rocks": 0.9,
+    }
+    for surf_name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        surf = getattr(props.land_cover, surf_name)
+        surf.soil_depth = RefValue(200.0)
+        surf.soil_store_capacity = RefValue(80.0)
+        surf.soil_field_capacity = RefValue(0.6)
+    cfg.model.physics.soil_moisture = raw_value
+    _, df_forcing = sample_forcing_parsed(2)
+    df_forcing = df_forcing.assign(sm=80.0)
+
+    # Direct _run_rust call without prepared deficits proves soil_moisture_method=1
+    # reached _prepare_forcing_block rather than falling back to modelled (0).
+    with pytest.raises(
+        ValueError, match="Observed soil moisture requires prepared deficits"
+    ):
+        _run_rust.run_suews_rust(cfg, df_forcing, grid_id=1)
+
+    # Full SUEWSSimulation path converts canonical sm=80.0 against 120 kg m-2 field
+    # capacity to 40.0 mm deficit and completes cleanly.
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_forcing)
+    out = sim.run(
+        start_date=df_forcing.index[0], end_date=df_forcing.index[-1], n_jobs=1
+    ).df
+    assert len(out) == 2
+    np.testing.assert_allclose(out.loc[1, ("SUEWS", "SMD")].to_numpy(), 40.0)
 
 
 @pytest.mark.parametrize("bad_value", [None, RefValue(None), True, False, "observed"])
-def test_soil_moisture_method_rejects_non_integer_values(bad_value):
-    """Reject missing, boolean, or non-integer soil_moisture values loudly (#2192)."""
-    fake_cfg = SimpleNamespace(
-        model=SimpleNamespace(physics=SimpleNamespace(soil_moisture=bad_value))
-    )
+def test_run_suews_rust_rejects_non_integer_soil_moisture_values(
+    bad_value, sample_config_loaded, sample_forcing_parsed
+):
+    """Reject corrupted missing, boolean, or non-integer soil_moisture values on real configs (#2192)."""
+    base = sample_config_loaded.model_copy(deep=True)
+    corrupted_physics = ModelPhysics.model_construct(**{
+        **dict(base.model.physics),
+        "soil_moisture": bad_value,
+    })
+    corrupted_model = base.model.model_construct(**{
+        **dict(base.model),
+        "physics": corrupted_physics,
+    })
+    cfg = SUEWSConfig.model_construct(**{**dict(base), "model": corrupted_model})
+    _, df_forcing = sample_forcing_parsed(2)
+
     with pytest.raises(ValueError, match="soil_moisture"):
-        _run_rust._soil_moisture_method(fake_cfg)
+        _run_rust.run_suews_rust(cfg, df_forcing, grid_id=1)
 
 
 def _sample_config_omitting_soil_moisture(tmp_path: Path) -> SUEWSConfig:
